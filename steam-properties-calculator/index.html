@@ -849,8 +849,10 @@ const CONV = {
   u:   v => v * 0.429922,
 };
 const UNITS = {
-  SI:  { T:'°C', P:'bar', h:'kJ/kg', s:'kJ/(kg·K)', v:'m³/kg', rho:'kg/m³', u:'kJ/kg', dT:'°C' },
-  IMP: { T:'°F', P:'psia', h:'BTU/lb', s:'BTU/(lb·°R)', v:'ft³/lb', rho:'lb/ft³', u:'BTU/lb', dT:'°F' },
+  SI:  { T:'°C', P:'bar', h:'kJ/kg', s:'kJ/(kg·K)', v:'m³/kg', rho:'kg/m³', u:'kJ/kg', dT:'°C',
+         mu:'μPa·s', lam:'mW/(m·K)', Cp:'kJ/(kg·K)', Cv:'kJ/(kg·K)', w:'m/s', Pr:'—', sigma:'mN/m' },
+  IMP: { T:'°F', P:'psia', h:'BTU/lb', s:'BTU/(lb·°R)', v:'ft³/lb', rho:'lb/ft³', u:'BTU/lb', dT:'°F',
+         mu:'μPa·s', lam:'BTU/(hr·ft·°F)', Cp:'BTU/(lb·°F)', Cv:'BTU/(lb·°F)', w:'ft/s', Pr:'—', sigma:'lbf/ft' },
 };
 
 function cv(val, prop) {
@@ -975,9 +977,20 @@ function renderFields(type) {
 function _tSatHint(P) {
   if (!isFinite(P)||P<=0||P>220.64) return NaN;
   const Tc=647.096,Pc=220.64;
-  let T=100*Math.pow(P/1.01325,0.27)+273.15;
+  // For P > 80 bar the empirical guess overshoots Tc — seed from a table instead
+  const _tbl=[[1,99.6],[5,151.8],[10,179.9],[20,212.4],[40,250.4],[60,275.6],[80,295.1],
+              [100,311.1],[120,324.8],[140,336.8],[160,347.4],[180,357.1],[200,365.8],[220,373.7],[220.64,374.14]];
+  let T;
+  if (P > 80) {
+    let lo=0;
+    for(let i=0;i<_tbl.length-1;i++){if(_tbl[i][0]<=P&&P<=_tbl[i+1][0]){lo=i;break;}}
+    const f=(P-_tbl[lo][0])/(_tbl[lo+1][0]-_tbl[lo][0]);
+    T=(_tbl[lo][1]+f*(_tbl[lo+1][1]-_tbl[lo][1]))+273.15;
+  } else {
+    T=100*Math.pow(P/1.01325,0.27)+273.15;
+  }
+  const fn=t=>{const tau=1-t/Tc;return Pc*Math.exp((Tc/t)*(-7.85951783*tau+1.84408259*Math.pow(tau,1.5)-11.7866497*Math.pow(tau,3)+22.6807411*Math.pow(tau,3.5)-15.9618719*Math.pow(tau,4)+1.80122502*Math.pow(tau,7.5)));};
   for(let i=0;i<30;i++){
-    const fn=t=>{const tau=1-t/Tc;return Pc*Math.exp((Tc/t)*(-7.85951783*tau+1.84408259*Math.pow(tau,1.5)-11.7866497*Math.pow(tau,3)+22.6807411*Math.pow(tau,3.5)-15.9618719*Math.pow(tau,4)+1.80122502*Math.pow(tau,7.5)));};
     const Pc2=fn(T),dP=(fn(T+0.01)-Pc2)/0.01;
     if(!isFinite(dP)||dP===0)break;
     const dT=(Pc2-P)/dP;T-=dT;
@@ -1202,6 +1215,91 @@ function showResults(r) {
       </div>`;
   }
 
+  // Transport properties section
+  const hasTransport = isFinite(r.mu) || isFinite(r.mu_f);
+  const isWetSteam   = r.phaseCls === 'wet';
+  let transportHTML  = '';
+
+  if (hasTransport) {
+    const fT = (v, dp) => isFinite(v) ? parseFloat(v.toFixed(dp)).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp}) : '—';
+    // mu stays μPa·s regardless of unit system (tiny values, same scale)
+    // lam, Cp, Cv, w, sigma already converted server-side for IMP
+
+    if (!isWetSteam) {
+      transportHTML = `
+        <div class="sec"><span class="sec-ico">🔬</span>Transport Properties</div>
+        <div class="mg3 fade-up">
+          <div class="mc c-tl">
+            <div class="mc-lbl">Dyn. Viscosity (μ)</div>
+            <div class="mc-val">${fT(r.mu,2)}<span class="mc-u">${u.mu}</span></div>
+          </div>
+          <div class="mc c-bl">
+            <div class="mc-lbl">Thermal Cond. (λ)</div>
+            <div class="mc-val">${fT(r.lam,3)}<span class="mc-u">${u.lam}</span></div>
+          </div>
+          <div class="mc c-stm">
+            <div class="mc-lbl">Specific Heat Cp</div>
+            <div class="mc-val">${fT(r.Cp,4)}<span class="mc-u">${u.Cp}</span></div>
+          </div>
+          <div class="mc c-pu">
+            <div class="mc-lbl">Specific Heat Cv</div>
+            <div class="mc-val">${fT(r.Cv,4)}<span class="mc-u">${u.Cv}</span></div>
+          </div>
+          <div class="mc c-am">
+            <div class="mc-lbl">Speed of Sound (w)</div>
+            <div class="mc-val">${fT(r.w,1)}<span class="mc-u">${u.w}</span></div>
+          </div>
+          <div class="mc c-rd">
+            <div class="mc-lbl">Prandtl Number (Pr)</div>
+            <div class="mc-val">${fT(r.Pr,3)}<span class="mc-u">${u.Pr}</span></div>
+          </div>
+          ${isFinite(r.sigma) ? `
+          <div class="mc c-grn" style="--c-grn-bg:#e8f5e9;--c-grn-brd:#a5d6a7;">
+            <div class="mc-lbl">Surface Tension (σ)</div>
+            <div class="mc-val">${fT(r.sigma, SYS==='SI'?3:8)}<span class="mc-u">${u.sigma}</span></div>
+          </div>` : ''}
+        </div>`;
+    } else {
+      // Wet steam — show liquid and vapor transport side by side
+      transportHTML = `
+        <div class="sec"><span class="sec-ico">🔬</span>Transport Properties (at T_sat)</div>
+        <div class="mg2 fade-up" style="font-size:.78rem;color:var(--subtle);margin-bottom:4px;padding:0 2px;">
+          Liquid phase (subscript f) &nbsp;·&nbsp; Vapor phase (subscript g)
+        </div>
+        <div class="mg3 fade-up">
+          <div class="mc c-stm">
+            <div class="mc-lbl">μ_f (liquid)</div>
+            <div class="mc-val">${fT(r.mu_f,2)}<span class="mc-u">${u.mu}</span></div>
+          </div>
+          <div class="mc c-tl">
+            <div class="mc-lbl">μ_g (vapor)</div>
+            <div class="mc-val">${fT(r.mu_g,2)}<span class="mc-u">${u.mu}</span></div>
+          </div>
+          <div class="mc c-bl">
+            <div class="mc-lbl">λ_f (liquid)</div>
+            <div class="mc-val">${fT(r.lam_f,3)}<span class="mc-u">${u.lam}</span></div>
+          </div>
+          <div class="mc c-pu">
+            <div class="mc-lbl">λ_g (vapor)</div>
+            <div class="mc-val">${fT(r.lam_g,3)}<span class="mc-u">${u.lam}</span></div>
+          </div>
+          <div class="mc c-stm">
+            <div class="mc-lbl">Cp_f (liquid)</div>
+            <div class="mc-val">${fT(r.Cp_f,4)}<span class="mc-u">${u.Cp}</span></div>
+          </div>
+          <div class="mc c-am">
+            <div class="mc-lbl">Cp_g (vapor)</div>
+            <div class="mc-val">${fT(r.Cp_g,4)}<span class="mc-u">${u.Cp}</span></div>
+          </div>
+          ${isFinite(r.sigma) ? `
+          <div class="mc c-rd">
+            <div class="mc-lbl">Surface Tension (σ)</div>
+            <div class="mc-val">${fT(r.sigma, SYS==='SI'?3:8)}<span class="mc-u">${u.sigma}</span></div>
+          </div>` : ''}
+        </div>`;
+    }
+  }
+
   // Notes / warnings
   let notes = `<div class="sec"><span class="sec-ico">📋</span>Notes</div>`;
   if (r._note)
@@ -1212,7 +1310,7 @@ function showResults(r) {
     notes += `<div class="warn wa fade-up">⚠️ <strong>Near critical pressure:</strong> Properties change very rapidly approaching T_c = 374.14°C, P_c = 220.9 bar. Interpolation accuracy is reduced in this region.</div>`;
   notes += `<div class="warn wi fade-up">ℹ &nbsp;<strong>IAPWS-IF97 · Server-Side Engine:</strong> All calculations run securely on the server. Wagner saturation + NIST cubic-spline interpolation — ±0.1–0.3% accuracy.</div>`;
 
-  document.getElementById('results').innerHTML = banHTML + stateHTML + thermHTML + satHTML + notes;
+  document.getElementById('results').innerHTML = banHTML + stateHTML + thermHTML + satHTML + transportHTML + notes;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
