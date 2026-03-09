@@ -1,3 +1,6 @@
+// ─── VERCEL DEPLOYMENT: place this file at /api/heatxpert.js in your repo root ───
+// Route auto-created at /api/heatxpert by Vercel
+
 export default function handler(req, res) {
   // CORS
   const origin = req.headers.origin || '';
