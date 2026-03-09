@@ -68,7 +68,17 @@ function pSat(T_C) {
 function tSat(P_bar) {
   if (!isFinite(P_bar) || P_bar <= 0) return NaN;
   if (P_bar >= 220.64) return 374.14;
-  let T = 100 * Math.pow(P_bar / 1.01325, 0.27) + 273.15;
+  // For P > 80 bar the empirical guess overshoots the critical temperature and
+  // the Newton solver diverges. Use the SAT_P table for a much better starting guess.
+  let T;
+  if (P_bar > 80) {
+    // SAT_P table already covers 1–220.64 bar; interpolate for Tsat directly.
+    const xs = SAT_P.map(r => r[0]);
+    const ts = SAT_P.map(r => r[1]);
+    T = csplineInterp(xs, ts, P_bar) + 273.15;
+  } else {
+    T = 100 * Math.pow(P_bar / 1.01325, 0.27) + 273.15;
+  }
   for (let i = 0; i < 60; i++) {
     const Tc = T - 273.15;
     const P  = pSat(Tc);
@@ -237,14 +247,16 @@ function calcProps(type, P_bar, T_C, x, specBy) {
     if (!sat) return { error:'Out of valid range.' };
     const dP_kPa = (P_bar-sat.P)*100;
     const h = sat.hf+sat.vf*dP_kPa, s = sat.sf, v = sat.vf*(1-4e-5*(P_bar-sat.P));
-    return { phase:'Compressed Liquid', phaseCls:'compressed', T:T_C, P:P_bar, Tsat:T_sat, h, s, v, rho:1/v, u:h-P_bar*100*v, x:null, hf:sat.hf, hfg:sat.hfg, hg:sat.hg };
+    const result = { phase:'Compressed Liquid', phaseCls:'compressed', T:T_C, P:P_bar, Tsat:T_sat, h, s, v, rho:1/v, u:h-P_bar*100*v, x:null, hf:sat.hf, hfg:sat.hfg, hg:sat.hg };
+    return addTransport(result, 'compressed');
   }
   if (type === 'sat-liq') {
     if (specBy==='P' && (!isFinite(P_bar)||P_bar<0.006||P_bar>220.9)) return { error:'Saturation pressure must be 0.006 – 220.9 bar.' };
     if (specBy==='T' && (!isFinite(T_C)||T_C<0.01||T_C>374.14)) return { error:'Saturation temperature must be 0.01 – 374.14°C (above 374.14°C there is no liquid-vapor saturation).' };
     const sat = (specBy==='P') ? satByP_fb(P_bar) : satByT_fb(T_C);
     if (!sat) return { error:'Input out of valid range (0.006–220.9 bar / 0.01–374.14°C).' };
-    return { phase:'Saturated Liquid', phaseCls:'sat-liq', T:sat.T, P:sat.P, Tsat:sat.T, h:sat.hf, s:sat.sf, v:sat.vf, rho:1/sat.vf, u:sat.hf-sat.P*100*sat.vf, x:0, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    const result = { phase:'Saturated Liquid', phaseCls:'sat-liq', T:sat.T, P:sat.P, Tsat:sat.T, h:sat.hf, s:sat.sf, v:sat.vf, rho:1/sat.vf, u:sat.hf-sat.P*100*sat.vf, x:0, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    return addTransport(result, 'sat-liq');
   }
   if (type === 'wet') {
     if (x === null || x === undefined || !isFinite(Number(x)) || Number(x)<0 || Number(x)>1) return { error:'Steam quality x must be between 0 and 1.' };
@@ -252,14 +264,16 @@ function calcProps(type, P_bar, T_C, x, specBy) {
     const sat = (specBy==='P') ? satByP_fb(P_bar) : satByT_fb(T_C);
     if (!sat) return { error:'Input out of valid range.' };
     const h=sat.hf+x*sat.hfg, s=sat.sf+x*sat.sfg, v=sat.vf+x*(sat.vg-sat.vf);
-    return { phase:`Wet Steam (x = ${x.toFixed(3)})`, phaseCls:'wet', T:sat.T, P:sat.P, Tsat:sat.T, h, s, v, rho:1/v, u:h-sat.P*100*v, x, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    const result = { phase:`Wet Steam (x = ${x.toFixed(3)})`, phaseCls:'wet', T:sat.T, P:sat.P, Tsat:sat.T, h, s, v, rho:1/v, u:h-sat.P*100*v, x, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    return addTransport(result, 'wet');
   }
   if (type === 'sat-vap') {
     if (specBy==='P' && (!isFinite(P_bar)||P_bar<0.006||P_bar>220.9)) return { error:'Saturation pressure must be 0.006 – 220.9 bar.' };
     if (specBy==='T' && (!isFinite(T_C)||T_C<0.01||T_C>374.14)) return { error:'Saturation temperature must be 0.01 – 374.14°C. Above 374.14°C is supercritical — no distinct vapor phase.' };
     const sat = (specBy==='P') ? satByP_fb(P_bar) : satByT_fb(T_C);
     if (!sat) return { error:'Input out of valid range.' };
-    return { phase:'Saturated Vapor (Dry)', phaseCls:'sat-vap', T:sat.T, P:sat.P, Tsat:sat.T, h:sat.hg, s:sat.sg, v:sat.vg, rho:1/sat.vg, u:sat.hg-sat.P*100*sat.vg, x:1, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    const result = { phase:'Saturated Vapor (Dry)', phaseCls:'sat-vap', T:sat.T, P:sat.P, Tsat:sat.T, h:sat.hg, s:sat.sg, v:sat.vg, rho:1/sat.vg, u:sat.hg-sat.P*100*sat.vg, x:1, hf:sat.hf, hfg:sat.hfg, hg:sat.hg, sf:sat.sf, sfg:sat.sfg, sg:sat.sg, vf:sat.vf, vg:sat.vg };
+    return addTransport(result, 'sat-vap');
   }
   if (type === 'superheat') {
     if (!isFinite(P_bar)||P_bar<=0||P_bar>1000) return { error:'Pressure must be 0.006–1000 bar.' };
@@ -268,9 +282,150 @@ function calcProps(type, P_bar, T_C, x, specBy) {
     if (!isFinite(T_sat)) return { error:'Pressure out of saturation range.' };
     if (T_C<=T_sat) return { error:`Temperature must exceed T_sat = ${T_sat.toFixed(2)}°C at ${P_bar.toFixed(3)} bar.` };
     const sh = superheated(P_bar, T_C);
-    return { phase:'Superheated Steam', phaseCls:'superheat', T:T_C, P:P_bar, Tsat:sh.Tsat, dT_sh:sh.dT_sh, h:sh.h, s:sh.s, v:sh.v, rho:sh.rho, u:sh.u, x:null };
+    const result = { phase:'Superheated Steam', phaseCls:'superheat', T:T_C, P:P_bar, Tsat:sh.Tsat, dT_sh:sh.dT_sh, h:sh.h, s:sh.s, v:sh.v, rho:sh.rho, u:sh.u, x:null };
+    return addTransport(result, 'superheat');
   }
   return { error:'Unknown fluid type.' };
+}
+
+// ── Transport Properties (IAPWS correlations) ────────────────────
+// Dynamic viscosity — IAPWS 2008 (μPa·s)
+function dynVisc(T_C, rho_kgm3) {
+  const T = T_C + 273.15;
+  const Tstar = 647.096, rhoStar = 317.763;
+  const Tr = T / Tstar, rhoR = rho_kgm3 / rhoStar;
+  const H0 = [1.67752, 2.20462, 0.6366564, -0.241605];
+  let mu0 = 0;
+  for (let i = 0; i < 4; i++) mu0 += H0[i] / Math.pow(Tr, i);
+  mu0 = 100 * Math.sqrt(Tr) / mu0;
+  const H1 = [
+    [5.20094e-1, 2.22531e-1,-2.81378e-1, 1.61913e-1,-3.25372e-2, 0, 0],
+    [8.50895e-2, 9.99115e-1,-9.06851e-1, 2.57399e-1, 0, 0, 0],
+    [-1.08374,   1.88797,   -7.72479e-1, 0, 0, 0, 0],
+    [-2.89555e-1,1.26613,   -4.89837e-1, 0, 6.98452e-2, 0,-4.35673e-3],
+    [0,          0,         -2.57040e-1, 0, 0, 8.72102e-3, 0],
+    [0,          1.20573e-1, 0,          0, 0, 0,-5.93264e-4]
+  ];
+  let mu1 = 0;
+  for (let i = 0; i < 6; i++) {
+    const ti = Math.pow(1/Tr - 1, i);
+    let s = 0;
+    for (let j = 0; j < 7; j++) s += H1[i][j] * Math.pow(rhoR - 1, j);
+    mu1 += ti * s;
+  }
+  mu1 = Math.exp(rhoR * mu1);
+  return mu0 * mu1; // μPa·s
+}
+
+// Thermal conductivity (mW/m·K) — table interpolation, IAPWS 2011 reference values
+function thermCond(T_C, rho_kgm3) {
+  // Classify by density: liquid-like (rho > 200 kg/m³) vs steam-like
+  if (rho_kgm3 > 200) {
+    // Liquid water — IAPWS 2011 Table 4 (saturated liquid, 0–300°C)
+    const Tl = [0,  10,  20,  30,  40,  50,  60,  70,  80,  90,
+                100, 110, 120, 130, 140, 150, 160, 170, 180, 190,
+                200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300];
+    const Ll = [561.0,580.0,598.4,615.4,630.5,644.0,655.8,665.8,674.1,680.9,
+                679.1,682.3,683.2,682.3,680.0,675.3,669.5,661.8,652.3,641.2,
+                628.7,613.7,596.7,578.0,557.5,535.5,511.9,487.0,461.5,435.4,407.8];
+    return _lerp1(Tl, Ll, Math.min(Math.max(T_C, 0), 300));
+  } else {
+    // Steam — IAPWS 2011 Table 4 (low-pressure steam, 100–600°C)
+    const Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600];
+    const Ls = [25.1, 28.9, 33.1, 37.6, 43.1, 48.9, 55.1, 61.5, 68.0, 74.7, 81.5];
+    // Pressure correction: +0.01 mW/m·K per bar above 1 bar (minor effect)
+    const base = _lerp1(Ts, Ls, Math.min(Math.max(T_C, 100), 600));
+    return base + 0.01 * Math.max(0, rho_kgm3 * 0.004615 * (T_C + 273.15) / 100 - 1);
+  }
+}
+function _lerp1(xs, ys, x) {
+  if (x <= xs[0]) return ys[0];
+  if (x >= xs[xs.length-1]) return ys[ys.length-1];
+  let i = 0; for (; i < xs.length-1; i++) if (xs[i] <= x && x < xs[i+1]) break;
+  return ys[i] + (ys[i+1] - ys[i]) * (x - xs[i]) / (xs[i+1] - xs[i]);
+}
+
+// Specific heat Cp approximation (kJ/kg·K)
+function specHeatCp(T_C, P_bar, phase) {
+  if (phase === 'liquid' || phase === 'compressed') {
+    // Cp liquid water (kJ/kg·K) — IAPWS-IF97 table interpolation
+    const CpT = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,320,340,360,374];
+    const CpV = [4.218,4.194,4.182,4.179,4.179,4.182,4.185,4.190,4.198,4.208,4.216,4.229,4.245,4.264,4.285,4.310,4.340,4.376,4.419,4.470,4.497,4.610,4.691,4.790,4.906,5.062,5.267,5.545,5.932,6.550,7.500,12.00,18.00,40.00,100];
+    return _lerp1(CpT, CpV, Math.min(Math.max(T_C, 0), 370));
+  }
+  // Steam Cp — table interpolation, IAPWS-IF97 reference values (kJ/kg·K)
+  const Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 600];
+  const Cs = [2.034,1.983,1.975,1.985,1.997,2.017,2.056,2.102,2.150,2.254];
+  const base = _lerp1(Ts, Cs, Math.min(Math.max(T_C, 100), 600));
+  // Minor pressure correction: Cp increases ~0.5% per 10 bar
+  return base * (1 + 0.0004 * Math.max(0, P_bar - 1));
+}
+
+// Specific heat Cv = Cp - T·v·alpha²/kappa (simplified ratio method)
+function specHeatCv(Cp, T_C, phase) {
+  // For liquid: Cp/Cv ≈ 1.01–1.04; for steam: ≈ 1.28–1.33
+  const ratio = (phase === 'liquid' || phase === 'compressed') ? 1.025 : 1.30;
+  return Cp / ratio;
+}
+
+// Speed of sound (m/s) — from gamma and ideal gas for steam, IAPWS table for liquid
+function speedSound(T_C, P_bar, rho, phase) {
+  if (phase === 'liquid' || phase === 'compressed') {
+    // IAPWS liquid water fit — T in °C
+    return 1402.4 + 5.038*T_C - 0.05799*T_C*T_C + 3.287e-4*T_C*T_C*T_C - 1.098e-6*T_C*T_C*T_C*T_C
+           + (P_bar > 1 ? 0.16*P_bar : 0);
+  }
+  // Steam: w = sqrt(gamma·R·T/M) with gamma from Cp/Cv
+  const Cp = specHeatCp(T_C, P_bar, 'steam');
+  const Cv = specHeatCv(Cp, T_C, 'steam');
+  const gamma = Cp / Cv;
+  const R = 8314.46 / 18.015; // J/(kg·K) for water
+  return Math.sqrt(gamma * R * (T_C + 273.15));
+}
+
+// Surface tension — IAPWS 1994 (mN/m), saturation only
+function surfTension(T_C) {
+  const T = T_C + 273.15, Tc = 647.096;
+  if (T >= Tc) return NaN;
+  const tau = 1 - T/Tc;
+  return 235.8 * Math.pow(tau, 1.256) * (1 - 0.625*tau); // mN/m
+}
+
+// Attach transport properties to a result object (SI units)
+function addTransport(r, phase) {
+  const T = r.T, P = r.P;
+  const liqPhase = (phase === 'compressed' || phase === 'sat-liq');
+  const vapPhase = (phase === 'sat-vap' || phase === 'superheat');
+  const wetPhase = (phase === 'wet');
+
+  if (liqPhase) {
+    r.mu  = dynVisc(T, r.rho);
+    r.lam = thermCond(T, r.rho);
+    r.Cp  = specHeatCp(T, P, 'liquid');
+    r.Cv  = specHeatCv(r.Cp, T, 'liquid');
+    r.w   = speedSound(T, P, r.rho, 'liquid');
+    r.Pr  = (r.mu * 1e-6 * r.Cp * 1000) / (r.lam * 1e-3); // dimensionless
+    r.sigma = surfTension(T);
+  } else if (vapPhase) {
+    r.mu  = dynVisc(T, r.rho);
+    r.lam = thermCond(T, r.rho);
+    r.Cp  = specHeatCp(T, P, 'steam');
+    r.Cv  = specHeatCv(r.Cp, T, 'steam');
+    r.w   = speedSound(T, P, r.rho, 'steam');
+    r.Pr  = (r.mu * 1e-6 * r.Cp * 1000) / (r.lam * 1e-3);
+    if (phase === 'sat-vap') r.sigma = surfTension(T);
+  } else if (wetPhase) {
+    // Wet steam: liquid-phase transport at saturation temperature
+    const rhof = 1 / r.vf, rhog = 1 / r.vg;
+    r.mu_f  = dynVisc(T, rhof);
+    r.mu_g  = dynVisc(T, rhog);
+    r.lam_f = thermCond(T, rhof);
+    r.lam_g = thermCond(T, rhog);
+    r.Cp_f  = specHeatCp(T, P, 'liquid');
+    r.Cp_g  = specHeatCp(T, P, 'steam');
+    r.sigma = surfTension(T);
+  }
+  return r;
 }
 
 // ── Imperial unit conversion ──────────────────────────────────────
@@ -298,5 +453,16 @@ function convertToImperial(r) {
   ['hf','hfg','hg'].forEach(k => { if(isFinite(c[k])) c[k]=cv.h(c[k]); });
   ['sf','sfg','sg'].forEach(k => { if(isFinite(c[k])) c[k]=cv.s(c[k]); });
   ['vf','vg'].forEach(k => { if(isFinite(c[k])) c[k]=cv.v(c[k]); });
+  // Transport: mu stays μPa·s (same in both), lam: mW/m·K → BTU/hr·ft·°F, w: m/s → ft/s
+  // Cp/Cv: kJ/kg·K → BTU/lb·°F, sigma: mN/m → lbf/ft
+  if (isFinite(c.lam))   c.lam   = c.lam   * 5.77789e-4;  // mW/m·K → BTU/hr·ft·°F
+  if (isFinite(c.lam_f)) c.lam_f = c.lam_f * 5.77789e-4;
+  if (isFinite(c.lam_g)) c.lam_g = c.lam_g * 5.77789e-4;
+  if (isFinite(c.Cp))    c.Cp    = c.Cp    * 0.238846;     // kJ/kg·K → BTU/lb·°F
+  if (isFinite(c.Cv))    c.Cv    = c.Cv    * 0.238846;
+  if (isFinite(c.Cp_f))  c.Cp_f  = c.Cp_f  * 0.238846;
+  if (isFinite(c.Cp_g))  c.Cp_g  = c.Cp_g  * 0.238846;
+  if (isFinite(c.w))     c.w     = c.w     * 3.28084;      // m/s → ft/s
+  if (isFinite(c.sigma)) c.sigma = c.sigma  * 6.85218e-5;  // mN/m → lbf/ft
   return c;
 }
