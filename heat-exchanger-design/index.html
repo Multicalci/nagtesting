@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3509,7 +3510,16 @@ ${lm?`
    This file handles: UI, form reads, API calls, result rendering
    ══════════════════════════════════════════════════════════════════════════ */
 
-const API_URL = '/api/heatxpert';
+// Fix: Use absolute API URL so it works from any host (GitHub Pages, CDN, etc.)
+// Replace 'your-project.vercel.app' with your actual Vercel deployment URL
+const API_URL = (()=>{
+  // If the page is served from the same Vercel deployment, use relative path
+  if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('multicalci.com')) {
+    return '/api/heatxpert';
+  }
+  // Otherwise (local dev, GitHub Pages, etc.) use the full Vercel URL
+  return 'https://your-project.vercel.app/api/heatxpert'; // ← REPLACE with your actual URL
+})();
 // GAS_RHO_THRESHOLD defined above
 let unitSys = 'metric';
 let coldMode = 'flow';
@@ -3552,13 +3562,18 @@ function showErr(pfx, msg) {
   const _spin=document.getElementById(pfx+'_spin'); if(_spin) _spin.classList.remove('show');
   const _ph=document.getElementById(pfx+'_ph'); if(_ph) _ph.style.display='';
   const el = document.getElementById(pfx+'_err');
-  if (el) { el.textContent = msg; el.style.display='block'; }
-  else alert(msg);
+  if (el) {
+    // Error boxes use <span id="pfx_err_txt"> for the message text
+    const txtEl = document.getElementById(pfx+'_err_txt');
+    if (txtEl) txtEl.textContent = msg;
+    else el.textContent = msg;
+    el.classList.add('show');
+  } else alert(msg);
   _apiPending = false;
 }
 function hideErr(pfx) {
   const el = document.getElementById(pfx+'_err');
-  if (el) el.style.display='none';
+  if (el) el.classList.remove('show');
 }
 function startCalc(pfx) {
   _apiPending = true;
@@ -3633,7 +3648,95 @@ function buildFluidOptions() {
     }
     html+='</optgroup>';
   }
-  document.querySelectorAll('.fluid-sel').forEach(s=>{ s.innerHTML=html; });
+  // Fix: HTML uses data-fluid attribute, not .fluid-sel class
+  document.querySelectorAll('[data-fluid]').forEach(s=>{ s.innerHTML=html; });
+}
+
+// Fix Bug 2: fluidChange was called but never defined
+function fluidChange(id) {
+  // Placeholder — fluid properties are resolved server-side.
+  // Optionally update gas pressure tag hints here.
+  const sel = g(id);
+  if (!sel) return;
+  const gasKeys = ['air','nitrogen','oxygen','hydrogen','natural-gas','methane','co2','steam','ammonia-gas'];
+  const isGas = gasKeys.includes(sel.value);
+  // Show/hide gas pressure hints if the tag element exists
+  const tagMap = { 'st_hFl':'st_hPgasTag','st_cFl':'st_cPgasTag' };
+  const tagEl = g(tagMap[id]);
+  if (tagEl) tagEl.textContent = isGas ? '⚗ gas — P matters' : '';
+}
+
+// Fix Bug 4: updateVelHint was called but never defined
+function updateVelHint() {
+  const vel = parseFloat((g('st_targetVel')||{value:'1.5'}).value) || 1.5;
+  const el = g('st_velHint');
+  if (!el) return;
+  const isGas = vel >= 5;
+  el.textContent = isGas
+    ? `✓ Target: ${vel} m/s → gas/vapour velocity range`
+    : `✓ Target: ${vel} m/s → auto-calculating required tube passes`;
+}
+
+// Fix Bug 5: live preview stubs for plate and double-pipe cold side
+function plUpdateColdOutlet() {
+  if (g('pl_coldMode') && g('pl_coldMode').value === 'flow') {
+    // Estimate cold outlet from energy balance for display only
+    try {
+      const hTi = parseFloat(g('pl_hTi').value)||0;
+      const hTo = parseFloat(g('pl_hTo').value)||0;
+      const hF  = parseFloat(g('pl_hF').value)||1;
+      const cTi = parseFloat(g('pl_cTi').value)||0;
+      const cF  = parseFloat(g('pl_cF').value)||1;
+      // Rough: assume same cp → ΔTc = (hF/cF)*(hTi-hTo)
+      const dTc = (hF / cF) * (hTi - hTo);
+      const cTo = cTi + Math.abs(dTc);
+      if (g('pl_cTo_disp')) g('pl_cTo_disp').value = cTo.toFixed(1);
+      if (g('pl_cTo_lbl'))  g('pl_cTo_lbl').textContent = `Estimated (server will compute exactly)`;
+    } catch(e) {}
+  }
+}
+function plUpdateColdFlow() {
+  if (g('pl_coldMode') && g('pl_coldMode').value === 'temp') {
+    try {
+      const hTi = parseFloat(g('pl_hTi').value)||0;
+      const hTo = parseFloat(g('pl_hTo').value)||0;
+      const hF  = parseFloat(g('pl_hF').value)||1;
+      const cTi = parseFloat(g('pl_cTi').value)||0;
+      const cTo = parseFloat(g('pl_cTo').value)||1;
+      const dTc = cTo - cTi; if (dTc <= 0) return;
+      const cF = hF * (hTi - hTo) / dTc;
+      if (g('pl_cF_disp')) g('pl_cF_disp').value = Math.abs(cF).toFixed(0);
+      if (g('pl_cF_lbl'))  g('pl_cF_lbl').textContent = `Estimated kg/h`;
+    } catch(e) {}
+  }
+}
+function dpUpdateColdOutlet() {
+  if (g('dp_coldMode') && g('dp_coldMode').value === 'flow') {
+    try {
+      const hTi = parseFloat(g('dp_hTi').value)||0;
+      const hTo = parseFloat(g('dp_hTo').value)||0;
+      const hF  = parseFloat(g('dp_hF').value)||1;
+      const cTi = parseFloat(g('dp_cTi').value)||0;
+      const cF  = parseFloat(g('dp_cF').value)||1;
+      const dTc = (hF / cF) * (hTi - hTo);
+      const cTo = cTi + Math.abs(dTc);
+      if (g('dp_cTo_disp')) g('dp_cTo_disp').value = cTo.toFixed(1);
+    } catch(e) {}
+  }
+}
+function dpUpdateColdFlow() {
+  if (g('dp_coldMode') && g('dp_coldMode').value === 'temp') {
+    try {
+      const hTi = parseFloat(g('dp_hTi').value)||0;
+      const hTo = parseFloat(g('dp_hTo').value)||0;
+      const hF  = parseFloat(g('dp_hF').value)||1;
+      const cTi = parseFloat(g('dp_cTi').value)||0;
+      const cTo = parseFloat(g('dp_cTo').value)||1;
+      const dTc = cTo - cTi; if (dTc <= 0) return;
+      const cF = hF * (hTi - hTo) / dTc;
+      if (g('dp_cF_disp')) g('dp_cF_disp').value = Math.abs(cF).toFixed(0);
+    } catch(e) {}
+  }
 }
 
 // ── Flow unit handling ───────────────────────────────────────────────────────
@@ -3653,11 +3756,17 @@ function updateFlowUnit(selId,labId){
 // ── Cold mode logic ──────────────────────────────────────────────────────────
 function setColdMode(mode){
   coldMode=mode;
-  ['st_cF_row','st_cTo_row'].forEach(id=>{ const e=g(id); if(e) e.style.display='none'; });
-  const showId = mode==='flow'?'st_cF_row':'st_cTo_row';
-  const e=g(showId); if(e) e.style.display='';
-  const btns=document.querySelectorAll('[data-coldmode]');
-  btns.forEach(b=>b.classList.toggle('active',b.dataset.coldmode===mode));
+  // Fix: update button styles by ID, not missing data-coldmode attribute
+  const flowBtn = g('coldModeFlowBtn'), tempBtn = g('coldModeTempBtn');
+  if (flowBtn) { flowBtn.style.background = mode==='flow' ? 'var(--teal)' : 'transparent'; flowBtn.style.color = mode==='flow' ? '#fff' : 'var(--teal)'; }
+  if (tempBtn) { tempBtn.style.background = mode==='temp' ? 'var(--teal)' : 'transparent'; tempBtn.style.color = mode==='temp' ? '#fff' : 'var(--teal)'; }
+  const hint = g('coldModeHint');
+  if (hint) hint.innerHTML = mode==='flow'
+    ? '✅ <strong>Mode: Know Flow Rate</strong> — enter cold flow rate; outlet temp will be auto-calculated from Q<sub>hot</sub> = Q<sub>cold</sub>.'
+    : '✅ <strong>Mode: Know Outlet Temp</strong> — enter cold outlet temp; flow rate will be auto-calculated.';
+  // Show/hide cold outlet (readonly) vs cold flow input
+  const cToEl = g('st_cTo'), cFEl = g('st_cF');
+  if (cToEl) { cToEl.readOnly = mode==='flow'; cToEl.style.borderStyle = mode==='flow' ? 'dashed' : 'solid'; cToEl.style.color = mode==='flow' ? 'var(--t3)' : 'var(--t1)'; }
 }
 function plToggleColdMode(){
   const mode=g('pl_coldMode').value;
@@ -3847,11 +3956,11 @@ document.getElementById('dpForm').addEventListener('submit', async function(e){
     const payload = {
       calcType:'doublePipe', hFlKey, cFlKey, hPop, cPop,
       hTi, hTo, cTi, hF, coldMode:dpColdMode, cF:cFval, cTo:cToVal,
-      iOD: v('dp_iOD'), iTW: v('dp_iTW'), oID: v('dp_oID'),
-      L: v('dp_len'), nHairpins: parseInt(g('dp_nhairpins').value)||1,
-      arr: g('dp_flow').value, mat: g('dp_mat').value,
+      iOD: v('dp_iOD'), iTW: v('dp_iW'), oID: v('dp_oID'),
+      L: v('dp_hplen'), nHairpins: 1,
+      arr: g('dp_arr').value, mat: g('dp_mat').value,
       foul: parseFloat((g('dp_foul')||{value:'0.0002'}).value)||0.0002,
-      pdAllow: parseFloat((g('dp_pdAllow')||{value:'1.0'}).value)||1.0,
+      pdAllow: parseFloat((g('dp_pdH')||{value:'1.0'}).value)||1.0,
     };
     const r = await callAPI(payload);
     if (r.error) return showErr('dp', r.error);
