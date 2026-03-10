@@ -1084,62 +1084,7 @@ let UNITS = 'metric';
 let selectedFluidKey = null;
 let _lastApiResult   = {};          // cache last API response for PDF
 
-// ─── API ENDPOINT ─────────────────────────────────────────────────────
-// Change this to your Vercel deployment URL during development:
-// const API_URL = 'https://your-project.vercel.app/api/calculate';
-const API_URL = '/api/calculate';
-
-// ─── FLUID DATABASE (UI DISPLAY ONLY — no physics here) ───────────────
-// Only sg/k/mu/Z/rho used to pre-fill input fields when user selects a fluid.
-// All actual calculation uses the API.
-const FLUID_DB = {
-  // GASES
-  'Air':             {t:'g',sg:1.000,M:28.964,k:1.400,mu:1.82e-5,Z:1.000},
-  'Nitrogen (N₂)':  {t:'g',sg:0.967,M:28.014,k:1.400,mu:1.76e-5,Z:1.000},
-  'Oxygen (O₂)':    {t:'g',sg:1.105,M:32.000,k:1.395,mu:2.01e-5,Z:1.000},
-  'Hydrogen (H₂)':  {t:'g',sg:0.070,M:2.016, k:1.405,mu:8.90e-6,Z:1.000},
-  'CO₂':            {t:'g',sg:1.519,M:44.010,k:1.289,mu:1.48e-5,Z:0.994},
-  'CO':             {t:'g',sg:0.967,M:28.010,k:1.400,mu:1.77e-5,Z:1.000},
-  'Methane (CH₄)':  {t:'g',sg:0.554,M:16.043,k:1.304,mu:1.10e-5,Z:0.998},
-  'Propane (C₃H₈)': {t:'g',sg:1.522,M:44.097,k:1.130,mu:8.20e-6,Z:0.981},
-  'Butane (C₄H₁₀)': {t:'g',sg:2.009,M:58.124,k:1.100,mu:7.40e-6,Z:0.960},
-  'Natural Gas':    {t:'g',sg:0.620,M:17.967,k:1.310,mu:1.10e-5,Z:0.990},
-  'Ammonia (NH₃)':  {t:'g',sg:0.588,M:17.031,k:1.310,mu:1.00e-5,Z:0.995},
-  'Chlorine':       {t:'g',sg:2.448,M:70.906,k:1.340,mu:1.33e-5,Z:0.990},
-  'Argon':          {t:'g',sg:1.380,M:39.948,k:1.667,mu:2.27e-5,Z:1.000},
-  'Helium':         {t:'g',sg:0.138,M:4.003, k:1.667,mu:1.99e-5,Z:1.000},
-  'SO₂':            {t:'g',sg:2.264,M:64.065,k:1.290,mu:1.25e-5,Z:0.990},
-  'H₂S':            {t:'g',sg:1.189,M:34.081,k:1.320,mu:1.22e-5,Z:0.990},
-  'Ethane (C₂H₆)':  {t:'g',sg:1.049,M:30.069,k:1.200,mu:9.10e-6,Z:0.988},
-  'Ethylene':       {t:'g',sg:0.968,M:28.054,k:1.240,mu:1.02e-5,Z:0.993},
-  'Acetylene':      {t:'g',sg:0.897,M:26.038,k:1.232,mu:1.03e-5,Z:0.990},
-  'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000},
-  // LIQUIDS
-  'Water (20°C)':   {t:'l',rho:998.2,mu:1.002e-3},
-  'Water (80°C)':   {t:'l',rho:971.8,mu:3.54e-4},
-  'Seawater':       {t:'l',rho:1025, mu:1.07e-3},
-  'Diesel':         {t:'l',rho:840,  mu:2.4e-3},
-  'Petrol/Gasoline':{t:'l',rho:740,  mu:4.5e-4},
-  'Kerosene':       {t:'l',rho:800,  mu:1.64e-3},
-  'Crude Oil':      {t:'l',rho:850,  mu:3.2e-2},
-  'Hydraulic Oil':  {t:'l',rho:870,  mu:4.6e-2},
-  'Lubr. Oil SAE30':{t:'l',rho:891,  mu:0.29},
-  'Ethanol':        {t:'l',rho:789,  mu:1.19e-3},
-  'Methanol':       {t:'l',rho:791,  mu:5.9e-4},
-  'Glycerol':       {t:'l',rho:1261, mu:1.412},
-  'Acetone':        {t:'l',rho:790,  mu:3.16e-4},
-  'Mercury':        {t:'l',rho:13600,mu:1.53e-3},
-  'Brine 25%':      {t:'l',rho:1185, mu:2.01e-3},
-  'Liq. Ammonia':   {t:'l',rho:682,  mu:2.55e-4},
-  'Sulphuric Acid': {t:'l',rho:1840, mu:2.14e-2},
-  'Benzene':        {t:'l',rho:876,  mu:6.52e-4},
-  'Toluene':        {t:'l',rho:870,  mu:5.9e-4},
-  'Milk':           {t:'l',rho:1030, mu:2.0e-3},
-  'Blood':          {t:'l',rho:1060, mu:3.0e-3},
-  // STEAM
-  'Steam (sat)':    {t:'s'},
-  'Steam (sup)':    {t:'s'},
-};
+const API_URL = '/api/orifice-flow';
 
 // Pipe schedule lookup [NPS, sched, OD_mm, ID_mm]
 const PIPE_SCHEDULES = [
@@ -1154,9 +1099,6 @@ const PIPE_SCHEDULES = [
 ];
 
 // ─── DIMENSION UNIT HELPERS (UI only, no calc) ────────────────────────
-function dimToMm(val, unit) {
-  return val * ({mm:1,cm:10,m:1000,in:25.4}[unit] ?? 1);
-}
 function onDimUnitChange(which) {
   const inp = document.getElementById(which === 'pid' ? 'p_id' : 'b_id');
   const sel = document.getElementById(which + '_unit_sel');
@@ -1374,16 +1316,18 @@ async function runNow() {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'API error');
+    if (!data.ok) throw new Error(data.error || 'Calculation failed');
     _lastApiResult = data;
     renderResults(data);
   } catch (err) {
     clearWarns();
     const w1 = document.getElementById('warn1');
-    w1.innerHTML = `⚠ API Error: ${err.message}. Check your network or API deployment.`;
+    w1.innerHTML = `⚠ API Error: ${err.message}`;
     w1.classList.add('show');
     setMain('ERROR', '—', '');
+    console.error('API error:', err);
   } finally {
     setLoading(false);
   }
