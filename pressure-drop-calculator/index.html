@@ -2233,7 +2233,7 @@ async function calculate() {
   btn.disabled = true;
 
   try {
-    const resp = await fetch(API_BASE + '/api/pressure-drop', {
+    const resp = await fetch(API_BASE + '/api/pressure-drop-calculator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2279,7 +2279,7 @@ async function autoCalcProps() {
   const P_bar = parseFloat(document.getElementById('opPres').value) || 1.0;
   if (isNaN(T_C)) return;
   try {
-    const resp = await fetch(API_BASE + '/api/pressure-drop', {
+    const resp = await fetch(API_BASE + '/api/pressure-drop-calculator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'fluidProps', fluidId: _selectedFluid.id, T_C, P_bar })
