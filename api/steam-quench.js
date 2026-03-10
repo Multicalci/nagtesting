@@ -22,7 +22,7 @@
  * Response (JSON): full result object or { error: "..." }
  */
 
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IAPWS-IF97  REGION 2  (superheated steam)
