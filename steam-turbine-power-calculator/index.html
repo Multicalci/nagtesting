@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com</title>
+<meta name="description" content="Free online steam turbine calculator with IAPWS-IF97 pyXSteam accuracy. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
+<meta name="keywords" content="steam turbine calculator, back pressure turbine, condensing turbine, extraction turbine, isentropic efficiency, rankine cycle, steam enthalpy, IAPWS-IF97">
+<link rel="canonical" href="https://multicalci.com/steam-turbine-power/">
+<meta property="og:title" content="Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com">
+<meta property="og:description" content="Free online steam turbine calculator with IAPWS-IF97 pyXSteam accuracy. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
+<meta property="og:url" content="https://multicalci.com/steam-turbine-power/">
+<meta property="og:type" content="website">
+    <meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com">
+    <meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
+
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Steam Turbine Power Calculator","description":"Steam turbine power output calculator with isentropic efficiency using IAPWS-IF97 steam tables.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/steam-turbine-power/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f2140">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        :root {
+            --primary: #0f2140;
+            --primary-light: #1a3560;
+            --accent: #0e84e5;
+            --accent-dk: #0a6cbd;
+            --accent-warm: #f05a28;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg: #eef2f7;
+            --card-bg: #ffffff;
+            --result-bg: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+            --result-border: #b8d9f5;
+            --result-label: #0a5ea8;
+            --result-val: #072d5c;
+            --border: #c8d8ea;
+            --border-light: #e2edf6;
+            --text: #0f2140;
+            --text-2: #374f6b;
+            --text-3: #607d9b;
+            --shadow: 0 1px 3px rgba(15,33,64,0.08), 0 4px 12px rgba(15,33,64,0.08);
+            --shadow-md: 0 4px 16px rgba(15,33,64,0.12);
+            --radius: 14px;
+            --radius-sm: 8px;
+            --font: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+            --mono: 'JetBrains Mono', 'Courier New', monospace;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-size: 14px;
+            line-height: 1.6;
+            background-image:
+                radial-gradient(ellipse at 20% 0%, rgba(14,132,229,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(15,33,64,0.05) 0%, transparent 60%);
+        }
+
+        /* ── NAVBAR ── */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .navbar-brand {
+            display: flex; align-items: center; gap: 10px;
+            color: white; font-weight: 700; font-size: 1rem;
+            text-decoration: none; padding: 8px 0;
+        }
+        .brand-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent) 0%, #0a6cbd 100%);
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(14,132,229,0.4);
+        }
+        .brand-sub { font-size: 0.58rem; opacity: 0.65; font-weight: 500; display: block; line-height: 1; margin-top: 2px; letter-spacing: 0.8px; text-transform: uppercase; }
+        .navbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        /* Engine badge */
+        .eng-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem; font-weight: 600;
+            background: rgba(255,255,255,0.10);
+            color: rgba(255,255,255,0.85);
+            border: 1px solid rgba(255,255,255,0.15);
+            white-space: nowrap;
+        }
+        .eng-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #60a5fa; flex-shrink: 0;
+        }
+        .eng-dot.ready { background: #4ade80; }
+        .eng-dot.loading { background: #fbbf24; animation: pulse 1s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        .share-btn {
+            padding: 6px 14px;
+            background: linear-gradient(135deg, var(--accent-warm), #d44a1c);
+            color: white; border: none; border-radius: 6px;
+            font-size: 0.75rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(240,90,40,0.35);
+        }
+        .share-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+
+        /* ── MAIN SPLIT LAYOUT ── */
+        .page-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 14px 14px 60px;
+        }
+        /* Two-column: left input, right results */
+        .split-layout {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+            gap: 14px;
+            align-items: start;
+        }
+        .left-col, .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        /* Right column sticky on desktop */
+        .right-col {
+            position: sticky;
+            top: 70px;
+            max-height: calc(100vh - 85px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        .right-col::-webkit-scrollbar { width: 5px; }
+        .right-col::-webkit-scrollbar-track { background: transparent; }
+        .right-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* ── CARDS ── */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-light);
+            padding: 16px 18px;
+        }
+        .card h2 {
+            font-size: 0.95rem; font-weight: 700;
+            color: var(--primary); margin-bottom: 12px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .section-title {
+            font-size: 0.72rem; font-weight: 700;
+            color: var(--text-3); text-transform: uppercase;
+            letter-spacing: 0.8px; margin: 14px 0 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        /* ── TURBINE TYPE SELECTOR ── */
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+        .type-btn {
+            padding: 8px 6px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #f8fbff;
+            cursor: pointer;
+            font-size: 0.75rem; font-weight: 600;
+            color: var(--text-2);
+            text-align: center;
+            transition: all 0.18s;
+            line-height: 1.3;
+        }
+        .type-btn .type-icon { display: block; font-size: 1.2rem; margin-bottom: 3px; }
+        .type-btn:hover { border-color: var(--accent); background: #f0f7ff; }
+        .type-btn.active-type {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, #e8f4fd, #dbeeff);
+            color: var(--accent-dk);
+            box-shadow: 0 2px 8px rgba(14,132,229,0.18);
+        }
+
+        /* ── UNIT TOGGLE ── */
+        .unit-bar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .unit-bar span { font-size: 0.8rem; color: var(--text-3); font-weight: 600; }
+        .toggle-wrap { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+        .toggle-opt {
+            padding: 6px 14px; border: none; background: #f1f5fb;
+            color: var(--text-3); font-size: 0.77rem; font-weight: 600; cursor: pointer;
+            transition: all 0.18s; font-family: var(--font);
+        }
+        .toggle-opt.active-unit { background: var(--primary); color: white; }
+        .unit-hint { font-size: 0.72rem; color: var(--text-3); margin-top: 4px; }
+
+        /* ── INPUTS ── */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .input-group { display: flex; flex-direction: column; gap: 3px; }
+        .input-group label {
+            font-size: 0.80rem; font-weight: 700;
+            color: var(--text); line-height: 1.3;
+        }
+        .input-group input, .input-group select {
+            padding: 7px 10px;
+            border: 1.5px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem; font-family: var(--mono);
+            color: #0a1628; background: #f0f5fc;
+            transition: border-color 0.18s, box-shadow 0.18s;
+            width: 100%;
+            font-weight: 600;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14,132,229,0.12);
+            background: white;
+        }
+        .auto-tag {
+            display: inline-block;
+            background: #e8f4fd; color: var(--accent-dk);
+            font-size: 0.62rem; font-weight: 700;
+            padding: 1px 5px; border-radius: 3px;
+            vertical-align: middle; margin-left: 3px;
+        }
+        .sat-note { font-size: 0.68rem; color: var(--accent-dk); margin-top: 2px; }
+        .hidden { display: none !important; }
+
+        /* ── RESULTS ── */
+        .result-container { display: flex; flex-direction: column; gap: 0; }
+        .result-section-title {
+            font-size: 0.68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            color: var(--text-3);
+            margin: 12px 0 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .result-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f4fa;
+            gap: 8px;
+        }
+        .res-label { font-size: 0.85rem; color: var(--result-label); font-weight: 600; flex: 1; }
+        .res-val {
+            font-size: 0.97rem; font-weight: 700;
+            color: #000000; font-family: var(--mono);
+            text-align: right;
+        }
+        .res-val.highlight { color: var(--danger); }
+        .res-dual { display: flex; flex-direction: column; align-items: flex-end; }
+        .res-main { font-size: 0.97rem; font-weight: 700; color: #000000; font-family: var(--mono); }
+        .res-main.highlight { color: var(--danger); }
+        .res-alt { font-size: 0.68rem; color: #94a3b8; font-family: var(--mono); }
+
+        /* KPI cards */
+        .kpi-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .kpi-card {
+            background: var(--result-bg);
+            border: 1px solid var(--result-border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: center;
+            flex: 1; min-width: 90px;
+            box-shadow: 0 1px 4px rgba(15,33,64,0.06);
+        }
+        .kpi-icon { font-size: 1.3rem; display: block; margin-bottom: 3px; }
+        .kpi-val { font-size: 1.1rem; font-weight: 800; font-family: var(--mono); color: #000000; }
+        .kpi-sub { font-size: 0.60rem; color: #8aa4c0; margin-top: 1px; font-family: var(--mono); }
+        .kpi-lbl { font-size: 0.62rem; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+        /* Gauge bar */
+        .gauge-bar { height: 7px; background: #e2edf6; border-radius: 4px; overflow: hidden; }
+        .gauge-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        /* Quality warning */
+        .quality-warning {
+            margin-top: 8px; padding: 8px 12px;
+            background: #fef3c7; border: 1px solid #fbbf24;
+            border-radius: 7px; font-size: 0.78rem; font-weight: 600; color: #78350f;
+        }
+        .formula-note {
+            margin-top: 8px; font-size: 0.70rem; color: var(--text-3);
+            font-style: italic; font-family: var(--mono);
+            background: #f8fbff; padding: 7px 10px;
+            border-radius: 6px; border-left: 2px solid var(--accent);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%; padding: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dk));
+            color: white; border: none; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 700; cursor: pointer;
+            font-family: var(--font);
+            transition: all 0.2s; box-shadow: 0 2px 8px rgba(14,132,229,0.35);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(14,132,229,0.45); }
+        .btn-secondary {
+            width: 100%; padding: 9px;
+            background: var(--primary); color: white;
+            border: none; border-radius: 8px;
+            font-size: 0.80rem; font-weight: 700; cursor: pointer;
+            font-family: var(--font); transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: var(--primary-light); }
+        .copy-results-btn {
+            padding: 5px 12px; background: #f1f5fb;
+            border: 1px solid var(--border); border-radius: 6px;
+            font-size: 0.73rem; font-weight: 600; cursor: pointer;
+            color: var(--text-2); font-family: var(--font);
+            transition: all 0.18s;
+        }
+        .copy-results-btn:hover { background: #e8f0fa; border-color: var(--accent); }
+
+        /* Diagram strip */
+        .diagram-strip {
+            margin-top: 8px; padding: 8px 10px;
+            background: linear-gradient(135deg,#f0f7ff,#e8f4fd);
+            border-radius: 8px; border: 1px solid var(--border-light);
+            font-size: 0.78rem; color: var(--text-2); text-align: center;
+            font-weight: 500; letter-spacing: 0.3px;
+        }
+
+        /* Collapsible */
+        .collapsible-header {
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none;
+        }
+        .collapse-arrow { font-size: 0.75rem; color: var(--text-3); transition: transform 0.2s; }
+        .collapse-arrow.open { transform: rotate(180deg); }
+        .collapsible-body { margin-top: 10px; }
+
+        /* Quick Reference */
+        .qref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .qref-card {
+            background: var(--result-bg); border: 1px solid var(--result-border);
+            border-radius: 8px; padding: 10px 12px;
+        }
+        .qref-card.warm { background: linear-gradient(135deg,#fff7ed,#fef3c7); border-color: #fed7aa; }
+        .qref-card.green { background: linear-gradient(135deg,#f0fdf4,#dcfce7); border-color: #bbf7d0; }
+        .qref-title { font-size: 0.72rem; font-weight: 700; color: var(--text-2); margin-bottom: 3px; }
+        .qref-formula { font-family: var(--mono); font-size: 0.75rem; color: var(--primary); font-weight: 600; margin-bottom: 3px; }
+        .qref-desc { font-size: 0.68rem; color: var(--text-3); line-height: 1.4; }
+
+        /* About card */
+        .about-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: var(--radius);
+            padding: 14px 18px; color: white;
+        }
+        .about-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+        .about-card p { font-size: 0.78rem; opacity: 0.85; line-height: 1.5; }
+        .about-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .about-tag {
+            padding: 3px 10px; background: rgba(255,255,255,0.15);
+            border-radius: 20px; font-size: 0.68rem; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Footer */
+        .site-footer {
+            text-align: center; padding: 20px 16px;
+            color: var(--text-3); font-size: 0.72rem; line-height: 1.7;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 72px; left: 50%;
+            transform: translateX(-50%) translateY(16px);
+            background: var(--primary); color: white;
+            padding: 9px 18px; border-radius: 8px;
+            font-size: 0.82rem; font-weight: 700;
+            opacity: 0; transition: all 0.3s; z-index: 9999; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Back to top */
+        #btt {
+            position: fixed; bottom: 18px; right: 16px;
+            width: 42px; height: 42px;
+            background: var(--primary); color: white; border: none;
+            border-radius: 50%; font-size: 1.1rem; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(26,45,69,0.35);
+            display: none; align-items: center; justify-content: center; z-index: 999;
+        }
+        #btt.show { display: flex; }
+
+        /* proj info grid */
+        .proj-grid { display: grid; grid-template-columns: 1fr 1fr 140px; gap: 8px; margin-bottom: 12px; }
+
+        /* Results placeholder */
+        .results-placeholder {
+            text-align: center; padding: 40px 20px;
+            color: var(--text-3);
+        }
+        .results-placeholder .ph-icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.4; }
+        .results-placeholder p { font-size: 0.82rem; }
+
+        /* Info badge */
+        .info-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: var(--accent); color: white;
+            font-size: 0.60rem; font-weight: 700; cursor: help;
+            margin-left: 3px; vertical-align: middle;
+        }
+
+        /* Typical values table */
+        .ref-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+        .ref-table th { background: var(--primary); color: white; padding: 7px 10px; text-align: left; }
+        .ref-table td { padding: 6px 10px; border-bottom: 1px solid var(--border-light); }
+        .ref-table tr:nth-child(even) td { background: #f8fafc; }
+        .new-badge {
+            display: inline-block; background: var(--accent-warm);
+            color: white; font-size: 0.58rem; font-weight: 700;
+            padding: 1px 5px; border-radius: 3px; margin-left: 5px; vertical-align: middle;
+        }
+
+        /* ── MOBILE ── */
+        @media (max-width: 860px) {
+            .split-layout {
+                grid-template-columns: 1fr;
+            }
+            .right-col {
+                position: static;
+                max-height: none;
+                overflow-y: visible;
+            }
+            .grid-3 { grid-template-columns: 1fr 1fr; }
+            .proj-grid { grid-template-columns: 1fr 1fr; }
+            .qref-grid { grid-template-columns: 1fr; }
+            .kpi-row { gap: 6px; }
+        }
+        @media (max-width: 560px) {
+            body { font-size: 13px; }
+            .page-wrapper { padding: 10px 10px 60px; }
+            .card { padding: 12px 14px; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .proj-grid { grid-template-columns: 1fr; }
+            .type-grid { grid-template-columns: repeat(2, 1fr); }
+            .about-card { display: none; }
+            .navbar-right .eng-badge { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <a class="navbar-brand" href="#">
+        <div class="brand-icon">⚙️</div>
+        <div>
+            Steam Turbine Calculator
+            <span class="brand-sub">multicalci.com · IAPWS-IF97</span>
+        </div>
+    </a>
+    <div class="navbar-right">
+        <a href="https://multicalci.com/" title="Back to multicalci.com home" style="display:inline-flex;align-items:center;gap:6px;padding:6px 15px;background:linear-gradient(135deg,rgba(255,255,255,0.18),rgba(255,255,255,0.10));color:#ffffff;border:1.5px solid rgba(255,255,255,0.35);border-radius:7px;font-size:0.78rem;font-weight:700;text-decoration:none;transition:all 0.18s;white-space:nowrap;box-shadow:0 1px 6px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(255,255,255,0.14)';this.style.transform=''">🏠 Home</a>
+        <div class="eng-badge" id="engBadge">
+            <div class="eng-dot" id="engDot"></div>
+            <span id="engLabel">NIST Table (fallback)</span>
+        </div>
+        <button class="share-btn" onclick="shareCalc()">⬆ Share</button>
+    </div>
+</nav>
+
+<div class="page-wrapper">
+
+    <!-- SEO / About — full width -->
+    <div class="about-card" style="margin-bottom:12px;">
+        <h3>⚙️ Steam Turbine Power Calculator — IAPWS-IF97 Accuracy</h3>
+        <p>Professional steam turbine analysis: shaft power, electrical output, condenser heat duty, cooling water flow for all 4 turbine types. Powered by pyXSteam (±0.01 kJ/kg) with instant NIST table fallback.</p>
+        <div class="about-tags">
+            <span class="about-tag">🔵 Back Pressure</span>
+            <span class="about-tag">🌊 Condensing</span>
+            <span class="about-tag">🔀 Extraction</span>
+            <span class="about-tag">⚡ Mixed</span>
+            <span class="about-tag">🔢 SI + Imperial</span>
+            <span class="about-tag">📄 PDF Report</span>
+            <span class="about-tag">🔒 Secure API</span>
+            <span class="about-tag">📱 Mobile Friendly</span>
+        </div>
+    </div>
+
+    <!-- SPLIT LAYOUT: Left = Inputs, Right = Results -->
+    <div class="split-layout">
+
+        <!-- ── LEFT COLUMN: INPUTS ── -->
+        <div class="left-col">
+
+            <!-- Project Info -->
+            <div class="card">
+                <h2>📋 Project Details <span style="font-size:0.65rem;font-weight:500;color:var(--text-3);margin-left:4px;">(optional — for PDF report)</span></h2>
+                <div class="proj-grid">
+                    <div class="input-group"><label>Project Name</label><input type="text" id="projName" placeholder="e.g. Plant Unit 2"></div>
+                    <div class="input-group"><label>Calculated By</label><input type="text" id="projBy" placeholder="Engineer name"></div>
+                    <div class="input-group"><label>Date</label><input type="date" id="projDate"></div>
+                </div>
+                <div class="unit-bar">
+                    <span>Unit System:</span>
+                    <div class="toggle-wrap">
+                        <button class="toggle-opt active-unit" id="btnSI" onclick="setUnits('SI')">SI (Metric)</button>
+                        <button class="toggle-opt" id="btnIMP" onclick="setUnits('IMP')">Imperial (US)</button>
+                    </div>
+                </div>
+                <div class="unit-hint" id="unitHint">Using: bar · °C · kJ/kg · kg/h · kW</div>
+            </div>
+
+            <!-- Turbine Type -->
+            <div class="card">
+                <h2>⚙️ Turbine Type</h2>
+                <div class="type-grid">
+                    <div class="type-btn active-type" onclick="setType('backpressure',this)">
+                        <span class="type-icon">🔵</span>Back Pressure<br><span style="font-size:0.65rem;font-weight:500;">(Non-Condensing)</span>
+                    </div>
+                    <div class="type-btn" onclick="setType('condensing',this)">
+                        <span class="type-icon">🌊</span>Condensing<br><span style="font-size:0.65rem;font-weight:500;">Turbine</span>
+                    </div>
+                    <div class="type-btn" onclick="setType('extraction',this)">
+                        <span class="type-icon">🔀</span>Extraction<br><span style="font-size:0.65rem;font-weight:500;">Turbine</span>
+                    </div>
+                    <div class="type-btn" onclick="setType('mixed',this)">
+                        <span class="type-icon">⚡</span>Mixed / Ext-Cond<br><span style="font-size:0.65rem;font-weight:500;">&nbsp;</span>
+                    </div>
+                </div>
+                <div class="diagram-strip" id="diagramStrip"></div>
+            </div>
+
+            <!-- Input Parameters -->
+            <div class="card">
+                <div class="section-title">🔴 Inlet Steam — Enter P & T → h, s Auto-Calculated</div>
+                <div class="grid-3">
+                    <div class="input-group">
+                        <label id="lbl_flow">Mass Flow (kg/h)</label>
+                        <input type="number" id="flow" value="60000" step="100" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label id="lbl_p1">Inlet Pressure P₁ (bar)</label>
+                        <input type="number" id="p1" value="60" step="1" oninput="autoSteam('inlet'); calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label id="lbl_t1">Inlet Temp T₁ (°C)</label>
+                        <input type="number" id="t1" value="450" step="5" oninput="autoSteam('inlet'); calculate()">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label id="lbl_h1">Inlet Enthalpy h₁ (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                        <input type="number" id="h1" value="3300" step="10" oninput="calculate()">
+                        <div class="sat-note" id="inletNote"></div>
+                    </div>
+                    <div class="input-group">
+                        <label id="lbl_s1">Inlet Entropy s₁ (kJ/kg·K) <span class="auto-tag">AUTO</span></label>
+                        <input type="number" id="s1" value="6.77" step="0.01" oninput="calculate()">
+                    </div>
+                </div>
+
+                <div class="section-title">⚙️ Turbine Efficiency</div>
+                <div class="grid-3">
+                    <div class="input-group">
+                        <label>Isentropic η_t (0–1)</label>
+                        <input type="number" id="eff" value="0.85" min="0" max="1" step="0.01" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label>Mechanical η_m (0–1)</label>
+                        <input type="number" id="effm" value="0.98" min="0" max="1" step="0.01" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label>Generator η_g (0–1)</label>
+                        <input type="number" id="effg" value="0.97" min="0" max="1" step="0.01" oninput="calculate()">
+                    </div>
+                </div>
+
+                <div class="section-title">🔵 Exhaust / Exit — Enter P & T → h₂s Auto-Calculated</div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label id="p2Label">Exit Pressure P₂ (bar)</label>
+                        <input type="number" id="p2" value="3" step="0.5" oninput="autoSteam('exhaust'); calculate()">
+                        <div class="sat-note" id="exhaustNote"></div>
+                    </div>
+                    <div class="input-group">
+                        <label id="lbl_t2">Exit Temp T₂ (°C) — superheated only</label>
+                        <input type="number" id="t2" value="" step="5" placeholder="Blank = saturated" oninput="autoSteam('exhaust'); calculate()">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label id="lbl_h2s">Isentropic Enthalpy h₂s (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                        <input type="number" id="h2s" value="2600" step="10" oninput="calculate()">
+                    </div>
+                    <div class="input-group">
+                        <label id="lbl_hfg">hfg at Exhaust (kJ/kg) <span class="auto-tag">AUTO</span> <span class="info-badge" title="Latent heat — for steam quality check">i</span></label>
+                        <input type="number" id="hfg" value="2163" step="10" oninput="calculate()">
+                    </div>
+                </div>
+
+                <!-- CONDENSING INPUTS -->
+                <div id="condenserInputs" class="hidden">
+                    <div class="section-title">🌊 Condenser Parameters</div>
+                    <div class="grid-3">
+                        <div class="input-group">
+                            <label id="lbl_condP">Condenser Pressure (bar) <span class="auto-tag">AUTO from P₂</span></label>
+                            <input type="number" id="condP" value="0.07" step="0.01" oninput="calculate()">
+                            <div class="sat-note" id="condNote"></div>
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_hf">Condensate hf (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                            <input type="number" id="hf" value="163" step="1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_hfgc">Latent Heat hfg (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                            <input type="number" id="hfg_cond" value="2409" step="1" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label id="lbl_cwIn">Cooling Water Inlet Temp (°C)</label>
+                            <input type="number" id="cwIn" value="28" step="1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_cwOut">Cooling Water Outlet Temp (°C)</label>
+                            <input type="number" id="cwOut" value="38" step="1" oninput="calculate()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EXTRACTION INPUTS -->
+                <div id="extractionInputs" class="hidden">
+                    <div class="section-title">🔀 Extraction Point</div>
+                    <div class="grid-3">
+                        <div class="input-group">
+                            <label id="lbl_pe">Extraction Pressure Pe (bar)</label>
+                            <input type="number" id="pe" value="10" step="0.5" oninput="autoSteam('extraction'); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_te">Extraction Temp Te (°C)</label>
+                            <input type="number" id="te" value="200" step="5" placeholder="Blank = saturated" oninput="autoSteam('extraction'); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Extraction Fraction (0–1)</label>
+                            <input type="number" id="extFrac" value="0.30" min="0.01" max="0.99" step="0.05" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label id="lbl_he">Extraction Enthalpy he (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                            <input type="number" id="he" value="2950" step="10" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Extraction Use</label>
+                            <select id="extUse" onchange="calculate()">
+                                <option value="process">Process Heating</option>
+                                <option value="feedwater">Feedwater Heating</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MIXED INPUTS -->
+                <div id="mixedInputs" class="hidden">
+                    <div class="section-title">🔀 Extraction Point (Mixed)</div>
+                    <div class="grid-3">
+                        <div class="input-group">
+                            <label id="lbl_pe2">Extraction Pressure Pe (bar)</label>
+                            <input type="number" id="pe2" value="10" step="0.5" oninput="autoSteam('mixed_ext'); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_te2">Extraction Temp Te (°C)</label>
+                            <input type="number" id="te2" value="200" step="5" placeholder="Blank = saturated" oninput="autoSteam('mixed_ext'); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Extraction Fraction (0–1)</label>
+                            <input type="number" id="extFrac2" value="0.25" min="0.01" max="0.99" step="0.05" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label id="lbl_he2">Extraction Enthalpy he2 (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                            <input type="number" id="he2" value="2950" step="10" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_hf2">Condenser hf at exhaust (kJ/kg) <span class="auto-tag">AUTO</span></label>
+                            <input type="number" id="hf2" value="163" step="1" oninput="calculate()">
+                        </div>
+                    </div>
+                    <div class="section-title">🌊 Condenser (Mixed)</div>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label id="lbl_cwIn2">CW Inlet Temp (°C)</label>
+                            <input type="number" id="cwIn2" value="28" step="1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label id="lbl_cwOut2">CW Outlet Temp (°C)</label>
+                            <input type="number" id="cwOut2" value="38" step="1" oninput="calculate()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Reference (collapsible) -->
+            <div class="card">
+                <div class="collapsible-header" onclick="toggleQRef(this)">
+                    <h2 style="margin-bottom:0;">📋 Quick Reference — Formulae <span class="new-badge">GUIDE</span></h2>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button onclick="event.stopPropagation();openEduSection()" style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;background:linear-gradient(135deg,#0e84e5,#0a6cbd);color:#fff;border:none;border-radius:7px;font-family:var(--font);font-size:0.73rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(14,132,229,0.35);transition:all 0.18s;white-space:nowrap;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(14,132,229,0.45)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(14,132,229,0.35)'">
+                            📚 Full Technical Guide
+                        </button>
+                        <span class="collapse-arrow">▼</span>
+                    </div>
+                </div>
+                <div class="collapsible-body" id="qrefBody" style="display:none;">
+                    <div class="qref-grid" style="margin-top:10px;">
+                        <div class="qref-card"><div class="qref-title">Isentropic Work</div><div class="qref-formula">w_is = h₁ − h₂s</div><div class="qref-desc">Ideal work per kg. h₂s from isentropic expansion at s₁.</div></div>
+                        <div class="qref-card warm"><div class="qref-title">Actual Work</div><div class="qref-formula">w = η_t × (h₁ − h₂s)</div><div class="qref-desc">η_t = isentropic efficiency, typically 0.75–0.88.</div></div>
+                        <div class="qref-card green"><div class="qref-title">Shaft Power</div><div class="qref-formula">P_shaft = ṁ × w × η_m</div><div class="qref-desc">ṁ in kg/s. η_m = mechanical efficiency ~0.97–0.99.</div></div>
+                        <div class="qref-card"><div class="qref-title">Electrical Power</div><div class="qref-formula">P_elec = P_shaft × η_g</div><div class="qref-desc">η_g = generator efficiency, typically 0.96–0.98.</div></div>
+                        <div class="qref-card warm"><div class="qref-title">Steam Quality</div><div class="qref-formula">x = (h − hf) / hfg</div><div class="qref-desc">Min. x ≥ 0.88 to avoid blade erosion.</div></div>
+                        <div class="qref-card green"><div class="qref-title">Condenser Duty</div><div class="qref-formula">Q = ṁ × (h₂ − hf)</div><div class="qref-desc">Heat rejected to cooling water.</div></div>
+                        <div class="qref-card"><div class="qref-title">Cooling Water Flow</div><div class="qref-formula">ṁ_cw = Q / (Cp × ΔT)</div><div class="qref-desc">Cp = 4.187 kJ/(kg·K). ΔT = outlet−inlet.</div></div>
+                        <div class="qref-card warm"><div class="qref-title">Heat Rate</div><div class="qref-formula">HR = 3600 × ṁ × h₁ / P</div><div class="qref-desc">Typical: 8,000–12,000 kJ/kWh.</div></div>
+                        <div class="qref-card green"><div class="qref-title">Thermal Efficiency</div><div class="qref-formula">η_th = P_shaft / Q_in × 100%</div><div class="qref-desc">Q_in = ṁ × h₁. Rankine cycle efficiency.</div></div>
+                    </div>
+                    <div style="margin-top:10px;padding:9px 12px;background:#f0f7ff;border-radius:6px;font-size:0.72rem;color:#445566;border-left:3px solid var(--accent)">
+                        <strong>Standards:</strong> IAPWS-IF97 (pyXSteam engine). Blade erosion limit per ASME PTC 6. Efficiency ranges per IEC 60045-1.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typical Values (collapsible) -->
+            <div class="card">
+                <div class="collapsible-header" onclick="toggleTypical(this)">
+                    <h2 style="margin-bottom:0;">📊 Typical Turbine Performance Values</h2>
+                    <span class="collapse-arrow">▼</span>
+                </div>
+                <div class="collapsible-body" id="typicalBody" style="display:none;">
+                    <div style="overflow-x:auto;margin-top:10px;">
+                        <table class="ref-table">
+                            <thead><tr><th>Parameter</th><th>Industrial</th><th>Utility</th><th>Small/ORC</th></tr></thead>
+                            <tbody>
+                                <tr><td>Isentropic Efficiency η_t</td><td>78–85%</td><td>85–92%</td><td>60–75%</td></tr>
+                                <tr><td>Mechanical Efficiency η_m</td><td>97–98%</td><td>98–99%</td><td>94–97%</td></tr>
+                                <tr><td>Generator Efficiency η_g</td><td>96–97%</td><td>97–98.5%</td><td>94–96%</td></tr>
+                                <tr><td>Inlet Pressure P₁</td><td>20–80 bar</td><td>100–300 bar</td><td>5–25 bar</td></tr>
+                                <tr><td>Inlet Temperature T₁</td><td>300–500°C</td><td>500–600°C</td><td>150–300°C</td></tr>
+                                <tr><td>Heat Rate</td><td>9,000–11,000 kJ/kWh</td><td>7,500–9,000 kJ/kWh</td><td>11,000–15,000 kJ/kWh</td></tr>
+                                <tr><td>Condenser Pressure</td><td>0.07–0.15 bar</td><td>0.04–0.08 bar</td><td>0.10–0.50 bar</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- ── END LEFT COLUMN ── -->
+
+        <!-- ── RIGHT COLUMN: RESULTS ── -->
+        <div class="right-col">
+
+            <!-- Results card -->
+            <div class="card" id="resultsCard">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                    <h2 style="margin-bottom:0;">📊 Calculation Results</h2>
+                    <button class="copy-results-btn" onclick="copyResults()">⎘ Copy</button>
+                </div>
+                <div class="result-container" id="results">
+                    <div class="results-placeholder">
+                        <div class="ph-icon">⚙️</div>
+                        <p>Enter your steam conditions on the left<br>— results appear here instantly.</p>
+                    </div>
+                </div>
+                <div id="qualityWarning" class="quality-warning hidden">⚠️ Exhaust steam quality below 0.88 — risk of blade erosion!</div>
+                <div class="formula-note" id="formulaNote" style="display:none;"></div>
+                <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <button class="btn-secondary" onclick="generatePDF()" style="flex:1;">📄 PDF Report</button>
+                </div>
+                <div style="margin-top:8px;text-align:center;font-size:0.68rem;color:var(--text-3);" id="engineNote">
+                    Engine: <strong>NIST Table Fallback</strong> — ±1–5 kJ/kg
+                </div>
+            </div>
+
+        </div>
+        <!-- ── END RIGHT COLUMN ── -->
+
+    </div>
+
+    <!-- ── LEARN MORE BANNER ── -->
+    <div style="max-width:1400px;margin:0 auto;padding:0 14px 20px;">
+        <div style="background:linear-gradient(135deg,#0f2140 0%,#1a3560 100%);border-radius:14px;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;box-shadow:0 4px 16px rgba(15,33,64,0.18);">
+            <div>
+                <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:4px;">Technical Reference</div>
+                <div style="font-size:1.05rem;font-weight:700;color:#ffffff;margin-bottom:4px;">📚 Steam Turbine Theory, Formulas &amp; Engineering Guide</div>
+                <div style="font-size:0.80rem;color:rgba(255,255,255,0.65);">Rankine cycle · IAPWS-IF97 formulations · Turbine types · Worked examples · FAQ · Glossary</div>
+            </div>
+            <button onclick="openEduSection()" style="flex-shrink:0;display:inline-flex;align-items:center;gap:8px;padding:11px 24px;background:linear-gradient(135deg,#0e84e5,#0a6cbd);color:#fff;border:none;border-radius:9px;font-family:'Space Grotesk',sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(14,132,229,0.5);transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px rgba(14,132,229,0.55)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 10px rgba(14,132,229,0.5)'">
+                Open Technical Guide ↓
+            </button>
+        </div>
+    </div>
+
+    <div class="site-footer">
+        <p>⚙️ multicalci.com — Steam Turbine Power Calculator</p>
+        <p>Steam properties: IAPWS-IF97 (pyXSteam) · Blade erosion limit: ASME PTC 6 · For engineering reference use</p>
+        <p style="opacity:0.6;">© multicalci.com — Calculations secured server-side via IAPWS-IF97 API · Engineering reference use</p>
+    </div>
+</div>
+
+<div class="toast" id="toast-msg"></div>
+<button id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// UNIT SYSTEM  (unchanged from original)
+// ══════════════════════════════════════════════════════════════════
+let unitSys = 'SI';
+const unitLabels = {
+    SI:  { flow:'kg/h', pressure:'bar', temp:'°C', enthalpy:'kJ/kg', entropy:'kJ/(kg·K)', power:'kW', heatDuty:'MW', massFlow:'kg/s', massFlowH:'kg/h', hintLine:'bar · °C · kJ/kg · kg/h · kW' },
+    IMP: { flow:'lb/h', pressure:'psia', temp:'°F', enthalpy:'BTU/lb', entropy:'BTU/(lb·°R)', power:'hp', heatDuty:'MMBTU/hr', massFlow:'lb/s', massFlowH:'lb/h', hintLine:'psia · °F · BTU/lb · lb/h · hp' }
+};
+
+function setUnits(sys) {
+    unitSys = sys;
+    const U = unitLabels[sys];
+    document.getElementById('btnSI').classList.toggle('active-unit', sys === 'SI');
+    document.getElementById('btnIMP').classList.toggle('active-unit', sys === 'IMP');
+    document.getElementById('unitHint').textContent = 'Using: ' + U.hintLine;
+    document.getElementById('lbl_flow').textContent = `Mass Flow (${U.flow})`;
+    document.getElementById('lbl_p1').textContent = `Inlet Pressure P₁ (${U.pressure})`;
+    document.getElementById('lbl_t1').textContent = `Inlet Temp T₁ (${U.temp})`;
+    document.getElementById('lbl_h1').innerHTML = `Inlet Enthalpy h₁ (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    document.getElementById('lbl_s1').innerHTML = `Inlet Entropy s₁ (${U.entropy}) <span class="auto-tag">AUTO</span>`;
+    document.getElementById('lbl_h2s').innerHTML = `Isentropic Enthalpy h₂s (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    document.getElementById('lbl_hfg').innerHTML = `hfg at Exhaust (${U.enthalpy}) <span class="auto-tag">AUTO</span> <span class="info-badge" title="Latent heat — for steam quality check">i</span>`;
+    if (document.getElementById('lbl_hf'))    document.getElementById('lbl_hf').innerHTML    = `Condensate hf (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    if (document.getElementById('lbl_hfgc')) document.getElementById('lbl_hfgc').innerHTML  = `Latent Heat hfg (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    if (document.getElementById('lbl_cwIn'))  document.getElementById('lbl_cwIn').textContent = `CW Inlet Temp (${U.temp})`;
+    if (document.getElementById('lbl_cwOut')) document.getElementById('lbl_cwOut').textContent= `CW Outlet Temp (${U.temp})`;
+    if (document.getElementById('lbl_pe'))    document.getElementById('lbl_pe').textContent   = `Extraction Pressure Pe (${U.pressure})`;
+    if (document.getElementById('lbl_te'))    document.getElementById('lbl_te').textContent   = `Extraction Temp Te (${U.temp})`;
+    if (document.getElementById('lbl_he'))    document.getElementById('lbl_he').innerHTML     = `Extraction Enthalpy he (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    if (document.getElementById('lbl_pe2'))   document.getElementById('lbl_pe2').textContent  = `Extraction Pressure Pe (${U.pressure})`;
+    if (document.getElementById('lbl_te2'))   document.getElementById('lbl_te2').textContent  = `Extraction Temp Te (${U.temp})`;
+    if (document.getElementById('lbl_he2'))   document.getElementById('lbl_he2').innerHTML    = `Extraction Enthalpy he2 (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    if (document.getElementById('lbl_hf2'))   document.getElementById('lbl_hf2').innerHTML    = `Condenser hf at exhaust (${U.enthalpy}) <span class="auto-tag">AUTO</span>`;
+    if (document.getElementById('lbl_cwIn2')) document.getElementById('lbl_cwIn2').textContent= `CW Inlet Temp (${U.temp})`;
+    if (document.getElementById('lbl_cwOut2'))document.getElementById('lbl_cwOut2').textContent=`CW Outlet Temp (${U.temp})`;
+
+    const defSI  = { p1:60, t1:450, flow:60000, p2:3, pe:10, te:200, pe2:10, te2:200, condP:0.07, cwIn:28, cwOut:38, cwIn2:28, cwOut2:38 };
+    const defIMP = { p1:870.9, t1:842, flow:132277, p2:43.5, pe:145.0, te:392, pe2:145.0, te2:392, condP:1.015, cwIn:82.4, cwOut:100.4, cwIn2:82.4, cwOut2:100.4 };
+    const def = sys === 'IMP' ? defIMP : defSI;
+    Object.entries(def).forEach(([id,v]) => { const el = document.getElementById(id); if(el) el.value = v; });
+    autoSteam('inlet');
+}
+
+// ── Unit conversion helpers  (display/input only — no steam physics) ──
+function P_to_bar(v)    { return unitSys==='SI' ? v : v/14.5038; }
+function T_to_C(v)      { return unitSys==='SI' ? v : (v-32)/1.8; }
+function h_disp(h)      { return unitSys==='SI' ? h : h/2.326; }
+function s_disp(s)      { return unitSys==='SI' ? s : s/4.1868; }
+function h_to_SI(v)     { return unitSys==='SI' ? v : v*2.326; }
+function s_to_SI(v)     { return unitSys==='SI' ? v : v*4.1868; }
+function T_disp(t)      { return unitSys==='SI' ? t : t*1.8+32; }
+function P_disp(p)      { return unitSys==='SI' ? p : p*14.5038; }
+function flow_to_kgh(v) { return unitSys==='SI' ? v : v/2.20462; }
+function pw_disp(kW)    { return unitSys==='SI' ? {main:`${(kW/1000).toFixed(2)} MW`,alt:`${kW.toFixed(0)} kW`} : {main:`${(kW*1.341).toFixed(1)} hp`,alt:`${(kW/0.7457).toFixed(0)} hp`}; }
+function heat_disp(kW)  { return unitSys==='SI' ? {main:`${(kW/1000).toFixed(3)} MW`,alt:`${kW.toFixed(0)} kW`} : {main:`${(kW*0.003413).toFixed(2)} MMBTU/hr`,alt:`${(kW*3.412).toFixed(0)} BTU/hr`}; }
+function mflow_disp(kgs){ return unitSys==='SI' ? `${kgs.toFixed(2)} kg/s (${(kgs*3600).toFixed(0)} kg/h)` : `${(kgs*7936.6).toFixed(0)} lb/h`; }
+function mflowH_disp(kgh){return unitSys==='SI' ? `${kgh.toFixed(0)} kg/h` : `${(kgh*2.20462).toFixed(0)} lb/h`; }
+function hU(h)          { const U=unitLabels[unitSys]; return `${h_disp(h).toFixed(1)} ${U.enthalpy}`; }
+function pU(p)          { const U=unitLabels[unitSys]; return `${P_disp(p).toFixed(unitSys==='SI'?2:1)} ${U.pressure}`; }
+function tU(t)          { const U=unitLabels[unitSys]; return `${T_disp(t).toFixed(1)} ${U.temp}`; }
+function heatRate_disp(hr){ return unitSys==='SI' ? `${hr.toFixed(0)} kJ/kWh` : `${(hr/1.05506).toFixed(0)} BTU/kWh`; }
+
+// ══════════════════════════════════════════════════════════════════
+// ENGINE STATUS  (mirrors original but shows "API" instead of Pyodide)
+// ══════════════════════════════════════════════════════════════════
+let _engineMode = 'api';
+
+function updateEngineStatus(state) {
+    const dot   = document.getElementById('engDot');
+    const label = document.getElementById('engLabel');
+    const note  = document.getElementById('engineNote');
+    if (!dot) return;
+    if (state === 'loading') {
+        dot.className = 'eng-dot loading';
+        label.textContent = 'Calculating…';
+        if (note) note.innerHTML = 'Engine: <strong>IAPWS-IF97 API</strong> — computing…';
+    } else if (state === 'error') {
+        dot.className = 'eng-dot';
+        label.textContent = 'API Error';
+        if (note) note.innerHTML = 'Engine: <strong>API Error</strong>';
+    } else {
+        dot.className = 'eng-dot ready';
+        label.textContent = 'IAPWS-IF97 API — ±0.01 kJ/kg';
+        if (note) note.innerHTML = 'Engine: <strong>IAPWS-IF97 (Server API)</strong> — Accuracy ±0.01 kJ/kg';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// API CALL  — single endpoint, all actions
+// ══════════════════════════════════════════════════════════════════
+async function apiCall(payload) {
+    const res = await fetch('/api/steam-turbine-power', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// AUTO-FILL  — exact same logic as original, but calls API
+// instead of local getSatProps / getSuperheatedProps_fb
+// ══════════════════════════════════════════════════════════════════
+function setAutoField(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = parseFloat(val.toFixed(4));
+}
+
+// Debounce map so every section has its own timer
+const _autoTimers = {};
+async function autoSteam(section) {
+    clearTimeout(_autoTimers[section]);
+    _autoTimers[section] = setTimeout(() => _doAutoSteam(section), 150);
+}
+
+async function _doAutoSteam(section) {
+    updateEngineStatus('loading');
+    try {
+        if (section === 'inlet') {
+            const P_bar = P_to_bar(g('p1'));
+            const T_C   = T_to_C(g('t1'));
+            if (!P_bar || !T_C) { updateEngineStatus('ready'); return; }
+
+            const r = await apiCall({ action:'inletProps', P_bar, T_C });
+
+            setAutoField('h1', h_disp(r.h));
+            setAutoField('s1', s_disp(r.s));
+            const note = r.phase === 'sat'
+                ? `Saturated vapour at ${tU(r.T_sat)} — T_sat = ${tU(r.T_sat)}`
+                : `Superheated steam — T_sat=${tU(r.T_sat)}, ΔT_sh=${(T_disp(T_C)-T_disp(r.T_sat)).toFixed(1)}${unitLabels[unitSys].temp}`;
+            document.getElementById('inletNote').textContent = note;
+
+            // inlet change → must recompute exhaust h2s (s1 changed)
+            await _doAutoSteam('exhaust');
+
+        } else if (section === 'exhaust') {
+            const P_bar = P_to_bar(g('p2'));
+            if (!P_bar) { updateEngineStatus('ready'); return; }
+            const s1_SI = s_to_SI(g('s1'));
+            const t2_raw = g('t2');
+            const T2_C   = t2_raw ? T_to_C(t2_raw) : null;
+
+            const r = await apiCall({ action:'exhaustProps', P_bar, s1_SI, T2_C });
+
+            setAutoField('hfg',      h_disp(r.hfg));
+            setAutoField('h2s',      h_disp(r.h2s));
+            document.getElementById('exhaustNote').textContent =
+                `T_sat = ${tU(r.T_sat)} | hf = ${hU(r.hf)} | hg = ${hU(r.hg)}`;
+
+            // condenser auto-fill (always in DOM, may be hidden)
+            if (document.getElementById('condP')) {
+                document.getElementById('condP').value = P_disp(P_bar).toFixed(unitSys==='SI'?3:2);
+                setAutoField('hf',       h_disp(r.hf));
+                setAutoField('hfg_cond', h_disp(r.hfg));
+                document.getElementById('condNote').textContent = `T_sat = ${tU(r.T_sat)}`;
+            }
+            calculate();
+
+        } else if (section === 'extraction') {
+            const P_bar = P_to_bar(g('pe'));
+            if (!P_bar) { updateEngineStatus('ready'); return; }
+            const T_C = g('te') ? T_to_C(g('te')) : null;
+
+            const r = await apiCall({ action:'inletProps', P_bar, T_C });
+            setAutoField('he', h_disp(r.h));
+            calculate();
+
+        } else if (section === 'mixed_ext') {
+            const P_bar = P_to_bar(g('pe2'));
+            if (!P_bar) { updateEngineStatus('ready'); return; }
+            const T_C = g('te2') ? T_to_C(g('te2')) : null;
+
+            const r = await apiCall({ action:'inletProps', P_bar, T_C });
+            setAutoField('he2', h_disp(r.h));
+
+            // also fill condenser hf at exhaust P2
+            const P2_bar = P_to_bar(g('p2'));
+            if (P2_bar) {
+                const r2 = await apiCall({ action:'exhaustProps', P_bar:P2_bar, s1_SI:s_to_SI(g('s1')), T2_C:null });
+                setAutoField('hf2', h_disp(r2.hf));
+            }
+            calculate();
+        }
+        updateEngineStatus('ready');
+    } catch(e) {
+        console.warn('autoSteam error:', e);
+        updateEngineStatus('error');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TURBINE TYPE  (identical to original)
+// ══════════════════════════════════════════════════════════════════
+let currentType = 'backpressure';
+function setType(type, btn) {
+    currentType = type;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active-type'));
+    btn.classList.add('active-type');
+    document.getElementById('condenserInputs').classList.toggle('hidden', type !== 'condensing');
+    document.getElementById('extractionInputs').classList.toggle('hidden', type !== 'extraction');
+    document.getElementById('mixedInputs').classList.toggle('hidden', type !== 'mixed');
+    updateDiagram(type);
+    autoSteam('exhaust');
+    calculate();
+}
+
+function updateDiagram(type) {
+    const diagrams = {
+        backpressure: 'HP Steam [P₁,T₁,h₁] → Turbine → Exhaust [P₂,h₂] → Process',
+        condensing:   'HP Steam [P₁,T₁,h₁] → Turbine → Condenser [P_c,T_c] → Condensate',
+        extraction:   'HP Steam → Turbine → Extraction [Pe,he,ṁ_ext] → Process Heat\n               ↓ Exhaust [P₂,h₂]',
+        mixed:        'HP Steam → Turbine → Extraction [Pe] → Process\n               ↓ LP Turbine → Condenser'
+    };
+    document.getElementById('diagramStrip').textContent = diagrams[type] || '';
+}
+
+function updateP2Label() {
+    const label = document.getElementById('p2Label');
+    if (label) label.textContent = currentType==='condensing'
+        ? `Condenser Pressure P₂ (${unitLabels[unitSys].pressure})`
+        : `Exit Pressure P₂ (${unitLabels[unitSys].pressure})`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CALCULATE  — fires on every oninput (debounced 150 ms)
+// Sends all inputs to /api/calculate and renders results
+// Output HTML is byte-for-byte identical to original
+// ══════════════════════════════════════════════════════════════════
+let lastResults = {};
+function g(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+let _calcTimer;
+function calculate() {
+    clearTimeout(_calcTimer);
+    _calcTimer = setTimeout(_doCalculate, 150);
+}
+
+async function _doCalculate() {
+    const flow_kgh = flow_to_kgh(g('flow'));
+    const h1_SI    = h_to_SI(g('h1'));
+    const h2s_SI   = h_to_SI(g('h2s'));
+    const eff      = Math.min(1, Math.max(0.01, g('eff')));
+    const effm     = Math.min(1, Math.max(0.01, g('effm')));
+    const effg     = Math.min(1, Math.max(0.01, g('effg')));
+    const s1_SI    = s_to_SI(g('s1'));
+    const p1_bar   = P_to_bar(g('p1'));
+    const p2_bar   = P_to_bar(g('p2'));
+
+    // Client-side pre-validation  (mirrors original exactly)
+    if (flow_kgh<=0||h1_SI<=0||h2s_SI<=0||p1_bar<=0||p2_bar<=0) {
+        document.getElementById('results').innerHTML = `<div style="text-align:center;color:var(--warning);padding:20px;font-weight:600;">⚠️ Enter valid positive values for all required fields.</div>`; return;
+    }
+    if (p2_bar >= p1_bar) {
+        document.getElementById('results').innerHTML = `<div style="text-align:center;color:var(--danger);padding:20px;font-weight:600;">⚠️ Exit pressure P₂ must be less than inlet pressure P₁.</div>`; return;
+    }
+    if (h1_SI <= h2s_SI) {
+        document.getElementById('results').innerHTML = `<div style="text-align:center;color:var(--danger);padding:20px;font-weight:600;">⚠️ Inlet enthalpy h₁ must be greater than isentropic exit h₂s.</div>`; return;
+    }
+
+    const payload = { action:'calculate', turbineType:currentType,
+                      flow_kgh, h1_SI, h2s_SI, s1_SI, p1_bar, p2_bar, eff, effm, effg };
+
+    if (currentType === 'condensing') {
+        payload.cwIn_C  = T_to_C(g('cwIn'));
+        payload.cwOut_C = T_to_C(g('cwOut'));
+        payload.hf_SI   = h_to_SI(g('hf'));
+        payload.condP_bar = P_to_bar(g('condP'));
+    } else if (currentType === 'extraction') {
+        payload.extFrac = g('extFrac');
+        payload.he_SI   = h_to_SI(g('he'));
+    } else if (currentType === 'mixed') {
+        payload.extFrac2 = g('extFrac2');
+        payload.he2_SI   = h_to_SI(g('he2'));
+        payload.cwIn2_C  = T_to_C(g('cwIn2'));
+        payload.cwOut2_C = T_to_C(g('cwOut2'));
+        payload.hf2_SI   = h_to_SI(g('hf2'));
+    }
+
+    try {
+        updateEngineStatus('loading');
+        const r = await apiCall(payload);
+        updateEngineStatus('ready');
+        _renderResults(r, p2_bar, eff, effm, effg, flow_kgh, h1_SI, h2s_SI, s1_SI, p1_bar);
+    } catch(e) {
+        updateEngineStatus('error');
+        document.getElementById('results').innerHTML =
+            `<div style="text-align:center;color:var(--danger);padding:20px;font-weight:600;">⚠️ ${e.message}</div>`;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER RESULTS  — identical HTML as original calculate()
+// ══════════════════════════════════════════════════════════════════
+function _renderResults(r, p2_bar, eff, effm, effg, flow_kgh, h1_SI, h2s_SI, s1_SI, p1_bar) {
+    const quality = r.quality;
+    const U = unitLabels[unitSys];
+    let html = '', formulaText = '';
+
+    if (currentType === 'backpressure') {
+        const { pw, pe, Q_in, Q_out, eta, w_SI, h2_SI, sat2_T } = r;
+        const pwD=pw_disp(pw), peD=pw_disp(pe), qinD=heat_disp(Q_in), qoutD=heat_disp(Q_out);
+        html = kpiRow([kpiCard('⚡','Shaft Power',pwD.main,pwD.alt,'#0a5ea8'),kpiCard('🔌','Electrical Out',peD.main,peD.alt,'#16a34a'),kpiCard('🔥','Thermal Eff.',`${eta.toFixed(1)}%`,null,eta>35?'#16a34a':'#d97706')])
+            +buildSection('⚡ Power Output',[['Actual Specific Work (w)',`${h_disp(w_SI).toFixed(1)} ${U.enthalpy}`],['Shaft Power Output',dualVal(pwD.main,pwD.alt,true)],['Electrical Power Out',dualVal(peD.main,peD.alt,true)]])
+            +buildSection('📌 Steam Conditions',[['Actual Exit Enthalpy h₂',hU(h2_SI)],['Steam Quality at Exhaust',quality!==null?`${(quality*100).toFixed(1)}%`:'Superheated ✅'],['Exit Pressure P₂',pU(p2_bar)],['Saturation Temp at Exit',tU(sat2_T)]])
+            +buildSection('🔥 Heat Balance',[['Heat Input Rate',dualVal(qinD.main,qinD.alt)],['Heat Rejected at Exhaust',dualVal(qoutD.main,qoutD.alt)],['Thermal Efficiency',`${eta.toFixed(2)}%`],['Overall Eff. (ηt×ηm×ηg)',`${(eff*effm*effg*100).toFixed(1)}%`]])
+            +effBar(eff*effm*effg);
+        formulaText = 'w=(h₁−h₂s)×ηt | P_shaft=ṁ×w×ηm | P_elec=P_shaft×ηg';
+        lastResults = {type:'Back Pressure',pw,pe,Q_in,Q_out,eta,w_SI,h2_SI,p2_bar,sat2T:sat2_T,quality,flow_kgh,h1_SI,h2s_SI,s1_SI,eff,effm,effg};
+
+    } else if (currentType === 'condensing') {
+        const { pw, pe, Q_cond, mDot_cw, dT_cw, heatRate, eta, w_SI, h2_SI, condP_bar, satCond_T } = r;
+        const pwD=pw_disp(pw), peD=pw_disp(pe), qcD=heat_disp(Q_cond);
+        const dT_disp = unitSys==='SI' ? `${dT_cw.toFixed(1)} °C` : `${(dT_cw*9/5).toFixed(1)} °F`;
+        html = kpiRow([kpiCard('⚡','Shaft Power',pwD.main,pwD.alt,'#0a5ea8'),kpiCard('🔌','Electrical Out',peD.main,peD.alt,'#16a34a'),kpiCard('🌊','Condenser Duty',qcD.main,qcD.alt,'#0e6eb0')])
+            +buildSection('⚡ Power Output',[['Actual Exit Enthalpy h₂',hU(h2_SI)],['Steam Quality',quality!==null?`${(quality*100).toFixed(1)}%`:'Superheated ✅'],['Condenser Pressure',pU(condP_bar)],['Sat. Temp in Condenser',tU(satCond_T)]])
+            +buildSection('🌊 Condenser Heat Load',[['Condenser Heat Duty Q_cond',dualVal(qcD.main,qcD.alt,true)],['Cooling Water Flow',mflow_disp(mDot_cw)],['CW Temp Rise ΔT',dT_disp]])
+            +buildSection('🔥 Performance',[['Thermal Efficiency',`${eta.toFixed(2)}%`],['Heat Rate',heatRate_disp(heatRate)],['Overall Efficiency',`${(eff*effm*effg*100).toFixed(1)}%`]])
+            +effBar(eff*effm*effg);
+        formulaText = 'Q_cond=ṁ×(h₂−hf) | ṁ_cw=Q_cond/(Cp×ΔT) | HR=3600×ṁ×h₁/P';
+        lastResults = {type:'Condensing',pw,pe,Q_cond,mDot_cw,dT_cw,eta,heatRate,w_SI,h2_SI,condP_bar,satCondT:satCond_T,quality,flow_kgh,h1_SI,h2s_SI,s1_SI,eff,effm,effg};
+
+    } else if (currentType === 'extraction') {
+        const { pw, pe, Q_proc, eta, w_HP, w_LP, he_SI, h2_exh, extFrac, mExt, mExh } = r;
+        const pwD=pw_disp(pw), peD=pw_disp(pe), qpD=heat_disp(Q_proc);
+        html = kpiRow([kpiCard('⚡','Shaft Power',pwD.main,pwD.alt,'#0a5ea8'),kpiCard('🔌','Electrical Out',peD.main,peD.alt,'#16a34a'),kpiCard('♨️','Process Heat',qpD.main,qpD.alt,'#d97706')])
+            +buildSection('⚡ Power Output',[['HP Section Work',`${h_disp(w_HP).toFixed(1)} ${U.enthalpy}`],['LP Section Work',`${h_disp(w_LP).toFixed(1)} ${U.enthalpy}`],['Shaft Power',dualVal(pwD.main,pwD.alt,true)],['Electrical Power',dualVal(peD.main,peD.alt,true)]])
+            +buildSection('🔀 Flow Split',[['Extraction Flow ('+`${(extFrac*100).toFixed(0)}%`+')',mflow_disp(mExt)],['Exhaust Flow ('+`${((1-extFrac)*100).toFixed(0)}%`+')',mflow_disp(mExh)],['Extraction Enthalpy he',hU(he_SI)]])
+            +buildSection('🔥 Process Heat & Exhaust',[['Process Heating Load',dualVal(qpD.main,qpD.alt,true)],['Actual Exhaust Enthalpy h₂',hU(h2_exh)],['Steam Quality at Exhaust',quality!==null?`${(quality*100).toFixed(1)}%`:'Superheated ✅'],['Thermal Efficiency',`${eta.toFixed(2)}%`]])
+            +effBar(eff*effm*effg);
+        formulaText = 'P=[ṁ×w_HP+ṁ_exh×w_LP]×ηm | Q_proc=ṁ_ext×(he−hf_proc)';
+        lastResults = {type:'Extraction',pw,pe,Q_proc,eta,w_HP,w_LP,he_SI,h2_exh,extFrac,mExt,mExh,quality,flow_kgh,h1_SI,h2s_SI,s1_SI,eff,effm,effg};
+
+    } else if (currentType === 'mixed') {
+        const { pw, pe, Q_cond, Q_proc, eta, w_HP, w_LP, he_SI, h2_exh, extFrac, mExt, mExh, mDot_cw, dT_cw } = r;
+        const pwD=pw_disp(pw), peD=pw_disp(pe), qcD=heat_disp(Q_cond), qpD=heat_disp(Q_proc);
+        const dT_disp = unitSys==='SI' ? `${dT_cw.toFixed(1)} °C` : `${(dT_cw*9/5).toFixed(1)} °F`;
+        html = kpiRow([kpiCard('⚡','Shaft Power',pwD.main,pwD.alt,'#0a5ea8'),kpiCard('🔌','Electrical Out',peD.main,peD.alt,'#16a34a'),kpiCard('♨️','Process Heat',qpD.main,qpD.alt,'#d97706'),kpiCard('🌊','Condenser',qcD.main,qcD.alt,'#0e6eb0')])
+            +buildSection('⚡ Power Output',[['HP Specific Work',`${h_disp(w_HP).toFixed(1)} ${U.enthalpy}`],['LP Specific Work',`${h_disp(w_LP).toFixed(1)} ${U.enthalpy}`],['Shaft Power',dualVal(pwD.main,pwD.alt,true)],['Electrical Power',dualVal(peD.main,peD.alt,true)]])
+            +buildSection('🔀 Flow Split',[['Extraction ('+`${(extFrac*100).toFixed(0)}%`+')',mflow_disp(mExt)],['To Condenser ('+`${((1-extFrac)*100).toFixed(0)}%`+')',mflow_disp(mExh)]])
+            +buildSection('🔥 Process Heat',[['Process Heating Load',dualVal(qpD.main,qpD.alt,true)]])
+            +buildSection('🌊 Condenser',[['Condenser Heat Duty',dualVal(qcD.main,qcD.alt,true)],['Cooling Water Flow',mflow_disp(mDot_cw)],['CW Temp Rise ΔT',dT_disp]])
+            +buildSection('📊 Summary',[['Actual Exhaust Enthalpy',hU(h2_exh)],['Steam Quality at Exhaust',quality!==null?`${(quality*100).toFixed(1)}%`:'Superheated ✅'],['Thermal Efficiency',`${eta.toFixed(2)}%`],['Overall Efficiency',`${(eff*effm*effg*100).toFixed(1)}%`]])
+            +effBar(eff*effm*effg);
+        formulaText = 'P=[ṁ·w_HP+ṁ_exh·w_LP]·ηm | Q_cond=ṁ_exh·(h₂−hf) | Q_proc=ṁ_ext·(he−hf_proc)';
+        lastResults = {type:'Mixed',pw,pe,Q_cond,mDot_cw,Q_proc,eta,w_HP,w_LP,he_SI,h2_exh,extFrac,mExt,mExh,quality,flow_kgh,h1_SI,h2s_SI,s1_SI,eff,effm,effg};
+    }
+
+    lastResults.unitSys = unitSys;
+    lastResults.p1_bar  = p1_bar;
+    lastResults.t1_C    = T_to_C(g('t1'));
+    lastResults.p2_bar  = p2_bar;
+
+    document.getElementById('results').innerHTML = html;
+    const fn = document.getElementById('formulaNote');
+    fn.textContent = formulaText; fn.style.display = formulaText ? '' : 'none';
+    const warn = document.getElementById('qualityWarning');
+    (quality!==null&&quality<0.88) ? warn.classList.remove('hidden') : warn.classList.add('hidden');
+}
+
+// ── Result HTML builders (identical to original) ───────────────
+function buildSection(title, rows) {
+    let h = `<div class="result-section-title">${title}</div>`;
+    rows.forEach(([label,val,highlight]) => {
+        h += `<div class="result-row"><span class="res-label">${label}</span>${typeof val==='string' ? `<span class="res-val${highlight?' highlight':''}">${val}</span>` : val}</div>`;
+    });
+    return h;
+}
+function kpiCard(icon,label,value,sub,color) {
+    return `<div class="kpi-card"><span class="kpi-icon">${icon}</span><div class="kpi-val" style="color:${color||'var(--result-val)'};">${value}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}<div class="kpi-lbl">${label}</div></div>`;
+}
+function kpiRow(cards) { return `<div class="kpi-row">${cards.join('')}</div>`; }
+function dualVal(main,alt,highlight) { return `<div class="res-dual"><span class="res-main${highlight?' highlight':''}">${main}</span><span class="res-alt">${alt}</span></div>`; }
+function effBar(eta) {
+    const pct=Math.min(100,eta*100).toFixed(1);
+    const color=eta>0.78?'#16a34a':eta>0.65?'#d97706':'#dc2626';
+    const textColor=eta>0.78?'#14532d':eta>0.65?'#78350f':'#7f1d1d';
+    return `<div style="margin-top:12px;padding:12px;background:#f8fbff;border-radius:8px;border:1px solid var(--border-light);"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:0.72rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.8px;">Overall Efficiency (ηt × ηm × ηg)</span><span style="font-size:1rem;font-weight:800;color:${textColor};">${pct}%</span></div><div class="gauge-bar"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}cc);"></div></div><div style="display:flex;justify-content:space-between;font-size:0.60rem;color:#94a3b8;margin-top:3px;"><span>0%</span><span>50%</span><span>100%</span></div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PDF REPORT  (identical to original — reads DOM, not recalculates)
+// ══════════════════════════════════════════════════════════════════
+function generatePDF() {
+    if (!lastResults || !lastResults.type) { showToast('⚠ Run a calculation first before generating a report.'); return; }
+    const proj=document.getElementById('projName').value||'Steam Turbine Study';
+    const by=document.getElementById('projBy').value||'—';
+    const dt=document.getElementById('projDate').value||new Date().toISOString().slice(0,10);
+    const r=lastResults;
+    const U=unitLabels[unitSys];
+    const rows=document.querySelectorAll('#results .result-row');
+    let tableRows='';
+    rows.forEach(row=>{
+        const lbl=row.querySelector('.res-label')?.textContent||'';
+        const main=row.querySelector('.res-main')?.textContent||row.querySelector('.res-val')?.textContent||'';
+        const alt=row.querySelector('.res-alt')?.textContent||'';
+        const isHL=!!(row.querySelector('.res-main.highlight')||row.querySelector('.res-val.highlight'));
+        tableRows+=`<tr${isHL?' class="hl"':''}><td>${lbl}</td><td>${main}${alt?' <span style="color:#94a3b8;font-size:10px;">('+alt+')</span>':''}</td></tr>`;
+    });
+    const inputSummary=`
+        <tr><td>Turbine Type</td><td>${r.type}</td></tr>
+        <tr><td>Unit System</td><td>${unitSys==='SI'?'SI Metric':'Imperial (US)'}</td></tr>
+        <tr><td>Steam Flow</td><td>${mflowH_disp(r.flow_kgh)}</td></tr>
+        <tr><td>Inlet Pressure P₁</td><td>${pU(r.p1_bar)}</td></tr>
+        <tr><td>Inlet Temperature T₁</td><td>${tU(r.t1_C)}</td></tr>
+        <tr><td>Inlet Enthalpy h₁</td><td>${hU(r.h1_SI)}</td></tr>
+        <tr><td>Inlet Entropy s₁</td><td>${s_disp(r.s1_SI).toFixed(4)} ${U.entropy}</td></tr>
+        <tr><td>Exit Pressure P₂</td><td>${pU(r.p2_bar)}</td></tr>
+        <tr><td>Isentropic Efficiency ηt</td><td>${(r.eff*100).toFixed(0)}%</td></tr>
+        <tr><td>Mechanical Efficiency ηm</td><td>${(r.effm*100).toFixed(0)}%</td></tr>
+        <tr><td>Generator Efficiency ηg</td><td>${(r.effg*100).toFixed(0)}%</td></tr>
+        <tr><td>Engine Used</td><td>IAPWS-IF97 Server API — ±0.01 kJ/kg</td></tr>
+    `;
+    const formulaText=document.getElementById('formulaNote').textContent;
+    const warnText=document.getElementById('qualityWarning').classList.contains('hidden')?'':`<div class="warn">⚠️ Steam quality below 0.88 — blade erosion risk!</div>`;
+    const w=window.open('','_blank','width=900,height=750');
+    if (!w) { showToast('⚠ Popup blocked — please allow popups for PDF reports.'); return; }
+    w.document.write(`<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><title>Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com</title>
+<meta name="description" content="Free steam turbine power output calculator for isentropic efficiency, shaft power and steam consumption.">
+<link rel="canonical" href="https://multicalci.com/steam-turbine-power/">
+<meta property="og:title" content="Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com">
+<meta property="og:description" content="Free steam turbine power output calculator for isentropic efficiency, shaft power and steam consumption.">
+<meta property="og:url" content="https://multicalci.com/steam-turbine-power/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com">
+<meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<style>body{font-family:'Segoe UI',Arial,sans-serif;margin:0;color:#2c3e50;font-size:12px;}.header{background:#0f2140;color:white;padding:24px 36px;}.header h1{margin:0;font-size:20px;}.header .sub{font-size:11px;opacity:0.8;margin-top:6px;}.meta{display:flex;gap:25px;margin-top:12px;font-size:11px;flex-wrap:wrap;}.meta span{opacity:0.9;}.body{padding:24px 36px;}h2{color:#0f2140;font-size:13px;border-bottom:2px solid #0e84e5;padding-bottom:4px;margin-top:22px;}table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px;}th{background:#0f2140;color:white;padding:7px 10px;text-align:left;font-size:11px;}td{padding:6px 10px;border-bottom:1px solid #e2e8f0;}tr:nth-child(even) td{background:#f8fafc;}tr.hl td{background:#fff5f5;color:#c0392b;font-weight:700;}.formula{background:#f0f7ff;padding:10px 14px;border-left:3px solid #0e84e5;font-style:italic;font-size:11px;color:#444;margin-top:14px;border-radius:4px;}.warn{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:8px 12px;border-radius:6px;font-weight:600;margin-top:10px;font-size:11px;}.footer{text-align:center;font-size:10px;color:#94a3b8;margin-top:30px;padding-top:12px;border-top:1px solid #e2e8f0;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
+</head><body>
+<div class="header"><h1>⚙️ Steam Turbine Calculation Report</h1><div class="sub">Engineering Calculation — Steam Turbine Power Analysis</div>
+<div class="meta"><span><b>Project:</b> ${proj}</span><span><b>By:</b> ${by}</span><span><b>Date:</b> ${dt}</span><span><b>Type:</b> ${r.type}</span><span><b>Units:</b> ${unitSys==='SI'?'SI Metric':'Imperial (US)'}</span></div></div>
+<div class="body">
+<h2>1. Input Parameters</h2><table><tr><th>Parameter</th><th>Value</th></tr>${inputSummary}</table>
+<h2>2. Calculation Results</h2><table><tr><th>Result</th><th>Value</th></tr>${tableRows}</table>${warnText}
+<h2>3. Formulae Used</h2><div class="formula">${formulaText}</div>
+<h2>4. Notes & Assumptions</h2>
+<table><tr><th>Item</th><th>Assumption</th></tr>
+<tr><td>Steam Properties</td><td>IAPWS-IF97 Server API — ±0.01 kJ/kg</td></tr>
+<tr><td>Process condensate hf</td><td>419 kJ/kg (180 BTU/lb) — 100°C / 212°F return</td></tr>
+<tr><td>Cooling water Cp</td><td>4.187 kJ/(kg·K) = 1.0 BTU/(lb·°F)</td></tr>
+<tr><td>Steam quality limit</td><td>Min. 0.88 to avoid blade erosion (ASME PTC 6)</td></tr>
+</table>
+<div class="footer">multicalci.com — Steam Turbine Power Calculator | ${new Date().toLocaleString()} | Free Engineering Calculators</div>
+</div>
+<script>window.onload=()=>{window.print();}<\/script></body></html>`);
+    w.document.close();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UTILITY  (identical to original)
+// ══════════════════════════════════════════════════════════════════
+function copyResults() {
+    const el=document.getElementById('results');
+    if(!el||!el.textContent.trim()){showToast('⚠ No results to copy yet');return;}
+    const rows=document.querySelectorAll('#results .result-row');
+    let text='Steam Turbine Calculation Results\n'+'='.repeat(40)+'\n';
+    rows.forEach(row=>{
+        const lbl=row.querySelector('.res-label')?.textContent||'';
+        const val=row.querySelector('.res-main')?.textContent||row.querySelector('.res-val')?.textContent||'';
+        const alt=row.querySelector('.res-alt')?.textContent||'';
+        if(lbl) text+=`${lbl.padEnd(32)}: ${val}${alt?' ('+alt+')':''}\n`;
+    });
+    text+=`\nEngine: IAPWS-IF97 Server API — ±0.01 kJ/kg\nGenerated by multicalci.com — multicalci.com`;
+    navigator.clipboard?navigator.clipboard.writeText(text).then(()=>showToast('✅ Results copied!')):showToast('⚠ Copy not supported');
+}
+function shareCalc() {
+    const url=window.location.href;
+    const title='Steam Turbine Power Calculator — multicalci.com';
+    const text='Professional steam turbine calculator: back pressure, condensing, extraction. SI + Imperial, IAPWS-IF97 accuracy.';
+    if(navigator.share) navigator.share({title,text,url}).catch(()=>{});
+    else if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>showToast('🔗 Link copied!'));
+    else prompt('Copy this link:',url);
+}
+function showToast(msg) {
+    const t=document.getElementById('toast-msg');
+    if(!t) return;
+    t.textContent=msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),2800);
+}
+function toggleQRef(header) {
+    const body=document.getElementById('qrefBody');
+    const arrow=header.querySelector('.collapse-arrow');
+    const isOpen=body.style.display!=='none';
+    body.style.display=isOpen?'none':'block';
+    arrow.classList.toggle('open',!isOpen);
+}
+function toggleTypical(header) {
+    const body=document.getElementById('typicalBody');
+    const arrow=header.querySelector('.collapse-arrow');
+    const isOpen=body.style.display!=='none';
+    body.style.display=isOpen?'none':'block';
+    arrow.classList.toggle('open',!isOpen);
+}
+function openEduSection() {
+    const el = document.getElementById('tp-edu-section');
+    if (!el) return;
+    el.classList.add('edu-visible');
+    setTimeout(() => { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+}
+function closeEduSection() {
+    const el = document.getElementById('tp-edu-section');
+    if (el) el.classList.remove('edu-visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+window.addEventListener('scroll',()=>{ const b=document.getElementById('btt'); if(b) b.classList.toggle('show',window.scrollY>280); });
+
+// ══════════════════════════════════════════════════════════════════
+// INIT  — same sequence as original
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('projDate').value = new Date().toISOString().slice(0,10);
+updateDiagram('backpressure');
+updateEngineStatus('ready');
+autoSteam('inlet');   // triggers exhaust + calculate automatically
+</script>
+
+<!-- ================================================================
+     EDUCATIONAL SECTION — hidden until user clicks "Full Technical Guide"
+     ================================================================ -->
+<style>
+/* ── Educational section — collapsed by default ── */
+#tp-edu-section{
+  display:none;
+  opacity:0;
+  transform:translateY(20px);
+  transition:opacity .35s ease, transform .35s ease;
+}
+#tp-edu-section.edu-visible{
+  display:block;
+  animation:eduFadeIn .35s ease forwards;
+}
+@keyframes eduFadeIn{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ── Edu section wrapper — inherits page bg perfectly ── */
+.tp-edu{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 10% 100%,rgba(14,132,229,.05) 0%,transparent 55%),
+    radial-gradient(ellipse at 90% 0%,rgba(15,33,64,.04) 0%,transparent 55%);
+  padding:48px 0 72px;
+  border-top:2px solid var(--border);
+  font-family:var(--font);
+  font-size:14px;
+  line-height:1.65;
+  color:var(--text);
+}
+.tp-edu__inner{max-width:1100px;margin:0 auto;padding:0 20px;}
+
+/* header row with close button */
+.tp-edu__headerrow{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:6px;flex-wrap:wrap;}
+.tp-edu__title{font-size:1.55rem;font-weight:700;color:var(--primary);letter-spacing:-.3px;margin:0;}
+.tp-edu__title span{color:var(--accent);}
+.tp-edu__sub{font-size:.82rem;color:var(--text-3);margin:0 0 28px;}
+.tp-edu__close{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-family:var(--font);font-size:.76rem;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.tp-edu__close:hover{background:var(--primary-light);transform:translateY(-1px);}
+
+/* Tab nav */
+.tp-tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:28px;overflow-x:auto;scrollbar-width:none;}
+.tp-tabs::-webkit-scrollbar{display:none;}
+.tp-tab{background:none;border:none;padding:9px 18px;font-family:var(--font);font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);cursor:pointer;white-space:nowrap;position:relative;transition:color .18s;}
+.tp-tab::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .2s;border-radius:2px 2px 0 0;}
+.tp-tab:hover{color:var(--text);}
+.tp-tab.active{color:var(--accent);}
+.tp-tab.active::after{transform:scaleX(1);}
+.tp-panel{display:none;}
+.tp-panel.active{display:block;}
+
+/* Cards */
+.tp-card{background:var(--card-bg);border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:18px;}
+.tp-card--blue{border-left:4px solid var(--accent);}
+.tp-card--warm{border-left:4px solid var(--accent-warm);}
+.tp-card--green{border-left:4px solid var(--success);}
+.tp-card--navy{border-left:4px solid var(--primary);}
+
+/* Typography */
+.tp-edu h3{font-size:1.05rem;font-weight:700;color:var(--primary);margin:0 0 10px;}
+.tp-edu h4{font-size:.68rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin:0 0 8px;}
+.tp-edu p{margin:0 0 12px;color:var(--text-2);}
+.tp-edu ul,.tp-edu ol{padding-left:18px;margin:0 0 12px;}
+.tp-edu li{margin-bottom:5px;color:var(--text-2);}
+.tp-edu strong{color:var(--text);}
+
+/* Formula blocks — match existing .formula-note style but bigger */
+.tp-formula{background:#f0f5fc;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);padding:13px 16px;margin:10px 0 16px;font-family:var(--mono);font-size:.80rem;color:#0a1628;overflow-x:auto;white-space:pre;line-height:1.9;}
+.tp-formula .cmt{color:var(--text-3);font-size:.72rem;}
+.tp-formula .var{color:var(--accent-dk);font-weight:600;}
+.tp-formula .val{color:var(--warning);font-weight:600;}
+.tp-formula .good{color:var(--success);font-weight:600;}
+
+/* Grids */
+.tp-g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.tp-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+@media(max-width:720px){.tp-g2,.tp-g3{grid-template-columns:1fr;}}
+
+/* Stat pills — match existing KPI card */
+.tp-stat{background:var(--result-bg);border:1px solid var(--result-border);border-radius:10px;padding:13px 14px;text-align:center;}
+.tp-stat__val{display:block;font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--accent-dk);margin-bottom:3px;}
+.tp-stat__lbl{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);}
+
+/* Data tables — match existing .ref-table */
+.tp-tbl-wrap{overflow-x:auto;margin:10px 0 16px;border-radius:var(--radius-sm);border:1px solid var(--border);}
+.tp-tbl{width:100%;border-collapse:collapse;font-size:.78rem;}
+.tp-tbl thead tr{background:var(--primary);}
+.tp-tbl th{padding:8px 12px;text-align:left;font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;white-space:nowrap;border-bottom:1px solid var(--border);}
+.tp-tbl td{padding:7px 12px;border-bottom:1px solid var(--border-light);color:var(--text-2);font-family:var(--mono);font-size:.76rem;}
+.tp-tbl tr:last-child td{border-bottom:none;}
+.tp-tbl tbody tr:nth-child(even) td{background:#f8fafc;}
+.tp-tbl tbody tr:hover td{background:#f0f7ff;}
+.tp-tbl td:first-child{color:var(--text);font-weight:700;font-family:var(--font);}
+
+/* Tip / warn boxes */
+.tp-tip{display:flex;gap:10px;background:#f0f7ff;border:1px solid var(--result-border);border-radius:var(--radius-sm);padding:11px 13px;margin:10px 0;font-size:.80rem;color:var(--result-label);}
+.tp-warn{display:flex;gap:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:var(--radius-sm);padding:11px 13px;margin:10px 0;font-size:.80rem;color:#78350f;}
+
+/* Steps */
+.tp-steps{list-style:none;padding:0;margin:0 0 20px;}
+.tp-step{display:flex;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border-light);}
+.tp-step:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.tp-step__num{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dk));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.9rem;color:#fff;box-shadow:0 2px 8px rgba(14,132,229,.3);}
+.tp-step__body{flex:1;}
+.tp-step__title{font-weight:700;color:var(--text);margin-bottom:6px;font-size:.92rem;}
+
+/* FAQ */
+.tp-faq{margin-bottom:7px;border-radius:var(--radius-sm);border:1px solid var(--border);overflow:hidden;}
+.tp-faq__q{width:100%;background:var(--card-bg);border:none;text-align:left;padding:13px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--font);font-size:.86rem;font-weight:700;color:var(--text);transition:background .18s;}
+.tp-faq__q:hover{background:#f8fbff;}
+.tp-faq__arrow{flex-shrink:0;width:17px;height:17px;fill:none;stroke:var(--accent);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .22s;}
+.tp-faq.open .tp-faq__arrow{transform:rotate(180deg);}
+.tp-faq__a{display:none;padding:0 16px 14px;background:var(--card-bg);color:var(--text-2);font-size:.835rem;line-height:1.72;}
+.tp-faq.open .tp-faq__a{display:block;}
+
+/* Glossary */
+.tp-gloss{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(max-width:600px){.tp-gloss{grid-template-columns:1fr;}}
+.tp-gloss-item{background:var(--card-bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:13px 15px;box-shadow:0 1px 3px rgba(15,33,64,.05);}
+.tp-gloss-item__term{font-weight:700;color:var(--text);font-size:.88rem;margin-bottom:2px;}
+.tp-gloss-item__sym{display:inline-block;font-family:var(--mono);font-size:.70rem;font-weight:600;color:var(--accent-dk);background:#e8f4fd;border-radius:4px;padding:1px 6px;margin-bottom:6px;}
+.tp-gloss-item__def{font-size:.78rem;color:var(--text-3);line-height:1.56;}
+
+/* Turbine type badges */
+.tp-badge{display:inline-block;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px;margin-right:4px;vertical-align:middle;}
+.tp-badge--bp{background:#e8f4fd;color:var(--accent-dk);}
+.tp-badge--cond{background:#f0fdf4;color:#15803d;}
+.tp-badge--ext{background:#fff7ed;color:#c2410c;}
+</style>
+
+<section class="tp-edu" id="tp-edu-section">
+<div class="tp-edu__inner">
+
+  <!-- Header with close button -->
+  <div class="tp-edu__headerrow">
+    <div>
+      <h2 class="tp-edu__title">Steam Turbine Power — <span>Technical Reference</span></h2>
+      <p class="tp-edu__sub">Rankine cycle theory · IAPWS-IF97 formulations · Turbine types · Worked examples · FAQ · Glossary</p>
+    </div>
+    <button class="tp-edu__close" onclick="closeEduSection()">✕ Close Guide</button>
+  </div>
+
+  <!-- Tab nav -->
+  <nav class="tp-tabs" role="tablist">
+    <button class="tp-tab active" role="tab" data-target="tp-theory">⚙️ Theory &amp; Formulas</button>
+    <button class="tp-tab" role="tab" data-target="tp-howto">📖 How-to Guide</button>
+    <button class="tp-tab" role="tab" data-target="tp-faq">❓ FAQ</button>
+    <button class="tp-tab" role="tab" data-target="tp-gloss">📘 Glossary</button>
+  </nav>
+
+  <!-- ── TAB 1: THEORY ── -->
+  <div class="tp-panel active" id="tp-theory">
+
+    <div class="tp-card tp-card--blue">
+      <h4>Thermodynamic Foundation</h4>
+      <h3>The Rankine Cycle — How Steam Turbines Generate Power</h3>
+      <p>A steam turbine converts thermal energy in high-pressure steam into mechanical shaft work, driving a generator to produce electricity. The theoretical cycle is the <strong>Rankine cycle</strong> — four processes:</p>
+      <div class="tp-g2">
+        <div>
+          <p><strong>1→2 Isentropic Expansion (Turbine):</strong> Steam expands through nozzles and blades, converting enthalpy into shaft work. Entropy is constant in the ideal case; blade losses, tip leakage, and friction reduce real output below the isentropic ideal.</p>
+          <p><strong>2→3 Isobaric Heat Rejection (Condenser/Exhaust):</strong> Exhaust steam condenses in a surface condenser (condensing turbine) or discharges to a lower-pressure process header (back-pressure turbine).</p>
+        </div>
+        <div>
+          <p><strong>3→4 Isentropic Compression (Feed Pump):</strong> Condensate is pumped back to boiler pressure. Pump work is small (&lt;2% of cycle work), often neglected in first-pass calculations.</p>
+          <p><strong>4→1 Isobaric Heat Addition (Boiler/Superheater):</strong> Feed water is heated, boiled, and superheated at constant pressure. This is the largest heat input and determines fuel consumption.</p>
+        </div>
+      </div>
+      <!-- Inline Mollier diagram -->
+      <div style="background:#f0f5fc;border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin:12px 0 16px;overflow-x:auto;">
+        <svg viewBox="0 0 580 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;" aria-label="Mollier h-s diagram">
+          <line x1="52" y1="255" x2="560" y2="255" stroke="#c8d8ea" stroke-width="1.5"/>
+          <line x1="52" y1="255" x2="52" y2="18" stroke="#c8d8ea" stroke-width="1.5"/>
+          <text x="306" y="272" fill="#8aa4c0" font-family="Space Grotesk,sans-serif" font-size="10" text-anchor="middle">Specific Entropy  s  (kJ/kg·K) →</text>
+          <text x="14" y="140" fill="#8aa4c0" font-family="Space Grotesk,sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 14 140)">Enthalpy  h  (kJ/kg) →</text>
+          <!-- Saturation dome -->
+          <path d="M 52 238 Q 125 182 195 138 Q 272 92 330 65 Q 368 50 396 44" stroke="#0e84e5" stroke-width="2" fill="none"/>
+          <path d="M 396 44 Q 435 56 474 96 Q 504 132 518 178 Q 528 218 530 255" stroke="#0e84e5" stroke-width="2" fill="none"/>
+          <path d="M 52 238 Q 125 182 195 138 Q 272 92 330 65 Q 368 50 396 44 Q 435 56 474 96 Q 504 132 518 178 Q 528 218 530 255 Z" fill="rgba(14,132,229,.05)"/>
+          <!-- Isobar lines -->
+          <path d="M 195 136 Q 305 100 420 78 Q 495 66 560 60" stroke="#c8d8ea" stroke-width="1" fill="none" stroke-dasharray="4 3"/>
+          <text x="562" y="64" fill="#8aa4c0" font-size="9" font-family="JetBrains Mono,monospace">P₁</text>
+          <path d="M 378 130 Q 436 118 510 111 Q 540 109 560 107" stroke="#c8d8ea" stroke-width="1" fill="none" stroke-dasharray="4 3"/>
+          <text x="562" y="111" fill="#8aa4c0" font-size="9" font-family="JetBrains Mono,monospace">P₂</text>
+          <!-- Inlet point -->
+          <circle cx="298" cy="84" r="5" fill="#0e84e5"/>
+          <text x="304" y="81" fill="#0e84e5" font-family="Space Grotesk,sans-serif" font-size="10" font-weight="700">1 (inlet)</text>
+          <!-- Isentropic line -->
+          <line x1="298" y1="84" x2="298" y2="130" stroke="#0a6cbd" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <!-- Back-pressure actual -->
+          <line x1="298" y1="84" x2="312" y2="128" stroke="#0e84e5" stroke-width="2.2"/>
+          <circle cx="312" cy="128" r="4" fill="#0e84e5"/>
+          <text x="317" y="126" fill="#0e84e5" font-family="Space Grotesk,sans-serif" font-size="9">2ᵦₚ (back-pressure)</text>
+          <!-- Condensing actual -->
+          <line x1="298" y1="84" x2="322" y2="200" stroke="#16a34a" stroke-width="2.2"/>
+          <circle cx="322" cy="200" r="4" fill="#16a34a"/>
+          <text x="327" y="198" fill="#16a34a" font-family="Space Grotesk,sans-serif" font-size="9">2c (condensing)</text>
+          <!-- Extraction tap -->
+          <circle cx="306" cy="110" r="3.5" fill="#f05a28"/>
+          <line x1="306" y1="110" x2="348" y2="100" stroke="#f05a28" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <text x="350" y="98" fill="#f05a28" font-family="Space Grotesk,sans-serif" font-size="9">extraction tap</text>
+          <!-- Moisture line -->
+          <line x1="410" y1="146" x2="530" y2="255" stroke="#c8d8ea" stroke-width="0.8" stroke-dasharray="2 3"/>
+          <text x="452" y="230" fill="#8aa4c0" font-size="9" font-family="JetBrains Mono,monospace">x=0.90</text>
+          <!-- Critical point -->
+          <circle cx="396" cy="44" r="4" fill="#f05a28"/>
+          <text x="338" y="46" fill="#607d9b" font-family="Space Grotesk,sans-serif" font-size="9">● critical pt</text>
+          <!-- Region labels -->
+          <text x="76" y="190" fill="#0e84e5" font-family="Space Grotesk,sans-serif" font-size="10" font-weight="700">WET STEAM</text>
+          <text x="425" y="45" fill="#374f6b" font-family="Space Grotesk,sans-serif" font-size="10" font-weight="700">SUPERHEATED</text>
+        </svg>
+      </div>
+      <p style="font-size:.76rem;color:var(--text-3);margin:0;">Mollier (h–s) diagram: isentropic expansion is a vertical line; real expansion slopes right due to irreversibilities. Back-pressure (2ᵦₚ) has a small Δh; condensing (2c) uses the full pressure ratio for maximum power output.</p>
+    </div>
+
+    <div class="tp-card tp-card--warm">
+      <h4>Core Calculation</h4>
+      <h3>Shaft Power, Isentropic Efficiency &amp; Electrical Output</h3>
+      <div class="tp-formula"><span class="cmt">── Turbine shaft power ──────────────────────────────</span>
+<span class="var">W_shaft</span>  = ṁ × (h₁ − h₂)                   [kW]   ṁ in kg/s
+
+<span class="cmt">── Isentropic exhaust enthalpy (ideal) ──────────────</span>
+<span class="var">h₂s</span>      at P₂ where  s₂s = s₁            (same entropy as inlet)
+
+<span class="cmt">── Isentropic efficiency ─────────────────────────────</span>
+<span class="var">η_t</span>      = (h₁ − h₂) / (h₁ − h₂s)         typically 0.70 – 0.88
+
+<span class="cmt">── Actual outlet enthalpy ────────────────────────────</span>
+<span class="var">h₂</span>       = h₁ − η_t × (h₁ − h₂s)
+
+<span class="cmt">── Electrical output ─────────────────────────────────</span>
+<span class="var">W_elec</span>   = W_shaft × η_mech × η_gen         η_gen typically 0.96–0.99</div>
+      <div class="tp-g3">
+        <div class="tp-stat"><span class="tp-stat__val">0.65–0.78</span><span class="tp-stat__lbl">Small BP turbine η_t</span></div>
+        <div class="tp-stat"><span class="tp-stat__val">0.78–0.86</span><span class="tp-stat__lbl">Industrial condensing η_t</span></div>
+        <div class="tp-stat"><span class="tp-stat__val">0.87–0.92</span><span class="tp-stat__lbl">Large utility η_t</span></div>
+      </div>
+    </div>
+
+    <div class="tp-card tp-card--navy">
+      <h4>Turbine Types</h4>
+      <h3>Back-Pressure · Condensing · Extraction Turbines</h3>
+      <div class="tp-g2" style="margin-bottom:16px;">
+        <div>
+          <p><span class="tp-badge tp-badge--bp">Back-Pressure</span></p>
+          <p>Exhausts to a <strong>process steam header above atmospheric</strong> (1–20 bar abs). No condenser needed. Exhaust steam is fully available for process heating — true CHP with overall efficiencies of 70–85%.</p>
+          <div class="tp-formula"><span class="cmt">Back-pressure power:</span>
+W = ṁ × η_t × (h₁ − h₂s)
+P₂ = process header pressure
+Exhaust → heating, drying,
+  sterilisation, deaeration</div>
+        </div>
+        <div>
+          <p><span class="tp-badge tp-badge--cond">Condensing</span></p>
+          <p>Exhausts to a <strong>sub-atmospheric condenser</strong> (0.04–0.10 bar abs). Maximum enthalpy drop = maximum power. Requires cooling water. Used in power stations (30–48% electrical efficiency).</p>
+          <div class="tp-formula"><span class="cmt">Condenser duty:</span>
+Q_cond = ṁ × (h₂ − hf₂)
+  hf₂ = sat. liquid at P₂
+
+<span class="cmt">Exhaust quality check:</span>
+x₂s = (s₁ − sf₂) / sfg₂
+x₂s &lt; 0.88 → blade erosion risk</div>
+        </div>
+      </div>
+      <p><span class="tp-badge tp-badge--ext">Extraction (Pass-Out)</span> — A controlled bleed at intermediate pressure for process use; remainder expands to final exhaust. Total power = Stage 1 + Stage 2:</p>
+      <div class="tp-formula"><span class="cmt">Two-stage extraction:</span>
+Stage 1: ṁ_total  P₁ → P_ext    W₁ = ṁ_total × η_t × (h₁ − h_ext,s)
+Bleed:   ṁ_ext leaves at P_ext
+Stage 2: ṁ_pass  P_ext → P₂    W₂ = ṁ_pass × η_t × (h_ext − h₂s)
+<span class="var">W_total</span> = W₁ + W₂</div>
+    </div>
+
+    <div class="tp-card tp-card--blue">
+      <h4>IAPWS-IF97</h4>
+      <h3>Finding the Isentropic Exhaust Enthalpy h₂s</h3>
+      <div class="tp-g2">
+        <div>
+          <p><strong>Case A — Superheated exhaust</strong> (s₁ &lt; sg at P₂)</p>
+          <div class="tp-formula"><span class="cmt">Region 2, s₂s = s₁:</span>
+h₂s = h(P₂, s = s₁)
+Basis: γ(π,τ) = γ° + γʳ
+h = RT* τ (∂γ/∂τ)_π</div>
+        </div>
+        <div>
+          <p><strong>Case B — Wet steam exhaust</strong> (sf₂ &lt; s₁ &lt; sg₂)</p>
+          <div class="tp-formula"><span class="cmt">Two-phase at P₂:</span>
+x₂s = (s₁ − sf₂) / sfg₂
+h₂s = hf₂ + x₂s × hfg₂
+<span class="cmt">Properties from Region 4</span>
+<span class="cmt">(Wagner equation)</span></div>
+        </div>
+      </div>
+      <div class="tp-warn">⚠️&nbsp; <strong>Wet exhaust limit:</strong> x₂s &lt; 0.88 causes last-stage blade erosion. Raise inlet superheat, raise P₁, or add interstage reheating. Most OEM warranties require x ≥ 0.87–0.90.</div>
+      <p>Common inlet conditions (IAPWS-IF97):</p>
+      <div class="tp-tbl-wrap">
+        <table class="tp-tbl">
+          <thead><tr><th>P₁ (bar)</th><th>T₁ (°C)</th><th>h₁ (kJ/kg)</th><th>s₁ (kJ/kg·K)</th><th>Application</th></tr></thead>
+          <tbody>
+            <tr><td>10</td><td>180</td><td>2778</td><td>6.587</td><td>Small industrial back-pressure turbine</td></tr>
+            <tr><td>20</td><td>250</td><td>2903</td><td>6.545</td><td>Medium CHP / district heating</td></tr>
+            <tr><td>40</td><td>400</td><td>3214</td><td>6.958</td><td>Industrial power station</td></tr>
+            <tr><td>60</td><td>450</td><td>3302</td><td>6.719</td><td>Combined cycle HRSG turbine</td></tr>
+            <tr><td>100</td><td>500</td><td>3374</td><td>6.599</td><td>Subcritical utility turbine</td></tr>
+            <tr><td>250</td><td>600</td><td>3336</td><td>6.177</td><td>Ultra-supercritical plant</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tp-card tp-card--green">
+      <h4>Plant Performance Metrics</h4>
+      <h3>Heat Rate, Specific Steam Rate &amp; CHP Efficiency</h3>
+      <div class="tp-g2">
+        <div>
+          <div class="tp-formula"><span class="cmt">── Heat Rate ──</span>
+HR = 3600 / η_cycle      [kJ/kWh]
+
+<span class="cmt">── Rankine efficiency ──</span>
+η_R = (h₁−h₂−w_pump)
+      ───────────────
+          h₁−hf₄</div>
+        </div>
+        <div>
+          <div class="tp-formula"><span class="cmt">── Specific Steam Rate ──</span>
+SSR = 3600 / (h₁−h₂)    [kg/kWh]
+
+<span class="cmt">── CHP overall efficiency ──</span>
+η_CHP = (W_elec + Q_proc)
+        ─────────────────
+             Q_boiler</div>
+        </div>
+      </div>
+      <div class="tp-tbl-wrap">
+        <table class="tp-tbl">
+          <thead><tr><th>Turbine Type</th><th>η_cycle</th><th>Heat Rate (kJ/kWh)</th><th>SSR (kg/kWh)</th><th>CHP η</th></tr></thead>
+          <tbody>
+            <tr><td>Back-pressure (CHP)</td><td>15–25%</td><td>14 400–24 000</td><td>8–16</td><td>70–85%</td></tr>
+            <tr><td>Condensing (utility)</td><td>30–38%</td><td>9 470–12 000</td><td>4–7</td><td>30–38%</td></tr>
+            <tr><td>Supercritical condensing</td><td>42–48%</td><td>7 500–8 570</td><td>3.5–4.5</td><td>42–48%</td></tr>
+            <tr><td>Extraction CHP</td><td>20–35%</td><td>10 300–18 000</td><td>5–10</td><td>60–80%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /tp-theory -->
+
+  <!-- ── TAB 2: HOW-TO ── -->
+  <div class="tp-panel" id="tp-howto">
+    <div class="tp-card tp-card--blue" style="margin-bottom:20px;">
+      <h4>Step-by-Step</h4>
+      <h3>Using the Steam Turbine Power Calculator</h3>
+      <p>This calculator uses <strong>pyXSteam (IAPWS-IF97 via Pyodide)</strong> for maximum accuracy, with a built-in NIST saturation table fallback. Follow the steps below for any turbine type.</p>
+    </div>
+    <ol class="tp-steps">
+      <li class="tp-step">
+        <div class="tp-step__num">1</div>
+        <div class="tp-step__body">
+          <div class="tp-step__title">Select Turbine Type</div>
+          <p>Click one of the four type buttons at the top of the calculator. Input fields and result labels update automatically:</p>
+          <div class="tp-tbl-wrap"><table class="tp-tbl">
+            <thead><tr><th>Type</th><th>Exhaust Goes To</th><th>Extra Inputs</th><th>Key Output</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tp-badge tp-badge--bp">Back-Pressure</span></td><td>Process header (&gt;1 bar)</td><td>P₂ header pressure</td><td>Process heat duty</td></tr>
+              <tr><td><span class="tp-badge tp-badge--cond">Condensing</span></td><td>Surface condenser</td><td>Condenser pressure</td><td>Condenser duty, quality x</td></tr>
+              <tr><td><span class="tp-badge tp-badge--ext">Extraction</span></td><td>Process bleed + exhaust</td><td>P_ext, bleed fraction</td><td>Stage 1 &amp; 2 power split</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </li>
+      <li class="tp-step">
+        <div class="tp-step__num">2</div>
+        <div class="tp-step__body">
+          <div class="tp-step__title">Choose Unit System &amp; Enter Inlet Conditions</div>
+          <p>Toggle SI / Imperial. Enter <strong>absolute</strong> pressure P₁ and temperature T₁. The calculator auto-fills h₁ and s₁ from IAPWS-IF97. T_sat is shown so you can verify degree of superheat (T₁ − T_sat ≥ 10°C recommended).</p>
+          <div class="tp-tip">💡&nbsp; <strong>SI users:</strong> Add 1.013 to gauge pressure to get bar abs. <strong>Imperial:</strong> Add 14.696 psi to gauge to get psia.</div>
+        </div>
+      </li>
+      <li class="tp-step">
+        <div class="tp-step__num">3</div>
+        <div class="tp-step__body">
+          <div class="tp-step__title">Enter Exhaust Pressure P₂</div>
+          <p>For back-pressure: enter the process header pressure. For condensing: enter condenser pressure (0.04–0.10 bar abs). If you don't have cooling water data, use <strong>0.07 bar abs</strong> (39°C, typical for temperate climates) as a conservative starting point.</p>
+          <div class="tp-formula"><span class="cmt">Condenser pressure from cooling water temperature:</span>
+T_cond = T_CW_in + TTD          (TTD: 8–15 °C)
+P₂     = P_sat(T_cond)          (IAPWS-IF97)
+
+Example: T_CW_in = 28 °C, TTD = 10 °C
+→ T_cond = 38 °C  →  P₂ = 0.067 bar abs</div>
+        </div>
+      </li>
+      <li class="tp-step">
+        <div class="tp-step__num">4</div>
+        <div class="tp-step__body">
+          <div class="tp-step__title">Set Efficiencies and Mass Flow Rate</div>
+          <p>Enter ṁ (kg/h), isentropic η_t, mechanical η_m and generator η_g. Defaults in the calculator (η_t=0.85, η_m=0.98, η_g=0.97) are reasonable for an industrial multi-stage turbine. For small single-stage units use η_t=0.65–0.72.</p>
+          <div class="tp-warn">⚠️&nbsp; OEM datasheets sometimes quote <em>polytropic</em> efficiency, which is higher than isentropic for expansion. Always enter <em>isentropic</em> efficiency here.</div>
+        </div>
+      </li>
+      <li class="tp-step">
+        <div class="tp-step__num">5</div>
+        <div class="tp-step__body">
+          <div class="tp-step__title">Click Calculate — Worked Example</div>
+          <p><strong>Scenario:</strong> 40 bar abs / 400°C steam at 60 000 kg/h, exhaust to 4 bar abs. η_t=0.80, η_m=0.98, η_g=0.97.</p>
+          <div class="tp-formula"><span class="cmt">Inlet (Region 2):    h₁=3213.6 kJ/kg,  s₁=6.771 kJ/kg·K</span>
+<span class="cmt">Exhaust sg(4 bar)=6.896 → superheated, h₂s≈2740 kJ/kg</span>
+
+h₂      = 3213.6 − 0.80 × (3213.6−2740) = <span class="val">2834.7 kJ/kg</span>
+ṁ       = 60 000 / 3600 = 16.667 kg/s
+W_shaft = 16.667 × (3213.6−2834.7)       = <span class="good">6315 kW  (6.3 MW)</span>
+W_elec  = 6315 × 0.98 × 0.97             = <span class="good">6007 kW  (6.0 MW)</span>
+Q_proc  = 16.667 × (2834.7−604.7)        = <span class="good">37 170 kW (37.2 MW process heat)</span></div>
+          <div class="tp-tip">💡&nbsp; Enter these values into the calculator above to verify — results should match within ±0.5% depending on engine mode (pyXSteam vs NIST fallback).</div>
+        </div>
+      </li>
+    </ol>
+  </div><!-- /tp-howto -->
+
+  <!-- ── TAB 3: FAQ ── -->
+  <div class="tp-panel" id="tp-faq">
+    <div class="tp-card tp-card--blue" style="margin-bottom:18px;">
+      <h4>Frequently Asked Questions</h4>
+      <h3>Steam Turbine Power — Common Engineering Questions</h3>
+    </div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">What is isentropic efficiency and why can't a real turbine achieve 100%?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p><strong>Isentropic efficiency η_t</strong> is the ratio of actual turbine work to the theoretical work if expansion were perfectly isentropic (reversible and adiabatic). On the Mollier diagram, isentropic expansion is a vertical line; real expansion slopes right because irreversibilities generate entropy.</p><p>Real losses arise from: (1) blade profile losses — boundary layer separation, trailing-edge wakes; (2) tip clearance leakage — steam bypasses blade tips without doing work; (3) disc windage and friction; (4) partial admission losses in small impulse turbines; (5) last-stage moisture losses in condensing turbines. Practical ranges: single-stage BP (&le;500 kW): 62–75%; multi-stage industrial (0.5–50 MW): 78–86%; large utility (&gt;100 MW): 87–92%.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">My exhaust quality is below 0.88 — what do I do?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p>Steam quality x &lt; 0.88 means &gt;12% liquid droplets in exhaust — these erode last-stage blades by high-velocity impact (Baumann: each 1% moisture reduces stage efficiency ~1%).</p><p><strong>Solutions:</strong> (1) Raise inlet superheat — increase T₁ at fixed P₁; (2) Raise inlet pressure at fixed T₁; (3) Add interstage reheating — extract, reheat, re-admit; (4) Fit moisture separators between stages; (5) Apply stellite erosion shields on blade tips as a materials fix. Options 1–3 are thermodynamic fixes; options 4–5 are mitigations.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">How do I size the steam flow for a target electrical output?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p>Rearrange the power equation: <code style="background:#f0f5fc;padding:1px 6px;border-radius:4px;font-family:var(--mono);">ṁ = W_target / [(h₁−h₂s) × η_t × η_m × η_gen]</code> in kg/s.</p><p>Quick method: enter ṁ = 3600 kg/h (1 kg/s) and note the power. Then scale: ṁ_required = 3600 × (target_kW / calculated_kW) kg/h. Cross-check against your boiler's rated evaporation capacity. Always add 10–15% margin for startup, fouling, and part-load operation.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">Why bother with a back-pressure turbine rather than just a PRV station?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p>A <strong>pressure reducing valve (PRV)</strong> throttles steam in an isenthalpic process — no work is extracted, all pressure energy is destroyed as heat. A <strong>back-pressure turbine</strong> performing the same pressure reduction extracts shaft work first; exhaust steam arrives at the same condition and is equally useful for process heating.</p><p>Example: a 10 bar → 3 bar letdown at 10 t/h wastes ~350 kW of shaft work potential. A turbine-generator recovering this is worth ~£245 000/year at £80/MWh. Capital cost £300 000–500 000 → simple payback 1.2–2 years. Most industrial CHP schemes also qualify for government incentives.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">How does condenser pressure affect power output?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p>Lower condenser pressure P₂ = lower T_sat = lower h₂ = larger Δh = more power. Each 0.01 bar reduction in P₂ below 0.07 bar abs adds ~5–15 kJ/kg to the enthalpy drop (~0.5–1% efficiency gain). Minimum P₂ is set by cooling water temperature (condenser T_sat must exceed CW inlet by ≥5–8°C), air ingress risk, last-stage blade annular area, and the x ≥ 0.87 erosion limit. Typical values: Northern Europe ≈ 0.030–0.045 bar; Middle East ≈ 0.060–0.090 bar.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">Can I use this calculator for geothermal or ORC turbines?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p><strong>Geothermal / HRSG:</strong> Yes — any steam turbine using water/steam as the working fluid is fully supported. IAPWS-IF97 covers 0–2000°C and 0–100 MPa.</p><p><strong>Organic Rankine Cycle (ORC):</strong> No — ORC uses organic fluids (pentane, R245fa, toluene) with completely different thermodynamic properties. IAPWS-IF97 does not apply. Use CoolProp or REFPROP for ORC calculations — results from this calculator for ORC conditions will be completely incorrect.</p></div></div>
+
+    <div class="tp-faq"><button class="tp-faq__q" aria-expanded="false">What is reheat and how do I model it with this calculator?<svg class="tp-faq__arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="tp-faq__a"><p><strong>Reheat</strong> extracts partially expanded steam from an intermediate stage, reheats it to near-inlet temperature in the boiler reheater, then re-admits it for further expansion. Benefits: ~4–6% efficiency gain; dryer exhaust (higher x); more specific work per kg steam.</p><p><strong>To model with this calculator:</strong> Run Case 1 for HP turbine (P₁, T₁ → P_reheat). Note h_reheat_out. Run Case 2 for LP turbine using P_reheat and T_reheat as the "inlet" → P₂. Sum both shaft powers. This gives accurate results if reheat temperature is known.</p></div></div>
+  </div><!-- /tp-faq -->
+
+  <!-- ── TAB 4: GLOSSARY ── -->
+  <div class="tp-panel" id="tp-gloss">
+    <div class="tp-card tp-card--blue" style="margin-bottom:20px;">
+      <h4>Engineering Reference</h4>
+      <h3>Steam Turbine Glossary — Key Terms &amp; Symbols</h3>
+    </div>
+    <div class="tp-gloss">
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Specific Enthalpy</div><div class="tp-gloss-item__sym">h [kJ/kg]</div><div class="tp-gloss-item__def">Total thermodynamic energy per unit mass: h = u + Pv. Turbine shaft work = ṁ×(h₁−h₂). The enthalpy difference between inlet and outlet is the single most important quantity in turbine power calculations.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Specific Entropy</div><div class="tp-gloss-item__sym">s [kJ/kg·K]</div><div class="tp-gloss-item__def">Thermodynamic measure of energy disorder. Constant in an ideal isentropic process. To find h₂s: set s₂s = s₁ then evaluate h at P₂ and s₂s using IAPWS-IF97. Appears as a vertical line on the Mollier diagram.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Isentropic Efficiency</div><div class="tp-gloss-item__sym">η_t [–, 0 to 1]</div><div class="tp-gloss-item__def">Ratio of actual to ideal isentropic turbine work: η_t = (h₁−h₂)/(h₁−h₂s). Typically 0.65–0.92 depending on turbine size and design. The most critical single parameter in power calculation — entered directly in the calculator.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Back-Pressure Turbine</div><div class="tp-gloss-item__sym">P₂ &gt; 1 bar abs</div><div class="tp-gloss-item__def">Exhausts to a process steam header rather than a condenser. Exhaust steam is fully available for heating, giving combined heat + power efficiency of 70–85%. No cooling water required. Common in industry and CHP schemes.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Condensing Turbine</div><div class="tp-gloss-item__sym">P₂ ≈ 0.04–0.10 bar abs</div><div class="tp-gloss-item__def">Exhausts to a surface condenser at sub-atmospheric pressure. Maximises power and electrical efficiency (30–48%) by using the full pressure ratio. Requires cooling water supply. Used in power stations.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Extraction Turbine</div><div class="tp-gloss-item__sym">ṁ_ext [kg/s]</div><div class="tp-gloss-item__def">A controlled bleed of steam at an intermediate pressure stage. Supplies process heating or feedwater heating while remaining flow continues expanding. Total power = Stage 1 + Stage 2 contributions — modelled in this calculator as "Extraction" type.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Shaft Power</div><div class="tp-gloss-item__sym">W_shaft [kW]</div><div class="tp-gloss-item__def">Mechanical power at the turbine coupling: ṁ×(h₁−h₂)×η_mech. Reduced from thermodynamic output by bearing friction and seal losses before reaching the generator.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Steam Quality (Dryness)</div><div class="tp-gloss-item__sym">x [–, 0 to 1]</div><div class="tp-gloss-item__def">Mass fraction of vapour in wet steam. x=1: dry saturated; x=0: saturated liquid. Turbine exhaust x &lt; 0.88 causes last-stage blade erosion. Calculated: x₂s = (s₁−sf₂)/sfg₂. Shown in results panel with a warning if below limit.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Specific Steam Rate</div><div class="tp-gloss-item__sym">SSR [kg/kWh]</div><div class="tp-gloss-item__def">Steam mass consumed per kWh of output: SSR = 3600/(h₁−h₂). Lower = more efficient use of steam. Typical: 3.5–16 kg/kWh. Use this to compare turbine options when steam conditions vary between designs.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Heat Rate</div><div class="tp-gloss-item__sym">HR [kJ/kWh]</div><div class="tp-gloss-item__def">Heat energy input per kWh of electrical output: HR = 3600/η_cycle. Lower is better. Best condensing plants: ~7 600 kJ/kWh (47%). Back-pressure turbines appear poor in heat rate terms because process heat is not counted — use CHP overall efficiency instead.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Condenser Duty</div><div class="tp-gloss-item__sym">Q_cond [kW or MW]</div><div class="tp-gloss-item__def">Heat rejected to cooling water: Q_cond = ṁ×(h₂−hf₂). Typically 2–3× shaft power in condensing turbines. Required for sizing surface condenser area, cooling towers, and cooling water pump duty — all outputs of this calculator.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">IAPWS-IF97</div><div class="tp-gloss-item__sym">Industrial Formulation 1997</div><div class="tp-gloss-item__def">International standard for water/steam thermodynamic properties in engineering. Five regions covering 0–2000°C and 0–100 MPa. The pyXSteam engine in this calculator implements IF97 with ±0.01 kJ/kg accuracy. Used by Aspen, HYSYS, PRO/II and all major process simulators.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">CHP Overall Efficiency</div><div class="tp-gloss-item__sym">η_CHP [–]</div><div class="tp-gloss-item__def">Combined heat + power efficiency: (W_elec + Q_process) / Q_boiler. Back-pressure CHP systems typically achieve 70–85% — far higher than condensing power generation (30–38%). The basis for industrial CHP investment appraisals.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Mollier Diagram (h–s)</div><div class="tp-gloss-item__sym">h vs. s chart</div><div class="tp-gloss-item__def">Graphical steam chart: enthalpy y-axis, entropy x-axis. Isentropic expansion = vertical line; real expansion slopes right. The saturation dome separates wet-steam and superheated regions. Essential for visualising turbine expansion paths and checking exhaust quality.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Latent Heat of Vaporisation</div><div class="tp-gloss-item__sym">hfg [kJ/kg]</div><div class="tp-gloss-item__def">Energy to convert 1 kg saturated liquid → saturated vapour at constant T and P: hfg = hg − hf. Decreases with rising pressure; zero at the critical point (374.1°C, 220.6 bar). Used to calculate steam quality and condenser duty. Auto-filled in the calculator from IAPWS-IF97.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">Rankine Cycle Efficiency</div><div class="tp-gloss-item__sym">η_R = w_net / q_in</div><div class="tp-gloss-item__def">Net work output divided by boiler heat input. Increases with higher P₁, T₁ and lower P₂. Real cycle is reduced by boiler losses, turbine irreversibilities and auxiliary power. Improved by regenerative feedwater heating and reheat in large power plant designs.</div></div>
+    </div>
+  </div><!-- /tp-gloss -->
+
+  <!-- Close button at bottom -->
+  <div style="text-align:center;margin-top:36px;padding-top:24px;border-top:1px solid var(--border);">
+    <button onclick="closeEduSection()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 28px;background:var(--primary);color:#fff;border:none;border-radius:9px;font-family:var(--font);font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(15,33,64,.25);" onmouseover="this.style.background='#1a3560'" onmouseout="this.style.background='#0f2140'">↑ Close Guide &amp; Return to Calculator</button>
+  </div>
+
+</div><!-- /.tp-edu__inner -->
+</section>
+
+<script>
+// Educational section tab switching
+(function(){
+  document.querySelectorAll('.tp-tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.tp-tab').forEach(function(b){b.classList.remove('active');});
+      document.querySelectorAll('.tp-panel').forEach(function(p){p.classList.remove('active');});
+      btn.classList.add('active');
+      var panel=document.getElementById(btn.dataset.target);
+      if(panel) panel.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.tp-faq__q').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var item=btn.closest('.tp-faq');
+      var isOpen=item.classList.contains('open');
+      document.querySelectorAll('.tp-faq').forEach(function(f){
+        f.classList.remove('open');
+        f.querySelector('.tp-faq__q').setAttribute('aria-expanded','false');
+      });
+      if(!isOpen){item.classList.add('open');btn.setAttribute('aria-expanded','true');}
+    });
+  });
+})();
+</script>
+</body>
