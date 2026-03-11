@@ -1,0 +1,2624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>Electrical Engineering Calculators — Cable, Motor, Power | multicalci.com</title>
+<meta name="description" content="Free electrical engineering calculators for cable sizing, motor power, transformer design and voltage drop.">
+<link rel="canonical" href="https://multicalci.com/electrical-engineering-calculators/">
+<meta property="og:title" content="Electrical Engineering Calculators — Cable, Motor, Power | multicalci.com">
+<meta property="og:description" content="Free electrical engineering calculators for cable sizing, motor power, transformer design and voltage drop.">
+<meta property="og:url" content="https://multicalci.com/electrical-engineering-calculators/">
+<meta property="og:type" content="website">
+    <meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Electrical Engineering Calculators — Cable, Motor, Power | multicalci.com">
+    <meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
+
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Electrical Engineering Calculators","description":"Cable sizing, motor calculations, power factor, fault analysis IEC 60909 and Ohm's law calculators.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/electrical-engineering-calculators/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════
+   TOKENS
+══════════════════════════════ */
+:root{
+  --bg:#f7f6f2; --bg1:#ffffff; --bg2:#f1f0eb; --bg3:#e8e6de;
+  --bdr:#e2dfd5; --bdr2:#ccc9be;
+  --navy:#181d38; --navy2:#222847;
+  --amber:#f59e0b; --amber2:#d97706;
+  --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --blue:#2563eb; --blue2:#1d4ed8;
+  --blue-bg:#eff6ff; --blue-bd:#bfdbfe;
+  --grn:#059669; --grn-bg:#ecfdf5; --grn-bd:#6ee7b7;
+  --red:#dc2626; --red-bg:#fef2f2; --red-bd:#fca5a5;
+  --pur:#7c3aed; --pur-bg:#f5f3ff; --pur-bd:#c4b5fd;
+  --cyn:#0891b2; --cyn-bg:#ecfeff; --cyn-bd:#a5f3fc;
+  --txt:#181d38; --txt2:#5a5e75; --txt3:#9096b0;
+  --nav-w:224px; --hdr-h:58px;
+  --r:12px; --r2:8px;
+  --sh:0 1px 3px rgba(24,29,56,.06),0 4px 16px rgba(24,29,56,.04);
+  --sh2:0 6px 28px rgba(24,29,56,.12);
+}
+
+/* ══════════════════════════════
+   RESET + BASE
+══════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:var(--bg);color:var(--txt);min-height:100vh;
+  background-image:
+    radial-gradient(ellipse 55% 35% at 5% -5%,rgba(245,158,11,.08) 0%,transparent 60%),
+    radial-gradient(ellipse 45% 25% at 95% 110%,rgba(37,99,235,.06) 0%,transparent 60%);
+}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+/* ══════════════════════════════
+   HEADER
+══════════════════════════════ */
+.hdr{
+  position:fixed;top:0;left:0;right:0;z-index:300;
+  height:var(--hdr-h);
+  background:var(--navy);
+  display:flex;align-items:center;
+  padding:0 16px 0 0;
+  box-shadow:0 2px 20px rgba(24,29,56,.4);
+}
+.hdr-line{
+  position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--amber),var(--blue),var(--amber));
+  background-size:200%;
+  animation:sweep 4s linear infinite;
+}
+@keyframes sweep{to{background-position:200% 0}}
+
+.hdr-brand{
+  width:var(--nav-w);flex-shrink:0;
+  display:flex;align-items:center;gap:11px;
+  padding:0 16px;height:100%;
+  border-right:1px solid rgba(255,255,255,.07);
+}
+.brand-icon{
+  width:36px;height:36px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  box-shadow:0 0 0 3px rgba(245,158,11,.22),0 4px 12px rgba(245,158,11,.3);
+}
+.brand-name{
+  font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;
+  color:#fff;letter-spacing:-.3px;line-height:1.1;
+}
+.brand-sub{font-size:.62rem;color:rgba(255,255,255,.38);letter-spacing:.5px;text-transform:uppercase}
+.hdr-right{
+  display:flex;align-items:center;gap:10px;
+  margin-left:auto;padding-left:16px;
+}
+.std-badge{
+  padding:3px 10px;border-radius:20px;font-size:.65rem;font-weight:700;
+  letter-spacing:.4px;text-transform:uppercase;
+  background:rgba(245,158,11,.15);color:var(--amber);
+  border:1px solid rgba(245,158,11,.28);
+}
+.utog{
+  display:flex;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:7px;overflow:hidden;
+}
+.ubtn{
+  padding:5px 15px;border:none;background:transparent;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.78rem;font-weight:700;
+  color:rgba(255,255,255,.42);cursor:pointer;transition:all .15s;
+}
+.ubtn.on{background:var(--amber);color:#000}
+.ubtn:hover:not(.on){background:rgba(255,255,255,.1);color:rgba(255,255,255,.75)}
+
+/* ══════════════════════════════
+   SIDEBAR
+══════════════════════════════ */
+.sidebar{
+  position:fixed;top:var(--hdr-h);left:0;bottom:0;
+  width:var(--nav-w);
+  background:var(--bg1);
+  border-right:1px solid var(--bdr);
+  overflow-y:auto;overflow-x:hidden;
+  z-index:200;
+  display:flex;flex-direction:column;
+  box-shadow:2px 0 12px rgba(24,29,56,.04);
+}
+.sb-stripe{height:2px;background:linear-gradient(90deg,var(--amber),var(--blue));flex-shrink:0}
+.sb-group{padding:13px 12px 4px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--txt3)}
+.sb-nav{padding:0 7px}
+.stab{
+  width:100%;display:flex;align-items:center;gap:9px;
+  padding:9px 11px;border-radius:9px;margin-bottom:2px;
+  border:1.5px solid transparent;background:transparent;
+  color:var(--txt2);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.88rem;font-weight:600;cursor:pointer;
+  transition:all .14s;text-align:left;
+}
+.stab:hover{background:var(--bg2);color:var(--navy);border-color:var(--bdr)}
+.stab.active{
+  background:var(--amber-bg);color:var(--amber2);
+  border-color:var(--amber-bd);
+  box-shadow:0 2px 8px rgba(245,158,11,.1);
+}
+.stab-ico{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.new-pill{
+  margin-left:auto;font-size:.57rem;font-weight:800;
+  padding:2px 6px;border-radius:6px;
+  background:var(--pur-bg);color:var(--pur);border:1px solid var(--pur-bd);
+  letter-spacing:.2px;
+}
+.sb-foot{
+  margin-top:auto;padding:10px 13px;
+  border-top:1px solid var(--bdr);
+  font-size:.67rem;color:var(--txt3);line-height:1.9;
+}
+
+/* ══════════════════════════════
+   MAIN CONTENT
+══════════════════════════════ */
+.main{
+  margin-left:var(--nav-w);
+  margin-top:var(--hdr-h);
+  padding:24px 24px 70px;
+  min-width:0;
+}
+.sec{display:none}
+.sec.show{display:block;animation:fadeUp .2s cubic-bezier(.22,1,.36,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}}
+
+.sec-hd{margin-bottom:20px}
+.sec-ttl{
+  font-family:'Syne',sans-serif;
+  font-size:1.9rem;font-weight:800;
+  color:var(--navy);letter-spacing:-.4px;line-height:1.1;margin-bottom:4px;
+}
+.sec-sub{font-size:.88rem;color:var(--txt2)}
+
+/* ══════════════════════════════
+   GRID LAYOUTS
+══════════════════════════════ */
+.two-col{display:grid;grid-template-columns:375px 1fr;gap:20px;align-items:start}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+
+/* ══════════════════════════════
+   CARDS
+══════════════════════════════ */
+.card{
+  background:var(--bg1);border:1px solid var(--bdr);
+  border-radius:var(--r);margin-bottom:16px;
+  box-shadow:var(--sh);overflow:hidden;
+  transition:box-shadow .18s;
+}
+.card:hover{box-shadow:var(--sh2)}
+.card:last-child{margin-bottom:0}
+.card-hd{
+  padding:10px 16px;
+  background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+  display:flex;align-items:center;gap:8px;
+  position:relative;overflow:hidden;
+}
+.card-hd::after{
+  content:'';position:absolute;right:-10px;top:-10px;
+  width:60px;height:60px;
+  background:radial-gradient(circle,rgba(245,158,11,.1) 0%,transparent 70%);
+}
+.card-hd-ico{font-size:13px}
+.card-hd-ttl{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.78)}
+.card-bd{padding:16px}
+
+/* ══════════════════════════════
+   FORM ELEMENTS
+══════════════════════════════ */
+.field{margin-bottom:11px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:.76rem;font-weight:700;color:var(--txt2);margin-bottom:4px}
+.field input,.field select{
+  width:100%;padding:9px 11px;
+  border:1.5px solid var(--bdr);border-radius:var(--r2);
+  font-size:16px;font-weight:600;
+  font-family:'Space Mono',monospace;
+  color:var(--navy);background:var(--bg1);
+  transition:border-color .15s,box-shadow .15s;
+  -webkit-appearance:none;
+}
+.field input:focus,.field select:focus{
+  border-color:var(--amber);outline:none;
+  box-shadow:0 0 0 3px rgba(245,158,11,.12);
+}
+.field select{font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem}
+.field input[readonly]{background:var(--bg2);color:var(--txt3)}
+.fsep{
+  font-size:.67rem;font-weight:800;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--txt3);
+  padding:9px 0 6px;
+  border-top:1px solid var(--bdr);
+  margin-top:4px;
+}
+.fsep:first-child{border-top:none;padding-top:0;margin-top:0}
+hr.dv{border:none;border-top:1px solid var(--bdr);margin:10px 0}
+
+/* ══════════════════════════════
+   BUTTONS
+══════════════════════════════ */
+.btn-calc{
+  width:100%;padding:12px;margin-top:8px;
+  background:linear-gradient(135deg,var(--amber2),var(--amber));
+  color:#000;border:none;border-radius:var(--r2);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.95rem;font-weight:800;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .16s;
+  box-shadow:0 4px 14px rgba(245,158,11,.28);
+  min-height:48px;
+}
+.btn-calc:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(245,158,11,.38)}
+.btn-calc:active{transform:none;box-shadow:0 2px 6px rgba(245,158,11,.2);opacity:.9}
+.btn-pdf{
+  width:100%;padding:9px;margin-top:8px;
+  background:transparent;color:var(--txt2);
+  border:1.5px solid var(--bdr2);border-radius:var(--r2);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.83rem;font-weight:700;
+  cursor:pointer;transition:all .14s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:42px;
+}
+.btn-pdf:hover{border-color:var(--navy);color:var(--navy);background:var(--bg2)}
+
+/* ══════════════════════════════
+   RESULT CARDS
+══════════════════════════════ */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.rc{
+  background:var(--bg1);border:1px solid var(--bdr);
+  border-top:3px solid var(--bdr);
+  border-radius:10px;padding:12px 14px;
+  box-shadow:0 1px 4px rgba(24,29,56,.04);
+  transition:transform .14s,box-shadow .14s;
+}
+.rc:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(24,29,56,.09)}
+.rc.sp2{grid-column:span 2}
+.rc.c-amb{border-top-color:var(--amber);background:var(--amber-bg)}
+.rc.c-blu{border-top-color:var(--blue);background:var(--blue-bg)}
+.rc.c-grn{border-top-color:var(--grn);background:var(--grn-bg)}
+.rc.c-red{border-top-color:var(--red);background:var(--red-bg)}
+.rc.c-pur{border-top-color:var(--pur);background:var(--pur-bg)}
+.rc.c-cyn{border-top-color:var(--cyn);background:var(--cyn-bg)}
+.rl{font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--txt3);margin-bottom:4px}
+.rv{font-family:'Space Mono',monospace;font-size:1rem;font-weight:700;color:var(--navy);line-height:1.3}
+.rv.big{font-family:'Syne',sans-serif;font-size:1.9rem;font-weight:800;color:var(--navy);line-height:1}
+.rv.v-amb{color:var(--amber2)}.rv.v-blu{color:var(--blue2)}.rv.v-grn{color:var(--grn)}
+.rv.v-red{color:var(--red)}.rv.v-pur{color:var(--pur)}.rv.v-cyn{color:var(--cyn)}
+.rsub{font-size:.7rem;color:var(--txt3);margin-top:3px}
+
+/* ══════════════════════════════
+   BADGES
+══════════════════════════════ */
+.badge{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:3px 8px;border-radius:20px;
+  font-size:.68rem;font-weight:700;border:1px solid;
+}
+.badge.ok{background:var(--grn-bg);color:var(--grn);border-color:var(--grn-bd)}
+.badge.warn{background:var(--amber-bg);color:var(--amber2);border-color:var(--amber-bd)}
+.badge.err{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.badge.info{background:var(--blue-bg);color:var(--blue2);border-color:var(--blue-bd)}
+
+/* ══════════════════════════════
+   FORMULA BOX
+══════════════════════════════ */
+.fbox{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  border-radius:10px;padding:11px 14px;
+  font-family:'Space Mono',monospace;font-size:.73rem;
+  color:rgba(255,255,255,.55);line-height:1.85;
+  margin-top:12px;position:relative;overflow:hidden;
+}
+.fbox::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:20px 20px;
+}
+.fbox .hi{color:var(--amber);font-weight:700}
+.fbox .ht{color:#93c5fd}
+
+/* ══════════════════════════════
+   TABLE
+══════════════════════════════ */
+.tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.tbl th{background:var(--navy);color:rgba(255,255,255,.8);padding:7px 10px;font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;text-align:left}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--bdr);font-family:'Space Mono',monospace;font-size:.78rem}
+.tbl td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:var(--navy)}
+.tbl tr:hover td{background:var(--bg2)}
+.tbl tr.hl td{background:var(--amber-bg);color:var(--amber2);font-weight:700}
+.tbl tr.hl td:first-child{color:var(--amber2)}
+
+/* ══════════════════════════════
+   MOBILE BOTTOM TAB BAR
+══════════════════════════════ */
+.mob-bar{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:400;
+  background:var(--bg1);
+  border-top:1px solid var(--bdr);
+  padding-bottom:env(safe-area-inset-bottom,4px);
+  box-shadow:0 -3px 16px rgba(24,29,56,.1);
+}
+.mob-bar-inner{
+  display:flex;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.mob-bar-inner::-webkit-scrollbar{display:none}
+.mtab{
+  flex:0 0 auto;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;
+  padding:8px 14px 6px;
+  border:none;background:transparent;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.76rem;font-weight:700;
+  color:var(--txt3);cursor:pointer;
+  border-top:2px solid transparent;
+  min-width:70px;
+  transition:color .14s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mtab .mi{font-size:20px;line-height:1}
+.mtab.active{color:var(--amber2);border-top-color:var(--amber)}
+.mtab:active{background:var(--bg2)}
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+@media(max-width:600px){.g2,.g3{grid-template-columns:1fr}}
+
+@media(max-width:768px){
+  /* Hide sidebar on mobile */
+  .sidebar{display:none}
+  .hdr-brand{border-right:none;padding:0 12px}
+  .std-badge{display:none}
+  .brand-sub{display:none}
+  .brand-icon{width:32px;height:32px;font-size:16px}
+  .brand-name{font-size:1.05rem}
+
+  /* Show mobile bar */
+  .mob-bar{display:block}
+
+  /* Main layout adjustments */
+  .main{margin-left:0;padding:14px 13px 82px}
+  .sec-ttl{font-size:1.55rem}
+  .sec-sub{font-size:.83rem}
+
+  /* Cards */
+  .card-bd{padding:13px}
+  .card:hover{box-shadow:var(--sh)}
+
+  /* Results single column */
+  .rg{grid-template-columns:1fr}
+  .rc.sp2{grid-column:span 1}
+  .rv.big{font-size:1.55rem}
+
+  /* Remove hover effects on touch */
+  .rc:hover{transform:none;box-shadow:none}
+  .btn-calc:hover{transform:none}
+
+  /* Formula box */
+  .fbox{font-size:.7rem}
+
+  /* Header */
+  .hdr{padding:0 12px 0 0}
+  .hdr-right{gap:7px;padding-left:10px}
+}
+
+@media(max-width:420px){
+  .mtab{padding:7px 10px 5px;min-width:60px;font-size:.7rem}
+  .mtab .mi{font-size:18px}
+  .main{padding:13px 11px 80px}
+}
+
+/* Touch device hover cleanup */
+@media(hover:none){
+  .rc:hover,.card:hover,.stab:hover{transform:none!important;box-shadow:inherit!important}
+  .btn-calc:hover{transform:none!important}
+  .btn-calc:active{opacity:.88}
+}
+
+/* Desktop: ensure sidebar visible */
+@media(min-width:769px){
+  .mob-bar{display:none!important}
+}
+
+/* ══════════════════════════════
+   VALIDATION ERROR STATES
+══════════════════════════════ */
+.field.err input{
+  border-color:var(--red)!important;
+  background:var(--red-bg)!important;
+  box-shadow:0 0 0 3px rgba(220,38,38,.1)!important;
+}
+.field.warn input{
+  border-color:var(--amber)!important;
+  background:var(--amber-bg)!important;
+  box-shadow:0 0 0 3px rgba(245,158,11,.1)!important;
+}
+.verr{
+  display:flex;align-items:flex-start;gap:6px;
+  background:var(--red-bg);border:1px solid var(--red-bd);
+  border-radius:var(--r2);padding:8px 11px;
+  font-size:.75rem;font-weight:600;color:var(--red);
+  margin-top:4px;line-height:1.45;
+}
+.verr-ico{flex-shrink:0;font-size:13px;margin-top:1px}
+.vwarn{
+  display:flex;align-items:flex-start;gap:6px;
+  background:var(--amber-bg);border:1px solid var(--amber-bd);
+  border-radius:var(--r2);padding:8px 11px;
+  font-size:.75rem;font-weight:600;color:var(--amber2);
+  margin-top:4px;line-height:1.45;
+}
+.vwarn-ico{flex-shrink:0;font-size:13px;margin-top:1px}
+.vinfo-bar{
+  background:var(--blue-bg);border:1px solid var(--blue-bd);
+  border-radius:var(--r2);padding:7px 11px;
+  font-size:.72rem;color:var(--blue2);font-weight:600;
+  margin-bottom:8px;
+}
+
+/* ══════════════════════════════
+   ENGINEERING DISCLAIMER BANNER
+══════════════════════════════ */
+.eng-disclaimer{
+  position:fixed;bottom:0;left:var(--nav-w);right:0;z-index:250;
+  background:linear-gradient(135deg,#1a1060,#181d38);
+  border-top:2px solid var(--amber);
+  padding:0;
+}
+.eng-disc-inner{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:8px 16px;max-width:100%;
+}
+.eng-disc-ico{font-size:15px;flex-shrink:0;margin-top:2px;color:var(--amber)}
+.eng-disc-text{
+  flex:1;font-size:.7rem;color:rgba(255,255,255,.65);line-height:1.5;
+}
+.eng-disc-text strong{color:var(--amber);font-weight:800}
+.eng-disc-close{
+  flex-shrink:0;background:rgba(255,255,255,.1);border:none;
+  color:rgba(255,255,255,.5);width:22px;height:22px;border-radius:4px;
+  cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;
+  margin-top:1px;transition:background .14s;
+}
+.eng-disc-close:hover{background:rgba(255,255,255,.22);color:#fff}
+@media(max-width:768px){
+  .eng-disclaimer{left:0;bottom:54px;}
+}
+
+/* ══════════════════════════════
+   CABLE REACTANCE NOTICE
+══════════════════════════════ */
+.cx-notice{
+  background:var(--amber-bg);border:1px solid var(--amber-bd);
+  border-radius:var(--r2);padding:8px 11px;
+  font-size:.72rem;color:var(--amber2);font-weight:600;
+  margin-top:8px;display:flex;gap:6px;align-items:flex-start;
+}
+
+/* ══════════════════════════════
+   SHARE MODAL
+══════════════════════════════ */
+.share-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 13px;border-radius:7px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.75);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s;
+  white-space:nowrap;
+}
+.share-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+.share-btn svg{flex-shrink:0}
+
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(24,29,56,.55);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--bg1);border-radius:var(--r);
+  width:100%;max-width:440px;
+  box-shadow:0 24px 80px rgba(24,29,56,.28);
+  overflow:hidden;
+  animation:modalIn .22s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px)}}
+.modal-hd{
+  background:var(--navy);padding:18px 20px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-ttl{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#fff}
+.modal-close{
+  width:30px;height:30px;border-radius:6px;
+  background:rgba(255,255,255,.1);border:none;
+  color:rgba(255,255,255,.7);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .14s;
+}
+.modal-close:hover{background:rgba(255,255,255,.2)}
+.modal-bd{padding:20px}
+.modal-desc{font-size:.83rem;color:var(--txt2);margin-bottom:16px;line-height:1.55}
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.sh-btn{
+  display:flex;align-items:center;gap:9px;
+  padding:11px 13px;border-radius:10px;
+  border:1.5px solid var(--bdr);background:var(--bg1);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.83rem;font-weight:700;color:var(--navy);
+  cursor:pointer;transition:all .15s;text-align:left;
+}
+.sh-btn:hover{transform:translateY(-1px);box-shadow:var(--sh2)}
+.sh-btn .sh-ico{
+  width:34px;height:34px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;flex-shrink:0;
+}
+.sh-btn.tw .sh-ico{background:#000;color:#fff}
+.sh-btn.li .sh-ico{background:#0a66c2;color:#fff}
+.sh-btn.wa .sh-ico{background:#25d366;color:#fff}
+.sh-btn.em .sh-ico{background:#ea4335;color:#fff}
+.sh-btn.gh .sh-ico{background:#24292e;color:#fff}
+.sh-btn.cp .sh-ico{background:var(--pur-bg);color:var(--pur)}
+.share-url-row{display:flex;gap:8px;align-items:center}
+.share-url-inp{
+  flex:1;padding:9px 11px;border:1.5px solid var(--bdr);
+  border-radius:var(--r2);font-family:'Space Mono',monospace;
+  font-size:.73rem;color:var(--txt2);background:var(--bg2);
+}
+.copy-url-btn{
+  padding:9px 14px;border-radius:var(--r2);
+  background:var(--navy);color:#fff;border:none;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.8rem;font-weight:700;cursor:pointer;
+  white-space:nowrap;transition:background .14s;
+}
+.copy-url-btn:hover{background:var(--navy2)}
+.copy-url-btn.copied{background:var(--grn)}
+
+/* ══════════════════════════════
+   EDUCATION PANEL STYLES
+══════════════════════════════ */
+.edu-tab-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.edu-tab-btn{
+  padding:6px 14px;border-radius:var(--r2);
+  border:1.5px solid var(--bdr);
+  background:var(--bg1);color:var(--txt2);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.82rem;font-weight:700;
+  cursor:pointer;transition:all .14s;
+}
+.edu-tab-btn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.edu-tab-btn:hover:not(.on){background:var(--bg2);border-color:var(--bdr2)}
+.edu-panel{display:none}
+.edu-panel.show{display:block;animation:fadeUp .2s cubic-bezier(.22,1,.36,1) both}
+.edu-concept{margin-bottom:13px;padding-bottom:13px;border-bottom:1px solid var(--bdr)}
+.edu-concept:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.edu-concept-ttl{font-size:.82rem;font-weight:800;color:var(--navy);margin-bottom:4px}
+.edu-concept-txt{font-size:.79rem;color:var(--txt2);line-height:1.65;margin-bottom:6px}
+.quiz-card{margin-bottom:12px;padding:16px;background:var(--bg1);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--sh)}
+.quiz-q{font-size:.88rem;font-weight:700;color:var(--navy);margin-bottom:10px;line-height:1.5}
+.quiz-opts{display:flex;flex-direction:column;gap:6px}
+.quiz-opt{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 12px;border-radius:var(--r2);
+  border:1.5px solid var(--bdr);background:var(--bg1);
+  font-size:.82rem;font-weight:600;color:var(--txt2);
+  cursor:pointer;transition:all .14s;text-align:left;width:100%;
+  font-family:'Plus Jakarta Sans',sans-serif;
+}
+.quiz-opt:hover:not(.answered){background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue2)}
+.quiz-opt.correct{background:var(--grn-bg);border-color:var(--grn-bd);color:var(--grn);font-weight:800}
+.quiz-opt.wrong{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.quiz-opt.answered{cursor:default}
+.quiz-explain{margin-top:8px;padding:9px 12px;border-radius:var(--r2);background:var(--blue-bg);border:1px solid var(--blue-bd);font-size:.77rem;color:var(--blue2);line-height:1.55;font-weight:600}
+.quiz-score-box{background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);padding:20px 24px;text-align:center;margin-top:14px}
+.quiz-score-num{font-family:'Syne',sans-serif;font-size:2.4rem;font-weight:800;color:var(--amber)}
+.quiz-score-sub{font-size:.82rem;color:rgba(255,255,255,.5);margin-top:4px}
+.quiz-reset-btn{margin-top:12px;padding:9px 22px;border-radius:var(--r2);background:var(--amber);color:#000;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:.88rem;font-weight:800;cursor:pointer;min-height:42px}
+.quiz-reset-btn:hover{background:var(--amber2)}
+.ref-table-wrap{overflow-x:auto;border-radius:var(--r2);border:1px solid var(--bdr)}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="hdr">
+<div class="hdr-brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <div class="brand-name">MULTICALCI.COM</div>
+      <div class="brand-sub">Electrical Suite</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="std-badge" title="Calculations reference IEC 60909, IEC 60364, NEC, IS 732 methods — for estimation; verify with qualified engineer">IEC 60909 · IEC 60364 · NEC · IS 732</div>
+    <a href="https://multicalci.com/" class="share-btn" style="text-decoration:none;cursor:pointer;" title="Back to multicalci.com">🏠 Home</a>
+    <button class="share-btn" onclick="openShare()" title="Share MULTICALCI.COM">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <div class="utog">
+      <button class="ubtn on" id="btnSI"  onclick="setU('SI')">SI</button>
+      <button class="ubtn"    id="btnIMP" onclick="setU('IMP')">Imperial</button>
+    </div>
+  </div>
+  <div class="hdr-line"></div>
+</header>
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar">
+  <div class="sb-stripe"></div>
+
+  <div class="sb-group">Core Laws</div>
+  <div class="sb-nav">
+    <button class="stab active" onclick="nav('s_ohm',this)"><span class="stab-ico">⚡</span>Ohm's Law</button>
+    <button class="stab"        onclick="nav('s_power',this)"><span class="stab-ico">🔋</span>AC / DC Power</button>
+  </div>
+
+  <div class="sb-group">Distribution</div>
+  <div class="sb-nav">
+    <button class="stab" onclick="nav('s_cable',this)"><span class="stab-ico">🔌</span>Cable Sizing</button>
+    <button class="stab" onclick="nav('s_vd',this)"><span class="stab-ico">📉</span>Voltage Drop</button>
+  </div>
+
+  <div class="sb-group">Machines</div>
+  <div class="sb-nav">
+    <button class="stab" onclick="nav('s_motor',this)"><span class="stab-ico">⚙️</span>Motor</button>
+    <button class="stab" onclick="nav('s_xfmr',this)"><span class="stab-ico">🔁</span>Transformer</button>
+  </div>
+
+  <div class="sb-group">Circuits</div>
+  <div class="sb-nav">
+    <button class="stab" onclick="nav('s_cap',this)"><span class="stab-ico">🔆</span>Capacitor / RC</button>
+    <button class="stab" onclick="nav('s_fault',this)">
+      <span class="stab-ico">💥</span>Short Circuit<span class="new-pill">NEW</span>
+    </button>
+    <button class="stab" onclick="nav('s_illum',this)">
+      <span class="stab-ico">💡</span>Illumination<span class="new-pill">NEW</span>
+    </button>
+  </div>
+
+  <div class="sb-group">Testing</div>
+  <div class="sb-nav">
+    <button class="stab" onclick="nav('s_hvtest',this)"><span class="stab-ico">🔬</span>HV Cable Test<span class="new-pill">NEW</span></button>
+  </div>
+
+  <div class="sb-group">Learning</div>
+  <div class="sb-nav">
+    <button class="stab" onclick="nav('s_edu',this)"><span class="stab-ico">📚</span>Education Hub<span class="new-pill">NEW</span></button>
+  </div>
+
+  <div class="sb-foot">IEC 60909 fault analysis<br>IEC 60364 · NEC 2023 · IS 732<br>IEEE Std 141 · IS 3646<br><b>For estimation only —<br>verify with a licensed engineer</b></div>
+</nav>
+
+<!-- ══ ENGINEERING DISCLAIMER BANNER ══ -->
+<div class="eng-disclaimer" id="engDisclaimer">
+  <div class="eng-disc-inner">
+    <span class="eng-disc-ico">⚠</span>
+    <div class="eng-disc-text">
+      <strong>Estimation Tool Only</strong> — Calculations use simplified models. Known limitations: (1) Lumped impedance VD — distributed π-model needed for cables &gt;500 m; (2) Reactance X uses tabulated values — real X = 2πfL depends on conductor spacing; (3) Linear temp correction valid &lt;100°C; (4) Motor SF included but locked-rotor current varies with rotor design (IEC 60034); (5) Star-Delta starting assumes delta running connection; (6) Breaker sizing uses % rules — trip curve coordination required per IEC 60947 / NEC 430; (7) Short circuit uses simplified impedance, no full per-unit system; (8) Cable ampacity requires manufacturer derating verification; (9) PFC neglects harmonics — detuning reactor required in VFD/UPS systems; (10) Energy cost excludes demand charges &amp; time-of-day tariffs; (11) AC cable losses exclude skin/proximity effect for large CSA. All outputs must be verified by a qualified engineer before use in design, procurement or commissioning.
+    </div>
+    <button class="eng-disc-close" onclick="document.getElementById('engDisclaimer').style.display='none'" title="Dismiss">✕</button>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+<!-- ─── OHM'S LAW ─── -->
+<div class="sec show" id="s_ohm">
+  <div class="sec-hd">
+    <div class="sec-ttl">Ohm's Law & DC Circuits</div>
+    <div class="sec-sub">Enter exactly 2 of V, I, R, P — all 6 pairs solved. Entering 3+ values triggers overdetermined consistency check (2% tolerance).</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">⚡</span><span class="card-hd-ttl">Known Values — Enter Any Two</span></div>
+        <div class="card-bd">
+          <div class="field"><label id="lbl_V">Voltage V (Volts)</label><input type="number" id="oV" placeholder="e.g. 230" step="0.1" oninput="calcOhm()"></div>
+          <div class="field"><label id="lbl_I">Current I (Amperes)</label><input type="number" id="oI" placeholder="e.g. 10" step="0.01" oninput="calcOhm()"></div>
+          <div class="field"><label>Resistance R (Ω)</label><input type="number" id="oR" placeholder="e.g. 23" step="0.1" oninput="calcOhm()"></div>
+          <div class="field"><label id="lbl_P">Power P (Watts)</label><input type="number" id="oP" placeholder="e.g. 2300" step="1" oninput="calcOhm()"></div>
+          <hr class="dv">
+          <div class="field"><label>Series Resistors (comma-sep, Ω)</label><input type="text" id="oRs" placeholder="e.g. 10, 20, 30" oninput="calcOhm()"></div>
+          <div class="field"><label>Parallel Resistors (comma-sep, Ω)</label><input type="text" id="oRp" placeholder="e.g. 10, 20, 30" oninput="calcOhm()"></div>
+          <button class="btn-calc" onclick="calcOhm()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfOhm()">📄 Export PDF</button>
+          <div id="ohm_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb sp2"><div class="rl">Voltage V</div><div class="rv big v-amb" id="r_V">—</div></div>
+            <div class="rc c-blu"><div class="rl">Current I</div><div class="rv v-blu" id="r_I">—</div></div>
+            <div class="rc"><div class="rl">Resistance R</div><div class="rv" id="r_R">—</div></div>
+            <div class="rc c-grn sp2"><div class="rl">Power P</div><div class="rv v-grn" id="r_P">—</div></div>
+            <div class="rc"><div class="rl">Energy (1 hr)</div><div class="rv" id="r_E">—</div></div>
+            <div class="rc"><div class="rl">Conductance G</div><div class="rv" id="r_G">—</div></div>
+            <div class="rc"><div class="rl">Series R_eq</div><div class="rv" id="r_Rs">—</div></div>
+            <div class="rc"><div class="rl">Parallel R_eq</div><div class="rv" id="r_Rp">—</div></div>
+          </div>
+          <div class="fbox">V = I×R &nbsp;|&nbsp; <span class="hi">P = V×I = I²×R = V²/R</span><br>G = 1/R &nbsp;|&nbsp; R_s = ΣRᵢ &nbsp;|&nbsp; <span class="ht">1/R_p = Σ(1/Rᵢ)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── AC POWER ─── -->
+<div class="sec" id="s_power">
+  <div class="sec-hd">
+    <div class="sec-ttl">AC Power Analysis</div>
+    <div class="sec-sub">Single / three-phase apparent, active, reactive power + energy cost + PFC</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">🔋</span><span class="card-hd-ttl">AC Power Inputs</span></div>
+        <div class="card-bd">
+          <div class="field"><label>Phase System</label>
+            <select id="acPhase" onchange="calcPower()">
+              <option value="1">Single Phase — V & I are phase values</option>
+              <option value="3">Three Phase — VL (line-to-line) & IL (line)</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_acV">Line Voltage VL (V) — line-to-line for 3φ</label><input type="number" id="acV" value="415" oninput="calcPower()"></div>
+            <div class="field"><label id="lbl_acI">Line Current IL (A)</label><input type="number" id="acI" value="100" step="0.1" oninput="calcPower()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Power Factor cosφ (0 &lt; PF ≤ 1)</label><input type="number" id="acPF" value="0.85" min="0.01" max="1" step="0.01" oninput="calcPower()"></div>
+            <div class="field"><label>Efficiency η (0–1, e.g. 0.95)</label><input type="number" id="acEff" value="0.95" min="0.01" max="1" step="0.01" oninput="calcPower()"></div>
+          </div>
+          <div class="field"><label>Load Type (determines η application)</label>
+            <select id="acLoadType" onchange="calcPower()">
+              <option value="motor">Motor / mechanical shaft load — η = P_shaft / P_electrical</option>
+              <option value="heater">Resistive heater / no shaft — η = P_useful / P_input (e.g. thermal losses)</option>
+              <option value="generic">Generic — η applied to gross active power</option>
+            </select>
+          </div>
+          <hr class="dv">
+          <div class="g2">
+            <div class="field"><label>Operating Hours/Year</label><input type="number" id="acHr" value="8760" step="10" oninput="calcPower()"></div>
+            <div class="field"><label id="lbl_acRate">Tariff (₹/kWh)</label><input type="number" id="acRate" value="8" step="0.1" oninput="calcPower()"></div>
+          </div>
+          <button class="btn-calc" onclick="calcPower()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfPower()">📄 Export PDF</button>
+          <div id="pw_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Power Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb sp2"><div class="rl">Apparent Power S</div><div class="rv big v-amb" id="r_S">—</div></div>
+            <div class="rc c-grn"><div class="rl">Active Power P (electrical)</div><div class="rv v-grn" id="r_Pact">—</div></div>
+            <div class="rc c-blu"><div class="rl">Reactive Power Q</div><div class="rv v-blu" id="r_Q">—</div></div>
+            <div class="rc"><div class="rl">Phase Angle φ</div><div class="rv" id="r_phi">—</div></div>
+            <div class="rc c-cyn"><div class="rl">Phase Voltage Vφ (line-to-neutral)</div><div class="rv v-cyn" id="r_Vphi">—</div></div>
+            <div class="rc"><div class="rl" id="lbl_Pin">Input Power (incl. η)</div><div class="rv" id="r_Pin">—</div></div>
+            <div class="rc"><div class="rl" id="lbl_eff_note">η Semantics Note</div><div class="rv" style="font-size:.75rem;color:var(--txt2)" id="r_eff_note">—</div></div>
+            <div class="rc c-pur sp2"><div class="rl">PFC Capacitor (to PF=0.95)</div><div class="rv v-pur" id="r_cap">—</div></div>
+            <div class="rc"><div class="rl">Annual Energy</div><div class="rv" id="r_energy">—</div></div>
+            <div class="rc"><div class="rl">Annual Cost</div><div class="rv" id="r_cost">—</div></div>
+          </div>
+          <div class="fbox">1φ: <span class="hi">S=Vφ×I</span> &nbsp;|&nbsp; 3φ: <span class="hi">S=√3×VL×IL</span> &nbsp;|&nbsp; Vφ=VL/√3 (3φ)<br>P=S·cosφ &nbsp;|&nbsp; Q=S·sinφ (real only if PF∈(0,1]) &nbsp;|&nbsp; <span class="ht">Qc = P×(tanφ₁ − tanφ₂)</span><br><span class="ht">η(motor)=P_shaft/P_elec | η(heater)=P_useful/P_input</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CABLE SIZING ─── -->
+<div class="sec" id="s_cable">
+  <div class="sec-hd">
+    <div class="sec-ttl">Cable / Conductor Sizing</div>
+    <div class="sec-sub">Current rating, voltage drop & minimum cross-section (IEC 60364 / NEC)</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">🔌</span><span class="card-hd-ttl">Cable Inputs</span></div>
+        <div class="card-bd">
+          <div class="field"><label>Phase System</label>
+            <select id="cbPhase" onchange="calcCable()">
+              <option value="1">Single Phase</option>
+              <option value="3">Three Phase</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_cbI">Load Current (A)</label><input type="number" id="cbI" value="80" oninput="calcCable()"></div>
+            <div class="field"><label id="lbl_cbV">System Voltage (V)</label><input type="number" id="cbV" value="415" oninput="calcCable()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_cbL">Cable Length (m)</label><input type="number" id="cbL" value="100" oninput="calcCable()"></div>
+            <div class="field"><label>Power Factor</label><input type="number" id="cbPF" value="0.85" step="0.01" oninput="calcCable()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Max VD Allowed (%)</label><input type="number" id="cbVDmax" value="5" step="0.5" oninput="calcCable()"></div>
+            <div class="field"><label>Conductor</label>
+              <select id="cbMat" onchange="calcCable()">
+                <option value="cu">Copper (1.72×10⁻⁸)</option>
+                <option value="al">Aluminium (2.82×10⁻⁸)</option>
+              </select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_cbArea">Cable CSA (mm²)</label><input type="number" id="cbArea" value="25" oninput="calcCable()"></div>
+            <div class="field"><label>Ambient Temp (°C)</label><input type="number" id="cbTemp" value="40" oninput="calcCable()"></div>
+          </div>
+          <div class="fsep">⚡ Derating Factors (IEC 60364-5-52 / IEC 60287)</div>
+          <div class="g2">
+            <div class="field"><label title="k_T: ambient temp correction. 40°C Cu XLPE≈0.87, 50°C≈0.71 (IEC 60364 Table B.52.14)">Temp Factor k_T (0.1–1.0)</label><input type="number" id="cbKT" value="0.87" min="0.1" max="1" step="0.01" oninput="calcCable()"></div>
+            <div class="field"><label title="k_G: grouping correction. 2 cables=0.80, 3=0.70, 6=0.57 (IEC 60364 Table B.52.17)">Grouping Factor k_G (0.1–1.0)</label><input type="number" id="cbKG" value="1.0" min="0.1" max="1" step="0.01" oninput="calcCable()"></div>
+          </div>
+          <div class="field"><label>Installation Method (ampacity factor k_i)</label>
+            <select id="cbInstall" onchange="calcCable()">
+              <option value="1.00">Method C: Clipped direct / surface (k=1.00)</option>
+              <option value="0.95">Method B: Conduit in wall / trunking (k=0.95)</option>
+              <option value="0.80">Method A: Conduit in thermally insulated wall (k=0.80)</option>
+              <option value="1.00">Method E: Free air / perforated tray (k=1.00)</option>
+              <option value="0.90">Method D: Underground direct buried (k=0.90)</option>
+            </select>
+          </div>
+          <div class="field"><label>Voltage Level / Installation</label>
+            <select id="cbVLevel" onchange="calcCable()">
+              <option value="lv_trefoil">LV ≤ 1 kV — Trefoil/touching (X≈0.08 mΩ/m)</option>
+              <option value="lv_flat">LV ≤ 1 kV — Flat formation (X≈0.10 mΩ/m)</option>
+              <option value="mv_close">MV 1–33 kV — Cables touching (X≈0.10 mΩ/m)</option>
+              <option value="mv_1d">MV — Spacing = 1× dia. (X≈0.13 mΩ/m)</option>
+              <option value="mv_2d">MV — Spacing = 2× dia. (X≈0.17 mΩ/m)</option>
+              <option value="mv_3d">MV — Spacing = 3× dia. (X≈0.20 mΩ/m)</option>
+              <option value="hv">HV &gt; 33 kV — Typical (X≈0.30 mΩ/m)</option>
+            </select>
+          </div>
+          <div class="cx-notice" id="cbXNotice">
+            <span>ℹ</span><span id="cbXNoticeText">LV trefoil: X ≈ 0.08 mΩ/m — suitable for LV design.</span>
+          </div>
+          <button class="btn-calc" onclick="calcCable()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfCable()">📄 Export PDF</button>
+          <div id="cb_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Cable Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb"><div class="rl">Cable R (temp-corrected)</div><div class="rv" id="r_cbR">—</div></div>
+            <div class="rc"><div class="rl">Reactance X (est.)</div><div class="rv" id="r_cbX">—</div></div>
+            <div class="rc c-grn sp2"><div class="rl">Voltage Drop ΔV</div><div class="rv v-grn" id="r_cbVD">—</div><div class="rsub" id="r_cbVDpc">—</div></div>
+            <div class="rc"><div class="rl">VD Status</div><div id="r_cbStatus">—</div></div>
+            <div class="rc"><div class="rl">Min CSA for VD Limit</div><div class="rv" id="r_cbMinA">—</div></div>
+            <div class="rc c-blu"><div class="rl">Cable Power Loss</div><div class="rv v-blu" id="r_cbLoss">—</div></div>
+            <div class="rc"><div class="rl">Current Density</div><div class="rv" id="r_cbDens">—</div></div>
+            <div class="rc"><div class="rl">Resistance / km</div><div class="rv" id="r_cbRpkm">—</div></div>
+            <div class="rc c-amb sp2"><div class="rl">Derated Ampacity Check (k_T × k_G × k_i × I_table)</div><div class="rv v-amb" id="r_cbDerated">—</div><div class="rsub">Enter tabulated I_z below or check IEC 60364-5-52. Load current must not exceed derated ampacity.</div></div>
+            <div class="rc c-pur sp2"><div class="rl">Combined Derating Factor (k_T × k_G × k_i)</div><div class="rv v-pur" id="r_cbKtotal">—</div></div>
+          </div>
+          <div class="fbox">R = ρ(T)×L/A (per cond.) &nbsp;|&nbsp; <span class="hi">1φ: ΔV=2I(Rcosφ+Xsinφ)</span><br><span class="hi">3φ: ΔV=√3·I·(Rcosφ+Xsinφ)</span> &nbsp;|&nbsp; <span class="ht">1φ: A_min=2ρLIcosφ/ΔV_max | 3φ: A_min=√3·ρ·L·I·cosφ/ΔV_max</span><br>R_T = R₂₀[1 + α(T−20)] &nbsp;|&nbsp; αCu=0.00393 &nbsp;|&nbsp; αAl=0.00403<br><span class="ht">Iz_derated = Iz_table × k_T × k_G × k_i (IEC 60364-5-52) &nbsp;|&nbsp; I_design ≤ Iz_derated</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── VOLTAGE DROP ─── -->
+<div class="sec" id="s_vd">
+  <div class="sec-hd">
+    <div class="sec-ttl">Voltage Drop & Protection</div>
+    <div class="sec-sub">VD analysis with MCB/fuse sizing to NEC 430 / IEC standards</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📉</span><span class="card-hd-ttl">Circuit Parameters</span></div>
+        <div class="card-bd">
+          <div class="field"><label>Phase System</label>
+            <select id="vdPhase" onchange="calcVD()">
+              <option value="1">Single Phase</option>
+              <option value="3">Three Phase</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_vdV">Supply Voltage (V)</label><input type="number" id="vdV" value="415" oninput="calcVD()"></div>
+            <div class="field"><label id="lbl_vdI">Load Current (A)</label><input type="number" id="vdI" value="50" oninput="calcVD()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_vdL">Cable Length (m)</label><input type="number" id="vdL" value="80" oninput="calcVD()"></div>
+            <div class="field"><label id="lbl_vdA">Cable CSA (mm²)</label><input type="number" id="vdA" value="16" oninput="calcVD()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Conductor</label>
+              <select id="vdMat" onchange="calcVD()">
+                <option value="cu">Copper</option>
+                <option value="al">Aluminium</option>
+              </select>
+            </div>
+            <div class="field"><label>Power Factor</label><input type="number" id="vdPF" value="0.85" step="0.01" oninput="calcVD()"></div>
+          </div>
+          <div class="field"><label>Load Type</label>
+            <select id="vdLoad" onchange="calcVD()">
+              <option value="motor">Motor — NEC 430 (125%)</option>
+              <option value="lighting">Lighting (115%)</option>
+              <option value="general">General (115%)</option>
+            </select>
+          </div>
+          <div class="field"><label>Voltage Level / Installation</label>
+            <select id="vdVLevel" onchange="calcVD()">
+              <option value="lv_trefoil">LV ≤ 1 kV — Trefoil (X≈0.08 mΩ/m)</option>
+              <option value="lv_flat">LV — Flat formation (X≈0.10 mΩ/m)</option>
+              <option value="mv_close">MV — Touching (X≈0.10 mΩ/m)</option>
+              <option value="mv_1d">MV — Spacing 1× dia. (X≈0.13 mΩ/m)</option>
+              <option value="mv_2d">MV — Spacing 2× dia. (X≈0.17 mΩ/m)</option>
+              <option value="mv_3d">MV — Spacing 3× dia. (X≈0.20 mΩ/m)</option>
+              <option value="hv">HV &gt; 33 kV (X≈0.30 mΩ/m)</option>
+            </select>
+          </div>
+          <button class="btn-calc" onclick="calcVD()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfVD()">📄 Export PDF</button>
+          <div id="vd_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Voltage Drop Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb sp2"><div class="rl">Voltage Drop ΔV</div><div class="rv big v-amb" id="r_vdVD">—</div><div class="rsub" id="r_vdPc">—</div></div>
+            <div class="rc"><div class="rl">Receiving End Voltage</div><div class="rv" id="r_vdVR">—</div></div>
+            <div class="rc"><div class="rl">VD Status</div><div id="r_vdBadge">—</div></div>
+            <div class="rc c-grn"><div class="rl">Cable Resistance</div><div class="rv v-grn" id="r_vdR">—</div></div>
+            <div class="rc"><div class="rl">Power Loss</div><div class="rv" id="r_vdLoss">—</div></div>
+            <div class="rc c-blu sp2"><div class="rl">Recommended Breaker / Fuse</div><div class="rv v-blu" id="r_vdBreaker">—</div></div>
+            <div class="rc"><div class="rl">Min Cable for 5% VD</div><div class="rv" id="r_vdMinA">—</div></div>
+            <div class="rc"><div class="rl">Current Density</div><div class="rv" id="r_vdDens">—</div></div>
+          </div>
+          <div class="fbox"><span class="hi">1φ: ΔV = 2·I·(R·cosφ + X·sinφ)</span> &nbsp;|&nbsp; <span class="hi">3φ: ΔV = √3·I·(R·cosφ + X·sinφ)</span><br>R=ρ(T)·L/A per cond. &nbsp;|&nbsp; X≈0.08 mΩ/m &nbsp;|&nbsp; <span class="ht">Breaker: 125% motor, 115% other</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MOTOR ─── -->
+<div class="sec" id="s_motor">
+  <div class="sec-hd">
+    <div class="sec-ttl">Electric Motor Calculator</div>
+    <div class="sec-sub">3-phase induction motor — FLC, torque, slip, starting current (DOL / Y-Δ / VFD)</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">⚙️</span><span class="card-hd-ttl">Motor Parameters</span></div>
+        <div class="card-bd">
+          <div class="g2">
+            <div class="field"><label id="lbl_mP">Rated Output (kW)</label><input type="number" id="mP" value="75" step="0.5" oninput="calcMotor()"></div>
+            <div class="field"><label>Supply Voltage (V)</label><input type="number" id="mV" value="415" oninput="calcMotor()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Power Factor cosφ</label><input type="number" id="mPF" value="0.88" step="0.01" oninput="calcMotor()"></div>
+            <div class="field"><label>Efficiency η (%)</label><input type="number" id="mEff" value="93" step="0.5" oninput="calcMotor()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Rated Speed (RPM)</label><input type="number" id="mRPM" value="1480" step="10" oninput="calcMotor()"></div>
+            <div class="field"><label>Frequency (Hz)</label>
+              <select id="mFreq" onchange="calcMotor()">
+                <option value="50" selected>50 Hz</option>
+                <option value="60">60 Hz</option>
+              </select>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Poles</label>
+              <select id="mPoles" onchange="calcMotor()">
+                <option value="2">2 Poles</option>
+                <option value="4" selected>4 Poles</option>
+                <option value="6">6 Poles</option>
+                <option value="8">8 Poles</option>
+              </select>
+            </div>
+            <div class="field"><label>Starting Method</label>
+              <select id="mStart" onchange="calcMotor()">
+                <option value="dol">DOL Direct-On-Line</option>
+                <option value="sd">Star-Delta (Y-Δ)</option>
+                <option value="vfd">VFD / Soft Start</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Starting Current Multiplier (Istart/IL) — IEC 60034 LRC</label><input type="number" id="mISM" value="6" step="0.5" oninput="calcMotor()" title="IEC 60034: LRC typically 5–8× for standard cage motors. Verify from motor test certificate. Depends on rotor design, supply impedance, locked rotor code."></div>
+          <div class="g2">
+            <div class="field"><label title="IEC 60034 / NEMA MG1: Industrial motors often SF=1.0–1.15. Using SF &gt; 1.0 means motor can operate continuously above nameplate kW. Affects cable & protection sizing.">Service Factor SF (1.0–1.15)</label><input type="number" id="mSF" value="1.0" min="1.0" max="1.25" step="0.05" oninput="calcMotor()"></div>
+            <div class="field"><label title="NEC 430: Motor branch circuit conductor must be ≥125% FLC. Breaker sized ≥ 125% FLC (motor) per NEC 430.52.">Breaker Rule</label>
+              <select id="mBrkRule" onchange="calcMotor()">
+                <option value="1.25">125% FLC — Motor (NEC 430 / IEC standard)</option>
+                <option value="1.15">115% FLC — General loads</option>
+                <option value="2.50">250% FLC — Motor DOL inverse-time (NEC 430.52)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-calc" onclick="calcMotor()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfMotor()">📄 Export PDF</button>
+          <div id="mot_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Motor Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb sp2"><div class="rl">Full-Load Current IL</div><div class="rv big v-amb" id="r_mI">—</div></div>
+            <div class="rc c-red"><div class="rl">SF-Adjusted Current (IL × SF)</div><div class="rv v-red" id="r_mISF">—</div></div>
+            <div class="rc"><div class="rl">Input Power</div><div class="rv" id="r_mPin">—</div></div>
+            <div class="rc"><div class="rl">Apparent Power S</div><div class="rv" id="r_mS">—</div></div>
+            <div class="rc c-grn"><div class="rl">Rated Torque</div><div class="rv v-grn" id="r_mT">—</div></div>
+            <div class="rc"><div class="rl">Synchronous Speed Ns</div><div class="rv" id="r_mNs">—</div></div>
+            <div class="rc"><div class="rl">Slip %</div><div class="rv" id="r_mSlip">—</div></div>
+            <div class="rc c-blu sp2"><div class="rl">Starting Current (selected method)</div><div class="rv v-blu" id="r_mIs">—</div></div>
+            <div class="rc c-pur"><div class="rl">Starting Torque</div><div class="rv v-pur" id="r_mTs">—</div></div>
+            <div class="rc"><div class="rl">Reactive Power Q</div><div class="rv" id="r_mQ">—</div></div>
+            <div class="rc c-amb sp2"><div class="rl">Recommended Breaker (NEC 430 / IEC)</div><div class="rv v-amb" id="r_mBreaker">—</div></div>
+          </div>
+          <div class="fbox"><span class="hi">IL = P_shaft/(√3·V·η·cosφ)</span> &nbsp;|&nbsp; <span class="hi">T = P_shaft_W/(2π·n/60)</span><br>P_shaft [W] = kW_rated × 1000 &nbsp;|&nbsp; Pin = P_shaft / η &nbsp;|&nbsp; <span class="ht">T uses SHAFT watts, not Pin — prevents torque overestimate</span><br>Ns = 60f/p &nbsp;|&nbsp; s = (Ns−N)/Ns &nbsp;|&nbsp; Y-Δ: Is = DOL/3 (load torque must be &lt;33% rated at switchover)<br><span class="ht">BUG4 fix: IL_SF = IL × SF — cable and protection must be rated for SF-adjusted current (IEC/NEMA)</span><br>BUG5 note: Istart multiplier per IEC 60034 LRC — actual value depends on rotor design &amp; supply Z<br>BUG6 note: Y-Δ formula Is=DOL/3 valid only if motor RUNS in delta — verify motor winding connection</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TRANSFORMER ─── -->
+<div class="sec" id="s_xfmr">
+  <div class="sec-hd">
+    <div class="sec-ttl">Transformer Calculator</div>
+    <div class="sec-sub">Turns ratio, efficiency, voltage regulation, short-circuit current</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">🔁</span><span class="card-hd-ttl">Transformer Parameters</span></div>
+        <div class="card-bd">
+          <div class="g2">
+            <div class="field"><label>Rated kVA</label><input type="number" id="xKVA" value="500" step="10" oninput="calcXfmr()"></div>
+            <div class="field"><label>Load Power Factor</label><input type="number" id="xPF" value="0.85" step="0.01" oninput="calcXfmr()"></div>
+          </div>
+          <div class="field"><label>PF Type (affects Voltage Regulation)</label>
+            <select id="xPFType" onchange="calcXfmr()">
+              <option value="lag">Lagging — Inductive load (VR positive)</option>
+              <option value="lead">Leading — Capacitive load (VR negative)</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Primary Voltage V1 (V)</label><input type="number" id="xV1" value="11000" step="100" oninput="calcXfmr()"></div>
+            <div class="field"><label>Secondary Voltage V2 (V)</label><input type="number" id="xV2" value="415" oninput="calcXfmr()"></div>
+          </div>
+          <div class="field"><label>Load (% of rated kVA)</label><input type="number" id="xLoad" value="80" step="5" oninput="calcXfmr()"></div>
+          <div class="g2">
+            <div class="field"><label>Core Loss P_Fe (W)</label><input type="number" id="xFe" value="1200" step="50" oninput="calcXfmr()"></div>
+            <div class="field"><label>Copper Loss P_Cu (W)</label><input type="number" id="xCu" value="5000" step="100" oninput="calcXfmr()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>%Impedance Z%</label><input type="number" id="xZ" value="4.5" step="0.5" oninput="calcXfmr()"></div>
+            <div class="field"><label>%Resistance R%</label><input type="number" id="xR" value="1.2" step="0.1" oninput="calcXfmr()"></div>
+          </div>
+          <button class="btn-calc" onclick="calcXfmr()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfXfmr()">📄 Export PDF</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Transformer Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb"><div class="rl">Turns Ratio N1/N2</div><div class="rv v-amb" id="r_xTR">—</div></div>
+            <div class="rc"><div class="rl">%Reactance X%</div><div class="rv" id="r_xXpc">—</div></div>
+            <div class="rc c-grn"><div class="rl">Primary FLC I1</div><div class="rv v-grn" id="r_xI1">—</div></div>
+            <div class="rc c-grn"><div class="rl">Secondary FLC I2</div><div class="rv v-grn" id="r_xI2">—</div></div>
+            <div class="rc c-blu sp2"><div class="rl">Efficiency at Load</div><div class="rv v-blu" id="r_xEff">—</div><div class="rsub" id="r_xEffSub">—</div></div>
+            <div class="rc"><div class="rl">Voltage Regulation</div><div class="rv" id="r_xVR">—</div></div>
+            <div class="rc"><div class="rl">Max Efficiency at</div><div class="rv" id="r_xMaxEff">—</div></div>
+            <div class="rc c-pur sp2"><div class="rl">Short-Circuit Current (HV side)</div><div class="rv v-pur" id="r_xSCC">—</div></div>
+          </div>
+          <div class="fbox">a = V1/V2 &nbsp;|&nbsp; <span class="hi">η = x·kVA·1000·cosφ / (x·kVA·1000·cosφ + Pfe + x²·Pcu)</span> [all in W]<br><span class="hi">VR(lag) = R%·cosφ + X%·sinφ</span> &nbsp;|&nbsp; <span class="ht">VR(lead) = R%·cosφ − X%·sinφ</span> (Kapp approx., valid to ~full-load)<br>x_maxη = √(Pfe/Pcu) &nbsp;|&nbsp; I_sc = I₁_FLC / (Z%/100)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CAPACITOR / RC ─── -->
+<div class="sec" id="s_cap">
+  <div class="sec-hd">
+    <div class="sec-ttl">Capacitor & RC/LC Circuits</div>
+    <div class="sec-sub">Capacitor energy, RC time constant, resonance, Q-factor, impedance</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">🔆</span><span class="card-hd-ttl">Component Values</span></div>
+        <div class="card-bd">
+          <div class="g2">
+            <div class="field"><label>Capacitance C (µF)</label><input type="number" id="capC" value="100" step="1" oninput="calcCap()"></div>
+            <div class="field"><label>Inductance L (mH)</label><input type="number" id="capL" value="50" step="1" oninput="calcCap()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Resistance R (Ω)</label><input type="number" id="capR" value="10" step="0.1" oninput="calcCap()"></div>
+            <div class="field"><label>Voltage V (V)</label><input type="number" id="capV" value="230" oninput="calcCap()"></div>
+          </div>
+          <div class="field"><label>Frequency f (Hz)</label><input type="number" id="capF" value="50" oninput="calcCap()"></div>
+          <button class="btn-calc" onclick="calcCap()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfCap()">📄 Export PDF</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Circuit Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb"><div class="rl">Capacitive Reactance Xc</div><div class="rv" id="r_Xc">—</div></div>
+            <div class="rc"><div class="rl">Inductive Reactance XL</div><div class="rv" id="r_XL">—</div></div>
+            <div class="rc c-grn"><div class="rl">Energy Stored E</div><div class="rv v-grn" id="r_capE">—</div></div>
+            <div class="rc"><div class="rl">Charge Q = C×V</div><div class="rv" id="r_capQ">—</div></div>
+            <div class="rc c-blu"><div class="rl">Resonant Freq f₀</div><div class="rv v-blu" id="r_f0">—</div></div>
+            <div class="rc"><div class="rl">Angular ω₀ (rad/s)</div><div class="rv" id="r_w0">—</div></div>
+            <div class="rc"><div class="rl">RC Time Constant τ</div><div class="rv" id="r_tau">—</div></div>
+            <div class="rc"><div class="rl">Q-Factor</div><div class="rv" id="r_Qf">—</div></div>
+            <div class="rc c-pur"><div class="rl">Impedance |Z| at f</div><div class="rv v-pur" id="r_Z">—</div></div>
+            <div class="rc"><div class="rl">Capacitor Current Ic</div><div class="rv" id="r_Ic">—</div></div>
+          </div>
+          <div class="fbox"><span class="hi">C[F]=C_µF×10⁻⁶ &nbsp;|&nbsp; L[H]=L_mH×10⁻³</span> (unit conversion — prevents 1000× error)<br><span class="hi">Xc = 1/(2πfC[F])</span> &nbsp;|&nbsp; XL = 2πfL[H] &nbsp;|&nbsp; <span class="hi">f₀ = 1/(2π√(L[H]·C[F]))</span> [Hz, always correct]<br>Series RLC: <span class="ht">Q = (1/R)·√(L/C)</span> &nbsp;|&nbsp; Parallel RLC: Q = R/√(L/C) &nbsp;|&nbsp; τ=RC &nbsp;|&nbsp; E=½CV²</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SHORT CIRCUIT (NEW) ─── -->
+<div class="sec" id="s_fault">
+  <div class="sec-hd">
+    <div class="sec-ttl">Short Circuit / Fault Analysis</div>
+    <div class="sec-sub">3-phase & 1-phase fault currents, fault MVA, breaker kA rating (IEC 60909)</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">💥</span><span class="card-hd-ttl">System Parameters</span></div>
+        <div class="card-bd">
+          <div class="fsep">🔌 Grid / Source</div>
+          <div class="g2">
+            <div class="field"><label>Nominal Voltage Vn (kV)</label><input type="number" id="fltVn" value="11" step="0.1" oninput="calcFault()"></div>
+            <div class="field"><label>Grid Fault MVA</label><input type="number" id="fltGridMVA" value="500" step="10" oninput="calcFault()"></div>
+          </div>
+          <div class="fsep">🔁 Transformer</div>
+          <div class="g2">
+            <div class="field"><label>Transformer kVA</label><input type="number" id="fltXkVA" value="1000" step="50" oninput="calcFault()"></div>
+            <div class="field"><label>%Z Impedance</label><input type="number" id="fltXZ" value="5" step="0.1" oninput="calcFault()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>%R (resistance component)</label><input type="number" id="fltXR" value="1.2" step="0.1" oninput="calcFault()"></div>
+            <div class="field"><label>HV Voltage (kV)</label><input type="number" id="fltHV" value="11" step="0.1" oninput="calcFault()"></div>
+          </div>
+          <div class="field"><label>LV Voltage (V)</label><input type="number" id="fltLV" value="415" oninput="calcFault()"></div>
+          <div class="fsep">⚙️ Motor Contribution (optional)</div>
+          <div class="field"><label>Total Connected Motor kVA (0 = ignore)</label><input type="number" id="fltMotKVA" value="0" step="50" oninput="calcFault()"></div>
+          <div class="fsep">🔌 Cable to Fault Point</div>
+          <div class="g2">
+            <div class="field"><label id="lbl_fltCL">Cable Length (m)</label><input type="number" id="fltCL" value="50" step="5" oninput="calcFault()"></div>
+            <div class="field"><label>Cable CSA (mm²)</label><input type="number" id="fltCA" value="25" oninput="calcFault()"></div>
+          </div>
+          <div class="field"><label>Conductor</label>
+            <select id="fltMat" onchange="calcFault()">
+              <option value="cu">Copper (1.72×10⁻⁸ Ω·m)</option>
+              <option value="al">Aluminium (2.82×10⁻⁸ Ω·m)</option>
+            </select>
+          </div>
+          <button class="btn-calc" onclick="calcFault()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfFault()">📄 Export PDF</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Fault Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-red sp2"><div class="rl">3-Phase Isc3 (symmetrical rms)</div><div class="rv big v-red" id="r_flt3I">—</div></div>
+            <div class="rc c-amb sp2"><div class="rl">Peak Asymmetrical Current Ip</div><div class="rv v-amb" id="r_fltIp">—</div></div>
+            <div class="rc"><div class="rl">IEC 60909 κ factor</div><div class="rv" id="r_fltKappa">—</div></div>
+            <div class="rc c-pur"><div class="rl">Motor Contribution</div><div class="rv v-pur" id="r_fltImot">—</div></div>
+            <div class="rc c-red"><div class="rl">Total Isc (incl. motors)</div><div class="rv v-red" id="r_fltItot">—</div></div>
+            <div class="rc"><div class="rl">Phase-Phase Isc2</div><div class="rv" id="r_flt2I">—</div></div>
+            <div class="rc c-blu"><div class="rl">1-Phase Isc1 (approx.)</div><div class="rv v-blu" id="r_flt1I">—</div></div>
+            <div class="rc c-pur"><div class="rl">Fault MVA (3-phase)</div><div class="rv v-pur" id="r_fltMVA">—</div></div>
+            <div class="rc"><div class="rl">Grid Source Z (X/R=10)</div><div class="rv" id="r_fltGZ">—</div></div>
+            <div class="rc"><div class="rl">Transformer Z (R+jX)</div><div class="rv" id="r_fltXZ">—</div></div>
+            <div class="rc sp2"><div class="rl">Cable Z (R + jX components)</div><div class="rv" id="r_fltCZ">—</div></div>
+            <div class="rc sp2"><div class="rl">Total Z_total (magnitude + X/R)</div><div class="rv" id="r_fltZtot">—</div></div>
+            <div class="rc c-grn sp2"><div class="rl">Minimum Breaker kA Rating (based on Ip)</div><div class="rv v-grn" id="r_fltBreaker">—</div></div>
+          </div>
+          <div class="fbox"><span class="hi">IEC 60909: Isc3 = c·Vn/(√3·|Z_total|)</span> &nbsp;|&nbsp; c=1.05 (LV max fault)<br><span class="hi">Ip = κ·√2·Isc3</span> &nbsp;|&nbsp; κ = 1.02 + 0.98·e^(−3/XR) &nbsp;|&nbsp; <span class="ht">Z_cable = R+jX (R=ρL/A, X≈0.08mΩ/m)</span><br>Motor contrib: I_mot ≈ 6×FLC &nbsp;|&nbsp; Breaker rated on Ip (peak)<br><span class="ht">⚠ BUG8: This uses simplified impedance network (no full per-unit system). For accurate fault studies use IEC 60909 software with complete network model. Error may exceed ±50% on complex networks.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── ILLUMINATION (NEW) ─── -->
+<div class="sec" id="s_illum">
+  <div class="sec-hd">
+    <div class="sec-ttl">Illumination Design</div>
+    <div class="sec-sub">Lumen method — luminaire count, lux levels, layout, watt density (IS 3646 / IES)</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">💡</span><span class="card-hd-ttl">Room & Luminaire Data</span></div>
+        <div class="card-bd">
+          <div class="fsep">🏠 Room Dimensions</div>
+          <div class="g2">
+            <div class="field"><label id="lbl_ilL">Room Length (m)</label><input type="number" id="ilL" value="10" step="0.5" oninput="calcIllum()"></div>
+            <div class="field"><label id="lbl_ilW">Room Width (m)</label><input type="number" id="ilW" value="8" step="0.5" oninput="calcIllum()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label id="lbl_ilH">Mounting Height (m)</label><input type="number" id="ilH" value="3" step="0.1" oninput="calcIllum()"></div>
+            <div class="field"><label>Work Plane Ht (m)</label><input type="number" id="ilWH" value="0.8" step="0.1" oninput="calcIllum()"></div>
+          </div>
+          <div class="fsep">🏢 Occupancy</div>
+          <div class="field"><label>Room Type</label>
+            <select id="ilType" onchange="ilTypeChange()">
+              <option value="500">Office — 500 lux</option>
+              <option value="300">Corridor — 300 lux</option>
+              <option value="750">Drawing/Lab — 750 lux</option>
+              <option value="200">Warehouse — 200 lux</option>
+              <option value="100">Exterior/Road — 100 lux</option>
+              <option value="1000">Precision Work — 1000 lux</option>
+              <option value="custom">Custom lux…</option>
+            </select>
+          </div>
+          <div class="field" id="ilCustomF" style="display:none">
+            <label>Custom Target E (lux)</label><input type="number" id="ilLuxC" value="500" step="50" oninput="calcIllum()">
+          </div>
+          <div class="field"><label>Target Illuminance E (lux)</label><input type="number" id="ilE" value="500" step="50" readonly></div>
+          <div class="fsep">💡 Luminaire</div>
+          <div class="g2">
+            <div class="field"><label>Lumens per Fitting</label><input type="number" id="ilLm" value="5000" step="100" oninput="calcIllum()"></div>
+            <div class="field"><label>Watts per Fitting</label><input type="number" id="ilPw" value="40" step="5" oninput="calcIllum()"></div>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Maintenance Factor MF</label><input type="number" id="ilMF" value="0.8" step="0.01" oninput="calcIllum()"></div>
+            <div class="field"><label>Utilisation Factor UF</label><input type="number" id="ilUF" value="0.65" step="0.01" oninput="calcIllum()"></div>
+          </div>
+          <button class="btn-calc" onclick="calcIllum()">⚡ Calculate</button>
+          <button class="btn-pdf" onclick="pdfIllum()">📄 Export PDF</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Illumination Results</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-amb sp2"><div class="rl">Luminaires Required N</div><div class="rv big v-amb" id="r_ilN">—</div></div>
+            <div class="rc c-grn"><div class="rl">Achieved Illuminance</div><div class="rv v-grn" id="r_ilE">—</div></div>
+            <div class="rc"><div class="rl">Room Index RI (k)</div><div class="rv" id="r_ilRI">—</div></div>
+            <div class="rc c-blu"><div class="rl">Total Installed Load</div><div class="rv v-blu" id="r_ilW">—</div></div>
+            <div class="rc"><div class="rl">Watt Density (W/m²)</div><div class="rv" id="r_ilWd">—</div></div>
+            <div class="rc"><div class="rl">Floor Area</div><div class="rv" id="r_ilArea">—</div></div>
+            <div class="rc c-pur sp2"><div class="rl">Luminaire Layout</div><div class="rv v-pur" id="r_ilGrid">—</div></div>
+            <div class="rc"><div class="rl">Spacing S_Length</div><div class="rv" id="r_ilSL">—</div></div>
+            <div class="rc"><div class="rl">Spacing S_Width</div><div class="rv" id="r_ilSW">—</div></div>
+          </div>
+          <div class="fbox"><span class="hi">N = E×A / (F×MF×UF)</span> &nbsp;|&nbsp; RI = L×W/(Hm×(L+W))<br><span class="ht">IS 3646: Office ≥500 lux | Lab ≥750 lux | Watt density = W_total/A</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ─── HV CABLE TEST ─── -->
+<div class="sec" id="s_hvtest">
+  <div class="sec-hd">
+    <div class="sec-ttl">HV Cable Test</div>
+    <div class="sec-sub">Recommended hi-pot withstand test voltage & duration per IEC 60502, IEC 60840, IEEE Std 400, IS 7098. Insulation resistance limits included.</div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">🔬</span><span class="card-hd-ttl">Cable & Test Parameters</span></div>
+        <div class="card-bd">
+          <div class="fsep">Cable System</div>
+          <div class="g2">
+            <div class="field"><label>Rated Voltage Uo/U</label>
+              <select id="hvUo" onchange="calcHVTest()">
+                <option value="0.6/1">0.6/1 kV — LV</option>
+                <option value="1.8/3">1.8/3 kV</option>
+                <option value="3.6/6">3.6/6 kV</option>
+                <option value="6/10">6/10 kV</option>
+                <option value="8.7/15">8.7/15 kV</option>
+                <option value="12/20">12/20 kV</option>
+                <option value="18/30">18/30 kV</option>
+                <option value="26/45">26/45 kV</option>
+                <option value="36/66">36/66 kV EHV</option>
+                <option value="64/110">64/110 kV EHV</option>
+                <option value="127/220">127/220 kV EHV</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div class="field"><label>Insulation Type</label>
+              <select id="hvIns" onchange="calcHVTest()">
+                <option value="xlpe">XLPE / EPR</option>
+                <option value="pil">PILC (Paper-insulated)</option>
+                <option value="pvc">PVC (LV only)</option>
+              </select>
+            </div>
+          </div>
+          <div class="g2" id="hvCustomRow" style="display:none">
+            <div class="field"><label>Custom Uo (kV, phase-earth)</label><input type="number" id="hvUoCustom" value="6" step="0.1" oninput="calcHVTest()"></div>
+            <div class="field"><label>Custom U (kV, line-line)</label><input type="number" id="hvUCustom" value="10" step="0.1" oninput="calcHVTest()"></div>
+          </div>
+          <div class="fsep">Test Setup</div>
+          <div class="field"><label>Test Method</label>
+            <select id="hvMethod" onchange="calcHVTest()">
+              <option value="ac_site">AC — Site / After Installation (IEC 60502-4)</option>
+              <option value="ac_factory">AC — Factory Acceptance (IEC 60502-2)</option>
+              <option value="dc_site">DC — Site Legacy (IEEE 400, not for XLPE)</option>
+              <option value="vlf">VLF 0.1 Hz — Site, preferred for XLPE (IEEE 400.2)</option>
+              <option value="ir">IR / Megger Only</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div class="field"><label>Cable Length (m)</label><input type="number" id="hvLen" value="500" step="10" oninput="calcHVTest()"></div>
+            <div class="field"><label>Conductor Temp (°C)</label><input type="number" id="hvTemp" value="20" step="1" oninput="calcHVTest()"></div>
+          </div>
+          <div class="field"><label>Test Condition</label>
+            <select id="hvCond" onchange="calcHVTest()">
+              <option value="new">New — after installation (commissioning)</option>
+              <option value="maint">Maintenance / routine in-service</option>
+              <option value="repair">After repair / joint</option>
+              <option value="factory">Factory acceptance</option>
+            </select>
+          </div>
+          <div class="field"><label>Sheath / Jacket Test</label>
+            <select id="hvSheath" onchange="calcHVTest()">
+              <option value="none">No sheath test required</option>
+              <option value="pvc_outer">PVC outer sheath — DC 10 kV / 1 min</option>
+              <option value="pe_outer">PE / HDPE outer sheath — DC 25 kV / 1 min</option>
+            </select>
+          </div>
+          <button class="btn-calc" onclick="calcHVTest()">⚡ Calculate</button>
+          <div id="hv_val_container"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-ico">📊</span><span class="card-hd-ttl">Test Recommendations</span></div>
+        <div class="card-bd">
+          <div class="rg">
+            <div class="rc c-pur sp2"><div class="rl">Recommended Test Voltage</div><div class="rv big v-pur" id="r_hvV">—</div><div class="rsub" id="r_hvVsub">—</div></div>
+            <div class="rc c-amb"><div class="rl">Test Duration</div><div class="rv v-amb" id="r_hvDur">—</div></div>
+            <div class="rc"><div class="rl">Test Standard</div><div class="rv" style="font-size:.78rem;line-height:1.4" id="r_hvStd">—</div></div>
+            <div class="rc c-grn sp2"><div class="rl">Pass Criterion</div><div class="rv" style="font-size:.79rem;line-height:1.4" id="r_hvPass">—</div></div>
+            <div class="rc"><div class="rl">Sheath Test</div><div class="rv" style="font-size:.78rem;line-height:1.4" id="r_hvSheath">—</div></div>
+            <div class="rc c-blu"><div class="rl">Min IR (at 20°C)</div><div class="rv v-blu" id="r_hvIR">—</div></div>
+            <div class="rc sp2"><div class="rl">IR Temperature Note</div><div class="rv" style="font-size:.77rem;line-height:1.4;color:var(--txt2)" id="r_hvIRnote">—</div></div>
+          </div>
+          <div class="vwarn" style="margin-top:10px">
+            <span class="vwarn-ico">⚠</span>
+            <span id="r_hvWarn">High voltage testing is life-threatening. Authorised personnel only. Maintain exclusion zone, earth all conductors, use rated test leads. Discharge cable after every test.</span>
+          </div>
+          <div class="fbox" style="margin-top:10px">
+            <span class="hi">IEC 60502-4 site (XLPE): U_test = 2×Uo, 60 min</span><br>
+            <span class="ht">IEEE 400.2 VLF: 1.73–2×Uo, 60 min (preferred for XLPE)</span><br>
+            DC (legacy): 3–4×Uo, 15 min | <span class="hi">IR_min ≈ (Uo+1) MΩ/km</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── EDUCATION HUB ─── -->
+<div class="sec" id="s_edu">
+  <div class="sec-hd">
+    <div class="sec-ttl">Education Hub</div>
+    <div class="sec-sub">Core theory, formulas, reference tables &amp; self-test quiz — for students and working engineers</div>
+  </div>
+
+  <div class="edu-tab-row">
+    <button class="edu-tab-btn on"  onclick="eduTab('basics',this)">⚡ Basics</button>
+    <button class="edu-tab-btn"     onclick="eduTab('ac',this)">〜 AC Theory</button>
+    <button class="edu-tab-btn"     onclick="eduTab('machines',this)">⚙️ Machines</button>
+    <button class="edu-tab-btn"     onclick="eduTab('cables',this)">🔌 Cables</button>
+    <button class="edu-tab-btn"     onclick="eduTab('protection',this)">🛡 Protection</button>
+    <button class="edu-tab-btn"     onclick="eduTab('ref',this)">📋 Reference</button>
+    <button class="edu-tab-btn"     onclick="eduTab('quiz',this)">🎯 Quiz</button>
+  </div>
+
+  <!-- BASICS -->
+  <div class="edu-panel show" id="ep_basics">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">⚡</span><span class="card-hd-ttl">Ohm's Law & DC Circuits</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Ohm's Law</div>
+              <div class="edu-concept-txt">The fundamental relationship between voltage (V), current (I) and resistance (R). Valid for linear (ohmic) conductors at constant temperature. Discovered by Georg Simon Ohm in 1827.</div>
+              <div class="fbox">V = I × R &nbsp;|&nbsp; <span class="hi">P = V×I = I²×R = V²/R</span><br>I = V/R &nbsp;|&nbsp; R = V/I &nbsp;|&nbsp; <span class="ht">Energy E = P×t (Joules)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Series & Parallel Resistors</div>
+              <div class="edu-concept-txt">Series: same current through all, voltage divides. Parallel: same voltage across all, current divides. Total parallel resistance is always less than the smallest branch.</div>
+              <div class="fbox"><span class="hi">Series: R_total = R₁+R₂+…</span><br><span class="ht">Parallel: 1/R = 1/R₁+1/R₂+… | 2R: R=R₁R₂/(R₁+R₂)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Temperature Effect on Resistance</div>
+              <div class="edu-concept-txt">Resistance of metal conductors increases with temperature (positive temperature coefficient). Critical for cable sizing at operating temperature and motor protection.</div>
+              <div class="fbox"><span class="hi">R_T = R₂₀[1 + α(T−20)]</span><br>αCu = 0.00393/°C &nbsp;|&nbsp; <span class="ht">αAl = 0.00403/°C</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🧲</span><span class="card-hd-ttl">Electromagnetism Basics</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Faraday's Law</div>
+              <div class="edu-concept-txt">A changing magnetic flux induces an EMF in a conductor. This is the principle behind generators, transformers, and induction motors. The induced EMF opposes the change (Lenz's Law).</div>
+              <div class="fbox"><span class="hi">e = −N × dΦ/dt</span> &nbsp;|&nbsp; N=turns, Φ=flux (Wb)</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Inductance & Capacitance</div>
+              <div class="edu-concept-txt">Inductors store energy in magnetic fields and oppose current change. Capacitors store energy in electric fields and oppose voltage change. Both create reactance in AC circuits.</div>
+              <div class="fbox"><span class="hi">V_L = L·dI/dt</span> &nbsp;|&nbsp; E_L = ½LI²<br><span class="ht">I_C = C·dV/dt</span> &nbsp;|&nbsp; E_C = ½CV²</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">📐</span><span class="card-hd-ttl">Kirchhoff's Laws</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">KCL — Current Law</div>
+              <div class="edu-concept-txt">At any node, the algebraic sum of all currents is zero. Current in = current out. Basis of nodal analysis. Based on conservation of electric charge.</div>
+              <div class="fbox"><span class="hi">ΣI_in = ΣI_out</span> &nbsp;|&nbsp; ΣI = 0 at a node</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">KVL — Voltage Law</div>
+              <div class="edu-concept-txt">Around any closed loop, the sum of EMFs equals the sum of voltage drops. Basis of mesh analysis. Based on conservation of energy.</div>
+              <div class="fbox"><span class="hi">ΣV_EMF = ΣI×R</span> &nbsp;|&nbsp; <span class="ht">ΣV = 0 around any loop</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Thévenin & Norton Theorems</div>
+              <div class="edu-concept-txt">Any linear circuit can be replaced by a simple equivalent. Thévenin: V_th in series with R_th. Norton: I_N in parallel with R_N. Essential for load analysis.</div>
+              <div class="fbox"><span class="hi">V_th = V_oc</span> &nbsp;|&nbsp; R_th = V_oc/I_sc<br><span class="ht">I_N = I_sc</span> &nbsp;|&nbsp; R_N = R_th</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🔢</span><span class="card-hd-ttl">SI Units & Prefixes</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Key Electrical Units</div>
+              <div class="edu-concept-txt">Understanding units prevents errors. Always check dimensional consistency before applying any formula. Note: VA and W are numerically equal but conceptually different.</div>
+              <div class="fbox">V · A · Ω · W · VA · VAr · Hz · F · H<br><span class="hi">Ω=V/A</span> &nbsp;|&nbsp; <span class="ht">W=V·A</span> &nbsp;|&nbsp; F=C/V &nbsp;|&nbsp; H=V·s/A</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Engineering Prefixes</div>
+              <div class="edu-concept-txt">Metric prefixes essential in electrical engineering practice. Memorise pico to giga.</div>
+              <div class="fbox">p=10⁻¹² · n=10⁻⁹ · µ=10⁻⁶ · m=10⁻³<br><span class="hi">k=10³ · M=10⁶ · G=10⁹</span><br><span class="ht">6.3 kV=6300 V | 150 µF=0.00015 F</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AC THEORY -->
+  <div class="edu-panel" id="ep_ac">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">〜</span><span class="card-hd-ttl">AC Fundamentals</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Sinusoidal Quantities & RMS</div>
+              <div class="edu-concept-txt">AC quantities vary sinusoidally. RMS (Root Mean Square) is the DC-equivalent value used for power calculations. Peak = √2 × RMS for a pure sine wave.</div>
+              <div class="fbox"><span class="hi">v(t) = Vm·sin(ωt+φ)</span> &nbsp;|&nbsp; V_rms = Vm/√2<br><span class="ht">ω = 2πf</span> &nbsp;|&nbsp; T = 1/f &nbsp;|&nbsp; f=50 Hz (IEC), 60 Hz (NEC)</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Reactance & Impedance</div>
+              <div class="edu-concept-txt">Inductive reactance XL increases with frequency (current lags voltage). Capacitive reactance Xc decreases with frequency (current leads voltage). Impedance Z combines R and X.</div>
+              <div class="fbox"><span class="hi">XL = 2πfL &nbsp;|&nbsp; Xc = 1/(2πfC)</span><br>Z = R + j(XL−Xc) &nbsp;|&nbsp; <span class="ht">|Z| = √(R²+(XL−Xc)²)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Power Factor</div>
+              <div class="edu-concept-txt">PF = cosφ — ratio of real to apparent power. Lagging PF (inductive loads like motors) wastes reactive power in cables. PF correction capacitors reduce reactive power draw.</div>
+              <div class="fbox"><span class="hi">PF = cosφ = P/S</span><br>P = S·cosφ (W) &nbsp;|&nbsp; Q = S·sinφ (VAr) &nbsp;|&nbsp; <span class="ht">S = √(P²+Q²)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🔺</span><span class="card-hd-ttl">Three-Phase Systems</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Why Three-Phase?</div>
+              <div class="edu-concept-txt">Three-phase uses 3 conductors with currents 120° apart. More efficient than single-phase (less conductor material for same power), constant instantaneous power delivery, and creates self-starting rotating magnetic field for motors.</div>
+              <div class="fbox"><span class="hi">V_line = √3 × V_phase ≈ 1.732 × V_phase</span><br>Star: I_line=I_phase &nbsp;|&nbsp; <span class="ht">Delta: I_phase=I_line/√3</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Three-Phase Power</div>
+              <div class="edu-concept-txt">The same apparent power formula applies to both star and delta using line values. A 415V, 3-phase, 100A load has S = √3×415×100 ≈ 71.9 kVA.</div>
+              <div class="fbox"><span class="hi">S = √3·VL·IL</span> (VA)<br>P = √3·VL·IL·cosφ (W) &nbsp;|&nbsp; <span class="ht">Q = √3·VL·IL·sinφ (VAr)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Star–Delta (Y–Δ) Connection</div>
+              <div class="edu-concept-txt">Star: neutral available, V_phase = V_line/√3. Delta: no neutral, V_phase = V_line. Motor windings in star for starting (lower voltage per winding), switched to delta at run speed.</div>
+              <div class="fbox">Y: V_ph=VL/√3 · I_ph=IL<br><span class="hi">Δ: V_ph=VL</span> · <span class="ht">I_ph=IL/√3</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MACHINES -->
+  <div class="edu-panel" id="ep_machines">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">⚙️</span><span class="card-hd-ttl">Induction Motors</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Operating Principle & Slip</div>
+              <div class="edu-concept-txt">The stator creates a rotating magnetic field at synchronous speed. This induces currents in the rotor, which produce torque. The rotor always runs slightly slower — this difference is slip. Typical slip at full load: 2–5%.</div>
+              <div class="fbox"><span class="hi">Ns = 60f/p</span> (RPM, p=pole pairs)<br>slip s = (Ns−N)/Ns &nbsp;|&nbsp; <span class="ht">typical s=2–5% at full load</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Full-Load Current & Torque</div>
+              <div class="edu-concept-txt">FLC is used to select cables, fuses, and overload relays. Torque is calculated from shaft power and rotational speed. Breakdown torque ≈ 2–3× rated torque — load must never exceed this.</div>
+              <div class="fbox"><span class="hi">IL = P_out/(√3·VL·η·cosφ)</span><br><span class="ht">T = P/(2πN/60)</span> N·m &nbsp;|&nbsp; I_start(DOL) ≈ 5–7×FLC</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Starting Methods</div>
+              <div class="edu-concept-txt">DOL: full starting current (5–7× FLC), simple. Star-Delta: reduces starting current to 1/3. Soft starter: smooth ramp, 2–3× FLC. VFD: full speed/torque control, most flexible.</div>
+              <div class="fbox">DOL: I_st=5–7×FLC<br><span class="hi">Y-Δ: I_st = DOL×(1/3)</span> &nbsp;|&nbsp; <span class="ht">VFD: I_st=1–1.5×FLC</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🔁</span><span class="card-hd-ttl">Transformers</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Operating Principle & Turns Ratio</div>
+              <div class="edu-concept-txt">AC in the primary winding creates a changing flux in the core, inducing EMF in the secondary. No electrical connection — energy is transferred magnetically. Turns ratio sets the voltage transformation.</div>
+              <div class="fbox"><span class="hi">V1/V2 = N1/N2 = a</span> (turns ratio)<br>I1/I2 = 1/a &nbsp;|&nbsp; <span class="ht">V1·I1 ≈ V2·I2 (ideal)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Efficiency & Losses</div>
+              <div class="edu-concept-txt">Core losses (P_fe — constant) and copper losses (P_cu — proportional to I²). Maximum efficiency when iron losses = copper losses. Modern power transformers: 98–99.5% efficient.</div>
+              <div class="fbox"><span class="hi">η = x·S·cosφ / (x·S·cosφ + Pfe + x²·Pcu)</span><br><span class="ht">Max η at: x = √(Pfe/Pcu)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">%Z & Short-Circuit Current</div>
+              <div class="edu-concept-txt">%Z (percentage impedance) determines fault current contribution. Lower %Z → higher fault current. Typical distribution transformers: 4–6% Z. Used in IEC 60909 fault calculations.</div>
+              <div class="fbox"><span class="hi">Isc = I_rated / (Z%/100)</span><br>VR ≈ R%·cosφ ± X%·sinφ &nbsp;|&nbsp; <span class="ht">typical Z%=4–6%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CABLES -->
+  <div class="edu-panel" id="ep_cables">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🔌</span><span class="card-hd-ttl">Cable Theory</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Conductor Resistance & Material</div>
+              <div class="edu-concept-txt">Resistance depends on material, CSA, and length. Copper (lower ρ) is preferred for power but aluminium is cheaper and lighter. Larger CSA = lower resistance = less voltage drop and heating.</div>
+              <div class="fbox"><span class="hi">R = ρ·L/A</span><br>ρCu=1.72×10⁻⁸ Ω·m &nbsp;|&nbsp; <span class="ht">ρAl=2.82×10⁻⁸ Ω·m</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Voltage Drop Limits</div>
+              <div class="edu-concept-txt">IEC 60364 allows max 5% VD from supply to load terminals. Higher VD causes motor overheating, lamp flickering, and equipment malfunction. Calculate for both operating current and starting current.</div>
+              <div class="fbox"><span class="hi">1φ: ΔV = 2·I·(R·cosφ + X·sinφ)</span><br><span class="ht">3φ: ΔV = √3·I·(R·cosφ + X·sinφ)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Derating Factors</div>
+              <div class="edu-concept-txt">Tabulated cable ratings assume specific conditions. Apply correction factors for ambient temperature above 30°C, cables in groups or bunches, and buried installation. I_design ≤ I_z (after all derating).</div>
+              <div class="fbox">Iz_derated = Iz_table × k_temp × k_group × k_install<br><span class="ht">I_design ≤ Iz_derated</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🔬</span><span class="card-hd-ttl">Cable Testing Theory</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Insulation Resistance (IR / Megger)</div>
+              <div class="edu-concept-txt">Applies DC voltage (500V–5kV typically) and measures leakage current. Detects moisture, contamination, insulation degradation. Rule of thumb minimum: (rated kV + 1) MΩ per km. Always discharge cable after test!</div>
+              <div class="fbox"><span class="hi">IR_min ≈ (U_rated_kV + 1) MΩ/km</span><br>Good: &gt;100 MΩ &nbsp;|&nbsp; <span class="ht">Suspect: 1–10 MΩ &nbsp;|&nbsp; Fail: &lt;1 MΩ</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Hi-Pot (Withstand) Test</div>
+              <div class="edu-concept-txt">Applies elevated voltage to verify insulation integrity. AC hi-pot is preferred for XLPE — DC creates space charge in XLPE causing long-term damage. VLF (0.1 Hz) is the best compromise for site testing XLPE cables.</div>
+              <div class="fbox"><span class="hi">AC site: U_test = 2×Uo, 60 min</span><br>VLF: 1.73–2×Uo, 60 min &nbsp;|&nbsp; <span class="ht">DC: 3–4×Uo, 15 min (legacy)</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Partial Discharge (PD) Test</div>
+              <div class="edu-concept-txt">Detects internal voids, contamination, or electrical treeing in insulation. Measured in picocoulombs (pC). Required for cables &gt;6 kV per IEC 60502-2. PD-free = high quality insulation.</div>
+              <div class="fbox"><span class="hi">PD test at: 1.73×Uo</span><br>Acceptance (XLPE): typically &lt;10 pC<br><span class="ht">IEC 60502-2: PD test mandatory &gt;3.6/6 kV</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROTECTION -->
+  <div class="edu-panel" id="ep_protection">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🛡</span><span class="card-hd-ttl">Protection Fundamentals</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Short Circuit Protection</div>
+              <div class="edu-concept-txt">Short circuits create very high fault currents in milliseconds. Breaking capacity of MCB/MCCB must exceed the prospective short circuit current (PSCC) at the point of installation. IEC 60909 calculates the maximum symmetrical fault current.</div>
+              <div class="fbox"><span class="hi">Isc3 = c·Vn / (√3·|Z_total|)</span><br>c=1.05 (LV max) &nbsp;|&nbsp; <span class="ht">Ip = κ·√2·Isc (peak)</span><br>κ = 1.02 + 0.98·e^(−3/XR)</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Overload Protection</div>
+              <div class="edu-concept-txt">Overloads cause gradual insulation heating. Thermal overload relays protect motors; MCBs with thermal-magnetic characteristic protect cables. Set overload relay at 100–115% FLC for motors.</div>
+              <div class="fbox"><span class="hi">I_trip ≤ 1.45 × Iz (cable)</span><br>Motor OL: 1.0–1.1 × FLC &nbsp;|&nbsp; <span class="ht">NEC 430: 125% × FLC</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">RCD / Earth Fault</div>
+              <div class="edu-concept-txt">RCDs detect imbalance between line and neutral. 30 mA for personal protection, 300 mA for fire protection. Response time &lt;40 ms at 5× rated current. Mandatory in bathrooms, outdoors, construction sites.</div>
+              <div class="fbox"><span class="hi">30 mA RCD: personal protection</span><br><span class="ht">300 mA: fire protection &nbsp;|&nbsp; 1 A: equipment</span><br>Touch voltage limit: 50 V AC (IEC 60364)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🌍</span><span class="card-hd-ttl">Earthing Systems (IEC 60364)</span></div>
+          <div class="card-bd">
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">TN, TT, IT Systems</div>
+              <div class="edu-concept-txt">First letter = supply earth connection. Second letter = equipment earth connection. TN-S most common in new industrial installations. TT common in rural/domestic. IT used in hospitals and uninterruptible processes.</div>
+              <div class="fbox"><span class="hi">TN-S: separate N and PE throughout</span><br><span class="ht">TN-C-S: combined PEN, then split (PME)</span><br>TT: separate earth electrode &nbsp;|&nbsp; IT: isolated</div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Equipotential Bonding</div>
+              <div class="edu-concept-txt">Main bonding connects all metallic services (gas, water, structural steel) to the main earthing terminal. Prevents dangerous potential differences during earth faults. Supplementary bonding required in bathrooms.</div>
+              <div class="fbox"><span class="hi">Main bonding: min 6 mm² Cu</span><br>Supplementary: min 2.5 mm² (protected)<br><span class="ht">Goal: V_touch &lt; 50 V during fault</span></div>
+            </div>
+            <div class="edu-concept">
+              <div class="edu-concept-ttl">Protection Coordination (Selectivity)</div>
+              <div class="edu-concept-txt">Discrimination ensures only the nearest upstream device trips. Time-current curves of downstream and upstream devices must not overlap at the fault level. Zone interlocking used for bus-bar protection.</div>
+              <div class="fbox"><span class="hi">I_trip(downstream) &lt; I_trip(upstream)</span><br>Min discrimination time: 0.1s (electronic)<br><span class="ht">0.3s (electromechanical relay)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFERENCE TABLES -->
+  <div class="edu-panel" id="ep_ref">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd"><span class="card-hd-ico">📋</span><span class="card-hd-ttl">Conductor Properties at 20°C</span></div>
+      <div class="card-bd">
+        <div class="ref-table-wrap">
+          <table class="tbl">
+            <thead><tr><th>Conductor</th><th>ρ (Ω·m)</th><th>α (1/°C)</th><th>Density (g/cm³)</th><th>Max Temp (XLPE/PVC)</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Copper (Cu)</td><td>1.72×10⁻⁸</td><td>0.00393</td><td>8.96</td><td>90°C / 70°C</td><td>Standard power cable conductor</td></tr>
+              <tr><td>Aluminium (Al)</td><td>2.82×10⁻⁸</td><td>0.00403</td><td>2.70</td><td>90°C / 70°C</td><td>Lighter, 1.64× higher ρ than Cu</td></tr>
+              <tr class="hl"><td>Cu at 75°C</td><td>2.15×10⁻⁸</td><td>—</td><td>—</td><td>—</td><td>IEC/NEC standard for VD calcs</td></tr>
+              <tr><td>Silver (Ag)</td><td>1.59×10⁻⁸</td><td>0.00380</td><td>10.5</td><td>—</td><td>Best conductor, too costly</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd"><span class="card-hd-ico">📋</span><span class="card-hd-ttl">Cable CSA vs Indicative Current Rating (Cu XLPE, In Air 30°C — IEC 60364)</span></div>
+      <div class="card-bd">
+        <div class="ref-table-wrap">
+          <table class="tbl">
+            <thead><tr><th>CSA (mm²)</th><th>1-Phase (A)</th><th>3-Phase (A)</th><th>R (mΩ/m, Cu)</th><th>Typical Application</th></tr></thead>
+            <tbody>
+              <tr><td>1.5</td><td>18</td><td>16</td><td>12.1</td><td>Lighting, small appliances</td></tr>
+              <tr><td>2.5</td><td>24</td><td>22</td><td>7.41</td><td>Sockets, small motors</td></tr>
+              <tr><td>4</td><td>32</td><td>30</td><td>4.61</td><td>Cookers, A/C units</td></tr>
+              <tr><td>6</td><td>41</td><td>37</td><td>3.08</td><td>Sub-mains</td></tr>
+              <tr><td>10</td><td>57</td><td>52</td><td>1.83</td><td>Distribution boards</td></tr>
+              <tr><td>16</td><td>76</td><td>69</td><td>1.15</td><td>Sub-main feeders</td></tr>
+              <tr><td>25</td><td>101</td><td>90</td><td>0.727</td><td>LV feeders, large motors</td></tr>
+              <tr><td>35</td><td>125</td><td>110</td><td>0.524</td><td>Main distribution</td></tr>
+              <tr><td>50</td><td>151</td><td>133</td><td>0.387</td><td>Main feeders</td></tr>
+              <tr><td>70</td><td>192</td><td>168</td><td>0.268</td><td>Main feeders</td></tr>
+              <tr><td>95</td><td>232</td><td>201</td><td>0.193</td><td>Transformer secondaries</td></tr>
+              <tr><td>120</td><td>269</td><td>232</td><td>0.153</td><td>HV/MV feeders</td></tr>
+              <tr><td>150</td><td>306</td><td>263</td><td>0.124</td><td>Large feeders</td></tr>
+              <tr><td>185</td><td>354</td><td>303</td><td>0.0991</td><td>Transmission feeders</td></tr>
+              <tr><td>240</td><td>415</td><td>352</td><td>0.0754</td><td>Main HV/MV cables</td></tr>
+              <tr><td>300</td><td>472</td><td>400</td><td>0.0601</td><td>Large HV cables</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="vinfo-bar" style="margin-top:8px">Indicative values only (IEC 60364-5-52 Method C). Apply derating factors for ambient temp, grouping and installation method. Verify against manufacturer data.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="card-hd-ico">📋</span><span class="card-hd-ttl">Typical Motor Data Reference (IE3, 415V 3-Phase, 50 Hz)</span></div>
+      <div class="card-bd">
+        <div class="ref-table-wrap">
+          <table class="tbl">
+            <thead><tr><th>Rating (kW)</th><th>FLC (A)</th><th>η (%)</th><th>PF</th><th>Starting Method</th></tr></thead>
+            <tbody>
+              <tr><td>0.37</td><td>1.0</td><td>72</td><td>0.72</td><td>DOL</td></tr>
+              <tr><td>0.75</td><td>1.9</td><td>76</td><td>0.74</td><td>DOL</td></tr>
+              <tr><td>1.5</td><td>3.5</td><td>80</td><td>0.76</td><td>DOL</td></tr>
+              <tr><td>2.2</td><td>4.9</td><td>82</td><td>0.78</td><td>DOL</td></tr>
+              <tr><td>4.0</td><td>8.5</td><td>85</td><td>0.80</td><td>DOL</td></tr>
+              <tr><td>7.5</td><td>15.3</td><td>88</td><td>0.82</td><td>DOL or Y-Δ</td></tr>
+              <tr><td>11</td><td>22.0</td><td>89</td><td>0.83</td><td>Y-Δ</td></tr>
+              <tr><td>15</td><td>29.5</td><td>90</td><td>0.84</td><td>Y-Δ</td></tr>
+              <tr><td>22</td><td>42.5</td><td>91</td><td>0.85</td><td>Y-Δ</td></tr>
+              <tr><td>37</td><td>70.0</td><td>92</td><td>0.86</td><td>Y-Δ or Soft-starter</td></tr>
+              <tr><td>55</td><td>102</td><td>93</td><td>0.87</td><td>Soft-starter or VFD</td></tr>
+              <tr><td>75</td><td>138</td><td>93.5</td><td>0.87</td><td>VFD recommended</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="vinfo-bar" style="margin-top:8px">Typical values for IE3 efficiency class. Always use nameplate data when available.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="edu-panel" id="ep_quiz">
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">🎯</span><span class="card-hd-ttl">Self-Test Quiz — Electrical Engineering Fundamentals</span></div>
+          <div class="card-bd">
+            <div class="vinfo-bar" style="margin-bottom:12px">10 questions covering Ohm's Law, AC theory, motors, transformers, cable sizing &amp; protection. Click the correct answer for instant feedback.</div>
+            <div id="quizContainer"></div>
+            <div id="quizScore" style="display:none" class="quiz-score-box">
+              <div class="quiz-score-num" id="quizScoreNum">0/10</div>
+              <div class="quiz-score-sub">Questions answered correctly</div>
+              <button class="quiz-reset-btn" onclick="resetQuiz()">🔄 Retry Quiz</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-ico">📌</span><span class="card-hd-ttl">Quick Formula Reference</span></div>
+          <div class="card-bd">
+            <div class="fbox">⚡ <span class="hi">V=IR | P=VI=I²R=V²/R</span><br>〜 <span class="ht">S=√3·VL·IL | P=S·cosφ | Q=S·sinφ</span><br>🔌 1φ:ΔV=2I(Rcosφ+Xsinφ) | 3φ:ΔV=√3·I(Rcosφ+Xsinφ)<br>⚙️ <span class="hi">Ns=60f/p | IL=P/(√3·VL·η·cosφ)</span><br>🔁 <span class="ht">a=V1/V2 | Isc=I_rated/(Z%/100)</span><br>💥 Isc3=c·Vn/(√3·|Z|) | Ip=κ·√2·Isc<br><span class="hi">XL=2πfL | Xc=1/(2πfC) | f₀=1/(2π√LC)</span><br><span class="ht">R=ρL/A | R_T=R₂₀[1+α(T-20)]</span></div>
+            <div class="fbox" style="margin-top:8px">🔬 <span class="hi">HV test (XLPE site): 2×Uo, 60 min</span><br>VLF: 1.73–2×Uo | DC legacy: 3–4×Uo/15 min<br><span class="ht">IR_min ≈ (Uo+1) MΩ/km</span><br>PD test: 1.73×Uo | limit: &lt;10 pC (XLPE)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ══ SHARE MODAL ══ -->
+<div class="modal-overlay" id="shareModal" onclick="if(event.target===this)closeShare()">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-ttl">⚡ Share this Calculator — multicalci.com</div>
+      <button class="modal-close" onclick="closeShare()">✕</button>
+    </div>
+    <div class="modal-bd">
+      <div class="modal-desc">Share this free electrical engineering calculator with colleagues, students, and fellow engineers.</div>
+      <div class="share-grid">
+        <button class="sh-btn tw" onclick="shareX()">
+          <div class="sh-ico">𝕏</div><div><div>Post on X</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Twitter / X</div></div>
+        </button>
+        <button class="sh-btn li" onclick="shareLinkedIn()">
+          <div class="sh-ico" style="font-size:14px;font-weight:800">in</div><div><div>LinkedIn</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Professional network</div></div>
+        </button>
+        <button class="sh-btn wa" onclick="shareWhatsApp()">
+          <div class="sh-ico">💬</div><div><div>WhatsApp</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Send to contacts</div></div>
+        </button>
+        <button class="sh-btn em" onclick="shareEmail()">
+          <div class="sh-ico">✉</div><div><div>Email</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Send via email</div></div>
+        </button>
+        <button class="sh-btn gh" onclick="shareTelegram()">
+          <div class="sh-ico">✈</div><div><div>Telegram</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Send message</div></div>
+        </button>
+        <button class="sh-btn cp" onclick="copyShareLink()">
+          <div class="sh-ico">🔗</div><div><div id="copyBtnTxt">Copy Link</div><div style="font-size:.68rem;font-weight:500;color:var(--txt3)">Clipboard</div></div>
+        </button>
+      </div>
+      <div class="share-url-row">
+        <input class="share-url-inp" id="shareUrlInp" readonly value="">
+        <button class="copy-url-btn" id="copyUrlBtn" onclick="copyShareLink()">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MOBILE BOTTOM TAB BAR ══ -->
+<nav class="mob-bar">
+  <div class="mob-bar-inner">
+    <button class="mtab active" onclick="nav('s_ohm',this,true)"><span class="mi">⚡</span>Ohm's</button>
+    <button class="mtab" onclick="nav('s_power',this,true)"><span class="mi">🔋</span>Power</button>
+    <button class="mtab" onclick="nav('s_cable',this,true)"><span class="mi">🔌</span>Cable</button>
+    <button class="mtab" onclick="nav('s_vd',this,true)"><span class="mi">📉</span>V.Drop</button>
+    <button class="mtab" onclick="nav('s_motor',this,true)"><span class="mi">⚙️</span>Motor</button>
+    <button class="mtab" onclick="nav('s_xfmr',this,true)"><span class="mi">🔁</span>Xfmr</button>
+    <button class="mtab" onclick="nav('s_cap',this,true)"><span class="mi">🔆</span>RC/LC</button>
+    <button class="mtab" onclick="nav('s_fault',this,true)"><span class="mi">💥</span>Fault</button>
+    <button class="mtab" onclick="nav('s_illum',this,true)"><span class="mi">💡</span>Illum</button>
+    <button class="mtab" onclick="nav('s_hvtest',this,true)"><span class="mi">🔬</span>HV Test</button>
+    <button class="mtab" onclick="nav('s_edu',this,true)"><span class="mi">📚</span>Edu</button>
+  </div>
+</nav>
+
+
+<script>
+'use strict';
+
+/* ══════════════════════════════
+   CONFIG — change this to your actual Vercel deployment URL
+══════════════════════════════ */
+const API_BASE = '/api/electrical-engineering-calculators';  // relative path works when deployed on Vercel
+// If you're testing locally or using a custom domain, set the full URL:
+// const API_BASE = 'https://nagtesting.vercel.app/api/electrical-engineering-calculators';
+
+/* ══ STATE ══ */
+let US = 'SI';
+
+/* ── Tiny DOM helpers ── */
+const $ = id => document.getElementById(id);
+const gs = id => { const e=$(id); return e?e.value:''; };
+const gv = id => { const v=parseFloat(gs(id)); return isNaN(v)?0:v; };
+const set = (id, html) => { const e=$(id); if(e) e.innerHTML=String(html); };
+const raw = id => parseFloat(gs(id));
+
+/* ── Loading state helper ── */
+function setLoading(resultContainerIds, loading) {
+  resultContainerIds.forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    if (loading) {
+      el.innerHTML = '<span style="color:var(--txt3);font-size:.8rem">⏳ Calculating…</span>';
+    }
+  });
+}
+
+/* ── Central API caller ── */
+async function apiCalc(calcName, inputs) {
+  try {
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ calc: calcName, inputs })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      console.error('API error:', data.error);
+      return null;
+    }
+    return data.results;
+  } catch (err) {
+    console.error('Network error:', err);
+    showNetworkError();
+    return null;
+  }
+}
+
+function showNetworkError() {
+  const existing = $('api-error-banner');
+  if (!existing) {
+    const b = document.createElement('div');
+    b.id = 'api-error-banner';
+    b.style.cssText = 'position:fixed;top:62px;left:50%;transform:translateX(-50%);z-index:999;background:#fef2f2;border:1.5px solid #fca5a5;color:#dc2626;padding:8px 18px;border-radius:8px;font-weight:700;font-size:.82rem;box-shadow:0 4px 16px rgba(220,38,38,.15)';
+    b.textContent = '⚠ API unreachable — check your Vercel deployment URL in API_BASE config';
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 6000);
+  }
+}
+
+/* ── Format helpers (client-side display only) ── */
+const fN = (v, d, u='') => v == null ? '—' : `${Number(v).toFixed(d)}${u ? ' '+u : ''}`;
+const fE = (v, d, u='') => {
+  if (v == null) return '—';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '—';
+  if (Math.abs(n) >= 1e6)       return `${(n/1e6).toFixed(d)} M${u}`;
+  if (Math.abs(n) >= 1e3)       return `${(n/1e3).toFixed(d)} k${u}`;
+  return `${n.toFixed(d)} ${u}`;
+};
+
+/* ── Validation (client-side only — guards bad inputs before API call) ── */
+function validate(rules) {
+  const errors = [], warns = [];
+  rules.forEach(r => {
+    const raw = parseFloat(gs(r.id));
+    const el = $(r.id);
+    if (el) el.closest('.field')?.classList.remove('err','warn');
+    if (r.required && isNaN(raw)) { errors.push({id:r.id,msg:`${r.label}: required`}); el?.closest('.field')?.classList.add('err'); return; }
+    if (isNaN(raw)) return;
+    if (r.gt  !== undefined && raw <= r.gt)  { errors.push({id:r.id,msg:`${r.label}: must be > ${r.gt}`});  el?.closest('.field')?.classList.add('err'); }
+    if (r.gte !== undefined && raw < r.gte)  { errors.push({id:r.id,msg:`${r.label}: must be ≥ ${r.gte}`}); el?.closest('.field')?.classList.add('err'); }
+    if (r.lte !== undefined && raw > r.lte)  { errors.push({id:r.id,msg:`${r.label}: must be ≤ ${r.lte}`}); el?.closest('.field')?.classList.add('err'); }
+    if (r.warnGt !== undefined && raw > r.warnGt) { warns.push({id:r.id,msg:`${r.label}: unusually high value (${raw})`}); el?.closest('.field')?.classList.add('warn'); }
+  });
+  return { ok: errors.length === 0, errors, warns };
+}
+
+function showValidation(containerId, vRes) {
+  const el = $(containerId); if (!el) return;
+  el.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  vRes.errors.forEach(e => {
+    const d=document.createElement('div'); d.className='verr';
+    d.innerHTML=`<span class="verr-ico">⛔</span><span>${e.msg}</span>`;
+    frag.appendChild(d);
+  });
+  vRes.warns.forEach(w => {
+    const d=document.createElement('div'); d.className='vwarn';
+    d.innerHTML=`<span class="vwarn-ico">⚠</span><span>${w.msg}</span>`;
+    frag.appendChild(d);
+  });
+  el.prepend(frag);
+}
+
+/* ══════════════════════════════
+   CABLE REACTANCE — client-side lookup for display/notice only
+   Actual calculation uses API
+══════════════════════════════ */
+const CABLE_X = {
+  lv_trefoil: {x:0.08e-3, label:'LV Trefoil/touching', note:'Typical LV XLPE trefoil. X varies with spacing & dia. ±15% possible vs datasheet.'},
+  lv_flat:    {x:0.10e-3, label:'LV Flat formation',   note:'LV flat-laid cables. Verify with manufacturer datasheet for precision sizing.'},
+  mv_close:   {x:0.10e-3, label:'MV touching',         note:'MV cables touching trefoil — ⚠ Use manufacturer X for project work.'},
+  mv_1d:      {x:0.13e-3, label:'MV spacing=1×dia.',   note:'MV — 1× diameter clearance. ⚠ Verify with manufacturer data.'},
+  mv_2d:      {x:0.17e-3, label:'MV spacing=2×dia.',   note:'MV — 2× diameter clearance. ⚠ Use cable datasheet for design-grade accuracy.'},
+  mv_3d:      {x:0.20e-3, label:'MV spacing=3×dia.',   note:'MV — 3× diameter spacing. ⚠ Reactance error ±30–50% from fixed values.'},
+  hv:         {x:0.30e-3, label:'HV >33 kV',           note:'⛔ HV cables: estimate only. Use IEC 60287 software for design.'},
+};
+function getCableX(selectId) {
+  const key = gs(selectId) || 'lv_trefoil';
+  return CABLE_X[key] || CABLE_X['lv_trefoil'];
+}
+
+/* ══ NAVIGATION ══ */
+function nav(id, btn, isMob=false) {
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('show'));
+  document.querySelectorAll('.stab,.mtab').forEach(b=>b.classList.remove('active'));
+  const el=$(id); if(el) el.classList.add('show');
+  if(btn) btn.classList.add('active');
+  const idx=['s_ohm','s_power','s_cable','s_vd','s_motor','s_xfmr','s_cap','s_fault','s_illum','s_hvtest','s_edu'].indexOf(id);
+  document.querySelectorAll('.stab')[idx]?.classList.add('active');
+  document.querySelectorAll('.mtab')[idx]?.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ══ UNIT TOGGLE ══ */
+function setU(s) {
+  US = s;
+  $('btnSI').classList.toggle('on', s==='SI');
+  $('btnIMP').classList.toggle('on', s==='IMP');
+  const m = s==='SI' ? 'm' : 'ft';
+  $('lbl_P').textContent         = s==='SI' ? 'Power P (Watts)' : 'Power P (BTU/hr)';
+  $('lbl_acV').textContent       = 'Line Voltage VL (V)';
+  $('lbl_acI').textContent       = 'Line Current IL (A)';
+  $('lbl_acRate').textContent    = s==='SI' ? 'Tariff (₹/kWh)' : 'Tariff ($/kWh)';
+  $('lbl_cbI').textContent       = 'Load Current (A)';
+  $('lbl_cbV').textContent       = 'System Voltage (V)';
+  $('lbl_cbL').textContent       = `Cable Length (${m})`;
+  $('lbl_cbArea').textContent    = s==='SI' ? 'Cable CSA (mm²)' : 'Cable CSA (kcmil)';
+  $('lbl_vdV').textContent       = 'Supply Voltage (V)';
+  $('lbl_vdI').textContent       = 'Load Current (A)';
+  $('lbl_vdL').textContent       = `Cable Length (${m})`;
+  $('lbl_vdA').textContent       = s==='SI' ? 'Cable CSA (mm²)' : 'Cable CSA (kcmil)';
+  $('lbl_mP').textContent        = s==='SI' ? 'Rated Output (kW)' : 'Rated Output (hp)';
+  $('lbl_fltCL').textContent     = `Cable Length (${m})`;
+  $('lbl_ilL').textContent       = `Room Length (${m})`;
+  $('lbl_ilW').textContent       = `Room Width (${m})`;
+  $('lbl_ilH').textContent       = `Mounting Height (${m})`;
+  [calcOhm,calcPower,calcCable,calcVD,calcMotor,calcXfmr,calcCap,calcFault,calcIllum].forEach(f=>{try{f();}catch(e){}});
+}
+
+/* ══════════════════════════════
+   CALCULATORS — all call API
+══════════════════════════════ */
+
+/* ── Ohm's Law ── */
+async function calcOhm() {
+  const V=raw('oV'), I=raw('oI'), R=raw('oR'), P=raw('oP');
+  const r = await apiCalc('ohm', {
+    V: isNaN(V) ? undefined : V,
+    I: isNaN(I) ? undefined : I,
+    R: isNaN(R) ? undefined : R,
+    P: isNaN(P) ? undefined : P,
+    oRs: gs('oRs'), oRp: gs('oRp'),
+  });
+  if (!r) { set('r_V','—'); return; }
+
+  const Pv = US==='IMP' && r.P != null ? r.P * 3.41214 : r.P;
+  const Pu = US==='IMP' ? 'BTU/hr' : 'W';
+  set('r_V',  fN(r.V,  2, 'V'));
+  set('r_I',  fN(r.I,  4, 'A'));
+  set('r_R',  fN(r.R,  4, 'Ω'));
+  set('r_P',  fN(Pv,   2, Pu));
+  set('r_E',  fN(r.Ekwh, 5, 'kWh/hr'));
+  set('r_G',  fN(r.G,  5, 'S'));
+  set('r_Rs', r.Rs != null ? fN(r.Rs, 4, 'Ω') : '—');
+  set('r_Rp', r.Rp != null ? fN(r.Rp, 4, 'Ω') : '—');
+  lOhm = r;
+}
+
+/* ── AC / DC Power ── */
+async function calcPower() {
+  const vRes = validate([
+    {id:'acV',   label:'Line Voltage',   gt:0,  lte:800000, required:true},
+    {id:'acI',   label:'Line Current',   gt:0,  lte:100000, required:true},
+    {id:'acPF',  label:'Power Factor',   gt:0,  lte:1,      required:true},
+    {id:'acEff', label:'Efficiency η',   gt:0,  lte:1,      required:true},
+    {id:'acHr',  label:'Operating Hours',gte:0, lte:8760,   required:true},
+  ]);
+  showValidation('pw_val_container', vRes);
+  if (!vRes.ok) return;
+
+  const r = await apiCalc('power', {
+    phase: gs('acPhase'), VL: gv('acV'), IL: gv('acI'),
+    PF: gv('acPF'), eff: gv('acEff'),
+    loadType: gs('acLoadType'), hr: gv('acHr'), rate: gv('acRate'),
+  });
+  if (!r) return;
+
+  const ph = parseInt(gs('acPhase')) || 1;
+  set('r_S',    fE(r.S, 2, 'VA'));
+  set('r_Pact', fE(r.P, 2, 'W'));
+  set('r_Q',    fE(r.Q, 2, 'VAr'));
+  set('r_phi',  fN(r.phi_deg, 2, '°'));
+  set('r_Vphi', fN(r.Vphi, 2, 'V') + ` <span style="font-size:.68rem;color:var(--txt3)">${ph===3?'(VL/√3, line-to-neutral)':'(= VL, single-phase)'}</span>`);
+  set('r_Pin',  fE(r.Pin, 2, 'W'));
+  const pfcKvar = r.Qc_kvar || 0;
+  let pfcNote = '';
+  if (pfcKvar > 0 && r.harmonic_warn) {
+    pfcNote = ' <span class="badge warn" style="font-size:.62rem">⚠ Harmonic check: capacitor banks in VFD/UPS systems may resonate — detuning reactor required. Verify with harmonic study.</span>';
+  }
+  set('r_cap', fE(pfcKvar, 3, 'kVAr') + pfcNote);
+  set('r_energy', fE(r.energy_kwh, 1, 'kWh/yr'));
+  const cur = US==='IMP' ? '$' : '₹';
+  const costNote = ' <span style="font-size:.65rem;color:var(--txt3)">(basic: P×hrs. Real billing adds demand charges, PF penalties, ToD tariffs — may be 20–40% higher)</span>';
+  set('r_cost', cur + (r.cost || 0).toFixed(2) + '/yr' + costNote);
+  lPower = r;
+}
+
+/* ── Cable Sizing ── */
+async function calcCable() {
+  const vRes = validate([
+    {id:'cbI',    label:'Load Current',  gt:0,  lte:10000, required:true,  warnGt:2000},
+    {id:'cbV',    label:'Voltage',       gt:0,  lte:800000,required:true},
+    {id:'cbL',    label:'Cable Length',  gt:0,  lte:50000, required:true},
+    {id:'cbPF',   label:'Power Factor',  gt:0,  lte:1,     required:true},
+    {id:'cbArea', label:'Cable CSA',     gt:0,  lte:2500,  required:true},
+    {id:'cbVDmax',label:'Max VD %',      gt:0,  lte:30,    required:true},
+    {id:'cbTemp', label:'Ambient Temp',  gte:-30,lte:90,   required:true},
+  ]);
+  showValidation('cb_val_container', vRes);
+  if (!vRes.ok) return;
+
+  let L = gv('cbL'); if (US==='IMP') L *= 0.3048;
+  let A = gv('cbArea'); if (US==='IMP') A *= 0.5067;
+
+  // Update reactance notice
+  const cxData = getCableX('cbVLevel');
+  const notice = $('cbXNoticeText');
+  if (notice) notice.textContent = `X = ${(cxData.x*1e3).toFixed(2)} mΩ/m (${cxData.label}) — ${cxData.note}`;
+
+  const r = await apiCalc('cable', {
+    phase: gs('cbPhase'), I: gv('cbI'), V: gv('cbV'), L_m: L, PF: gv('cbPF'),
+    area_mm2: A, VDmax_pct: gv('cbVDmax'), T_op: gv('cbTemp'),
+    kT: gv('cbKT') || 0.87, kG: gv('cbKG') || 1.0, kI: parseFloat(gs('cbInstall')) || 1.0,
+    material: gs('cbMat'), vLevel: gs('cbVLevel'),
+  });
+  if (!r) return;
+
+  if (r.high_temp_warn) {
+    const c=$('cb_val_container');
+    if(c){const d=document.createElement('div');d.className='vwarn';
+    d.innerHTML='<span class="vwarn-ico">⚠</span><span>Ambient temp > 90°C: Linear α correction may underestimate resistance. IEC 60287 recommended above 90°C. Verify cable temperature class.</span>';
+    c.prepend(d);}
+  }
+  if (r.long_cable_warn) {
+    const c=$('cb_val_container');
+    if(c){const d=document.createElement('div');d.className='vwarn';
+    d.innerHTML=`<span class="vwarn-ico">⚠</span><span>Cable length > 500 m: Lumped impedance model used. Distributed parameter model gives 5–20% more accurate voltage drop.</span>`;
+    c.prepend(d);}
+  }
+
+  const T_op = gv('cbTemp');
+  set('r_cbR', fN(r.Rc, 5, 'Ω') + ` <span style="font-size:.68rem;color:var(--txt3)">(${T_op}°C)</span>`);
+  set('r_cbX', fN(r.Xc, 5, 'Ω') + ` <span style="font-size:.68rem;color:var(--txt3)">(${r.X_mpm_mohm}mΩ/m)</span>`);
+  set('r_cbVD', fN(r.VD, 3, 'V'));
+  set('r_cbVDpc', r.VD_pct + '% (limit: ' + gv('cbVDmax') + '%)');
+  set('r_cbStatus', `<span class="badge ${r.within_limit?'ok':'err'}">${r.within_limit?'✓ Within Limit':'✗ Exceeds Limit'}</span>`);
+  set('r_cbMinA', fN(r.Amin, 2, 'mm²'));
+  const skinWarn = r.skin_warn ? ' ⚠ CSA>150mm²: skin+proximity effect increases AC resistance (IEC 60287 ys/yp factors). Loss may be underestimated.' : '';
+  set('r_cbLoss', fN(r.loss_W, 1, 'W') + skinWarn);
+  set('r_cbDens', fN(r.dens, 3, 'A/mm²'));
+  set('r_cbRpkm', fN(r.Rpkm, 3, 'Ω/km'));
+  set('r_cbKtotal', fN(r.kTotal, 4, ''));
+  lCable = r;
+}
+
+/* ── Voltage Drop ── */
+async function calcVD() {
+  const vRes = validate([
+    {id:'vdV',label:'Voltage',      gt:0,  lte:800000,required:true},
+    {id:'vdI',label:'Current',      gt:0,  lte:10000, required:true},
+    {id:'vdL',label:'Cable Length', gt:0,  lte:50000, required:true},
+    {id:'vdA',label:'Cable CSA',    gt:0,  lte:2500,  required:true},
+  ]);
+  showValidation('vd_val_container', vRes);
+  if (!vRes.ok) return;
+
+  let L = gv('vdL'); if (US==='IMP') L *= 0.3048;
+  let A = gv('vdA'); if (US==='IMP') A *= 0.5067;
+
+  const r = await apiCalc('vd', {
+    phase: gs('vdPhase'), V: gv('vdV'), I: gv('vdI'),
+    L_m: L, area_mm2: A, PF: gv('vdPF') || 0.85,
+    material: gs('vdMat'), vLevel: gs('vdVLevel'),
+  });
+  if (!r) return;
+
+  set('r_vdVD',      fN(r.VD, 4, 'V'));
+  set('r_vdPc',      r.VD_pct + '%');
+  set('r_vdVR',      fN(gv('vdV') - r.VD, 3, 'V'));
+  set('r_vdBadge',   `<span class="badge ${r.within_5pct?'ok':'err'}">${r.within_5pct?'✓ Within 5%':'✗ Exceeds 5%'}</span>`);
+  set('r_vdR',       fN(r.Rc, 6, 'Ω'));
+  set('r_vdLoss',    fN(r.loss_W, 2, 'W'));
+  set('r_vdBreaker', fN(r.brk, 0, 'A'));
+  set('r_vdMinA',    fN(r.Amin, 3, 'mm²'));
+  set('r_vdDens',    fN(gv('vdI') / (A || 1), 3, 'A/mm²'));
+  lVD = r;
+}
+
+/* ── Motor ── */
+async function calcMotor() {
+  let Pkw = gv('mP');
+  if (US==='IMP') Pkw *= 0.7457;
+
+  const r = await apiCalc('motor', {
+    Pkw, V: gv('mV'), PF: gv('mPF'), eff: gv('mEff') / 100,
+    n: gv('mRPM'), phase: 3, poles: gv('mPoles'), freq: gv('mFreq'),
+    SF: gv('mSF') || 1.0, start: gs('mStart'),
+    brkRule: parseFloat(gs('mBrkRule')) || 1.25,
+    ISM: gv('mISM') || 6,
+  });
+  if (!r) return;
+
+  const Tu = US==='IMP' ? 'lb·ft' : 'N·m';
+  const Tv = US==='IMP' ? r.T_Nm * 0.7376 : r.T_Nm;
+  set('r_mI',   fN(r.IL, 2, 'A'));
+  set('r_mISF', `${fN(r.IL_SF, 2, 'A')} (IL × SF=${r.SF}) — size cable & overload relay for this current`);
+  set('r_mPin', fE(r.Pin_W, 2, 'W'));
+  set('r_mS',   fE(r.S_VA, 2, 'VA'));
+  set('r_mT',   fN(Tv, 2, Tu));
+  set('r_mNs',  fN(r.Ns, 0, 'RPM'));
+  set('r_mSlip',fN(r.slip_pct, 2, '%') + ' (at rated speed; varies with load)');
+  set('r_mIs',  `${fN(r.Is, 2, 'A')} <span class="badge info" style="margin-left:4px;font-size:.65rem">${r.start_note}</span>`);
+  set('r_mTs',  r.Ts_pct + '% of rated');
+  set('r_mQ',   fE(r.Q_VAr, 2, 'VAr'));
+  set('r_mBreaker', `${r.brk} A — ⚠ Real selection requires thermal trip curve coordination per NEC 430 / IEC 60947`);
+  lMotor = r;
+}
+
+/* ── Transformer ── */
+async function calcXfmr() {
+  const kVA=gv('xKVA'), V1=gv('xV1'), V2=gv('xV2');
+  if(kVA<=0||V1<=0||V2<=0){set('r_xTR','⚠ kVA and voltages must be > 0');return;}
+
+  const r = await apiCalc('xfmr', {
+    kVA, V1, V2, PF: gv('xPF'), xLoad_pct: gv('xLoad'),
+    Pfe: gv('xFe'), Pcu: gv('xCu'), Zpct: gv('xZ'), Rpct: gv('xR'),
+    pfType: gs('xPFType'),
+  });
+  if (!r) return;
+
+  const effBadge = r.eff > 95 ? 'ok' : r.eff > 90 ? 'warn' : 'err';
+  const effLbl   = r.eff > 95 ? 'Excellent' : r.eff > 90 ? 'Good' : 'Low';
+  const xL = gv('xLoad') / 100;
+  set('r_xTR',    fN(r.a, 4, ''));
+  set('r_xXpc',   fN(r.Xpct, 3, '%'));
+  set('r_xI1',    fN(r.I1, 3, 'A'));
+  set('r_xI2',    fN(r.I2, 3, 'A'));
+  set('r_xEff',   `${fN(r.eff, 3, '%')} <span class="badge ${effBadge}">${effLbl}</span>`);
+  set('r_xEffSub',`${(xL*100).toFixed(0)}% load | P_Fe=${gv('xFe')}W | P_Cu@load=${r.CuL_W}W | P_out=${r.Pout_W}W`);
+  set('r_xVR',    fN(r.VR, 3, '%'));
+  set('r_xMaxEff',fN(r.maxEff_pct_kva, 2, '% of rated kVA'));
+  set('r_xSCC',   fN(r.Isc, 3, 'A'));
+  lXfmr = r;
+}
+
+/* ── Capacitor / RC / LC ── */
+async function calcCap() {
+  const r = await apiCalc('cap', {
+    Cu: gv('capC'), Lm: gv('capL'), R: gv('capR'), V: gv('capV'), f: gv('capF'),
+  });
+  if (!r) return;
+
+  set('r_Xc',   fN(r.Xc,   4, 'Ω'));
+  set('r_XL',   fN(r.XL,   4, 'Ω'));
+  set('r_capE', fN(r.Ecap_mJ, 4, 'mJ'));
+  set('r_capQ', fN(r.Qch_mC,  4, 'mC'));
+  set('r_f0',   fN(r.f0,   3, 'Hz'));
+  set('r_w0',   fN(r.w0,   2, 'rad/s'));
+  set('r_tau',  fN(r.tau_ms, 4, 'ms'));
+  set('r_Qf',   r.Qf_series != null ? fN(r.Qf_series, 4, '') + ' <span style="font-size:.65rem;color:var(--txt3)">(series RLC)</span>' : '—');
+  set('r_Z',    fN(r.Z,     4, 'Ω'));
+  set('r_Ic',   fN(r.Ic,   5, 'A'));
+  lCap = r;
+}
+
+/* ── Short Circuit (IEC 60909) ── */
+async function calcFault() {
+  const LV = gv('fltLV'), xkVA = gv('fltXkVA'), gridMVA = gv('fltGridMVA');
+  if(LV<=0||xkVA<=0||gridMVA<=0){set('r_flt3I','⚠ All parameters must be > 0');return;}
+
+  let CL = gv('fltCL'); if(US==='IMP') CL *= 0.3048;
+
+  const r = await apiCalc('fault', {
+    gridMVA, xkVA, xZpct: gv('fltXZ'),
+    xRpct: gv('fltXR'), CL_m: CL, CA_mm2: gv('fltCA'),
+    LV, fltMat: gs('fltMat'), motKVA: gv('fltMotKVA'),
+  });
+  if (!r) return;
+
+  set('r_flt3I',   fE(r.Isc3, 2, 'A') + ` <span class="badge info" style="margin-left:4px">symmetrical</span>`);
+  set('r_flt1I',   fE(r.Isc1, 2, 'A') + ` <span style="font-size:.65rem;color:var(--txt3)">${r.Isc1_note||''}</span>`);
+  set('r_flt2I',   fE(r.Isc2, 2, 'A'));
+  set('r_fltMVA',  fN(r.fMVA, 4, 'MVA'));
+  set('r_fltGZ',   `${fN(r.Zgrid_mag, 6, 'Ω')} (X/R=10)`);
+  set('r_fltXZ',   `${fN(r.Zxfmr_mag, 6, 'Ω')}`);
+  set('r_fltCZ',   `R=${fN(r.Rcable, 6, 'Ω')} X=${fN(r.Xcable, 6, 'Ω')}`);
+  set('r_fltZtot', `${fN(r.Ztot, 6, 'Ω')} (X/R=${r.XR_total})`);
+  set('r_fltKappa',fN(r.kappa, 4, ''));
+  set('r_fltIp',   fE(r.Ip, 2, 'A') + ` <span class="badge warn" style="margin-left:4px">peak asymm.</span>`);
+  set('r_fltImot', r.Imot > 0 ? fE(r.Imot, 2, 'A') : '— (no motors entered)');
+  set('r_fltItot', fE(r.Isc3_total, 2, 'A'));
+  set('r_fltBreaker', `≥ ${r.brkKA} kA (sized on peak Ip = ${(r.Ip/1000).toFixed(1)} kA)`);
+  lFault = r;
+}
+
+/* ── Illumination ── */
+function ilTypeChange() {
+  const v = gs('ilType');
+  const isC = v === 'custom';
+  const cf = $('ilCustomF'); if(cf) cf.style.display = isC ? 'block' : 'none';
+  if (!isC) { const el=$('ilE'); if(el){ el.value=v; el.readOnly=true; } }
+  else      { const el=$('ilE'); if(el) el.readOnly=false; }
+  calcIllum();
+}
+
+async function calcIllum() {
+  let L = gv('ilL'), W = gv('ilW'), H = gv('ilH');
+  if (US==='IMP') { L*=0.3048; W*=0.3048; H*=0.3048; }
+  const WH = gv('ilWH') * (US==='IMP' ? 0.3048 : 1);
+
+  const r = await apiCalc('illum', {
+    L_m: L, W_m: W, H_m: H, WH_m: WH,
+    E_target: gv('ilE'), F_lm: gv('ilLm'),
+    Pw: gv('ilPw'), MF: gv('ilMF'), UF: gv('ilUF'),
+  });
+  if (!r) return;
+
+  const lU = US==='SI' ? 'm' : 'ft', lF = US==='SI' ? 1 : 3.281;
+  set('r_ilN',   r.N.toString());
+  set('r_ilE',   fN(r.Ea, 1, 'lux') + ' <span class="badge ' + (r.target_met?'ok':'warn') + '">' + (r.target_met?'✓ Met':'✗ Below target') + '</span>');
+  set('r_ilRI',  fN(r.RI, 3, ''));
+  set('r_ilW',   fN(r.Wtot, 0, 'W'));
+  set('r_ilWd',  fN(r.Wdens, 2, 'W/m²'));
+  set('r_ilArea',fN(r.A * lF * lF, 1, lU+'²'));
+  set('r_ilGrid',r.grid + ` = ${r.N} fittings`);
+  set('r_ilSL',  fN(r.Sl * lF, 2, lU));
+  set('r_ilSW',  fN(r.Sw * lF, 2, lU));
+  lIllum = r;
+}
+
+/* ── HV Cable Test ── */
+async function calcHVTest() {
+  const uo_sel = gs('hvUo');
+  const isCustom = uo_sel === 'custom';
+  const customRow = $('hvCustomRow');
+  if (customRow) customRow.style.display = isCustom ? 'grid' : 'none';
+
+  let Uo, U;
+  if (isCustom) { Uo = gv('hvUoCustom'); U = gv('hvUCustom'); }
+  else { const p = uo_sel.split('/'); Uo = parseFloat(p[0])||6; U = parseFloat(p[1])||10; }
+
+  const r = await apiCalc('hvtest', {
+    Uo, U, L_m: gv('hvLen'), T_deg: gv('hvTemp'),
+    method: gs('hvMethod'), cond: gs('hvCond'),
+    insType: gs('hvIns'), sheathType: gs('hvSheath'),
+  });
+  if (!r) return;
+
+  set('r_hvV',      r.testV != null ? r.testV + ' kV' : 'IR / Megger Test Only');
+  set('r_hvVsub',   r.testV != null ? `= ${r.testV}×Uo (Uo = ${Uo} kV)` : 'Apply 500V–5kV DC per test standard');
+  set('r_hvDur',    r.dur || '—');
+  set('r_hvStd',    r.std || '—');
+  set('r_hvPass',   r.pass || '—');
+  set('r_hvSheath', r.sheathTest);
+  set('r_hvIR',     r.ir_min_MOhm + ' MΩ');
+  set('r_hvIRnote', `IR_min = (${Uo}+1) × ${Math.max(gv('hvLen')/1000,0.01).toFixed(3)} km = ${r.ir_min_MOhm} MΩ at 20°C. At ${gv('hvTemp')}°C: ≈ ${r.ir_at_temp_MOhm} MΩ`);
+  set('r_hvWarn',   r.warn);
+}
+
+/* ══════════════════════════════
+   PDF GENERATOR (client-side — no sensitive logic)
+══════════════════════════════ */
+let lOhm={}, lPower={}, lCable={}, lVD={}, lMotor={}, lXfmr={}, lCap={}, lFault={}, lIllum={};
+
+function openPDF(title, rows, formula, notes='') {
+  const dt = new Date().toLocaleString();
+  const w = window.open('','_blank','width=860,height=740');
+  if (!w) { alert('Please allow pop-ups to export PDF.'); return; }
+  const trows = rows.map(([l,v,h]) => `<tr${h?' class="hl"':''}><td>${l}</td><td>${v}</td></tr>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><title>${title} — multicalci.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;600;700&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Plus Jakarta Sans',sans-serif;background:#fff;color:#181d38;font-size:12px}.hdr{background:#181d38;color:#fff;padding:20px 30px}.hdr h1{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:2px}.hdr .sub{font-size:10px;color:rgba(255,255,255,.45)}.acnt{height:2px;background:linear-gradient(90deg,#f59e0b,#2563eb)}.body{padding:18px 30px}h2{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#181d38;border-bottom:2px solid #f59e0b;padding-bottom:3px;margin:14px 0 8px}table{width:100%;border-collapse:collapse}th{background:#181d38;color:rgba(255,255,255,.8);padding:6px 10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;text-align:left}td{padding:6px 10px;border-bottom:1px solid #e2dfd5;font-family:'Space Mono',monospace;font-size:10.5px}td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#181d38}tr:nth-child(even) td{background:#f7f6f2}tr.hl td{background:#fffbeb;color:#d97706;font-weight:700}.fml{background:#181d38;border-radius:7px;padding:9px 13px;font-family:'Space Mono',monospace;font-size:9.5px;color:rgba(255,255,255,.6);line-height:1.85;margin-top:8px}.foot{text-align:center;font-size:9px;color:#9096b0;margin-top:20px;padding-top:8px;border-top:1px solid #e2dfd5}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}</style>
+</head><body>
+<div class="hdr"><h1>⚡ ${title}</h1><div class="sub">MULTICALCI.COM — Electrical Engineering Suite &nbsp;|&nbsp; Generated: ${dt}</div></div>
+<div class="acnt"></div>
+<div class="body">
+<h2>Calculation Results</h2>
+<table><tr><th>Parameter</th><th>Value</th></tr>${trows}</table>
+${notes?`<h2>Notes</h2><div class="fml">${notes}</div>`:''}
+<h2>Formulae Used</h2><div class="fml">${formula}</div>
+<div class="foot">multicalci.com | ${dt} | For estimation only — verify with a qualified engineer</div>
+</div>
+<script>window.onload=()=>setTimeout(()=>window.print(),700);<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+function pdfOhm(){const r=lOhm;
+  openPDF("Ohm's Law & DC Circuit",[
+    ['Voltage V',fN(r.V,3,'V'),true],['Current I',fN(r.I,5,'A'),false],
+    ['Resistance R',fN(r.R,5,'Ω'),false],['Power P',fN(r.P,3,'W'),true],
+    ['Energy (1 hr)',fN(r.Ekwh,5,'kWh'),false],
+    ['Conductance G',fN(r.G,6,'S'),false],
+    ['Series R',fN(r.Rs,4,'Ω'),false],['Parallel R',fN(r.Rp,4,'Ω'),false],
+  ],'V=IR | P=VI=I²R=V²/R | G=1/R | Rs=R1+R2+… | 1/Rp=1/R1+1/R2+…');}
+
+function pdfPower(){const r=lPower;
+  const cur=US==='IMP'?'$':'₹';
+  openPDF('AC / DC Power Analysis',[
+    ['Apparent Power S',fE(r.S,2,'VA'),true],['Active Power P',fE(r.P,2,'W'),true],
+    ['Reactive Power Q',fE(r.Q,2,'VAr'),false],['Phase Angle φ',fN(r.phi_deg,2,'°'),false],
+    ['Phase Voltage Vφ',fN(r.Vphi,2,'V'),false],['Input Power Pin',fE(r.Pin,2,'W'),false],
+    ['PFC Capacitor',fE(r.Qc_kvar,3,'kVAr'),false],
+    ['Energy',fE(r.energy_kwh,1,'kWh/yr'),false],['Cost',cur+(r.cost||0).toFixed(2)+'/yr',false],
+  ],'S=√3·VL·IL (3φ) or VL·IL (1φ) | P=S·cosφ | Q=S·sinφ | Pin=P/η');}
+
+function pdfCable(){const r=lCable;
+  openPDF('Cable Sizing',[
+    ['Resistance Rc',fN(r.Rc,6,'Ω'),false],['Reactance Xc',fN(r.Xc,6,'Ω'),false],
+    ['Voltage Drop ΔV',fN(r.VD,3,'V'),true],['VD %',r.VD_pct+'%',true],
+    ['Within Limit?',r.within_limit?'✓ Yes':'✗ No',false],
+    ['Min CSA (VD)',fN(r.Amin,2,'mm²'),false],['Power Loss',fN(r.loss_W,1,'W'),false],
+    ['Current Density',fN(r.dens,4,'A/mm²'),false],
+    ['Combined Derating k_total',fN(r.kTotal,4,''),true],
+  ],'R=ρ(T)L/A | 3φ:ΔV=√3·I·(Rcosφ+Xsinφ) | 1φ:ΔV=2·I·(Rcosφ+Xsinφ) | Amin=2ρLIcosφ/ΔVmax');}
+
+function pdfVD(){const r=lVD;
+  openPDF('Voltage Drop & Protection',[
+    ['Voltage Drop ΔV',fN(r.VD,4,'V'),true],['VD %',r.VD_pct+'%',true],
+    ['End Voltage',fN(gv('vdV')-r.VD,3,'V'),false],
+    ['Within 5%?',r.within_5pct?'✓ Yes':'✗ No',false],
+    ['Cable Loss',fN(r.loss_W,2,'W'),false],['Min CSA',fN(r.Amin,3,'mm²'),false],
+    ['Breaker Size',fN(r.brk,0,'A'),true],
+  ],'R=ρ(T)L/A (75°C) | 1φ:ΔV=2I(Rcosφ+Xsinφ) | 3φ:ΔV=√3·I·(Rcosφ+Xsinφ) | Breaker:125%×I');}
+
+function pdfMotor(){const r=lMotor;
+  openPDF('Electric Motor',[
+    ['Full-Load Current IL',fN(r.IL,3,'A'),true],
+    ['SF-Adjusted Current',fN(r.IL_SF,3,'A'),true],
+    ['Input Power',fE(r.Pin_W,2,'W'),false],['Apparent Power',fE(r.S_VA,2,'VA'),false],
+    ['Torque',US==='SI'?fN(r.T_Nm,2,'N·m'):fN(r.T_Nm*0.7376,2,'lb·ft'),true],
+    ['Synchronous Speed',fN(r.Ns,0,'RPM'),false],['Slip',fN(r.slip_pct,3,'%'),false],
+    ['Starting Current',fN(r.Is,2,'A'),true],
+    ['Recommended Breaker',fN(r.brk,0,'A'),true],
+  ],'IL=P_out/(√3·V·η·cosφ) | T=P_Watts/(2πn/60) | Ns=60f/p | s=(Ns−N)/Ns');}
+
+function pdfXfmr(){const r=lXfmr;
+  openPDF('Transformer',[
+    ['Turns Ratio a',fN(r.a,5,''),true],['%Reactance X%',fN(r.Xpct,3,'%'),false],
+    ['Primary FLC I1',fN(r.I1,3,'A'),false],['Secondary FLC I2',fN(r.I2,3,'A'),false],
+    ['Efficiency',fN(r.eff,4,'%'),true],['Voltage Regulation',fN(r.VR,4,'%'),false],
+    ['Max Efficiency at',fN(r.maxEff_pct_kva,2,'% kVA'),false],
+    ['Short-Circuit I',fN(r.Isc,3,'A'),true],
+  ],'a=V1/V2 | η=x·kVA·cosφ/(x·kVA·cosφ+Pfe+x²·Pcu) | VR(lag)=R%cosφ+X%sinφ');}
+
+function pdfCap(){const r=lCap;
+  openPDF('Capacitor & RC/LC Circuit',[
+    ['Xc',fN(r.Xc,5,'Ω'),true],['XL',fN(r.XL,5,'Ω'),false],
+    ['Energy E',fN(r.Ecap_mJ,4,'mJ'),true],['Charge Q',fN(r.Qch_mC,4,'mC'),false],
+    ['Resonant f₀',fN(r.f0,4,'Hz'),true],['RC Time τ',fN(r.tau_ms,4,'ms'),false],
+    ['Q-Factor',fN(r.Qf_series,5,''),false],['Impedance |Z|',fN(r.Z,5,'Ω'),true],
+  ],'Xc=1/(2πfC) | XL=2πfL | f₀=1/(2π√LC) | τ=RC | E=½CV² | |Z|=√(R²+(XL−Xc)²)');}
+
+function pdfFault(){const r=lFault;
+  openPDF('Short Circuit / Fault Analysis (IEC 60909)',[
+    ['IEC 60909 c-factor','1.05 (LV max fault)',false],
+    ['Grid Source Z',fN(r.Zgrid_mag,6,'Ω'),false],
+    ['Transformer Z (LV)',fN(r.Zxfmr_mag,6,'Ω'),false],
+    ['Cable R / X',fN(r.Rcable,6,'Ω')+' / '+fN(r.Xcable,6,'Ω'),false],
+    ['Total |Z_total|',fN(r.Ztot,6,'Ω'),false],
+    ['X/R ratio',fN(r.XR_total,2,''),false],
+    ['3-Phase Isc3 (symm.)',fE(r.Isc3,3,'A'),true],
+    ['κ factor',fN(r.kappa,4,''),false],
+    ['Peak Current Ip',fE(r.Ip,3,'A'),true],
+    ['Motor Contribution',fE(r.Imot,3,'A'),false],
+    ['Total Isc',fE(r.Isc3_total,3,'A'),true],
+    ['Fault MVA',fN(r.fMVA,4,'MVA'),false],
+    ['Min Breaker Rating',fN(r.brkKA,0,'kA'),true],
+  ],'IEC 60909: Isc3=c·Vn/(√3·|Z|) | c=1.05 | Ip=κ·√2·Isc | κ=1.02+0.98·e^(−3/XR)');}
+
+function pdfIllum(){const r=lIllum;
+  openPDF('Illumination Design',[
+    ['Room Index RI',fN(r.RI,4,''),false],
+    ['Luminaires N',r.N?.toString()||'—',true],
+    ['Achieved E',fN(r.Ea,2,'lux'),true],
+    ['Total Load',fN(r.Wtot,0,'W'),false],
+    ['Watt Density',fN(r.Wdens,2,'W/m²'),false],
+  ],'N=E×A/(F×MF×UF) | RI=L×W/(Hm×(L+W)) | Watt density=W_total/A');}
+
+/* ══════════════════════════════
+   SHARE FUNCTIONS
+══════════════════════════════ */
+function getShareURL(){
+  const u=window.location.href;
+  return (u.startsWith('file://')||u==='about:blank')
+    ? 'https://multicalci.com/electrical-engineering-calculators/'
+    : u;
+}
+function getShareText(){
+  return '⚡ MULTICALCI.COM — free electrical engineering calculator: Ohm\'s Law, cable sizing, fault analysis (IEC 60909), motor calcs & more.';
+}
+function openShare(){
+  const url=getShareURL();
+  const inp=$('shareUrlInp'); if(inp) inp.value=url;
+  $('shareModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  if(navigator.share){navigator.share({title:'multicalci.com',text:getShareText(),url}).catch(()=>{});return;}
+}
+function closeShare(){$('shareModal').classList.remove('open');document.body.style.overflow='';}
+function shareX(){window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText()+' '+getShareURL())}`,'_blank','noopener');}
+function shareLinkedIn(){window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(getShareURL())}`,'_blank','noopener');}
+function shareWhatsApp(){window.open(`https://wa.me/?text=${encodeURIComponent(getShareText()+'\n'+getShareURL())}`,'_blank','noopener');}
+function shareEmail(){window.location.href=`mailto:?subject=${encodeURIComponent('MULTICALCI.COM')}&body=${encodeURIComponent(getShareText()+'\n\n'+getShareURL())}`;}
+function shareTelegram(){window.open(`https://t.me/share/url?url=${encodeURIComponent(getShareURL())}&text=${encodeURIComponent(getShareText())}`,'_blank','noopener');}
+async function copyShareLink(){
+  const url=getShareURL();
+  try{
+    await navigator.clipboard.writeText(url);
+    const btn=$('copyUrlBtn'),txt=$('copyBtnTxt');
+    if(btn){btn.textContent='Copied!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);}
+    if(txt){txt.textContent='Copied!';setTimeout(()=>{txt.textContent='Copy Link';},2000);}
+  }catch{const inp=$('shareUrlInp');if(inp){inp.select();document.execCommand('copy');}}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeShare();});
+
+/* ══ EDUCATION HUB ══ */
+function eduTab(name, btn){
+  document.querySelectorAll('.edu-panel').forEach(p=>p.classList.remove('show'));
+  document.querySelectorAll('.edu-tab-btn').forEach(b=>b.classList.remove('on'));
+  const p=$('ep_'+name); if(p) p.classList.add('show');
+  if(btn) btn.classList.add('on');
+  if(name==='quiz' && !quizBuilt) buildQuiz();
+}
+
+/* ══ QUIZ ENGINE ══ */
+let quizBuilt=false, quizAnswers={};
+const QUESTIONS=[
+  {q:"Ohm's Law: if V = 230 V and R = 23 Ω, what is the current I?",opts:["5 A","10 A","23 A","100 A"],ans:1,exp:"I = V/R = 230/23 = 10 A."},
+  {q:"In a 3-phase star (Y) system, what is the relationship between VL and Vφ?",opts:["VL = Vφ","VL = 2×Vφ","VL = √3×Vφ","Vφ = √3×VL"],ans:2,exp:"VL = √3×Vφ ≈ 1.732×Vφ. In a 415V system, Vφ = 240V."},
+  {q:"Power factor is defined as:",opts:["P/Q","Q/S","P/S (= cosφ)","S/P"],ans:2,exp:"PF = cosφ = P/S. Unity PF means all power is usefully consumed."},
+  {q:"Which starting method reduces motor starting current to 1/3 of DOL?",opts:["Soft starter","Auto-transformer","Star-Delta (Y-Δ)","VFD"],ans:2,exp:"Star-Delta reduces current to 1/3 of DOL (and torque to 1/3)."},
+  {q:"What does '%Z' on a transformer nameplate represent?",opts:["Efficiency at full load","Percentage impedance — determines short-circuit current","Power factor","Voltage regulation"],ans:1,exp:"%Z = (Vsc/V_rated)×100%. 4%Z 1000kVA allows Isc = 25× FLC."},
+  {q:"IEC 60364 maximum recommended voltage drop from supply to load is:",opts:["2%","5%","10%","15%"],ans:1,exp:"IEC 60364-5-52 recommends max 5% VD."},
+  {q:"Synchronous speed of a 4-pole, 50 Hz induction motor is:",opts:["750 RPM","1000 RPM","1500 RPM","3000 RPM"],ans:2,exp:"Ns = 60f/p = 60×50/2 = 1500 RPM."},
+  {q:"In IEC 60909 LV fault analysis, the maximum voltage factor 'c' is:",opts:["0.95","1.00","1.05","1.10"],ans:2,exp:"c = 1.05 for maximum fault current at LV."},
+  {q:"Minimum IR for a 1 km, 11 kV cable (rule of thumb) is approximately:",opts:["1 MΩ","12 MΩ","100 MΩ","1000 MΩ"],ans:1,exp:"IR_min ≈ (kV_rated+1) MΩ/km = (11+1) = 12 MΩ for 1 km."},
+  {q:"Resonant frequency in an LC circuit is:",opts:["f₀ = 2π√(LC)","f₀ = 1/(2π√(LC))","f₀ = √(L/C)","f₀ = 2πLC"],ans:1,exp:"f₀ = 1/(2π√(LC)) Hz. At resonance XL = Xc."},
+];
+function buildQuiz(){
+  quizBuilt=true; quizAnswers={};
+  const c=$('quizContainer'); if(!c) return;
+  c.innerHTML='';
+  QUESTIONS.forEach((q,qi)=>{
+    const d=document.createElement('div');d.className='quiz-card';
+    d.innerHTML=`<div class="quiz-q">Q${qi+1}. ${q.q}</div>
+      <div class="quiz-opts" id="qopts_${qi}">${q.opts.map((o,oi)=>`<button class="quiz-opt" onclick="answerQ(${qi},${oi})">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}</div>
+      <div id="qexp_${qi}" class="quiz-explain" style="display:none"></div>`;
+    c.appendChild(d);
+  });
+}
+function answerQ(qi,oi){
+  if(quizAnswers[qi]!==undefined) return;
+  quizAnswers[qi]=oi;
+  const q=QUESTIONS[qi];
+  $('qopts_'+qi)?.querySelectorAll('.quiz-opt').forEach((b,i)=>{
+    b.classList.add('answered');
+    if(i===q.ans) b.classList.add('correct');
+    else if(i===oi&&oi!==q.ans) b.classList.add('wrong');
+  });
+  const exp=$('qexp_'+qi);
+  if(exp){exp.style.display='block';exp.textContent='💡 '+q.exp;}
+  if(Object.keys(quizAnswers).length===QUESTIONS.length){
+    const score=QUESTIONS.filter((q,i)=>quizAnswers[i]===q.ans).length;
+    $('quizScore').style.display='block';
+    $('quizScoreNum').textContent=score+'/'+QUESTIONS.length;
+  }
+}
+function resetQuiz(){quizBuilt=false;$('quizScore').style.display='none';buildQuiz();}
+
+/* ══ INIT ══ */
+[calcOhm,calcPower,calcCable,calcVD,calcMotor,calcXfmr,calcCap,calcFault,calcIllum]
+  .forEach(f=>{try{f();}catch(e){}});
+
+</script>
+</body>
+</html>
