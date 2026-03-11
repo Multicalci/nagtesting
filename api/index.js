@@ -448,10 +448,7 @@ function toSI_fan(inp) {
 }
 
 /* ─── Finite guard ───────────────────────────────────────────────────── */
-function assertFinite(val, label) {
-  if (!isFinite(val))
-    throw new Error(`Computed "${label}" is not finite — check input magnitudes.`);
-}
+// [DEDUP] removed duplicate declaration of: assertFinite
 
 /* ─── Main calculation ───────────────────────────────────────────────── */
 function fanCalc(params) {
@@ -542,11 +539,7 @@ function fanCalc(params) {
 }
 
 /* ─── CORS helper ────────────────────────────────────────────────────── */
-function setCORS(res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
+// [DEDUP] removed duplicate declaration of: setCORS
 
 /* ─── Vercel handler ─────────────────────────────────────────────────── */
 
@@ -555,7 +548,7 @@ function setCORS(res) {
 // ─── VERCEL DEPLOYMENT: place this file at /api/heatxpert.js in your repo root ───
 // Route auto-created at /api/heatxpert by Vercel
 
-const config = { api: { bodyParser: true } };
+// [DEDUP] removed duplicate config declaration
 
 
 
@@ -1158,12 +1151,7 @@ function calculate(params) {
 // ═════════════════════════════════════════════════════════════════════
 
 // Helper: set all CORS headers on a response object
-function setCORS(res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Content-Type', 'application/json');
-}
+// [DEDUP] removed duplicate declaration of: setCORS
 
 // Helper: read raw POST body as text, then JSON-parse
 function readBody(req) {
@@ -1201,16 +1189,7 @@ const ALLOWED_ORIGINS = [
   'https://nagtesting.vercel.app',
 ];
 
-function setCORS(req, res) {
-  const origin = req.headers.origin || '';
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  res.setHeader('Access-Control-Allow-Origin', allowed);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-}
+// [DEDUP] removed duplicate declaration of: setCORS
 
 function sanitizeNumber(v, fallback = null) {
   const n = parseFloat(v);
@@ -1230,693 +1209,7 @@ function err(res, status, msg) {
    FLUID DATABASE  (120+ fluids — Andrade liquids · Sutherland gas)
    Sources: Perry's ChE Handbook · NIST WebBook · Yaws' Handbook
 ═══════════════════════════════════════════════════════════════ */
-const FLUID_DB = [
-  // ── WATER & AQUEOUS ──────────────────────────────────────────────────────
-  {id:'water',       name:'Water',                      cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'poly_water', viscModel:'andrade', A:-3.5985, B:1061.0,
-   Pv_A:8.07131, Pv_B:1730.63, Pv_C:233.426,
-   vp:[[0,0.611],[10,1.228],[20,2.338],[30,4.243],[40,7.384],[50,12.35],[60,19.94],[70,31.18],[80,47.39],[90,70.11],[100,101.3],[110,143.3],[120,198.5],[150,476.2],[200,1554]]},
-
-  {id:'seawater',    name:'Seawater (3.5% NaCl)',       cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1025, Tref:20, k_rho:-0.30,
-   viscModel:'andrade', A:-3.35, B:1030.0,
-   vp:[[0,0.54],[10,1.08],[20,2.1],[30,3.81],[50,10.9],[80,44.3],[100,97.0]]},
-
-  {id:'brine10',     name:'Brine 10% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1071, Tref:20, k_rho:-0.35,
-   viscModel:'andrade', A:-3.60, B:1010.0,
-   vp:[[0,0.54],[20,2.1],[50,10.5],[80,43.0],[100,96.0]]},
-
-  {id:'brine20',     name:'Brine 20% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1148, Tref:20, k_rho:-0.40,
-   viscModel:'linear', mu0:1.90, Tref_mu:20, k_mu:-0.030,
-   vp:[[0,0.5],[20,1.95],[50,10.0],[80,41.5],[100,93.0]]},
-
-  {id:'brine25',     name:'Brine 25% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1188, Tref:20, k_rho:-0.45,
-   viscModel:'linear', mu0:2.30, Tref_mu:20, k_mu:-0.040, vapFixed:0.017},
-
-  {id:'cacl2_20',    name:'CaCl₂ Solution 20%',         cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1176, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-3.40, B:1100.0,
-   vp:[[0,0.48],[20,1.85],[50,9.5],[80,40.0],[100,90.0]]},
-
-  {id:'cacl2_30',    name:'CaCl₂ Solution 30%',         cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1280, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:-2.80, B:1350.0,
-   vp:[[0,0.4],[20,1.6],[50,8.5],[80,36.0],[100,82.0]]},
-
-  // ── GLYCOLS & COOLANTS ────────────────────────────────────────────────────
-  {id:'eg30',        name:'Ethylene Glycol 30%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1054, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-4.50, B:1350.0, vapFixed:0.021},
-
-  {id:'eg50',        name:'Ethylene Glycol 50%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1080, Tref:20, k_rho:-0.58,
-   viscModel:'andrade', A:-3.80, B:1650.0,
-   vp:[[0,0.3],[20,1.2],[50,8.0],[80,34],[100,78]]},
-
-  {id:'eg70',        name:'Ethylene Glycol 70%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1096, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-2.80, B:2100.0,
-   vp:[[0,0.18],[20,0.8],[50,6.0],[80,28],[100,68]]},
-
-  {id:'pg30',        name:'Propylene Glycol 30%',       cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-4.00, B:1400.0,
-   vp:[[0,0.5],[20,1.8],[50,10.0],[80,40],[100,90]]},
-
-  {id:'pg50',        name:'Propylene Glycol 50%',       cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1059, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-3.20, B:1800.0,
-   vp:[[0,0.35],[20,1.3],[50,8.5],[80,35],[100,80]]},
-
-  {id:'deg',         name:'Diethylene Glycol (DEG)',    cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1118, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-2.60, B:2300.0, vapFixed:0.0003},
-
-  {id:'teg',         name:'Triethylene Glycol (TEG)',   cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:-2.00, B:2600.0, vapFixed:0.00001},
-
-  {id:'mea30',       name:'MEA 30% (Monoethanolamine)', cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1013, Tref:25, k_rho:-0.50,
-   viscModel:'andrade', A:-3.60, B:1400.0, vapFixed:0.010},
-
-  {id:'dea35',       name:'DEA 35% (Diethanolamine)',   cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1038, Tref:25, k_rho:-0.52,
-   viscModel:'andrade', A:-2.80, B:1700.0, vapFixed:0.006},
-
-  // ── PETROLEUM & FUELS ─────────────────────────────────────────────────────
-  {id:'gasoline',    name:'Gasoline (Petrol)',           cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:740, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:900.0,
-   Pv_A:6.80, Pv_B:1064.0, Pv_C:228.0,
-   vp:[[0,10],[10,16],[20,25],[30,38.5],[40,57],[50,82],[60,115]]},
-
-  {id:'diesel',      name:'Diesel Fuel',                 cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:840, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:-3.20, B:1600.0,
-   vp:[[20,0.01],[40,0.03],[60,0.07],[80,0.15],[100,0.3]]},
-
-  {id:'kerosene',    name:'Kerosene / Jet-A',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:800, Tref:20, k_rho:-0.68,
-   viscModel:'andrade', A:-3.90, B:1500.0, vapFixed:0.003},
-
-  {id:'jeta1',       name:'Jet A-1 Fuel',                cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:804, Tref:15, k_rho:-0.72,
-   viscModel:'andrade', A:-3.85, B:1480.0, vapFixed:0.003},
-
-  {id:'hfo',         name:'Heavy Fuel Oil (HFO 380)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:975, Tref:15, k_rho:-0.60,
-   viscModel:'andrade', A:3.00, B:4200.0, vapFixed:0.001},
-
-  {id:'crude20',     name:'Crude Oil API 20 (heavy)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:934, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:1.00, B:3200.0,
-   vp:[[20,0.05],[40,0.16],[80,1.0]]},
-
-  {id:'crude30',     name:'Crude Oil API 30',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:876, Tref:20, k_rho:-0.70,
-   viscModel:'andrade', A:-1.80, B:2200.0, vapFixed:0.020},
-
-  {id:'crude40',     name:'Crude Oil API 40',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:825, Tref:20, k_rho:-0.72,
-   viscModel:'andrade', A:-3.00, B:1700.0, vapFixed:0.040},
-
-  {id:'crude50',     name:'Crude Oil API 50 (light)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:780, Tref:20, k_rho:-0.75,
-   viscModel:'andrade', A:-4.00, B:1400.0,
-   vp:[[20,0.02],[40,0.08],[80,0.6]]},
-
-  {id:'naphtha',     name:'Naphtha (light)',              cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:690, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-4.90, B:880.0,
-   Pv_A:6.90, Pv_B:1100.0, Pv_C:225.0},
-
-  {id:'naphtha_h',   name:'Naphtha (heavy)',              cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:730, Tref:20, k_rho:-0.80,
-   viscModel:'andrade', A:-4.50, B:1000.0, vapFixed:0.030},
-
-  {id:'atmresid',    name:'Atmospheric Residue (ATB)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:960, Tref:60, k_rho:-0.62,
-   viscModel:'andrade', A:5.00, B:4800.0, vapFixed:0.001},
-
-  {id:'vacresid',    name:'Vacuum Residue (VTB)',         cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:985, Tref:80, k_rho:-0.60,
-   viscModel:'andrade', A:7.50, B:5200.0, vapFixed:0.0001},
-
-  {id:'bitumen',     name:'Bitumen / Asphalt',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:1030, Tref:150, k_rho:-0.55,
-   viscModel:'andrade', A:8.00, B:5500.0, vapFixed:0.0001},
-
-  // ── LUBRICANTS & HYDRAULIC OILS ───────────────────────────────────────────
-  {id:'lube32',      name:'Lube Oil ISO VG 32',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:858, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.20, B:2700.0, vapFixed:0.001},
-
-  {id:'lube46',      name:'Lube Oil ISO VG 46',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:870, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.20, B:3100.0, vapFixed:0.001},
-
-  {id:'lube68',      name:'Lube Oil ISO VG 68',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:872, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.60, B:3300.0, vapFixed:0.001},
-
-  {id:'lube100',     name:'Lube Oil ISO VG 100',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:874, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.00, B:3600.0, vapFixed:0.001},
-
-  {id:'lube150',     name:'Lube Oil ISO VG 150',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:875, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.40, B:3800.0, vapFixed:0.001},
-
-  {id:'lube220',     name:'Lube Oil ISO VG 220',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:880, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.90, B:4000.0, vapFixed:0.001},
-
-  {id:'hydr32',      name:'Hydraulic Oil ISO 32',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:860, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.50, B:2800.0, vapFixed:0.001},
-
-  {id:'hydr46',      name:'Hydraulic Oil ISO 46',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:870, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.90, B:3000.0, vapFixed:0.001},
-
-  {id:'hydr68',      name:'Hydraulic Oil ISO 68',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:875, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.40, B:3200.0, vapFixed:0.001},
-
-  {id:'hydr100',     name:'Hydraulic Oil ISO 100',       cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:880, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.00, B:3500.0, vapFixed:0.001},
-
-  {id:'thermoil',    name:'Thermal / Heat Transfer Oil', cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:855, Tref:100, k_rho:-0.65,
-   viscModel:'andrade', A:-0.50, B:2500.0, vapFixed:0.001},
-
-  {id:'turbineoil',  name:'Turbine Oil ISO VG 46',       cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:869, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.85, B:2950.0, vapFixed:0.001},
-
-  {id:'gearoil320',  name:'Gear Oil ISO VG 320',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:890, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:3.80, B:4400.0, vapFixed:0.001},
-
-  // ── ALCOHOLS ──────────────────────────────────────────────────────────────
-  {id:'methanol',    name:'Methanol',                    cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:792, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.50, B:1020.0,
-   Pv_A:7.8974, Pv_B:1474.08, Pv_C:229.13,
-   vp:[[0,4.06],[10,6.97],[20,12.9],[30,21.9],[40,35.4],[64.7,101.3]]},
-
-  {id:'ethanol',     name:'Ethanol (96%)',               cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:789, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-4.80, B:1310.0,
-   Pv_A:8.1122, Pv_B:1592.864, Pv_C:226.184,
-   vp:[[0,1.63],[10,3.12],[20,5.95],[30,10.5],[40,17.7],[50,29.4],[60,47.1],[78.3,101.3]]},
-
-  {id:'ethanol_abs', name:'Ethanol Absolute (99.9%)',    cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:785, Tref:20, k_rho:-1.06,
-   viscModel:'andrade', A:-4.90, B:1320.0,
-   Pv_A:8.1122, Pv_B:1592.864, Pv_C:226.184},
-
-  {id:'ipa',         name:'Isopropanol (IPA)',           cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:786, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-3.80, B:1600.0,
-   Pv_A:8.1178, Pv_B:1580.92, Pv_C:219.61,
-   vp:[[0,1.33],[20,4.38],[40,13.2],[82.3,101.3]]},
-
-  {id:'nbutanol',    name:'n-Butanol',                   cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:810, Tref:20, k_rho:-0.82,
-   viscModel:'andrade', A:-3.20, B:1850.0,
-   Pv_A:7.8366, Pv_B:1558.19, Pv_C:196.88,
-   vp:[[0,0.58],[20,0.59],[40,4.35],[50,6.9],[80,22.4],[117.7,101.3]]},
-
-  {id:'glycerol',    name:'Glycerol (100%)',             cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:1261, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:4.50, B:5400.0,
-   vp:[[20,0.0002],[60,0.004],[100,0.05],[150,0.55]]},
-
-  {id:'glycerol50',  name:'Glycerol 50% in Water',      cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-0.50, B:2200.0,
-   vp:[[20,0.1],[40,0.35],[80,3.5],[100,10]]},
-
-  // ── AROMATICS ─────────────────────────────────────────────────────────────
-  {id:'benzene',     name:'Benzene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:879, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.60, B:1100.0,
-   Pv_A:6.90565, Pv_B:1211.033, Pv_C:220.790,
-   vp:[[0,3.52],[20,10.0],[40,24.4],[60,52.0],[80.1,101.3]]},
-
-  {id:'toluene',     name:'Toluene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:867, Tref:20, k_rho:-0.92,
-   viscModel:'andrade', A:-5.00, B:1200.0,
-   Pv_A:6.95464, Pv_B:1344.800, Pv_C:219.482,
-   vp:[[0,1.57],[20,3.79],[40,9.87],[60,23.4],[110.6,101.3]]},
-
-  {id:'xylene',      name:'Xylene (mixed)',               cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:864, Tref:20, k_rho:-0.88,
-   viscModel:'andrade', A:-4.50, B:1350.0,
-   Pv_A:6.99052, Pv_B:1453.430, Pv_C:215.307},
-
-  {id:'oxylene',     name:'o-Xylene',                    cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:880, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.30, B:1370.0,
-   Pv_A:6.99891, Pv_B:1474.679, Pv_C:213.686},
-
-  {id:'styrene',     name:'Styrene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:906, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.40, B:1350.0,
-   Pv_A:7.14016, Pv_B:1574.51, Pv_C:218.38,
-   vp:[[0,0.3],[20,0.81],[60,5.05],[100,23.1],[145,101.3]]},
-
-  {id:'cumene',      name:'Cumene (Isopropylbenzene)',    cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:862, Tref:20, k_rho:-0.88,
-   viscModel:'andrade', A:-4.60, B:1380.0,
-   vp:[[0,0.35],[20,0.8],[40,2.2],[80,10.6],[152.4,101.3]]},
-
-  // ── ALIPHATICS ────────────────────────────────────────────────────────────
-  {id:'hexane',      name:'n-Hexane',                    cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:659, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.40, B:900.0,
-   Pv_A:6.87601, Pv_B:1171.17, Pv_C:224.408},
-
-  {id:'heptane',     name:'n-Heptane',                   cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:684, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-5.10, B:1060.0,
-   Pv_A:6.89385, Pv_B:1264.13, Pv_C:216.640},
-
-  {id:'octane',      name:'n-Octane',                    cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:703, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:1140.0,
-   Pv_A:6.91868, Pv_B:1351.99, Pv_C:209.155,
-   vp:[[0,1.4],[20,1.47],[40,6.1],[60,11.5],[80,20.2],[125.7,101.3]]},
-
-  {id:'cyclohex',    name:'Cyclohexane',                 cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:779, Tref:20, k_rho:-0.97,
-   viscModel:'andrade', A:-4.90, B:1100.0,
-   Pv_A:6.84498, Pv_B:1203.526, Pv_C:222.863},
-
-  {id:'isooctane',   name:'Isooctane (2,2,4-TMP)',       cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:692, Tref:20, k_rho:-0.92,
-   viscModel:'andrade', A:-5.20, B:1000.0, vapFixed:0.050},
-
-  // ── CHLORINATED SOLVENTS ──────────────────────────────────────────────────
-  {id:'dcm',         name:'Dichloromethane (DCM)',        cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1325, Tref:20, k_rho:-1.80,
-   viscModel:'andrade', A:-5.50, B:900.0,
-   Pv_A:7.0820, Pv_B:1138.91, Pv_C:231.50,
-   vp:[[0,16.7],[20,46.5],[40,110],[39.6,101.3]]},
-
-  {id:'chloroform',  name:'Chloroform (CHCl₃)',          cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1489, Tref:20, k_rho:-1.85,
-   viscModel:'andrade', A:-5.20, B:1000.0,
-   Pv_A:6.9360, Pv_B:1170.966, Pv_C:226.232},
-
-  {id:'cctc',        name:'Carbon Tetrachloride (CCl₄)', cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1594, Tref:20, k_rho:-1.90,
-   viscModel:'andrade', A:-5.10, B:1050.0,
-   Pv_A:6.93390, Pv_B:1242.43, Pv_C:230.0},
-
-  {id:'tce',         name:'Trichloroethylene',            cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1462, Tref:20, k_rho:-1.60,
-   viscModel:'andrade', A:-4.80, B:1200.0,
-   Pv_A:6.9730, Pv_B:1315.0, Pv_C:217.0,
-   vp:[[0,3.36],[20,9.08],[40,21.6],[87.2,101.3]]},
-
-  {id:'pce',         name:'Perchloroethylene (PCE)',      cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1623, Tref:20, k_rho:-1.70,
-   viscModel:'andrade', A:-4.60, B:1280.0,
-   vp:[[0,1.87],[20,1.93],[40,10.9],[60,24.8],[121.3,101.3]]},
-
-  // ── KETONES & ESTERS ──────────────────────────────────────────────────────
-  {id:'acetone',     name:'Acetone',                      cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:791, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.80, B:900.0,
-   Pv_A:7.11714, Pv_B:1210.595, Pv_C:229.664,
-   vp:[[0,9.9],[20,24.5],[40,53.7],[56,101.3]]},
-
-  {id:'mek',         name:'MEK (Methyl Ethyl Ketone)',    cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:805, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-5.40, B:1100.0,
-   Pv_A:7.0652, Pv_B:1261.34, Pv_C:221.97,
-   vp:[[0,3.5],[20,10.1],[40,25.0],[60,55],[79.6,101.3]]},
-
-  {id:'mibk',        name:'MIBK (Methyl Isobutyl Ketone)',cat:'Ketones & Esters',   isGas:false,
-   rhoModel:'linear', rho0:801, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.00, B:1150.0,
-   vp:[[0,1.0],[20,3.0],[40,8.0],[60,18.9],[115.9,101.3]]},
-
-  {id:'cyclohexanone',name:'Cyclohexanone',               cat:'Ketones & Esters',   isGas:false,
-   rhoModel:'linear', rho0:948, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.20, B:1500.0,
-   vp:[[0,0.4],[20,0.53],[40,2.27],[60,8.09],[80,22.8],[155.6,101.3]]},
-
-  {id:'ethacet',     name:'Ethyl Acetate',                cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:900, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.20, B:1090.0,
-   Pv_A:7.0145, Pv_B:1244.95, Pv_C:217.88},
-
-  {id:'butacet',     name:'Butyl Acetate',                cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:882, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.80, B:1250.0, vapFixed:0.015},
-
-  // ── ACIDS & BASES ─────────────────────────────────────────────────────────
-  {id:'h2so4_98',    name:'Sulfuric Acid 98%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1840, Tref:25, k_rho:-0.70,
-   viscModel:'andrade', A:2.20, B:3700.0,
-   vp:[[20,3e-05],[100,0.01],[200,0.5]]},
-
-  {id:'h2so4_50',    name:'Sulfuric Acid 50%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1395, Tref:25, k_rho:-0.80,
-   viscModel:'andrade', A:-2.00, B:1800.0, vapFixed:0.020},
-
-  {id:'h2so4_10',    name:'Sulfuric Acid 10%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1066, Tref:25, k_rho:-0.45,
-   viscModel:'andrade', A:-3.60, B:1100.0,
-   vp:[[20,2.3],[50,10.0],[80,38],[100,90]]},
-
-  {id:'hcl30',       name:'Hydrochloric Acid 30%',       cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1149, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-4.00, B:1050.0, vapFixed:0.060},
-
-  {id:'hcl10',       name:'Hydrochloric Acid 10%',       cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1047, Tref:20, k_rho:-0.40,
-   viscModel:'andrade', A:-3.80, B:1000.0,
-   vp:[[10,25],[20,42],[30,65],[50,120]]},
-
-  {id:'hno3_65',     name:'Nitric Acid 65%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1391, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:1000.0, vapFixed:0.040},
-
-  {id:'hno3_30',     name:'Nitric Acid 30%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1180, Tref:20, k_rho:-0.70,
-   viscModel:'andrade', A:-4.20, B:1050.0,
-   vp:[[0,1.2],[20,3.0],[50,11.0],[80,35]]},
-
-  {id:'h3po4_85',    name:'Phosphoric Acid 85%',         cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1685, Tref:25, k_rho:-0.95,
-   viscModel:'andrade', A:0.50, B:3200.0,
-   vp:[[20,0.01],[60,0.04],[100,0.15],[150,1.0]]},
-
-  {id:'naoh30',      name:'NaOH (Caustic) 30%',          cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1328, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-3.00, B:1400.0, vapFixed:0.020},
-
-  {id:'naoh50',      name:'NaOH (Caustic) 50%',          cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1525, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-1.20, B:2000.0,
-   vp:[[20,0.5],[50,4.0],[80,25],[100,70]]},
-
-  {id:'koh30',       name:'KOH Solution 30%',            cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1290, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:-3.00, B:1500.0,
-   vp:[[20,1.5],[50,8.0],[80,35],[100,85]]},
-
-  {id:'aceticac',    name:'Acetic Acid (glacial)',        cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1049, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-4.20, B:1400.0,
-   Pv_A:7.38782, Pv_B:1533.313, Pv_C:222.309},
-
-  {id:'aceticac_50', name:'Acetic Acid 50%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1062, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-3.80, B:1350.0, vapFixed:0.040},
-
-  {id:'formicac',    name:'Formic Acid 85%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1193, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.60, B:1450.0, vapFixed:0.040},
-
-  {id:'ammonia_aq',  name:'Ammonia Solution 25%',        cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:910, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-4.50, B:900.0,
-   vp:[[0,0.55],[20,2.0],[40,6.5],[80,35],[100,90]]},
-
-  // ── LIQUEFIED GASES ────────────────────────────────────────────────────────
-  {id:'lpg',         name:'LPG (Propane/Butane mix)',    cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:530, Tref:20, k_rho:-1.80,
-   viscModel:'andrade', A:-7.00, B:700.0, vapFixed:8.0},
-
-  {id:'propane_liq', name:'Liquid Propane',              cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:493, Tref:20, k_rho:-1.90,
-   viscModel:'andrade', A:-7.20, B:650.0, vapFixed:8.4},
-
-  {id:'butane_liq',  name:'Liquid Butane',               cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:580, Tref:20, k_rho:-1.70,
-   viscModel:'andrade', A:-6.50, B:700.0, vapFixed:2.1},
-
-  {id:'ammonia_liq', name:'Liquid Ammonia',              cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:610, Tref:20, k_rho:-2.00,
-   viscModel:'andrade', A:-4.729, B:800.0,
-   vp:[[-50,40.8],[-40,71.7],[-33.35,101.3],[-20,190.1],[0,429.6],[20,857.2],[35,1351],[50,2032],[75,3588],[100,6253]]},
-  // ── AMMONIA (dual-phase: auto liquid/gas based on T & P) ─────────────────
-  {id:'ammonia',     name:'Ammonia (NH₃) — auto phase',   cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   // Antoine: log10(Pv/mmHg) = A - B/(C + T°C), valid -83 to 133°C
-   Pv_A:7.596673, Pv_B:1028.083, Pv_C:251.369,
-   Tc:132.25, Pc:112.8,
-   // Liquid phase
-   liq_rhoModel:'linear', liq_rho0:682.0, liq_Tref:-33.35, liq_k_rho:-1.88,
-   liq_viscModel:'andrade', liq_A:-6.743, liq_B:632.0,
-   // Gas phase
-   gas_rhoModel:'ideal_gas', gas_MW:17.03,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01010e-3, gas_T_ref:293.15, gas_C_su:370.0,
-   vp:[[-50,40.8],[-40,71.7],[-33.35,101.3],[-20,190.1],[0,429.6],[20,857.2],[35,1351],[50,2032],[75,3588],[100,6253]]},
-
-
-
-  {id:'co2_liq',     name:'Liquid CO₂ (subcritical)',    cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:773, Tref:20, k_rho:-3.50,
-   viscModel:'andrade', A:-7.50, B:600.0, vapFixed:57.3},
-
-  {id:'r134a',       name:'Refrigerant R-134a',          cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1206, Tref:20, k_rho:-3.50,
-   viscModel:'andrade', A:-6.00, B:800.0,
-   vp:[[-26.4,101.3],[0,293],[20,572],[40,1017],[60,1682]]},
-
-  {id:'r22',         name:'Refrigerant R-22',            cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1194, Tref:20, k_rho:-3.40,
-   viscModel:'andrade', A:-6.20, B:750.0,
-   vp:[[-40.8,101.3],[-20,245],[0,499],[20,909],[40,1535]]},
-
-  {id:'r410a',       name:'Refrigerant R-410A',          cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1062, Tref:20, k_rho:-3.80,
-   viscModel:'andrade', A:-6.50, B:720.0,
-   vp:[[-51.4,101.3],[-20,400],[0,799],[20,1358],[40,2143]]},
-
-  // ── GASES (ideal gas law for ρ, Sutherland for μ) ─────────────────────────
-  {id:'air',         name:'Air',                          cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.97,
-   viscModel:'sutherland', mu_ref:0.01827e-3, T_ref:291.15, C_su:120.0},
-
-  {id:'nitrogen',    name:'Nitrogen (N₂)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.01,
-   viscModel:'sutherland', mu_ref:0.01781e-3, T_ref:300.55, C_su:111.0},
-
-  {id:'oxygen',      name:'Oxygen (O₂)',                  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:32.00,
-   viscModel:'sutherland', mu_ref:0.02018e-3, T_ref:292.25, C_su:127.0},
-
-  {id:'hydrogen',    name:'Hydrogen (H₂)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:2.016,
-   viscModel:'sutherland', mu_ref:0.00876e-3, T_ref:293.85, C_su:72.0},
-
-  {id:'helium',      name:'Helium (He)',                  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:4.003,
-   viscModel:'sutherland', mu_ref:0.01960e-3, T_ref:273.15, C_su:79.4},
-
-  {id:'argon',       name:'Argon (Ar)',                   cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:39.95,
-   viscModel:'sutherland', mu_ref:0.02228e-3, T_ref:273.15, C_su:144.4},
-
-  {id:'co2gas',      name:'CO₂ Gas',                      cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:44.01,
-   viscModel:'sutherland', mu_ref:0.01480e-3, T_ref:293.15, C_su:240.0},
-
-  {id:'cogas',       name:'CO Gas (Carbon Monoxide)',     cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.01,
-   viscModel:'sutherland', mu_ref:0.01661e-3, T_ref:273.15, C_su:118.0},
-
-  {id:'methane',     name:'Methane (CH₄)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:16.04,
-   viscModel:'sutherland', mu_ref:0.01100e-3, T_ref:293.15, C_su:198.0},
-
-  {id:'ethane',      name:'Ethane (C₂H₆)',               cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:30.07,
-   viscModel:'sutherland', mu_ref:0.00900e-3, T_ref:293.15, C_su:252.0},
-
-  {id:'propgas',     name:'Propane Gas (C₃H₈)',          cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:44.10,
-   viscModel:'sutherland', mu_ref:0.00820e-3, T_ref:293.15, C_su:330.0},
-
-  {id:'natgas',      name:'Natural Gas (SG 0.65)',        cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:18.83,
-   viscModel:'sutherland', mu_ref:0.01100e-3, T_ref:293.15, C_su:180.0},
-
-  {id:'natgas_h',    name:'Natural Gas (SG 0.75, rich)',  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:21.73,
-   viscModel:'sutherland', mu_ref:0.01050e-3, T_ref:293.15, C_su:185.0},
-
-  {id:'h2s',         name:'Hydrogen Sulfide (H₂S)',       cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:34.08,
-   viscModel:'sutherland', mu_ref:0.01180e-3, T_ref:293.15, C_su:331.0},
-
-  {id:'so2',         name:'Sulfur Dioxide (SO₂)',         cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:64.06,
-   viscModel:'sutherland', mu_ref:0.01257e-3, T_ref:293.15, C_su:416.0},
-
-  {id:'chlorinegas', name:'Chlorine Gas (Cl₂)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:70.90,
-   viscModel:'sutherland', mu_ref:0.01330e-3, T_ref:293.15, C_su:351.0},
-
-  {id:'steam_gas',   name:'Steam (superheated)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:18.015,
-   viscModel:'sutherland', mu_ref:0.01200e-3, T_ref:373.15, C_su:1064.0},
-
-  {id:'ammgas',      name:'Ammonia Gas (NH₃)',            cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:17.03,
-   viscModel:'sutherland', mu_ref:0.01010e-3, T_ref:293.15, C_su:370.0},
-
-  {id:'fluegas',     name:'Flue Gas (typical)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:29.0,
-   viscModel:'sutherland', mu_ref:0.01900e-3, T_ref:473.15, C_su:110.0},
-
-  {id:'biogas',      name:'Biogas (60% CH₄, 40% CO₂)',   cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:27.22,
-   viscModel:'sutherland', mu_ref:0.01250e-3, T_ref:293.15, C_su:200.0},
-
-  {id:'syngas',      name:'Syngas (H₂+CO mixture)',       cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:15.50,
-   viscModel:'sutherland', mu_ref:0.01300e-3, T_ref:293.15, C_su:150.0},
-
-  {id:'hclgas',      name:'HCl Gas',                      cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:36.46,
-   viscModel:'sutherland', mu_ref:0.01426e-3, T_ref:273.15, C_su:360.0},
-
-  // ── CHEMICAL PROCESS ──────────────────────────────────────────────────────
-  {id:'dmf',         name:'DMF (Dimethylformamide)',       cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:944, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.50, B:1200.0, vapFixed:0.004},
-
-  {id:'dmso',        name:'DMSO (Dimethyl Sulfoxide)',     cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1101, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.50, B:1700.0, vapFixed:0.001},
-
-  {id:'thf',         name:'THF (Tetrahydrofuran)',          cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:889, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.20, B:1000.0,
-   Pv_A:6.9953, Pv_B:1202.29, Pv_C:226.25},
-
-  {id:'nmp',         name:'N-Methylpyrrolidone (NMP)',     cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1028, Tref:20, k_rho:-0.96,
-   viscModel:'andrade', A:-3.40, B:1700.0,
-   vp:[[20,0.04],[50,0.37],[80,2.4],[100,5.8],[202,101.3]]},
-
-  {id:'acetonitrile',name:'Acetonitrile (MeCN)',           cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:786, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.60, B:950.0,
-   Pv_A:7.1190, Pv_B:1314.4, Pv_C:230.0},
-
-  {id:'diethether',  name:'Diethyl Ether',                 cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:713, Tref:20, k_rho:-1.20,
-   viscModel:'andrade', A:-5.90, B:850.0,
-   Pv_A:6.9267, Pv_B:1064.07, Pv_C:228.799},
-
-  {id:'dioxane',     name:'1,4-Dioxane',                   cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.80, B:1250.0, vapFixed:0.038},
-
-  {id:'furfural',    name:'Furfural',                      cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1160, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.60, B:1600.0, vapFixed:0.003},
-
-  // ── FOOD & PHARMA ──────────────────────────────────────────────────────────
-  {id:'milk',        name:'Milk (whole)',                  cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1030, Tref:20, k_rho:-0.35,
-   viscModel:'andrade', A:-3.80, B:1100.0, vapFixed:0.023},
-
-  {id:'milk_skim',   name:'Skim Milk',                     cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-0.33,
-   viscModel:'andrade', A:-4.00, B:1050.0, vapFixed:0.023},
-
-  {id:'olive',       name:'Olive Oil',                     cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:910, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:1.00, B:3200.0, vapFixed:0.001},
-
-  {id:'sunflower',   name:'Sunflower Oil',                 cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:919, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:0.90, B:3000.0,
-   vp:[[40,0.001],[80,0.01],[100,0.03]]},
-
-  {id:'palmoil',     name:'Palm Oil',                      cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:891, Tref:50, k_rho:-0.67,
-   viscModel:'andrade', A:1.20, B:3400.0, vapFixed:0.001},
-
-  {id:'cornsyrup',   name:'Corn Syrup 63° Brix',          cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1303, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:3.20, B:3500.0, vapFixed:0.010},
-
-  {id:'honey',       name:'Honey',                         cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1420, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:5.00, B:4800.0, vapFixed:0.005},
-
-  // ── SPECIAL & METALS ──────────────────────────────────────────────────────
-  {id:'mercury',     name:'Mercury (liquid)',              cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:13534, Tref:20, k_rho:-2.45,
-   viscModel:'andrade', A:-3.50, B:800.0,
-   vp:[[20,0.000227],[100,0.016],[200,0.279],[356.7,101.3]]},
-
-  {id:'molten_s',    name:'Molten Sulfur',                 cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1800, Tref:130, k_rho:-0.95,
-   viscModel:'andrade', A:-3.80, B:1500.0, vapFixed:0.001},
-
-  {id:'slurry10',    name:'Slurry (10% solids)',           cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1100, Tref:20, k_rho:-0.35,
-   viscModel:'linear', mu0:5.0, Tref_mu:20, k_mu:-0.05, vapFixed:0.020},
-
-  {id:'slurry30',    name:'Slurry (30% solids)',           cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1350, Tref:20, k_rho:-0.40,
-   viscModel:'linear', mu0:20.0, Tref_mu:20, k_mu:-0.15, vapFixed:0.015},
-
-  {id:'slurry50',    name:'Slurry (50% solids, dense)',    cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1650, Tref:20, k_rho:-0.45,
-   viscModel:'linear', mu0:80.0, Tref_mu:20, k_mu:-0.40, vapFixed:0.010},
-
-  {id:'drilling_mud',name:'Drilling Mud (12 ppg)',         cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1440, Tref:25, k_rho:-0.50,
-   viscModel:'linear', mu0:30.0, Tref_mu:25, k_mu:-0.20, vapFixed:0.015},
-
-  // ── PROPANE (dual-phase) ──────────────────────────────────────────────────
-  {id:'propane',     name:'Propane (C₃H₈) — auto phase',  cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_A:6.82973, Pv_B:803.810, Pv_C:246.990,
-   Tc:96.68, Pc:42.48,
-   liq_rhoModel:'linear', liq_rho0:493.0, liq_Tref:-42.1, liq_k_rho:-1.90,
-   liq_viscModel:'andrade', liq_A:-7.20, liq_B:650.0,
-   gas_rhoModel:'ideal_gas', gas_MW:44.10,
-   gas_viscModel:'sutherland', gas_mu_ref:0.00820e-3, gas_T_ref:293.15, gas_C_su:330.0,
-   vp:[[-42.1,101.3],[-30,161],[-20,245],[0,474],[20,879],[40,1530],[50,1771],[96.68,4248]]},
-
-  // ── CO₂ (dual-phase) ─────────────────────────────────────────────────────
-  {id:'co2',         name:'CO₂ — auto phase',              cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_form:'cc_ln', Pv_A:10.79, Pv_B:-1977,
-   Tc:31.04, Pc:73.77,
-   liq_rhoModel:'linear', liq_rho0:773.0, liq_Tref:20.0, liq_k_rho:-3.50,
-   liq_viscModel:'andrade', liq_A:-7.50, liq_B:600.0,
-   gas_rhoModel:'ideal_gas', gas_MW:44.01,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01480e-3, gas_T_ref:293.15, gas_C_su:240.0,
-   vp:[[-56.6,517],[-40,1013],[-20,1969],[0,3484],[20,5729],[30,7176]]},
-
-  // ── WATER / STEAM (dual-phase) ────────────────────────────────────────────
-  {id:'water_steam', name:'Water/Steam — auto phase',       cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_A:8.07131, Pv_B:1730.63, Pv_C:233.426,
-   Tc:373.95, Pc:220.64,
-   liq_rhoModel:'poly_water', 
-   liq_viscModel:'andrade', liq_A:-3.5985, liq_B:1061.0,
-   gas_rhoModel:'ideal_gas', gas_MW:18.015,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01200e-3, gas_T_ref:373.15, gas_C_su:1064.0,
-   vp:[[0,0.611],[20,2.338],[40,7.384],[60,19.94],[80,47.39],[100,101.3],[120,198.5],[150,476.2],[200,1554],[250,3975],[300,8592],[373.95,22064]]},
-
-];
+// [DEDUP] removed duplicate declaration of: FLUID_DB
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROPERTY CALCULATION ENGINE
@@ -2556,10 +1849,7 @@ function toSI_pump(inp) {
 
 /* ─── Finite output guard ────────────────────────────────────────────── */
 // JSON.stringify silently converts Infinity/NaN → null, hiding errors from client.
-function assertFinite(val, label) {
-  if (!isFinite(val))
-    throw new Error(`Computed "${label}" is not finite — check input magnitudes.`);
-}
+// [DEDUP] removed duplicate declaration of: assertFinite
 
 /* ─── Main calculation ───────────────────────────────────────────────── */
 function pumpCalc(params) {
@@ -2655,11 +1945,7 @@ function pumpCalc(params) {
 }
 
 /* ─── CORS helper ────────────────────────────────────────────────────── */
-function setCORS(res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
+// [DEDUP] removed duplicate declaration of: setCORS
 
 /* ─── Vercel handler ─────────────────────────────────────────────────── */
 
@@ -2917,7 +2203,7 @@ function calcCarnot({TH,TC,QH,actual}){
  * Response (JSON): full result object or { error: "..." }
  */
 
-const config = { runtime: 'nodejs' };
+// [DEDUP] removed duplicate declaration of: config
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IAPWS-IF97  REGION 2  (superheated steam)
@@ -3091,81 +2377,10 @@ function h_water(T_C, P_MPa) {
 // SATURATION TABLES & INTERPOLATION
 // ─────────────────────────────────────────────────────────────────────────────
 // [T_C, hf, hfg, hg, sf, sfg, sg, vf, vg]
-const SAT_T = [
-  [  0.01,   0.00, 2501.4, 2501.4, 0.0000, 9.1562, 9.1562, 0.0010002, 206.140],
-  [     5,  21.02, 2489.6, 2510.6, 0.0763, 8.9496, 9.0259, 0.0010001, 147.120],
-  [    10,  42.02, 2477.7, 2519.7, 0.1511, 8.7488, 8.8999, 0.0010003, 106.380],
-  [    15,  62.98, 2465.9, 2528.9, 0.2245, 8.5566, 8.7811, 0.0010009,  77.926],
-  [    20,  83.91, 2453.6, 2537.5, 0.2966, 8.3706, 8.6671, 0.0010018,  57.791],
-  [    25, 104.87, 2441.7, 2546.5, 0.3673, 8.1910, 8.5583, 0.0010029,  43.360],
-  [    30, 125.77, 2430.0, 2555.8, 0.4369, 8.0164, 8.4533, 0.0010044,  32.894],
-  [    35, 146.66, 2418.2, 2564.9, 0.5052, 7.8478, 8.3530, 0.0010060,  25.216],
-  [    40, 167.54, 2406.0, 2573.5, 0.5724, 7.6845, 8.2569, 0.0010079,  19.523],
-  [    45, 188.44, 2393.9, 2582.4, 0.6386, 7.5261, 8.1647, 0.0010099,  15.258],
-  [    50, 209.33, 2382.0, 2591.3, 0.7037, 7.3725, 8.0762, 0.0010121,  12.032],
-  [    60, 251.18, 2357.7, 2608.8, 0.8313, 7.0784, 7.9096, 0.0010171,   7.671],
-  [    70, 292.97, 2333.0, 2626.0, 0.9548, 6.7989, 7.7537, 0.0010228,   5.042],
-  [    80, 334.88, 2307.8, 2642.7, 1.0753, 6.5366, 7.6119, 0.0010292,   3.407],
-  [    90, 376.90, 2282.2, 2659.1, 1.1924, 6.2866, 7.4790, 0.0010361,   2.361],
-  [   100, 419.06, 2256.9, 2676.0, 1.3069, 6.0480, 7.3549, 0.0010435,  1.6720],
-  [   110, 461.14, 2229.7, 2690.8, 1.4185, 5.8194, 7.2379, 0.0010516,  1.2101],
-  [   120, 503.78, 2202.6, 2706.3, 1.5279, 5.6006, 7.1284, 0.0010603,  0.8917],
-  [   130, 546.37, 2174.2, 2720.5, 1.6346, 5.3906, 7.0252, 0.0010700,  0.6685],
-  [   140, 589.16, 2144.9, 2734.0, 1.7391, 5.1894, 6.9285, 0.0010803,  0.5089],
-  [   150, 632.18, 2114.3, 2746.5, 1.8416, 4.9961, 6.8377, 0.0010912,  0.3924],
-  [   160, 675.55, 2082.6, 2758.1, 1.9422, 4.8100, 6.7522, 0.0011029,  0.3071],
-  [   170, 719.08, 2049.5, 2768.5, 2.0412, 4.6297, 6.6709, 0.0011150,  0.2428],
-  [   180, 763.06, 2015.3, 2778.2, 2.1387, 4.4547, 6.5934, 0.0011281,  0.1940],
-  [   190, 807.57, 1979.0, 2786.4, 2.2349, 4.2844, 6.5192, 0.0011420,  0.1565],
-  [   200, 852.38, 1940.7, 2793.1, 2.3300, 4.1179, 6.4479, 0.0011565, 0.12721],
-  [   210, 897.76, 1900.7, 2798.5, 2.4245, 3.9583, 6.3828, 0.0011726, 0.10441],
-  [   220, 943.58, 1858.5, 2802.1, 2.5175, 3.7927, 6.3102, 0.0011891, 0.08619],
-  [   230, 990.21, 1813.8, 2804.0, 2.6099, 3.6234, 6.2333, 0.0012075, 0.07158],
-  [   240,1037.6,  1769.4, 2807.0, 2.7018, 3.4735, 6.1753, 0.0012270, 0.05977],
-];
+// [DEDUP] removed duplicate declaration of: SAT_T
 
 // [P_bar, T_C, hf, hg, sf, sg, vf, vg]
-const SAT_P = [
-  [  1.0,  99.63,  417.44, 2675.6, 1.3026, 7.3594, 0.001043, 1.6941],
-  [  2.0, 120.23,  504.68, 2706.7, 1.5301, 7.1268, 0.001061, 0.88574],
-  [  3.0, 133.55,  561.43, 2725.3, 1.6716, 6.9909, 0.001073, 0.60582],
-  [  4.0, 143.63,  604.66, 2738.1, 1.7764, 6.8959, 0.001084, 0.46242],
-  [  5.0, 151.86,  640.09, 2748.1, 1.8604, 6.8212, 0.001093, 0.37483],
-  [  6.0, 158.85,  670.38, 2756.4, 1.9308, 6.7600, 0.001101, 0.31567],
-  [  7.0, 165.00,  697.07, 2763.4, 1.9918, 6.7080, 0.001108, 0.27279],
-  [  8.0, 170.43,  720.87, 2769.1, 2.0461, 6.6628, 0.001115, 0.24049],
-  [  9.0, 175.38,  742.56, 2773.8, 2.0946, 6.6226, 0.001121, 0.21497],
-  [ 10.0, 179.91,  762.81, 2778.1, 2.1387, 6.5865, 0.001127, 0.19444],
-  [ 12.0, 187.99,  798.65, 2784.8, 2.2166, 6.5233, 0.001139, 0.16333],
-  [ 14.0, 195.07,  830.08, 2790.0, 2.2837, 6.4693, 0.001149, 0.14078],
-  [ 16.0, 201.41,  858.56, 2794.0, 2.3440, 6.4218, 0.001159, 0.12374],
-  [ 18.0, 207.11,  885.17, 2797.6, 2.3976, 6.3794, 0.001168, 0.11043],
-  [ 20.0, 212.42,  908.47, 2799.5, 2.4468, 6.3409, 0.001177, 0.099585],
-  [ 25.0, 224.00,  962.11, 2803.3, 2.5547, 6.2575, 0.001197, 0.079977],
-  [ 30.0, 233.90, 1008.4,  2804.2, 2.6457, 6.1869, 0.001216, 0.066628],
-  [ 35.0, 242.60, 1049.8,  2803.8, 2.7253, 6.1253, 0.001235, 0.057063],
-  [ 40.0, 250.40, 1087.4,  2801.4, 2.7966, 6.0696, 0.001252, 0.049779],
-  [ 45.0, 257.49, 1122.1,  2798.3, 2.8612, 6.0190, 0.001269, 0.044079],
-  [ 50.0, 263.99, 1154.4,  2794.3, 2.9202, 5.9737, 0.001286, 0.039457],
-  [ 60.0, 275.64, 1213.7,  2784.3, 3.0248, 5.8902, 0.001319, 0.032445],
-  [ 70.0, 285.88, 1267.4,  2772.1, 3.1210, 5.8133, 0.001352, 0.027370],
-  [ 80.0, 295.06, 1317.1,  2758.4, 3.2076, 5.7450, 0.001384, 0.023525],
-  [ 90.0, 303.40, 1363.2,  2742.8, 3.2857, 5.6811, 0.001418, 0.020489],
-  [100.0, 311.06, 1407.6,  2724.5, 3.3596, 5.6141, 0.001452, 0.018026],
-  [110.0, 318.15, 1450.3,  2705.0, 3.4295, 5.5473, 0.001489, 0.015985],
-  [120.0, 324.75, 1491.8,  2684.9, 3.4962, 5.4924, 0.001527, 0.014267],
-  [130.0, 330.93, 1532.0,  2662.9, 3.5605, 5.4295, 0.001567, 0.012721],
-  [140.0, 336.75, 1571.0,  2638.7, 3.6229, 5.3717, 0.001611, 0.011485],
-  [150.0, 342.24, 1609.0,  2614.5, 3.6834, 5.3108, 0.001658, 0.010340],
-  [160.0, 347.44, 1650.5,  2580.6, 3.7428, 5.2455, 0.001710, 0.0093499],
-  [170.0, 352.37, 1690.7,  2548.5, 3.7996, 5.1832, 0.001765, 0.0083849],
-  [180.0, 357.06, 1732.0,  2509.1, 3.8553, 5.1044, 0.001840, 0.0074920],
-  [190.0, 361.54, 1776.5,  2468.4, 3.9102, 5.0218, 0.001926, 0.0066531],
-  [200.0, 365.81, 1826.3,  2409.7, 4.0139, 4.9269, 0.002036, 0.0058750],
-  [210.0, 369.89, 1886.3,  2336.8, 4.1014, 4.8013, 0.002213, 0.0051020],
-  [220.0, 373.71, 2010.3,  2192.4, 4.2887, 4.5481, 0.002790, 0.0037800],
-  [220.64,374.14, 2099.3,  2099.3, 4.4120, 4.4120, 0.003155, 0.0031550],
-];
+// [DEDUP] removed duplicate declaration of: SAT_P
 
 // ── PCHIP monotone interpolation ──────────────────────────────────────────────
 function pchipInterp(xs, ys, x) {
@@ -3202,69 +2417,16 @@ function satByT_fb(T_C) {
   return { hf, hfg, hg, vf, vg };
 }
 
-function satByP(P_bar) {
-  const xs = SAT_P.map(r=>r[0]);
-  if (P_bar < xs[0] || P_bar > xs[xs.length-1]) return null;
-  const hf  = pchipInterp(xs, SAT_P.map(r=>r[2]), P_bar);
-  const hg  = pchipInterp(xs, SAT_P.map(r=>r[3]), P_bar);
-  const vf  = pchipInterp(xs, SAT_P.map(r=>r[6]), P_bar);
-  return { hf, hg, hfg: hg-hf, vf };
-}
+// [DEDUP2] removed duplicate: satByP
 
 function hf_P(P_bar)  { const s=satByP(P_bar); return s?s.hf:NaN; }
 function hg_P(P_bar)  { const s=satByP(P_bar); return s?s.hg:NaN; }
 
 // ── Wagner saturation pressure (IAPWS-IF97 §8.1) ─────────────────────────────
-function pSat(T_C) {
-  const T = T_C + 273.15;
-  const Tc = 647.096, Pc = 220.64;
-  if (T >= Tc) return Pc;
-  if (T < 273.15) return NaN;
-  const tau = 1 - T/Tc;
-  const arg = (Tc/T) * (
-    -7.85951783  * tau        +
-     1.84408259  * Math.pow(tau, 1.5) +
-    -11.7866497  * Math.pow(tau, 3)   +
-     22.6807411  * Math.pow(tau, 3.5) +
-    -15.9618719  * Math.pow(tau, 4)   +
-      1.80122502 * Math.pow(tau, 7.5)
-  );
-  return Pc * Math.exp(arg);
-}
+// [DEDUP] removed duplicate declaration of: pSat
 
 // ── Robust Tsat solver: Newton + bisection fallback ──────────────────────────
-function tSat(P_bar) {
-  if (!isFinite(P_bar) || P_bar <= 0) return NaN;
-  if (P_bar >= 220.64) return 374.14;
-  if (P_bar < 0.006) return NaN;
-  let T;
-  if      (P_bar < 1)  T = 45 * Math.pow(P_bar, 0.28) + 20;
-  else if (P_bar < 10) T = 100 + 55 * Math.log10(P_bar);
-  else                 T = 160 + 65 * Math.log10(P_bar/10);
-  T = Math.max(1, Math.min(373, T));
-  let converged = false;
-  for (let i = 0; i < 80; i++) {
-    const P  = pSat(T);
-    if (!isFinite(P)) break;
-    const dP = (pSat(T+0.005) - pSat(T-0.005)) / 0.01;
-    if (!isFinite(dP) || Math.abs(dP) < 1e-12) break;
-    const dT = (P - P_bar) / dP;
-    T -= Math.max(-20, Math.min(20, dT));
-    if (Math.abs(dT) < 5e-8) { converged = true; break; }
-  }
-  if (!converged) {
-    let lo = 0.01, hi = 373.9;
-    for (let i = 0; i < 100; i++) {
-      const mid = (lo+hi)/2;
-      const P   = pSat(mid);
-      if (!isFinite(P)) break;
-      if (Math.abs(P - P_bar) < 1e-6) { T = mid; break; }
-      if (P < P_bar) lo = mid; else hi = mid;
-      T = mid;
-    }
-  }
-  return Math.max(0.01, Math.min(374.14, T));
-}
+// [DEDUP] removed duplicate declaration of: tSat
 
 // ── Critical-region flag ──────────────────────────────────────────────────────
 function criticalRegionWarning(P_bar, T_C) {
@@ -3366,34 +2528,10 @@ const SAT_TABLE = (() => {
 })();
 
 // ── Superheated steam table — [T°C, h(kJ/kg), s(kJ/kg·K), v(m³/kg)] ──
-const SH_FB = [
-  {P:1,   d:[[100,2676.2,7.361,1.696],[150,2776.5,7.615,1.937],[200,2875.5,7.835,2.172],[250,2974.5,8.033,2.406],[300,3074.3,8.217,2.639],[350,3175.8,8.390,2.871],[400,3279.6,8.545,3.103],[500,3488.1,8.834,3.565],[600,3705.4,9.102,4.028],[700,3928.7,9.352,4.490],[800,4159.0,9.586,4.952]]},
-  {P:5,   d:[[152,2748.7,6.821,0.375],[200,2855.4,7.059,0.425],[250,2961.0,7.272,0.474],[300,3064.2,7.460,0.523],[350,3168.1,7.633,0.570],[400,3272.3,7.794,0.617],[500,3484.9,8.087,0.711],[600,3704.3,8.352,0.804],[700,3927.1,8.605,0.897],[800,4157.8,8.840,0.990]]},
-  {P:10,  d:[[180,2778.1,6.587,0.1944],[200,2827.9,6.694,0.2060],[250,2942.6,6.925,0.2328],[300,3051.2,7.123,0.2579],[350,3157.7,7.301,0.2825],[400,3264.5,7.465,0.3066],[500,3478.5,7.762,0.3541],[600,3697.9,8.029,0.4011],[700,3922.5,8.281,0.4479],[800,4154.5,8.516,0.4945]]},
-  {P:20,  d:[[213,2799.5,6.341,0.0996],[250,2902.5,6.545,0.1114],[300,3023.5,6.768,0.1255],[350,3137.0,6.958,0.1385],[400,3248.7,7.127,0.1520],[500,3467.6,7.432,0.1757],[600,3687.9,7.702,0.1996],[700,3913.3,7.955,0.2233],[800,4142.0,8.192,0.2467]]},
-  {P:40,  d:[[251,2801.4,6.070,0.0498],[300,2962.0,6.362,0.0589],[350,3092.5,6.584,0.0666],[400,3213.6,6.771,0.0734],[500,3445.3,7.090,0.0864],[600,3670.3,7.369,0.0989],[700,3894.9,7.624,0.1112],[800,4122.0,7.861,0.1234]]},
-  {P:60,  d:[[276,2784.3,5.890,0.0324],[300,2885.5,6.070,0.0362],[350,3043.4,6.336,0.0421],[400,3178.3,6.545,0.0474],[450,3301.8,6.719,0.0522],[500,3422.2,6.883,0.0567],[600,3658.4,7.169,0.0653],[700,3876.1,7.428,0.0736],[800,4095.0,7.667,0.0818]]},
-  {P:80,  d:[[295,2758.4,5.745,0.0235],[300,2786.5,5.794,0.0243],[350,2988.1,6.132,0.0299],[400,3139.4,6.366,0.0343],[500,3398.3,6.727,0.0398],[600,3633.2,7.059,0.0480],[700,3857.2,7.321,0.0543],[800,4074.0,7.562,0.0604]]},
-  {P:100, d:[[311,2725.5,5.614,0.0180],[350,2924.5,5.945,0.0228],[400,3096.5,6.212,0.0264],[450,3249.0,6.419,0.0297],[500,3374.2,6.599,0.0328],[600,3625.3,6.903,0.0384],[700,3838.2,7.176,0.0427],[800,4053.0,7.418,0.0487]]},
-  {P:120, d:[[325,2684.9,5.492,0.0143],[360,2820.0,5.752,0.0165],[400,3051.6,6.004,0.0208],[450,3215.9,6.233,0.0236],[500,3350.7,6.425,0.0262],[600,3582.3,6.742,0.0308],[700,3793.5,7.027,0.0351],[800,4032.0,7.271,0.0405]]},
-  {P:140, d:[[337,2637.6,5.372,0.0115],[360,2753.0,5.581,0.0132],[400,3001.9,5.845,0.0166],[450,3182.5,6.086,0.0191],[500,3323.1,6.285,0.0214],[600,3541.2,6.604,0.0260],[700,3762.2,6.898,0.0302],[800,4011.0,7.143,0.0352]]},
-  {P:160, d:[[347,2580.6,5.246,0.0093],[380,2745.0,5.508,0.0115],[400,2947.0,5.693,0.0132],[450,3146.1,5.951,0.0157],[500,3295.0,6.156,0.0178],[600,3561.1,6.513,0.0214],[700,3732.3,6.781,0.0256],[800,3989.0,7.029,0.0302]]},
-  {P:180, d:[[357,2509.1,5.104,0.0075],[390,2748.0,5.484,0.0100],[400,2880.1,5.554,0.0107],[450,3104.9,5.827,0.0130],[500,3266.1,6.037,0.0149],[600,3542.0,6.409,0.0181],[700,3701.4,6.657,0.0218],[800,3968.0,6.909,0.0260]]},
-  {P:200, d:[[366,2409.7,4.927,0.0059],[395,2702.0,5.378,0.0085],[400,2818.1,5.472,0.0099],[450,3060.1,5.796,0.0121],[500,3239.3,6.018,0.0145],[600,3532.0,6.336,0.0175],[700,3670.6,6.589,0.0210],[800,3947.0,6.845,0.0249]]},
-];
+// [DEDUP] removed duplicate declaration of: SH_FB
 
 // ── Cubic-spline interpolation (exact copy from original) ──────
-function csplineInterp(xs, ys, x) {
-    const n = xs.length;
-    if (x <= xs[0]) return ys[0];
-    if (x >= xs[n-1]) return ys[n-1];
-    let i = 0;
-    for (let j = 0; j < n-1; j++) { if (xs[j] <= x && x <= xs[j+1]) { i=j; break; } }
-    const t=(x-xs[i])/(xs[i+1]-xs[i]), t2=t*t, t3=t2*t, h=xs[i+1]-xs[i];
-    const m1 = i>0     ? (ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]) : (ys[i+1]-ys[i])/h;
-    const m2 = i<n-2   ? (ys[i+2]-ys[i])  /(xs[i+2]-xs[i])   : (ys[i+1]-ys[i])/h;
-    return ys[i]*(2*t3-3*t2+1)+ys[i+1]*(-2*t3+3*t2)+m1*h*(t3-2*t2+t)+m2*h*(t3-t2);
-}
+// [DEDUP] removed duplicate declaration of: csplineInterp
 
 // ── Saturation props by pressure (exact copy from original getSatProps) ──
 function getSatProps(P_bar) {
@@ -3486,7 +2624,7 @@ async function handle_control_valve(req, body, res) {
   try {
     const d = body;
 
-    const d = req.body;
+// [DEDUP] removed duplicate d = req.body
 
     // ── RAW INPUTS ────────────────────────────────────────────────────────────
     const phase    = d.phase    || 'liq_gen';
@@ -3798,7 +2936,7 @@ async function handle_heatxpert(body, res) {
 async function handle_orifice_flow(body, res) {
   try {
 
-    const body = await readBody(req);
+// [DEDUP] body already passed as parameter
 
     // ── PARSE & NORMALISE ALL INPUTS TO SI ──────────────────────────
     const mode     = body.mode    || 'flow';
@@ -3856,12 +2994,7 @@ async function handle_pressure_drop(req, body, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return err(res, 405, 'Method not allowed');
 
-  let body;
-  try {
-    body = typeof req.body === 'object' ? req.body : JSON.parse(req.body);
-  } catch {
-    return err(res, 400, 'Invalid JSON body');
-  }
+  // body is already parsed by main handler
 
   const action = sanitizeString(body.action, 32);
 
@@ -3950,13 +3083,12 @@ async function handle_pressure_drop(req, body, res) {
   }
 
   return err(res, 400, `Unknown action: ${action}`);
-};
 }
 
 
 async function handle_psychrometric(body, res) {
   try {
-    const { action, payload } = req.body;
+    const { action, payload } = body;
 
     // ── STATE POINT ─────────────────────────────────────────
     if (action === 'statePoint') {
@@ -4026,7 +3158,6 @@ async function handle_psychrometric(body, res) {
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     console.error('[psychrometric]', err);
-  } catch (err) {
     return res.status(500).json({ error: err.message || 'Calculation error.' });
   }
 }
@@ -4069,10 +3200,6 @@ async function handle_rankine(body, res) {
 
 async function handle_steam_quench(req, body, res) {
   // body already parsed by router
-  // Re-wrap the original handler logic
-  let body;
-  try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
-  catch { res.status(400).json({ error: 'Invalid JSON body' }); return; }
 
   const {
     P_s,          // steam pressure (bara)
@@ -4433,16 +3560,14 @@ async function handle_steam_turbine(body, res) {
 
     } catch (err) {
         console.error('API error:', err);
-
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
+        return res.status(500).json({ error: err.message });
+    }
 }
 
 
 async function handle_steam(body, res) {
   try {
-    const { type, P_bar, T_C, x, specBy, sys } = req.body;
+    const { type, P_bar, T_C, x, specBy, sys } = body;
 
     // ── Input validation ──────────────────────────────────────────
     if (!type) return res.status(400).json({ error: 'Missing calculation type' });
@@ -4469,165 +3594,19 @@ async function handle_steam(body, res) {
 // Extracted from your original steam-properties-calculator
 // ================================================================
 
-function pSat(T_C) {
-  const T = T_C + 273.15;
-  const Tc = 647.096, Pc = 220.64;
-  if (T >= Tc) return Pc;
-  if (T < 273.15) return NaN;
-  const tau = 1 - T / Tc;
-  const arg = (Tc / T) * (
-    -7.85951783 * tau +
-     1.84408259 * Math.pow(tau, 1.5) +
-    -11.7866497 * Math.pow(tau, 3) +
-     22.6807411 * Math.pow(tau, 3.5) +
-    -15.9618719 * Math.pow(tau, 4) +
-     1.80122502 * Math.pow(tau, 7.5)
-  );
-  return Pc * Math.exp(arg);
-}
+// [DEDUP] removed duplicate declaration of: pSat
 
-function tSat(P_bar) {
-  if (!isFinite(P_bar) || P_bar <= 0) return NaN;
-  if (P_bar >= 220.64) return 374.14;
-  // For P > 80 bar the empirical guess overshoots the critical temperature and
-  // the Newton solver diverges. Use the SAT_P table for a much better starting guess.
-  let T;
-  if (P_bar > 80) {
-    // SAT_P table already covers 1–220.64 bar; interpolate for Tsat directly.
-    const xs = SAT_P.map(r => r[0]);
-    const ts = SAT_P.map(r => r[1]);
-    T = csplineInterp(xs, ts, P_bar) + 273.15;
-  } else {
-    T = 100 * Math.pow(P_bar / 1.01325, 0.27) + 273.15;
-  }
-  for (let i = 0; i < 60; i++) {
-    const Tc = T - 273.15;
-    const P  = pSat(Tc);
-    const dP = (pSat(Tc + 0.005) - pSat(Tc - 0.005)) / 0.01;
-    if (!isFinite(P) || !isFinite(dP) || dP === 0) break;
-    const dT = (P - P_bar) / dP;
-    T -= dT;
-    if (Math.abs(dT) < 1e-7) break;
-  }
-  return T - 273.15;
-}
+// [DEDUP] removed duplicate declaration of: tSat
 
 // NIST Saturation Tables
-const SAT_T = [
-  [  0.01,   0.00, 2501.4, 2501.4, 0.0000, 9.1562, 9.1562, 0.0010002, 206.140],
-  [     5,  21.02, 2489.6, 2510.6, 0.0763, 8.9496, 9.0259, 0.0010001, 147.120],
-  [    10,  42.02, 2477.7, 2519.7, 0.1511, 8.7488, 8.8999, 0.0010003, 106.380],
-  [    15,  62.98, 2465.9, 2528.9, 0.2245, 8.5566, 8.7811, 0.0010009,  77.926],
-  [    20,  83.91, 2453.6, 2537.5, 0.2966, 8.3706, 8.6671, 0.0010018,  57.791],
-  [    25, 104.87, 2441.7, 2546.5, 0.3673, 8.1910, 8.5583, 0.0010029,  43.360],
-  [    30, 125.77, 2430.0, 2555.8, 0.4369, 8.0164, 8.4533, 0.0010044,  32.894],
-  [    35, 146.66, 2418.2, 2564.9, 0.5052, 7.8478, 8.3530, 0.0010060,  25.216],
-  [    40, 167.54, 2406.0, 2573.5, 0.5724, 7.6845, 8.2569, 0.0010079,  19.523],
-  [    45, 188.44, 2393.9, 2582.4, 0.6386, 7.5261, 8.1647, 0.0010099,  15.258],
-  [    50, 209.33, 2382.0, 2591.3, 0.7037, 7.3725, 8.0762, 0.0010121,  12.032],
-  [    60, 251.18, 2357.7, 2608.8, 0.8313, 7.0784, 7.9096, 0.0010171,   7.671],
-  [    70, 292.97, 2333.0, 2626.0, 0.9548, 6.7989, 7.7537, 0.0010228,   5.042],
-  [    80, 334.88, 2307.8, 2642.7, 1.0753, 6.5366, 7.6119, 0.0010292,   3.407],
-  [    90, 376.90, 2282.2, 2659.1, 1.1924, 6.2866, 7.4790, 0.0010361,   2.361],
-  [   100, 419.06, 2256.9, 2676.0, 1.3069, 6.0480, 7.3549, 0.0010435,  1.6720],
-  [   110, 461.14, 2229.7, 2690.8, 1.4185, 5.8194, 7.2379, 0.0010516,  1.2101],
-  [   120, 503.78, 2202.6, 2706.3, 1.5279, 5.6006, 7.1284, 0.0010603,  0.8917],
-  [   130, 546.37, 2174.2, 2720.5, 1.6346, 5.3906, 7.0252, 0.0010700,  0.6685],
-  [   140, 589.16, 2144.9, 2734.0, 1.7391, 5.1894, 6.9285, 0.0010803,  0.5089],
-  [   150, 632.18, 2114.3, 2746.5, 1.8416, 4.9961, 6.8377, 0.0010912,  0.3924],
-  [   160, 675.55, 2082.6, 2758.1, 1.9422, 4.8100, 6.7522, 0.0011029,  0.3071],
-  [   170, 719.08, 2049.5, 2768.5, 2.0412, 4.6297, 6.6709, 0.0011150,  0.2428],
-  [   180, 763.06, 2015.3, 2778.2, 2.1387, 4.4547, 6.5934, 0.0011281,  0.1940],
-  [   190, 807.57, 1979.0, 2786.4, 2.2349, 4.2844, 6.5192, 0.0011420,  0.1565],
-  [   200, 852.38, 1940.7, 2793.1, 2.3300, 4.1179, 6.4479, 0.0011565, 0.12721],
-  [   210, 897.76, 1900.7, 2798.5, 2.4245, 3.9583, 6.3828, 0.0011726, 0.10441],
-  [   220, 943.58, 1858.5, 2802.1, 2.5175, 3.7927, 6.3102, 0.0011891, 0.08619],
-  [   230, 990.21, 1813.8, 2804.0, 2.6099, 3.6234, 6.2333, 0.0012075, 0.07158],
-  [   240, 1037.6, 1769.4, 2807.0, 2.7018, 3.4735, 6.1753, 0.0012270, 0.05977],
-];
-const SAT_P = [
-  [  1.0,  99.63,  417.44, 2675.6, 1.3026, 7.3594, 0.001043, 1.6941],
-  [  2.0, 120.23,  504.68, 2706.7, 1.5301, 7.1268, 0.001061, 0.88574],
-  [  3.0, 133.55,  561.43, 2725.3, 1.6716, 6.9909, 0.001073, 0.60582],
-  [  4.0, 143.63,  604.66, 2738.1, 1.7764, 6.8959, 0.001084, 0.46242],
-  [  5.0, 151.86,  640.09, 2748.1, 1.8604, 6.8212, 0.001093, 0.37483],
-  [  6.0, 158.85,  670.38, 2756.4, 1.9308, 6.7600, 0.001101, 0.31567],
-  [  7.0, 165.00,  697.07, 2763.4, 1.9918, 6.7080, 0.001108, 0.27279],
-  [  8.0, 170.43,  720.87, 2769.1, 2.0461, 6.6628, 0.001115, 0.24049],
-  [  9.0, 175.38,  742.56, 2773.8, 2.0946, 6.6226, 0.001121, 0.21497],
-  [ 10.0, 179.91,  762.81, 2778.1, 2.1387, 6.5865, 0.001127, 0.19444],
-  [ 12.0, 187.99,  798.65, 2784.8, 2.2166, 6.5233, 0.001139, 0.16333],
-  [ 14.0, 195.07,  830.08, 2790.0, 2.2837, 6.4693, 0.001149, 0.14078],
-  [ 16.0, 201.41,  858.56, 2794.0, 2.3440, 6.4218, 0.001159, 0.12374],
-  [ 18.0, 207.11,  885.17, 2797.6, 2.3976, 6.3794, 0.001168, 0.11043],
-  [ 20.0, 212.42,  908.47, 2799.5, 2.4468, 6.3409, 0.001177, 0.099585],
-  [ 25.0, 224.00,  962.11, 2803.3, 2.5547, 6.2575, 0.001197, 0.079977],
-  [ 30.0, 233.90, 1008.4,  2804.2, 2.6457, 6.1869, 0.001216, 0.066628],
-  [ 35.0, 242.60, 1049.8,  2803.8, 2.7253, 6.1253, 0.001235, 0.057063],
-  [ 40.0, 250.40, 1087.4,  2801.4, 2.7966, 6.0696, 0.001252, 0.049779],
-  [ 45.0, 257.49, 1122.1,  2798.3, 2.8612, 6.0190, 0.001269, 0.044079],
-  [ 50.0, 263.99, 1154.4,  2794.3, 2.9202, 5.9737, 0.001286, 0.039457],
-  [ 60.0, 275.64, 1213.7,  2784.3, 3.0248, 5.8902, 0.001319, 0.032445],
-  [ 70.0, 285.88, 1267.4,  2772.1, 3.1210, 5.8133, 0.001352, 0.027370],
-  [ 80.0, 295.06, 1317.1,  2758.4, 3.2076, 5.7450, 0.001384, 0.023525],
-  [ 90.0, 303.40, 1363.2,  2742.8, 3.2857, 5.6811, 0.001418, 0.020489],
-  [100.0, 311.06, 1407.6,  2724.5, 3.3596, 5.6141, 0.001452, 0.018026],
-  [110.0, 318.15, 1450.3,  2705.0, 3.4295, 5.5473, 0.001489, 0.015985],
-  [120.0, 324.75, 1491.8,  2684.9, 3.4962, 5.4924, 0.001527, 0.014267],
-  [130.0, 330.93, 1532.0,  2662.9, 3.5605, 5.4295, 0.001567, 0.012721],
-  [140.0, 336.75, 1571.0,  2638.7, 3.6229, 5.3717, 0.001611, 0.011485],
-  [150.0, 342.24, 1609.0,  2614.5, 3.6834, 5.3108, 0.001658, 0.010340],
-  [160.0, 347.44, 1650.5,  2580.6, 3.7428, 5.2455, 0.001710, 0.0093499],
-  [170.0, 352.37, 1690.7,  2548.5, 3.7996, 5.1832, 0.001765, 0.0083849],
-  [180.0, 357.06, 1732.0,  2509.1, 3.8553, 5.1044, 0.001840, 0.0074920],
-  [190.0, 361.54, 1776.5,  2468.4, 3.9102, 5.0218, 0.001926, 0.0066531],
-  [200.0, 365.81, 1826.3,  2409.7, 4.0139, 4.9269, 0.002036, 0.0058750],
-  [210.0, 369.89, 1886.3,  2336.8, 4.1014, 4.8013, 0.002213, 0.0051020],
-  [220.0, 373.71, 2010.3,  2192.4, 4.2887, 4.5481, 0.002790, 0.0037800],
-  [220.64,374.14, 2099.3,  2099.3, 4.4120, 4.4120, 0.003155, 0.0031550],
-];
+// [DEDUP] removed duplicate declaration of: SAT_T
+// [DEDUP] removed duplicate declaration of: SAT_P
 
-const SH_FB = [
-  {P:1,  d:[[100,2676.2,7.361,1.696],[150,2776.5,7.615,1.937],[200,2875.5,7.835,2.172],[250,2974.5,8.033,2.406],[300,3074.3,8.217,2.639],[350,3175.8,8.390,2.871],[400,3279.6,8.545,3.103],[500,3488.1,8.834,3.565],[600,3705.4,9.102,4.028],[700,3928.7,9.352,4.490],[800,4159.0,9.586,4.952]]},
-  {P:5,  d:[[152,2748.7,6.821,0.375],[200,2855.4,7.059,0.425],[250,2961.0,7.272,0.474],[300,3064.2,7.460,0.523],[350,3168.1,7.633,0.570],[400,3272.3,7.794,0.617],[500,3484.9,8.087,0.711],[600,3704.3,8.352,0.804],[700,3927.1,8.605,0.897],[800,4157.8,8.840,0.990]]},
-  {P:10, d:[[180,2778.1,6.587,0.1944],[200,2827.9,6.694,0.2060],[250,2942.6,6.925,0.2328],[300,3051.2,7.123,0.2579],[350,3157.7,7.301,0.2825],[400,3264.5,7.465,0.3066],[500,3478.5,7.762,0.3541],[600,3697.9,8.029,0.4011],[700,3922.5,8.281,0.4479],[800,4154.5,8.516,0.4945]]},
-  {P:20, d:[[213,2799.5,6.341,0.0996],[250,2902.5,6.545,0.1114],[300,3023.5,6.768,0.1255],[350,3137.0,6.958,0.1385],[400,3248.7,7.127,0.1520],[500,3467.6,7.432,0.1757],[600,3687.9,7.702,0.1996],[700,3913.3,7.955,0.2233],[800,4142.0,8.192,0.2467]]},
-  {P:40, d:[[251,2801.4,6.070,0.0498],[300,2962.0,6.362,0.0589],[350,3092.5,6.584,0.0666],[400,3213.6,6.771,0.0734],[500,3445.3,7.090,0.0864],[600,3670.3,7.369,0.0989],[700,3894.9,7.624,0.1112],[800,4122.0,7.861,0.1234]]},
-  {P:60, d:[[276,2784.3,5.890,0.0324],[300,2885.5,6.070,0.0362],[350,3043.4,6.336,0.0421],[400,3178.3,6.545,0.0474],[500,3422.2,6.883,0.0567],[600,3658.4,7.169,0.0653],[700,3876.1,7.428,0.0736],[800,4095.0,7.667,0.0818]]},
-  {P:80, d:[[295,2758.4,5.745,0.0235],[300,2786.5,5.794,0.0243],[350,2988.1,6.132,0.0299],[400,3139.4,6.366,0.0343],[500,3398.3,6.727,0.0398],[600,3633.2,7.059,0.0480],[700,3857.2,7.321,0.0543],[800,4074.0,7.562,0.0604]]},
-  {P:100,d:[[311,2725.5,5.614,0.0180],[350,2924.5,5.945,0.0228],[400,3096.5,6.212,0.0264],[450,3249.0,6.419,0.0297],[500,3374.2,6.599,0.0328],[600,3625.3,6.903,0.0384],[700,3838.2,7.176,0.0427],[800,4053.0,7.418,0.0487]]},
-  {P:120,d:[[325,2684.9,5.492,0.0143],[360,2820.0,5.752,0.0165],[400,3051.6,6.004,0.0208],[450,3215.9,6.233,0.0236],[500,3350.7,6.425,0.0262],[600,3582.3,6.742,0.0308],[700,3793.5,7.027,0.0351],[800,4032.0,7.271,0.0405]]},
-  {P:140,d:[[337,2637.6,5.372,0.0115],[360,2753.0,5.581,0.0132],[400,3001.9,5.845,0.0166],[450,3182.5,6.086,0.0191],[500,3323.1,6.285,0.0214],[600,3541.2,6.604,0.0260],[700,3762.2,6.898,0.0302],[800,4011.0,7.143,0.0352]]},
-  {P:160,d:[[347,2580.6,5.246,0.0093],[380,2745.0,5.508,0.0115],[400,2947.0,5.693,0.0132],[450,3146.1,5.951,0.0157],[500,3295.0,6.156,0.0178],[600,3561.1,6.513,0.0214],[700,3732.3,6.781,0.0256],[800,3989.0,7.029,0.0302]]},
-  {P:180,d:[[357,2509.1,5.104,0.0075],[390,2748.0,5.484,0.0100],[400,2880.1,5.554,0.0107],[450,3104.9,5.827,0.0130],[500,3266.1,6.037,0.0149],[600,3542.0,6.409,0.0181],[700,3701.4,6.657,0.0218],[800,3968.0,6.909,0.0260]]},
-  {P:200,d:[[366,2409.7,4.927,0.0059],[395,2702.0,5.378,0.0085],[400,2818.1,5.472,0.0099],[450,3060.1,5.796,0.0121],[500,3239.3,6.018,0.0145],[600,3532.0,6.336,0.0175],[700,3670.6,6.589,0.0210],[800,3947.0,6.845,0.0249]]},
-];
+// [DEDUP] removed duplicate declaration of: SH_FB
 
-function csplineInterp(xs, ys, x) {
-  const n = xs.length;
-  if (x <= xs[0]) return ys[0];
-  if (x >= xs[n-1]) return ys[n-1];
-  let i = 0;
-  for (let j = 0; j < n-1; j++) { if (xs[j] <= x && x <= xs[j+1]) { i=j; break; } }
-  const t=(x-xs[i])/(xs[i+1]-xs[i]), t2=t*t, t3=t2*t, h=xs[i+1]-xs[i];
-  const m1 = i>0 ? (ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]) : (ys[i+1]-ys[i])/h;
-  const m2 = i<n-2 ? (ys[i+2]-ys[i])/(xs[i+2]-xs[i]) : (ys[i+1]-ys[i])/h;
-  return ys[i]*(2*t3-3*t2+1)+ys[i+1]*(-2*t3+3*t2)+m1*h*(t3-2*t2+t)+m2*h*(t3-t2);
-}
+// [DEDUP] removed duplicate declaration of: csplineInterp
 
-function satByT_fb(T_C) {
-  if (T_C < 0.01 || T_C > 374.14) return null;
-  let row;
-  if (T_C <= 240) {
-    const xs = SAT_T.map(r=>r[0]);
-    const interp = c => csplineInterp(xs, SAT_T.map(r=>r[c]), T_C);
-    row = { T:T_C, hf:interp(1), hfg:interp(2), hg:interp(3), sf:interp(4), sfg:interp(5), sg:interp(6), vf:interp(7), vg:interp(8), P:pSat(T_C) };
-  } else {
-    const P = pSat(T_C);
-    row = satByP_fb(P);
-  }
-  return row;
-}
+// [DEDUP] removed duplicate declaration of: satByT_fb
 
 function satByP_fb(P_bar) {
   if (P_bar < 0.006 || P_bar > 220.9) return null;
@@ -4884,10 +3863,7 @@ function convertToImperial(r) {
   if (isFinite(c.Cp_f))  c.Cp_f  = c.Cp_f  * 0.238846;
   if (isFinite(c.Cp_g))  c.Cp_g  = c.Cp_g  * 0.238846;
   if (isFinite(c.w))     c.w     = c.w     * 3.28084;      // m/s → ft/s
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+  return c;
 }
 
 
