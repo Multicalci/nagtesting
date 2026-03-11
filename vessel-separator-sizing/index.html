@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pressure Vessel & Separator Sizing — ASME VIII | multicalci.com</title>
+<meta name="description" content="Free pressure vessel and gas-liquid separator sizing calculator per ASME VIII with wall thickness calculations.">
+<link rel="canonical" href="https://multicalci.com/vessel-separator-sizing/">
+<meta property="og:title" content="Pressure Vessel & Separator Sizing — ASME VIII | multicalci.com">
+<meta property="og:description" content="Free pressure vessel and gas-liquid separator sizing calculator per ASME VIII with wall thickness calculations.">
+<meta property="og:url" content="https://multicalci.com/vessel-separator-sizing/">
+<meta property="og:type" content="website">
+    <meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Vessel &amp; Separator Sizing — ASME VIII | multicalci.com">
+    <meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="multicalci.com">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Pressure Vessel and Separator Sizing Calculator","description":"Free pressure vessel wall thickness and gas-liquid separator sizing calculator per ASME Section VIII, API and GPSA standards.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/vessel-separator-sizing/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg:#f0f3f8; --white:#fff; --border:#c5d0e0; --border-strong:#7a96b8;
+  --accent:#0a3560; --accent2:#0f5e30; --accent-light:#d8eaf8; --accent2-light:#d4f0e0;
+  --orange:#b84800; --orange-bg:#fff0e0; --green:#0b4a28; --green-bg:#e0f4ea;
+  --red:#8a0018; --red-bg:#ffebee;
+  --text:#0a1420; --muted:#384e66; --label:#1a2c42;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  --shadow:0 2px 12px rgba(0,0,0,.09); --r:8px;
+  --notice-high:#fff5e0; --notice-high-border:#e09820; --notice-high-text:#6a2e00;
+  --notice-imp:#e8f2fc; --notice-imp-border:#5a96d8; --notice-imp-text:#0a2d5e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,#0a3560 0%,#0d5499 60%,#1668c8 100%);
+  padding:1rem 2rem;display:flex;align-items:center;gap:1.2rem;
+  box-shadow:0 3px 18px rgba(10,53,96,.4);position:sticky;top:0;z-index:100}
+.logo-mark{width:46px;height:46px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);color:#fff;font-size:12px;font-weight:700;flex-shrink:0;line-height:1.2;text-align:center}
+.header-text{flex:1}
+header h1{font-size:1.15rem;font-weight:700;color:#fff;letter-spacing:.02em}
+header p{font-size:.8rem;color:rgba(255,255,255,.75);font-family:var(--mono);margin-top:2px}
+.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+  color:rgba(255,255,255,.9);font-family:var(--mono);font-size:.72rem;
+  padding:4px 10px;border-radius:12px;letter-spacing:.08em;white-space:nowrap}
+
+/* ── NAV ── */
+.tool-nav{background:var(--white);border-bottom:2px solid var(--border);padding:0 1.2rem;
+  display:flex;align-items:stretch;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;position:sticky;top:68px;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.tool-nav::-webkit-scrollbar{display:none}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:.7rem 1.1rem;
+  border:none;background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--sans);font-size:.74rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;border-bottom:3px solid transparent;transition:all .16s;
+  white-space:nowrap;margin-bottom:-2px}
+.nav-btn .ni{font-size:1.2rem}
+.nav-btn:hover{color:var(--accent);background:var(--accent-light)}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-light)}
+
+/* ── SLIDES ── */
+.slides-wrapper{position:relative;overflow:hidden}
+.slides-track{display:flex;transition:transform .36s cubic-bezier(.4,0,.2,1);will-change:transform}
+.slide{flex:0 0 100%;width:100%;padding:1.6rem 2rem 2.5rem;min-height:calc(100vh - 128px)}
+.slide-inner{max-width:900px;margin:0 auto}
+
+.slide-title{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:1rem;margin-bottom:1.4rem;padding-bottom:.9rem;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.stl{display:flex;align-items:center;gap:.8rem}
+.tool-icon{width:40px;height:40px;background:var(--accent);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;color:#fff}
+.tool-icon.g{background:var(--accent2)}
+.slide-title h2{font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+.slide-title p{font-size:.78rem;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
+/* ── UNIT TOGGLE ── */
+.unit-toggle{display:flex;align-items:center;background:#e2edf8;border:1px solid #b0caea;
+  border-radius:20px;padding:2px;gap:2px;flex-shrink:0}
+.unit-btn{padding:5px 12px;border-radius:16px;border:none;font-size:.73rem;
+  font-family:var(--mono);font-weight:700;cursor:pointer;letter-spacing:.05em;
+  transition:all .14s;background:transparent;color:var(--accent)}
+.unit-btn.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(10,53,96,.3)}
+
+/* ── NOTICE BANDS ── */
+.hip-notice{display:none;padding:.65rem 1rem;background:var(--notice-high);
+  border:1.5px solid var(--notice-high-border);border-radius:6px;
+  font-family:var(--mono);font-size:.82rem;color:var(--notice-high-text);
+  font-weight:600;line-height:1.6;margin-bottom:.8rem}
+.imp-notice{display:none;padding:.55rem 1rem;background:var(--notice-imp);
+  border:1.5px solid var(--notice-imp-border);border-radius:6px;
+  font-family:var(--mono);font-size:.78rem;color:var(--notice-imp-text);
+  font-weight:600;margin-bottom:.8rem}
+
+/* ── SECTION BOX ── */
+.section-box{background:var(--white);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:1.1rem;overflow:hidden}
+.section-head{background:linear-gradient(135deg,#edf3fb,#f2f6fb);
+  padding:.6rem 1rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:.5rem}
+.shd{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.section-head span{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.section-body{padding:1rem;display:flex;flex-direction:column;gap:.8rem}
+
+/* ── FORM ── */
+.fg{display:flex;flex-direction:column;gap:.28rem}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem}
+.fr4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.55rem}
+label{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--label);font-weight:700}
+.iw{display:flex;border:1.5px solid var(--border);border-radius:5px;
+  overflow:hidden;background:#fff;transition:border-color .14s}
+.iw:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,53,96,.1)}
+.iw input{flex:1;background:transparent;border:none;padding:.5rem .65rem;
+  color:#0a1420;font-family:var(--mono);font-size:.95rem;font-weight:600;outline:none;min-width:0}
+.iw input::placeholder{color:#7a92aa;font-weight:400}
+.iw select{border-left:1px solid var(--border);color:#1a2c42;font-size:.78rem;
+  background:#eaf0f8;cursor:pointer;font-weight:700;flex:0 0 auto;max-width:115px;
+  padding:0 .4rem;border:none;outline:none;font-family:var(--mono);border-left:1px solid var(--border)}
+select.field{width:100%;background:#fff;border:1.5px solid var(--border);
+  border-radius:5px;padding:.5rem .65rem;color:#0a1420;
+  font-family:var(--mono);font-size:.9rem;font-weight:600;outline:none;cursor:pointer;transition:border-color .14s}
+select.field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,53,96,.1)}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:.6rem;margin-top:.4rem;flex-wrap:wrap}
+.calc-btn{flex:1;min-width:150px;padding:.65rem;background:var(--accent);border:none;
+  border-radius:6px;color:#fff;font-family:var(--mono);font-size:.88rem;font-weight:700;
+  letter-spacing:.05em;cursor:pointer;text-transform:uppercase;
+  transition:background .14s,transform .1s,box-shadow .14s;
+  box-shadow:0 2px 8px rgba(10,53,96,.25)}
+.calc-btn:hover{background:#083050;transform:translateY(-1px);box-shadow:0 4px 14px rgba(10,53,96,.35)}
+.calc-btn:active{transform:translateY(0)}
+.pdf-btn{padding:.65rem 1rem;background:var(--orange);border:none;border-radius:6px;
+  color:#fff;font-family:var(--mono);font-size:.8rem;font-weight:700;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.04em;transition:background .14s;white-space:nowrap}
+.pdf-btn:hover{background:#9a3c00}
+.reset-btn{padding:.65rem .85rem;background:transparent;border:1.5px solid var(--border);
+  border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:.78rem;font-weight:600;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:all .14s}
+.reset-btn:hover{border-color:var(--border-strong);color:var(--text);background:#f2f5fa}
+
+/* ── RESULTS ── */
+.result-panel{display:none;background:var(--green-bg);border:1.5px solid #80c8a0;
+  border-radius:7px;overflow:hidden;animation:fadeIn .25s ease}
+.result-panel.show{display:block}
+.rph{background:linear-gradient(135deg,#cceedd,#e0f6ea);padding:.6rem 1rem;
+  border-bottom:1px solid #80c8a0;display:flex;align-items:center;justify-content:space-between}
+.rph span{font-size:.76rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--green);font-family:var(--mono)}
+.rbadge{font-size:.72rem;font-family:var(--mono);font-weight:700;
+  padding:3px 10px;border-radius:10px;letter-spacing:.06em}
+.bp{background:#1a7040;color:#fff} .bw{background:#c05000;color:#fff} .bf{background:#a0001a;color:#fff}
+.rbody{padding:1rem}
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.7rem}
+.rg2{grid-template-columns:repeat(2,1fr)!important}
+.rg4{grid-template-columns:repeat(4,1fr)!important}
+.ri{background:#fff;border:1px solid #90cca8;border-radius:5px;padding:.7rem .85rem}
+.rl{font-size:.7rem;color:#283d52;text-transform:uppercase;letter-spacing:.09em;
+  margin-bottom:4px;font-family:var(--sans);font-weight:700}
+.rv{font-size:1rem;color:#0a4020;font-weight:700;font-family:var(--mono)}
+.rv.w{color:#884000} .rv.f{color:#880018} .rv.s{font-size:.84rem}
+.rsub{font-size:.75rem;color:#283d52;margin-top:.5rem;font-family:var(--mono);
+  line-height:1.7;padding:.45rem .65rem;background:rgba(255,255,255,.7);
+  border-radius:4px;border:1px solid #b8d8c8}
+.prelim{margin-top:.5rem;font-size:.74rem;color:#5a2800;background:#fff3e0;
+  border:1px solid #e0a040;border-radius:4px;padding:.4rem .75rem;
+  font-family:var(--mono);font-weight:600}
+
+/* ── WARN / ERR ── */
+.warn-box{display:none;padding:.75rem 1rem;background:#fff4de;
+  border:1.5px solid #e09820;border-radius:6px;
+  font-size:.84rem;color:#5a2800;font-family:var(--mono);line-height:1.65;font-weight:600}
+.warn-box.show{display:block}
+.err-box{display:none;padding:.75rem 1rem;background:#ffecec;
+  border:1.5px solid #cc3030;border-radius:6px;
+  font-size:.84rem;color:#640000;font-family:var(--mono);font-weight:600}
+.err-box.show{display:block}
+
+.help-text{font-size:.8rem;color:#283d52;font-family:var(--mono);line-height:1.65;
+  padding:.5rem .8rem;background:#ecf2f8;border-left:3px solid #6888b0;
+  border-radius:0 4px 4px 0;font-weight:500}
+.formula-box{background:#e6eeff;border:1px solid #9ab4ee;border-radius:5px;
+  padding:.7rem 1rem;font-family:var(--mono);font-size:.82rem;color:#082a5a;line-height:1.8;font-weight:500}
+
+/* ── REF TABLES ── */
+.ref-table{width:100%;border-collapse:collapse;font-size:.86rem}
+.ref-table th{padding:.55rem .8rem;text-align:left;color:#1a2c42;font-weight:700;
+  font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;
+  border-bottom:2px solid var(--border);background:#d8e8f5}
+.ref-table td{padding:.44rem .72rem;border-bottom:1px solid var(--border);
+  color:#0a1420;font-family:var(--mono);font-weight:500}
+.ref-table tr:hover td{background:var(--accent-light)}
+.ref-table td:first-child{color:var(--accent);font-weight:700}
+.ref-table tbody tr:last-child td{border-bottom:none}
+
+/* ── SHARE BAR ── */
+.share-bar{display:flex;align-items:center;gap:.6rem;padding:.85rem 2rem;
+  background:#fff;border-top:1px solid var(--border);flex-wrap:wrap;justify-content:center}
+.share-label{font-family:var(--mono);font-size:.75rem;font-weight:700;color:var(--label);
+  text-transform:uppercase;letter-spacing:.1em;margin-right:.3rem}
+.share-btn{display:flex;align-items:center;gap:.4rem;padding:.4rem .85rem;
+  border-radius:6px;border:none;font-family:var(--mono);font-size:.75rem;
+  font-weight:700;cursor:pointer;text-decoration:none;letter-spacing:.04em;
+  transition:all .14s;white-space:nowrap}
+.share-btn:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.share-btn.tw{background:#000;color:#fff} .share-btn.li{background:#0077b5;color:#fff}
+.share-btn.wa{background:#25d366;color:#fff} .share-btn.cp{background:var(--accent);color:#fff}
+.share-btn.em{background:#555;color:#fff}
+.share-toast{display:none;position:fixed;bottom:1.5rem;right:1.5rem;
+  background:#0a3560;color:#fff;font-family:var(--mono);font-size:.8rem;
+  font-weight:700;padding:.6rem 1.1rem;border-radius:8px;z-index:9999;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);animation:fadeIn .2s ease}
+.snf{display:flex;justify-content:space-between;align-items:center;
+  margin-top:1.8rem;padding-top:.9rem;border-top:1.5px solid var(--border)}
+.snav-btn{display:flex;align-items:center;gap:.4rem;padding:.5rem 1rem;
+  border-radius:5px;border:1.5px solid var(--border);background:var(--white);
+  color:var(--accent);font-family:var(--mono);font-size:.8rem;font-weight:700;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:all .14s}
+.snav-btn:hover{background:var(--accent-light);border-color:var(--accent)}
+.snav-btn:disabled{opacity:.3;cursor:not-allowed}
+.snav-btn:disabled:hover{background:var(--white);border-color:var(--border)}
+.sctr{font-family:var(--mono);font-size:.78rem;color:var(--muted);letter-spacing:.1em;text-align:center}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
+  font-family:var(--mono);border-top:1px solid var(--border)}
+
+@media(max-width:700px){
+  .slide{padding:1rem 1rem 2rem} .rg{grid-template-columns:1fr 1fr}
+  header{padding:.85rem 1rem} .header-badge{display:none}
+}
+@media(max-width:480px){
+  .fr2,.fr3{grid-template-columns:1fr} .fr4{grid-template-columns:1fr 1fr}
+  .rg{grid-template-columns:1fr} .slide-title{flex-direction:column} .btn-row{flex-direction:column}
+}
+
+/* ── EDUCATION HUB ── */
+.edu-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1.2rem}
+.edu-tab{padding:.5rem 1rem;border-radius:5px;border:1.5px solid var(--border);
+  background:var(--white);font-family:var(--mono);font-size:.73rem;font-weight:700;
+  color:var(--muted);cursor:pointer;transition:all .14s;text-transform:uppercase;
+  letter-spacing:.06em;touch-action:manipulation}
+.edu-tab:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.edu-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.edu-pane{display:none}.edu-pane.active{display:block}
+.edu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;margin-bottom:1rem}
+.edu-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:var(--shadow);overflow:hidden}
+.edu-card-hd{background:linear-gradient(135deg,#edf3fb,#f2f6fb);padding:.6rem 1rem;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
+.edu-card-ico{width:30px;height:30px;border-radius:6px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.edu-card-ico.g{background:var(--accent2)}
+.edu-card-ico.o{background:var(--orange)}
+.edu-card-hd h4{font-size:.8rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--accent)}
+.edu-card-bd{padding:.9rem}
+.edu-concept{margin-bottom:.9rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)}
+.edu-concept:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.edu-concept-ttl{font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:.3rem;
+  display:flex;align-items:center;gap:.4rem}
+.edu-concept-txt{font-size:.79rem;color:var(--muted);line-height:1.7;margin-bottom:.5rem;font-family:var(--sans)}
+.edu-formula{background:#0a3560;border-radius:5px;padding:.7rem .9rem;
+  font-family:var(--mono);font-size:.73rem;color:rgba(255,255,255,.65);line-height:1.9}
+.edu-formula .hi{color:#60bfff;font-weight:700}
+.edu-formula .ye{color:#fcd34d;font-weight:700}
+.edu-formula .gr{color:#6ee7b7;font-weight:700}
+.edu-note{background:var(--notice-high);border-left:3px solid var(--notice-high-border);
+  border-radius:0 4px 4px 0;padding:.55rem .8rem;font-size:.77rem;
+  color:var(--notice-high-text);font-weight:600;margin-top:.5rem;
+  line-height:1.55;font-family:var(--mono)}
+.edu-warn{background:#ffecec;border-left:3px solid #cc3030;border-radius:0 4px 4px 0;
+  padding:.55rem .8rem;font-size:.77rem;color:#640000;font-weight:600;
+  margin-top:.5rem;line-height:1.55;font-family:var(--mono)}
+.edu-tip{background:var(--green-bg);border-left:3px solid #3aaa60;border-radius:0 4px 4px 0;
+  padding:.55rem .8rem;font-size:.77rem;color:var(--green);font-weight:600;
+  margin-top:.5rem;line-height:1.55;font-family:var(--mono)}
+.edu-ref-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.edu-banner{background:linear-gradient(135deg,#0a3560 0%,#0d5499 60%,#1668c8 100%);
+  border-radius:var(--r);padding:1.1rem 1.4rem;margin-bottom:1.2rem}
+.edu-banner h3{font-size:1rem;font-weight:700;color:#fff;margin-bottom:.25rem;letter-spacing:.03em}
+.edu-banner p{font-size:.78rem;color:rgba(255,255,255,.7);font-family:var(--mono);line-height:1.55}
+.edu-tag-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:.7rem}
+.edu-tag{padding:2px 8px;border-radius:10px;font-size:.65rem;font-weight:700;
+  letter-spacing:.04em;background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);
+  border:1px solid rgba(255,255,255,.25);font-family:var(--mono)}
+.quiz-card{background:var(--white);border:1px solid var(--border);
+  border-radius:var(--r);padding:1rem;margin-bottom:.8rem;box-shadow:var(--shadow)}
+.quiz-q{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.75rem;
+  line-height:1.55;font-family:var(--sans)}
+.quiz-opts{display:flex;flex-direction:column;gap:.45rem}
+.quiz-opt{display:flex;align-items:flex-start;gap:.6rem;padding:.6rem .85rem;
+  border-radius:5px;border:1.5px solid var(--border);background:#f4f7fb;
+  font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .12s;
+  text-align:left;width:100%;font-family:var(--mono);touch-action:manipulation}
+.quiz-opt:hover:not(.answered){background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.quiz-opt.correct{background:var(--green-bg);border-color:#3aaa60;color:var(--green);font-weight:700}
+.quiz-opt.wrong{background:#ffecec;border-color:#cc3030;color:#640000}
+.quiz-opt.answered{cursor:default}
+.quiz-explain{margin-top:.6rem;padding:.6rem .85rem;border-radius:5px;
+  background:var(--notice-imp);border-left:3px solid var(--notice-imp-border);
+  font-size:.77rem;color:var(--notice-imp-text);line-height:1.6;font-weight:600;
+  font-family:var(--mono)}
+.quiz-score-box{background:linear-gradient(135deg,#0a3560,#0d5499);border-radius:var(--r);
+  padding:1.5rem;text-align:center;margin-top:1rem}
+.quiz-score-num{font-family:var(--mono);font-size:2.5rem;font-weight:700;
+  color:#fcd34d;letter-spacing:.04em}
+.quiz-score-sub{font-size:.78rem;color:rgba(255,255,255,.6);margin-top:3px;font-family:var(--mono)}
+.quiz-reset-btn{margin-top:.9rem;padding:.55rem 1.4rem;border-radius:5px;
+  background:var(--accent-light);color:var(--accent);border:1.5px solid var(--accent);
+  font-family:var(--mono);font-size:.82rem;font-weight:700;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.05em}
+.quiz-reset-btn:hover{background:var(--accent);color:#fff}
+@media(max-width:600px){.edu-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+<a href="https://multicalci.com/" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex-shrink:0;" title="multicalci.com Home">
+  <div class="logo-mark" style="font-size:0.7rem;">M<br>.com</div>
+  <div style="line-height:1.2;">
+    <div style="font-size:0.65rem;font-weight:800;letter-spacing:1px;color:rgba(255,255,255,0.6);text-transform:uppercase;">multicalci.com</div>
+  </div>
+</a>
+  <div class="header-text">
+    <h1>Vessel &amp; Separator Sizing Calculator</h1>
+    <p>ASME / API / GPSA | Metric + Imperial | High-P NH₃/Urea corrections | v3.0</p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+    <div class="header-badge">REV 3.0</div>
+    <a href="https://multicalci.com/" style="display:inline-flex;align-items:center;gap:5px;padding:6px 13px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);border-radius:7px;color:#fff;font-size:0.75rem;font-weight:700;text-decoration:none;white-space:nowrap;" title="All Calculators">🏠 Home</a>
+  </div>
+</header>
+
+<nav class="tool-nav" id="toolNav">
+  <button class="nav-btn active" onclick="goTo(0)" id="navBtn0"><span class="ni">🛢</span>Horiz Sep.</button>
+  <button class="nav-btn" onclick="goTo(1)" id="navBtn1"><span class="ni">🏗</span>Vert Sep.</button>
+  <button class="nav-btn" onclick="goTo(2)" id="navBtn2"><span class="ni">💧</span>3-Phase Sep.</button>
+  <button class="nav-btn" onclick="goTo(3)" id="navBtn3"><span class="ni">⚗</span>Pressure Vessel</button>
+  <button class="nav-btn" onclick="goTo(4)" id="navBtn4"><span class="ni">🌬</span>Demister</button>
+  <button class="nav-btn" onclick="goTo(5)" id="navBtn5"><span class="ni">📐</span>Nozzle</button>
+  <button class="nav-btn" onclick="goTo(6)" id="navBtn6"><span class="ni">📋</span>Reference</button>
+  <button class="nav-btn" onclick="goTo(7)" id="navBtn7"><span class="ni">📚</span>Education</button>
+</nav>
+
+<div class="slides-wrapper">
+<div class="slides-track" id="slidesTrack">
+
+<!-- ══ SLIDE 0: HORIZONTAL 2-PHASE ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">🛢</div>
+      <div><h2>Horizontal 2-Phase Separator Sizing</h2>
+      <p>Gas–Liquid | Souders-Brown + P-correction | GPSA method | Surge + Level fraction</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-h2p">
+      <button class="unit-btn active" onclick="setUnit('h2p','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('h2p','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="hip-notice" id="hip-h2p"></div>
+  <div class="imp-notice" id="imp-h2p">ℹ Imperial mode: densities in lb/ft³, flows in ft³/min or BPD — all auto-converted to SI for calculation.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Process Conditions</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Gas Flow Rate (Qg)</label>
+          <div class="iw"><input type="number" id="h2p-qg" placeholder="e.g. 1000" step="any" min="0">
+          <select id="h2p-qg-u"><option value="m3h">m³/h</option><option value="mmscfd">MMSCFD</option><option value="ft3min">ft³/min</option></select></div></div>
+        <div class="fg"><label>Liquid Flow Rate (Ql)</label>
+          <div class="iw"><input type="number" id="h2p-ql" placeholder="e.g. 50" step="any" min="0">
+          <select id="h2p-ql-u"><option value="m3h">m³/h</option><option value="bpd">BPD</option><option value="gpm">gal/min</option></select></div></div>
+        <div class="fg"><label>Operating Pressure</label>
+          <div class="iw"><input type="number" id="h2p-P" placeholder="e.g. 10" step="any" min="0" oninput="checkHighP('h2p')">
+          <select id="h2p-Pu" onchange="checkHighP('h2p')"><option value="barg">barg</option><option value="bara">bara</option><option value="psia">psia</option><option value="MPa">MPag</option></select></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Operating Temperature</label>
+          <div class="iw"><input type="number" id="h2p-T" placeholder="e.g. 60" step="any">
+          <select id="h2p-Tu"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+        <div class="fg"><label>Gas Density (ρg)</label>
+          <div class="iw"><input type="number" id="h2p-rhog" placeholder="e.g. 8.5" step="any" min="0.01">
+          <select id="h2p-rhou-g"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Liquid Density (ρl)</label>
+          <div class="iw"><input type="number" id="h2p-rhol" placeholder="e.g. 850" step="any" min="0.1">
+          <select id="h2p-rhou-l"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Sizing Parameters</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Retention Time (tr)</label>
+          <div class="iw"><input type="number" id="h2p-tr" value="3" step="0.5" min="0.5" max="60"><select><option>min</option></select></div></div>
+        <div class="fg"><label>Surge Factor</label>
+          <div class="iw"><input type="number" id="h2p-surge" value="1.25" step="0.05" min="1" max="3"><select><option>×</option></select></div></div>
+        <div class="fg"><label>L/D Ratio</label>
+          <div class="iw"><input type="number" id="h2p-ld" value="3" step="0.5" min="1.5" max="8"><select><option>—</option></select></div></div>
+        <div class="fg"><label>K-Factor (m/s)</label>
+          <div class="iw"><input type="number" id="h2p-K" value="0.107" step="0.001" min="0.01"><select><option>m/s</option></select></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Liquid Level Fraction</label>
+          <select class="field" id="h2p-llfrac">
+            <option value="0.5">Half-full (50%) — standard</option>
+            <option value="0.4">Low liquid (40%)</option>
+            <option value="0.6">High liquid (60%)</option>
+            <option value="0.35">Slug flow (35%)</option>
+          </select></div>
+        <div class="fg"><label>Service / Foaming</label>
+          <select class="field" id="h2p-svc">
+            <option value="1.0">Normal (K × 1.0)</option>
+            <option value="0.75">Mild foam (K × 0.75)</option>
+            <option value="0.60">Foaming amine/urea (K × 0.60)</option>
+            <option value="0.50">Severe — NH₃ synthesis (K × 0.50)</option>
+          </select></div>
+        <div class="fg"><label>Design Margin (% Uterm)</label>
+          <div class="iw"><input type="number" id="h2p-margin" value="85" step="5" min="50" max="100"><select><option>%</option></select></div></div>
+      </div>
+      <div class="formula-box">
+        Uterm = K_eff × √[(ρl−ρg)/ρg] &nbsp;|&nbsp; K_eff = K × svcFactor × kPcorr(P)<br>
+        Vl_surge = Ql × tr × Surge &nbsp;|&nbsp; D³ = Vl_surge / (llfrac × π/4 × LD) &nbsp;[liquid governs]<br>
+        D² = Qg / (Udesign × (1−llfrac) × π/4) &nbsp;[gas governs] &nbsp;|&nbsp; D = max(D_liq, D_gas)
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calcH2P(this)">▶ Size Separator</button>
+        <button class="pdf-btn" onclick="exportPDF('h2p')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('h2p')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="h2p-err"></div>
+      <div class="warn-box" id="h2p-warn"></div>
+      <div class="result-panel" id="h2p-result">
+        <div class="rph"><span>Sizing Results</span><span class="rbadge bp" id="h2p-badge">PASS</span></div>
+        <div class="rbody" id="h2p-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" disabled>◀ Prev</button>
+  <div class="sctr">1 of 8</div>
+  <button class="snav-btn" onclick="goTo(1)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 1: VERTICAL 2-PHASE ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">🏗</div>
+      <div><h2>Vertical 2-Phase Separator Sizing</h2>
+      <p>Gas–Liquid | Souders-Brown | D from gas velocity + liquid height stack</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-v2p">
+      <button class="unit-btn active" onclick="setUnit('v2p','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('v2p','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="hip-notice" id="hip-v2p"></div>
+  <div class="imp-notice" id="imp-v2p">ℹ Imperial mode: densities in lb/ft³, flows auto-converted.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Process Conditions</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Gas Flow Rate (Qg)</label>
+          <div class="iw"><input type="number" id="v2p-qg" placeholder="e.g. 200" step="any" min="0">
+          <select id="v2p-qg-u"><option value="m3h">m³/h</option><option value="ft3min">ft³/min</option><option value="mmscfd">MMSCFD</option></select></div></div>
+        <div class="fg"><label>Liquid Flow Rate (Ql)</label>
+          <div class="iw"><input type="number" id="v2p-ql" placeholder="e.g. 10" step="any" min="0">
+          <select id="v2p-ql-u"><option value="m3h">m³/h</option><option value="gpm">gal/min</option><option value="bpd">BPD</option></select></div></div>
+        <div class="fg"><label>Operating Pressure</label>
+          <div class="iw"><input type="number" id="v2p-P" placeholder="e.g. 10" step="any" min="0" oninput="checkHighP('v2p')">
+          <select id="v2p-Pu" onchange="checkHighP('v2p')"><option value="barg">barg</option><option value="bara">bara</option><option value="psia">psia</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Operating Temperature</label>
+          <div class="iw"><input type="number" id="v2p-T" placeholder="e.g. 60" step="any">
+          <select id="v2p-Tu"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+        <div class="fg"><label>Gas Density (ρg)</label>
+          <div class="iw"><input type="number" id="v2p-rhog" placeholder="e.g. 6" step="any" min="0.01">
+          <select id="v2p-rhou-g"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Liquid Density (ρl)</label>
+          <div class="iw"><input type="number" id="v2p-rhol" placeholder="e.g. 820" step="any" min="0.1">
+          <select id="v2p-rhou-l"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Retention Time (tr)</label>
+          <div class="iw"><input type="number" id="v2p-tr" value="3" step="0.5" min="0.5"><select><option>min</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Surge Factor</label>
+          <div class="iw"><input type="number" id="v2p-surge" value="1.25" step="0.05" min="1"><select><option>×</option></select></div></div>
+        <div class="fg"><label>K-Factor (m/s)</label>
+          <div class="iw"><input type="number" id="v2p-K" value="0.107" step="0.001" min="0.01"><select><option>m/s</option></select></div></div>
+        <div class="fg"><label>Service / Foaming</label>
+          <select class="field" id="v2p-svc">
+            <option value="1.0">Normal (K × 1.0)</option>
+            <option value="0.75">Mild foam (K × 0.75)</option>
+            <option value="0.60">Foaming amine/urea (K × 0.60)</option>
+            <option value="0.50">Severe — NH₃ synthesis (K × 0.50)</option>
+          </select></div>
+        <div class="fg"><label>Design Margin (%)</label>
+          <div class="iw"><input type="number" id="v2p-margin" value="85" step="5" min="50" max="100"><select><option>%</option></select></div></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label>Min Boot/Sump Height</label>
+          <div class="iw"><input type="number" id="v2p-boot" value="0.3" step="0.1" min="0"><select><option>m</option></select></div></div>
+        <div class="fg"><label>Internals Allowance</label>
+          <div class="iw"><input type="number" id="v2p-intern" value="0.4" step="0.05" min="0" title="Inlet nozzle + demister clearance (m)"><select><option>m</option></select></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Calculate</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+        D_min = √(4×Qg / π×Udesign) &nbsp;|&nbsp; Hliq = Vl_surge/A_std + boot + deadband(0.15m)<br>
+        H_total = Hliq + 0.6×D (disengagement) + internals_allowance
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calcV2P(this)">▶ Size Separator</button>
+        <button class="pdf-btn" onclick="exportPDF('v2p')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('v2p')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="v2p-err"></div>
+      <div class="warn-box" id="v2p-warn"></div>
+      <div class="result-panel" id="v2p-result">
+        <div class="rph"><span>Sizing Results</span><span class="rbadge bp" id="v2p-badge">PASS</span></div>
+        <div class="rbody" id="v2p-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" onclick="goTo(0)">◀ Prev</button>
+  <div class="sctr">2 of 8</div>
+  <button class="snav-btn" onclick="goTo(2)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 2: 3-PHASE ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon g">💧</div>
+      <div><h2>3-Phase Horizontal Separator Sizing</h2>
+      <p>Oil–Water–Gas | Retention volumes + Stokes settling check + Interface control</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-3ph">
+      <button class="unit-btn active" onclick="setUnit('3ph','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('3ph','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="hip-notice" id="hip-3ph"></div>
+  <div class="imp-notice" id="imp-3ph">ℹ Imperial mode: densities in lb/ft³, flows auto-converted.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Flow Rates &amp; Densities</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Gas Flow (Qg)</label>
+          <div class="iw"><input type="number" id="p3-qg" placeholder="e.g. 500" step="any" min="0">
+          <select id="p3-qg-u"><option value="m3h">m³/h</option><option value="ft3min">ft³/min</option><option value="mmscfd">MMSCFD</option></select></div></div>
+        <div class="fg"><label>Oil Flow (Qo)</label>
+          <div class="iw"><input type="number" id="p3-qo" placeholder="e.g. 80" step="any" min="0">
+          <select id="p3-qo-u"><option value="m3h">m³/h</option><option value="bpd">BPD</option><option value="gpm">gal/min</option></select></div></div>
+        <div class="fg"><label>Water Flow (Qw)</label>
+          <div class="iw"><input type="number" id="p3-qw" placeholder="e.g. 40" step="any" min="0">
+          <select id="p3-qw-u"><option value="m3h">m³/h</option><option value="bpd">BPD</option><option value="gpm">gal/min</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Gas Density (ρg)</label>
+          <div class="iw"><input type="number" id="p3-rhog" placeholder="e.g. 10" step="any" min="0.01">
+          <select id="p3-rhou-g"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Oil Density (ρo)</label>
+          <div class="iw"><input type="number" id="p3-rhoo" placeholder="e.g. 820" step="any" min="0.1">
+          <select id="p3-rhou-o"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Water Density (ρw)</label>
+          <div class="iw"><input type="number" id="p3-rhow" placeholder="e.g. 1020" step="any" min="0.1">
+          <select id="p3-rhou-w"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Operating Pressure</label>
+          <div class="iw"><input type="number" id="p3-P" placeholder="e.g. 30" step="any" min="0" oninput="checkHighP('3ph')">
+          <select id="p3-Pu" onchange="checkHighP('3ph')"><option value="barg">barg</option><option value="bara">bara</option><option value="psia">psia</option></select></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Retention &amp; Settling</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Oil Ret. Time (min)</label>
+          <div class="iw"><input type="number" id="p3-tro" value="3" step="0.5" min="0.5"></div></div>
+        <div class="fg"><label>Water Ret. Time (min)</label>
+          <div class="iw"><input type="number" id="p3-trw" value="3" step="0.5" min="0.5"></div></div>
+        <div class="fg"><label>L/D Ratio</label>
+          <div class="iw"><input type="number" id="p3-ld" value="4" step="0.5" min="2" max="6"></div></div>
+        <div class="fg"><label>Surge Factor</label>
+          <div class="iw"><input type="number" id="p3-surge" value="1.25" step="0.05" min="1"></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>K-Factor (m/s)</label>
+          <div class="iw"><input type="number" id="p3-K" value="0.107" step="0.001" min="0.01"><select><option>m/s</option></select></div></div>
+        <div class="fg"><label>Service / Foaming</label>
+          <select class="field" id="p3-svc">
+            <option value="1.0">Normal (K × 1.0)</option>
+            <option value="0.75">Mild foam (K × 0.75)</option>
+            <option value="0.60">Foaming amine/urea (K × 0.60)</option>
+            <option value="0.50">Severe — NH₃ synthesis (K × 0.50)</option>
+          </select></div>
+        <div class="fg"><label>Oil Droplet Size (µm)</label>
+          <div class="iw"><input type="number" id="p3-dp" value="200" step="50" min="50"><select><option>µm</option></select></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Liquid Viscosity (cP)</label>
+          <div class="iw"><input type="number" id="p3-mu" value="2.0" step="0.1" min="0.1"><select><option>cP</option></select></div></div>
+        <div class="fg"><label>Water Boot Allowance</label>
+          <div class="iw"><input type="number" id="p3-boot" value="0.3" step="0.1" min="0"><select><option>m</option></select></div></div>
+        <div class="fg"><label>Interface Control Margin</label>
+          <div class="iw" title="Min. height reserved for interface level control (m)">
+          <input type="number" id="p3-icm" value="0.15" step="0.05" min="0.05"><select><option>m</option></select></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Calculate</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+        Stokes: Vs = dp²×(ρw−ρo)×g / (18×µ) &nbsp;|&nbsp; H_settle = Vs × t_dwell<br>
+        Water boot = H_water + boot_allowance + interface_control_margin<br>
+        D governed by max(D_liq_retention, D_gas_velocity)
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calc3P(this)">▶ Size 3-Phase Sep.</button>
+        <button class="pdf-btn" onclick="exportPDF('3ph')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('3ph')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="p3-err"></div>
+      <div class="warn-box" id="p3-warn"></div>
+      <div class="result-panel" id="p3-result">
+        <div class="rph"><span>Sizing Results</span><span class="rbadge bp" id="p3-badge">PASS</span></div>
+        <div class="rbody" id="p3-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" onclick="goTo(1)">◀ Prev</button>
+  <div class="sctr">3 of 8</div>
+  <button class="snav-btn" onclick="goTo(3)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 3: PRESSURE VESSEL ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">⚗</div>
+      <div><h2>Pressure Vessel Shell Thickness</h2>
+      <p>ASME Sec. VIII Div. 1 — Shell, heads, MAWP | UG-37 nozzle reinforcement notice | MDMT check</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-pv">
+      <button class="unit-btn active" onclick="setUnit('pv','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('pv','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="imp-notice" id="imp-pv">ℹ Imperial: pressure in psi (gauge), diameter in inches, stress in psi or ksi, CA in inches.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Design Parameters</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Design Pressure (P)</label>
+          <div class="iw"><input type="number" id="pv-P" placeholder="e.g. 15" step="any" min="0">
+          <select id="pv-Pu"><option value="barg">barg</option><option value="psi">psi (gauge)</option><option value="MPa">MPa (gauge)</option><option value="kPa">kPag</option></select></div></div>
+        <div class="fg"><label>Inner Diameter (D)</label>
+          <div class="iw"><input type="number" id="pv-D" placeholder="e.g. 1000" step="any" min="0">
+          <select id="pv-Du"><option value="mm">mm</option><option value="m">m</option><option value="in">inch</option></select></div></div>
+        <div class="fg"><label>Allowable Stress (S)</label>
+          <div class="iw"><input type="number" id="pv-S" placeholder="e.g. 138" step="any" min="0">
+          <select id="pv-Su"><option value="MPa">MPa</option><option value="psi">psi</option><option value="ksi">ksi</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Joint Efficiency (E)</label>
+          <div class="iw"><input type="number" id="pv-E" value="1.0" min="0.1" max="1.0" step="0.05">
+          <select id="pv-Ecat" onchange="syncE()" title="ASME weld category"><option value="1.0">E=1.0 — Full RT</option><option value="0.85">E=0.85 — Spot RT</option><option value="0.70">E=0.70 — No RT</option></select></div></div>
+        <div class="fg"><label>Corrosion Allow. (CA)</label>
+          <div class="iw"><input type="number" id="pv-CA" value="3" step="0.5" min="0">
+          <select id="pv-CAu"><option value="mm">mm</option><option value="in">inch</option></select></div></div>
+        <div class="fg"><label>Head Type</label>
+          <select class="field" id="pv-head">
+            <option value="ellipsoidal">2:1 Ellipsoidal [UG-32(d)]</option>
+            <option value="hemispherical">Hemispherical [UG-32(f)]</option>
+            <option value="conical30">Conical α=30° [UG-32(g)]</option>
+            <option value="conical45">Conical α=45° [UG-32(g)]</option>
+            <option value="flat">Flat Cover [UG-34 simplified ⚠]</option>
+          </select></div>
+        <div class="fg"><label>Min. Thickness Rule</label>
+          <select class="field" id="pv-minT">
+            <option value="2">2.0 mm (light service)</option>
+            <option value="3.175">3.175 mm (UG-16 standard)</option>
+            <option value="6">6.0 mm (pressure service)</option>
+          </select></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label>Operating Temperature (ASME check)</label>
+          <div class="iw"><input type="number" id="pv-T" placeholder="e.g. 200" step="any">
+          <select id="pv-Tu"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+        <div class="fg"><label>Design Category Note</label>
+          <select class="field" id="pv-cat">
+            <option value="prelim">Preliminary / Budgetary</option>
+            <option value="concept">Conceptual Design</option>
+            <option value="detailed">Detailed (engineer review required)</option>
+          </select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Calculate</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+        Shell [UG-27]: t = P×R/(S×E−0.6×P)+CA &nbsp;|&nbsp; MAWP = S×E×t_nom/(R+0.6×t_nom)<br>
+        Ellips. [UG-32(d)]: t = P×D/(2×S×E−0.2×P)+CA &nbsp;|&nbsp; Hemi. [UG-32(f)]: t = P×R/(2×S×E−0.2×P)+CA<br>
+        Conical [UG-32(g)]: t = P×D/(2cosα×(S×E−0.6×P))+CA &nbsp;|&nbsp; Hydrotest ≈ 1.3×MAWP (ASME Div.1)
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calcPV(this)">▶ Calculate Thickness</button>
+        <button class="pdf-btn" onclick="exportPDF('pv')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('pv')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="pv-err"></div>
+      <div class="warn-box" id="pv-warn"></div>
+      <div class="result-panel" id="pv-result">
+        <div class="rph"><span>Thickness Results</span><span class="rbadge bp" id="pv-badge">PASS</span></div>
+        <div class="rbody" id="pv-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" onclick="goTo(2)">◀ Prev</button>
+  <div class="sctr">4 of 8</div>
+  <button class="snav-btn" onclick="goTo(4)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 4: DEMISTER ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">🌬</div>
+      <div><h2>Demister / Mist Eliminator Sizing</h2>
+      <p>Wire mesh / vane pack / cyclonic — K with pressure correction + service derating</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-mist">
+      <button class="unit-btn active" onclick="setUnit('mist','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('mist','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="hip-notice" id="hip-mist"></div>
+  <div class="imp-notice" id="imp-mist">ℹ Imperial mode: densities in lb/ft³.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Process &amp; Device Data</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Gas Flow (Qg)</label>
+          <div class="iw"><input type="number" id="mist-qg" placeholder="e.g. 1000" step="any" min="0">
+          <select id="mist-qg-u"><option value="m3h">m³/h</option><option value="ft3min">ft³/min</option></select></div></div>
+        <div class="fg"><label>Gas Density (ρg)</label>
+          <div class="iw"><input type="number" id="mist-rhog" placeholder="e.g. 5" step="any" min="0.01">
+          <select id="mist-rhou-g"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+        <div class="fg"><label>Liquid Density (ρl)</label>
+          <div class="iw"><input type="number" id="mist-rhol" placeholder="e.g. 800" step="any" min="0.1">
+          <select id="mist-rhou-l"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Demister Type</label>
+          <select class="field" id="mist-type" onchange="syncMistK()">
+            <option value="wiremesh">Wire Mesh (K=0.107)</option>
+            <option value="vane">Vane Pack (K=0.18)</option>
+            <option value="cyclonic">Cyclonic (K=0.25)</option>
+            <option value="custom">Custom K-factor</option>
+          </select></div>
+        <div class="fg"><label>K-Factor (m/s)</label>
+          <div class="iw"><input type="number" id="mist-K" placeholder="0.107" step="0.001" min="0.01"><select><option>m/s</option></select></div></div>
+        <div class="fg"><label>Operating Pressure</label>
+          <div class="iw"><input type="number" id="mist-P" placeholder="e.g. 10" step="any" min="0" oninput="checkHighP('mist')">
+          <select id="mist-Pu" onchange="checkHighP('mist')"><option value="bara">bara</option><option value="barg">barg</option><option value="psia">psia</option></select></div></div>
+        <div class="fg"><label>Design Margin (%)</label>
+          <div class="iw"><input type="number" id="mist-margin" value="80" step="5" min="50" max="100"><select><option>%</option></select></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Service Factor</label>
+          <select class="field" id="mist-svc">
+            <option value="1.0">Normal service (×1.0)</option>
+            <option value="0.80">High liquid load (×0.80)</option>
+            <option value="0.75">Mild foaming (×0.75)</option>
+            <option value="0.60">Foaming amine/urea (×0.60)</option>
+            <option value="0.50">Severe NH₃ synthesis (×0.50)</option>
+          </select></div>
+        <div class="fg"><label>Pressure Correction</label>
+          <select class="field" id="mist-pcorr">
+            <option value="auto">Auto — GPSA Fig. 7-3</option>
+            <option value="none">None (use K as-is)</option>
+          </select></div>
+        <div class="fg"><label>Orientation</label>
+          <select class="field" id="mist-orient">
+            <option value="vert">Vertical vessel (upflow)</option>
+            <option value="horiz">Horizontal vessel</option>
+          </select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Calculate</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+        K_eff = K_base × K_pcorr(P) × ServiceFactor &nbsp;[GPSA Fig.7-3 pressure correction]<br>
+        Uterm = K_eff × √[(ρl−ρg)/ρg] &nbsp;|&nbsp; A_req = Qg / Udesign &nbsp;|&nbsp; D = √(4A_req/π)
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calcMist(this)">▶ Size Demister</button>
+        <button class="pdf-btn" onclick="exportPDF('mist')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('mist')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="mist-err"></div>
+      <div class="warn-box" id="mist-warn"></div>
+      <div class="result-panel" id="mist-result">
+        <div class="rph"><span>Sizing Results</span><span class="rbadge bp" id="mist-badge">PASS</span></div>
+        <div class="rbody" id="mist-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" onclick="goTo(3)">◀ Prev</button>
+  <div class="sctr">5 of 8</div>
+  <button class="snav-btn" onclick="goTo(5)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 5: NOZZLE ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">📐</div>
+      <div><h2>Vessel Nozzle / Connection Sizing</h2>
+      <p>Inlet / outlet / vent / drain — velocity + API ρv² momentum check, service-specific limits</p></div>
+    </div>
+    <div class="unit-toggle" id="ut-nz">
+      <button class="unit-btn active" onclick="setUnit('nz','SI',this)">SI</button>
+      <button class="unit-btn" onclick="setUnit('nz','Imp',this)">Imperial</button>
+    </div>
+  </div>
+  <div class="imp-notice" id="imp-nz">ℹ Imperial: flow in gal/min or ft³/min, density in lb/ft³, velocity in ft/s.</div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Nozzle Parameters</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Nozzle Service</label>
+          <select class="field" id="nz-svc" onchange="setNzDefaults()">
+            <option value="gas-inlet">Gas Inlet</option>
+            <option value="gas-outlet">Gas Outlet</option>
+            <option value="liq-inlet">Liquid Inlet</option>
+            <option value="liq-outlet">Liquid Outlet</option>
+            <option value="manway">Manway / Vent</option>
+            <option value="drain">Drain</option>
+          </select></div>
+        <div class="fg"><label>Volumetric Flow Rate</label>
+          <div class="iw"><input type="number" id="nz-Q" placeholder="e.g. 500" step="any" min="0">
+          <select id="nz-Qu"><option value="m3h">m³/h</option><option value="m3s">m³/s</option><option value="gpm">gal/min</option><option value="ft3min">ft³/min</option></select></div></div>
+        <div class="fg"><label>Fluid Density (ρ)</label>
+          <div class="iw"><input type="number" id="nz-rho" placeholder="e.g. 5" step="any" min="0.01">
+          <select id="nz-rhu"><option value="kgm3">kg/m³</option><option value="lbft3">lb/ft³</option></select></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Allowable Velocity</label>
+          <div class="iw"><input type="number" id="nz-vel" placeholder="e.g. 20" step="any" min="0.01">
+          <select id="nz-velu"><option value="ms">m/s</option><option value="fts">ft/s</option></select></div></div>
+        <div class="fg"><label>ρv² Limit (Pa)</label>
+          <div class="iw"><input type="number" id="nz-rhov2" value="4000" step="100" min="100"><select><option>Pa</option></select></div></div>
+        <div class="fg"><label>Pipe Schedule</label>
+          <select class="field" id="nz-sch">
+            <option value="std">Standard (Sch 40)</option>
+            <option value="xs">Extra Strong (Sch 80)</option>
+            <option value="xxs">XXS (Sch 160)</option>
+          </select></div>
+      </div>
+      <div class="help-text">
+        Gas inlet: 20–30 m/s | ρv² ≤ 4000 Pa &nbsp;·&nbsp; Gas outlet: ≤ 20 m/s &nbsp;·&nbsp; Liq inlet: 1–3 m/s | ρv² ≤ 15000 Pa &nbsp;·&nbsp; Liq outlet: ≤ 2 m/s &nbsp;·&nbsp; Drain: ≤ 1.5 m/s
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Calculate</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+        D_min = √(4×Q / π×v_allow) → select nearest NPS/DN &nbsp;|&nbsp; ρv²_act = ρ×v_act²<br>
+        API RP 14E / Shell DEP momentum check &nbsp;|&nbsp; UG-37 nozzle reinforcement NOT calculated here — separate analysis required.
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="calcNozzle(this)">▶ Size Nozzle</button>
+        <button class="pdf-btn" onclick="exportPDF('nz')">⬇ PDF</button>
+        <button class="reset-btn" onclick="resetTool('nz')">↺ Reset</button>
+      </div>
+      <div class="err-box" id="nz-err"></div>
+      <div class="warn-box" id="nz-warn"></div>
+      <div class="result-panel" id="nz-result">
+        <div class="rph"><span>Nozzle Sizing Results</span><span class="rbadge bp" id="nz-badge">OK</span></div>
+        <div class="rbody" id="nz-rb"></div>
+      </div>
+    </div>
+  </div>
+  <div class="snf"><button class="snav-btn" onclick="goTo(4)">◀ Prev</button>
+  <div class="sctr">6 of 8</div>
+  <button class="snav-btn" onclick="goTo(6)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 6: REFERENCE ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">📋</div>
+      <div><h2>Engineering Reference Tables</h2>
+      <p>K-factors | Retention times | ASME stresses | High-P NH₃/urea notes | Std diameters</p></div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Souders-Brown K-Factors (GPSA Fig.7-3)</span></div>
+    <div class="section-body" style="padding:0">
+      <table class="ref-table">
+        <thead><tr><th>Device</th><th>Service</th><th>K base (m/s)</th><th>Pressure range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Wire Mesh Pad</td><td>General gas-liq</td><td>0.107</td><td>1–70 bar</td><td>Standard GPSA default</td></tr>
+          <tr><td>Wire Mesh Pad</td><td>High-pressure</td><td>0.06–0.09</td><td>70–150 bar</td><td>Apply kPcorr(P)</td></tr>
+          <tr><td>Wire Mesh Pad</td><td>NH₃ synth. loop</td><td>0.05–0.07</td><td>150–300 bar</td><td>Use K×0.50–0.60 max</td></tr>
+          <tr><td>Vane Pack</td><td>Gas-liq</td><td>0.12–0.18</td><td>1–30 bar</td><td>Lower for high liquid load</td></tr>
+          <tr><td>Cyclonic</td><td>Gas-liq</td><td>0.20–0.28</td><td>1–50 bar</td><td>Manufacturer specific</td></tr>
+          <tr><td>Open vessel</td><td>No internals</td><td>0.04–0.06</td><td>Any</td><td>Conservative only</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Typical Retention Times (GPSA / API 12J)</span></div>
+    <div class="section-body" style="padding:0">
+      <table class="ref-table">
+        <thead><tr><th>Service</th><th>tr (min)</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Gas scrubber / KO drum</td><td>0.5–2</td><td>Low liquid loading</td></tr>
+          <tr><td>Oil-gas production sep.</td><td>1–3</td><td>Standard API 12J</td></tr>
+          <tr><td>3-phase sep. (oil pad)</td><td>3–5</td><td>Surge factor ×1.25</td></tr>
+          <tr><td>3-phase sep. (water boot)</td><td>3–10</td><td>Depends on emulsion tendency</td></tr>
+          <tr><td>Amine / glycol absorber</td><td>5–10</td><td>Foaming — apply K×0.60</td></tr>
+          <tr><td>NH₃ / urea synth. loop</td><td>2–5</td><td>High-P: K×0.50, momentum breaker required</td></tr>
+          <tr><td>Slug catcher</td><td>5–20</td><td>Pipeline service</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>ASME Sec. VIII Div. 1 — Allowable Stresses (ambient)</span></div>
+    <div class="section-body" style="padding:0">
+      <table class="ref-table">
+        <thead><tr><th>Material</th><th>Grade</th><th>S (MPa)</th><th>S (psi)</th><th>Max Temp (ASME)</th></tr></thead>
+        <tbody>
+          <tr><td>Carbon Steel</td><td>SA-516 Gr 70</td><td>138</td><td>20,000</td><td>260°C / 500°F — verify at T</td></tr>
+          <tr><td>Carbon Steel</td><td>SA-516 Gr 60</td><td>118</td><td>17,100</td><td>260°C</td></tr>
+          <tr><td>Low Alloy Steel</td><td>SA-387 Gr 11 Cl 2</td><td>155</td><td>22,500</td><td>400°C</td></tr>
+          <tr><td>SS 304L</td><td>SA-240 Tp 304L</td><td>115</td><td>16,700</td><td>425°C</td></tr>
+          <tr><td>SS 316L</td><td>SA-240 Tp 316L</td><td>115</td><td>16,700</td><td>425°C</td></tr>
+          <tr><td>Duplex 2205</td><td>SA-240 S31803</td><td>172</td><td>24,900</td><td>315°C (max 260°C for high P)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>High-Pressure &amp; Fabrication Notes (NH₃ / Urea Synthesis)</span></div>
+    <div class="section-body" style="padding:0">
+      <table class="ref-table">
+        <thead><tr><th>Topic</th><th>Guidance</th></tr></thead>
+        <tbody>
+          <tr><td>≥70 barg: K correction</td><td>Apply GPSA Fig.7-3 correction. Wire mesh efficiency drops significantly above 70 bar.</td></tr>
+          <tr><td>≥150 barg: NH₃ synth.</td><td>K×0.50–0.60 max. Thick-wall formula (ASME App.1-2) required. Confirm with vendor.</td></tr>
+          <tr><td>Inlet momentum breaker</td><td>Mandatory in synthesis loops. Baffle or half-pipe deflector to prevent direct impingement.</td></tr>
+          <tr><td>UG-37 nozzle reinf.</td><td>All nozzles and openings require separate UG-37 analysis or FEA — not covered here.</td></tr>
+          <tr><td>MDMT / Charpy</td><td>Below −29°C: UCS-66 Charpy impact testing required per ASME Div.1.</td></tr>
+          <tr><td>Plate rolling limit</td><td>Shop fabrication: typically ≤4.0 m ID. Above 3.5 m: confirm transport and crane capacity.</td></tr>
+          <tr><td>Min. plate thickness</td><td>CS: 6 mm min. (mill min); SS/Duplex: 4 mm min. for pressure service.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Standard Vessel Shell Diameters</span></div>
+    <div class="section-body" style="padding:0">
+      <table class="ref-table">
+        <thead><tr><th>DN / NPS</th><th>OD (mm)</th><th>Typical Service</th><th>Fabrication note</th></tr></thead>
+        <tbody>
+          <tr><td>DN 600 / 24"</td><td>610</td><td>Small separators, scrubbers</td><td>Shop fab</td></tr>
+          <tr><td>DN 900 / 36"</td><td>914</td><td>Production separators</td><td>Shop fab</td></tr>
+          <tr><td>DN 1200 / 48"</td><td>1219</td><td>Production trains</td><td>Shop fab</td></tr>
+          <tr><td>DN 1500 / 60"</td><td>1524</td><td>Large separators</td><td>Shop fab, wide-load transport</td></tr>
+          <tr><td>DN 1800 / 72"</td><td>1829</td><td>Slug catchers</td><td>Permit transport required</td></tr>
+          <tr><td>DN 2400 / 96"</td><td>2438</td><td>Very large vessels</td><td>Special transport / field assemble</td></tr>
+          <tr><td>DN 3000 / 120"</td><td>3048</td><td>Field-fabricated only</td><td>Field weld, rolling limit check</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="snf"><button class="snav-btn" onclick="goTo(5)">◀ Prev</button>
+  <div class="sctr">7 of 8</div>
+  <button class="snav-btn" onclick="goTo(7)">Next ▶</button></div>
+</div></div>
+
+<!-- ══ SLIDE 7: EDUCATION HUB ══ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl">
+      <div class="tool-icon">📚</div>
+      <div><h2>Education Hub</h2>
+      <p>Theory · Design methods · Code basis · Worked examples · Self-test quiz</p></div>
+    </div>
+  </div>
+
+  <div class="edu-banner">
+    <h3>📚 Vessel &amp; Separator Engineering — Comprehensive Theory</h3>
+    <p>Deep-dive education for students and practising engineers covering all topics in this calculator suite. Based on ASME VIII, API 12J, GPSA, and industry best practice.</p>
+    <div class="edu-tag-row">
+      <span class="edu-tag">Separator Theory</span>
+      <span class="edu-tag">ASME VIII Shell Design</span>
+      <span class="edu-tag">Souders-Brown Method</span>
+      <span class="edu-tag">3-Phase Separation</span>
+      <span class="edu-tag">Demister Sizing</span>
+      <span class="edu-tag">Nozzle Design</span>
+      <span class="edu-tag">High-Pressure NH₃/Urea</span>
+      <span class="edu-tag">Wall Thickness</span>
+      <span class="edu-tag">Materials</span>
+      <span class="edu-tag">Quiz</span>
+    </div>
+  </div>
+
+  <div class="edu-tabs">
+    <button class="edu-tab active" onclick="eduTab('sep',this)">⚗ Separation Theory</button>
+    <button class="edu-tab" onclick="eduTab('asme',this)">📐 ASME Shell Design</button>
+    <button class="edu-tab" onclick="eduTab('internals',this)">🌬 Internals &amp; Demisters</button>
+    <button class="edu-tab" onclick="eduTab('threephase',this)">💧 3-Phase &amp; Liquid</button>
+    <button class="edu-tab" onclick="eduTab('nozzle',this)">🔩 Nozzles &amp; Openings</button>
+    <button class="edu-tab" onclick="eduTab('materials',this)">🔬 Materials &amp; Inspection</button>
+    <button class="edu-tab" onclick="eduTab('highp',this)">⚠ High-P / NH₃ / Urea</button>
+    <button class="edu-tab" onclick="eduTab('quiz',this)">🎯 Quiz</button>
+  </div>
+
+  <!-- ═══ PANE: SEPARATION THEORY ═══ -->
+  <div class="edu-pane active" id="ep_sep">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">⚗</div><h4>Fundamentals of Gas-Liquid Separation</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Why Separation is Needed</div>
+            <div class="edu-concept-txt">Wellhead fluids and process streams contain mixtures of gas, liquid hydrocarbons, and water. Separation is required to: protect compressors from liquid slugs, meet pipeline dewpoint specifications, recover valuable liquids, and prevent corrosion. Separators are the first major process vessel in any oil and gas facility.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Four-Stage Separation Mechanism</div>
+            <div class="edu-concept-txt">Industrial separators rely on four sequential mechanisms: (1) Primary separation — momentum change at the inlet deflects bulk liquid; (2) Gravity settling — liquid droplets fall out while gas rises; (3) Secondary mist extraction — wire mesh or vane pack removes fine mist; (4) Liquid retention — hold-up volume provides stable outlet flow. All four must work simultaneously for reliable operation.</div>
+            <div class="edu-formula"><span class="hi">Stage 1:</span> Momentum breaker / inlet device<br><span class="hi">Stage 2:</span> Gravity settling section<br><span class="hi">Stage 3:</span> Mist extractor (mesh / vane)<br><span class="hi">Stage 4:</span> Liquid sump / retention section</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Terminal Settling Velocity (Stokes' Law)</div>
+            <div class="edu-concept-txt">A liquid droplet falling through gas reaches a terminal (settling) velocity when drag equals buoyancy. For small droplets (Re &lt; 1, Stokes regime), the settling velocity increases strongly with droplet diameter (d²). This is why finer mist is harder to remove and why demisters are needed for droplets below ~100 µm.</div>
+            <div class="edu-formula"><span class="hi">V_t = d²(ρ_L − ρ_G)g / (18µ_G)</span> (Stokes, laminar)<br><span class="ye">Intermediate: V_t = [4g(ρ_L−ρ_G)d/(3C_D ρ_G)]^0.5</span><br>C_D: drag coefficient (Re-dependent)</div>
+            <div class="edu-note">⚠ Stokes' law applies for droplet Re &lt; 1 (d &lt; ~200 µm in gas). For larger droplets use Newton's law or correlation-based C_D.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Souders-Brown Method — K-Factor Sizing</div>
+            <div class="edu-concept-txt">The Souders-Brown equation is the industry standard for sizing the gas cross-section of a separator. The K-factor (also called Kv or C_v) is empirically determined from GPSA data and accounts for separator geometry, pressure, liquid loading, and internals. K is NOT a constant — it varies significantly with pressure and fluid system.</div>
+            <div class="edu-formula"><span class="hi">U_max = K × √[(ρ_L − ρ_G) / ρ_G]</span><br>A_gas = Q_G / U_max (m²)<br><span class="ye">K_typical = 0.04–0.12 m/s (GPSA Fig.7-3)</span><br>K decreases with pressure above 70 bar</div>
+            <div class="edu-tip">✅ Always derate K by 80–85% of maximum for design (safety margin). For foaming services, use K × 0.60.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">🛢</div><h4>Horizontal vs Vertical Separators</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Horizontal Separator — Advantages</div>
+            <div class="edu-concept-txt">Horizontal separators offer a large liquid surface area which allows efficient gas disengagement. The gas travel path is perpendicular to settling, giving droplets more residence time. Better suited for high gas-liquid ratios (GLRs), slug flow, and foaming services. Easier to inspect internals. The gas space is typically the upper half; liquid occupies 25–50% of volume.</div>
+            <div class="edu-formula">Gas cross-section: <span class="hi">A_g = π D²/4 × (1 − h_L/D)</span><br>Liquid volume: A_L × L_eff<br><span class="ye">Typically: h_L/D = 0.5 (half-full liquid)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Vertical Separator — Advantages</div>
+            <div class="edu-concept-txt">Vertical separators have a smaller footprint and are preferred where plot space is limited. Gas rises up the full cross-section while liquid falls against the gas flow — this counter-current flow is less efficient, requiring a lower K-factor (typically 70–80% of horizontal). Best for low liquid loading and clean gas service. Easier to keep clean and free of solids accumulation.</div>
+            <div class="edu-formula">Full cross-section for gas: <span class="hi">A = πD²/4</span><br>K_vert ≈ 0.75 × K_horiz<br><span class="ye">Typically: L/D = 3–4 for standard service</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Gas-Liquid Ratio (GLR) Guidance</div>
+            <div class="edu-concept-txt">The choice between horizontal and vertical is strongly driven by GLR. High GLR means gas dominates — horizontal is preferred for liquid dropout. Low GLR (liquid-dominated) favours vertical, which handles liquid surges better in the sump. As a rough guide: GLR &gt; 500 (gas in m³/h, liquid in m³/h) → horizontal; GLR &lt; 100 → vertical acceptable.</div>
+            <div class="edu-formula">GLR = <span class="hi">Q_gas_actual / Q_liquid</span><br>High GLR (&gt;500): prefer horizontal<br><span class="ye">Low GLR (&lt;100): vertical acceptable</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Seam-to-Seam Length and L/D Ratio</div>
+            <div class="edu-concept-txt">Vessel L/D ratio affects both process performance and fabrication cost. For horizontal separators, L/D = 3–5 is typical. Too short: inadequate liquid retention; too long: expensive and transport difficulties. The seam-to-seam length includes tangent-to-tangent (T-T) shell length plus two head depths. The effective liquid length is approximately T-T minus inlet nozzle clearance.</div>
+            <div class="edu-formula">L_ss = L_TT + 2 × head_depth<br><span class="hi">Typical: L/D = 3–5 (horiz), 3–4 (vert)</span><br><span class="ye">Max shop fab transport: ~30 m length</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico g">📊</div><h4>Liquid Retention Time &amp; Surge</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Why Retention Time Matters</div>
+            <div class="edu-concept-txt">Liquid retention time (t_r) is the time a liquid parcel spends in the separator. Sufficient retention time allows: entrained gas to disengage from the liquid; liquid-liquid coalescence (e.g. water from oil); temperature equalisation; and stable level control. API 12J sets minimum retention times that are based on decades of field experience across different services.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">API 12J Retention Times</div>
+            <div class="edu-concept-txt">Gas scrubbers and KO drums: 0.5–2 min (low liquid load). Standard two-phase production separators: 1–3 min. Three-phase separators (oil pad): 3–5 min. Three-phase (water boot): 3–10 min depending on emulsion tendency. Foaming services (amine, glycol): 5–10 min. Always apply a surge factor of 1.25× to account for slug flow and level control deadband.</div>
+            <div class="edu-formula">V_liquid = <span class="hi">Q_L × t_r × SF</span><br>SF = surge factor (1.25 minimum)<br><span class="ye">t_r per API 12J table (service specific)</span></div>
+            <div class="edu-note">⚠ These are minimum values. Process engineers should review for specific fluid properties, slug tendency, and control philosophy.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Slug Flow and Slug Catchers</div>
+            <div class="edu-concept-txt">Pipeline slugs can deliver large liquid volumes to a separator in seconds — far exceeding the steady-state design flowrate. Slug catchers are large-volume vessels (often finger-type or parking-loop configurations) specifically designed to absorb slug volumes. Design requires slug volume data from pipeline simulation (OLGA or equivalent). Conventional separators are NOT slug catchers.</div>
+            <div class="edu-formula">Slug retention: <span class="hi">V_slug = Q_peak × t_slug</span><br>Finger slug catcher: L/D = 20–40<br><span class="ye">t_r: 5–20 min for slug service</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_sep -->
+
+  <!-- ═══ PANE: ASME SHELL DESIGN ═══ -->
+  <div class="edu-pane" id="ep_asme">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">📐</div><h4>ASME Section VIII Div. 1 — Shell Design</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">ASME Code Framework</div>
+            <div class="edu-concept-txt">ASME Section VIII Division 1 is the most widely used pressure vessel code for oil &amp; gas facilities. It uses a design-by-rule approach with a safety factor of 3.5 on ultimate tensile strength (UTS) at ambient, or 1.5 on yield at elevated temperatures. Division 2 allows higher design pressures with more rigorous analysis. Division 3 covers extremely high pressures (&gt;700 bar).</div>
+            <div class="edu-formula">SF = <span class="hi">UTS / S_allowable = 3.5</span> (ASME VIII Div.1)<br>Div.2: SF = 2.4 on UTS (higher design)<br><span class="ye">Div.3: &gt;700 bar, fracture mechanics required</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Cylindrical Shell Wall Thickness</div>
+            <div class="edu-concept-txt">The ASME UG-27 formula for a cylindrical shell gives minimum required thickness based on internal pressure, radius, allowable stress, and joint efficiency. The formula changes form depending on whether the shell is thin-walled (t &lt; R/2) or requires the thick-wall variant (Appendix 1-2 for t/R &gt; 0.385). For most standard pressure vessels (P &lt; 70 bar), the thin-wall formula applies.</div>
+            <div class="edu-formula"><span class="hi">t_min = P × R / (S × E − 0.6P)</span><br>Thick-wall (App. 1-2): <span class="ye">t = R[e^(P/SE) − 1]</span><br>Add: C.A. (corrosion) + mill tolerance (usually +0mm, −12.5%)<br>t_ordered ≥ t_min + C.A. + 0.125 × t_min</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Joint Efficiency (E)</div>
+            <div class="edu-concept-txt">Joint efficiency E reflects the quality of welds as verified by radiographic (RT) or ultrasonic (UT) examination. E=1.0: full RT (100% volumetric examination) — the highest quality designation. E=0.85: spot RT. E=0.70: no examination. Using E=0.70 significantly increases required wall thickness, so full RT is usually more economical for pressure vessels above ~10 bar design pressure.</div>
+            <div class="edu-formula">E = 1.0: Full RT (Cat A&amp;B welds)<br><span class="hi">E = 0.85: Spot RT</span><br>E = 0.70: No examination<br><span class="ye">Effect: t_E0.70 = t_E1.0 × (1.0/0.70) = 1.43×</span></div>
+            <div class="edu-tip">✅ For vessels above 10 bar, full RT (E=1.0) almost always reduces overall cost vs the extra wall thickness needed for E=0.70.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Corrosion Allowance (C.A.)</div>
+            <div class="edu-concept-txt">Corrosion allowance is added metal thickness to allow for material loss over the vessel design life (typically 20–25 years for process vessels). C.A. is set by the corrosion engineer based on the fluid, material, temperature, and inhibition strategy. Typical values: sweet gas service (CS) 1–3 mm; sour gas (H₂S) 3–6 mm; amine 3–6 mm; stainless steel 0 mm (corrosion resistant). C.A. = corrosion rate (mm/year) × design life (years).</div>
+            <div class="edu-formula">C.A. = <span class="hi">CR (mm/yr) × design_life (yr)</span><br>Sweet CS: 1–3 mm · Sour CS: 3–6 mm<br><span class="ye">SS/Duplex: 0 mm (corrosion resistant)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico o">🔵</div><h4>Heads, MAWP &amp; Hydrostatic Testing</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Vessel Head Types</div>
+            <div class="edu-concept-txt">The choice of head type affects cost, weight, and required thickness. 2:1 Semi-Ellipsoidal (SE) head: the most common choice for process vessels — thinner than hemispherical, cheaper than hemisphere, deeper than torispherical. Hemispherical head: thinnest wall (t = t_shell/2) but most expensive to form. ASME Flanged &amp; Dished (F&amp;D/torispherical): cheapest to form but thicker. Flat head: very thick and only used for low-pressure, small-diameter vessels.</div>
+            <div class="edu-formula">2:1 SE head: <span class="hi">t = P×D/(2×S×E − 0.2P)</span><br>Hemisphere: t = P×R/(2SE − 0.2P) (half of cylinder)<br><span class="ye">F&amp;D: t = 0.885P×L/(SE − 0.1P) (thicker)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">MAWP — Maximum Allowable Working Pressure</div>
+            <div class="edu-concept-txt">MAWP is the maximum safe operating pressure at a specified temperature, stamped on the nameplate by the ASME Authorised Inspector. MAWP is calculated from the ACTUAL ordered thickness (minus C.A.) — it is therefore higher than the design pressure. The pressure relief device is set at or below MAWP. During operation, the vessel must NEVER exceed MAWP. Pressure relief valves (PRV) or rupture discs are mandatory.</div>
+            <div class="edu-formula">MAWP = <span class="hi">S×E×(t_actual − C.A.) / (R + 0.6(t_actual − C.A.))</span><br>PSV set pressure ≤ MAWP<br><span class="ye">PRV accumulation: 10% above MAWP (ASME)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Hydrostatic Pressure Test</div>
+            <div class="edu-concept-txt">After fabrication and inspection, ASME VIII requires a hydrostatic test at 1.3× MAWP (adjusted for test-temperature allowable stress vs design-temperature allowable stress). The vessel must hold pressure for at least 30 minutes with no leaks. Water is used because it is incompressible — stored energy at test pressure is far less dangerous than pneumatic testing. Visual inspection of all welds during hold.</div>
+            <div class="edu-formula">P_test = <span class="hi">1.3 × MAWP × (S_test/S_design)</span><br>Hold time: ≥ 30 minutes<br><span class="ye">Pneumatic alternative: 1.1 × MAWP (risk assessment required)</span></div>
+            <div class="edu-warn">⛔ Never hydrotest a vessel with gas alone (pneumatic) without written hazard analysis. Stored elastic energy in compressed gas is catastrophic if vessel fails.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Minimum Design Metal Temperature (MDMT)</div>
+            <div class="edu-concept-txt">MDMT is the lowest temperature at which the vessel can operate at full pressure without risk of brittle fracture. Per ASME UCS-66, carbon steel exhibits a ductile-to-brittle transition below a critical temperature. Charpy impact testing is required below −29°C for most carbon steels. MDMT must be stated on the ASME nameplate and is often the governing design criterion for vessels used in Arctic or cryogenic service.</div>
+            <div class="edu-formula">UCS-66 governs MDMT for CS<br><span class="hi">Below −29°C: Charpy impact required</span><br><span class="ye">Low-temp CS (SA-333): down to −45°C<br>Austenitic SS: down to −196°C (no DBTT)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">📋</div><h4>Material Selection for Pressure Vessels</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">SA-516 Grade 70 — The Industry Standard</div>
+            <div class="edu-concept-txt">SA-516 Gr 70 carbon steel is the most common pressure vessel plate material globally. It is a fine-grain, normalised carbon steel specifically developed for pressure vessel service. Grade 70 refers to minimum UTS of 70 ksi (483 MPa). Allowable stress S = 138 MPa at ambient per ASME. Excellent weldability, readily available worldwide, and relatively low cost. Maximum temperature per ASME: 260°C (500°F) before significant stress relaxation.</div>
+            <div class="edu-formula">SA-516 Gr 70: <span class="hi">Sut = 485 MPa · Sy = 260 MPa</span><br>S (ASME, ambient) = 138 MPa<br><span class="ye">Max temp: 260°C · Min temp: −29°C (standard)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Stainless Steel — When and Which</div>
+            <div class="edu-concept-txt">Stainless steel is used when corrosion resistance is required and carbon steel with C.A. is not economical or technically adequate. SA-240 304L: general corrosive service, excellent at ambient and cryogenic. SA-240 316L: molybdenum addition gives superior chloride resistance — essential for seawater-cooled or high-chloride environments. Duplex 2205 (SA-240 S31803): higher strength than austenitic (S = 172 MPa), better stress corrosion cracking resistance, increasingly used in sour service.</div>
+            <div class="edu-formula">304L: S = 115 MPa · 316L: S = 115 MPa<br><span class="hi">Duplex 2205: S = 172 MPa (25% thinner wall)</span><br><span class="ye">All SS: C.A. = 0 mm (passive film)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Sour Service — NACE MR0175 / ISO 15156</div>
+            <div class="edu-concept-txt">Any service with H₂S partial pressure above 0.3 kPa (0.05 psia) is classified as sour per NACE MR0175. Sour service risks: Sulphide Stress Cracking (SSC) in high-strength steels, Hydrogen Induced Cracking (HIC) in CS plate, Stress Oriented HIC (SOHIC) at weld HAZ. NACE MR0175 mandates material hardness limits (max 22 HRC/248 HB for CS) and requires specific heat treatment and inspection protocols.</div>
+            <div class="edu-formula">Sour service: <span class="hi">H₂S × P_total &gt; 0.3 kPa</span><br>CS hardness limit: ≤ 22 HRC (NACE)<br><span class="ye">PWHT mandatory for CS welds in sour service</span></div>
+            <div class="edu-warn">⛔ Never use high-strength steels (Sy &gt; 620 MPa) in sour service without NACE MR0175 compliance — risk of sudden SSC failure.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_asme -->
+
+  <!-- ═══ PANE: INTERNALS & DEMISTERS ═══ -->
+  <div class="edu-pane" id="ep_internals">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">🌬</div><h4>Mist Extractor Technology</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Wire Mesh Pad — Operating Principle</div>
+            <div class="edu-concept-txt">Wire mesh (mist mat) demisters consist of knitted wire layers (typically 304 SS or monel wire, 0.1–0.3 mm diameter) compressed into a pad. Liquid droplets impinge on the wire filaments, coalesce, and drain by gravity. Effective removal for droplets down to 3–10 µm. Very high efficiency at design velocity but flooding occurs above 115–120% of design K. K = 0.107 m/s is the GPSA standard reference for low-to-moderate pressure.</div>
+            <div class="edu-formula">K_mesh = <span class="hi">0.107 m/s</span> (GPSA base, 1–70 bar)<br>Efficiency: &gt;99% for d &gt; 10 µm<br><span class="ye">Flood limit: U &gt; 1.15 × U_design</span></div>
+            <div class="edu-note">⚠ Wire mesh CANNOT be used in fouling or wax-depositing service — it will plug. Use vane packs in these applications.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Vane Pack — Operating Principle</div>
+            <div class="edu-concept-txt">Vane packs use a series of corrugated parallel plates (vanes) with drainage pockets. Gas follows a sinuous path; liquid droplets, being denser, cannot follow the turns and impinge on the vane surfaces. Vane packs handle much higher liquid loadings than wire mesh and are suitable for fouling services. K = 0.12–0.18 m/s depending on geometry. They are self-draining and less susceptible to re-entrainment at high velocity.</div>
+            <div class="edu-formula">K_vane = <span class="hi">0.12–0.18 m/s</span><br>Effective for d &gt; 20–40 µm<br><span class="ye">Better at high liquid load vs mesh pad</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Cyclonic Separators</div>
+            <div class="edu-concept-txt">Cyclonic internals (gas-liquid cyclones or axial cyclone bundles) use centrifugal force to separate droplets. The centrifugal acceleration can be 100–1000g, giving much higher separation efficiency for fine droplets than gravity. K = 0.20–0.28 m/s depending on manufacturer and design. Used in compact separators, offshore topsides where weight and footprint are critical. Manufacturer-specific sizing is always required.</div>
+            <div class="edu-formula">Centrifugal accel.: <span class="hi">a_c = V²/r</span> (up to 1000g)<br>K_cyclonic = 0.20–0.28 m/s<br><span class="ye">Effective for d &gt; 5 µm (more efficient than mesh)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">K-Factor Pressure Correction</div>
+            <div class="edu-concept-txt">The Souders-Brown K-factor is not constant with pressure. Above 70 bar, gas density increases significantly while surface tension decreases — both effects reduce the efficiency of droplet capture. GPSA Figure 7-3 shows K decreasing above 70 bar. The calculator applies the kPcorr function: for P &gt; 70 bar, K is multiplied by a derating factor. Above 150 bar (NH₃ synthesis), K × 0.50–0.60 maximum is the practical limit.</div>
+            <div class="edu-formula">kPcorr(P): <span class="hi">P ≤ 6 barg → K × 1.0 (no correction)</span><br>P > 6 barg: K × max(0.45, 1 − 0.004×(P_bara−7))<br><span class="ye">P > 150 barg: K × 0.50 maximum (select severe NH₃ service)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico g">⚙</div><h4>Inlet Devices &amp; Vessel Internals</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Inlet Momentum Breaker</div>
+            <div class="edu-concept-txt">The inlet device is critical for separator performance. A bare nozzle jet directly impinging on liquid will cause re-entrainment of fine droplets and high turbulence, degrading separation. Inlet devices redirect flow, absorb momentum, and distribute gas evenly across the vessel cross-section. For most services, a half-pipe deflector or flat diverter plate is sufficient. For high-velocity or slug flow, a dedicated inlet cyclone or vortex breaker is preferred.</div>
+            <div class="edu-formula">Inlet momentum: <span class="hi">M = ρ_mix × U²_inlet</span> (Pa)<br>High momentum (&gt;5000 Pa): cyclone inlet device<br><span class="ye">Slug: half-pipe deflector minimum</span></div>
+            <div class="edu-note">⚠ For NH₃ synthesis loops and all services above 150 bar, an inlet momentum breaker is MANDATORY per industry practice.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Vortex Breaker</div>
+            <div class="edu-concept-txt">A vortex breaker is a simple cross-baffle welded over the liquid outlet nozzle at the bottom of the vessel. Without it, a rotating vortex can form as liquid drains, drawing gas down into the liquid outlet — a phenomenon called vortex gas carryunder. This sends gas slugs into liquid export pumps, causing cavitation and damage. Vortex breakers are mandatory on all liquid outlet nozzles.</div>
+            <div class="edu-formula">Vortex breaker: <span class="hi">cross-plate, 2D × 2D</span> (D = nozzle size)<br>Prevents gas carry-under into liquid outlet<br><span class="ye">Mandatory on all liquid nozzles per API 12J</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Coalescing Plates (Plate Packs)</div>
+            <div class="edu-concept-txt">Inclined plate packs (corrugated plastic or SS plates, typically 45° or 60° inclined) are used in the liquid section of three-phase separators to improve oil-water separation. Stokes' law shows that reducing the settling distance by a factor of N reduces the required vessel length by N. Plate packs effectively provide many closely spaced settling chambers. API 12J allows retention time credit of up to 40% reduction with properly designed plate packs.</div>
+            <div class="edu-formula">Effective settling distance: <span class="hi">h_eff = plate_spacing × sinθ</span><br>API 12J credit: up to 40% t_r reduction<br><span class="ye">θ = 45–60° typical inclination</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_internals -->
+
+  <!-- ═══ PANE: 3-PHASE & LIQUID ═══ -->
+  <div class="edu-pane" id="ep_threephase">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">💧</div><h4>Three-Phase Separation Theory</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Oil-Water Separation Mechanism</div>
+            <div class="edu-concept-txt">In a three-phase separator, gas leaves overhead and the liquid section must separate oil from produced water. The separation relies on density difference between oil and water. Water (ρ ≈ 1000–1050 kg/m³) sinks; oil (ρ ≈ 700–900 kg/m³) floats. The liquid-liquid interface forms a clear oil-water interface (OWI). Separation rate depends on Stokes' law for droplet rise/fall velocity — a small density difference means slow separation.</div>
+            <div class="edu-formula">Water droplet rise in oil: <span class="hi">V_w = d²(ρ_w − ρ_o)g / 18µ_o</span><br>Oil droplet fall in water: V_o = d²(ρ_w − ρ_o)g / 18µ_w<br><span class="ye">Small Δρ → slow separation → longer t_r required</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Weir Configuration</div>
+            <div class="edu-concept-txt">A vertical weir plate inside the 3-phase separator creates separate oil and water compartments. Oil, being lighter, overflows the weir into the oil bucket; water flows under (or a separate boot nozzle) for level control. The weir height is set to maintain a stable oil-water interface. Common configurations: over-under weir (oil over, water under), boot-type (water boot at bottom), or bucket-and-weir (oil bucket with overflow to water section).</div>
+            <div class="edu-formula">Weir height sets OWI level<br><span class="hi">h_weir ≈ h_OWI + oil_pad_thickness</span><br><span class="ye">Oil pad: typically 150–300 mm minimum</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Emulsions — The Main Challenge</div>
+            <div class="edu-concept-txt">Emulsions are stable mixtures of oil and water where one phase is dispersed as fine droplets in the other. Tight emulsions form when surface-active agents (asphaltenes, naphthenates, wax, natural surfactants) stabilise the interface and prevent coalescence. High shear at inlet nozzles creates finer droplets and worse emulsions. Treatment: electrostatic coalescers, heat (reduces viscosity), chemical demulsifiers, or extended retention time. Some crude oils require all of these.</div>
+            <div class="edu-formula">Emulsion stability: <span class="hi">depends on interfacial tension</span><br>Demulsifier dosing: 10–100 ppm typical<br><span class="ye">Electrostatic coalescer: 15–30 kV DC or AC field</span></div>
+            <div class="edu-note">⚠ Never design a three-phase separator for known emulsion-forming crude without fluid characterisation. Retention times may need to be 3–5× standard values.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Water-in-Oil (W/O) vs Oil-in-Water (O/W)</div>
+            <div class="edu-concept-txt">At low water cuts (&lt;30–40%), water tends to be the dispersed phase in oil (W/O emulsion). Above the phase inversion point (typically 40–60% water), the emulsion inverts to O/W — oil droplets dispersed in water. The inversion causes a dramatic change in viscosity (can be 10–100× higher at inversion). This must be considered in pump sizing, separator internals, and chemical injection. Fluid characterisation for specific water cut vs viscosity is essential for new developments.</div>
+            <div class="edu-formula">Phase inversion: <span class="hi">typically 40–60% water cut</span><br>Viscosity peak at inversion: µ_mix &gt;&gt; µ_pure<br><span class="ye">Monitor with water-cut meter (capacitance/microwave)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico g">📊</div><h4>Level Control &amp; Instrumentation</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Level Control Philosophy</div>
+            <div class="edu-concept-txt">Separators require three level control elements: High Level Alarm (HLA), High Level Shutdown (HLSD), Low Level Shutdown (LLSD), and the operating level control valve (LCV). The LCV maintains the liquid level by modulating the liquid export. The gap between HLA and HLSD provides operator response time. LLSD protects against gas blow-by — gas entering the liquid line, which can cause water hammer, cavitation, and meter errors.</div>
+            <div class="edu-formula">Level span: LLSD → NLL → HLA → HLSD<br><span class="hi">NLL to HLA: ≥ 5 min response time</span><br><span class="ye">LLSD: prevents gas blow-by to liquid outlet</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Oil-Water Interface Detection</div>
+            <div class="edu-concept-txt">In three-phase separators, the oil-water interface level must be controlled separately from the overall liquid level. Interface level transmitters (ILT) use: guided wave radar (GWR — most common, insensitive to foam and emulsion layers), displacer-type (buoyancy-based, less reliable in emulsions), nuclear density gauge (for difficult emulsions), or capacitance probe. The interface control valve (ICV) manipulates produced water export to maintain the OWI at the set point.</div>
+            <div class="edu-formula">Preferred: <span class="hi">Guided Wave Radar (GWR)</span><br>Nuclear gauge: for opaque/emulsion-heavy service<br><span class="ye">OWI control: ILT → ICV on water outlet</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Pressure Control</div>
+            <div class="edu-concept-txt">Separator operating pressure is controlled by a pressure control valve (PCV) on the gas outlet. The PCV modulates gas flow to maintain the setpoint pressure. Downstream pressure (e.g. pipeline backpressure) must be lower than separator pressure for the PCV to function. A pressure safety valve (PSV) is mandatory on every pressure vessel, set at or below MAWP, with capacity to relieve the maximum credible overpressure scenario (blocked outlet, fire case, etc.).</div>
+            <div class="edu-formula">PCV on gas outlet: <span class="hi">maintains P_sep</span><br>PSV set ≤ MAWP: mandatory ASME requirement<br><span class="ye">Fire case: often the governing PSV sizing scenario</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_threephase -->
+
+  <!-- ═══ PANE: NOZZLES & OPENINGS ═══ -->
+  <div class="edu-pane" id="ep_nozzle">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">🔩</div><h4>Nozzle Design — ASME UG-37</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Why Openings Need Reinforcement</div>
+            <div class="edu-concept-txt">Any opening in a pressure vessel shell removes load-carrying metal and creates a stress concentration. ASME UG-37 requires that the "missing" metal be compensated by reinforcement — either through excess wall thickness of the shell or nozzle, by a reinforcing pad (re-pad) welded around the nozzle, or by a combination. The reinforcement area must equal or exceed the area removed. This analysis is separate from the shell thickness calculation and must be done for every nozzle.</div>
+            <div class="edu-formula">Area removed: <span class="hi">A_req = d × t_r × F</span><br>Area available: A_shell + A_nozzle + A_weld + A_pad<br><span class="ye">A_available ≥ A_required (ASME UG-37)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Nozzle Velocity Limits</div>
+            <div class="edu-concept-txt">Nozzle velocity must be limited to avoid erosion, high noise, and excessive vibration. API 14E provides erosional velocity limits for piping and nozzles. Inlet nozzle: design for momentum ρV² &lt; 6000–8000 Pa (API 12J guidance). Gas outlet nozzle: typically limited to 0.3–0.5 × sonic velocity. Liquid nozzles: erosional velocity = C/√ρ where C ≈ 100–150 (SI) for continuous service. Multiphase nozzles require the most care.</div>
+            <div class="edu-formula">Erosional velocity: <span class="hi">U_e = C / √ρ_mix</span> (API 14E)<br>C = 100 (conservative) · C = 150 (corrosion inhibited)<br><span class="ye">Inlet momentum: ρ_mix × U² &lt; 6000–8000 Pa</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Nozzle Schedule &amp; Flange Rating</div>
+            <div class="edu-concept-txt">Nozzle pipe schedule (wall thickness) must be sufficient for the vessel design pressure per the relevant pipe schedule standard (ASME B31.3). Flange rating per ASME B16.5 must meet or exceed the design pressure at design temperature. Common flange classes: Class 150 (max ~20 bar at ambient), Class 300 (~50 bar), Class 600 (~100 bar), Class 900 (~150 bar), Class 1500 (~250 bar), Class 2500 (~425 bar). Select the next class above the design pressure at the design temperature.</div>
+            <div class="edu-formula">Flange class selection per ASME B16.5<br><span class="hi">150# → 300# → 600# → 900# → 1500# → 2500#</span><br><span class="ye">Always confirm P-T rating at design temperature</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Manway Requirements</div>
+            <div class="edu-concept-txt">Every pressure vessel requires at least one manway (manhole) for internal access for inspection, cleaning, and maintenance. ASME UG-46 sets minimum requirements. Minimum manway size: 16 inches (400 mm) for horizontal vessels; 18 inches (450 mm) preferred. Manways must be located to allow a person in full breathing apparatus to enter and exit safely. For vessels &lt; 12 inch (300 mm) diameter, handholes may replace manways per ASME.</div>
+            <div class="edu-formula">Min manway: <span class="hi">16" (400 mm) ID</span> (ASME UG-46)<br>Preferred: 18" (450 mm) for full BA entry<br><span class="ye">Location: always on the top or side, never bottom</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico o">📐</div><h4>Standard Piping Connections &amp; NPS Tables</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">NPS to DN Conversion</div>
+            <div class="edu-concept-txt">NPS (Nominal Pipe Size) is the US standard; DN (Diamètre Nominal) is the ISO/metric equivalent. Neither NPS nor DN corresponds exactly to actual pipe OD — they are nominal reference numbers. The actual OD is fixed by the pipe schedule standard. For NPS 14 (DN 350) and above, the NPS number × 25.4 = OD in mm. Below NPS 14, the OD does not correspond simply to the NPS number.</div>
+            <div class="edu-formula">NPS ≥ 14: <span class="hi">OD (mm) = NPS × 25.4</span><br>NPS &lt; 14: OD per ASME B36.10 table<br><span class="ye">DN ≈ NPS × 25 (rough metric equivalent)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Pipe Schedule vs Wall Thickness</div>
+            <div class="edu-concept-txt">Pipe wall thickness is defined by schedule number (SCH 40, 80, 160, etc.) or by weight designation (STD, XH, XXH). Higher schedule = thicker wall = higher pressure rating. Schedule 40 is standard for most general service. For high pressure, schedule 80 or above. The schedule number is related to design pressure: Sch No ≈ 1000 × P / S (where P is in psi, S is allowable stress in psi).</div>
+            <div class="edu-formula">t_wall = OD × (1 − 1/[1 + 2×Sch/1000])<br><span class="hi">Sch No ≈ 1000P/S (approximate)</span><br><span class="ye">Always verify with ASME B36.10 / B36.19 tables</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_nozzle -->
+
+  <!-- ═══ PANE: MATERIALS & INSPECTION ═══ -->
+  <div class="edu-pane" id="ep_materials">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico">🔬</div><h4>Inspection, NDE &amp; Integrity Management</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Weld Inspection Methods</div>
+            <div class="edu-concept-txt">Non-Destructive Examination (NDE) ensures weld quality meets ASME requirements. Radiographic Testing (RT): X-ray or gamma-ray detects volumetric flaws (porosity, inclusions, lack of fusion). Ultrasonic Testing (UT): uses sound waves — detects planar flaws better than RT. Magnetic Particle Testing (MT): surface and near-surface flaws in magnetic materials only. Dye Penetrant Testing (PT): surface-breaking flaws in any material. PWHT (Post-Weld Heat Treatment): stress relief heat treatment, mandatory for sour service and thick CS welds.</div>
+            <div class="edu-formula">RT: <span class="hi">detects volumetric flaws</span> (porosity, inclusions)<br>UT: planar flaws (cracks, LOF) — better than RT<br><span class="ye">MT/PT: surface only · PWHT: stress relief</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">In-Service Inspection (API 510)</div>
+            <div class="edu-concept-txt">API 510 governs in-service inspection of pressure vessels. Risk-Based Inspection (RBI) is now the dominant methodology — inspection scope and frequency are set by the probability of failure (PoF) × consequence of failure (CoF). External visual inspection: typically annual. Internal inspection: every 5–10 years depending on service and corrosion rate. UT thickness measurement surveys track actual corrosion rate vs design assumption. If actual CR exceeds design CR, the vessel must be assessed for fitness for service.</div>
+            <div class="edu-formula">RBI risk = <span class="hi">PoF × CoF</span><br>API 510 internal inspection: 5–10 yr interval<br><span class="ye">Fitness for Service: API 579-1 / ASME FFS-1</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Remaining Life &amp; Corrosion Rate Monitoring</div>
+            <div class="edu-concept-txt">Remaining corrosion life = (actual thickness − minimum required thickness) ÷ corrosion rate. The safe operating period is typically half the remaining life (conservative). If remaining life is &lt; next inspection interval, immediate action is required: reduce pressure, increase inhibition, or plan for repair/replacement. Corrosion monitoring methods: UT scan maps, ER probes, weight loss coupons, online inhibitor injection monitoring.</div>
+            <div class="edu-formula">RL = <span class="hi">(t_actual − t_min) / CR</span><br>Safe operating period: RL/2 (conservative)<br><span class="ye">Action if RL &lt; next inspection interval</span></div>
+            <div class="edu-tip">✅ Document actual UT readings at each inspection against previous readings to calculate the actual in-service corrosion rate — never rely solely on design assumptions.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Welding Procedure Specification (WPS)</div>
+            <div class="edu-concept-txt">Every pressure vessel weld must be made to a qualified Welding Procedure Specification (WPS) per ASME Section IX. The WPS defines: base metal P-number, filler metal F-number, process (SMAW, GTAW, SAW, etc.), preheat temperature, interpass temperature, PWHT requirements, and joint design. Welders must be qualified per ASME Section IX. For sour service, additional NACE MR0175 hardness requirements apply to both base metal and weld metal in the HAZ.</div>
+            <div class="edu-formula">WPS qualification per: <span class="hi">ASME Section IX</span><br>Welder qualification: also ASME Sec. IX<br><span class="ye">Sour service: add NACE MR0175 hardness limits</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico g">⚖</div><h4>Safety Systems &amp; PSV Sizing</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Pressure Relief Device Selection</div>
+            <div class="edu-concept-txt">Every ASME pressure vessel must have at least one pressure relief device (PRD). Pressure Safety Valve (PSV): spring-loaded, reseating, used for most services. Rupture Disc (RD): one-shot, non-reseating, used for very high or very low pressure, toxic service, or rapid overpressure scenarios. Many vessels use RD + PSV in series (RD protects PSV from corrosive process, extends PSV life). The PRD must be capable of relieving the maximum credible overpressure case.</div>
+            <div class="edu-formula">PSV set pressure ≤ <span class="hi">MAWP</span><br>Single PRD: full capacity at 110% MAWP<br><span class="ye">Multiple PRV: staggered set at 100% &amp; 105% MAWP</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Overpressure Scenarios (API 520)</div>
+            <div class="edu-concept-txt">API 520 Part I identifies credible overpressure scenarios that must be evaluated: blocked outlet (control valve fails closed), heat input from fire (fire case), cooling water failure, utility failure, tube rupture (heat exchanger), runaway reaction, and thermal expansion of trapped liquid. The largest required PSV capacity scenario governs the relief device sizing. The fire case often governs for liquid-full vessels.</div>
+            <div class="edu-formula">Fire case: <span class="hi">Q_fire = 21 000 × F × A^0.82</span> (API 521)<br>Blocked outlet: Q = max design flow<br><span class="ye">Select worst credible case for PSV sizing</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Functional Safety — SIL Rated Shutdowns</div>
+            <div class="edu-concept-txt">Beyond the PSV, critical process vessels often have Safety Instrumented Systems (SIS) with High Pressure Shutdown (HPSD) or High Level Shutdown (HLSD) functions rated to a Safety Integrity Level (SIL 1, 2, or 3) per IEC 61511. SIL 2 is common for HPSD on process separators: probability of failure on demand (PFD) 0.01–0.001. SIS trips are independent of the basic process control system (BPCS) and use separate sensors, logic, and final elements.</div>
+            <div class="edu-formula">SIL 1: PFD 0.1–0.01 · <span class="hi">SIL 2: PFD 0.01–0.001</span><br>SIL 3: PFD 0.001–0.0001<br><span class="ye">SIS must be independent of BPCS (IEC 61511)</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_materials -->
+
+  <!-- ═══ PANE: HIGH PRESSURE / NH₃ / UREA ═══ -->
+  <div class="edu-pane" id="ep_highp">
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico o">⚠</div><h4>High-Pressure Design Considerations</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Thick-Wall Vessel Design</div>
+            <div class="edu-concept-txt">When t/R &gt; 0.385 (or P &gt; 0.385 × S × E), the ASME thin-wall formula is no longer valid and the thick-wall formula (Appendix 1-2) must be used. In thick-walled vessels, hoop stress varies across the wall thickness — it is highest at the inner surface. This stress concentration means the inner surface may yield at lower pressures than thin-wall theory predicts. Autofrettage (pre-pressurising to yield the inner surface) is used in gun barrels and very high pressure vessels to introduce beneficial compressive residual stress at the bore.</div>
+            <div class="edu-formula">Thin-wall valid if: <span class="hi">t &lt; 0.385R</span><br>Thick-wall: t = R[e^(P/SE) − 1] (ASME App.1-2)<br><span class="ye">Lamé: σ_hoop_inner = p(r_o²+r_i²)/(r_o²−r_i²)</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">NH₃ Synthesis Loop Service</div>
+            <div class="edu-concept-txt">Ammonia synthesis loops operate at 150–350 bar and 300–500°C. This extreme combination creates unique challenges: high-pressure hydrogen attack (Nelson curves per API 941 must be consulted), nitrogen embrittlement, and very dense gas where separator performance deteriorates. Wire mesh K-factor must be reduced to 0.05–0.07 m/s maximum. Inlet momentum breaker is mandatory. All materials must meet API 941 Nelson curve limits for the temperature and hydrogen partial pressure combination.</div>
+            <div class="edu-formula">NH₃ loop: P = <span class="hi">150–350 bar</span> · T = 300–500°C<br>K_mesh ≤ 0.05–0.07 m/s (K × 0.50–0.60)<br><span class="ye">API 941: Nelson curve for H₂ attack — MANDATORY</span></div>
+            <div class="edu-warn">⛔ Never use carbon steel above its Nelson curve limit. High-temperature hydrogen attack (HTHA) causes irreversible decarburisation and catastrophic failure with no warning.</div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Urea Synthesis Service</div>
+            <div class="edu-concept-txt">Urea synthesis operates at 140–175 bar and 180–200°C with a highly corrosive mixture of ammonia, CO₂, and ammonium carbamate — one of the most corrosive industrial process streams. Only specific duplex stainless steels or titanium are suitable. AISI 316L urea grade (25Cr/22Ni/2Mo) or modern duplex grades are used. Strict oxygen injection into the process (passivation) is required to maintain the passive film. Regular ultrasonic inspection of vessel walls is mandatory due to the high corrosion risk.</div>
+            <div class="edu-formula">Urea loop: P = <span class="hi">140–175 bar</span> · T = 180–200°C<br>Material: 316L urea grade / duplex / titanium<br><span class="ye">Passive O₂ injection: 0.05–0.2 vol% required</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">High-Pressure Fabrication &amp; Testing</div>
+            <div class="edu-concept-txt">Above ~70 bar, vessel fabrication requires: forged nozzle components (not rolled plate nozzles), full radiographic examination (E=1.0), impact testing for all base metal and weld metal, strict control of weld heat input, PWHT for carbon steel welds, and in some cases 100% UT in addition to RT. Hydrostatic test requirements are more stringent — any evidence of yielding or permanent deformation requires immediate rejection and investigation.</div>
+            <div class="edu-formula">High-P fabrication: <span class="hi">forged nozzles mandatory</span><br>Full RT (E=1.0) + UT + impact testing<br><span class="ye">PWHT: mandatory for CS above 50 bar (typical)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-card-ico o">🛡</div><h4>Hydrogen Damage Mechanisms</h4></div>
+        <div class="edu-card-bd">
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">High-Temperature Hydrogen Attack (HTHA)</div>
+            <div class="edu-concept-txt">HTHA occurs when atomic hydrogen diffuses into steel at elevated temperature and pressure, reacting with carbides to form methane. The methane cannot diffuse out and builds up as pressure in grain boundary voids, eventually causing intergranular cracking and decarburisation. HTHA is irreversible and leads to catastrophic failure without visible warning. API 941 Nelson curves define safe operating limits for each steel grade in terms of temperature vs hydrogen partial pressure.</div>
+            <div class="edu-formula">HTHA reaction: <span class="hi">Fe₃C + 4H → 3Fe + CH₄</span><br>API 941 Nelson curves: T vs P_H₂ for each steel<br><span class="ye">Always operate below Nelson curve with safety margin</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Hydrogen Induced Cracking (HIC) &amp; SSC</div>
+            <div class="edu-concept-txt">At ambient temperature in sour (H₂S) service, hydrogen enters steel at the surface driven by the cathodic hydrogen evolution reaction. HIC: hydrogen accumulates at inclusions and voids in CS plate, forming internal blisters and step cracks — associated with impure plate with elongated MnS inclusions. SSC: high-strength steels with tensile stress crack at grain boundaries — prevented by hardness limits. Both require HIC-resistant plate (low-sulphur, Ca-treated, NACE approved) and NACE MR0175 compliance.</div>
+            <div class="edu-formula">HIC in CS plate: <span class="hi">use HIC-resistant (HIC-R) plate</span><br>SSC: hardness ≤ 22 HRC (NACE MR0175)<br><span class="ye">S content ≤ 0.003% for HIC-resistant CS</span></div>
+          </div>
+          <div class="edu-concept">
+            <div class="edu-concept-ttl">Stress Corrosion Cracking (SCC)</div>
+            <div class="edu-concept-txt">SCC requires three simultaneous conditions: susceptible material, tensile stress (residual or applied), and a specific corrosive environment. Key SCC environments for process vessels: chloride SCC of austenitic stainless steel (Cl⁻ + temperature + tensile stress → rapid cracking), amine SCC of carbon steel (occurs in amine plants — prevented by PWHT), caustic SCC (NaOH + CS + temperature), and polythionic acid SCC of SS (during shutdown when H₂S + O₂ + water combine). Prevention: PWHT, stress relief, material selection, and coating.</div>
+            <div class="edu-formula">SCC requires: <span class="hi">susceptible material + stress + environment</span><br>Cl⁻ SCC: SS above 60°C + chlorides<br><span class="ye">Amine SCC: CS in amine — PWHT mandatory</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /ep_highp -->
+
+  <!-- ═══ PANE: QUIZ ═══ -->
+  <div class="edu-pane" id="ep_quiz">
+    <div style="max-width:720px">
+      <div class="section-box">
+        <div class="section-head"><div class="shd"></div><span>🎯 Self-Test Quiz — Vessel &amp; Separator Engineering (15 Questions)</span></div>
+        <div class="section-body">
+          <div class="help-text">Click the correct answer. Instant feedback and explanation provided. Covers all topics in this calculator suite.</div>
+          <div id="vsQuizContainer" style="margin-top:.6rem"></div>
+          <div id="vsQuizScore" style="display:none" class="quiz-score-box">
+            <div class="quiz-score-num" id="vsScoreNum">0/15</div>
+            <div class="quiz-score-sub">Questions answered correctly</div>
+            <button class="quiz-reset-btn" onclick="resetVsQuiz()">↺ Retry Quiz</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /ep_quiz -->
+
+  <div class="snf"><button class="snav-btn" onclick="goTo(6)">◀ Prev</button>
+  <div class="sctr">8 of 8</div>
+  <button class="snav-btn" disabled>Next ▶</button></div>
+</div></div>
+
+</div><!-- /slides-track -->
+</div><!-- /slides-wrapper -->
+
+<div class="share-bar">
+  <span class="share-label">🔗 Share:</span>
+  <a class="share-btn tw" href="#" onclick="shareTwitter();return false;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.259 5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> X / Twitter</a>
+  <a class="share-btn li" href="#" onclick="shareLinkedIn();return false;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> LinkedIn</a>
+  <a class="share-btn wa" href="#" onclick="shareWhatsApp();return false;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp</a>
+  <button class="share-btn cp" onclick="copyLink()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy Link</button>
+</div>
+<div class="share-toast" id="shareToast">✅ Link copied!</div>
+
+<footer>
+  Vessel &amp; Separator Sizing Calculator v3.0 &nbsp;|&nbsp; <b>ALL RESULTS ARE PRELIMINARY SIZING ONLY</b> — not for detailed engineering or construction. Verify with a certified process engineer. ASME / API / GPSA.
+</footer>
+
+<script>
+
+// ══════════════════════════════════════════════════════════════════════
+// API ENDPOINT — change this to your Vercel deployment URL
+// ══════════════════════════════════════════════════════════════════════
+const API_URL = '/api/calculate';
+
+// ══════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════
+const TOTAL = 8;
+let cur = 0;
+
+function goTo(i) {
+  if (i < 0 || i >= TOTAL) return;
+  cur = i;
+  document.getElementById('slidesTrack').style.transform = `translateX(-${i*100}%)`;
+  document.querySelectorAll('.nav-btn').forEach((b,j) => b.classList.toggle('active', j===i));
+  const btn = document.getElementById('navBtn'+i);
+  if (btn) btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+let tx = 0;
+document.querySelector('.slides-wrapper').addEventListener('touchstart', e=>{tx=e.touches[0].clientX;},{passive:true});
+document.querySelector('.slides-wrapper').addEventListener('touchend', e=>{
+  const d=e.changedTouches[0].clientX-tx; if(Math.abs(d)>50) goTo(cur+(d<0?1:-1));},{passive:true});
+
+document.addEventListener('keydown', e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') goTo(cur+1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') goTo(cur-1);
+});
+
+function setUnit(tool, mode, btn) {
+  const tgl = document.getElementById('ut-'+tool);
+  if (tgl) tgl.querySelectorAll('.unit-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const imp = document.getElementById('imp-'+tool);
+  if (imp) imp.style.display = (mode==='Imp') ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// HIGH-PRESSURE NOTICE (client-side display only)
+// ══════════════════════════════════════════════════════════════════════
+function toBara_local(val, u) {
+  if (!isFinite(val)) return NaN;
+  if (u==='bara') return val;
+  if (u==='barg') return val + 1.01325;
+  if (u==='psia') return val * 0.0689476;
+  if (u==='MPa')  return val * 10;
+  return val;
+}
+function checkHighP(tool) {
+  let Pval, Pu;
+  if (tool==='h2p') { Pval=gv('h2p-P'); Pu=gs('h2p-Pu'); }
+  else if (tool==='v2p') { Pval=gv('v2p-P'); Pu=gs('v2p-Pu'); }
+  else if (tool==='3ph') { Pval=gv('p3-P'); Pu=gs('p3-Pu'); }
+  else if (tool==='mist') { Pval=gv('mist-P'); Pu=gs('mist-Pu'); }
+  else return;
+  const el = document.getElementById('hip-'+tool);
+  if (!el || !isFinite(Pval) || Pval <= 0) { if (el) el.style.display='none'; return; }
+  const Pabs = toBara_local(Pval, Pu);
+  const Pg = Pabs - 1.01325;
+  if (Pg >= 150) {
+    el.innerHTML = `⚠ HIGH-PRESSURE SERVICE (≥150 barg — NH₃/urea synthesis loop range).<br>Use K × 0.50–0.60 maximum. Verify Souders-Brown applicability with internals vendor. ASME App.1-2 thick-wall formula required for vessel walls.`;
+    el.style.display='block';
+  } else if (Pg >= 70) {
+    el.innerHTML = `ℹ Elevated pressure (≥70 barg): Pressure correction to K-factor applied automatically. Wire mesh efficiency reduces significantly above 70 bar (GPSA Fig.7-3).`;
+    el.style.display='block';
+  } else {
+    el.style.display='none';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// DOM HELPERS
+// ══════════════════════════════════════════════════════════════════════
+const gv = id => { const e=document.getElementById(id); return e ? parseFloat(e.value) : NaN; };
+const gs = id => { const e=document.getElementById(id); return e ? e.value : ''; };
+const showErr = (id,m) => { const e=document.getElementById(id); if(e){e.textContent='⚠ '+m; e.className='err-box show';} };
+const hideErr = id => { const e=document.getElementById(id); if(e) e.className='err-box'; };
+const showWarn = (id,m) => { const e=document.getElementById(id); if(e){e.innerHTML=m; e.className='warn-box show';} };
+const hideWarn = id => { const e=document.getElementById(id); if(e) e.className='warn-box'; };
+
+function showRes(pid, bid, html, status) {
+  const p=document.getElementById(pid); if(!p) return;
+  const rb=p.querySelector('.rbody'); if(rb) rb.innerHTML=html;
+  const b=document.getElementById(bid);
+  if(b){b.textContent=status; b.className='rbadge '+({'PASS':'bp','OK':'bp','WARN':'bw','FAIL':'bf'}[status]||'bw');}
+  p.className='result-panel show';
+}
+
+function rGrid(items, cls) {
+  let c;
+  if (cls) { c = cls; }
+  else if (items.length <= 2) { c = 'rg rg2'; }
+  else if (items.length >= 12) { c = 'rg rg4'; }
+  else { c = 'rg'; }
+  return `<div class="${c}">${items.map(([l,v,w])=>`<div class="ri"><div class="rl">${l}</div><div class="rv${w?' '+w:''}">${v}</div></div>`).join('')}</div>`;
+}
+
+const PRELIM = `<div class="prelim">⚠ PRELIMINARY SIZING — Budgetary/conceptual use only. Not for detailed engineering, procurement or construction. Verify with a certified process engineer against applicable codes (ASME / API / GPSA).</div>`;
+
+const DEFAULTS = {
+  h2p: {'h2p-tr':'3','h2p-ld':'3','h2p-K':'0.107','h2p-surge':'1.25','h2p-margin':'85'},
+  v2p: {'v2p-tr':'3','v2p-K':'0.107','v2p-surge':'1.25','v2p-margin':'85','v2p-boot':'0.3','v2p-intern':'0.4'},
+  '3ph':{'p3-tro':'3','p3-trw':'3','p3-ld':'4','p3-K':'0.107','p3-surge':'1.25','p3-dp':'200','p3-mu':'2.0','p3-boot':'0.3','p3-icm':'0.15'},
+  pv:  {'pv-E':'1.0','pv-CA':'3','pv-minT':'3.175'},
+  mist:{'mist-margin':'80','mist-K':'0.107'},
+  nz:  {'nz-rhov2':'4000','nz-vel':'20'}
+};
+
+function resetTool(pfx) {
+  const pfxmap = {h2p:'h2p',v2p:'v2p','3ph':'p3',pv:'pv',mist:'mist',nz:'nz'};
+  const dp = pfxmap[pfx] || pfx;
+  const defs = DEFAULTS[pfx] || {};
+  document.querySelectorAll(`[id^="${dp}-"]`).forEach(el => {
+    if (el.classList.contains('result-panel')) el.className='result-panel';
+    if (el.classList.contains('err-box')) el.className='err-box';
+    if (el.classList.contains('warn-box')) el.className='warn-box';
+    if (el.classList.contains('hip-notice')) el.style.display='none';
+    if (el.classList.contains('imp-notice')) el.style.display='none';
+  });
+  const tgl = document.getElementById('ut-'+pfx);
+  if (tgl) tgl.querySelectorAll('.unit-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  Object.entries(defs).forEach(([id,val])=>{ const e=document.getElementById(id); if(e&&e.tagName==='INPUT') e.value=val; });
+  document.querySelectorAll(`[id^="${dp}-"]`).forEach(el=>{
+    if(el.tagName==='INPUT'&&el.type==='number'&&!defs[el.id]) el.value='';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SHARED: Render API result into DOM
+// ══════════════════════════════════════════════════════════════════════
+function renderResult(data, resultId, badgeId, errId, warnId) {
+  if (data.error) {
+    showErr(errId, data.error);
+    return;
+  }
+  if (data.warns && data.warns.length) {
+    showWarn(warnId, data.warns.join('<br>'));
+  }
+  const gridItems = data.results.map(r => [r.label, r.value, r.cls || (r.warn ? 'w' : '')]);
+  let html = rGrid(gridItems);
+  if (data.stokesInfo) {
+    const si = data.stokesInfo;
+    html += `<div class="rsub">🔬 Stokes: Vs=${si.Vs} m/s | dwell=${si.tDwell}s | H_settle_avail=${si.H_settle_avail} m | H_water_layer=${si.H_water_layer} m → <b>${si.ok?'✅ DROP SETTLES':'⚠ MAY NOT SETTLE — increase L/D or add coalescer'}</b></div>`;
+  }
+  if (data.summary) html += `<div class="rsub">${data.summary}</div>`;
+  html += PRELIM;
+  showRes(resultId, badgeId, html, data.status);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SHARED: POST to API
+// ══════════════════════════════════════════════════════════════════════
+async function callAPI(calc, params, resultId, badgeId, errId, warnId, btnEl) {
+  const origText = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Calculating…'; }
+  hideErr(errId); hideWarn(warnId);
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ calc, params })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error:'Server error '+resp.status}));
+      showErr(errId, err.error || 'Server error ' + resp.status);
+      return;
+    }
+    const data = await resp.json();
+    renderResult(data, resultId, badgeId, errId, warnId);
+  } catch(e) {
+    showErr(errId, 'Network error: ' + e.message);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = origText; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 1: HORIZONTAL 2-PHASE
+// ══════════════════════════════════════════════════════════════════════
+function calcH2P(btn) {
+  const params = {
+    Qg: gv('h2p-qg'), Qg_u: gs('h2p-qg-u'),
+    Ql: gv('h2p-ql'), Ql_u: gs('h2p-ql-u'),
+    rhog: gv('h2p-rhog'), rhog_u: gs('h2p-rhou-g'),
+    rhol: gv('h2p-rhol'), rhol_u: gs('h2p-rhou-l'),
+    T: gv('h2p-T'), T_u: gs('h2p-Tu'),
+    P: gv('h2p-P'), P_u: gs('h2p-Pu'),
+    tr: gv('h2p-tr'), LD: gv('h2p-ld'), K: gv('h2p-K'),
+    surge: gv('h2p-surge'), margin: gv('h2p-margin'),
+    llfrac: gs('h2p-llfrac'), svcFactor: gs('h2p-svc')
+  };
+  callAPI('h2p', params, 'h2p-result', 'h2p-badge', 'h2p-err', 'h2p-warn', btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 2: VERTICAL 2-PHASE
+// ══════════════════════════════════════════════════════════════════════
+function calcV2P(btn) {
+  const params = {
+    Qg: gv('v2p-qg'), Qg_u: gs('v2p-qg-u'),
+    Ql: gv('v2p-ql'), Ql_u: gs('v2p-ql-u'),
+    rhog: gv('v2p-rhog'), rhog_u: gs('v2p-rhou-g'),
+    rhol: gv('v2p-rhol'), rhol_u: gs('v2p-rhou-l'),
+    T: gv('v2p-T'), T_u: gs('v2p-Tu'),
+    P: gv('v2p-P'), P_u: gs('v2p-Pu'),
+    tr: gv('v2p-tr'), K: gv('v2p-K'),
+    surge: gv('v2p-surge'), margin: gv('v2p-margin'),
+    boot: gv('v2p-boot'), intern: gv('v2p-intern'),
+    svcFactor: gs('v2p-svc')
+  };
+  callAPI('v2p', params, 'v2p-result', 'v2p-badge', 'v2p-err', 'v2p-warn', btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 3: 3-PHASE HORIZONTAL
+// ══════════════════════════════════════════════════════════════════════
+function calc3P(btn) {
+  const params = {
+    Qg: gv('p3-qg'), Qg_u: gs('p3-qg-u'),
+    Qo: gv('p3-qo'), Qo_u: gs('p3-qo-u'),
+    Qw: gv('p3-qw'), Qw_u: gs('p3-qw-u'),
+    rhog: gv('p3-rhog'), rhog_u: gs('p3-rhou-g'),
+    rhoo: gv('p3-rhoo'), rhoo_u: gs('p3-rhou-o'),
+    rhow: gv('p3-rhow'), rhow_u: gs('p3-rhou-w'),
+    P: gv('p3-P'), P_u: gs('p3-Pu'),
+    tro: gv('p3-tro'), trw: gv('p3-trw'),
+    LD: gv('p3-ld'), K: gv('p3-K'),
+    surge: gv('p3-surge'), dp_um: gv('p3-dp'), mu_cP: gv('p3-mu'),
+    boot: gv('p3-boot'), icm: gv('p3-icm'),
+    svcFactor: gs('p3-svc')
+  };
+  callAPI('3ph', params, 'p3-result', 'p3-badge', 'p3-err', 'p3-warn', btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 4: PRESSURE VESSEL THICKNESS
+// ══════════════════════════════════════════════════════════════════════
+function syncE() {
+  const cat = gs('pv-Ecat');
+  const el = document.getElementById('pv-E');
+  if (el) el.value = cat;
+}
+
+function calcPV(btn) {
+  const params = {
+    P: gv('pv-P'), P_u: gs('pv-Pu'),
+    D: gv('pv-D'), D_u: gs('pv-Du'),
+    S: gv('pv-S'), S_u: gs('pv-Su'),
+    E: gv('pv-E'),
+    CA: gv('pv-CA'), CA_u: gs('pv-CAu'),
+    head: gs('pv-head'), minT: gs('pv-minT'),
+    T: gv('pv-T'), T_u: gs('pv-Tu'),
+    cat: gs('pv-cat')
+  };
+  callAPI('pv', params, 'pv-result', 'pv-badge', 'pv-err', 'pv-warn', btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 5: DEMISTER / MIST ELIMINATOR
+// ══════════════════════════════════════════════════════════════════════
+function syncMistK() {
+  const t = gs('mist-type');
+  const Km = {wiremesh:0.107, vane:0.18, cyclonic:0.25};
+  const el = document.getElementById('mist-K');
+  if (!el) return;
+  if (t !== 'custom') {
+    el.value = Km[t] || '';
+    el.readOnly = true;
+    el.style.opacity = '0.6';
+    el.title = 'K auto-set by device type. Select "Custom" to override.';
+  } else {
+    el.readOnly = false;
+    el.style.opacity = '1';
+    el.title = '';
+  }
+}
+
+function calcMist(btn) {
+  const params = {
+    Qg: gv('mist-qg'), Qg_u: gs('mist-qg-u'),
+    rhog: gv('mist-rhog'), rhog_u: gs('mist-rhou-g'),
+    rhol: gv('mist-rhol'), rhol_u: gs('mist-rhou-l'),
+    margin: gv('mist-margin'),
+    mtype: gs('mist-type'), K: gv('mist-K'),
+    svcFactor: gs('mist-svc'),
+    pcorrMode: gs('mist-pcorr'),
+    P: gv('mist-P'), P_u: gs('mist-Pu'),
+    orient: gs('mist-orient')
+  };
+  callAPI('mist', params, 'mist-result', 'mist-badge', 'mist-err', 'mist-warn', btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CALC 6: NOZZLE SIZING
+// ══════════════════════════════════════════════════════════════════════
+const NZ_SVC_CLIENT = {
+  'gas-inlet': {vel:25, rhov2:4000},
+  'gas-outlet':{vel:20, rhov2:4000},
+  'liq-inlet': {vel:2,  rhov2:15000},
+  'liq-outlet':{vel:1.5,rhov2:15000},
+  'manway':    {vel:20, rhov2:4000},
+  'drain':     {vel:1,  rhov2:10000},
+};
+function setNzDefaults() {
+  const svc = gs('nz-svc');
+  const d = NZ_SVC_CLIENT[svc] || {vel:20, rhov2:4000};
+  const ve = document.getElementById('nz-vel'); if (ve) ve.value = d.vel;
+  const re = document.getElementById('nz-rhov2'); if (re) re.value = d.rhov2;
+}
+
+function calcNozzle(btn) {
+  const params = {
+    Q: gv('nz-Q'), Q_u: gs('nz-Qu'),
+    vel: gv('nz-vel'), vel_u: gs('nz-velu'),
+    rho: gv('nz-rho'), rho_u: gs('nz-rhu'),
+    rhov2: gv('nz-rhov2'),
+    svc: gs('nz-svc'), sch: gs('nz-sch')
+  };
+  callAPI('nozzle', params, 'nz-result', 'nz-badge', 'nz-err', 'nz-warn', btn);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// PDF EXPORT — all 6 tools
+// ══════════════════════════════════════════════════════════════════════
+function exportPDF(tool) {
+  if(!window.jspdf){alert('jsPDF library not loaded. Check internet connection.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,H=297,M=18,UW=W-M*2;
+  let y=0;
+
+  // Header
+  doc.setFillColor(10,53,96);doc.rect(0,0,W,26,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(255,255,255);
+  doc.text('Vessel & Separator Sizing Calculator — v3.0',M,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(190,215,255);
+  doc.text('ASME / API / GPSA | High-P NH₃/Urea corrections | Metric + Imperial',M,18);
+  doc.text('Generated: '+new Date().toLocaleString(),W-M,18,{align:'right'});
+  doc.setFillColor(224,236,252);doc.rect(0,26,W,12,'F');
+
+  const TITLES={
+    h2p:'Horizontal 2-Phase Separator Sizing',
+    v2p:'Vertical 2-Phase Separator Sizing',
+    '3ph':'3-Phase Horizontal Separator Sizing',
+    pv:'Pressure Vessel Shell Thickness — ASME Sec.VIII Div.1',
+    mist:'Demister / Mist Eliminator Sizing',
+    nz:'Vessel Nozzle / Connection Sizing',
+    ref:'Engineering Reference Tables'
+  };
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(10,53,96);
+  doc.text(TITLES[tool]||tool,M,34);
+  y=50;
+
+  function np(){if(y>H-32){doc.addPage();y=22;}}
+  function sh(t){np();doc.setFillColor(240,245,252);doc.rect(M,y-5,UW,9,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(40,65,110);
+    doc.text(t.toUpperCase(),M+2,y+0.5);y+=12;}
+  function kv(l,v,warn){np();
+    doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.setTextColor(warn?160:50,warn?50:50,warn?0:50);doc.text(l+':',M+2,y);
+    doc.setFont('helvetica','bold');doc.setTextColor(warn?160:10,warn?50:53,warn?0:96);
+    const wv=doc.splitTextToSize(String(v),UW-95);doc.text(wv,M+92,y);y+=Math.max(7,wv.length*5.8);}
+  function hr(){doc.setDrawColor(190,210,235);doc.line(M,y,W-M,y);y+=6;}
+
+  sh('Input Parameters');
+  const inputs={
+    h2p:[['Gas Flow',()=>document.getElementById('h2p-qg')?.value+' '+gs('h2p-qg-u')],
+         ['Liquid Flow',()=>document.getElementById('h2p-ql')?.value+' '+gs('h2p-ql-u')],
+         ['Gas Density',()=>document.getElementById('h2p-rhog')?.value+' '+gs('h2p-rhou-g')],
+         ['Liquid Density',()=>document.getElementById('h2p-rhol')?.value+' '+gs('h2p-rhou-l')],
+         ['Pressure',()=>document.getElementById('h2p-P')?.value+' '+gs('h2p-Pu')],
+         ['Temperature',()=>document.getElementById('h2p-T')?.value+' '+gs('h2p-Tu')],
+         ['Retention Time',()=>document.getElementById('h2p-tr')?.value+' min'],
+         ['Surge Factor',()=>document.getElementById('h2p-surge')?.value],
+         ['L/D',()=>document.getElementById('h2p-ld')?.value],
+         ['K-Factor',()=>document.getElementById('h2p-K')?.value+' m/s'],
+         ['Liquid Level Fraction',()=>gs('h2p-llfrac')],
+         ['Service',()=>gs('h2p-svc')]],
+    v2p:[['Gas Flow',()=>document.getElementById('v2p-qg')?.value+' '+gs('v2p-qg-u')],
+         ['Liquid Flow',()=>document.getElementById('v2p-ql')?.value+' '+gs('v2p-ql-u')],
+         ['Gas Density',()=>document.getElementById('v2p-rhog')?.value+' '+gs('v2p-rhou-g')],
+         ['Liquid Density',()=>document.getElementById('v2p-rhol')?.value+' '+gs('v2p-rhou-l')],
+         ['Retention Time',()=>document.getElementById('v2p-tr')?.value+' min'],
+         ['Surge Factor',()=>document.getElementById('v2p-surge')?.value],
+         ['K-Factor',()=>document.getElementById('v2p-K')?.value+' m/s'],
+         ['Boot Height',()=>document.getElementById('v2p-boot')?.value+' m'],
+         ['Service',()=>gs('v2p-svc')]],
+    '3ph':[['Gas Flow',()=>document.getElementById('p3-qg')?.value+' '+gs('p3-qg-u')],
+           ['Oil Flow',()=>document.getElementById('p3-qo')?.value+' '+gs('p3-qo-u')],
+           ['Water Flow',()=>document.getElementById('p3-qw')?.value+' '+gs('p3-qw-u')],
+           ['ρg/ρo/ρw',()=>`${document.getElementById('p3-rhog')?.value} / ${document.getElementById('p3-rhoo')?.value} / ${document.getElementById('p3-rhow')?.value} ${gs('p3-rhou-g')}`],
+           ['Oil/Water Ret.',()=>document.getElementById('p3-tro')?.value+'/'+document.getElementById('p3-trw')?.value+' min'],
+           ['L/D',()=>document.getElementById('p3-ld')?.value],
+           ['Service',()=>gs('p3-svc')],
+           ['Droplet/Viscosity',()=>document.getElementById('p3-dp')?.value+'µm / '+document.getElementById('p3-mu')?.value+' cP']],
+    pv: [['Design Pressure',()=>document.getElementById('pv-P')?.value+' '+gs('pv-Pu')],
+         ['Inner Diameter',()=>document.getElementById('pv-D')?.value+' '+gs('pv-Du')],
+         ['Allowable Stress',()=>document.getElementById('pv-S')?.value+' '+gs('pv-Su')],
+         ['Joint Efficiency',()=>document.getElementById('pv-E')?.value+' ('+gs('pv-Ecat')+')'],
+         ['CA',()=>document.getElementById('pv-CA')?.value+' '+gs('pv-CAu')],
+         ['Head Type',()=>gs('pv-head')],
+         ['Temperature',()=>document.getElementById('pv-T')?.value+' '+gs('pv-Tu')],
+         ['Min. Thickness',()=>gs('pv-minT')+' mm'],
+         ['Design Category',()=>gs('pv-cat')]],
+    mist:[['Gas Flow',()=>document.getElementById('mist-qg')?.value+' '+gs('mist-qg-u')],
+          ['Densities ρg/ρl',()=>document.getElementById('mist-rhog')?.value+'/'+document.getElementById('mist-rhol')?.value+' '+gs('mist-rhou-g')],
+          ['Demister Type',()=>gs('mist-type')],
+          ['Margin',()=>document.getElementById('mist-margin')?.value+'%'],
+          ['Service Factor',()=>gs('mist-svc')],
+          ['P-Correction',()=>gs('mist-pcorr')]],
+    nz:  [['Service',()=>gs('nz-svc')],
+          ['Flow',()=>document.getElementById('nz-Q')?.value+' '+gs('nz-Qu')],
+          ['Density',()=>document.getElementById('nz-rho')?.value+' '+gs('nz-rhu')],
+          ['Velocity',()=>document.getElementById('nz-vel')?.value+' '+gs('nz-velu')],
+          ['ρv² Limit',()=>document.getElementById('nz-rhov2')?.value+' Pa']],
+  };
+  (inputs[tool]||[]).forEach(([l,fn])=>{try{kv(l,fn());}catch(e){}});
+
+  hr(); sh('Results');
+  const rmap={h2p:'h2p-result',v2p:'v2p-result','3ph':'p3-result',pv:'pv-result',mist:'mist-result',nz:'nz-result'};
+  const rEl=document.getElementById(rmap[tool]);
+  if(rEl&&rEl.classList.contains('show')){
+    // Structured read: pair up .rl (label) and .rv (value) divs for accurate output
+    const items=rEl.querySelectorAll('.ri');
+    if(items.length>0){
+      items.forEach(item=>{
+        const lEl=item.querySelector('.rl'), vEl=item.querySelector('.rv');
+        if(lEl&&vEl){kv(lEl.textContent.trim(), vEl.textContent.trim(), vEl.classList.contains('w'));}
+      });
+    }
+    // Also show any rsub/prelim text
+    rEl.querySelectorAll('.rsub,.prelim').forEach(el=>{
+      np();doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(80,80,80);
+      const wl=doc.splitTextToSize(el.textContent.trim(),UW-4);doc.text(wl,M+2,y);y+=wl.length*5.5+3;
+    });
+  } else {
+    doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor(150,150,150);
+    doc.text('No results computed yet. Run the calculation first.',M+2,y);y+=9;
+  }
+
+  hr(); np();
+  // FIX: bordered disclaimer box
+  doc.setFillColor(255,244,220);doc.rect(M,y-3,UW,22,'F');
+  doc.setDrawColor(200,120,0);doc.setLineWidth(0.65);doc.rect(M,y-3,UW,22,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(100,50,0);
+  doc.text('⚠  PRELIMINARY SIZING ONLY — NOT FOR DETAILED ENGINEERING OR CONSTRUCTION',M+3,y+4);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(70,35,0);
+  doc.text('Results are indicative for budgetary/conceptual use only. Verify all results with a certified process engineer.',M+3,y+11);
+  doc.text('Applicable codes: ASME Sec.VIII Div.1 | API 12J / RP 14E | GPSA Engineering Data Book.',M+3,y+17);
+  y+=27;
+
+  // Footer on all pages
+  const tp=doc.getNumberOfPages();
+  for(let pg=1;pg<=tp;pg++){
+    doc.setPage(pg);
+    doc.setDrawColor(10,53,96);doc.setLineWidth(0.5);doc.line(M,H-18,W-M,H-18);
+    doc.setFillColor(10,53,96);doc.rect(0,H-13,W,13,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);
+    doc.text('multicalci.com — Vessel & Separator Sizing v3.0',M,H-6);
+    doc.setFont('helvetica','normal');doc.setTextColor(170,205,255);
+    doc.text('ASME/API/GPSA | Preliminary only. Not for construction.',M+60,H-6);
+    doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text('Page '+pg+' of '+tp,W-M,H-6,{align:'right'});
+  }
+  doc.save('VesselSizing_'+tool+'_v3.pdf');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SOCIAL SHARING
+// ══════════════════════════════════════════════════════════════════════
+const STXT='🛢 Free Vessel & Separator Sizing Tool v3.0 — horizontal/vertical separators, 3-phase, ASME PV thickness, demister, nozzle. High-P NH₃/urea corrections. GPSA/API methods.';
+const SURL=window.location.href;
+function shareTwitter(){window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(STXT)}&url=${encodeURIComponent(SURL)}&hashtags=ProcessEngineering,ASME,Separator`,'_blank','width=600,height=420,noopener');}
+function shareLinkedIn(){window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SURL)}`,'_blank','width=620,height=520,noopener');}
+function shareWhatsApp(){window.open(`https://wa.me/?text=${encodeURIComponent(STXT+'\n\n'+SURL)}`,'_blank','noopener');}
+function shareEmail(){const s='Vessel & Separator Sizing Tool v3.0 — Free Engineering Calculator';const b=`Hi,\n\nThought you'd find this useful:\n\n${STXT}\n\nLink: ${SURL}\n\nCovers: Horizontal/Vertical separators, 3-phase, ASME Sec.VIII thickness, demister, nozzle sizing.\n\nBest regards`;window.open(`mailto:?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`,'_self');}
+function copyLink(){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(SURL).then(toast).catch(()=>fbcopy());}else fbcopy();}
+function fbcopy(){const el=document.createElement('textarea');el.value=SURL;el.style.cssText='position:fixed;opacity:0';document.body.appendChild(el);el.focus();el.select();try{document.execCommand('copy');toast();}catch(e){alert('Copy: '+SURL);}document.body.removeChild(el);}
+function toast(){const t=document.getElementById('shareToast');if(!t)return;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.display='none';},2800);}
+
+// Init
+syncMistK();
+
+// ══════════════════════════════════════════════════════════════════════
+// EDUCATION HUB
+// ══════════════════════════════════════════════════════════════════════
+function eduTab(name, btn) {
+  document.querySelectorAll('.edu-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.edu-tab').forEach(b => b.classList.remove('active'));
+  const p = document.getElementById('ep_' + name);
+  if (p) p.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'quiz' && !vsQuizBuilt) buildVsQuiz();
+}
+
+// ── Quiz Engine ───────────────────────────────────────────────────────
+let vsQuizBuilt = false, vsQuizAnswers = {};
+
+const VS_QUESTIONS = [
+  {
+    q: "The Souders-Brown equation U_max = K × √[(ρ_L − ρ_G)/ρ_G] gives the maximum gas velocity in a separator. As operating pressure increases above 70 bar, what happens to K?",
+    opts: ["K increases because gas is denser","K remains constant at 0.107 m/s","K decreases due to higher gas density and lower surface tension","K is replaced by a different formula entirely"],
+    ans: 2,
+    exp: "Above 70 bar, gas density increases significantly while surface tension of liquid droplets decreases. Both effects reduce droplet capture efficiency. GPSA Fig.7-3 shows K declining with pressure. The calculator applies kPcorr(P): above 70 bar, K is derated. Above 150 bar (NH₃ synthesis), K × 0.50 maximum applies."
+  },
+  {
+    q: "ASME VIII Div.1 joint efficiency E = 1.0 requires which level of weld examination?",
+    opts: ["No examination (visual only)","Spot radiographic testing","Full radiographic testing (100% of seams)","Magnetic particle testing only"],
+    ans: 2,
+    exp: "E=1.0 requires full (100%) radiographic examination of all Category A and B weld seams. E=0.85 is spot RT; E=0.70 is no examination. Using E=0.70 instead of E=1.0 increases the required wall thickness by a factor of 1.0/0.70 = 1.43× — often making full RT more economical above ~10 bar design pressure."
+  },
+  {
+    q: "A pressure vessel hydrotest per ASME VIII must be performed at what pressure relative to MAWP?",
+    opts: ["1.1 × MAWP","1.3 × MAWP × (S_test/S_design)","2.0 × MAWP","MAWP only (no uplift needed)"],
+    ans: 1,
+    exp: "ASME VIII requires hydrostatic testing at 1.3 × MAWP × (S_test/S_design), where the stress ratio corrects for the difference in allowable stress at test temperature vs design temperature. The test must hold for 30 minutes minimum. Pneumatic testing (1.1 × MAWP) is an alternative requiring written hazard analysis."
+  },
+  {
+    q: "For a three-phase separator, what does API 12J specify as the typical liquid retention time for an oil-water pad in standard production service?",
+    opts: ["0.5–1 minute","1–3 minutes","3–5 minutes","10–20 minutes"],
+    ans: 2,
+    exp: "API 12J specifies 3–5 minutes for the oil pad in a three-phase production separator. Gas scrubbers need only 0.5–2 min. Standard two-phase separators need 1–3 min. Three-phase water boots may need 3–10 min depending on emulsion tendency. Always apply a surge factor of 1.25× to the retention volume."
+  },
+  {
+    q: "NACE MR0175 sour service is triggered when H₂S partial pressure exceeds:",
+    opts: ["0.3 psia (2 kPa)","0.05 psia (0.3 kPa)","5 psia (35 kPa)","Any detectable H₂S"],
+    ans: 1,
+    exp: "Sour service per NACE MR0175 / ISO 15156 is defined as H₂S partial pressure > 0.3 kPa (0.05 psia) in gas phase or total absolute pressure > 1.8 MPa with H₂S > 0.0003 mole fraction. Below these thresholds, standard non-sour materials may be used. Above: hardness limits apply (≤22 HRC for CS) and PWHT is typically required."
+  },
+  {
+    q: "Wire mesh demister pads are NOT suitable for which type of service?",
+    opts: ["High-pressure gas above 100 bar","Services with wax, paraffin, or fouling deposits","Offshore topsides applications","Services with liquid H₂S present"],
+    ans: 1,
+    exp: "Wire mesh pads will plug in fouling, wax-forming, or liquid-hydrocarbon-heavy services. The fine wire lattice traps solids and sticky deposits, blocking flow. Vane packs are used instead for fouling service — the smooth inclined plates are self-draining and easy to clean. Cyclone internals are another option for high liquid loading or fouling."
+  },
+  {
+    q: "The ASME thick-wall formula (Appendix 1-2) must be used instead of the standard UG-27 thin-wall formula when:",
+    opts: ["Design pressure exceeds 70 bar","t/R exceeds 0.385 (or P > 0.385 × S × E)","The vessel diameter exceeds 3 m","Operating temperature exceeds 260°C"],
+    ans: 1,
+    exp: "The thin-wall formula UG-27 is valid when t < 0.5R (approximately). ASME specifically requires App.1-2 when P > 0.385 SE, which corresponds to t/R > 0.385. In thick-walled vessels, hoop stress varies across the wall with the maximum at the inner surface — the thin-wall uniform-stress assumption gives non-conservative results."
+  },
+  {
+    q: "High-Temperature Hydrogen Attack (HTHA) causes damage by which mechanism?",
+    opts: ["Hydrogen embrittlement of the steel grain boundaries","Reaction of hydrogen with carbides to form methane, causing decarburisation and internal cracking","Oxidation of the steel surface by hydrogen peroxide formation","Galvanic corrosion between steel and hydrogen"],
+    ans: 1,
+    exp: "HTHA occurs when atomic hydrogen at elevated temperature reacts with iron carbide: Fe₃C + 4H → 3Fe + CH₄. The methane cannot diffuse out and builds up pressure in grain boundary voids, causing intergranular cracking and decarburisation (loss of carbide strengthening). It is irreversible with no warning. API 941 Nelson curves define safe T vs P_H₂ limits for each steel grade."
+  },
+  {
+    q: "A vortex breaker is required on which vessel nozzle?",
+    opts: ["Gas outlet nozzle at the top","Inlet nozzle","Liquid outlet nozzle at the bottom","Pressure relief valve nozzle"],
+    ans: 2,
+    exp: "Vortex breakers are welded cross-baffles installed over the liquid outlet nozzle at the vessel bottom. Without them, a rotating liquid vortex can form as the liquid drains, drawing gas down into the liquid outlet — called gas carryunder. This sends gas slugs to downstream pumps and meters causing cavitation and measurement error. They are mandatory on all liquid outlet nozzles per API 12J."
+  },
+  {
+    q: "SA-516 Grade 70 pressure vessel plate has a minimum required MDMT of −29°C under standard ASME UCS-66 rules (without impact testing). Which statement is correct?",
+    opts: ["It can be used at any temperature above −196°C without restrictions","Below −29°C, Charpy impact testing is required per ASME UCS-66","It is always acceptable to −50°C for separators","Weld PWHT eliminates the MDMT restriction"],
+    ans: 1,
+    exp: "ASME UCS-66 sets −29°C as the standard MDMT for SA-516 Gr 70 CS without impact testing. Below this, the Charpy impact test per UG-84 is mandatory to prove adequate toughness at the minimum design temperature. For lower temperature service, low-temperature CS (SA-333 Gr 6, MDMT −45°C) or austenitic stainless steel (no DBTT) should be specified."
+  },
+  {
+    q: "For an API 12J retention time calculation with a surge factor of 1.25, what is the correct formula for required liquid volume?",
+    opts: ["V = Q_L / (t_r × 1.25)","V = Q_L × t_r × 1.25","V = Q_L × t_r / 60","V = t_r / (Q_L × 1.25)"],
+    ans: 1,
+    exp: "V_liquid = Q_L (flow in m³/min) × t_r (min) × SF (surge factor). The surge factor of 1.25 accounts for slug flow, level control deadband, and flow surges. So if Q_L = 5 m³/min and t_r = 3 min, V_required = 5 × 3 × 1.25 = 18.75 m³. Forgetting the surge factor results in a separator that is 25% undersized and will overflow in surge conditions."
+  },
+  {
+    q: "In a horizontal two-phase separator, at what fraction of vessel volume is the liquid level typically designed to operate (normal operating level)?",
+    opts: ["10–15% full","25–30% full","50% full (half-full)","75–80% full"],
+    ans: 2,
+    exp: "Horizontal separators are typically designed with liquid at 50% full (half the cross-section) for normal operating level. This gives equal gas and liquid cross-sectional areas, providing both adequate gas velocity and liquid retention volume. Some designs use 25–50% fill depending on the gas-liquid ratio — higher gas load may use 25–30% to give more gas cross-section."
+  },
+  {
+    q: "Which of the following is the CORRECT ASME VIII Div.1 cylindrical shell formula for minimum wall thickness?",
+    opts: ["t = P×D/(4×S×E)","t = P×R/(S×E − 0.6P)","t = P×D/(2×S×E − 2P)","t = P×R/(2×S×E)"],
+    ans: 1,
+    exp: "The correct ASME UG-27 formula is t_min = P×R/(S×E − 0.6P), where R is the inside radius, S is the allowable stress, E is joint efficiency, and P is design pressure. The 0.6P correction term accounts for the effect of internal pressure on the meridional stress of a thin shell. Note: R = D/2 (inside radius, not outside radius)."
+  },
+  {
+    q: "Sour service chloride stress corrosion cracking (Cl-SCC) of austenitic stainless steel is most likely to occur under which combination of conditions?",
+    opts: ["Low temperature (&lt;20°C), low chloride (&lt;10 ppm)","Elevated temperature (&gt;60°C), chlorides, and tensile stress","Cryogenic service with high H₂S partial pressure","Any service with pH below 7.0"],
+    ans: 1,
+    exp: "Cl-SCC of austenitic stainless steel (304L, 316L) requires the simultaneous presence of: susceptible material (austenitic SS), tensile stress (residual from welding or applied), temperature above approximately 60°C, and chloride concentration. Preventing Cl-SCC: use duplex SS (much more resistant), limit chloride exposure, stress relief, or use a different alloy (Alloy 825, 625) for severe environments."
+  },
+  {
+    q: "For a standard oil-gas production separator on a new offshore facility, which nozzle inspection method is mandated by ASME UG-37?",
+    opts: ["Visual inspection of the nozzle weld only","Reinforcement area calculation showing A_available ≥ A_required for every opening","Full radiography of the nozzle-to-shell weld only","Pressure rating calculation based on nozzle schedule"],
+    ans: 1,
+    exp: "ASME UG-37 requires an area compensation (reinforcement) calculation for every opening in a pressure vessel. The area removed by the opening (d × t_req × F) must be replaced by metal within a defined boundary around the nozzle. Available area comes from excess shell thickness, nozzle wall, re-pad (if fitted), and weld metal. This calculation is separate from the shell thickness design and is mandatory for every nozzle, regardless of size."
+  }
+];
+
+function buildVsQuiz() {
+  vsQuizBuilt = true;
+  vsQuizAnswers = {};
+  const c = document.getElementById('vsQuizContainer');
+  if (!c) return;
+  c.innerHTML = '';
+  VS_QUESTIONS.forEach((q, qi) => {
+    const d = document.createElement('div');
+    d.className = 'quiz-card';
+    d.innerHTML = `<div class="quiz-q">Q${qi + 1}. ${q.q}</div>
+      <div class="quiz-opts" id="vsq_opts_${qi}">
+        ${q.opts.map((o, oi) => `<button class="quiz-opt" onclick="vsAnswer(${qi},${oi})">${String.fromCharCode(65+oi)}. ${o}</button>`).join('')}
+      </div>
+      <div id="vsq_exp_${qi}" class="quiz-explain" style="display:none"></div>`;
+    c.appendChild(d);
+  });
+}
+
+function vsAnswer(qi, oi) {
+  if (vsQuizAnswers[qi] !== undefined) return;
+  vsQuizAnswers[qi] = oi;
+  const q = VS_QUESTIONS[qi];
+  document.querySelectorAll(`#vsq_opts_${qi} .quiz-opt`).forEach((btn, i) => {
+    btn.classList.add('answered');
+    if (i === q.ans) btn.classList.add('correct');
+    else if (i === oi && oi !== q.ans) btn.classList.add('wrong');
+  });
+  const exp = document.getElementById('vsq_exp_' + qi);
+  if (exp) { exp.style.display = 'block'; exp.innerHTML = '💡 ' + q.exp; }
+  if (Object.keys(vsQuizAnswers).length === VS_QUESTIONS.length) {
+    const score = VS_QUESTIONS.filter((q, i) => vsQuizAnswers[i] === q.ans).length;
+    const sb = document.getElementById('vsQuizScore');
+    const sn = document.getElementById('vsScoreNum');
+    if (sb) sb.style.display = 'block';
+    if (sn) sn.textContent = score + '/' + VS_QUESTIONS.length;
+    if (sb) sb.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+function resetVsQuiz() {
+  vsQuizBuilt = false;
+  const sb = document.getElementById('vsQuizScore');
+  if (sb) sb.style.display = 'none';
+  buildVsQuiz();
+}
+</script>
+</body>
+</html>
