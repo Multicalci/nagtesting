@@ -572,6 +572,8 @@ select{
 }
 .fluid-badge-change:hover { background:var(--primary); color:#fff; }
 </style>
+<!-- html2pdf library — loaded early, two CDN fallbacks -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <!-- ══ TOP NAV ══ -->
@@ -2393,130 +2395,198 @@ async function calcHW() {
   }
 }
 
-/* ══ PDF REPORT — uses lastResults, no API call ══ */
+/* ══ PDF REPORT ══ */
 function generatePDF() {
-  if (!lastResults) { alert('Please run a calculation first, then click PDF Report.'); return; }
-  if (typeof html2pdf === 'undefined') { alert('PDF library not loaded — check internet connection.'); return; }
+  if (!lastResults) { alert('Run a calculation first.'); return; }
+  if (typeof html2pdf === 'undefined') {
+    alert('PDF library not loaded yet — wait a moment and try again.');
+    return;
+  }
   const r = lastResults;
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
   const pct = x => r.dpTotal > 0 ? (x / r.dpTotal * 100).toFixed(1) : '0.0';
-  const fittingsRows = r.fittingsSnapshot.length
-    ? r.fittingsSnapshot.map(f => `<tr><td>${f.label}</td><td>${f.qty}</td><td>${f.k}</td><td>${f.ksub.toFixed(3)}</td></tr>`).join('')
-      + `<tr style="background:#eef2ff;font-weight:700;"><td colspan="3">Total K-Factor</td><td>${r.Ktot.toFixed(3)}</td></tr>`
-    : `<tr><td colspan="4" style="text-align:center;color:#9ca3af;">No fittings</td></tr>`;
-  const fluidName = _selectedFluid ? _selectedFluid.name : 'Custom (manual entry)';
+  const fluidName = _selectedFluid ? _selectedFluid.name : 'Custom / Manual entry';
   const btn = document.querySelector('.btn-pdf');
   const origTxt = btn ? btn.innerHTML : '';
   if (btn) { btn.innerHTML = '⏳ Generating…'; btn.disabled = true; }
 
+  // Build fittings rows
+  let fitRows = '';
+  if (r.fittingsSnapshot && r.fittingsSnapshot.length) {
+    r.fittingsSnapshot.forEach(function(f) {
+      fitRows += '<tr><td style="padding:3px 7px;border:1px solid #e5e7eb;">' + f.label +
+        '</td><td style="padding:3px 7px;border:1px solid #e5e7eb;text-align:center;">' + f.qty +
+        '</td><td style="padding:3px 7px;border:1px solid #e5e7eb;text-align:center;">' + f.k +
+        '</td><td style="padding:3px 7px;border:1px solid #e5e7eb;text-align:right;font-weight:700;">' + f.ksub.toFixed(3) + '</td></tr>';
+    });
+    fitRows += '<tr style="background:#eef2ff;font-weight:700;"><td style="padding:3px 7px;border:1px solid #e5e7eb;" colspan="3">Total K-Factor</td><td style="padding:3px 7px;border:1px solid #e5e7eb;text-align:right;">' + r.Ktot.toFixed(3) + '</td></tr>';
+  } else {
+    fitRows = '<tr><td colspan="4" style="padding:6px;text-align:center;color:#9ca3af;">No fittings</td></tr>';
+  }
+
+  // Build HTML using string concatenation (avoids template literal issues)
+  var h = '';
+
+  // BRANDED HEADER
+  h += '<div style="background:linear-gradient(135deg,#4f46e5,#0891b2);padding:14px 20px;border-radius:8px 8px 0 0;margin:-28px -32px 16px;display:flex;justify-content:space-between;align-items:center;">';
+  h += '  <div style="display:flex;align-items:center;gap:12px;">';
+  h += '    <div style="width:44px;height:44px;background:rgba(255,255,255,.18);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;border:2px solid rgba(255,255,255,.35);">&Delta;P</div>';
+  h += '    <div>';
+  h += '      <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.1;">multicalci.com</div>';
+  h += '      <div style="font-size:8.5px;color:rgba(255,255,255,.8);letter-spacing:1.8px;font-weight:700;margin-top:1px;">FREE ENGINEERING CALCULATORS</div>';
+  h += '    </div>';
+  h += '  </div>';
+  h += '  <div style="text-align:right;">';
+  h += '    <div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.5px;">PRESSURE DROP REPORT</div>';
+  h += '    <div style="font-size:8.5px;color:rgba(255,255,255,.75);margin-top:3px;">' + dateStr + ' &bull; ' + timeStr + '</div>';
+  h += '    <div style="display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;font-size:7.5px;font-weight:700;padding:2px 9px;border-radius:10px;margin-top:5px;letter-spacing:.6px;">Darcy-Weisbach &bull; Colebrook-White &bull; K-Factor</div>';
+  h += '  </div>';
+  h += '</div>';
+
+  // JOB STRIP
+  h += '<div style="display:flex;gap:10px;margin-bottom:10px;background:#f8faff;border:1px solid #e0e7ff;border-radius:6px;padding:8px 12px;font-size:9.5px;">';
+  h += '  <div style="flex:1;"><span style="color:#6b7280;font-weight:600;">FLUID: </span><strong>' + fluidName + '</strong></div>';
+  h += '  <div><span style="color:#6b7280;font-weight:600;">UNITS: </span><strong>' + (r.unitMode === 'metric' ? 'SI (bar, m&sup3;/h, mm)' : 'Imperial (psi, GPM, in)') + '</strong></div>';
+  h += '</div>';
+
+  // DISCLAIMER
+  h += '<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;padding:5px 10px;margin-bottom:10px;font-size:8.5px;color:#78350f;font-weight:700;">';
+  h += '&bull; NOT FOR FINAL DESIGN. Results are indicative only. Verify with a qualified engineer per applicable codes (ASME B31.3, API 14E).';
+  h += '</div>';
+
+  // TOTAL DP BANNER
+  h += '<div style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:8px;padding:12px 18px;text-align:center;margin-bottom:11px;">';
+  h += '  <div style="font-size:8.5px;font-weight:700;letter-spacing:1.2px;opacity:.85;margin-bottom:3px;">TOTAL PRESSURE DROP</div>';
+  h += '  <div style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;line-height:1;">' + r.dpDisp.toFixed(4) + '<span style="font-size:13px;margin-left:5px;opacity:.9;">' + r.dpUnit + '</span></div>';
+  h += '  <div style="font-size:8.5px;opacity:.8;margin-top:4px;">Friction ' + pct(r.dpPipe) + '% &bull; Fittings ' + pct(r.dpMinor) + '% &bull; Elevation ' + pct(r.dpElev) + '% &nbsp;|&nbsp; Uncertainty &plusmn;' + r.uncertPct + '%</div>';
+  h += '</div>';
+
+  // RESULTS GRID
+  function cell(label, val, sub, color) {
+    color = color || '#4f46e5';
+    return '<div style="border:1.5px solid #e5e7eb;border-left:3px solid ' + color + ';border-radius:5px;padding:7px 9px;background:#f9fafb;">' +
+      '<div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.5px;margin-bottom:2px;">' + label + '</div>' +
+      '<div style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;">' + val + '</div>' +
+      (sub ? '<div style="font-size:7.5px;color:#6b7280;margin-top:1px;">' + sub + '</div>' : '') +
+      '</div>';
+  }
+
+  var regColor = r.regime === 'Laminar' ? '#059669' : r.regime === 'Transitional' ? '#d97706' : '#dc2626';
+
+  h += '<div style="font-size:8.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin:0 0 8px;">Hydraulic Results</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">';
+  h += cell('Pipe Friction',    r.dpPipeDisp.toFixed(4)  + ' ' + r.dpUnit,  pct(r.dpPipe)  + '% of total');
+  h += cell('Minor Losses',     r.dpMinorDisp.toFixed(4) + ' ' + r.dpUnit,  pct(r.dpMinor) + '% of total');
+  h += cell('Total Head Loss',  r.headDisp.toFixed(3)    + ' ' + r.headUnit, '');
+  h += cell('Elevation &Delta;P', r.dpElevDisp.toFixed(4) + ' ' + r.dpUnit, pct(r.dpElev) + '% of total', '#d97706');
+  h += cell('Flow Velocity',    r.velDisp.toFixed(3)     + ' ' + r.velUnit,  '');
+  h += cell('Reynolds Number',  Math.round(r.Re).toLocaleString(),
+    '<span style="background:' + regColor + ';color:#fff;font-size:7px;font-weight:700;padding:1px 6px;border-radius:8px;">' + r.regime + '</span>');
+  h += cell('Friction Factor f', r.f.toFixed(5), 'Darcy-Weisbach');
+  h += cell('Equiv. Length Le', r.Leq.toFixed(1) + ' m', 'Fittings equiv.');
+  h += '</div>';
+
+  // TWO COLUMN: Inputs + Fittings
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
+
+  // Inputs table
+  h += '<div>';
+  h += '<div style="font-size:8.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin-bottom:7px;">Process Conditions</div>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:9.5px;">';
+  h += '<tr style="background:#f3f4f6;"><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:left;font-size:8px;color:#374151;">Parameter</th><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:left;font-size:8px;color:#374151;">Value</th></tr>';
+  
+  var rows = [
+    ['Fluid', fluidName],
+    ['Pipe Diameter', (r.inputs ? r.inputs.D : r.diameter) + ' ' + r.diamUnit],
+    ['Pipe Length', (r.inputs ? r.inputs.L : r.length) + ' ' + r.lenUnit],
+    ['Elevation Change', (typeof r.dz === 'number' ? r.dz.toFixed(2) : '0.00') + ' m'],
+    ['Flow Rate', (r.inputs ? r.inputs.Q + ' ' + r.inputs.Qunit : '—')],
+    ['Density', (r.inputs ? r.inputs.rho.toFixed(1) + ' ' + r.inputs.rhoUnit : '—')],
+    ['Viscosity', (r.inputs ? r.inputs.mu + ' cP' : '—')],
+    ['Pump / Motor &eta;', (r.inputs ? r.inputs.pumpEff + '% / ' + r.inputs.motorEff + '%' : '—')],
+  ];
+  rows.forEach(function(row, i) {
+    var bg = i % 2 ? 'background:#f9fafb;' : '';
+    h += '<tr style="' + bg + '"><td style="padding:3px 7px;border:1px solid #e5e7eb;">' + row[0] + '</td><td style="padding:3px 7px;border:1px solid #e5e7eb;font-weight:700;font-family:'Courier New',monospace;">' + row[1] + '</td></tr>';
+  });
+  h += '</table>';
+  h += '</div>';
+
+  // Fittings table
+  h += '<div>';
+  h += '<div style="font-size:8.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin-bottom:7px;">Fittings &amp; Valves</div>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:9.5px;">';
+  h += '<tr style="background:#f3f4f6;"><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:left;font-size:8px;color:#374151;">Fitting</th><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:center;font-size:8px;color:#374151;">Qty</th><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:center;font-size:8px;color:#374151;">K</th><th style="padding:4px 7px;border:1px solid #e5e7eb;text-align:right;font-size:8px;color:#374151;">K&times;Qty</th></tr>';
+  h += fitRows;
+  h += '</table>';
+  h += '</div>';
+  h += '</div>'; // end two-col
+
+  // SUMMARY + PUMP POWER
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
+
+  h += '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:9px 12px;">';
+  h += '<div style="font-size:8px;font-weight:700;color:#4f46e5;margin-bottom:6px;letter-spacing:.5px;">SUMMARY</div>';
+  var summaryRows = [
+    ['Friction : Fittings : Elevation', pct(r.dpPipe) + '% : ' + pct(r.dpMinor) + '% : ' + pct(r.dpElev) + '%'],
+    [r.per100label, (r.dpDisp / r.length * 100).toFixed(4) + ' ' + r.dpUnit + '/100' + r.lenUnit],
+    ['Equiv. pipe length (Le)', r.Leq.toFixed(1) + ' m'],
+    ['Flow regime', r.regime + ' (Re ' + Math.round(r.Re).toLocaleString() + ')'],
+    ['Model uncertainty', '&plusmn;' + r.uncertPct + '%'],
+  ];
+  summaryRows.forEach(function(row) {
+    h += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e0e7ff;font-size:9px;"><span>' + row[0] + '</span><span style="font-family:'Courier New',monospace;font-weight:700;">' + row[1] + '</span></div>';
+  });
+  h += '</div>';
+
+  h += '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:9px 12px;">';
+  h += '<div style="font-size:8px;font-weight:700;color:#7c3aed;margin-bottom:6px;letter-spacing:.5px;">PUMP &amp; MOTOR POWER</div>';
+  var pumpRows = [
+    ['Hydraulic Power', (r.P_hyd  / 1000).toFixed(3) + ' kW'],
+    ['Shaft Power (pump &eta;=' + (r.inputs ? r.inputs.pumpEff : '75') + '%)', (r.P_shaft / 1000).toFixed(3) + ' kW'],
+    ['Motor Input (motor &eta;=' + (r.inputs ? r.inputs.motorEff : '92') + '%)', (r.P_motor / 1000).toFixed(3) + ' kW'],
+    ['Motor Power (HP)', (r.P_motor / 745.7).toFixed(2) + ' hp'],
+  ];
+  pumpRows.forEach(function(row) {
+    h += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #ede9fe;font-size:9px;"><span>' + row[0] + '</span><span style="font-family:'Courier New',monospace;font-weight:700;">' + row[1] + '</span></div>';
+  });
+  h += '</div>';
+  h += '</div>'; // end two-col
+
+  // FOOTER
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:7.5px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;margin-top:4px;">';
+  h += '  <span><strong style="color:#4f46e5;">multicalci.com</strong> &mdash; Pressure Drop &bull; Control Valve &bull; Heat Exchanger &bull; Orifice &bull; Steam &bull; more</span>';
+  h += '  <span style="color:#dc2626;font-weight:700;">NOT FOR FINAL DESIGN</span>';
+  h += '  <span>Generated ' + dateStr + ' at ' + timeStr + '</span>';
+  h += '</div>';
+
   const report = document.createElement('div');
   report.style.cssText = 'width:794px;position:fixed;top:-9999px;left:-9999px;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111827;padding:28px 32px;box-sizing:border-box;line-height:1.45;';
-  report.innerHTML = `
-  <!-- ══ BRANDED HEADER ══ -->
-  <div style="background:linear-gradient(135deg,#4f46e5 0%,#0891b2 100%);padding:14px 20px 12px;border-radius:8px 8px 0 0;margin:-28px -32px 14px;display:flex;justify-content:space-between;align-items:center;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Courier New',monospace;font-size:14px;font-weight:900;color:#fff;letter-spacing:-1px;border:1.5px solid rgba(255,255,255,.3);">ΔP</div>
-      <div>
-        <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1;">multicalci.com</div>
-        <div style="font-size:9px;color:rgba(255,255,255,.75);letter-spacing:1.5px;margin-top:2px;font-weight:600;">FREE ENGINEERING CALCULATORS</div>
-      </div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:11px;font-weight:800;color:#fff;letter-spacing:.3px;">PRESSURE DROP REPORT</div>
-      <div style="font-size:9px;color:rgba(255,255,255,.75);margin-top:3px;">${dateStr} · ${timeStr}</div>
-      <div style="display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:4px;letter-spacing:.5px;">Darcy-Weisbach · Colebrook-White · K-Factor</div>
-    </div>
-  </div>
-  <!-- ══ JOB INFO STRIP ══ -->
-  <div style="display:flex;gap:10px;margin-bottom:10px;background:#f8faff;border:1px solid #e0e7ff;border-radius:6px;padding:8px 12px;">
-    <div style="flex:1;font-size:9.5px;"><span style="color:#6b7280;font-weight:600;">FLUID:</span> <strong style="color:#111827;">${fluidName}</strong></div>
-    <div style="font-size:9.5px;"><span style="color:#6b7280;font-weight:600;">UNITS:</span> <strong style="color:#111827;">${r.unitMode === 'metric' ? 'SI  (bar, m³/h, mm)' : 'Imperial  (psi, GPM, in)'}</strong></div>
-    <div style="font-size:9.5px;"><span style="color:#6b7280;font-weight:600;">GENERATED:</span> <strong style="color:#111827;">${dateStr} at ${timeStr}</strong></div>
-  </div>
-  <div style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:8px;padding:12px 18px;text-align:center;margin-bottom:11px;">
-    <div style="font-size:9px;font-weight:700;letter-spacing:1px;opacity:.85;margin-bottom:2px;">TOTAL PRESSURE DROP</div>
-    <div style="font-family:'Courier New',monospace;font-size:30px;font-weight:700;line-height:1;">${r.dpDisp.toFixed(4)}<span style="font-size:13px;margin-left:4px;opacity:.9;">${r.dpUnit}</span></div>
-    <div style="font-size:9px;opacity:.8;margin-top:3px;">Friction ${pct(r.dpPipe)}% · Fittings ${pct(r.dpMinor)}% · Elevation ${pct(r.dpElev)}%  |  Model uncertainty ±${r.uncertPct}%</div>
-  </div>
-  <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;padding:5px 10px;margin-bottom:10px;font-size:9px;color:#78350f;font-weight:700;">⚠ NOT FOR FINAL DESIGN. Results are indicative only. Verify with a qualified engineer per applicable codes.</div>
-  <div style="font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin:0 0 8px;">Detailed Results</div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
-    ${[
-      ['Pipe Friction', r.dpPipeDisp.toFixed(4)+' '+r.dpUnit, pct(r.dpPipe)+'%'],
-      ['Minor Losses',  r.dpMinorDisp.toFixed(4)+' '+r.dpUnit, pct(r.dpMinor)+'%'],
-      ['Total Head Loss', r.headDisp.toFixed(3)+' '+r.headUnit, ''],
-      ['Elevation ΔP',  r.dpElevDisp.toFixed(4)+' '+r.dpUnit, ''],
-      ['Flow Velocity', r.velDisp.toFixed(3)+' '+r.velUnit, ''],
-      ['Reynolds No.',  Math.round(r.Re).toLocaleString(), r.regime],
-      ['Friction Factor f', r.f.toFixed(5), ''],
-      ['Equiv. Length Le', r.Leq.toFixed(1)+' m', ''],
-    ].map(([label,val,sub])=>`<div style="border:1.5px solid #e5e7eb;border-left:3px solid #4f46e5;border-radius:5px;padding:7px 9px;background:#f9fafb;">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6b7280;letter-spacing:.4px;margin-bottom:2px;">${label}</div>
-      <div style="font-family:'Courier New',monospace;font-size:13px;font-weight:700;">${val}</div>
-      ${sub?`<div style="font-size:8px;color:#6b7280;">${sub}</div>`:''}
-    </div>`).join('')}
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-    <div>
-      <div style="font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin-bottom:7px;">Process Conditions</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10px;">
-        <tr><th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;text-align:left;font-size:8.5px;font-weight:700;color:#374151;">Parameter</th><th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;text-align:left;font-size:8.5px;font-weight:700;color:#374151;">Value</th></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #e5e7eb;">Fluid</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-weight:700;">${fluidName}</td></tr>
-        <tr style="background:#f9fafb;"><td style="padding:4px 8px;border:1px solid #e5e7eb;">Pipe Diameter</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.inputs.D} ${r.diamUnit}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #e5e7eb;">Pipe Length</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.inputs.L} ${r.lenUnit}</td></tr>
-        <tr style="background:#f9fafb;"><td style="padding:4px 8px;border:1px solid #e5e7eb;">Elevation Change</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.dz.toFixed(2)} m</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #e5e7eb;">Pipe Material</td><td style="padding:4px 8px;border:1px solid #e5e7eb;">${r.inputs.mat.split('—')[0].trim()}</td></tr>
-        <tr style="background:#f9fafb;"><td style="padding:4px 8px;border:1px solid #e5e7eb;">Flow Rate</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.inputs.Q} ${r.inputs.Qunit}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #e5e7eb;">Density</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.inputs.rho.toFixed(1)} ${r.inputs.rhoUnit}</td></tr>
-        <tr style="background:#f9fafb;"><td style="padding:4px 8px;border:1px solid #e5e7eb;">Viscosity</td><td style="padding:4px 8px;border:1px solid #e5e7eb;font-family:'Courier New',monospace;font-weight:700;">${r.inputs.mu} cP</td></tr>
-      </table>
-    </div>
-    <div>
-      <div style="font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#4f46e5;border-bottom:1.5px solid #e0e7ff;padding-bottom:3px;margin-bottom:7px;">Fittings &amp; Valves</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10px;">
-        <tr>
-          <th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;font-size:8.5px;font-weight:700;color:#374151;text-align:left;">Fitting</th>
-          <th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;font-size:8.5px;font-weight:700;color:#374151;text-align:center;">Qty</th>
-          <th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;font-size:8.5px;font-weight:700;color:#374151;text-align:center;">K</th>
-          <th style="background:#f3f4f6;padding:5px 8px;border:1px solid #e5e7eb;font-size:8.5px;font-weight:700;color:#374151;text-align:right;">K×Qty</th>
-        </tr>
-        ${fittingsRows}
-      </table>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:9px 12px;">
-      <div style="font-size:8.5px;font-weight:700;color:#4f46e5;margin-bottom:6px;">SUMMARY</div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e0e7ff;font-size:9.5px;"><span>Friction : Fittings : Elevation</span><span style="font-family:'Courier New',monospace;font-weight:700;">${pct(r.dpPipe)}% : ${pct(r.dpMinor)}% : ${pct(r.dpElev)}%</span></div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e0e7ff;font-size:9.5px;"><span>${r.per100label}</span><span style="font-family:'Courier New',monospace;font-weight:700;">${(r.dpDisp/r.length*100).toFixed(4)} ${r.dpUnit}/100${r.lenUnit}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:9.5px;"><span>Flow regime (Re)</span><span style="font-family:'Courier New',monospace;font-weight:700;">${r.regime} (${Math.round(r.Re).toLocaleString()})</span></div>
-    </div>
-    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:9px 12px;">
-      <div style="font-size:8.5px;font-weight:700;color:#7c3aed;margin-bottom:6px;">PUMP &amp; MOTOR POWER</div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e0e7ff;font-size:9.5px;"><span>Hydraulic Power</span><span style="font-family:'Courier New',monospace;font-weight:700;">${(r.P_hyd/1000).toFixed(3)} kW</span></div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #e0e7ff;font-size:9.5px;"><span>Shaft Power (pump η=${r.inputs.pumpEff}%)</span><span style="font-family:'Courier New',monospace;font-weight:700;">${(r.P_shaft/1000).toFixed(3)} kW</span></div>
-      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:9.5px;"><span>Motor Input (motor η=${r.inputs.motorEff}%)</span><span style="font-family:'Courier New',monospace;font-weight:700;">${(r.P_motor/1000).toFixed(3)} kW</span></div>
-    </div>
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:8px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;">
-    <span style="font-weight:700;color:#4f46e5;">multicalci.com</span><span> — Free Engineering Calculators — Pressure Drop · Control Valve · Heat Exchanger · Orifice · Steam · more</span>
-    <span style="color:#dc2626;font-weight:700;">⚠ NOT FOR FINAL DESIGN — verify with qualified engineer</span>
-    <span>Generated ${dateStr} at ${timeStr}</span>
-  </div>`;
-
+  report.innerHTML = h;
   document.body.appendChild(report);
+
   const opt = {
-    margin: 0, filename: 'PressureDrop_Report_' + dateStr.replace(/ /g, '_') + '.pdf',
+    margin: 0,
+    filename: 'PressureDrop_multicalci_' + dateStr.replace(/ /g, '_') + '.pdf',
     image: { type: 'jpeg', quality: 0.97 },
     html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
+
   html2pdf().set(opt).from(report).save()
-    .then(() => { document.body.removeChild(report); if (btn) { btn.innerHTML = origTxt; btn.disabled = false; } })
-    .catch(() => { document.body.removeChild(report); if (btn) { btn.innerHTML = origTxt; btn.disabled = false; } alert('PDF failed. Try Ctrl+P.'); });
+    .then(function() {
+      document.body.removeChild(report);
+      if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+    })
+    .catch(function(e) {
+      document.body.removeChild(report);
+      if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+      alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
+    });
 }
+
 </script>
 <script>
 function sgFaq(btn){const a=btn.nextElementSibling,o=btn.classList.contains('on');document.querySelectorAll('.sfaq-q').forEach(q=>q.classList.remove('on'));document.querySelectorAll('.sfaq-a').forEach(a=>a.classList.remove('on'));if(!o){btn.classList.add('on');a.classList.add('on');}}
@@ -2533,6 +2603,6 @@ function shrFb(txt){const t=document.createElement('textarea');t.value=txt;t.sty
 
 </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 </body>
 </html>
