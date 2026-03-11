@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>NPSH Calculator — Net Positive Suction Head (NPSHa &amp; NPSHr) | Free Online Tool | multicalci.com</title>
+<meta name="description" content="Professional NPSH calculator used by pump engineers worldwide. Compute NPSHa and NPSHr for 31 fluids using the Aspen / AFT Fathom-grade algorithm. Dynamic diagram, SI/Imperial, PDF export, cavitation check, all free.">
+<meta name="keywords" content="NPSH calculator, NPSHa, NPSHr, net positive suction head, pump cavitation calculator, centrifugal pump NPSH, suction head calculator, Darcy Weisbach friction loss, vapour pressure pump, pump suction design">
+<meta name="author" content="multicalci.com">
+<meta property="og:title" content="NPSH Calculator — Professional NPSHa &amp; NPSHr Tool">
+<meta property="og:description" content="Free professional-grade NPSH calculator. 31 fluids, auto vapour pressure, dynamic system diagram, cavitation check, SI/Imperial, PDF report.">
+<meta property="og:type" content="website">
+    <meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+<meta property="og:url" content="https://multicalci.com/npsh-calculator/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="NPSH Calculator — Free Professional Tool">
+<meta name="twitter:description" content="Compute NPSHa and NPSHr instantly. 31 fluids, dynamic diagram, cavitation check, PDF export.">
+<link rel="canonical" href="https://multicalci.com/npsh-calculator/">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"NPSH Calculator","description":"Professional net positive suction head calculator for pump engineers. Computes NPSHa and NPSHr using industry-standard Hydraulic Institute methodology.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/npsh-calculator/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["31 fluid database with temperature-dependent properties","Correct fluid-density pressure conversion per AFT Fathom methodology","Darcy-Weisbach friction with Colebrook-White equation","Thoma sigma NPSHr estimation model","Dynamic system diagram with 4 configurations","SI and Imperial unit toggle","PDF calculation report export"]}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ======================================================
+   DESIGN: Clean White Engineering — precise, readable,
+   professional. Navy accent, amber warnings, green pass.
+   ====================================================== */
+:root{
+  --navy:#061428; --navy2:#0d2348; --navy3:#183476;
+  --blue:#0e4fc4; --blue2:#1a5fd8; --blue-lt:#e8f0fe; --blue-bd:#93b8f8;
+  --grn:#025c38;  --grn-lt:#e6f9f1; --grn-bd:#2dcc82; --grn-txt:#013d26;
+  --red:#9b1515;  --red-lt:#fef0f0; --red-bd:#f87171;
+  --amb:#7c3b06;  --amb-lt:#fef9ec; --amb-bd:#f59e0b; --amb-txt:#5a2c04;
+  --pur:#4c1d95;  --pur-lt:#f4f0ff; --pur-bd:#a78bfa;
+  --bg:#ecf0f7; --bg1:#ffffff; --bg2:#dfe6f2; --bg3:#cdd8ec;
+  --bdr:#b8c8e0; --bdr2:#94aacb; --bdr3:#4e6a94;
+  --txt:#061428; --txt2:#0d2a54; --txt3:#2a4470; --txt4:#4e6a94;
+  --mono:'JetBrains Mono',monospace;
+  --serif:'Lora',serif;
+  --sans:'Source Sans 3',sans-serif;
+  --shadow:0 2px 6px rgba(6,20,40,.10),0 5px 18px rgba(6,20,40,.07);
+  --shadow2:0 6px 28px rgba(6,20,40,.18);
+  --r:10px; --r2:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:17px;scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;line-height:1.68;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+/* ── HEADER ── */
+.hdr{
+  position:sticky;top:0;z-index:300;height:58px;
+  background:#fff;border-bottom:1px solid var(--bdr);
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+  box-shadow:0 1px 8px rgba(15,32,68,.06);
+}
+.hdr-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.hdr-logo-mark{
+  width:34px;height:34px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--navy),var(--navy3));
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;box-shadow:0 2px 8px rgba(15,32,68,.2);
+}
+.hdr-logo-name{font-family:var(--serif);font-size:1.08rem;font-weight:700;color:var(--navy);letter-spacing:-.2px}
+.hdr-logo-sub{font-size:.58rem;color:var(--txt3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.4px}
+.hdr-sep{width:1px;height:24px;background:var(--bdr);flex-shrink:0}
+.hdr-badge{
+  font-family:var(--mono);font-size:.63rem;font-weight:500;color:var(--blue2);
+  padding:3px 10px;border-radius:20px;border:1px solid var(--blue-bd);
+  background:var(--blue-lt);white-space:nowrap;
+}
+.hdr-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.hdr-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 13px;border-radius:8px;
+  border:1px solid var(--bdr2);background:var(--bg2);color:var(--txt2);
+  font-family:var(--sans);font-size:.76rem;font-weight:600;
+  cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;
+}
+.hdr-btn:hover{border-color:var(--bdr3);background:var(--bg3);color:var(--txt)}
+.hdr-btn.accent{border-color:var(--navy2);background:var(--navy);color:#fff}
+.hdr-btn.accent:hover{background:var(--navy2)}
+.utog{display:flex;border:1px solid var(--bdr2);border-radius:8px;overflow:hidden;background:var(--bg2)}
+.ubtn{padding:5px 14px;border:none;background:transparent;font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--txt3);cursor:pointer;transition:all .15s}
+.ubtn.on{background:var(--navy);color:#fff;font-weight:600}
+.ubtn:hover:not(.on){background:var(--bg3);color:var(--txt)}
+
+/* ── WRAP ── */
+.wrap{max-width:1260px;margin:0 auto;padding:0 18px 80px}
+
+/* ── HERO ── */
+.hero{padding:40px 0 28px;border-bottom:1px solid var(--bdr);margin-bottom:28px}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:.62rem;font-weight:500;
+  color:var(--blue2);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;
+  padding:4px 12px;border-radius:20px;border:1px solid var(--blue-bd);background:var(--blue-lt);
+}
+.hero-title{font-family:var(--serif);font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.3px;margin-bottom:10px}
+.hero-title em{font-style:normal;color:var(--blue2)}
+.hero-sub{font-size:1.05rem;color:var(--txt2);line-height:1.78;max-width:640px;margin-bottom:18px}
+.hero-tags{display:flex;flex-wrap:wrap;gap:7px}
+.htag{padding:3px 11px;border-radius:20px;font-family:var(--mono);font-size:.62rem;border:1px solid var(--bdr2);background:#fff;color:var(--txt3)}
+.htag.hl{border-color:var(--blue-bd);background:var(--blue-lt);color:var(--blue2)}
+
+/* ── CALC GRID ── */
+.calc-grid{display:grid;grid-template-columns:380px 1fr;gap:22px;align-items:start}
+@media(max-width:980px){.calc-grid{grid-template-columns:1fr}}
+
+/* ── PANELS ── */
+.panel{background:#fff;border:1.5px solid var(--bdr2);border-radius:var(--r2);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.panel:last-child{margin-bottom:0}
+.pnl-hd{
+  padding:13px 18px;background:linear-gradient(90deg,var(--navy) 0%,var(--navy2) 100%);
+  display:flex;align-items:center;gap:8px;
+}
+.pnl-hd-ico{font-size:14px}
+.pnl-hd-ttl{font-family:var(--sans);font-size:.88rem;font-weight:800;color:#ffffff;text-transform:uppercase;letter-spacing:.5px}
+.pnl-hd-sub{margin-left:auto;font-family:var(--mono);font-size:.6rem;color:rgba(255,255,255,.45)}
+.pnl-bd{padding:16px}
+
+/* ── FORM ── */
+.field{margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.flbl{display:block;font-size:.88rem;font-weight:700;color:var(--txt);margin-bottom:5px;letter-spacing:-.01em}
+.flbl .unit{font-weight:500;color:var(--txt3);font-family:var(--mono);font-size:.76rem}
+.fsep{
+  font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--navy);padding:10px 0 6px;margin-top:6px;
+  border-top:1px solid var(--bdr);display:flex;align-items:center;gap:6px;font-family:var(--mono);
+}
+.fsep:first-child{border-top:none;padding-top:2px;margin-top:0}
+.inp,.sel{
+  width:100%;padding:9px 12px;
+  border:1px solid var(--bdr2);border-radius:8px;
+  font-family:var(--mono);font-size:.96rem;color:var(--txt);font-weight:500;
+  background:#fff;transition:border-color .15s,box-shadow .15s;
+  -webkit-appearance:none;appearance:none;
+}
+.inp:focus,.sel:focus{outline:none;border-color:var(--blue2);box-shadow:0 0 0 3px rgba(29,111,232,.12)}
+.inp:hover:not(:focus),.sel:hover:not(:focus){border-color:var(--bdr3)}
+.sel{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+.inp-row{display:grid;grid-template-columns:1fr auto;gap:6px}
+.upill{display:flex;align-items:center;padding:0 11px;border-radius:8px;border:1px solid var(--bdr2);background:var(--bg2);font-family:var(--mono);font-size:.75rem;color:var(--blue2);white-space:nowrap;min-width:48px;justify-content:center;font-weight:600}
+.range-inp{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;outline:none;cursor:pointer;margin-top:8px;background:linear-gradient(90deg,var(--blue2) var(--pct,30%),var(--bdr2) var(--pct,30%))}
+.range-inp::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue2);cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px var(--blue2),0 2px 6px rgba(29,111,232,.3)}
+.range-inp::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--blue2);border:2px solid #fff;box-shadow:0 0 0 1px var(--blue2)}
+.range-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.58rem;color:var(--txt4);margin-top:3px}
+.fluid-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{padding:4px 10px;border-radius:6px;font-family:var(--mono);font-size:.73rem;background:var(--bg2);border:1px solid var(--bdr2);color:var(--txt2);font-weight:500}
+.chip span{color:var(--navy);font-weight:700}
+.hint{font-size:.76rem;color:var(--txt3);margin-top:4px;font-style:italic;line-height:1.45}
+
+/* ── BUTTONS ── */
+.btn-primary{
+  width:100%;padding:12px;border:none;border-radius:9px;
+  background:var(--navy);color:#fff;
+  font-family:var(--sans);font-size:.95rem;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .17s;margin-top:6px;letter-spacing:.2px;
+  box-shadow:0 4px 14px rgba(15,32,68,.25);
+}
+.btn-primary:hover{background:var(--navy2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(15,32,68,.3)}
+.btn-primary:active{transform:translateY(0)}
+.btn-secondary{
+  width:100%;padding:9px;border:1px solid var(--bdr2);border-radius:9px;
+  background:#fff;color:var(--txt2);
+  font-family:var(--sans);font-size:.84rem;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .15s;margin-top:7px;
+}
+.btn-secondary:hover{border-color:var(--navy);color:var(--navy);background:var(--blue-lt)}
+
+/* ── DIAGRAM ── */
+.diagram-wrap{background:#fff;border:1px solid var(--bdr);border-radius:var(--r2);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.diag-hd{padding:11px 16px;background:var(--navy);display:flex;align-items:center;gap:8px}
+.diag-hd-ttl{font-family:var(--sans);font-size:.85rem;font-weight:800;color:#ffffff;text-transform:uppercase;letter-spacing:.5px}
+.diag-legend{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:.62rem;color:rgba(255,255,255,.5);font-family:var(--mono)}
+.ldot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle}
+.diag-label{font-family:var(--mono);font-size:.74rem;color:var(--txt2);text-align:center;padding:6px 10px;border-top:1px solid var(--bdr2);background:var(--bg2);font-weight:600}
+#diagCanvas{display:block;width:100%}
+
+/* ── RESULTS ── */
+.results{display:none}
+.results.show{display:block}
+.big-result{
+  background:linear-gradient(160deg,#fff 50%,var(--blue-lt) 100%);border:2px solid var(--navy);border-radius:var(--r2);padding:22px;
+  text-align:center;margin-bottom:14px;position:relative;overflow:hidden;box-shadow:var(--shadow2);
+}
+.big-result::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--navy),var(--blue2),var(--grn))}
+.big-lbl{font-family:var(--mono);font-size:.74rem;text-transform:uppercase;letter-spacing:1px;color:var(--txt2);margin-bottom:6px;font-weight:700}
+.big-val{font-family:var(--serif);font-size:3.6rem;font-weight:700;color:var(--navy);line-height:1.05;margin-bottom:3px}
+.big-unit{font-family:var(--mono);font-size:.84rem;color:var(--txt3);font-weight:600}
+.big-alt{font-family:var(--mono);font-size:.92rem;color:var(--blue2);margin-top:5px;font-weight:700}
+
+.status-bar{display:flex;align-items:flex-start;gap:9px;padding:12px 16px;border-radius:9px;margin-bottom:14px;font-size:.95rem;font-weight:700;border:2px solid;line-height:1.5}
+.status-bar.ok{background:var(--grn-lt);border-color:var(--grn-bd);color:var(--grn-txt)}
+.status-bar.warn{background:var(--amb-lt);border-color:var(--amb-bd);color:var(--amb-txt)}
+.status-bar.err{background:var(--red-lt);border-color:var(--red-bd);color:var(--red)}
+
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.rc{background:#fff;border:1px solid var(--bdr);border-top:2.5px solid var(--bdr);border-radius:9px;padding:11px 13px;transition:border-top-color .2s}
+.rc.c-blue{border-top-color:var(--blue2)}.rc.c-grn{border-top-color:var(--grn)}.rc.c-amb{border-top-color:var(--amb)}.rc.c-red{border-top-color:var(--red)}.rc.c-pur{border-top-color:var(--pur)}.rc.c-navy{border-top-color:var(--navy)}
+.rc.sp2{grid-column:span 2}
+.rl{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;color:var(--txt2);margin-bottom:4px;font-weight:700}
+.rv{font-family:var(--mono);font-size:1.08rem;font-weight:700;color:var(--txt)}
+.rv.b{color:var(--blue2)}.rv.g{color:var(--grn)}.rv.a{color:var(--amb)}.rv.r{color:var(--red)}.rv.n{color:var(--navy)}
+.rsub{font-size:.73rem;color:var(--txt3);margin-top:3px;font-family:var(--mono);font-weight:500}
+
+.fbox{background:var(--bg2);border:1px solid var(--bdr2);border-left:4px solid var(--blue2);border-radius:0 8px 8px 0;padding:13px 16px;font-family:var(--mono);font-size:.83rem;color:var(--txt);line-height:2.1;margin-bottom:12px;font-weight:500}
+.fbox .hi{color:var(--navy);font-weight:600}.fbox .ht{color:var(--blue2);font-weight:500}
+
+/* ── NPSHr section ── */
+/* ── Cavitation Check pressure block ── */
+.cav-check-block{background:#fff;border:1.5px solid var(--bdr);border-radius:var(--r2);margin-bottom:16px;overflow:hidden;}
+.cav-check-hd{font-family:var(--mono);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--txt);padding:10px 16px 8px;border-bottom:2px solid var(--bdr2);background:var(--bg2);display:flex;align-items:center;gap:8px;}
+.cav-check-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.82rem;}
+.cav-check-table tr:not(:last-child) td{border-bottom:1px solid var(--bg2);}
+.cav-check-table td{padding:7px 16px;vertical-align:middle;}
+.cav-check-table td:first-child{color:var(--txt3);width:65%;}
+.cav-check-table td:last-child{font-weight:700;color:var(--navy);text-align:right;}
+.cav-check-sep{border:none;border-top:2px dashed var(--bdr2);margin:0;}
+.cav-check-margin{padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.88rem;font-weight:800;}
+/* ── Saturation proximity ── */
+.sat-prox-box{border-radius:var(--r);padding:11px 14px;margin:0 12px 12px;font-family:var(--mono);font-size:.8rem;border:1.5px solid;}
+.sat-prox-box.sat-ok{background:var(--grn-lt);border-color:var(--grn-bd);}
+.sat-prox-box.sat-warn{background:var(--amb-lt);border-color:var(--amb-bd);}
+.sat-prox-box.sat-crit{background:var(--red-lt);border-color:var(--red-bd);}
+.sat-bar-wrap{height:7px;border-radius:4px;background:var(--bg3);margin:6px 0;overflow:hidden;}
+.sat-bar-fill{height:100%;border-radius:4px;transition:width .4s;}
+.sat-prox-box.sat-ok  .sat-bar-fill{background:var(--grn-bd);}
+.sat-prox-box.sat-warn .sat-bar-fill{background:var(--amb-bd);}
+.sat-prox-box.sat-crit .sat-bar-fill{background:var(--red-bd);}
+/* ── Min suction pressure ── */
+.min-suc-box{background:var(--pur-lt);border:1.5px solid var(--pur-bd);border-radius:var(--r);padding:10px 14px;margin-top:8px;font-family:var(--mono);font-size:.79rem;}
+.min-suc-ttl{font-size:.63rem;text-transform:uppercase;letter-spacing:1px;color:var(--pur);font-weight:700;margin-bottom:5px;}
+.min-suc-eq{color:var(--txt3);line-height:2.1;}
+.min-suc-val{color:var(--pur);font-weight:800;font-size:.9rem;}
+.npshr-fluid-note{font-size:.71rem;color:var(--pur);font-style:italic;margin-top:4px;opacity:.9;}
+.npSHr-compare{
+  background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r2);
+  padding:16px;margin-bottom:14px;
+}
+.compare-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center}
+@media(max-width:480px){.compare-row{grid-template-columns:1fr}}
+.cmp-box{padding:12px 8px;border-radius:9px;border:1px solid}
+.cmp-lbl{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;font-weight:800}
+.cmp-val{font-family:var(--serif);font-size:2.1rem;font-weight:700;line-height:1;margin-bottom:2px}
+.cmp-sub{font-family:var(--mono);font-size:.74rem;font-weight:600}
+
+/* ── SHARE MODAL ── */
+.overlay{position:fixed;inset:0;z-index:1000;background:rgba(15,32,68,.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:#fff;border:1px solid var(--bdr);border-radius:18px;width:min(430px,94vw);box-shadow:0 24px 60px rgba(15,32,68,.25);transform:translateY(16px) scale(.97);transition:transform .24s cubic-bezier(.34,1.36,.64,1);overflow:hidden}
+.overlay.open .modal{transform:translateY(0) scale(1)}
+.modal-hd{background:var(--navy);padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.modal-ttl{font-family:var(--serif);font-size:1rem;font-weight:700;color:#fff}
+.modal-close{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:all .15s}
+.modal-close:hover{background:rgba(255,255,255,.2);color:#fff}
+.modal-bd{padding:20px}
+.url-row{display:flex;gap:7px;margin-bottom:18px}
+.url-inp{flex:1;padding:9px 12px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:8px;font-family:var(--mono);font-size:.72rem;color:var(--txt2);outline:none;overflow:hidden;text-overflow:ellipsis}
+.copy-btn{padding:9px 15px;border-radius:8px;background:var(--navy);color:#fff;border:none;font-family:var(--sans);font-size:.76rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.copy-btn:hover{background:var(--navy2)}.copy-btn.done{background:var(--grn)}
+.share-lbl{font-family:var(--mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.7px;color:var(--txt3);margin-bottom:9px;font-weight:600}
+.share-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.ssoc{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 6px;border-radius:10px;border:1px solid var(--bdr);background:var(--bg2);cursor:pointer;transition:all .17s;text-decoration:none;color:var(--txt2);font-family:var(--sans);font-size:.64rem;font-weight:700}
+.ssoc:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.ssoc .si{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+.s-wa .si{background:#dcfce7}.s-wa:hover{border-color:#22c55e;color:#166534}
+.s-li .si{background:#dbeafe}.s-li:hover{border-color:#3b82f6;color:#1e3a8a}
+.s-tw .si{background:#f3f4f6}.s-tw:hover{border-color:#374151;color:#111827}
+.s-em .si{background:var(--pur-lt)}.s-em:hover{border-color:var(--pur);color:var(--pur)}
+.pdf-row{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
+.pdf-ico{width:36px;height:36px;border-radius:9px;background:var(--red-lt);border:1px solid var(--red-bd);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
+.pdf-btn{margin-left:auto;padding:7px 14px;border-radius:8px;background:var(--red);color:#fff;border:none;font-family:var(--sans);font-size:.76rem;font-weight:700;cursor:pointer;transition:all .15s}
+.pdf-btn:hover{background:#b91c1c}
+
+/* ── EDUCATION SECTION ── */
+.edu-section{margin-top:40px;padding-top:28px;border-top:2px solid var(--bdr)}
+.edu-title{font-family:var(--serif);font-size:1.7rem;font-weight:700;color:var(--navy);margin-bottom:6px}
+.edu-sub{font-size:.92rem;color:var(--txt2);margin-bottom:28px;line-height:1.65;max-width:700px}
+.edu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:24px}
+.edu-card{background:#fff;border:1px solid var(--bdr);border-radius:var(--r2);overflow:hidden;box-shadow:var(--shadow)}
+.edu-card-hd{padding:13px 18px;background:var(--navy);display:flex;align-items:center;gap:8px}
+.edu-card-hd-num{
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  font-family:var(--mono);font-size:.7rem;font-weight:600;color:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.edu-card-hd-ttl{font-family:var(--sans);font-size:.78rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.4px}
+.edu-card-bd{padding:18px;font-size:.96rem;color:var(--txt2);line-height:1.85}
+.edu-card-bd strong{color:var(--txt);font-weight:600}
+.edu-card-bd .eq{
+  background:var(--bg2);border:1px solid var(--bdr);border-left:3px solid var(--blue2);
+  border-radius:0 7px 7px 0;padding:10px 13px;margin:12px 0;
+  font-family:var(--mono);font-size:.84rem;color:var(--navy);line-height:1.95;font-weight:500;
+}
+.edu-card-bd .eq .kw{color:var(--blue2);font-weight:600}
+.edu-card-bd .eq .note{color:var(--txt3);font-size:.7rem}
+.edu-card-bd ul{margin:10px 0 10px 18px}
+.edu-card-bd ul li{margin-bottom:5px;line-height:1.65}
+.edu-card-bd table{width:100%;border-collapse:collapse;margin:12px 0;font-size:.82rem}
+.edu-card-bd table th{background:var(--navy);color:rgba(255,255,255,.85);padding:6px 10px;font-size:.65rem;text-transform:uppercase;letter-spacing:.4px;text-align:left}
+.edu-card-bd table td{padding:7px 10px;border-bottom:1px solid var(--bdr);font-family:var(--mono)}
+.edu-card-bd table td:first-child{color:var(--txt);font-family:var(--sans);font-weight:600}
+.edu-card-bd table tr:hover td{background:var(--bg2)}
+.edu-card-bd table tr.hl td{background:var(--grn-lt);color:var(--grn)}
+
+.warn-box{background:var(--amb-lt);border:1px solid var(--amb-bd);border-radius:8px;padding:12px 14px;margin:12px 0;font-size:.84rem;color:var(--amb-txt);line-height:1.65}
+.warn-box strong{font-weight:700}
+.ok-box{background:var(--grn-lt);border:1px solid var(--grn-bd);border-radius:8px;padding:12px 14px;margin:12px 0;font-size:.84rem;color:var(--grn-txt);line-height:1.65}
+.info-box{background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:8px;padding:12px 14px;margin:12px 0;font-size:.84rem;color:var(--navy);line-height:1.65}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .hdr{padding:0 12px;gap:8px}.hdr-badge,.hdr-sep{display:none}
+  .wrap{padding:0 12px 60px}
+  .hero{padding:24px 0 20px}.hero-title{font-size:1.75rem}
+  .calc-grid{grid-template-columns:1fr;gap:16px}
+  .big-val{font-size:2.3rem}.rgrid{grid-template-columns:1fr}
+  .rc.sp2{grid-column:span 1}.hdr-btn span{display:none}
+  .compare-row{grid-template-columns:1fr 1fr}
+  .ubtn{padding:5px 10px;font-size:.67rem}
+  .edu-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .compare-row{grid-template-columns:1fr}
+  .share-grid{grid-template-columns:repeat(2,1fr)}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fadeUp{animation:fadeUp .3s ease both}
+@keyframes result-pop{0%{transform:scale(.97);opacity:0}100%{transform:scale(1);opacity:1}}
+.results.show .big-result{animation:result-pop .3s cubic-bezier(.22,1,.36,1) both}
+</style>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <a href="https://multicalci.com/" class="hdr-logo">
+    <div class="hdr-logo-mark">&#9889;</div>
+    <div>
+      <div class="hdr-logo-name">multicalci</div>
+      <div class="hdr-logo-sub">Engineering Calculators</div>
+    </div>
+  </a>
+  <div class="hdr-sep"></div>
+  <span class="hdr-badge">NPSH Calculator</span>
+  <div class="hdr-right">
+    <a href="https://multicalci.com/" class="hdr-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </a>
+    <button class="hdr-btn accent" onclick="openShare()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <span>Share</span>
+    </button>
+    <div class="utog">
+      <button class="ubtn on" id="btnSI" onclick="setUnit('SI')">SI</button>
+      <button class="ubtn" id="btnIMP" onclick="setUnit('IMP')">Imperial</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- HERO -->
+<div class="hero fadeUp">
+  <div class="hero-eyebrow">&#128300; Pump Engineering &bull; Cavitation Prevention &bull; HI 9.6.1</div>
+  <h1 class="hero-title">Net Positive Suction Head<br><em>NPSHa &amp; NPSHr Calculator</em></h1>
+  <p class="hero-sub">Calculate Net Positive Suction Head Available (NPSHa) and compare against NPSHr to prevent pump cavitation. Select from 31 fluids with automatic vapour-pressure lookup, dynamic system diagram and PDF export.</p>
+  <div class="hero-tags">
+    <span class="htag hl">31 Fluids</span>
+    <span class="htag hl">Auto Vapour Pressure</span>
+    <span class="htag hl">NPSHa + NPSHr</span>
+    <span class="htag">Darcy-Weisbach</span>
+    <span class="htag">SI &amp; Imperial</span>
+    <span class="htag">HI 9.6.1 &bull; IS 5120 &bull; API 610</span>
+    <span class="htag">PDF Export</span>
+  </div>
+</div>
+
+<!-- CALCULATOR -->
+<div class="calc-grid">
+
+  <!-- LEFT: INPUTS -->
+  <div>
+    <!-- FLUID -->
+    <div class="panel">
+      <div class="pnl-hd"><span class="pnl-hd-ico">&#128167;</span><span class="pnl-hd-ttl">Fluid Properties</span></div>
+      <div class="pnl-bd">
+        <div class="field">
+          <label class="flbl">Fluid <span class="unit">&#8212; choose from library</span></label>
+          <select class="sel" id="fluidSel" onchange="onFluidChange()"></select>
+        </div>
+        <div class="field">
+          <label class="flbl">Operating Temperature <span class="unit" id="tempUnit">&#176;C</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="tempInp" value="20" step="1" oninput="onTempInput()">
+            <div class="upill" id="tempPill">&#176;C</div>
+          </div>
+          <input type="range" class="range-inp" id="tempSlider" min="0" max="150" value="20" oninput="onTempSlider()">
+          <div class="range-labels"><span id="rMin">0&#176;C</span><span id="rMax">150&#176;C</span></div>
+        </div>
+        <div class="fluid-chips" id="fluidChips"></div>
+      </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div class="panel">
+      <div class="pnl-hd"><span class="pnl-hd-ico">&#9881;&#65039;</span><span class="pnl-hd-ttl">Suction System</span></div>
+      <div class="pnl-bd">
+        <div class="fsep">Upstream Pressure Source</div>
+        <div class="field">
+          <label class="flbl">Configuration</label>
+          <select class="sel" id="upType" onchange="onUpChange()">
+            <option value="open_above">Open tank &#8212; liquid surface above pump (flooded)</option>
+            <option value="open_below">Open tank &#8212; liquid surface below pump (suction lift)</option>
+            <option value="vessel_above">Pressurised vessel &#8212; liquid above pump</option>
+            <option value="vessel_below">Pressurised vessel &#8212; liquid below pump (suction lift)</option>
+          </select>
+        </div>
+        <div class="field" id="baroField">
+          <label class="flbl">Atmospheric Pressure <span class="unit" id="baroUnit">bar abs</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="baroInp" value="1.01325" min="0.5" max="1.1" step="0.001" oninput="calc()">
+            <div class="upill" id="baroPill">bar</div>
+          </div>
+          <p class="hint">Sea level = 1.01325 bar. High altitude: 0.95 bar at 500 m, 0.90 bar at 1000 m, 0.80 bar at 2000 m.</p>
+        </div>
+        <div class="field" id="vesselField" style="display:none">
+          <label class="flbl">Vessel Gauge Pressure <span class="unit" id="vesselUnit">bar g</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="vesselInp" value="1.5" step="0.1" oninput="calc()">
+            <div class="upill" id="vesselPill">bar g</div>
+          </div>
+          <p class="hint">Enter 0 for atmospheric (open vessel lid). Vacuum vessels: enter negative value.</p>
+        </div>
+
+        <div class="fsep">Geometry</div>
+        <div class="field">
+          <label class="flbl" id="headLbl">Vertical Head z <span class="unit">m</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="headInp" value="3.0" step="0.1" oninput="calc()">
+            <div class="upill" id="headPill">m</div>
+          </div>
+          <p class="hint" id="headHint">Distance from liquid surface to pump centreline. Always enter as positive.</p>
+        </div>
+
+        <div class="fsep">Suction Piping</div>
+        <div class="field">
+          <label class="flbl">Nominal Pipe Size (NPS / DN)</label>
+          <select class="sel" id="pipeSel" onchange="calc()">
+            <option value="26.6">DN25 / 1&quot; (ID 26.6 mm, Sch 40)</option>
+            <option value="40.9">DN40 / 1&#189;&quot; (ID 40.9 mm, Sch 40)</option>
+            <option value="52.5">DN50 / 2&quot; (ID 52.5 mm, Sch 40)</option>
+            <option value="62.7">DN65 / 2&#189;&quot; (ID 62.7 mm, Sch 40)</option>
+            <option value="77.9">DN80 / 3&quot; (ID 77.9 mm, Sch 40)</option>
+            <option value="102.3">DN100 / 4&quot; (ID 102.3 mm, Sch 40)</option>
+            <option value="128.2">DN125 / 5&quot; (ID 128.2 mm, Sch 40)</option>
+            <option value="154.1" selected>DN150 / 6&quot; (ID 154.1 mm, Sch 40)</option>
+            <option value="202.7">DN200 / 8&quot; (ID 202.7 mm, Sch 40)</option>
+            <option value="254.5">DN250 / 10&quot; (ID 254.5 mm, Sch 40)</option>
+            <option value="303.2">DN300 / 12&quot; (ID 303.2 mm, Sch 40)</option>
+            <option value="387.4">DN400 / 16&quot; (ID 387.4 mm, Sch 40)</option>
+            <option value="489.0">DN500 / 20&quot; (ID 489.0 mm, Sch 40)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="flbl">Flow Rate <span class="unit" id="flowUnit">m&#179;/h</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="flowInp" value="50" min="0.01" step="1" oninput="calc()">
+            <div class="upill" id="flowPill">m&#179;/h</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="flbl">Suction Pipe Length <span class="unit" id="plenUnit">m</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="plenInp" value="5.0" min="0" step="0.5" oninput="calc()">
+            <div class="upill" id="plenPill">m</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="flbl">Equivalent Length &#8212; Fittings <span class="unit" id="flenUnit">m</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="flenInp" value="2.5" min="0" step="0.5" oninput="calc()">
+            <div class="upill" id="flenPill">m</div>
+          </div>
+          <p class="hint">Typical: each gate valve &#8776;0.5D, 90&#176; elbow &#8776;30D, tee-branch &#8776;60D (Le/D factor &#215; pipe dia).</p>
+        </div>
+        <div class="field">
+          <label class="flbl">Pipe Material / Roughness &#949;</label>
+          <select class="sel" id="roughSel" onchange="calc()">
+            <option value="0.0015">PVC / GRP / smooth plastic (&#949; = 0.0015 mm)</option>
+            <option value="0.046" selected>Carbon steel / ERW (&#949; = 0.046 mm)</option>
+            <option value="0.15">Galvanised steel (&#949; = 0.15 mm)</option>
+            <option value="0.26">Cast iron (&#949; = 0.26 mm)</option>
+            <option value="0.5">Concrete-lined (&#949; = 0.5 mm)</option>
+            <option value="3.0">Corroded / fouled steel (&#949; = 3.0 mm)</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="calc()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Calculate NPSHa
+        </button>
+        <button class="btn-secondary" onclick="openShare()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share / Export PDF
+        </button>
+        <button class="btn-secondary" onclick="resetCalc()" style="margin-top:5px;color:var(--txt3)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.46"/></svg>
+          Reset / Clear Results
+        </button>
+      </div>
+    </div>
+
+    <!-- NPSHr -->
+    <div class="panel">
+      <div class="pnl-hd"><span class="pnl-hd-ico">&#128200;</span><span class="pnl-hd-ttl">NPSHr &#8212; Pump Required</span><span class="pnl-hd-sub">optional</span></div>
+      <div class="pnl-bd">
+        <p style="font-size:.82rem;color:var(--txt2);line-height:1.6;margin-bottom:12px">Enter pump NPSHr from the manufacturer&#8217;s curve, or estimate from pump specific speed and discharge conditions.</p>
+        <div class="fsep">NPSHr Input Method</div>
+        <div class="field">
+          <label class="flbl">Input Method</label>
+          <select class="sel" id="npSHrMethod" onchange="onNpshrMethod()">
+            <option value="direct">Enter NPSHr directly (from pump curve)</option>
+            <option value="estimate">Estimate from pump parameters</option>
+          </select>
+        </div>
+
+        <!-- Direct NPSHr -->
+        <div id="npSHrDirect">
+          <div class="field">
+            <label class="flbl">NPSHr (from pump curve) <span class="unit" id="npSHrUnit">m</span></label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="npSHrInp" value="3.0" min="0.1" step="0.1" oninput="calc()">
+              <div class="upill" id="npSHrPill">m</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estimated NPSHr -->
+        <div id="npSHrEstimate" style="display:none">
+          <div class="field">
+            <label class="flbl">Pump Speed <span class="unit">rpm</span></label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="pumpRPM" value="1450" min="100" step="50" oninput="calc()">
+              <div class="upill">rpm</div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="flbl">Pump Type</label>
+            <select class="sel" id="pumpType" onchange="calc()">
+              <option value="centrifugal_low">Centrifugal &#8212; low specific speed (Ns &lt; 40)</option>
+              <option value="centrifugal_med" selected>Centrifugal &#8212; medium specific speed (Ns 40&#8211;120)</option>
+              <option value="centrifugal_high">Centrifugal &#8212; high specific speed (Ns &gt; 120)</option>
+              <option value="axial">Axial / propeller pump</option>
+              <option value="mixed">Mixed-flow pump</option>
+              <option value="multistage">Multistage centrifugal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="flbl">Pump Discharge Head <span class="unit" id="dischUnit">m</span></label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="dischHead" value="30" min="1" step="1" oninput="calc()">
+              <div class="upill" id="dischPill">m</div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="flbl">Number of Stages</label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="numStages" value="1" min="1" max="20" step="1" oninput="calc()">
+              <div class="upill">&#8212;</div>
+            </div>
+          </div>
+          <div class="info-box" id="npSHrEstBox" style="font-size:.8rem"></div>
+        </div>
+
+        <div class="field">
+          <label class="flbl">Required Safety Margin (HI 9.6.1) <span class="unit">m</span></label>
+          <div class="inp-row">
+            <input class="inp" type="number" id="marginInp" value="0.6" min="0.1" step="0.1" oninput="calc()">
+            <div class="upill">m</div>
+          </div>
+          <p class="hint">HI minimum = 0.6 m. Use 1.0&#8211;2.0 m for hot fluids, high-speed pumps or critical service.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: DIAGRAM + RESULTS -->
+  <div>
+    <!-- DIAGRAM -->
+    <div class="diagram-wrap">
+      <div class="diag-hd">
+        <span style="font-size:14px">&#128296;</span>
+        <span class="diag-hd-ttl">Suction System Diagram</span>
+        <div class="diag-legend">
+          <span><span class="ldot" style="background:#1d6fe8"></span>Pipe</span>
+          <span><span class="ldot" style="background:#059669"></span>z-head</span>
+          <span><span class="ldot" style="background:#d97706"></span>h_f loss</span>
+          <span><span class="ldot" style="background:#7c3aed"></span>Pv</span>
+        </div>
+      </div>
+      <canvas id="diagCanvas" height="320"></canvas>
+      <div class="diag-label" id="diagLabel">Select configuration and click Calculate to see live diagram</div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results" id="resultsDiv">
+
+      <!-- ══ CAVITATION CHECK — Pressure Domain ══ -->
+      <div class="cav-check-block" id="cavCheckBlock">
+        <div class="cav-check-hd">⚡ Cavitation Check — Pressure Domain</div>
+        <table class="cav-check-table">
+          <tr><td>Vapour pressure (Pv)</td><td id="cc_pv">—</td></tr>
+          <tr><td>Actual suction pressure (Ps = Pv + NPSHa·ρg)</td><td id="cc_ps">—</td></tr>
+          <tr><td>Minimum required pressure (Pv + NPSHr·ρg)</td><td id="cc_pmin">—</td></tr>
+        </table>
+        <hr class="cav-check-sep">
+        <div class="cav-check-margin" id="ccMarginRow">
+          <span id="ccMarginLabel">Pressure margin</span>
+          <span id="ccMarginVal">—</span>
+        </div>
+        <div class="sat-prox-box sat-ok" id="satProxBox">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;" id="satProxLabel">Saturation proximity  S = Pv / Ps</span>
+            <span style="font-weight:800;font-size:.95rem;" id="satProxVal">—</span>
+          </div>
+          <div class="sat-bar-wrap"><div class="sat-bar-fill" id="satBarFill" style="width:0%"></div></div>
+          <div id="satProxMsg" style="font-size:.75rem;line-height:1.55;"></div>
+        </div>
+      </div>
+
+      <!-- NPSHa vs NPSHr compare -->
+      <div class="npSHr-compare" id="compareBox">
+        <div style="font-family:var(--mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.6px;color:var(--txt);margin-bottom:12px;font-weight:800;border-bottom:2px solid var(--bdr2);padding-bottom:8px">&#9650; NPSHa vs NPSHr &#8212; Cavitation Safety Check</div>
+        <div class="compare-row">
+          <div class="cmp-box" id="cmpA" style="border-color:var(--blue-bd);background:var(--blue-lt);border-top:3px solid var(--blue2)">
+            <div class="cmp-lbl" style="color:var(--blue2)">NPSHa Available</div>
+            <div style="display:flex;align-items:baseline;justify-content:center;gap:5px;">
+              <div class="cmp-val" style="color:var(--navy)" id="cmpAval">&#8212;</div>
+              <div style="font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--blue2)">m</div>
+            </div>
+            <div class="cmp-sub" style="color:var(--blue2)" id="cmpAsub">metres of liquid head</div>
+            <div id="cmpA_bar" style="font-family:var(--mono);font-size:.72rem;color:var(--blue2);font-weight:700;margin-top:5px;padding-top:5px;border-top:1px dashed var(--blue-bd)">&#8212;</div>
+          </div>
+          <div class="cmp-box" id="cmpR" style="border-color:var(--bdr2);background:var(--bg2);border-top:3px solid var(--navy)">
+            <div class="cmp-lbl" style="color:var(--txt2)">NPSHr Required</div>
+            <div style="display:flex;align-items:baseline;justify-content:center;gap:5px;">
+              <div class="cmp-val" style="color:var(--txt)" id="cmpRval">&#8212;</div>
+              <div style="font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--txt3)">m</div>
+            </div>
+            <div class="cmp-sub" style="color:var(--txt3)">metres of liquid head (pump)</div>
+            <div id="cmpR_bar" style="font-family:var(--mono);font-size:.72rem;color:var(--txt2);font-weight:700;margin-top:5px;padding-top:5px;border-top:1px dashed var(--bdr2)">&#8212;</div>
+          </div>
+          <div class="cmp-box" id="cmpM" style="border-top:3px solid var(--bdr2)">
+            <div class="cmp-lbl" id="cmpMlbl">Margin NPSHa&#8722;NPSHr</div>
+            <div style="display:flex;align-items:baseline;justify-content:center;gap:5px;">
+              <div class="cmp-val" id="cmpMval">&#8212;</div>
+              <div style="font-family:var(--mono);font-size:1rem;font-weight:800;color:var(--txt3)" id="cmpMunit">m</div>
+            </div>
+            <div class="cmp-sub" id="cmpMsub">m surplus</div>
+            <div id="cmpM_bar" style="font-family:var(--mono);font-size:.72rem;color:var(--txt2);font-weight:700;margin-top:5px;padding-top:5px;border-top:1px dashed var(--bdr2)">&#8212;</div>
+          </div>
+        </div>
+        <!-- Head ≠ pressure explanation — shown for high-Pv fluids -->
+        <div id="headNotePressure" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--amb-lt);border:1px solid var(--amb-bd);font-family:var(--mono);font-size:.72rem;color:var(--txt);line-height:1.6;">
+          ℹ️ <strong>Head ≠ Pressure:</strong> NPSHa &amp; NPSHr are in <strong>metres of the pumped liquid</strong>, not bar.<br>
+          For <span id="headNoteFluid">this fluid</span>: 1 m head = <span id="headNoteConv">—</span> bar &nbsp;|&nbsp; NPSHa <span id="headNoteNpsha">—</span> m ≡ ΔP = <span id="headNoteBar">—</span> bar above Pv
+        </div>
+      </div>
+
+      <!-- Main result -->
+      <div class="big-result">
+        <div class="big-lbl" id="r_lbl">Net Positive Suction Head Available (NPSHa)</div>
+        <div class="big-val" id="r_npsha">&#8212;</div>
+        <div class="big-unit" id="r_unit">metres of pumped liquid</div>
+        <div class="big-alt" id="r_alt"></div>
+        <div id="r_calc_note" style="font-family:var(--mono);font-size:.75rem;color:var(--txt3);background:var(--bg2);border-radius:7px;padding:8px 12px;margin-top:10px;text-align:left;line-height:2;border:1px dashed var(--bdr2)"></div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-bar" id="r_status"></div>
+
+      <!-- Result grid -->
+      <div class="rgrid">
+        <div class="rc c-blue"><div class="rl">Atmospheric / Upstream Head</div><div class="rv b" id="r_patm"></div><div class="rsub" id="r_patm2"></div></div>
+        <div class="rc c-blue"><div class="rl">Static Head z <span id="r_zdir"></span></div><div class="rv b" id="r_z"></div><div class="rsub" id="r_ztype"></div></div>
+        <div class="rc c-grn"><div class="rl">Vapour Pressure Head h_vp</div><div class="rv g" id="r_hvp"></div><div class="rsub" id="r_hvp2"></div></div>
+        <div class="rc c-amb"><div class="rl">Friction Loss h_f</div><div class="rv a" id="r_hf"></div><div class="rsub" id="r_hf2"></div></div>
+        <div class="rc c-blue"><div class="rl">Pipe Velocity v</div><div class="rv b" id="r_vel"></div><div class="rsub" id="r_vel2"></div></div>
+        <div class="rc c-blue"><div class="rl">Velocity Head v&#178;/2g</div><div class="rv" id="r_vh"></div></div>
+        <div class="rc"><div class="rl">Reynolds Number</div><div class="rv" id="r_re"></div><div class="rsub" id="r_re2"></div></div>
+        <div class="rc"><div class="rl">Friction Factor f</div><div class="rv" id="r_ff"></div><div class="rsub" id="r_ff2"></div></div>
+        <div class="rc c-navy">
+          <div class="rl">NPSHr (pump required)</div>
+          <div class="rv n" id="r_npshr"></div>
+          <div class="rsub" id="r_npshr2"></div>
+          <div class="min-suc-box" id="minSucBox">
+            <div class="min-suc-ttl">Minimum suction pressure required</div>
+            <div class="min-suc-eq" id="minSucEq">= Pv + NPSHr × ρg = <span class="min-suc-val">—</span></div>
+            <div class="npshr-fluid-note" id="npshrFluidNote"></div>
+          </div>
+        </div>
+        <div class="rc c-blue"><div class="rl">NPSHa in Pressure Units</div><div class="rv b" id="r_bar"></div><div class="rsub">Equivalent absolute pressure</div></div>
+        <div class="rc sp2" id="r_marginCard"><div class="rl">Margin NPSHa &#8722; NPSHr &#8722; Safety Margin</div><div class="rv" id="r_margin"></div><div class="rsub">HI 9.6.1: NPSHa &#8805; NPSHr + safety margin</div></div>
+      </div>
+
+      <!-- Engineering warnings -->
+      <div id="eng_warnings" style="display:none;margin-bottom:12px"></div>
+
+      <!-- Equations -->
+      <div class="fbox">
+        <span class="hi">NPSHa = H&#8336;&#8347;&#8347; + z &#8722; h&#7781; &#8722; h&#7825;&#7765;</span><br>
+        <span class="ht">H&#8336;&#8347;&#8347;</span> = P&#8336;&#8347;&#8347;/(&#961;&#8729;g) &nbsp;&#8212;&nbsp; upstream absolute pressure head converted <em>for actual fluid density</em><br>
+        <span class="ht">z</span> = static head: <strong>+ve</strong> if liquid surface above pump, <strong>&#8722;ve</strong> if pump above liquid<br>
+        <span class="ht">h&#7781;</span> = Darcy&#8211;Weisbach friction loss (m) using Colebrook&#8211;White / Swamee&#8211;Jain<br>
+        <span class="ht">h&#7825;&#7765;</span> = P&#7825;/(&#961;&#8729;g) &nbsp;&#8212;&nbsp; vapour pressure head at operating temperature<br>
+        <span class="ht" style="color:var(--grn)">&#9432;</span> Pressure equivalent: &Delta;P = &#961;&#8729;g&#8729;NPSHa &nbsp;(excess above vapour pressure, not absolute)
+      </div>
+    </div>
+
+    <!-- Theory placeholder -->
+    <div id="theoryPlaceholder" class="panel">
+      <div class="pnl-hd"><span class="pnl-hd-ico">&#128218;</span><span class="pnl-hd-ttl">What is NPSHa?</span></div>
+      <div class="pnl-bd" style="font-size:.87rem;color:var(--txt2);line-height:1.82">
+        <p style="margin-bottom:10px"><strong style="color:var(--txt)">Net Positive Suction Head Available (NPSHa)</strong> is the absolute total head at the pump suction flange, minus the vapour pressure of the pumped fluid at the operating temperature. It quantifies the energy available to push liquid into the impeller eye without flashing to vapour.</p>
+        <div class="fbox"><span class="hi">NPSHa = H_atm + z_s &#8722; h_f &#8722; h_vp</span><br>
+          <span class="ht">H_atm</span> = atmospheric pressure head &#8776; 10.33 m (sea level)<br>
+          <span class="ht">z_s</span> = +ve if tank above pump, &#8722;ve if pump above tank<br>
+          <span class="ht">h_f</span> = total friction losses on suction side<br>
+          <span class="ht">h_vp</span> = vapour pressure head at fluid temperature</div>
+        <div class="warn-box">&#9888; <strong>Cavitation</strong> occurs when NPSHa &lt; NPSHr. Vapour bubbles form at the impeller eye, then collapse violently as pressure recovers &#8212; causing erosion, noise, vibration and rapid impeller damage.</div>
+        <p>Fill in the inputs on the left and click <strong>Calculate NPSHa</strong> to get a full analysis with dynamic diagram.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     EDUCATION SECTION
+══════════════════════════════════════════ -->
+<div class="edu-section">
+  <h2 class="edu-title">Engineering Reference &#8212; NPSH Theory &amp; Practice</h2>
+  <p class="edu-sub">Comprehensive guide for pump engineers, process engineers and students. Covers NPSHa derivation, NPSHr definition, cavitation physics, Darcy-Weisbach hydraulics, suction system design rules and troubleshooting.</p>
+
+  <div class="edu-grid">
+
+    <!-- CARD 1: What is NPSH -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">1</div><span class="edu-card-hd-ttl">Understanding NPSH &#8212; The Fundamental Concept</span></div>
+      <div class="edu-card-bd">
+        <p><strong>NPSH (Net Positive Suction Head)</strong> is the most important parameter in pump suction system design. It determines whether a centrifugal pump will operate without cavitation &#8212; the destructive vaporisation of liquid at the impeller eye.</p>
+        <p style="margin-top:10px">Two distinct values must always be checked:</p>
+        <ul>
+          <li><strong>NPSHa (Available):</strong> Determined by the suction system &#8212; tank pressure, liquid level, pipe losses and fluid vapour pressure. The engineer controls this.</li>
+          <li><strong>NPSHr (Required):</strong> Determined by the pump manufacturer. It represents the head needed at the suction flange to prevent a 3% drop in developed head (H) due to cavitation &#8212; ASTM/HI definition.</li>
+        </ul>
+        <div class="eq"><span class="kw">NPSHa = (P_abs/&#961;g) + z &#8722; h_f &#8722; (P_v/&#961;g)</span><br>
+          <span class="note">P_abs = absolute upstream pressure [Pa]<br>&#961; = fluid density at T [kg/m&#179;]<br>g = 9.81 m/s&#178;<br>z = static head (+ above pump, &#8722; below) [m]<br>h_f = friction losses [m]<br>P_v = vapour pressure at T [Pa]</span>
+        </div>
+        <div class="warn-box">&#9888; <strong>Golden Rule:</strong> NPSHa must exceed NPSHr by at least the safety margin at all operating conditions including the worst case (maximum flow, minimum tank level, maximum temperature).</div>
+        <p style="margin-top:10px">The HI (Hydraulic Institute) Standard 9.6.1 requires a minimum margin of <strong>0.6 m (2 ft)</strong> between NPSHa and NPSHr. For critical services &#8212; boiler feedwater, LNG, hydrocarbons, hot condensate &#8212; margins of 2&#8211;5 m are common.</p>
+      </div>
+    </div>
+
+    <!-- CARD 2: Cavitation Physics -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">2</div><span class="edu-card-hd-ttl">Cavitation &#8212; Physics &amp; Damage Mechanisms</span></div>
+      <div class="edu-card-bd">
+        <p><strong>Cavitation</strong> is the formation and subsequent collapse of vapour bubbles within a flowing liquid when the local static pressure falls below the fluid&#8217;s vapour pressure. In centrifugal pumps, this occurs at the low-pressure region on the suction side of the impeller vane leading edges.</p>
+        <p style="margin-top:10px"><strong>Three stages of cavitation damage:</strong></p>
+        <ul>
+          <li><strong>Incipient cavitation:</strong> First bubble formation, barely audible. No measurable performance loss. Detected by vibration spectrum analysis (broadband noise at 1&#8211;10 kHz).</li>
+          <li><strong>Developed cavitation:</strong> Head drops 3% (HI definition of NPSHr). Noise, vibration increase. Erosion begins on impeller vanes. Performance degrades.</li>
+          <li><strong>Severe / super-cavitation:</strong> Impeller passages blocked by vapour, dramatic head and flow loss. Catastrophic erosion in hours to days.</li>
+        </ul>
+        <div class="eq"><span class="kw">Bubble collapse pressure &asymp; 1000&#8211;3000 MPa</span><br>
+          <span class="note">When vapour bubbles collapse near a solid surface, the resultant microjet and shockwave impact creates localised stresses far exceeding the tensile strength of most metals. Bronze and stainless steel withstand cavitation better than cast iron.</span>
+        </div>
+        <p style="margin-top:10px"><strong>Symptoms in the field:</strong> Rattling / crackling noise (&#8220;gravel in the pump&#8221;), elevated vibration especially at 2&times; and higher harmonics, pitting on the low-pressure face of impeller vanes (typically at the vane leading edge, mid-vane), reduced flow and head at design speed, high shaft seal failure rate, accelerated bearing wear.</p>
+      </div>
+    </div>
+
+    <!-- CARD 3: NPSHa Derivation -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">3</div><span class="edu-card-hd-ttl">NPSHa Derivation from First Principles</span></div>
+      <div class="edu-card-bd">
+        <p>Apply the <strong>Bernoulli equation</strong> along the streamline from the free surface of the suction tank to the pump suction flange (point S), including all losses:</p>
+        <div class="eq">
+          <span class="kw">P_s/&#961;g + v_s&#178;/2g + z_s = P_t/&#961;g + v_t&#178;/2g + z_t &#8722; h_f</span><br>
+          <span class="note">Subscript t = tank surface, s = suction flange. Since tank surface area &#8811; pipe area, v_t &#8776; 0. Also z_t &#8722; z_s = z (the static head).</span>
+        </div>
+        <p>Rearranging for absolute pressure at the suction flange:</p>
+        <div class="eq">
+          <span class="kw">P_s/&#961;g = P_t/&#961;g + z &#8722; h_f &#8722; v_s&#178;/2g</span>
+        </div>
+        <p>NPSH is defined as absolute total head at suction minus vapour pressure head:</p>
+        <div class="eq">
+          <span class="kw">NPSHa = P_s/&#961;g + v_s&#178;/2g &#8722; P_v/&#961;g</span><br>
+          <span class="note">Substituting P_s/&#961;g above:</span><br>
+          <span class="kw">NPSHa = P_t/&#961;g + z &#8722; h_f &#8722; P_v/&#961;g</span><br>
+          <span class="note">Note: velocity head v&#178;/2g cancels (it is both added and subtracted) &#8212; NPSHa is independent of suction velocity.</span>
+        </div>
+        <div class="ok-box">&#10004; The velocity head v&#178;/2g <strong>does not appear</strong> in the final NPSHa formula. It is part of the total head at the suction flange but cancels with the kinetic energy in the Bernoulli derivation. Some references include it leading to apparent discrepancy &#8212; this is a definition convention difference only.</div>
+      </div>
+    </div>
+
+    <!-- CARD 4: Darcy-Weisbach -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">4</div><span class="edu-card-hd-ttl">Friction Losses &#8212; Darcy-Weisbach &amp; Swamee-Jain</span></div>
+      <div class="edu-card-bd">
+        <p>Pipe friction head loss is calculated by the <strong>Darcy-Weisbach equation</strong> &#8212; the most theoretically rigorous method, valid for all fluids, all flow regimes and all pipe sizes.</p>
+        <div class="eq">
+          <span class="kw">h_f = f &times; (L/D) &times; (v&#178;/2g)</span><br>
+          <span class="note">f = Darcy friction factor (dimensionless)<br>L = equivalent pipe length including fittings [m]<br>D = pipe internal diameter [m]<br>v = average velocity [m/s]<br>g = 9.81 m/s&#178;</span>
+        </div>
+        <p style="margin-top:10px">The friction factor f depends on Reynolds number and pipe roughness:</p>
+        <div class="eq">
+          <span class="kw">Re = &#961;vD/&#956; = vD/&#957;</span><br>
+          <span class="note">Laminar (Re &lt; 2300): f = 64/Re<br>Transition (2300&#8211;4000): avoid in design<br>Turbulent (Re &gt; 4000): use Colebrook-White or Swamee-Jain</span>
+        </div>
+        <p style="margin-top:8px"><strong>Swamee-Jain explicit approximation</strong> (&#177;1% of Colebrook):</p>
+        <div class="eq">
+          <span class="kw">f = 0.25 / [log&#8321;&#8320;(&#949;/3.7D + 5.74/Re&#8296;&#8312;)]&#178;</span><br>
+          <span class="note">&#949; = absolute roughness [mm]; D = diameter [m]. Use &#949;/3.7D in consistent units.</span>
+        </div>
+        <p style="margin-top:8px"><strong>Design velocity guideline:</strong> For clean liquids on the suction side, target 0.5&#8211;1.5 m/s. Higher velocity increases h_f rapidly (h_f &#8733; v&#178;), reducing NPSHa. The suction pipe should always be one or two sizes larger than discharge.</p>
+      </div>
+    </div>
+
+    <!-- CARD 5: Vapour Pressure -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">5</div><span class="edu-card-hd-ttl">Vapour Pressure &#8212; The Temperature Trap</span></div>
+      <div class="edu-card-bd">
+        <p><strong>Vapour pressure (P_v)</strong> is the partial pressure exerted by a substance in equilibrium with its liquid phase. It rises steeply with temperature following the Antoine / Clausius-Clapeyron equation. This is why high-temperature pumping systems are so vulnerable to cavitation.</p>
+        <div class="eq">
+          <span class="kw">h_vp = P_v(T) / (&#961;(T) &times; g)</span><br>
+          <span class="note">Both P_v and &#961; are functions of temperature T. As T rises:<br>P_v rises rapidly &#8594; h_vp increases &#8594; NPSHa decreases<br>&#961; decreases &#8594; h_vp increases further</span>
+        </div>
+        <table>
+          <tr><th>Fluid</th><th>20&#176;C Pv</th><th>80&#176;C Pv</th><th>Factor</th></tr>
+          <tr><td>Water</td><td>2.34 kPa</td><td>47.4 kPa</td><td>20&times;</td></tr>
+          <tr><td>Ethanol</td><td>5.95 kPa</td><td>&#8212;</td><td>&#8212;</td></tr>
+          <tr><td>Petrol</td><td>25 kPa</td><td>115 kPa</td><td>4.6&times;</td></tr>
+          <tr class="hl"><td>Hot condensate 120&#176;C</td><td colspan="2">198.5 kPa</td><td>&#8595; NPSHa</td></tr>
+        </table>
+        <div class="warn-box">&#9888; <strong>Hot condensate</strong> (boiler condensate return, flash steam systems) is the highest-risk fluid for cavitation. Vapour pressure may be &gt;100 kPa, consuming nearly all available atmospheric head. A pump handling 100&#176;C water has NPSHa reduced by 10.33 m &#8212; leaving zero margin unless the pump is fully flooded.</div>
+      </div>
+    </div>
+
+    <!-- CARD 6: NPSHr -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">6</div><span class="edu-card-hd-ttl">NPSHr &#8212; What the Pump Needs</span></div>
+      <div class="edu-card-bd">
+        <p><strong>NPSHr (Required NPSH)</strong> is the minimum NPSH at the pump suction flange, below which the pump head falls by 3% due to cavitation (the HI standard test condition). It is a function of pump geometry, impeller speed and flow rate.</p>
+        <p style="margin-top:10px"><strong>Key factors affecting NPSHr:</strong></p>
+        <ul>
+          <li><strong>Pump speed N:</strong> NPSHr &#8733; N&#178; &#8212; doubling speed increases NPSHr four-fold</li>
+          <li><strong>Flow rate Q:</strong> NPSHr rises steeply above design flow (BEP). Never run at &gt;120% BEP.</li>
+          <li><strong>Impeller geometry:</strong> Double-suction impellers have ~50% lower NPSHr vs single-suction.</li>
+          <li><strong>Number of stages:</strong> Multistage pumps have lower per-stage NPSHr but suction velocity is the same as single-stage.</li>
+        </ul>
+        <div class="eq">
+          <span class="kw">Specific speed Ns = N&radic;Q / H&#8336;&#8308;</span><br>
+          <span class="note">N = rpm, Q = m&#179;/s, H = m (per stage). Low Ns &lt; 40 (high-head radial), High Ns &gt; 120 (axial flow). Higher Ns pumps generally require higher NPSHr.</span>
+        </div>
+        <div class="eq">
+          <span class="kw">Suction specific speed Nss = N&radic;Q / NPSHr&#8336;&#8308;</span><br>
+          <span class="note">Should not exceed 210 (SI units: rpm, m&#179;/s, m) for reliable operation without recirculation-induced cavitation at off-design flow.</span>
+        </div>
+        <div class="info-box">&#9432; Always use NPSHr from the manufacturer&#8217;s pump curve at the actual operating flow rate &#8212; not the best efficiency point (BEP) value. NPSHr at maximum flow can be 2&#8211;4 times the BEP value.</div>
+      </div>
+    </div>
+
+    <!-- CARD 7: Suction System Design -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">7</div><span class="edu-card-hd-ttl">Suction System Design Rules</span></div>
+      <div class="edu-card-bd">
+        <p>Good suction system design is the single most effective way to prevent cavitation. The following rules apply to all centrifugal pump installations:</p>
+        <ul>
+          <li><strong>Keep suction pipe short.</strong> Every metre of suction pipe adds friction loss. Target &lt; 5 D in length if possible.</li>
+          <li><strong>Size suction pipe generously.</strong> One size larger than discharge pipe is the rule of thumb. Target 0.6&#8211;1.5 m/s suction velocity.</li>
+          <li><strong>Avoid air pockets.</strong> Suction pipe must slope continuously upward towards the pump with no high points where air can collect.</li>
+          <li><strong>Minimise fittings.</strong> Each fitting adds equivalent length. Avoid globe valves on suction (use gate or butterfly). Avoid 90&#176; elbows immediately upstream of pump suction.</li>
+          <li><strong>Use eccentric reducers.</strong> Eccentric reducers (flat on top) prevent air trapping when reducing to pump suction size.</li>
+          <li><strong>Flooded suction preferred.</strong> Flooded suction (liquid above pump) provides positive head. Suction lift should never exceed 7 m for water (approaches theoretical maximum of ~10.33 m minus vapour pressure and losses).</li>
+          <li><strong>Straight run before pump.</strong> Provide minimum 5&#215;D straight pipe before suction flange to ensure uniform velocity profile at the impeller eye.</li>
+        </ul>
+        <div class="warn-box">&#9888; <strong>Practical suction lift limit for water at 20&#176;C:</strong><br>
+          Max theoretical = (P_atm &#8722; P_v)/&#961;g = (101325 &#8722; 2338)/(998 &#215; 9.81) &#8776; 10.12 m<br>
+          Less pipe losses: say h_f = 1.5 m<br>
+          Less NPSHr margin: say 3.0 m<br>
+          <strong>&#8756; Practical max suction lift &#8776; 5.6 m</strong></div>
+      </div>
+    </div>
+
+    <!-- CARD 8: Troubleshooting -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">8</div><span class="edu-card-hd-ttl">Improving NPSHa &#8212; Troubleshooting &amp; Solutions</span></div>
+      <div class="edu-card-bd">
+        <p>When NPSHa is insufficient, the following modifications (in order of typical cost and complexity) should be considered:</p>
+        <table>
+          <tr><th>Solution</th><th>NPSHa Improvement</th><th>Difficulty</th></tr>
+          <tr><td>Increase suction pipe diameter</td><td>0.5&#8211;3 m</td><td>Low</td></tr>
+          <tr><td>Shorten suction piping</td><td>0.5&#8211;2 m</td><td>Low</td></tr>
+          <tr><td>Raise tank / vessel level</td><td>1&#8211;5 m</td><td>Medium</td></tr>
+          <tr><td>Lower pump location</td><td>1&#8211;5 m</td><td>Medium</td></tr>
+          <tr><td>Remove unnecessary fittings</td><td>0.2&#8211;1 m</td><td>Low</td></tr>
+          <tr><td>Reduce fluid temperature</td><td>Significant</td><td>Process-dependent</td></tr>
+          <tr><td>Use inducer on impeller</td><td>2&#8211;6 m lower NPSHr</td><td>Pump modification</td></tr>
+          <tr><td>Use double-suction impeller</td><td>~50% lower NPSHr</td><td>Pump replacement</td></tr>
+          <tr><td>Reduce pump speed</td><td>NPSHr &#8733; N&#178;</td><td>Drive modification</td></tr>
+          <tr class="hl"><td>Pressurize suction vessel</td><td>10 m per bar gauge</td><td>Process modification</td></tr>
+        </table>
+        <div class="ok-box">&#10004; <strong>Most common field fix:</strong> Upsize the suction pipe by two nominal sizes. This reduces velocity head loss by a factor of (D&#8322;/D&#8321;)&#8308; &#8212; e.g., going from DN100 to DN150 reduces friction loss to ~20% of the original value.</div>
+      </div>
+    </div>
+
+    <!-- CARD 9: Standards & References -->
+    <div class="edu-card">
+      <div class="edu-card-hd"><div class="edu-card-hd-num">9</div><span class="edu-card-hd-ttl">Standards, Codes &amp; References</span></div>
+      <div class="edu-card-bd">
+        <table>
+          <tr><th>Standard</th><th>Scope</th></tr>
+          <tr><td>HI 9.6.1</td><td>NPSH margin: NPSHa &#8805; NPSHr + 0.6 m</td></tr>
+          <tr><td>HI 9.6.3</td><td>Allowable operating region (AOR) for centrifugal pumps</td></tr>
+          <tr><td>API 610 (12th Ed.)</td><td>Centrifugal pumps for petroleum services; NPSHr test at 3% head drop</td></tr>
+          <tr><td>IS 5120:1977</td><td>Indian standard: technical requirements for centrifugal pumps</td></tr>
+          <tr><td>ISO 9906</td><td>Rotodynamic pumps &#8212; hydraulic performance acceptance tests</td></tr>
+          <tr><td>ASME PTC 8.2</td><td>Performance test code for centrifugal pumps</td></tr>
+          <tr><td>EN 809</td><td>Pumps for liquids &#8212; safety requirements (EU)</td></tr>
+        </table>
+        <p style="margin-top:10px"><strong>Key definitions:</strong></p>
+        <ul>
+          <li><strong>NPSHa:</strong> Net Positive Suction Head Available &#8212; a system property</li>
+          <li><strong>NPSHr (NPSH&#8323;):</strong> Net Positive Suction Head Required &#8212; a pump property at 3% head drop</li>
+          <li><strong>NPSHi:</strong> NPSH at incipient cavitation &#8212; typically 2&#8211;5 m higher than NPSHr</li>
+          <li><strong>NPSH&#8320;:</strong> NPSH at zero cavitation &#8212; used for critical applications (hydrocarbons, cryogenics)</li>
+          <li><strong>Sigma (&#963;):</strong> Thoma cavitation number &#963; = NPSHa/H; &#963; &gt; &#963;_c = critical value for no cavitation</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /edu-grid -->
+</div><!-- /edu-section -->
+</div><!-- /wrap -->
+
+<!-- SHARE MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeShare()">
+  <div class="modal">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-ttl">Share &amp; Export</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.5);margin-top:2px">Share this calculator or download your results</div>
+      </div>
+      <button class="modal-close" onclick="closeShare()">&#10005;</button>
+    </div>
+    <div class="modal-bd">
+      <div class="url-row">
+        <input class="url-inp" id="shareInp" value="https://multicalci.com/npsh-calculator/" readonly onclick="this.select()">
+        <button class="copy-btn" id="copyBtn" onclick="copyUrl()">Copy</button>
+      </div>
+      <div class="share-lbl">Share on</div>
+      <div class="share-grid">
+        <a class="ssoc s-wa" href="#" onclick="shareWA();return false"><div class="si">&#128512;</div>WhatsApp</a>
+        <a class="ssoc s-li" href="#" onclick="shareLI();return false"><div class="si">&#128309;</div>LinkedIn</a>
+        <a class="ssoc s-tw" href="#" onclick="shareTW();return false"><div class="si">&#9899;</div>X</a>
+        <a class="ssoc s-em" href="#" onclick="shareEM();return false"><div class="si">&#128231;</div>Email</a>
+      </div>
+      <div class="pdf-row">
+        <div class="pdf-ico">&#128196;</div>
+        <div><div style="font-size:.82rem;font-weight:700;color:var(--txt)">PDF Calculation Report</div><div style="font-size:.72rem;color:var(--txt3);margin-top:2px">Full report with diagram, formula derivation and all results</div></div>
+        <button class="pdf-btn" onclick="genPDF()">Download</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════
+   NPSH CALCULATOR — client side (UI only)
+   All physics/formulas secured in /api/npsh-calculator
+   Pattern matches pressure-drop-calculator for consistency
+══════════════════════════════════════════════════════════ */
+
+/* ── globals ── */
+const E   = id => document.getElementById(id);
+const fN  = (v, dp=2) => (isNaN(v) || !isFinite(v)) ? '—' : v.toFixed(dp);
+let UNIT  = 'SI';
+let RES   = null;
+const toM = x => UNIT === 'SI' ? x : x / 3.281; // user units → metres
+
+/* ════════════════════════════════════════════════════════════
+   API BRIDGE
+════════════════════════════════════════════════════════════ */
+async function apiCall(payload) {
+  const resp = await fetch('/api/npsh-calculator', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: 'HTTP ' + resp.status }));
+    throw new Error(err.error || 'API error ' + resp.status);
+  }
+  return resp.json();
+}
+
+/* ════════════════════════════════════════════════════════════
+   INIT — load fluid list from API
+════════════════════════════════════════════════════════════ */
+async function populateFluids() {
+  try {
+    const r = await apiCall({ action: 'fluidList' });
+    const sel = E('fluidSel');
+    r.fluids.forEach(f => {
+      const o = document.createElement('option');
+      o.value       = f.index;
+      o.textContent = f.name;
+      sel.appendChild(o);
+    });
+    updateChips();
+  } catch(e) {
+    console.error('Failed to load fluid list:', e.message);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   FLUID CHIPS — live ρ, μ, Pv display via API
+════════════════════════════════════════════════════════════ */
+async function updateChips() {
+  const idx = parseInt(E('fluidSel').value) || 0;
+  const T_C = Tc();
+  try {
+    const r = await apiCall({ action: 'fluidProps', fluidIndex: idx, T_C });
+    E('fluidChips').innerHTML =
+      '<div class="chip">ρ <span>'  + fN(r.rho, 1)    + ' kg/m³</span></div>' +
+      '<div class="chip">μ <span>'  + (r.mu_mPas < 10 ? fN(r.mu_mPas, 3) : fN(r.mu_mPas, 1)) + ' mPa·s</span></div>' +
+      '<div class="chip">Pv <span>' + fN(r.pv_bar, 5)  + ' bar</span></div>' +
+      '<div class="chip">hᵛp <span>'+ fN(r.hvp, 3)    + ' m</span></div>';
+  } catch(e) {
+    E('fluidChips').innerHTML = '<div class="chip" style="color:var(--red)">⚠ ' + e.message + '</div>';
+  }
+}
+
+function onFluidChange() { updateChips(); calc(); }
+
+/* ════════════════════════════════════════════════════════════
+   TEMPERATURE SLIDER SYNC
+════════════════════════════════════════════════════════════ */
+function onTempInput() {
+  const sl = E('tempSlider');
+  sl.value = Tc();
+  updateSF(sl);
+  updateChips(); calc();
+}
+function onTempSlider() {
+  const sl = E('tempSlider');
+  const T  = parseFloat(sl.value);
+  E('tempInp').value = UNIT === 'SI' ? fN(T, 0) : fN(T * 9/5 + 32, 0);
+  updateSF(sl);
+  updateChips(); calc();
+}
+function updateSF(sl) {
+  const mn = parseFloat(sl.min), mx = parseFloat(sl.max), v = parseFloat(sl.value);
+  sl.style.setProperty('--pct', ((v - mn) / (mx - mn) * 100).toFixed(1) + '%');
+}
+function Tc() {
+  const v = parseFloat(E('tempInp').value) || 20;
+  return UNIT === 'SI' ? v : (v - 32) * 5/9;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CONFIGURATION CHANGE
+════════════════════════════════════════════════════════════ */
+function onUpChange() {
+  const tp       = E('upType').value;
+  const isVessel = tp.startsWith('vessel');
+  const isAbove  = tp.endsWith('above');
+  E('vesselField').style.display = isVessel ? '' : 'none';
+  E('baroField').style.display   = '';
+  const u    = UNIT === 'SI' ? 'm' : 'ft';
+  const hLbl  = E('headLbl');
+  const hHint = E('headHint');
+  if (isAbove) {
+    hLbl.innerHTML  = 'Vertical Head z <span class="unit" id="headUnit">' + u + '</span>';
+    hHint.textContent = 'Vertical distance from pump centreline UP to liquid surface. Enter as positive value — flooded suction.';
+  } else {
+    hLbl.innerHTML  = 'Suction Lift z <span class="unit" id="headUnit">' + u + '</span>';
+    hHint.textContent = 'Vertical distance from liquid surface UP to pump centreline. Enter as positive value — pump is ABOVE liquid.';
+  }
+  calc();
+}
+
+/* ════════════════════════════════════════════════════════════
+   NPSHr METHOD TOGGLE
+════════════════════════════════════════════════════════════ */
+function onNpshrMethod() {
+  const m = E('npSHrMethod').value;
+  E('npSHrDirect').style.display   = m === 'direct'   ? '' : 'none';
+  E('npSHrEstimate').style.display = m === 'estimate' ? '' : 'none';
+  calc();
+}
+
+/* ════════════════════════════════════════════════════════════
+   UNIT SWITCH
+════════════════════════════════════════════════════════════ */
+function setUnit(u) {
+  if (u === UNIT) return;
+  const prev = UNIT; UNIT = u;
+  E('btnSI').classList.toggle('on',  u === 'SI');
+  E('btnIMP').classList.toggle('on', u === 'IMP');
+  const SI = u === 'SI';
+  ['tempPill','tempUnit'].forEach(id => { E(id).innerHTML = SI ? '&#176;C' : '&#176;F'; });
+  E('rMin').textContent = SI ? '0°C'  : '32°F';
+  E('rMax').textContent = SI ? '150°C': '302°F';
+  E('tempSlider').min   = SI ? 0  : 32;
+  E('tempSlider').max   = SI ? 150: 302;
+  ['flowPill','flowUnit'].forEach(id => { E(id).innerHTML = SI ? 'm³/h' : 'gpm'; });
+  ['headPill'].forEach(id => { E(id).textContent = SI ? 'm' : 'ft'; });
+  ['plenPill','plenUnit'].forEach(id => { E(id).textContent = SI ? 'm' : 'ft'; });
+  ['flenPill','flenUnit'].forEach(id => { E(id).textContent = SI ? 'm' : 'ft'; });
+  E('baroUnit').textContent = 'bar abs'; E('baroPill').textContent = 'bar';
+  ['vesselPill','vesselUnit'].forEach(id => { E(id).textContent = SI ? 'bar g' : 'psi g'; });
+  ['npSHrPill','npSHrUnit'].forEach(id => { E(id).textContent = SI ? 'm' : 'ft'; });
+  ['dischPill','dischUnit'].forEach(id => { E(id).textContent = SI ? 'm' : 'ft'; });
+  const cv = (id, fn) => { const v = parseFloat(E(id).value); if (!isNaN(v)) E(id).value = fN(fn(v), 2); };
+  if (!SI) {
+    cv('tempInp', v => v * 9/5 + 32);
+    cv('headInp', v => v * 3.281); cv('plenInp', v => v * 3.281); cv('flenInp', v => v * 3.281);
+    cv('flowInp', v => v * 4.403);
+    cv('vesselInp', v => v * 14.504);
+    cv('npSHrInp', v => v * 3.281); cv('dischHead', v => v * 3.281);
+  } else {
+    cv('tempInp', v => (v - 32) * 5/9);
+    cv('headInp', v => v / 3.281); cv('plenInp', v => v / 3.281); cv('flenInp', v => v / 3.281);
+    cv('flowInp', v => v / 4.403);
+    cv('vesselInp', v => v / 14.504);
+    cv('npSHrInp', v => v / 3.281); cv('dischHead', v => v / 3.281);
+  }
+  const sl = E('tempSlider'); sl.value = Tc(); updateSF(sl);
+  onUpChange(); updateChips(); calc();
+}
+
+/* ════════════════════════════════════════════════════════════
+   MAIN CALCULATE — collects inputs, sends to API, renders
+════════════════════════════════════════════════════════════ */
+async function calc() {
+  // Gather all inputs
+  const fluidIndex        = parseInt(E('fluidSel').value) || 0;
+  const T_C               = Tc();
+  const D_mm              = parseFloat(E('pipeSel').value);
+  const Q_raw             = parseFloat(E('flowInp').value) || 0;
+  const L_m               = toM(parseFloat(E('plenInp').value) || 0);
+  const Lf_m              = toM(parseFloat(E('flenInp').value) || 0);
+  const eps_mm            = parseFloat(E('roughSel').value);
+  const upType            = E('upType').value;
+  const baro_bar          = parseFloat(E('baroInp').value) || 1.01325;
+  const vessel_pg_raw     = parseFloat(E('vesselInp').value) || 0;
+  const z_raw_user        = toM(parseFloat(E('headInp').value) || 0);
+  const npshrMethod       = E('npSHrMethod').value;
+  const npshr_direct_user = parseFloat(E('npSHrInp').value) || 3.0;
+  const N_rpm             = parseFloat(E('pumpRPM').value)  || 1450;
+  const H_total_user      = toM(parseFloat(E('dischHead').value) || 30);
+  const stages            = parseInt(E('numStages').value)  || 1;
+  const pumpType          = E('pumpType').value;
+  const margin_req        = parseFloat(E('marginInp').value) || 0.6;
+
+  if (!D_mm || Q_raw <= 0) return; // don't fire API on empty form
+
+  let r;
+  try {
+    r = await apiCall({
+      action: 'calculate',
+      fluidIndex, T_C, unitMode: UNIT,
+      D_mm, Q_raw, L_m, Lf_m, eps_mm,
+      upType, baro_bar, vessel_pg_raw,
+      z_raw_user, npshrMethod, npshr_direct_user,
+      N_rpm, H_total_user, stages, pumpType, margin_req,
+    });
+  } catch(e) {
+    const wDiv = E('eng_warnings');
+    wDiv.style.display = 'block';
+    wDiv.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start;padding:9px 13px;border-radius:8px;margin-bottom:7px;font-size:.82rem;font-weight:600;border:1.5px solid;background:#fff0f0;border-color:#f87171;color:#7f1d1d">⚠ API error: ' + e.message + '</div>';
+    return;
+  }
+
+  if (!r.ok) {
+    E('eng_warnings').style.display = 'block';
+    E('eng_warnings').innerHTML = '<div style="padding:9px 13px;border-radius:8px;font-size:.82rem;background:#fff0f0;border:1.5px solid #f87171;color:#7f1d1d">⚠ ' + (r.error || 'Calculation failed') + '</div>';
+    return;
+  }
+
+  RES = r;
+  renderResults(r);
+  draw();
+}
+
+/* ════════════════════════════════════════════════════════════
+   RENDER RESULTS — all DOM updates from API response
+════════════════════════════════════════════════════════════ */
+function renderResults(r) {
+  const fN2 = (v, dp) => fN(v, dp);
+  const sM  = x => UNIT === 'SI' ? fN(x, 3) + ' m' : fN(x * 3.281, 3) + ' ft';
+
+  // ── Engineering warnings ──
+  const wDiv = E('eng_warnings');
+  if (r.warnings && r.warnings.length > 0) {
+    wDiv.style.display = 'block';
+    wDiv.innerHTML = r.warnings.map(w =>
+      '<div style="display:flex;gap:8px;align-items:flex-start;padding:9px 13px;border-radius:8px;margin-bottom:7px;font-size:.82rem;font-weight:600;border:1.5px solid;line-height:1.5;'
+      + (w.cls === 'err' ? 'background:#fff0f0;border-color:#f87171;color:#7f1d1d' : 'background:#fef9ec;border-color:#f59e0b;color:#5a2c04') + '">'
+      + '<span style="font-size:1rem">' + w.msg.slice(0, 2) + '</span>'
+      + '<span>' + w.msg.slice(2) + '</span></div>'
+    ).join('');
+  } else {
+    wDiv.style.display = 'none';
+  }
+
+  // ── Big NPSHa display ──
+  E('r_npsha').textContent = UNIT === 'SI' ? fN(r.npsha, 3) : fN(r.npsha_ft, 3);
+  E('r_lbl').textContent   = 'NPSHa — ' + r.fluidName + ' at ' + fN(r.T, 1) + '°C';
+  E('r_unit').textContent  = UNIT === 'SI'
+    ? 'metres of ' + r.fluidShort + ' head   ≡   ΔP = ' + fN(r.npsha_deltaP_bar, 5) + ' bar above Pv'
+    : 'feet of '   + r.fluidShort + ' head   ≡   ΔP = ' + fN(r.npsha_psi, 3)        + ' psi above Pv';
+  E('r_alt').textContent =
+    'ΔP = ' + fN(r.npsha_deltaP_bar, 5) + ' bar  ·  ' +
+    'Ps = '  + fN(r.npsha_Ps_bar, 5)    + ' bar abs  ·  ' +
+    fN(r.npsha_ft, 2) + ' ft';
+  E('r_status').className   = 'status-bar ' + r.sc;
+  E('r_status').textContent = r.st;
+
+  // ── Result cards ──
+  E('r_patm').textContent  = sM(r.H_abs) + '  =  ' + fN(r.P_abs_Pa / 1e5, 5) + ' bar abs';
+  E('r_patm2').textContent = '↪ uses ρ=' + fN(r.rho, 1) + ' kg/m³ (actual fluid density)';
+  E('r_z').textContent     = sM(r.z) + '  =  ' + fN(r.z * r.rg / 1e5, 5) + ' bar';
+  E('r_zdir').textContent  = r.z >= 0 ? '(+flooded)' : '(−suction lift)';
+  E('r_ztype').textContent = r.isAbove ? 'Flooded suction — tank above pump' : 'Suction lift — pump above tank';
+  E('r_hvp').textContent   = sM(r.h_vp) + '  =  ' + fN(r.pv_bar, 5) + ' bar abs';
+  E('r_hvp2').textContent  = 'Pv = ' + fN(r.pv_bar, 5) + ' bar abs  (' + fN(r.pv_kPa, 3) + ' kPa)  at ' + fN(r.T, 1) + '°C';
+  E('r_hf').textContent    = sM(r.hf) + '  =  ' + fN(r.hf * r.rg / 1e5, 5) + ' bar';
+  E('r_hf2').textContent   = 'f=' + fN(r.ff, 5) + '  Le=' + fN(r.Le, 1) + ' m  Re=' + fN(r.Re, 0);
+  E('r_vel').textContent   = fN(r.v, 3) + ' m/s';
+  E('r_vel2').textContent  = r.v < 1.5 ? '✔ Good (< 1.5 m/s)' : r.v < 3 ? 'Acceptable' : 'HIGH — upsize pipe';
+  E('r_vh').textContent    = sM(r.vh) + '  =  ' + fN(r.vh * r.rg / 1e5, 6) + ' bar';
+  E('r_re').textContent    = r.Re > 1e6 ? fN(r.Re / 1e6, 2) + '×10⁶' : fN(r.Re, 0);
+  E('r_re2').textContent   = r.Re < 2300 ? 'Laminar (f=64/Re)' : r.Re < 4000 ? '⚠ Transition — uncertain' : 'Turbulent (Colebrook-White)';
+  E('r_ff').textContent    = fN(r.ff, 5);
+  E('r_ff2').textContent   = r.Re < 2300 ? 'f = 64/Re (Hagen-Poiseuille)' : r.Re < 4000 ? 'Interpolated (transition)' : 'Colebrook-White (iterative)';
+  E('r_bar').textContent   = 'ΔP = ' + fN(r.npsha_deltaP_bar, 5) + ' bar  |  Ps = ' + fN(r.npsha_Ps_bar, 5) + ' bar abs';
+
+  // ── NPSHr ──
+  const npshr_disp = UNIT === 'SI' ? fN(r.npshr_m, 3) + ' m' : fN(r.npshr_m * 3.281, 3) + ' ft';
+  E('r_npshr').textContent  = npshr_disp + '  =  ' + fN(r.npshr_bar_fluid, 5) + ' bar above Pv (fluid basis)';
+  E('r_npshr2').textContent = r.npshrEstimate ? 'Thoma σ model — verify with pump curve' : 'From pump curve (manufacturer data)';
+
+  // ── NPSHr estimate box (if used) ──
+  if (r.npshrEstimate) {
+    const ne = r.npshrEstimate;
+    E('npSHrEstBox').innerHTML =
+      '<strong>Estimated NPSHr: ' + fN(ne.npshr_m, 2) + ' m = ' + fN(ne.npshr_bar, 4) + ' bar</strong><br>' +
+      '<span style="color:var(--txt3);font-size:.8em">' +
+      'Method: Thoma σ = ' + fN(ne.sigma, 4) + ' × Hₛₜₐᵍₑ(' + fN(ne.H_stage, 1) + 'm) | ' +
+      'Nsₛᴵ = ' + fN(ne.Ns, 1) + ' | Nss = ' + fN(ne.Nss, 1) + ' (HI limit 210)<br>' +
+      '⚠ Accuracy ±30%. Always verify with manufacturer\'s pump curve at actual operating point.' +
+      '</span>';
+  }
+
+  // ── Min suction pressure ──
+  E('minSucEq').innerHTML =
+    '= Pv + NPSHr × ρg<br>' +
+    '= ' + fN(r.pv_bar, 4) + ' + ' + fN(r.npshr_m, 3) + ' m × ' + fN(r.rho, 1) + ' kg/m³ × 9.81 / 10⁵<br>' +
+    '= <span class="min-suc-val">' + fN(r.cavPmin_bar, 4) + ' bar abs</span>';
+  E('npshrFluidNote').textContent =
+    'ΔP(NPSHr) = ' + fN(r.rho, 1) + ' × 9.81 × ' + fN(r.npshr_m, 3) + ' = ' +
+    fN(r.npshr_bar_fluid, 4) + ' bar  [vs water ref: ' + fN(r.npshr_bar_water, 4) + ' bar]';
+
+  // ── Cavitation check table ──
+  E('cc_pv').textContent   = fN(r.pv_bar, 4)      + ' bar abs';
+  E('cc_ps').textContent   = fN(r.cavPs_bar, 4)   + ' bar abs';
+  E('cc_pmin').textContent = fN(r.cavPmin_bar, 4) + ' bar abs';
+
+  const cavMarginRow  = E('ccMarginRow');
+  const cavSign       = r.cavMargin_bar >= 0 ? '+' : '';
+  E('ccMarginVal').textContent = cavSign + fN(r.cavMargin_bar, 4) + ' bar';
+  if (r.cavMargin_bar >= 0.1) {
+    cavMarginRow.style.cssText = 'padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.88rem;font-weight:800;background:var(--grn-lt);color:var(--grn-txt);';
+    E('ccMarginLabel').textContent = 'Pressure margin  ✔ PASS';
+    E('ccMarginVal').style.color   = 'var(--grn-txt)';
+  } else if (r.cavMargin_bar >= 0) {
+    cavMarginRow.style.cssText = 'padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.88rem;font-weight:800;background:var(--amb-lt);color:var(--amb-txt);';
+    E('ccMarginLabel').textContent = 'Pressure margin  ⚠ MARGINAL';
+    E('ccMarginVal').style.color   = 'var(--amb-txt)';
+  } else {
+    cavMarginRow.style.cssText = 'padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:.88rem;font-weight:800;background:var(--red-lt);color:var(--red);';
+    E('ccMarginLabel').textContent = 'Pressure margin  ✖ FAIL — cavitation';
+    E('ccMarginVal').style.color   = 'var(--red)';
+  }
+
+  // ── Saturation proximity ──
+  const cavSpct  = Math.min(r.cavS * 100, 100);
+  const satBox   = E('satProxBox');
+  satBox.classList.remove('sat-ok', 'sat-warn', 'sat-crit');
+  E('satProxVal').textContent  = 'S = ' + fN(r.cavS, 4);
+  E('satBarFill').style.width  = fN(cavSpct, 1) + '%';
+  if (r.cavS >= 0.95) {
+    satBox.classList.add('sat-crit');
+    E('satProxLabel').textContent = '⛔ Saturation proximity  S = Pv/Ps';
+    E('satProxMsg').innerHTML = '<strong>Critical — operating at ' + fN(cavSpct, 1) + '% of saturation.</strong><br>'
+      + 'Any temperature increase will cause immediate flashing in the suction pipe. Increase system pressure or reduce temperature.';
+  } else if (r.cavS >= 0.80) {
+    satBox.classList.add('sat-warn');
+    E('satProxLabel').textContent = '⚠ Saturation proximity  S = Pv/Ps';
+    E('satProxMsg').innerHTML = '<strong>Warning — S = ' + fN(r.cavS, 4) + ' (' + fN(cavSpct, 1) + '% of saturation).</strong><br>'
+      + 'A small temperature rise may cause flashing. Monitor closely; consider increasing inlet pressure or lowering temperature.';
+  } else {
+    satBox.classList.add('sat-ok');
+    E('satProxLabel').textContent = '✔ Saturation proximity  S = Pv/Ps';
+    E('satProxMsg').innerHTML     = 'Safe margin — ' + fN(100 - cavSpct, 1) + '% below saturation pressure. Low flash risk at current operating conditions.';
+  }
+
+  // ── Compare boxes ──
+  const mg = r.margin_actual > 0;
+  E('cmpAval').textContent = fN(r.npsha, 3);
+  E('cmpRval').textContent = fN(r.npshr_m, 3);
+  E('cmpMval').textContent = fN(r.margin_actual, 3);
+  E('cmpM').style.borderColor = mg ? 'var(--grn-bd)' : 'var(--red-bd)';
+  E('cmpM').style.background  = mg ? 'var(--grn-lt)' : 'var(--red-lt)';
+  E('cmpMlbl').style.color    = mg ? 'var(--grn)'    : 'var(--red)';
+  E('cmpMval').style.color    = mg ? 'var(--grn-txt)': 'var(--red)';
+  E('cmpMunit').style.color   = mg ? 'var(--grn)'    : 'var(--red)';
+  E('cmpMsub').textContent    = mg ? 'm surplus ✔ PASS' : 'm deficit ✖ FAIL';
+  E('cmpMsub').style.color    = mg ? 'var(--grn)'    : 'var(--red)';
+  E('cmpAsub').textContent    = 'metres of ' + r.fluidShort + ' head';
+  E('cmpA_bar').textContent   = '≡ ΔP = ' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv';
+  E('cmpR_bar').textContent   = fN(r.npshr_bar_fluid, 4) + ' bar above Pv (fluid basis)';
+  E('cmpM_bar').textContent   = (r.margin_actual >= 0 ? '+' : '') + fN(r.margin_actual * r.rg / 1e5, 4) + ' bar';
+
+  // ── Head ≠ pressure note (high-Pv fluids) ──
+  const showHeadNote = r.pv_bar > 1.0;
+  E('headNotePressure').style.display = showHeadNote ? '' : 'none';
+  if (showHeadNote) {
+    E('headNoteFluid').textContent = r.fluidShort + ' at ' + fN(r.T, 0) + '°C';
+    E('headNoteConv').textContent  = fN(r.rg / 1e5, 4) + ' bar';
+    E('headNoteNpsha').textContent = fN(r.npsha, 3);
+    E('headNoteBar').textContent   = fN(r.npsha_deltaP_bar, 4);
+  }
+
+  // ── Margin card ──
+  E('r_margin').textContent =
+    'Required: NPSHr+margin = ' + fN(r.npshr_m, 3) + '+' + fN(r.margin_req, 2) + ' = ' + fN(r.npsha_required, 3) + ' m  |  ' +
+    (r.margin_actual >= 0 ? '✔ Surplus' : 'DEFICIT') + ' = ' + fN(r.margin_actual, 3) + ' m';
+  E('r_marginCard').style.borderTopColor =
+    r.margin_actual > 0 ? 'var(--grn)' : r.margin_actual > -1 ? 'var(--amb)' : 'var(--red)';
+
+  // ── Step-by-step calculation note ──
+  E('r_calc_note').innerHTML =
+    '<div style="font-weight:800;color:var(--navy);font-size:.77rem;margin-bottom:3px">Why NPSHa ≠ vessel pressure — the cancellation</div>'
+    + '<div style="line-height:1.9">'
+    + '<span style="color:var(--blue2);font-weight:700">P<sub>vessel</sub> ' + fN(r.P_abs_Pa / 1e5, 3) + ' bar</span>'
+    + ' &minus; '
+    + '<span style="color:var(--grn-txt);font-weight:700">Pv ' + fN(r.pv_bar, 3) + ' bar</span>'
+    + ' = '
+    + '<strong style="color:var(--navy)">Net ΔP = ' + fN(r.netDP_bar, 3) + ' bar = ' + fN(r.netDP_m, 2) + ' m of ' + r.fluidShort + ' head</strong>'
+    + '</div>'
+    + '<div style="line-height:1.9">NPSHa'
+    + ' = <span style="color:var(--navy)">' + fN(r.netDP_m, 2) + '</span>'
+    + ' + z(' + fN(r.z, 2) + ')'
+    + ' − hf(' + fN(r.hf, 3) + ')'
+    + ' = <strong style="color:var(--blue2)">' + fN(r.npsha, 3) + ' m</strong>'
+    + ' ≡ ΔP = ' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv'
+    + '</div>'
+    + '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--bdr2);color:var(--txt3);font-size:.70rem;line-height:1.6">'
+    + '⚠️ Vessel pressure (' + fN(r.P_abs_Pa / 1e5, 2) + ' bar abs) is almost entirely cancelled by vapour pressure Pv (' + fN(r.pv_bar, 2) + ' bar). '
+    + 'The NPSHa is governed by the small <em>net difference</em> between them (' + fN(r.netDP_bar, 3) + ' bar), plus the flooded head z.'
+    + '</div>';
+
+  E('resultsDiv').classList.add('show');
+  E('theoryPlaceholder').style.display = 'none';
+}
+
+/* ════════════════════════════════════════════════════════════
+   DIAGRAM DRAW — canvas (pure client, uses RES from API)
+   Identical to original — no physics here, just visualisation
+════════════════════════════════════════════════════════════ */
+function draw() {
+  const c = E('diagCanvas');
+  const W = c.offsetWidth || 640; const H = 320;
+  const pr = window.devicePixelRatio || 1;
+  c.width = W * pr; c.height = H * pr; c.style.height = H + 'px';
+  const ctx = c.getContext('2d'); ctx.scale(pr, pr);
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = '#fafcff'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(30,80,200,.05)'; ctx.lineWidth = .5;
+  for (let x = 0; x < W; x += 28) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 28) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  const r  = RES;
+  const tp = r ? r.tp : 'open_above';
+  const isAbove  = r ? r.isAbove  : true;
+  const isVessel = r ? r.isVessel : false;
+
+  const C = {
+    pipe:'#1d6fe8', pipeLight:'rgba(29,111,232,.15)',
+    fluid:'rgba(29,111,232,.18)', fluidLine:'rgba(29,111,232,.5)',
+    tank:'#0f2044', tankStroke:'rgba(15,32,44,.7)',
+    grn:'#059669', amb:'#d97706', red:'#dc2626', pur:'#7c3aed',
+    txt:'#1e293b', txt2:'#64748b', white:'#ffffff', bg:'#f8fafc'
+  };
+
+  function pipe(x1,y1,x2,y2,thick,col){
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle='rgba(30,50,80,.4)';ctx.lineWidth=thick+4;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=C.bg;ctx.lineWidth=thick+2;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=C.pipeLight;ctx.lineWidth=thick;ctx.stroke();
+    const thick2=thick/2+1;const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);if(len<1)return;
+    const nx=dy/len*thick2,ny=-dx/len*thick2;
+    ctx.beginPath();ctx.moveTo(x1+nx,y1+ny);ctx.lineTo(x2+nx,y2+ny);ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x1-nx,y1-ny);ctx.lineTo(x2-nx,y2-ny);ctx.stroke();
+  }
+  function txt(s,x,y,col,sz,bold,align){ctx.fillStyle=col||C.txt;ctx.font=(bold?'bold ':'')+Math.max(8,sz||10)+'px "Source Sans 3",sans-serif';ctx.textAlign=align||'center';ctx.textBaseline='middle';ctx.fillText(s,x,y);}
+  function mono(s,x,y,col,sz){ctx.fillStyle=col||C.txt2;ctx.font=Math.max(7,sz||9)+'px "JetBrains Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s,x,y);}
+  function arrow(x1,y1,x2,y2,col,sz){sz=sz||5;const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);if(len<1)return;const ux=dx/len,uy=dy/len;ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-ux*sz*1.5-uy*sz,y2-uy*sz*1.5+ux*sz);ctx.lineTo(x2-ux*sz*1.5+uy*sz,y2-uy*sz*1.5-ux*sz);ctx.closePath();ctx.fillStyle=col;ctx.fill();}
+  function dimLine(x1,y1,x2,y2,label,col){col=col||C.grn;ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);arrow(x1,y1,x2,y2,col,4);arrow(x2,y2,x1,y1,col,4);mono(label,(x1+x2)/2-10,(y1+y2)/2,col,9);}
+  function drawPump(px,py,r2,status){
+    const sc=status==='ok'?C.grn:status==='warn'?C.amb:status==='err'?C.red:C.pipe;
+    const g=ctx.createRadialGradient(px,py,r2*.4,px,py,r2*2.2);g.addColorStop(0,'rgba(29,111,232,.1)');g.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(px,py,r2*2.2,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.arc(px,py,r2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=sc;ctx.lineWidth=2.5;ctx.stroke();
+    for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ctx.beginPath();ctx.moveTo(px+Math.cos(a)*r2*.18,py+Math.sin(a)*r2*.18);ctx.lineTo(px+Math.cos(a)*r2*.72,py+Math.sin(a)*r2*.72);ctx.strokeStyle='rgba(15,32,68,.25)';ctx.lineWidth=1.5;ctx.stroke();}
+    ctx.beginPath();ctx.arc(px,py,r2*.18,0,Math.PI*2);ctx.fillStyle=sc;ctx.fill();
+    ctx.fillStyle=C.tank;ctx.font='bold '+Math.max(8,r2*.38)+'px "Source Sans 3",sans-serif';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('PUMP',px,py+r2+4);
+  }
+  function drawTank(tx,ty,tw,th,fluidFrac,isVessel2){
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(tx,ty,tw,th,6):ctx.rect(tx,ty,tw,th);ctx.fillStyle='#f0f4f8';ctx.fill();ctx.strokeStyle=C.tankStroke;ctx.lineWidth=2;ctx.stroke();
+    const fTop=ty+th*(1-fluidFrac);ctx.fillStyle='rgba(29,111,232,.12)';
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(tx+2,fTop,tw-4,ty+th-fTop-2,4):ctx.fillRect(tx+2,fTop,tw-4,ty+th-fTop-2);ctx.fill();
+    ctx.beginPath();for(let i=0;i<=5;i++){ctx.lineTo(tx+4+i*(tw-8)/5,fTop+(i%2?2:-2));}ctx.strokeStyle=C.fluidLine;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='rgba(15,32,68,.55)';ctx.font='bold '+Math.max(8,tw*.09)+'px "Source Sans 3",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(isVessel2?'VESSEL':' TANK',tx+tw/2,ty+th*.18);
+    if(isVessel2){ctx.fillStyle=C.amb;ctx.font='bold '+Math.max(7,tw*.08)+'px "JetBrains Mono",monospace';ctx.textAlign='center';ctx.fillText('Pᵥ',tx+tw/2,ty+th*.3);}
+  }
+
+  const tankW=Math.min(100,W*.14),pumpR=Math.min(26,W*.04),tankH=Math.min(160,H*.55),margin=22;
+  const pumpYBase=H*.74,pumpYTop=H*.28,tankTopY=H*.08,tankBotStartY=H*.42;
+  let tankX,tankY,pumpX,pumpY,fluidFrac;
+  if(isAbove){tankX=W*.06;tankY=tankTopY;pumpX=W*.68;pumpY=pumpYBase;fluidFrac=0.6;}
+  else{tankX=W*.06;tankY=tankBotStartY;pumpX=W*.68;pumpY=pumpYTop;fluidFrac=0.55;}
+
+  drawTank(tankX,tankY,tankW,tankH,fluidFrac,isVessel);
+  drawPump(pumpX,pumpY,pumpR,r?r.sc:null);
+
+  const tankOutletY=tankY+tankH*(1-fluidFrac*.5),tankRightX=tankX+tankW,elbowX=tankRightX+W*.07;
+  const pipeThick=Math.min(10,W*.015);
+  pipe(tankRightX,tankOutletY,elbowX,tankOutletY,pipeThick,C.pipe);
+  pipe(elbowX,tankOutletY,elbowX,pumpY,pipeThick,C.pipe);
+  pipe(elbowX,pumpY,pumpX-pumpR-2,pumpY,pipeThick,C.pipe);
+  pipe(pumpX+pumpR+2,pumpY,pumpX+pumpR+W*.14,pumpY,Math.min(8,W*.012),C.pipe);
+  ctx.fillStyle=C.txt2;ctx.font=Math.max(7,W*.013)+'px "Source Sans 3",sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('→ DISCHARGE',pumpX+pumpR+W*.07,pumpY+Math.min(10,W*.014));
+
+  const zLineX=tankX-14,surfaceY=tankY+tankH*(1-fluidFrac),pumpCentreY=pumpY;
+  dimLine(zLineX,surfaceY,zLineX,pumpCentreY,'z',C.grn);
+  ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(5,150,105,.3)';ctx.lineWidth=0.8;
+  ctx.beginPath();ctx.moveTo(zLineX,surfaceY);ctx.lineTo(tankX,surfaceY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(zLineX,pumpCentreY);ctx.lineTo(pumpX-pumpR,pumpCentreY);ctx.stroke();
+  ctx.setLineDash([]);
+
+  if(r&&r.hf>0.01){
+    const midX=(elbowX+(pumpX-pumpR))/2,pipeY=pumpY;
+    ctx.fillStyle='rgba(255,251,235,.92)';ctx.strokeStyle=C.amb;ctx.lineWidth=1;
+    const bw=70,bh=20;ctx.beginPath();ctx.roundRect?ctx.roundRect(midX-bw/2,pipeY-bh-8,bw,bh,4):ctx.rect(midX-bw/2,pipeY-bh-8,bw,bh);ctx.fill();ctx.stroke();
+    mono('hf = '+fN(r.hf,2)+' m',midX,pipeY-bh/2-8,C.amb,9);
+  }
+
+  const pvX=W*.88,pvY=H*.22,bw=Math.min(80,W*.13),bh=36;
+  ctx.fillStyle='rgba(245,240,255,.95)';ctx.strokeStyle=C.pur;ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(pvX-bw/2,pvY-bh/2,bw,bh,6):ctx.rect(pvX-bw/2,pvY-bh/2,bw,bh);ctx.fill();ctx.stroke();
+  ctx.fillStyle=C.pur;ctx.font='bold '+Math.max(7,W*.013)+'px "JetBrains Mono",monospace';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('Pv',pvX,pvY-bh/2+4);ctx.font=Math.max(7,W*.013)+'px "JetBrains Mono",monospace';ctx.textBaseline='top';
+  ctx.fillText(r?fN(r.pv_kPa,2)+' kPa':'auto',pvX,pvY);
+
+  if(!isVessel){
+    mono('P_atm',tankX+tankW/2,tankY-10,C.txt2,9);
+    ctx.setLineDash([2,3]);ctx.strokeStyle='rgba(100,116,139,.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(tankX+tankW/2,tankY-5);ctx.lineTo(tankX+tankW/2,tankY);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  if(r){
+    const nc=r.sc==='ok'?C.grn:r.sc==='warn'?C.amb:C.red;
+    const lx=pumpX,ly=isAbove?pumpY-pumpR-22:pumpY+pumpR+22;
+    const bw2=Math.min(110,W*.17),bh2=22;
+    ctx.fillStyle=r.sc==='ok'?'#ecfdf5':r.sc==='warn'?'#fffbeb':'#fef2f2';ctx.strokeStyle=nc;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(lx-bw2/2,ly-bh2/2,bw2,bh2,5):ctx.rect(lx-bw2/2,ly-bh2/2,bw2,bh2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=nc;ctx.font='bold '+Math.max(8,W*.014)+'px "JetBrains Mono",monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('NPSHa = '+fN(r.npsha,2)+' m',lx,ly);
+  }
+
+  ctx.fillStyle='rgba(100,116,139,.6)';ctx.font=Math.max(7,W*.013)+'px "JetBrains Mono",monospace';ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText((r?r.fluidName:'Water')+' · '+(r?fN(r.T,0):20)+'°C',6,H-5);
+
+  const configLabels={'open_above':'Flooded suction — tank above pump','open_below':'Suction lift — pump above tank','vessel_above':'Pressurised vessel — flooded suction','vessel_below':'Pressurised vessel — suction lift'};
+  E('diagLabel').textContent = configLabels[r?r.tp:'open_above'] + (r?' — z = '+fN(Math.abs(r.z),2)+' m':'');
+}
+
+/* ════════════════════════════════════════════════════════════
+   SHARE & PDF
+════════════════════════════════════════════════════════════ */
+function openShare()  { E('overlay').classList.add('open'); }
+function closeShare() { E('overlay').classList.remove('open'); }
+function copyUrl() {
+  navigator.clipboard?.writeText('https://multicalci.com/npsh-calculator/').catch(()=>{});
+  const b = E('copyBtn'); b.textContent = '✓ Copied'; b.classList.add('done');
+  setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 2200);
+}
+const SU = 'https://multicalci.com/npsh-calculator/';
+const SM = 'Free NPSH Calculator — Net Positive Suction Head Available & Required for pump engineering. ' + SU;
+function shareWA() { window.open('https://wa.me/?text=' + encodeURIComponent(SM), '_blank'); }
+function shareLI() { window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(SU), '_blank'); }
+function shareTW() { window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(SM), '_blank'); }
+function shareEM() { window.location.href = 'mailto:?subject=' + encodeURIComponent('NPSH Calculator — multicalci.com') + '&body=' + encodeURIComponent('Free NPSH calculator for pump engineers:\n' + SU); }
+
+function genPDF() {
+  const r = RES;
+  if (!r) { alert('Run calculation first.'); return; }
+  const now = new Date().toLocaleString();
+  var h = '';
+  h += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>NPSH Report</title>';
+  h += '<style>*{box-sizing:border-box}body{font-family:"Segoe UI",Arial,sans-serif;margin:0;padding:28px;color:#1a202c;font-size:13px}';
+  h += '.hdr{border-bottom:3px solid #0f2044;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between}';
+  h += '.hdr h1{font-size:19px;color:#0f2044;margin:0 0 3px}.hdr p{margin:0;font-size:11px;color:#718096}';
+  h += '.site{font-size:22px;font-weight:900;color:#0e4fc4;letter-spacing:-.3px}';
+  h += '.main{background:#eff6ff;border:2px solid #1d6fe8;border-radius:8px;padding:16px;text-align:center;margin:14px 0}';
+  h += '.main .v{font-size:34px;font-weight:900;color:#0f2044;line-height:1.1}.main .s{font-size:12px;color:#4a5568}';
+  h += '.compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}';
+  h += '.cbox{padding:10px;border-radius:7px;border:1.5px solid;text-align:center}';
+  h += '.cbox .cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}';
+  h += '.cbox .cv{font-size:22px;font-weight:900;line-height:1}.cbox .cs{font-size:10px}';
+  h += 'h3{font-size:13px;border-bottom:1px solid #e2e8f0;padding-bottom:5px;margin:16px 0 8px;color:#2d3748}';
+  h += 'table{width:100%;border-collapse:collapse;margin-bottom:14px}';
+  h += 'td,th{padding:6px 10px;border:1px solid #e2e8f0;font-size:11.5px}th{background:#0f2044;color:rgba(255,255,255,.85);text-align:left;font-size:10px;text-transform:uppercase}';
+  h += '.ok{background:#f0fff4;border:1px solid #68d391;border-radius:5px;padding:7px 10px;color:#276749;font-weight:600;margin:10px 0}';
+  h += '.warn{background:#fffbeb;border:1px solid #f6e05e;border-radius:5px;padding:7px 10px;color:#744210;font-weight:600;margin:10px 0}';
+  h += '.err{background:#fff5f5;border:1px solid #fc8181;border-radius:5px;padding:7px 10px;color:#742a2a;font-weight:600;margin:10px 0}';
+  h += '.fml{background:#f8fafc;border-left:3px solid #1d6fe8;padding:9px 12px;font-family:"Courier New",monospace;font-size:10.5px;line-height:2;margin:10px 0}';
+  h += '.foot{margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#a0aec0;text-align:center}';
+  h += '</style></head><body>';
+  h += '<div class="hdr"><div><div class="site">multicalci.com</div><h1>&#128300; NPSH Calculation Report</h1><p>multicalci.com/npsh-calculator/ &mdash; NPSHa &amp; NPSHr Analysis</p></div><div style="text-align:right;font-size:11px;color:#718096">' + now + '</div></div>';
+  h += '<div class="main"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#4a5568">Net Positive Suction Head Available (NPSHa)</div>';
+  h += '<div class="v">' + fN(r.npsha, 2) + ' m</div><div class="s">' + fN(r.npsha_deltaP_bar, 3) + ' bar above Pv &middot; ' + fN(r.npsha_ft, 2) + ' ft</div></div>';
+  h += '<div class="compare">';
+  h += '<div class="cbox" style="border-color:#bfdbfe;background:#eff6ff"><div class="cl" style="color:#1d6fe8">NPSHa</div><div class="cv" style="color:#0f2044">' + fN(r.npsha, 2) + '</div><div class="cs" style="color:#1d6fe8">m available</div></div>';
+  h += '<div class="cbox" style="border-color:#cbd5e1;background:#f1f5f9"><div class="cl" style="color:#64748b">NPSHr</div><div class="cv" style="color:#1a202c">' + fN(r.npshr_m, 2) + '</div><div class="cs" style="color:#64748b">m required</div></div>';
+  h += '<div class="cbox" style="border-color:' + (r.margin_actual > 0 ? '#6ee7b7;background:#ecfdf5' : '#fca5a5;background:#fef2f2') + '"><div class="cl" style="color:' + (r.margin_actual > 0 ? '#059669' : '#dc2626') + '">Margin</div><div class="cv" style="color:' + (r.margin_actual > 0 ? '#065f46' : '#dc2626') + '">' + fN(r.margin_actual, 2) + '</div><div class="cs">' + (r.margin_actual > 0 ? 'PASS' : 'FAIL') + '</div></div>';
+  h += '</div>';
+  h += '<div class="' + r.sc + '">' + (r.sc === 'ok' ? '&#10004;' : '&#9888;') + ' System Status: ' + (r.sc === 'ok' ? 'PASS &mdash; NPSHa is adequate.' : r.sc === 'warn' ? 'WARNING &mdash; Review carefully.' : 'FAIL &mdash; Cavitation will occur.') + '</div>';
+  h += '<h3>Fluid Properties at Operating Conditions</h3>';
+  h += '<table><tr><th>Property</th><th>Value</th></tr>';
+  h += '<tr><td>Fluid</td><td>' + r.fluidName + '</td></tr>';
+  h += '<tr><td>Temperature</td><td>' + fN(r.T, 1) + ' &deg;C &nbsp;/&nbsp; ' + fN(r.T * 9/5 + 32, 1) + ' &deg;F</td></tr>';
+  h += '<tr><td>Density &rho;</td><td>' + fN(r.rho, 1) + ' kg/m&sup3;</td></tr>';
+  h += '<tr><td>Dynamic viscosity &mu;</td><td>' + fN(r.mu_mPas, 4) + ' mPa&middot;s (cP)</td></tr>';
+  h += '<tr><td>Vapour pressure Pv</td><td>' + fN(r.pv_Pa / 1000, 4) + ' kPa abs</td></tr>';
+  h += '<tr><td>Vapour pressure head h_vp</td><td>' + fN(r.h_vp, 4) + ' m</td></tr>';
+  h += '</table>';
+  h += '<h3>Suction System</h3>';
+  h += '<table><tr><th>Parameter</th><th>Value</th></tr>';
+  h += '<tr><td>Configuration</td><td>' + (r.isVessel ? 'Pressurised vessel' : 'Open tank') + ' &mdash; ' + (r.isAbove ? 'flooded suction (tank above pump)' : 'suction lift (pump above tank)') + '</td></tr>';
+  h += '<tr><td>Upstream pressure head H_abs</td><td>' + fN(r.H_abs, 3) + ' m = ' + fN(r.P_abs_Pa / 1000, 2) + ' kPa abs</td></tr>';
+  h += '<tr><td>Static head z</td><td>' + fN(r.z, 3) + ' m ' + (r.z >= 0 ? '(flooded, +ve)' : '(suction lift, &minus;ve)') + '</td></tr>';
+  h += '<tr><td>Total equivalent pipe length L_eq</td><td>' + fN(r.Le, 1) + ' m</td></tr>';
+  h += '<tr><td>Pipe internal diameter</td><td>' + fN(r.D_mm, 1) + ' mm</td></tr>';
+  h += '<tr><td>Flow rate Q</td><td>' + fN(r.Q * 3600, 1) + ' m&sup3;/h = ' + fN(r.Q, 5) + ' m&sup3;/s</td></tr>';
+  h += '<tr><td>Pipe velocity v</td><td>' + fN(r.v, 3) + ' m/s</td></tr>';
+  h += '<tr><td>Reynolds number Re</td><td>' + fN(r.Re, 0) + ' (' + (r.Re < 2300 ? 'Laminar' : r.Re < 4000 ? 'Transition' : 'Turbulent') + ')</td></tr>';
+  h += '<tr><td>Darcy friction factor f</td><td>' + fN(r.ff, 5) + '</td></tr>';
+  h += '<tr><td>Friction loss h_f</td><td>' + fN(r.hf, 4) + ' m</td></tr>';
+  h += '</table>';
+  h += '<h3>NPSHa Calculation</h3>';
+  h += '<div class="fml">NPSHa = H_abs + z &minus; h_f &minus; h_vp<br>';
+  h += 'NPSHa = ' + fN(r.H_abs, 3) + ' + (' + fN(r.z, 3) + ') &minus; ' + fN(r.hf, 4) + ' &minus; ' + fN(r.h_vp, 4) + '<br>';
+  h += 'NPSHa = <strong>' + fN(r.npsha, 4) + ' m</strong> = <strong>' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv</strong> = <strong>' + fN(r.npsha_ft, 3) + ' ft</strong></div>';
+  h += '<h3>NPSHa vs NPSHr Comparison (HI 9.6.1)</h3>';
+  h += '<table><tr><th>Check</th><th>Value</th><th>Limit</th><th>Result</th></tr>';
+  h += '<tr><td>NPSHa</td><td>' + fN(r.npsha, 3) + ' m</td><td>&gt; NPSHr + margin</td><td>&mdash;</td></tr>';
+  h += '<tr><td>NPSHr (pump)</td><td>' + fN(r.npshr_m, 3) + ' m</td><td>&mdash;</td><td>&mdash;</td></tr>';
+  h += '<tr><td>Required margin (HI)</td><td>' + fN(r.margin_req, 1) + ' m</td><td>&mdash;</td><td>&mdash;</td></tr>';
+  h += '<tr><td>Surplus margin</td><td>' + fN(r.margin_actual, 3) + ' m</td><td>&ge; 0</td><td style="font-weight:700;color:' + (r.margin_actual > 0 ? '#059669' : '#dc2626') + '">' + (r.margin_actual > 0 ? 'PASS' : 'FAIL') + '</td></tr>';
+  h += '</table>';
+  h += '<div class="fml">NPSHa = (P_abs/&rho;g) + z &minus; h_f &minus; (P_v/&rho;g) &nbsp;&nbsp;[HI 9.6.1, IS 5120]<br>';
+  h += 'h_f = f&times;(L/D)&times;v&sup2;/2g [Darcy-Weisbach] &nbsp;&nbsp;f = Colebrook-White (iterative)</div>';
+  h += '<div class="foot">Generated by <strong>multicalci.com</strong> NPSH Calculator &mdash; Free Engineering Calculators<br>';
+  h += 'Standards: HI 9.6.1 &middot; IS 5120:1977 &middot; API 610 &middot; ISO 9906<br>';
+  h += '<em>Estimation tool only. Verify with licensed mechanical engineer and manufacturer pump curve before pump selection or installation.</em></div>';
+  h += '</body></html>';
+  const w = window.open('', '_blank');
+  w.document.write(h);
+  w.document.close();
+  setTimeout(() => w.print(), 700);
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESET
+════════════════════════════════════════════════════════════ */
+function resetCalc() {
+  RES = null;
+  E('resultsDiv').classList.remove('show');
+  E('theoryPlaceholder').style.display = '';
+  E('eng_warnings').style.display = 'none';
+  E('diagLabel').textContent = 'Select configuration and click Calculate to see live diagram';
+  draw();
+}
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════ */
+populateFluids();
+onNpshrMethod();
+setTimeout(() => draw(), 80);
+window.addEventListener('resize', () => draw());
+</script>
+</body>
+</html>
