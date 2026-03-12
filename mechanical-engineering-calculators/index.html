@@ -2250,24 +2250,61 @@ async function calcBeam() {
   _loading('beam-results');
   try {
     const sec = document.getElementById('b-section').value;
+
+    // Map HTML option values → API loadType keys
+    const loadTypeMap = {
+      'ss-point':    'point-ss-mid',
+      'ss-udl':      'udl-ss',
+      'cant-point':  'cantilever-point',
+      'cant-udl':    'cantilever-udl',
+      'fixed-point': 'fixed-point',
+      'fixed-udl':   'fixed-udl',
+    };
+    const rawType = document.getElementById('b-type').value;
+    const loadType = loadTypeMap[rawType] || rawType;
+
+    // L: convert to mm for the API (HTML unit selector)
+    const L_raw = parseFloat(document.getElementById('b-L').value);
+    const L_unit = document.getElementById('b-L-u').value;
+    let L_mm;
+    if      (L_unit === 'm')  L_mm = L_raw * 1000;
+    else if (L_unit === 'ft') L_mm = L_raw * 304.8;
+    else if (L_unit === 'in') L_mm = L_raw * 25.4;
+    else                      L_mm = L_raw; // already mm
+
+    // Load: convert to N for the API
+    const F_raw  = parseFloat(document.getElementById('b-F').value);
+    const F_unit = document.getElementById('b-F-u').value;
+    let load_N;
+    if      (F_unit === 'kN')  load_N = F_raw * 1000;
+    else if (F_unit === 'kip') load_N = F_raw * 4448.22;
+    else if (F_unit === 'lbf') load_N = F_raw * 4.44822;
+    else                       load_N = F_raw; // N
+    // UDL: API expects N/m — convert from kN/m etc.
+    // For UDL the same conversion applies (kN/m → N/m)
+
     const r = await _post('beam', {
-      loadType: document.getElementById('b-type').value,
+      loadType,
       section:  sec,
-      L:        parseFloat(document.getElementById('b-L').value),
-      load:     parseFloat(document.getElementById('b-load').value),
-      a_pos:    parseFloat(document.getElementById('b-a')?.value || '0'),
+      L:        L_mm,
+      load:     load_N,
+      a_pos:    parseFloat(document.getElementById('b-a')?.value || '0') * (L_unit==='m'?1000:1),
       E:        parseFloat(document.getElementById('b-E').value),
       Fy:       parseFloat(document.getElementById('b-Fy').value),
-      b_rect:   parseFloat(document.getElementById('b-b')?.value   || '0'),
-      h_rect:   parseFloat(document.getElementById('b-h')?.value   || '0'),
-      bf:       parseFloat(document.getElementById('b-bf')?.value  || '0'),
-      tf:       parseFloat(document.getElementById('b-tf')?.value  || '0'),
-      hw:       parseFloat(document.getElementById('b-hw')?.value  || '0'),
-      tw:       parseFloat(document.getElementById('b-tw')?.value  || '0'),
-      bh:       parseFloat(document.getElementById('b-bh')?.value  || '0'),
-      hh:       parseFloat(document.getElementById('b-hh')?.value  || '0'),
-      th:       parseFloat(document.getElementById('b-th')?.value  || '0'),
-      dia:      parseFloat(document.getElementById('b-dia')?.value || '0'),
+      // Rectangular section — HTML uses b-b and b-d
+      b_rect:   parseFloat(document.getElementById('b-b')?.value  || '0'),
+      h_rect:   parseFloat(document.getElementById('b-d')?.value  || '0'),
+      // I-beam — HTML uses b-H (overall depth), b-bf, b-tf, b-tw
+      bf:       parseFloat(document.getElementById('b-bf')?.value || '0'),
+      tf:       parseFloat(document.getElementById('b-tf')?.value || '0'),
+      hw:       parseFloat(document.getElementById('b-H')?.value  || '0'),
+      tw:       parseFloat(document.getElementById('b-tw')?.value || '0'),
+      // Hollow rectangle — HTML uses b-B, b-D, b-tw2
+      bh:       parseFloat(document.getElementById('b-B')?.value  || '0'),
+      hh:       parseFloat(document.getElementById('b-D')?.value  || '0'),
+      th:       parseFloat(document.getElementById('b-tw2')?.value|| '0'),
+      // Circle — HTML uses b-dc
+      dia:      parseFloat(document.getElementById('b-dc')?.value || '0'),
     });
     document.getElementById('beam-results').innerHTML =
       banner('Beam Analysis Results', r.ok ? 'PASS ✓' : 'REVIEW ⚠', r.ok ? 'ok' : 'warn') +
