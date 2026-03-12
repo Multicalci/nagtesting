@@ -7974,7 +7974,7 @@ function buildConstraintRows(mat, fluidId, T, P, pH, Cl, H2S, V, fluidObj) {
   return rows;
 }
 
-function validateInputs(T, P, pH, Cl, H2S, V, life) {
+function mocValidateInputs(T, P, pH, Cl, H2S, V, life) {
   const errs=[],warns=[];
   if (isNaN(T))              errs.push('Temperature is required.');
   else if (T<-270)           errs.push('Temperature below −270°C is physically impossible.');
@@ -8001,7 +8001,7 @@ function validateInputs(T, P, pH, Cl, H2S, V, life) {
 }
 
 function runAnalysis({fluidId,equipId,T,P,pH,Cl,H2S,V,life,costPrio,industry,notes}) {
-  const validation = validateInputs(T,P,pH,Cl,H2S,V,life);
+  const validation = mocValidateInputs(T,P,pH,Cl,H2S,V,life);
   if (validation.errs.length>0) return {ok:false, errors:validation.errs};
 
   const fluid = FLUIDS.find(f=>f.id===fluidId);
