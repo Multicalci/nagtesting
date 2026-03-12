@@ -835,7 +835,7 @@ function validateInputs({ D_m, d_m, P_Pa, rho, mu, beta, Z }) {
 // ═════════════════════════════════════════════════════════════════════
 //  FLUID DATABASE (gas properties at reference conditions)
 // ═════════════════════════════════════════════════════════════════════
-const FLUID_DB = {
+const ORIFICE_FLUID_DB = {
   'Air':            {t:'g',sg:1.000,M:28.964,k:1.400,mu:1.82e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4},
   'Nitrogen (N₂)':  {t:'g',sg:0.967,M:28.014,k:1.400,mu:1.76e-5,Z:1.000,Tc:126.2,Pc:3.39, omega:0.037,mu_ref:1.663e-5,T_ref:273.15,S:107.0},
   'Oxygen (O₂)':    {t:'g',sg:1.105,M:32.000,k:1.395,mu:2.01e-5,Z:1.000,Tc:154.6,Pc:5.04, omega:0.025,mu_ref:1.919e-5,T_ref:273.15,S:138.9},
@@ -874,7 +874,7 @@ function calculate(params) {
     mu_input,            // viscosity Pa·s (may be auto-updated for steam/gas)
     sg,                  // specific gravity (gas: vs air; liquid: vs water)
     MW_input,            // molar mass g/mol
-    fluidKey,            // key in FLUID_DB or null
+    fluidKey,            // key in ORIFICE_FLUID_DB or null
     D_mm,                // pipe ID in mm
     d_mm,                // orifice bore in mm
     dp_Pa_in,            // differential pressure in Pa (mode='flow' or 'beta')
@@ -908,7 +908,7 @@ function calculate(params) {
     Z_used = 1;
   } else {
     // Gas
-    const f = FLUID_DB[fluidKey] || null;
+    const f = ORIFICE_FLUID_DB[fluidKey] || null;
     let MW_use;
     if (f?.t === 'g') {
       MW_use = f.M;
@@ -928,7 +928,7 @@ function calculate(params) {
   if (!rho_op || rho_op <= 0) rho_op = 1.2;
 
   // ── REFERENCE DENSITIES ─────────────────────────────────────────────
-  const f_db  = FLUID_DB[fluidKey] || null;
+  const f_db  = ORIFICE_FLUID_DB[fluidKey] || null;
   const MW_final = f_db?.t==='g' ? f_db.M : (MW_input>1&&MW_input<500 ? MW_input : sg*28.964);
   const rho_n = isGas ? (REF_COND.normal.P_Pa * MW_final)   / (8314.46 * REF_COND.normal.T_K)   : 0;
   const rho_s = isGas ? (REF_COND.standard.P_Pa * MW_final) / (8314.46 * REF_COND.standard.T_K) : 0;
@@ -1176,6 +1176,268 @@ function readBody(req) {
 // ── PRESSURE-DROP-CALCULATOR LOGIC ──────────────────────────────────────────
 // api/pressure-drop-calculator.js
 // Vercel Serverless Function — Pressure Drop Calculator
+/* ═══════════════════════════════════════════════════════════════
+   FLUID DATABASE  (120+ fluids — Andrade liquids · Sutherland gas)
+   Used by: pressure-drop, NPSH calculators
+   Sources: Perry's ChE Handbook 8th Ed · NIST WebBook · Yaws' Handbook
+   rho_c [kg/m³] @ 15°C unless noted  mu_c [cP] @ 20°C  Pv [kPa]
+═══════════════════════════════════════════════════════════════ */
+const FLUID_DB = [
+  // ── WATER & AQUEOUS ──────────────────────────────────────────────
+  { id:'water',       name:'Water',                      cat:'Aqueous',       isGas:false, rho_c:998.2, mu_c:1.002, Pv_c:2.337,  Tb:100,  Tc:374.1, Pc:220.6, MW:18.015,  omega:0.345,
+    mu_A:658.25,mu_B:283.16,mu_C:0.0,
+    vp:[[0,0.611],[10,1.228],[20,2.338],[30,4.243],[40,7.384],[50,12.35],[60,19.94],[70,31.19],[80,47.39],[90,70.14],[100,101.3],[120,198.5],[140,361.3],[160,618.0],[180,1002],[200,1554]] },
+  { id:'sea_water',   name:'Seawater (3.5% NaCl)',       cat:'Aqueous',       isGas:false, rho_c:1025,  mu_c:1.072, Pv_c:2.3,    Tb:100.6,Tc:374.1, Pc:220.6, MW:18.3,    omega:0.345,
+    mu_A:700,   mu_B:283, mu_C:0.0,
+    vp:[[0,0.59],[20,2.27],[40,7.14],[60,19.2],[80,45.9],[100,97.5]] },
+  { id:'brine_25',    name:'Brine 25% CaCl₂',           cat:'Aqueous',       isGas:false, rho_c:1228,  mu_c:2.8,   Pv_c:1.3,    Tb:107,  Tc:374,   Pc:200,   MW:40,      omega:0.4,
+    mu_A:900,   mu_B:280, mu_C:0.0,
+    vp:[[0,0.3],[20,1.3],[40,4.5],[60,12],[80,28],[100,60]] },
+  { id:'glycol_eg50', name:'Ethylene Glycol 50% w/w',    cat:'Aqueous',       isGas:false, rho_c:1065,  mu_c:3.5,   Pv_c:1.2,    Tb:105,  Tc:374,   Pc:180,   MW:30,      omega:0.5,
+    mu_A:1100,  mu_B:270, mu_C:0.0,
+    vp:[[0,0.28],[20,1.15],[40,4.0],[60,11],[80,26],[100,54]] },
+  { id:'glycol_pg50', name:'Propylene Glycol 50% w/w',   cat:'Aqueous',       isGas:false, rho_c:1040,  mu_c:5.0,   Pv_c:1.0,    Tb:103,  Tc:374,   Pc:180,   MW:38,      omega:0.6,
+    mu_A:1300,  mu_B:265, mu_C:0.0,
+    vp:[[0,0.25],[20,1.0],[40,3.5],[60,9.5],[80,23],[100,50]] },
+  // ── HYDROCARBON LIQUIDS ──────────────────────────────────────────
+  { id:'crude_30api', name:'Crude Oil API 30',           cat:'Hydrocarbons',  isGas:false, rho_c:876,   mu_c:20,    Pv_c:0.8,    Tb:350,  Tc:580,   Pc:20,    MW:200,     omega:0.7,
+    mu_A:4500,  mu_B:310, mu_C:0.0,
+    vp:[[20,0.8],[40,2.5],[60,7],[80,17],[100,38]] },
+  { id:'crude_40api', name:'Crude Oil API 40',           cat:'Hydrocarbons',  isGas:false, rho_c:825,   mu_c:8,     Pv_c:1.2,    Tb:320,  Tc:560,   Pc:20,    MW:180,     omega:0.65,
+    mu_A:3200,  mu_B:300, mu_C:0.0,
+    vp:[[20,1.2],[40,3.5],[60,9],[80,21],[100,46]] },
+  { id:'diesel',      name:'Diesel / Gas Oil',           cat:'Hydrocarbons',  isGas:false, rho_c:840,   mu_c:3.5,   Pv_c:0.3,    Tb:280,  Tc:530,   Pc:18,    MW:170,     omega:0.6,
+    mu_A:2200,  mu_B:295, mu_C:0.0,
+    vp:[[20,0.3],[40,1.0],[60,3.0],[80,8],[100,18]] },
+  { id:'lube_100',    name:'Lube Oil VG-100',            cat:'Hydrocarbons',  isGas:false, rho_c:880,   mu_c:100,   Pv_c:0.01,   Tb:400,  Tc:650,   Pc:15,    MW:400,     omega:0.9,
+    mu_A:12000, mu_B:350, mu_C:0.0,
+    vp:[[50,0.01],[80,0.05],[100,0.15]] },
+  { id:'lube_32',     name:'Lube Oil VG-32',             cat:'Hydrocarbons',  isGas:false, rho_c:860,   mu_c:32,    Pv_c:0.02,   Tb:380,  Tc:640,   Pc:15,    MW:350,     omega:0.85,
+    mu_A:8500,  mu_B:340, mu_C:0.0,
+    vp:[[50,0.02],[80,0.08],[100,0.2]] },
+  { id:'gasoline',    name:'Gasoline / Petrol',          cat:'Hydrocarbons',  isGas:false, rho_c:720,   mu_c:0.55,  Pv_c:55,     Tb:75,   Tc:300,   Pc:35,    MW:95,      omega:0.3,
+    mu_A:450,   mu_B:240, mu_C:0.0,
+    vp:[[0,18],[10,27],[20,55],[30,95],[40,152]] },
+  { id:'kerosene',    name:'Kerosene / Jet-A',           cat:'Hydrocarbons',  isGas:false, rho_c:800,   mu_c:1.8,   Pv_c:0.7,    Tb:200,  Tc:450,   Pc:22,    MW:155,     omega:0.5,
+    mu_A:1800,  mu_B:280, mu_C:0.0,
+    vp:[[20,0.7],[40,2.2],[60,6],[80,14],[100,30]] },
+  { id:'naphtha',     name:'Naphtha / Light Distillate', cat:'Hydrocarbons',  isGas:false, rho_c:700,   mu_c:0.65,  Pv_c:20,     Tb:100,  Tc:360,   Pc:30,    MW:100,     omega:0.35,
+    mu_A:550,   mu_B:250, mu_C:0.0,
+    vp:[[0,6],[10,10],[20,20],[30,35],[40,58]] },
+  { id:'fuel_oil_6',  name:'Fuel Oil No. 6 (Bunker C)',  cat:'Hydrocarbons',  isGas:false, rho_c:980,   mu_c:2000,  Pv_c:0.001,  Tb:450,  Tc:700,   Pc:12,    MW:600,     omega:1.2,
+    mu_A:60000, mu_B:400, mu_C:0.0,
+    vp:[[100,0.001],[150,0.01]] },
+  { id:'bitumen',     name:'Bitumen / Asphalt',          cat:'Hydrocarbons',  isGas:false, rho_c:1010,  mu_c:1e6,   Pv_c:0.0001, Tb:550,  Tc:750,   Pc:10,    MW:800,     omega:1.5,
+    mu_A:1e8,   mu_B:450, mu_C:0.0, vp:[] },
+  // ── LIGHT HYDROCARBONS ───────────────────────────────────────────
+  { id:'pentane',     name:'n-Pentane (C₅H₁₂)',         cat:'Light HC',      isGas:false, rho_c:626,   mu_c:0.240, Pv_c:68.3,   Tb:36.1, Tc:196.5, Pc:33.7,  MW:72.15,   omega:0.251,
+    mu_A:383,   mu_B:227, mu_C:0.0,
+    vp:[[0,29],[10,45],[20,68],[30,100],[36,101.3]] },
+  { id:'hexane',      name:'n-Hexane (C₆H₁₄)',          cat:'Light HC',      isGas:false, rho_c:659,   mu_c:0.294, Pv_c:17.6,   Tb:68.7, Tc:234.7, Pc:30.2,  MW:86.18,   omega:0.299,
+    mu_A:475,   mu_B:238, mu_C:0.0,
+    vp:[[0,6.1],[10,10],[20,17.6],[30,29],[40,47],[60,96],[68.7,101.3]] },
+  { id:'heptane',     name:'n-Heptane (C₇H₁₆)',         cat:'Light HC',      isGas:false, rho_c:684,   mu_c:0.387, Pv_c:4.65,   Tb:98.4, Tc:267.0, Pc:27.4,  MW:100.2,   omega:0.349,
+    mu_A:580,   mu_B:248, mu_C:0.0,
+    vp:[[0,1.7],[20,4.65],[40,11.3],[60,24],[80,48],[98.4,101.3]] },
+  { id:'octane',      name:'n-Octane (C₈H₁₈)',          cat:'Light HC',      isGas:false, rho_c:703,   mu_c:0.508, Pv_c:1.47,   Tb:125.7,Tc:296.2, Pc:24.9,  MW:114.2,   omega:0.398,
+    mu_A:690,   mu_B:255, mu_C:0.0,
+    vp:[[20,1.47],[40,4],[60,9.5],[80,21],[100,42],[125.7,101.3]] },
+  { id:'cyclohexane', name:'Cyclohexane (C₆H₁₂)',       cat:'Light HC',      isGas:false, rho_c:779,   mu_c:0.98,  Pv_c:10.3,   Tb:80.7, Tc:280.4, Pc:40.7,  MW:84.16,   omega:0.213,
+    mu_A:695,   mu_B:255, mu_C:0.0,
+    vp:[[0,3.3],[20,10.3],[40,27],[60,62],[80.7,101.3]] },
+  { id:'toluene',     name:'Toluene (C₇H₈)',             cat:'Aromatics',     isGas:false, rho_c:867,   mu_c:0.590, Pv_c:3.79,   Tb:110.6,Tc:318.6, Pc:41.1,  MW:92.14,   omega:0.264,
+    mu_A:593,   mu_B:248, mu_C:0.0,
+    vp:[[0,1.1],[20,3.79],[40,10],[60,24],[80,53],[100,103]] },
+  { id:'benzene',     name:'Benzene (C₆H₆)',             cat:'Aromatics',     isGas:false, rho_c:879,   mu_c:0.652, Pv_c:10.0,   Tb:80.1, Tc:289.0, Pc:49.2,  MW:78.11,   omega:0.212,
+    mu_A:600,   mu_B:245, mu_C:0.0,
+    vp:[[0,3.3],[10,6],[20,10],[30,16],[40,24],[60,52],[80.1,101.3]] },
+  { id:'xylene',      name:'Xylene (mixed)',              cat:'Aromatics',     isGas:false, rho_c:864,   mu_c:0.620, Pv_c:1.2,    Tb:139,  Tc:343,   Pc:37,    MW:106.2,   omega:0.31,
+    mu_A:640,   mu_B:252, mu_C:0.0,
+    vp:[[20,1.2],[40,3.5],[60,9],[80,21],[100,43],[139,101.3]] },
+  { id:'cumene',      name:'Cumene (Isopropylbenzene)',   cat:'Aromatics',     isGas:false, rho_c:862,   mu_c:0.88,  Pv_c:0.61,   Tb:152.4,Tc:358,   Pc:32.1,  MW:120.2,   omega:0.338,
+    mu_A:680,   mu_B:255, mu_C:0.0,
+    vp:[[20,0.61],[40,2],[60,5],[80,13],[100,28],[152.4,101.3]] },
+  { id:'styrene',     name:'Styrene (Vinylbenzene)',      cat:'Aromatics',     isGas:false, rho_c:906,   mu_c:0.76,  Pv_c:0.86,   Tb:145.2,Tc:374,   Pc:39.9,  MW:104.1,   omega:0.297,
+    mu_A:660,   mu_B:252, mu_C:0.0,
+    vp:[[20,0.86],[40,2.6],[60,7],[80,16],[100,33],[145.2,101.3]] },
+  // ── ALCOHOLS ─────────────────────────────────────────────────────
+  { id:'methanol',    name:'Methanol (CH₃OH)',            cat:'Alcohols',      isGas:false, rho_c:791,   mu_c:0.592, Pv_c:12.9,   Tb:64.7, Tc:240.0, Pc:80.9,  MW:32.04,   omega:0.556,
+    mu_A:534,   mu_B:233, mu_C:0.0,
+    vp:[[0,4],[10,7],[20,12.9],[30,22],[40,36],[50,55],[64.7,101.3]] },
+  { id:'ethanol',     name:'Ethanol (C₂H₅OH)',           cat:'Alcohols',      isGas:false, rho_c:789,   mu_c:1.200, Pv_c:5.95,   Tb:78.4, Tc:243.1, Pc:63.8,  MW:46.07,   omega:0.644,
+    mu_A:686,   mu_B:246, mu_C:0.0,
+    vp:[[0,1.6],[10,3.1],[20,5.95],[30,10.5],[40,18],[50,29],[60,46],[78.4,101.3]] },
+  { id:'isopropanol', name:'Isopropanol (IPA)',           cat:'Alcohols',      isGas:false, rho_c:786,   mu_c:2.40,  Pv_c:4.40,   Tb:82.4, Tc:235.2, Pc:47.6,  MW:60.10,   omega:0.665,
+    mu_A:760,   mu_B:249, mu_C:0.0,
+    vp:[[0,1.2],[10,2.3],[20,4.4],[30,7.8],[40,13],[50,21],[82.4,101.3]] },
+  { id:'n_butanol',   name:'n-Butanol (1-Butanol)',       cat:'Alcohols',      isGas:false, rho_c:810,   mu_c:2.95,  Pv_c:0.86,   Tb:117.7,Tc:289.9, Pc:44.2,  MW:74.12,   omega:0.593,
+    mu_A:900,   mu_B:265, mu_C:0.0,
+    vp:[[20,0.86],[40,2.8],[60,8],[80,20],[100,45],[117.7,101.3]] },
+  { id:'ethylene_glycol',name:'Ethylene Glycol (pure)',   cat:'Alcohols',      isGas:false, rho_c:1113,  mu_c:21.0,  Pv_c:0.008,  Tb:197.6,Tc:400,   Pc:82,    MW:62.07,   omega:0.493,
+    mu_A:2400,  mu_B:310, mu_C:0.0,
+    vp:[[20,0.008],[50,0.08],[80,0.5],[100,1.5],[150,14]] },
+  { id:'glycerol',    name:'Glycerol (Glycerine)',        cat:'Alcohols',      isGas:false, rho_c:1261,  mu_c:1412,  Pv_c:0.0001, Tb:290,  Tc:453,   Pc:75,    MW:92.09,   omega:0.513,
+    mu_A:28000, mu_B:370, mu_C:0.0, vp:[[20,0.0001],[50,0.003],[100,0.1]] },
+  // ── CHLORINATED SOLVENTS ─────────────────────────────────────────
+  { id:'dcm',         name:'Dichloromethane (CH₂Cl₂)',   cat:'Chlorinated',   isGas:false, rho_c:1325,  mu_c:0.433, Pv_c:46.5,   Tb:39.6, Tc:237,   Pc:63.5,  MW:84.93,   omega:0.199,
+    mu_A:414,   mu_B:219, mu_C:0.0,
+    vp:[[0,20],[10,31],[20,46.5],[30,67],[39.6,101.3]] },
+  { id:'chloroform',  name:'Chloroform (CHCl₃)',         cat:'Chlorinated',   isGas:false, rho_c:1489,  mu_c:0.542, Pv_c:21.2,   Tb:61.2, Tc:263.4, Pc:55.5,  MW:119.4,   omega:0.222,
+    mu_A:490,   mu_B:230, mu_C:0.0,
+    vp:[[0,7.7],[10,13],[20,21.2],[30,33],[40,50],[61.2,101.3]] },
+  { id:'ccl4',        name:'Carbon Tetrachloride (CCl₄)', cat:'Chlorinated',  isGas:false, rho_c:1594,  mu_c:0.965, Pv_c:11.9,   Tb:76.7, Tc:283.2, Pc:45.6,  MW:153.8,   omega:0.194,
+    mu_A:640,   mu_B:242, mu_C:0.0,
+    vp:[[0,3.8],[10,6.8],[20,11.9],[30,20],[40,32],[60,75],[76.7,101.3]] },
+  { id:'pce',         name:'Tetrachloroethylene (PCE)',   cat:'Chlorinated',   isGas:false, rho_c:1623,  mu_c:0.890, Pv_c:1.87,   Tb:121.2,Tc:347.1, Pc:47.1,  MW:165.8,   omega:0.228,
+    mu_A:640,   mu_B:246, mu_C:0.0,
+    vp:[[20,1.87],[40,5.3],[60,13],[80,28],[100,55],[121.2,101.3]] },
+  // ── KETONES & ESTERS ─────────────────────────────────────────────
+  { id:'acetone',     name:'Acetone (C₃H₆O)',            cat:'Solvents',      isGas:false, rho_c:791,   mu_c:0.316, Pv_c:24.7,   Tb:56.3, Tc:235.1, Pc:47.0,  MW:58.08,   omega:0.306,
+    mu_A:410,   mu_B:220, mu_C:0.0,
+    vp:[[0,9],[10,16],[20,24.7],[30,37],[40,56],[56.3,101.3]] },
+  { id:'mek',         name:'MEK (Methyl Ethyl Ketone)',   cat:'Solvents',      isGas:false, rho_c:805,   mu_c:0.424, Pv_c:10.5,   Tb:79.6, Tc:262.5, Pc:41.5,  MW:72.11,   omega:0.329,
+    mu_A:490,   mu_B:230, mu_C:0.0,
+    vp:[[0,3.7],[10,6.5],[20,10.5],[30,16],[40,25],[60,52],[79.6,101.3]] },
+  { id:'ethyl_acetate',name:'Ethyl Acetate (EtOAc)',     cat:'Solvents',      isGas:false, rho_c:900,   mu_c:0.452, Pv_c:9.7,    Tb:77.1, Tc:250.1, Pc:38.8,  MW:88.11,   omega:0.363,
+    mu_A:490,   mu_B:231, mu_C:0.0,
+    vp:[[0,3.3],[10,6],[20,9.7],[30,15],[40,24],[60,51],[77.1,101.3]] },
+  // ── AMINES ───────────────────────────────────────────────────────
+  { id:'mea',         name:'MEA (Monoethanolamine)',      cat:'Amines',        isGas:false, rho_c:1018,  mu_c:24.1,  Pv_c:0.05,   Tb:171,  Tc:405,   Pc:71.2,  MW:61.08,   omega:0.576,
+    mu_A:2500,  mu_B:320, mu_C:0.0,
+    vp:[[20,0.05],[50,0.4],[80,2],[100,6],[150,35]] },
+  { id:'dea',         name:'DEA (Diethanolamine)',        cat:'Amines',        isGas:false, rho_c:1097,  mu_c:350,   Pv_c:0.003,  Tb:269,  Tc:442,   Pc:43,    MW:105.1,   omega:0.9,
+    mu_A:8000,  mu_B:370, mu_C:0.0, vp:[[50,0.003],[80,0.03],[100,0.1]] },
+  { id:'mdea',        name:'MDEA (Methyldiethanolamine)', cat:'Amines',        isGas:false, rho_c:1038,  mu_c:101,   Pv_c:0.002,  Tb:247,  Tc:428,   Pc:38.9,  MW:119.2,   omega:0.75,
+    mu_A:6000,  mu_B:360, mu_C:0.0, vp:[[50,0.002],[80,0.02],[100,0.07]] },
+  // ── ACIDS ────────────────────────────────────────────────────────
+  { id:'sulfuric_98', name:'Sulfuric Acid 98%',          cat:'Acids & Alkalis',isGas:false, rho_c:1836,  mu_c:26.7,  Pv_c:0.0001, Tb:337,  Tc:590,   Pc:64,    MW:98.08,   omega:0.49,
+    mu_A:3500,  mu_B:330, mu_C:0.0, vp:[[20,0.0001],[100,0.2]] },
+  { id:'hcl_32',      name:'Hydrochloric Acid 32%',      cat:'Acids & Alkalis',isGas:false, rho_c:1157,  mu_c:1.9,   Pv_c:8.5,    Tb:55,   Tc:324,   Pc:83,    MW:29,      omega:0.35,
+    mu_A:600,   mu_B:235, mu_C:0.0,
+    vp:[[0,2.5],[10,5],[20,8.5],[30,14],[55,101.3]] },
+  { id:'nitric_65',   name:'Nitric Acid 65%',            cat:'Acids & Alkalis',isGas:false, rho_c:1389,  mu_c:1.5,   Pv_c:2.0,    Tb:121,  Tc:395,   Pc:68,    MW:57,      omega:0.42,
+    mu_A:600,   mu_B:250, mu_C:0.0,
+    vp:[[20,2.0],[40,6],[60,16],[80,38],[100,83]] },
+  { id:'naoh_50',     name:'Caustic Soda 50% NaOH',      cat:'Acids & Alkalis',isGas:false, rho_c:1525,  mu_c:78,    Pv_c:0.5,    Tb:145,  Tc:600,   Pc:250,   MW:42,      omega:0.35,
+    mu_A:5000,  mu_B:340, mu_C:0.0,
+    vp:[[20,0.5],[60,5],[100,35]] },
+  // ── CRYOGENIC LIQUIDS ────────────────────────────────────────────
+  { id:'liq_n2',      name:'Liquid Nitrogen',            cat:'Cryogenic',     isGas:false, rho_c:808,   mu_c:0.158, Pv_c:101.3,  Tb:-196, Tc:-147,  Pc:34.0,  MW:28.01,   omega:0.040,
+    mu_A:170,   mu_B:100, mu_C:0.0,
+    vp:[[-200,30],[-196,101.3],[-180,310]] },
+  { id:'liq_o2',      name:'Liquid Oxygen',              cat:'Cryogenic',     isGas:false, rho_c:1141,  mu_c:0.195, Pv_c:101.3,  Tb:-183, Tc:-118,  Pc:50.4,  MW:32.00,   omega:0.025,
+    mu_A:195,   mu_B:110, mu_C:0.0,
+    vp:[[-200,22],[-183,101.3],[-160,520]] },
+  { id:'liq_co2',     name:'Liquid CO₂',                 cat:'Cryogenic',     isGas:false, rho_c:1030,  mu_c:0.10,  Pv_c:5720,   Tb:-78.5,Tc:31.1,  Pc:73.8,  MW:44.01,   omega:0.239,
+    mu_A:150,   mu_B:90,  mu_C:0.0, vp:[[-50,6830],[-40,10130]] },
+  { id:'liq_nh3',     name:'Liquid Ammonia',             cat:'Cryogenic',     isGas:false, rho_c:682,   mu_c:0.255, Pv_c:857,    Tb:-33.4,Tc:132.4, Pc:113.5, MW:17.03,   omega:0.250,
+    mu_A:290,   mu_B:152, mu_C:0.0,
+    vp:[[-40,71.7],[-33.4,101.3],[0,429],[20,857],[40,1555]] },
+  { id:'liq_lpg',     name:'LPG (Propane/Butane mix)',   cat:'Cryogenic',     isGas:false, rho_c:550,   mu_c:0.17,  Pv_c:800,    Tb:-20,  Tc:110,   Pc:42,    MW:48,      omega:0.17,
+    mu_A:350,   mu_B:190, mu_C:0.0,
+    vp:[[-20,101.3],[0,180],[20,350],[40,600]] },
+  { id:'liq_propane', name:'Liquid Propane',             cat:'Cryogenic',     isGas:false, rho_c:493,   mu_c:0.112, Pv_c:855,    Tb:-42.1,Tc:96.7,  Pc:42.5,  MW:44.10,   omega:0.152,
+    mu_A:310,   mu_B:175, mu_C:0.0,
+    vp:[[-42,101.3],[-20,238],[0,475],[20,855],[40,1370]] },
+  // ── SPECIALTY PROCESS LIQUIDS ────────────────────────────────────
+  { id:'styrene_liq', name:'Styrene (liquid)',           cat:'Monomers',      isGas:false, rho_c:906,   mu_c:0.760, Pv_c:0.86,   Tb:145.2,Tc:374,   Pc:39.9,  MW:104.1,   omega:0.297,
+    mu_A:660,   mu_B:252, mu_C:0.0,
+    vp:[[20,0.86],[40,2.6],[60,7],[80,16],[100,33]] },
+  { id:'acrylonitrile',name:'Acrylonitrile (ACN)',       cat:'Monomers',      isGas:false, rho_c:806,   mu_c:0.34,  Pv_c:11.5,   Tb:77.3, Tc:263,   Pc:45.6,  MW:53.06,   omega:0.351,
+    mu_A:440,   mu_B:225, mu_C:0.0,
+    vp:[[0,3.8],[10,6.8],[20,11.5],[30,18],[40,28],[77.3,101.3]] },
+  { id:'vinyl_acetate',name:'Vinyl Acetate (VAM)',       cat:'Monomers',      isGas:false, rho_c:934,   mu_c:0.431, Pv_c:11.6,   Tb:72.7, Tc:246.8, Pc:40.4,  MW:86.09,   omega:0.351,
+    mu_A:460,   mu_B:228, mu_C:0.0,
+    vp:[[0,3.9],[10,6.9],[20,11.6],[30,19],[40,29],[72.7,101.3]] },
+  { id:'phenol',      name:'Phenol',                     cat:'Specialty',     isGas:false, rho_c:1071,  mu_c:8.40,  Pv_c:0.36,   Tb:181.8,Tc:421.2, Pc:61.3,  MW:94.11,   omega:0.444,
+    mu_A:1200,  mu_B:293, mu_C:0.0,
+    vp:[[40,0.84],[60,2.4],[80,6.3],[100,15],[120,32],[140,63],[181.8,101.3]] },
+  { id:'diethyl_ether',name:'Diethyl Ether',             cat:'Solvents',      isGas:false, rho_c:713,   mu_c:0.233, Pv_c:58.9,   Tb:34.5, Tc:193.5, Pc:36.4,  MW:74.12,   omega:0.281,
+    mu_A:380,   mu_B:218, mu_C:0.0,
+    vp:[[0,24],[10,40],[20,58.9],[34.5,101.3]] },
+  { id:'thf',         name:'Tetrahydrofuran (THF)',       cat:'Solvents',      isGas:false, rho_c:889,   mu_c:0.456, Pv_c:19.2,   Tb:65,   Tc:267,   Pc:51.2,  MW:72.11,   omega:0.217,
+    mu_A:490,   mu_B:232, mu_C:0.0,
+    vp:[[0,6.4],[10,11],[20,19.2],[30,31],[40,48],[65,101.3]] },
+  { id:'dmf',         name:'DMF (Dimethylformamide)',     cat:'Solvents',      isGas:false, rho_c:944,   mu_c:0.802, Pv_c:0.52,   Tb:153,  Tc:374,   Pc:44.8,  MW:73.09,   omega:0.363,
+    mu_A:640,   mu_B:255, mu_C:0.0,
+    vp:[[20,0.52],[40,1.7],[60,5],[80,13],[100,29],[153,101.3]] },
+  { id:'dmso',        name:'DMSO (Dimethyl Sulfoxide)',   cat:'Solvents',      isGas:false, rho_c:1100,  mu_c:2.24,  Pv_c:0.08,   Tb:189,  Tc:445,   Pc:56.5,  MW:78.13,   omega:0.282,
+    mu_A:850,   mu_B:278, mu_C:0.0,
+    vp:[[20,0.08],[50,0.6],[80,2.8],[100,7.5],[150,47]] },
+  { id:'acetic_acid', name:'Acetic Acid (Glacial)',       cat:'Acids & Alkalis',isGas:false, rho_c:1049,  mu_c:1.22,  Pv_c:1.55,   Tb:117.9,Tc:321.6, Pc:57.9,  MW:60.05,   omega:0.454,
+    mu_A:695,   mu_B:253, mu_C:0.0,
+    vp:[[20,1.55],[40,4.5],[60,12],[80,28],[100,58],[117.9,101.3]] },
+  { id:'formic_acid', name:'Formic Acid 85%',            cat:'Acids & Alkalis',isGas:false, rho_c:1197,  mu_c:1.78,  Pv_c:4.5,    Tb:100.8,Tc:315,   Pc:58,    MW:46.03,   omega:0.473,
+    mu_A:720,   mu_B:256, mu_C:0.0,
+    vp:[[20,4.5],[40,12],[60,28],[80,60],[100.8,101.3]] },
+  { id:'phosphoric',  name:'Phosphoric Acid 85%',        cat:'Acids & Alkalis',isGas:false, rho_c:1685,  mu_c:85,    Pv_c:0.003,  Tb:158,  Tc:480,   Pc:70,    MW:80,      omega:0.6,
+    mu_A:6000,  mu_B:360, mu_C:0.0, vp:[[20,0.003],[60,0.08],[100,1]] },
+  // ── REFRIGERANTS ─────────────────────────────────────────────────
+  { id:'r22_liq',     name:'R-22 (Chlorodifluoromethane)',cat:'Refrigerants',  isGas:false, rho_c:1213,  mu_c:0.238, Pv_c:908,    Tb:-40.8,Tc:96.1,  Pc:49.9,  MW:86.47,   omega:0.220,
+    mu_A:340,   mu_B:168, mu_C:0.0,
+    vp:[[-40,101.3],[-20,245],[0,498],[20,910],[40,1533]] },
+  { id:'r134a_liq',   name:'R-134a (HFC-134a)',          cat:'Refrigerants',  isGas:false, rho_c:1206,  mu_c:0.205, Pv_c:572,    Tb:-26.4,Tc:101.1, Pc:40.7,  MW:102.0,   omega:0.327,
+    mu_A:340,   mu_B:170, mu_C:0.0,
+    vp:[[-40,51.7],[-26.4,101.3],[0,293],[20,572],[40,1017]] },
+  { id:'r410a_liq',   name:'R-410A',                     cat:'Refrigerants',  isGas:false, rho_c:1062,  mu_c:0.180, Pv_c:1577,   Tb:-51.4,Tc:72.1,  Pc:49.0,  MW:72.6,    omega:0.296,
+    mu_A:320,   mu_B:155, mu_C:0.0,
+    vp:[[-51.4,101.3],[-40,178],[0,798],[20,1577],[40,2758]] },
+  // ── MOLTEN SALTS & HTF ───────────────────────────────────────────
+  { id:'dowtherm_a',  name:'Dowtherm A (Biphenyl/DO)',   cat:'Heat Transfer',  isGas:false, rho_c:1056,  mu_c:4.61,  Pv_c:0.005,  Tb:257.1,Tc:497,   Pc:31.3,  MW:166,     omega:0.446,
+    mu_A:1200,  mu_B:298, mu_C:0.0,
+    vp:[[20,0.005],[50,0.04],[80,0.2],[100,0.6],[150,5],[200,25],[257.1,101.3]] },
+  { id:'therminol_66',name:'Therminol 66',               cat:'Heat Transfer',  isGas:false, rho_c:1017,  mu_c:7.2,   Pv_c:0.002,  Tb:343,  Tc:540,   Pc:25,    MW:252,     omega:0.6,
+    mu_A:1800,  mu_B:315, mu_C:0.0, vp:[[100,0.02],[150,0.2],[200,1.2],[250,5],[300,17]] },
+  { id:'molten_salt', name:'Molten Salt (NaNO₃/KNO₃)',  cat:'Heat Transfer',  isGas:false, rho_c:1990,  mu_c:3.26,  Pv_c:0.0,    Tb:600,  Tc:900,   Pc:50,    MW:95,      omega:0.5,
+    mu_A:500,   mu_B:400, mu_C:0.0, vp:[] },
+  // ── GASES ─────────────────────────────────────────────────────────
+  { id:'air_g',       name:'Air',                        cat:'Common Gases',   isGas:true,  rho_c:1.205, mu_c:0.0182,Pv_c:0,      Tb:-194, Tc:-140.6,Pc:37.7,  MW:28.97,   omega:0.035,
+    mu_Sk:1.458e-6, mu_S:110.4 },
+  { id:'nitrogen_g',  name:'Nitrogen (N₂)',              cat:'Common Gases',   isGas:true,  rho_c:1.165, mu_c:0.0176,Pv_c:0,      Tb:-196, Tc:-147,  Pc:33.9,  MW:28.01,   omega:0.040,
+    mu_Sk:1.406e-6, mu_S:111 },
+  { id:'oxygen_g',    name:'Oxygen (O₂)',                cat:'Common Gases',   isGas:true,  rho_c:1.331, mu_c:0.0201,Pv_c:0,      Tb:-183, Tc:-118,  Pc:50.4,  MW:32.00,   omega:0.025,
+    mu_Sk:1.693e-6, mu_S:127 },
+  { id:'hydrogen_g',  name:'Hydrogen (H₂)',             cat:'Common Gases',   isGas:true,  rho_c:0.0838,mu_c:0.0089,Pv_c:0,      Tb:-253, Tc:-240,  Pc:13.0,  MW:2.016,   omega:-0.216,
+    mu_Sk:6.64e-7,  mu_S:72 },
+  { id:'co2_g',       name:'CO₂ (Carbon Dioxide)',       cat:'Common Gases',   isGas:true,  rho_c:1.842, mu_c:0.0148,Pv_c:0,      Tb:-78.5,Tc:31.1,  Pc:73.8,  MW:44.01,   omega:0.239,
+    mu_Sk:1.370e-6, mu_S:222 },
+  { id:'methane_g',   name:'Methane (CH₄)',              cat:'Common Gases',   isGas:true,  rho_c:0.668, mu_c:0.0110,Pv_c:0,      Tb:-161, Tc:-82.6, Pc:46.0,  MW:16.04,   omega:0.012,
+    mu_Sk:1.030e-6, mu_S:164 },
+  { id:'nat_gas_g',   name:'Natural Gas',                cat:'Common Gases',   isGas:true,  rho_c:0.720, mu_c:0.0110,Pv_c:0,      Tb:-162, Tc:-83,   Pc:46.4,  MW:17.97,   omega:0.010,
+    mu_Sk:1.027e-6, mu_S:170 },
+  { id:'propane_g',   name:'Propane (C₃H₈)',             cat:'Common Gases',   isGas:true,  rho_c:1.882, mu_c:0.0082,Pv_c:0,      Tb:-42.1,Tc:96.7,  Pc:42.5,  MW:44.10,   omega:0.152,
+    mu_Sk:7.55e-7,  mu_S:278 },
+  { id:'h2s_g',       name:'H₂S (Hydrogen Sulfide)',     cat:'Common Gases',   isGas:true,  rho_c:1.393, mu_c:0.0122,Pv_c:0,      Tb:-60.3,Tc:100.4, Pc:89.4,  MW:34.08,   omega:0.100,
+    mu_Sk:1.130e-6, mu_S:331 },
+  { id:'ammonia_g',   name:'Ammonia (NH₃)',              cat:'Common Gases',   isGas:true,  rho_c:0.717, mu_c:0.0100,Pv_c:0,      Tb:-33.4,Tc:132.4, Pc:113.5, MW:17.03,   omega:0.250,
+    mu_Sk:9.27e-7,  mu_S:503 },
+  { id:'chlorine_g',  name:'Chlorine (Cl₂)',             cat:'Common Gases',   isGas:true,  rho_c:2.994, mu_c:0.0133,Pv_c:0,      Tb:-34.1,Tc:143.8, Pc:79.1,  MW:70.91,   omega:0.069,
+    mu_Sk:1.234e-6, mu_S:351 },
+  { id:'so2_g',       name:'SO₂ (Sulfur Dioxide)',       cat:'Common Gases',   isGas:true,  rho_c:2.641, mu_c:0.0125,Pv_c:0,      Tb:-10,  Tc:157.6, Pc:78.8,  MW:64.06,   omega:0.245,
+    mu_Sk:1.163e-6, mu_S:416 },
+  { id:'hcl_g',       name:'HCl (Hydrogen Chloride)',    cat:'Common Gases',   isGas:true,  rho_c:1.490, mu_c:0.0141,Pv_c:0,      Tb:-85.1,Tc:51.4,  Pc:83.1,  MW:36.46,   omega:0.133,
+    mu_Sk:1.310e-6, mu_S:347 },
+  { id:'steam_g',     name:'Steam (H₂O vapour)',         cat:'Common Gases',   isGas:true,  t:'s', rho_c:0.60,  mu_c:0.013, Pv_c:0,   Tb:100,  Tc:374.1, Pc:220.6, MW:18.015,  omega:0.345,
+    mu_Sk:1.12e-6,  mu_S:961 },
+  { id:'flue_gas_g',  name:'Flue Gas',                   cat:'Common Gases',   isGas:true,  rho_c:1.250, mu_c:0.0190,Pv_c:0,      Tb:-200, Tc:-140,  Pc:37.7,  MW:28.5,    omega:0.035,
+    mu_Sk:1.600e-6, mu_S:120 },
+  { id:'argon_g',     name:'Argon (Ar)',                  cat:'Common Gases',   isGas:true,  rho_c:1.661, mu_c:0.0227,Pv_c:0,      Tb:-186, Tc:-122,  Pc:48.7,  MW:39.95,   omega:0.001,
+    mu_Sk:2.125e-6, mu_S:142 },
+  { id:'helium_g',    name:'Helium (He)',                 cat:'Common Gases',   isGas:true,  rho_c:0.164, mu_c:0.0199,Pv_c:0,      Tb:-269, Tc:-268,  Pc:2.27,  MW:4.003,   omega:-0.390,
+    mu_Sk:1.875e-6, mu_S:79.4 },
+  { id:'co_g',        name:'CO (Carbon Monoxide)',        cat:'Common Gases',   isGas:true,  rho_c:1.165, mu_c:0.0177,Pv_c:0,      Tb:-191, Tc:-140.3,Pc:35.0,  MW:28.01,   omega:0.048,
+    mu_Sk:1.657e-6, mu_S:118 },
+  { id:'ethylene_g',  name:'Ethylene (C₂H₄)',            cat:'Common Gases',   isGas:true,  rho_c:1.178, mu_c:0.0102,Pv_c:0,      Tb:-104, Tc:9.2,   Pc:50.4,  MW:28.05,   omega:0.089,
+    mu_Sk:9.45e-7,  mu_S:225 },
+  { id:'ethane_g',    name:'Ethane (C₂H₆)',              cat:'Common Gases',   isGas:true,  rho_c:1.264, mu_c:0.0091,Pv_c:0,      Tb:-88.6,Tc:32.2,  Pc:48.7,  MW:30.07,   omega:0.099,
+    mu_Sk:8.56e-7,  mu_S:252 },
+  { id:'hf_g',        name:'HF (Hydrogen Fluoride)',      cat:'Common Gases',   isGas:true,  rho_c:0.82,  mu_c:0.010, Pv_c:0,      Tb:19.5, Tc:188,   Pc:64.8,  MW:20.01,   omega:0.372,
+    mu_Sk:9.0e-7,   mu_S:280 },
+  { id:'phosgene_g',  name:'Phosgene (COCl₂)',           cat:'Common Gases',   isGas:true,  rho_c:4.08,  mu_c:0.0135,Pv_c:0,      Tb:7.6,  Tc:182,   Pc:56.8,  MW:98.92,   omega:0.215,
+    mu_Sk:1.2e-6,   mu_S:300 },
+];
+
+
 // Handles: fluidList, fluidProps, fittingsList, calculate, calcHW
 // All engineering computation lives here — zero physics in the browser.
 
@@ -1210,7 +1472,6 @@ function err(res, status, msg) {
    FLUID DATABASE  (120+ fluids — Andrade liquids · Sutherland gas)
    Sources: Perry's ChE Handbook · NIST WebBook · Yaws' Handbook
 ═══════════════════════════════════════════════════════════════ */
-// [DEDUP] removed duplicate declaration of: FLUID_DB
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROPERTY CALCULATION ENGINE
@@ -2935,35 +3196,317 @@ function lmtd(Th1, Th2, Tc1, Tc2, flow = 'counter') {
   return (dT1 - dT2) / Math.log(dT1 / dT2);
 }
 
-function hxBaseCalc(body) {
-  const { Q_kW, Th_in, Th_out, Tc_in, Tc_out, U, flow = 'counter' } = body;
-  const LMTD = lmtd(Th_in, Th_out, Tc_in, Tc_out, flow);
-  const Q = Q_kW * 1000;  // W
-  const A = U && LMTD ? Q / (U * LMTD) : null;
-  return { Q_kW, LMTD: LMTD.toFixed(2), A_m2: A ? A.toFixed(3) : null, U_Wm2K: U };
+// ── HEAT EXCHANGER FLUID PROPERTIES HELPER ─────────────────────────────────
+// Returns {rho, mu_Pa, cp, k_f, Pr, name} for HX calcs
+// Works with pressure-drop FLUID_DB array
+function hxFluidProps(fluidId, T_C, P_bar) {
+  // cp lookup table [J/kg·K] and k_f [W/m·K] for common fluids
+  const CP_TABLE = {
+    water:4182, sea_water:3990, brine_25:3200, glycol_eg50:3400, glycol_pg50:3600,
+    crude_30api:2000, crude_40api:2100, diesel:2000, lube_100:2000, lube_32:2050,
+    gasoline:2200, kerosene:2100, naphtha:2200, fuel_oil_6:1850, bitumen:1800,
+    pentane:2300, hexane:2250, heptane:2200, octane:2170, cyclohexane:1850,
+    toluene:1690, benzene:1720, xylene:1700, cumene:1725, styrene:1800,
+    methanol:2530, ethanol:2440, isopropanol:2600, n_butanol:2400,
+    ethylene_glycol:2390, glycerol:2430,
+    dcm:1150, chloroform:960, ccl4:840, pce:880,
+    acetone:2170, mek:2300, ethyl_acetate:1920,
+    mea:3280, dea:2820, mdea:2920,
+    sulfuric_98:1380, hcl_32:3100, nitric_65:1840, naoh_50:3100,
+    liq_n2:2000, liq_o2:1700, liq_co2:2000, liq_nh3:4740, liq_lpg:2400,
+    liq_propane:2520,
+    styrene_liq:1800, acrylonitrile:2100, vinyl_acetate:2000,
+    phenol:2050, diethyl_ether:2360, thf:1770, dmf:1630, dmso:1920,
+    acetic_acid:2080, formic_acid:2150, phosphoric:2100,
+    r22_liq:1200, r134a_liq:1465, r410a_liq:1560,
+    dowtherm_a:1550, therminol_66:1600, molten_salt:1500,
+    air_g:1005, nitrogen_g:1040, oxygen_g:920, hydrogen_g:14300,
+    co2_g:840, methane_g:2220, nat_gas_g:2180, propane_g:1670,
+    h2s_g:1000, ammonia_g:2170, chlorine_g:480, so2_g:630,
+    hcl_g:800, steam_g:2010, flue_gas_g:1100, argon_g:520,
+    helium_g:5193, co_g:1040, ethylene_g:1560, ethane_g:1750,
+    hf_g:1500, phosgene_g:620,
+  };
+  const KF_TABLE = {
+    water:0.600, sea_water:0.580, brine_25:0.530, glycol_eg50:0.420, glycol_pg50:0.400,
+    crude_30api:0.130, crude_40api:0.135, diesel:0.130, lube_100:0.140, lube_32:0.138,
+    gasoline:0.120, kerosene:0.130, naphtha:0.125, fuel_oil_6:0.130,
+    pentane:0.113, hexane:0.124, heptane:0.130, octane:0.132, cyclohexane:0.123,
+    toluene:0.133, benzene:0.143, xylene:0.130, cumene:0.130, styrene:0.136,
+    methanol:0.200, ethanol:0.170, isopropanol:0.135, n_butanol:0.150,
+    ethylene_glycol:0.258, glycerol:0.285,
+    dcm:0.130, chloroform:0.120, ccl4:0.100, pce:0.108,
+    acetone:0.160, mek:0.155, ethyl_acetate:0.148,
+    mea:0.400, dea:0.380, mdea:0.370,
+    sulfuric_98:0.470, hcl_32:0.500, nitric_65:0.490, naoh_50:0.600,
+    liq_n2:0.152, liq_o2:0.152, liq_co2:0.087, liq_nh3:0.500, liq_lpg:0.100,
+    liq_propane:0.097, liq_lpg:0.100,
+    air_g:0.026, nitrogen_g:0.026, oxygen_g:0.027, hydrogen_g:0.183,
+    co2_g:0.018, methane_g:0.034, nat_gas_g:0.033, propane_g:0.018,
+    h2s_g:0.013, ammonia_g:0.025, chlorine_g:0.010, so2_g:0.009,
+    hcl_g:0.013, steam_g:0.025, flue_gas_g:0.030, argon_g:0.018,
+    helium_g:0.152, co_g:0.025, ethylene_g:0.021, ethane_g:0.021,
+  };
+  
+  const base = calcFluidProps(fluidId, T_C, P_bar);
+  if (!base) return null;
+  
+  const cp  = CP_TABLE[fluidId] || (base.isGas ? 1000 : 2000);
+  const k_f = KF_TABLE[fluidId] || (base.isGas ? 0.025 : 0.150);
+  const mu_Pa = base.mu * 1e-3;  // cP → Pa·s
+  const Pr  = (mu_Pa * cp) / k_f;
+  
+  return {
+    rho:   base.rho,
+    mu_Pa,
+    cp,
+    k_f,
+    Pr:    Math.max(0.5, Pr),
+    isGas: base.isGas,
+    name:  base.name || fluidId,
+  };
 }
 
+// ── FULL BELL-DELAWARE / KERN SHELL & TUBE CALCULATOR ──────────────────────
 function calcShellTube(body) {
   try {
-    const r = hxBaseCalc(body);
-    const { N_shells = 1, N_passes = 2 } = body;
-    // F correction factor for LMTD (approximate for E-shell)
-    const R = body.Th_in && body.Th_out && body.Tc_in && body.Tc_out
-      ? (body.Th_in - body.Th_out) / (body.Tc_out - body.Tc_in) : 1;
-    const P = body.Tc_in && body.Tc_out && body.Th_in
-      ? (body.Tc_out - body.Tc_in) / (body.Th_in - body.Tc_in) : 0.5;
-    let F = 1.0;
-    if (N_passes >= 2 && isFinite(R) && isFinite(P) && R !== 1) {
-      const S = Math.sqrt(R * R + 1);
-      const num = S * Math.log((1 - P) / (1 - P * R));
-      const den = (2 - P * (R + 1 - S)) / (2 - P * (R + 1 + S));
-      if (den > 0) F = num / ((R - 1) * Math.log(Math.max(1e-10, den)));
+    const {
+      hFlKey, cFlKey, hPop = 1.01325, cPop = 1.01325,
+      hTi, hTo, cTi, hF,
+      coldMode = 'flow', cF = 0, cTo: cTo_in = 0,
+      OD = 25, tw = 2.0, L = 4.0, pitch: pitch_in,
+      Rfo = 0.0002, Rfi = 0.0002,
+      arr = 'counter', mat = 'cs', hxType = 'fixed',
+      tema = 'B', bcut = 0.25, bsp = 0.50,
+      velMode = 'target', targetVel = 1.5, numTubesFixed = 0,
+      pdAllowShell = 0.70, pdAllowTube = 1.00,
+      pitchLayout = 'triangular',
+      N_shells = 1, N_passes = 2,
+    } = body;
+
+    // ── Material conductivity ─────────────────────────────────────────
+    const kW = {cs:50,ss316:16,ss304:16,cu:380,cuNi:50,ti:22,inconel:15,hastelloy:12}[mat] || 50;
+    const OD_m = OD / 1000;
+    const ID_m = OD_m - 2 * (tw / 1000);
+    if (ID_m <= 0) return { error: 'Wall thickness exceeds tube radius' };
+    const pitch = pitch_in || (OD_m * 1.25);
+
+    // ── Mean temperatures ─────────────────────────────────────────────
+    const hTmean = (hTi + hTo) / 2;
+    const hProps = hxFluidProps(hFlKey, hTmean, hPop);
+    if (!hProps) return { error: `Unknown hot fluid: ${hFlKey}` };
+
+    // ── Hot side energy balance ────────────────────────────────────────
+    const mh = hF / 3600;  // kg/s
+    const Q = mh * hProps.cp * (hTi - hTo);  // W
+    if (Q <= 0) return { error: 'Hot inlet temp must be higher than hot outlet temp' };
+
+    // ── Cold side: determine cTo or cF ────────────────────────────────
+    let cToCalc, cFCalc, cTmean;
+    if (coldMode === 'temp') {
+      cToCalc = cTo_in;
+      cTmean  = (cTi + cToCalc) / 2;
+      const cProps0 = hxFluidProps(cFlKey, cTmean, cPop);
+      if (!cProps0) return { error: `Unknown cold fluid: ${cFlKey}` };
+      cFCalc  = (Q / (cProps0.cp * (cToCalc - cTi))) * 3600;  // kg/h
+    } else {
+      cFCalc  = cF;
+      const mc = cF / 3600;
+      if (mc <= 0) return { error: 'Cold flow rate must be positive' };
+      // estimate cTo: iterate once
+      cTmean  = (cTi + cTi + 30) / 2;
+      const cPropsEst = hxFluidProps(cFlKey, cTmean, cPop);
+      if (!cPropsEst) return { error: `Unknown cold fluid: ${cFlKey}` };
+      cToCalc = cTi + Q / (mc * cPropsEst.cp);
+      cTmean  = (cTi + cToCalc) / 2;
     }
-    F = Math.max(0.5, Math.min(1.0, F));
-    const A_corrected = r.A_m2 ? (parseFloat(r.A_m2) / F).toFixed(3) : null;
-    return { ...r, F_factor: F.toFixed(3), A_corrected_m2: A_corrected, N_shells, N_passes, type: 'Shell & Tube' };
-  } catch (e) { return { error: e.message }; }
+
+    const cProps = hxFluidProps(cFlKey, cTmean, cPop);
+    if (!cProps) return { error: `Unknown cold fluid: ${cFlKey}` };
+
+    // ── LMTD ─────────────────────────────────────────────────────────
+    const [T1h, T2h, T1c, T2c] = arr === 'counter'
+      ? [hTi, hTo, cToCalc, cTi]
+      : [hTi, hTo, cTi, cToCalc];
+    const dT1 = T1h - T1c, dT2 = T2h - T2c;
+    let LMTD;
+    if (Math.abs(dT1 - dT2) < 0.01) {
+      LMTD = dT1;
+    } else if (dT1 <= 0 || dT2 <= 0) {
+      return { error: `Temperature cross detected: ΔT₁=${dT1.toFixed(1)}°C, ΔT₂=${dT2.toFixed(1)}°C. Check inputs.` };
+    } else {
+      LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
+    }
+
+    // F-correction for multi-pass
+    const R = (hTi - hTo) / Math.max(0.01, cToCalc - cTi);
+    const P = (cToCalc - cTi) / Math.max(0.01, hTi - cTi);
+    let F = 1.0;
+    if (N_passes >= 2 && Math.abs(R - 1) > 0.01) {
+      const S = Math.sqrt(R * R + 1);
+      const arg1 = (1 - P) / Math.max(1e-10, 1 - P * R);
+      if (arg1 > 0) {
+        const num = S * Math.log(arg1);
+        const argDen = (2 - P * (R + 1 - S)) / Math.max(1e-10, 2 - P * (R + 1 + S));
+        if (argDen > 0) F = num / ((R - 1) * Math.log(argDen));
+      }
+    }
+    F = Math.max(0.5, Math.min(1.0, isFinite(F) ? F : 1.0));
+    const FLMTD = LMTD * F;
+
+    // ── Tube count & geometry ─────────────────────────────────────────
+    // Use tube-side velocity to determine tube count
+    // Put the higher-pressure / cleaner fluid on tube side (default: cold)
+    const tubeFluid  = cProps;  // cold side in tubes
+    const shellFluid = hProps;  // hot side on shell
+
+    let numTubes;
+    const Ai = Math.PI * ID_m * ID_m / 4;  // flow area per tube per pass
+    const mc = cFCalc / 3600;  // kg/s
+    if (numTubesFixed > 0) {
+      numTubes = numTubesFixed;
+    } else {
+      // target velocity method
+      const rho_t = tubeFluid.rho;
+      const Ntarget = (mc / rho_t / targetVel / Ai) * N_passes;
+      numTubes = Math.max(4, Math.round(Ntarget));
+    }
+    const nTubesPerPass = Math.max(1, Math.round(numTubes / N_passes));
+    const actualNumTubes = nTubesPerPass * N_passes;
+    const flowAreaTube = Ai * nTubesPerPass;
+    const tubeVel = mc / (tubeFluid.rho * flowAreaTube);
+
+    // Shell ID estimate from tube count and pitch
+    // Bundle diameter Db = OD_m × (N / k1)^(1/n1) — simplified
+    const CL = 1.0, CTP = 0.93;
+    const Db = OD_m * Math.pow(actualNumTubes / (CTP * 0.785 * (pitch / OD_m) * (pitch / OD_m)), 0.5);
+    const shellID = Db / 0.85;  // rough bundle-to-shell clearance factor
+    const Ds = shellID;
+
+    // Baffle spacing & window
+    const Lbc = bsp * Ds;  // baffle spacing [m]
+    const N_b  = Math.max(1, Math.round(L / Lbc) - 1);  // number of baffles
+
+    // ── Tube-side heat transfer (Dittus-Boelter) ─────────────────────
+    const Re_t  = tubeFluid.rho * tubeVel * ID_m / tubeFluid.mu_Pa;
+    const Pr_t  = tubeFluid.Pr;
+    const nu_t  = Re_t > 10000
+      ? 0.023 * Math.pow(Re_t, 0.8) * Math.pow(Pr_t, (cToCalc > cTi ? 0.4 : 0.3))
+      : (Re_t > 2300
+        ? 0.116 * (Math.pow(Re_t, 2/3) - 125) * Math.pow(Pr_t, 1/3)  // Hausen
+        : 3.66);  // laminar
+    const hi = nu_t * tubeFluid.k_f / ID_m;  // W/m²·K
+
+    // ── Shell-side heat transfer (simplified Kern / Bell–Delaware) ────
+    const pitchRatio = pitch / OD_m;
+    // Cross-flow area at shell centreline
+    const as  = Ds * bcut * (pitch - OD_m) / pitch * Lbc;  // m²
+    const Gs  = shellFluid.rho > 0 ? (mh / as) : 100;       // kg/m²·s (hot side)
+    const De  = pitchLayout === 'triangular'
+      ? (4 * (0.5 * pitch * (pitch * Math.sqrt(3) / 2) - Math.PI * OD_m * OD_m / 8)) / (Math.PI * OD_m / 2)
+      : (4 * (pitch * pitch - Math.PI * OD_m * OD_m / 4)) / (Math.PI * OD_m);
+    const Re_s = Gs * De / shellFluid.mu_Pa;
+    const Pr_s = shellFluid.Pr;
+    const jH   = Re_s < 100 ? 0.24 * Math.pow(Re_s, -0.40)
+               : Re_s < 1e4  ? 0.36 * Math.pow(Re_s, -0.55)
+               :                0.36 * Math.pow(Re_s, -0.55);  // Kern j_H
+    const ho   = jH * shellFluid.k_f / De * Pr_s > 0 ? jH * (shellFluid.k_f / De) * Math.pow(Pr_s, 1/3) : 500;
+
+    // ── Wall resistance ───────────────────────────────────────────────
+    const A_ratio = OD_m / ID_m;
+    const Rwall = OD_m * Math.log(OD_m / ID_m) / (2 * kW);  // per unit OA
+
+    // ── Overall U (based on outer area) ──────────────────────────────
+    const U = 1 / (1/ho + Rfo + Rwall + Rfi * A_ratio + (1/hi) * A_ratio);
+
+    // ── Required area ─────────────────────────────────────────────────
+    const A_req = Q / (U * FLMTD);  // m²
+
+    // ── Actual area from geometry ─────────────────────────────────────
+    const A_act = Math.PI * OD_m * L * actualNumTubes;
+    const overSurf = ((A_act - A_req) / A_req) * 100;
+
+    // ── Effectiveness ─────────────────────────────────────────────────
+    const Ch   = mh * hProps.cp;
+    const Cc   = mc * cProps.cp;
+    const Cmin = Math.min(Ch, Cc);
+    const Cmax = Math.max(Ch, Cc);
+    const NTU  = U * A_req / Cmin;
+    const Cr   = Cmin / Cmax;
+    let eff;
+    if (arr === 'counter' && Math.abs(Cr - 1) < 0.01) {
+      eff = NTU / (1 + NTU);
+    } else if (arr === 'counter') {
+      const e1 = Math.exp(-NTU * (1 - Cr));
+      eff = (1 - e1) / (1 - Cr * e1);
+    } else {
+      eff = (1 - Math.exp(-NTU * (1 + Cr))) / (1 + Cr);
+    }
+    eff = Math.max(0, Math.min(1, eff || 0));
+
+    // ── Pressure drops ────────────────────────────────────────────────
+    // Tube side (Darcy-Weisbach, includes inlet/outlet loss)
+    let f_t;
+    if (Re_t > 4000) f_t = 0.316 * Math.pow(Re_t, -0.25);
+    else f_t = 64 / Math.max(1, Re_t);
+    const tubeDp = (f_t * L * N_passes / ID_m + 4 * N_passes) * tubeFluid.rho * tubeVel * tubeVel / 2 / 1e5; // bar
+
+    // Shell side (simplified Kern)
+    const shellVel = Gs / shellFluid.rho;
+    let f_s = 0.5;  // friction factor approximation
+    const shellDP = f_s * (N_b + 1) * Ds * Gs * Gs / (De * shellFluid.rho) / 1e5;  // bar
+
+    // ── Warnings ─────────────────────────────────────────────────────
+    const warns = [];
+    if (F < 0.75)     warns.push(`F-factor = ${F.toFixed(2)} < 0.75 — temperature cross near-pinch. Consider 2 shells in series.`);
+    if (tubeVel < 0.5) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is low — fouling risk elevated.`);
+    if (tubeVel > 3.0) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is high — erosion risk for liquids > 2.5 m/s.`);
+    if (Re_t < 10000)  warns.push(`Re_t = ${Re_t.toFixed(0)} — transition/laminar flow on tube side; heat transfer model less accurate.`);
+    if (shellDP > pdAllowShell)  warns.push(`Shell-side ΔP ${shellDP.toFixed(3)} bar exceeds allowable ${pdAllowShell} bar.`);
+    if (tubeDp  > pdAllowTube)   warns.push(`Tube-side ΔP ${tubeDp.toFixed(3)} bar exceeds allowable ${pdAllowTube} bar.`);
+    if (overSurf < -10) warns.push(`Undersurfaced by ${(-overSurf).toFixed(1)}% — increase tube count or length.`);
+
+    // ── Status badge ──────────────────────────────────────────────────
+    const feasible = A_act > 0 && isFinite(U) && U > 0 && isFinite(LMTD) && LMTD > 0;
+    const st    = overSurf >= 5 ? 'ok' : overSurf >= 0 ? 'marginal' : 'under';
+    const stTxt = overSurf >= 5 ? '✅ ADEQUATE' : overSurf >= 0 ? '⚠ MARGINAL' : '🔴 UNDERSIZED';
+
+    const Qh = Q / 1000, Qc = Q / 1000;
+
+    return {
+      ok: true,
+      // Core thermal
+      Q: Q/1000, Qh, Qc, LMTD: FLMTD, FLMTD, F_factor: F,
+      area: A_req, U, eff, NTU,
+      // Temperatures
+      hTi, hTo, cTi, cTo: cToCalc, hTmean, cTmean,
+      hF, cF: cFCalc,
+      // Geometry
+      numTubes: actualNumTubes, nTubesPerPass, shellID, L, nShells: N_shells, nPasses: N_passes,
+      OD_mm: OD, ID_mm: ID_m * 1000, pitchLayout, velMode,
+      tubeVel, shellVel,
+      overSurf, pdAllowShell, pdAllowTube,
+      // Pressure drops
+      shellDP, tubeDp,
+      // Fluid info
+      hFluid: { name: hProps.name, rho: hProps.rho, mu: hProps.mu_Pa * 1000, cp: hProps.cp, k: hProps.k_f, Pr: hProps.Pr, Z: 1.0, zMethod: 'ideal' },
+      cFluid: { name: cProps.name, rho: cProps.rho, mu: cProps.mu_Pa * 1000, cp: cProps.cp, k: cProps.k_f, Pr: cProps.Pr, Z: 1.0, zMethod: 'ideal' },
+      hFluidDB: { rho: hProps.rho },
+      cFluidDB: { rho: cProps.rho },
+      hPop, cPop,
+      // Status
+      st, stTxt, tema, type: 'Shell & Tube',
+      // Heat transfer coefficients
+      hi, ho,
+      // Reynolds numbers
+      Re_t, Re_s,
+      warns,
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
 }
+
 
 function calcPlate(body) {
   try {
@@ -3856,7 +4399,7 @@ async function handle_steam_quench(req, body, res) {
 
 async function handle_steam_turbine(body, res) {
   try {
-        const b = req.body;
+        const b = body;
 
         // ── ACTION: inletProps ────────────────────────────────────
         // Used by autoSteam('inlet'), autoSteam('extraction'), autoSteam('mixed_ext')
