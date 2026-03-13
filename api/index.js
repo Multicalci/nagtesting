@@ -3023,52 +3023,87 @@ function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
 
 
 // ── COOLING TOWER: MERKEL NTU CALCULATION ───────────────────────
+// [FIX-CT-1] Added guard: returns 0 (not NaN/Infinity) when approach ≤ 0
+//            or when integration produces non-finite step values (no change to
+//            the try/catch wrapper — already guarded per-step).
 function merkelNTU(Twi, Two, Twb, nSteps = 20) {
+  // Guard: water inlet must be hotter than outlet
+  if (!isFinite(Twi) || !isFinite(Two) || !isFinite(Twb)) return 0;
+  if (Twi <= Two) return 0;                 // no temperature range → zero NTU
+  if (Two <= Twb) return 0;                 // [FIX-CT-1] approach ≤ 0 → integration blows up
+
   // Numerical integration of Merkel equation
   // NTU = integral from Two to Twi of dTw / (h_s - h_a)
   const hw = T => {
     // Saturated air enthalpy at water temp T (°C), kJ/kg dry air
-    // Antoine-based humidity ratio
     const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));  // kPa
-    const Ws = 0.622 * Psat / (101.325 - Psat);
+    const Ws   = 0.622 * Psat / (101.325 - Psat);
     return 1.006 * T + Ws * (2501 + 1.86 * T);
   };
 
   // Air enthalpy at inlet wet bulb
   const ha_in = hw(Twb);
-  // Assume air-water ratio L/G = 1.2 (typical)
-  const LG = 1.2;
-  const cpa = 1.006;
+  const LG    = 1.2;   // L/G ratio (typical)
+  const cpa   = 1.006;
 
   const dT = (Twi - Two) / nSteps;
   let ntu = 0;
-  let Tw = Two;
-  let ha = ha_in;
+  let Tw  = Two;
+  let ha  = ha_in;
 
   for (let i = 0; i < nSteps; i++) {
-    const Tw1 = Tw, Tw2 = Tw + dT;
-    const ha1 = ha, ha2 = ha + (Tw2 - Tw1) * cpa * LG;
+    const Tw1 = Tw,  Tw2 = Tw + dT;
+    const ha1 = ha,  ha2 = ha + (Tw2 - Tw1) * cpa * LG;
     const hs1 = hw(Tw1), hs2 = hw(Tw2);
-    const f1 = 1 / (hs1 - ha1);
-    const f2 = 1 / (hs2 - ha2);
-    if (isFinite(f1) && isFinite(f2)) ntu += (f1 + f2) / 2 * dT;
+    const denom1 = hs1 - ha1, denom2 = hs2 - ha2;
+    // [FIX-CT-1] skip step if driving-force is zero or negative (pinch)
+    if (denom1 > 0 && denom2 > 0) {
+      const f1 = 1 / denom1, f2 = 1 / denom2;
+      if (isFinite(f1) && isFinite(f2)) ntu += (f1 + f2) / 2 * dT;
+    }
     Tw = Tw2;
     ha = ha2;
   }
   return Math.max(0, ntu);
 }
 
+
+// ── COOLING TOWER: FULL PERFORMANCE CALCULATION ──────────────────
+// [FIX-CT-2] Added server-side input validation for all 6 required temps
+// [FIX-CT-3] fillPct / kavl_a_norm return 0 + fillPctValid flag instead of null
+//            — prevents frontend .toFixed() crash on null
+// [FIX-CT-4] NaN / Infinity guard on every computed output before return
+// [FIX-CT-5] score / dAppVsPred / cwtDev all guarded with isFinite checks
 function runCalculate(p) {
   try {
-    const { dWB_C, dCWT_C, dHWT_C, aWB_C, aCWT_C, aHWT_C, dWR, dAR, thW_C = 1.5, thB_C = 3.0, patm, elev } = p;
+
+    // ── [FIX-CT-2] Input validation ─────────────────────────────────────
+    const REQUIRED_FIELDS = ['dWB_C', 'dCWT_C', 'dHWT_C', 'aWB_C', 'aCWT_C', 'aHWT_C'];
+    for (const k of REQUIRED_FIELDS) {
+      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
+        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
+    }
+
+    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C), dHWT_C = Number(p.dHWT_C);
+    const aWB_C  = Number(p.aWB_C),  aCWT_C = Number(p.aCWT_C), aHWT_C = Number(p.aHWT_C);
+    const thW_C  = isFinite(Number(p.thW_C)) ? Number(p.thW_C) : 1.5;
+    const thB_C  = isFinite(Number(p.thB_C)) ? Number(p.thB_C) : 3.0;
+
+    // Physical sanity checks
+    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be greater than design CWT (${dCWT_C}°C).` };
+    if (aHWT_C <= aCWT_C) return { error: `Actual HWT (${aHWT_C}°C) must be greater than actual CWT (${aCWT_C}°C).` };
+    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be greater than design WBT (${dWB_C}°C) — approach cannot be ≤ 0.` };
+    if (aCWT_C <= aWB_C)  return { error: `Actual CWT (${aCWT_C}°C) must be greater than actual WBT (${aWB_C}°C) — approach cannot be ≤ 0.` };
 
     // Atmospheric pressure
     let Patm_kPa = 101.325;
-    if (isFinite(patm) && patm > 70 && patm < 110) Patm_kPa = patm;
-    else if (isFinite(elev) && elev >= 0) Patm_kPa = 101.325 * Math.pow(1 - 2.25577e-5 * elev, 5.25588);
+    if (isFinite(Number(p.patm)) && Number(p.patm) > 70 && Number(p.patm) < 110)
+      Patm_kPa = Number(p.patm);
+    else if (isFinite(Number(p.elev)) && Number(p.elev) >= 0)
+      Patm_kPa = 101.325 * Math.pow(1 - 2.25577e-5 * Number(p.elev), 5.25588);
 
-    const dRng = dHWT_C - dCWT_C;
-    const aRng = aHWT_C - aCWT_C;
+    const dRng  = dHWT_C - dCWT_C;
+    const aRng  = aHWT_C - aCWT_C;
     const app_d = dCWT_C - dWB_C;
     const app_a = aCWT_C - aWB_C;
 
@@ -3076,20 +3111,24 @@ function runCalculate(p) {
     const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
     const kavl_a = merkelNTU(aHWT_C, aCWT_C, aWB_C);
 
-    // Normalised KaV/L (ratio)
-    const kavl_d_norm = 1.0;
-    const kavl_a_norm = kavl_d > 0 ? kavl_a / kavl_d : null;
-    const fillPct = kavl_a_norm !== null ? kavl_a_norm * 100 : null;
+    // [FIX-CT-4] Guard NTU results
+    if (!isFinite(kavl_d) || kavl_d <= 0)
+      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
+    if (!isFinite(kavl_a))
+      return { error: 'Actual conditions produced invalid NTU — verify actual temperatures.' };
+
+    // [FIX-CT-3] Replace null with 0 + validity flag
+    const fillPctValid = kavl_d > 0;
+    const kavl_a_norm  = fillPctValid ? kavl_a / kavl_d : 0;
+    const fillPct      = fillPctValid ? kavl_a_norm * 100 : 0;
 
     // κ (kappa) — CTI ATC-105 sensitivity factor dCWT/dWBT
-    // Use iterative solver
     let kappa = 0.60, kappaOK = false;
     const dWBT = aWB_C - dWB_C;
     if (Math.abs(dWBT) > 0.01) {
-      // Bisection to find kappa such that NTU(design) = NTU(actual at shifted WBT)
       let lo = 0.2, hi = 1.5;
       for (let iter = 0; iter < 60; iter++) {
-        const mid = (lo + hi) / 2;
+        const mid      = (lo + hi) / 2;
         const pred_cwt = dCWT_C + mid * dWBT;
         const ntu_test = merkelNTU(aHWT_C, pred_cwt, aWB_C);
         if (ntu_test > kavl_d) hi = mid; else lo = mid;
@@ -3100,93 +3139,161 @@ function runCalculate(p) {
       kappa = 0.60; kappaOK = true;
     }
 
-    const pred_cwt = dCWT_C + kappa * dWBT;
-    const pred_app = pred_cwt - aWB_C;
-    const dApp = app_a - app_d;
+    // [FIX-CT-4] Guard kappa
+    if (!isFinite(kappa)) kappa = 0.60;
+
+    const pred_cwt   = dCWT_C + kappa * dWBT;
+    const pred_app   = pred_cwt - aWB_C;
+    const dApp       = app_a - app_d;
     const dAppVsPred = app_a - pred_app;
-    const cwtDev = aCWT_C - pred_cwt;
+    const cwtDev     = aCWT_C - pred_cwt;
+
+    // [FIX-CT-4] Guard derived values that feed into .toFixed() on the frontend
+    const safe = v => (isFinite(v) ? v : 0);
 
     // Status classification
-    const absDevC = Math.abs(dAppVsPred);
+    const absDevC = Math.abs(safe(dAppVsPred));
     let appSt;
-    if (absDevC <= thW_C)       appSt = { cls: 'ok',   icon: '✅', lbl: 'NORMAL' };
-    else if (absDevC <= thB_C)  appSt = { cls: 'warn', icon: '⚠️', lbl: 'DEGRADED' };
-    else                         appSt = { cls: 'bad',  icon: '🔴', lbl: 'ALERT' };
+    if (absDevC <= thW_C)      appSt = { cls: 'ok',   icon: '✅', lbl: 'NORMAL'   };
+    else if (absDevC <= thB_C) appSt = { cls: 'warn', icon: '⚠️', lbl: 'DEGRADED' };
+    else                        appSt = { cls: 'bad',  icon: '🔴', lbl: 'ALERT'    };
 
-    const fillSt = fillPct === null ? { cls: 'ok', lbl: 'N/A' }
-      : fillPct >= 90 ? { cls: 'ok', lbl: 'GOOD' }
+    const fillSt = !fillPctValid
+      ? { cls: 'ok', lbl: 'N/A' }
+      : fillPct >= 90 ? { cls: 'ok',   lbl: 'GOOD'    }
       : fillPct >= 75 ? { cls: 'warn', lbl: 'DEGRADED' }
-      : { cls: 'bad', lbl: 'FOULED' };
+      :                 { cls: 'bad',  lbl: 'FOULED'   };
 
-    const worst = [appSt.cls, fillSt.cls].includes('bad') ? 'bad'
-      : [appSt.cls, fillSt.cls].includes('warn') ? 'warn' : 'ok';
+    const worst = [appSt.cls, fillSt.cls].includes('bad')  ? 'bad'
+                : [appSt.cls, fillSt.cls].includes('warn') ? 'warn' : 'ok';
 
-    const score = Math.round(Math.max(0, Math.min(100, fillPct !== null
-      ? (fillPct * 0.6 + Math.max(0, 100 - Math.abs(dAppVsPred) * 20) * 0.4)
-      : Math.max(0, 100 - Math.abs(dAppVsPred) * 20))));
+    // [FIX-CT-5] score: guard against NaN from non-finite dAppVsPred / fillPct
+    const appScore  = Math.max(0, 100 - absDevC * 20);
+    const score = Math.round(Math.max(0, Math.min(100,
+      fillPctValid
+        ? (safe(fillPct) * 0.6 + appScore * 0.4)
+        : appScore
+    )));
 
-    const sInfo = worst === 'ok' ? { lbl: 'NORMAL', c: '#00c853' }
-      : worst === 'warn' ? { lbl: 'DEGRADED', c: '#ffab00' }
-      : { lbl: 'ALERT', c: '#ff1744' };
+    const sInfo = worst === 'ok'   ? { lbl: 'NORMAL',   c: '#00c853' }
+                : worst === 'warn' ? { lbl: 'DEGRADED', c: '#ffab00' }
+                :                    { lbl: 'ALERT',     c: '#ff1744' };
 
     // WBT sweep data
     const sweepData = [];
     for (let dWBT_s = -3; dWBT_s <= 3; dWBT_s += 0.5) {
       const pred = dCWT_C + kappa * dWBT_s;
-      sweepData.push({ dWBT: dWBT_s, pred_cwt: pred });
+      sweepData.push({ dWBT: dWBT_s, pred_cwt: safe(pred) });
     }
 
     // Merkel chart data for visualization
     const chartData = [];
     const steps = 20;
     for (let i = 0; i <= steps; i++) {
-      const T = aHWT_C - (aHWT_C - aCWT_C) * i / steps;
-      const hs = (() => { const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3)); const Ws = 0.622 * Psat / (101.325 - Psat); return 1.006 * T + Ws * (2501 + 1.86 * T); })();
-      chartData.push({ T, hs });
+      const T  = aHWT_C - (aHWT_C - aCWT_C) * i / steps;
+      const hs = (() => {
+        const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));
+        const Ws   = 0.622 * Psat / (101.325 - Psat);
+        return 1.006 * T + Ws * (2501 + 1.86 * T);
+      })();
+      chartData.push({ T: safe(T), hs: safe(hs) });
     }
 
     return {
+      // Echo inputs
       dWB: dWB_C, dCWT: dCWT_C, dHWT: dHWT_C,
       aWB: aWB_C, aCWT: aCWT_C, aHWT: aHWT_C,
-      app_d, app_a, rng_d: dRng, rng_a: aRng,
-      kavl_d, kavl_a, kavl_d_norm, kavl_a_norm, fillPct,
-      kappa, kappaOK, dApp, dWBT, pred_cwt, pred_app,
-      dAppVsPred, cwtDev, appSt, fillSt, worst, score, sInfo,
-      sweepData, chartData, Patm_kPa,
-      ts: new Date().toISOString()
+      // Ranges & approaches
+      app_d: safe(app_d), app_a: safe(app_a),
+      rng_d: safe(dRng),  rng_a: safe(aRng),
+      // NTU / fill
+      kavl_d: safe(kavl_d), kavl_a: safe(kavl_a),
+      kavl_d_norm: 1.0,
+      kavl_a_norm: safe(kavl_a_norm),
+      fillPct: safe(fillPct),
+      fillPctValid,           // [FIX-CT-3] let frontend know if fillPct is meaningful
+      // κ / prediction
+      kappa: safe(kappa), kappaOK,
+      dApp: safe(dApp), dWBT: safe(dWBT),
+      pred_cwt: safe(pred_cwt), pred_app: safe(pred_app),
+      dAppVsPred: safe(dAppVsPred), cwtDev: safe(cwtDev),
+      // Status
+      appSt, fillSt, worst, score: safe(score), sInfo,
+      // Charts
+      sweepData, chartData,
+      Patm_kPa: safe(Patm_kPa),
+      ts: new Date().toISOString(),
     };
+
   } catch (e) {
     return { error: e.message };
   }
 }
 
+
+// ── COOLING TOWER: PREDICT CWT FROM DESIGN + ACTUAL WBT ──────────
+// [FIX-CT-2] Added input validation
+// [FIX-CT-4] NaN / Infinity guards on all returned values
 function runPredictCWT(p) {
   try {
-    const { dWB_C, dCWT_C, dHWT_C, aWB_C, Patm_kPa = 101.325 } = p;
+
+    // ── [FIX-CT-2] Input validation ──────────────────────────────────────
+    const REQUIRED_FIELDS = ['dWB_C', 'dCWT_C', 'dHWT_C', 'aWB_C'];
+    for (const k of REQUIRED_FIELDS) {
+      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
+        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
+    }
+
+    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C);
+    const dHWT_C = Number(p.dHWT_C), aWB_C  = Number(p.aWB_C);
+    const Patm_kPa = isFinite(Number(p.Patm_kPa)) ? Number(p.Patm_kPa) : 101.325;
+
+    // Physical sanity checks
+    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be greater than design CWT (${dCWT_C}°C).` };
+    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be greater than design WBT (${dWB_C}°C).` };
+
     const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
+
+    // [FIX-CT-4] Guard design NTU
+    if (!isFinite(kavl_d) || kavl_d <= 0)
+      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
+
     const dWBT = aWB_C - dWB_C;
 
     let kappa = 0.60;
     if (Math.abs(dWBT) > 0.01) {
       let lo = 0.2, hi = 1.5;
       for (let iter = 0; iter < 60; iter++) {
-        const mid = (lo + hi) / 2;
+        const mid  = (lo + hi) / 2;
         const pred = dCWT_C + mid * dWBT;
+        // [FIX-CT-1] skip bisection step if approach would go negative
+        if (pred <= aWB_C) { lo = mid; continue; }
         const ntu = merkelNTU(dHWT_C, pred, aWB_C);
         if (ntu > kavl_d) hi = mid; else lo = mid;
         if (hi - lo < 1e-5) break;
       }
       kappa = (lo + hi) / 2;
     }
-    const pred_C = dCWT_C + kappa * dWBT;
-    const dCWT_delta = kappa * dWBT;
-    return { pred_C, kappa, dWBT_C: dWBT, dCWT_delta, Patm_kPa };
+
+    // [FIX-CT-4] Guard kappa
+    if (!isFinite(kappa)) kappa = 0.60;
+
+    const pred_C      = dCWT_C + kappa * dWBT;
+    const dCWT_delta  = kappa * dWBT;
+    const safe        = v => (isFinite(v) ? v : 0);
+
+    return {
+      pred_C:      safe(pred_C),
+      kappa:       safe(kappa),
+      dWBT_C:      safe(dWBT),
+      dCWT_delta:  safe(dCWT_delta),
+      Patm_kPa:    safe(Patm_kPa),
+    };
+
   } catch (e) {
     return { error: e.message };
   }
 }
-
-
 // ── HEAT EXCHANGER CALC FUNCTIONS ───────────────────────────────
 function lmtd(Th1, Th2, Tc1, Tc2, flow = 'counter') {
   const dT1 = flow === 'counter' ? Th1 - Tc2 : Th1 - Tc1;
