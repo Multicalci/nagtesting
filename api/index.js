@@ -4234,7 +4234,7 @@ function calcPressureDrop(inputs) {
     per100label: unitMode === 'imperial' ? 'ΔP per 100 ft' : 'ΔP per 100 m',
     lenUnit:  unitMode === 'imperial' ? 'ft' : 'm',
     diamUnit: unitMode === 'imperial' ? 'in' : 'mm',
-    diameter: inputs.D, length: inputs.L, dz,
+    diameter: D_orig, length: L_orig, dz: dz_orig,
   };
 }
 
