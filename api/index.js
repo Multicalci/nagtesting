@@ -363,6 +363,10 @@ async function handle_compressor(body, res) {
 // SECTION: CONTROL VALVE
 // ========================================================================
 
+// ========================================================================
+// SECTION: CONTROL VALVE
+// ========================================================================
+
 // ── CONTROL-VALVE LOGIC ──────────────────────────────────────────
 // ============================================================
 // Vercel Serverless API — Control Valve Sizing
@@ -374,6 +378,21 @@ async function handle_compressor(body, res) {
 const SECRET_KEY = 'cv-k3y9x';  // must match _K in index.html
 
 
+
+// ── FORMAT HELPERS ────────────────────────────────────────────────────────────
+// fmtN: rounds to 4 significant figures, returns a number (not string)
+function fmtN(v) {
+  if (!isFinite(v) || v === 0) return 0;
+  const mag = Math.floor(Math.log10(Math.abs(v)));
+  const factor = Math.pow(10, 3 - mag);
+  return Math.round(v * factor) / factor;
+}
+
+// fmt2: formats a number to 2 decimal places as a string
+function fmt2(v) {
+  if (!isFinite(v)) return '—';
+  return v.toFixed(2);
+}
 
 async function handle_control_valve(req, body, res) {
   const SECRET_KEY = 'cv-k3y9x';
@@ -610,6 +629,41 @@ async function handle_control_valve(req, body, res) {
   }
 }
 
+// ========================================================================
+// SECTION: COOLING TOWER
+// ========================================================================
+
+// ── COOLING TOWER: MERKEL NTU CALCULATION ───────────────────────
+// [FIX-CT-1] Guards for zero/negative approach, non-finite inputs
+function merkelNTU(Twi, Two, Twb, nSteps = 20) {
+  if (!isFinite(Twi) || !isFinite(Two) || !isFinite(Twb)) return 0;
+  if (Twi <= Two)  return 0;   // no temperature range
+  if (Two <= Twb)  return 0;   // approach ≤ 0 → integration blows up
+
+  const hw = T => {
+    const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));  // kPa
+    const Ws   = 0.622 * Psat / (101.325 - Psat);
+    return 1.006 * T + Ws * (2501 + 1.86 * T);
+  };
+
+  const ha_in = hw(Twb);
+  const LG    = 1.2;
+  const cpa   = 1.006;
+  const dT    = (Twi - Two) / nSteps;
+  let ntu = 0, Tw = Two, ha = ha_in;
+
+  for (let i = 0; i < nSteps; i++) {
+    const Tw1 = Tw, Tw2 = Tw + dT;
+    const ha1 = ha, ha2 = ha + (Tw2 - Tw1) * cpa * LG;
+    const hs1 = hw(Tw1), hs2 = hw(Tw2);
+    const d1 = hs1 - ha1, d2 = hs2 - ha2;
+    if (d1 > 0 && d2 > 0 && isFinite(1/d1) && isFinite(1/d2))
+      ntu += (1/d1 + 1/d2) / 2 * dT;
+    Tw = Tw2;
+    ha = ha2;
+  }
+  return Math.max(0, ntu);
+}
 // ========================================================================
 // SECTION: COOLING TOWER
 // ========================================================================
