@@ -4121,7 +4121,7 @@ function calcPressureDrop(inputs) {
 
   const eps = epsBase + Math.max(0, foulingMm);  // total roughness [mm]
   dz = isFinite(dz) ? dz : 0;
-
+  const D_orig = D, L_orig = L, dz_orig = dz;
   // Convert to SI
   if (unitMode === 'imperial') {
     D   *= 25.4;      // in → mm
