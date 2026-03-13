@@ -984,6 +984,24 @@ function runPredictCWT(p) {
   }
 }
 
+
+async function handle_cooling_tower(body, res) {
+  const { action, params } = body;
+  if (!action) return res.status(400).json({ error: 'Missing action' });
+  if (action === 'calculate') {
+    const result = runCalculate(params);
+    if (result.error) return res.status(400).json({ error: result.error });
+    return res.status(200).json({ success: true, data: result });
+  }
+  if (action === 'predictCWT') {
+    const result = runPredictCWT(params);
+    if (result.error) return res.status(400).json({ error: result.error });
+    return res.status(200).json({ success: true, data: result });
+  }
+  return res.status(400).json({ error: 'Unknown action' });
+}
+
+
 // ========================================================================
 // SECTION: EOS
 // ========================================================================
