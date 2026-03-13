@@ -664,43 +664,6 @@ function merkelNTU(Twi, Two, Twb, nSteps = 20) {
   }
   return Math.max(0, ntu);
 }
-// ========================================================================
-// SECTION: COOLING TOWER
-// ========================================================================
-
-// ── COOLING TOWER: MERKEL NTU CALCULATION ───────────────────────
-// [FIX-CT-1] Guards for zero/negative approach, non-finite inputs
-function merkelNTU(Twi, Two, Twb, nSteps = 20) {
-  if (!isFinite(Twi) || !isFinite(Two) || !isFinite(Twb)) return 0;
-  if (Twi <= Two)  return 0;   // no temperature range
-  if (Two <= Twb)  return 0;   // approach ≤ 0 → integration blows up
-
-  const hw = T => {
-    const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));  // kPa
-    const Ws   = 0.622 * Psat / (101.325 - Psat);
-    return 1.006 * T + Ws * (2501 + 1.86 * T);
-  };
-
-  const ha_in = hw(Twb);
-  const LG    = 1.2;
-  const cpa   = 1.006;
-  const dT    = (Twi - Two) / nSteps;
-  let ntu = 0, Tw = Two, ha = ha_in;
-
-  for (let i = 0; i < nSteps; i++) {
-    const Tw1 = Tw, Tw2 = Tw + dT;
-    const ha1 = ha, ha2 = ha + (Tw2 - Tw1) * cpa * LG;
-    const hs1 = hw(Tw1), hs2 = hw(Tw2);
-    const d1 = hs1 - ha1, d2 = hs2 - ha2;
-    if (d1 > 0 && d2 > 0 && isFinite(1/d1) && isFinite(1/d2))
-      ntu += (1/d1 + 1/d2) / 2 * dT;
-    Tw = Tw2;
-    ha = ha2;
-  }
-  return Math.max(0, ntu);
-}
-
-
 // ── COOLING TOWER: FULL PERFORMANCE CALCULATION ──────────────────
 function runCalculate(p) {
   try {
