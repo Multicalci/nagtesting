@@ -1,4 +1,10 @@
 
+
+// ========================================================================
+// SECTION: HEADER
+// ========================================================================
+
+
 // ================================================================
 // api/index.js — Unified serverless router for all calculators
 // Consolidates 14 API functions into 1 (Vercel Hobby plan limit)
@@ -9,6 +15,9 @@
 
 export const config = { api: { bodyParser: true } };
 
+// ========================================================================
+// SECTION: COMPRESSOR
+// ========================================================================
 
 // ── COMPRESSOR LOGIC ──────────────────────────────────────────
 // api/compressor.js  — Vercel Serverless Function
@@ -343,6 +352,17 @@ function setCORS(res) {
 /* ─── Vercel handler ─────────────────────────────────────────────────── */
 
 
+async function handle_compressor(body, res) {
+  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
+  const err = validateCompInputs(body);
+  if (err) return res.status(400).json({ error: err });
+  return res.status(200).json(compressorCalc(body));
+}
+
+// ========================================================================
+// SECTION: CONTROL VALVE
+// ========================================================================
+
 // ── CONTROL-VALVE LOGIC ──────────────────────────────────────────
 // ============================================================
 // Vercel Serverless API — Control Valve Sizing
@@ -355,14 +375,618 @@ const SECRET_KEY = 'cv-k3y9x';  // must match _K in index.html
 
 
 
-// ── COOLING-TOWER LOGIC ──────────────────────────────────────────
-// ================================================================
-// api/cooling-tower.js  —  Vercel Serverless Function
-// 🔐 ALL CALCULATION LOGIC RUNS ON SERVER — NEVER EXPOSED TO BROWSER
-// Place this file in your GitHub repo at: /api/cooling-tower.js
-// ================================================================
+async function handle_control_valve(req, body, res) {
+  const SECRET_KEY = 'cv-k3y9x';
+  if (req.headers['x-api-key'] !== SECRET_KEY)
+    return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const d = body;
+
+// [DEDUP] removed duplicate d = req.body
+
+    // ── RAW INPUTS ────────────────────────────────────────────────────────────
+    const phase    = d.phase    || 'liq_gen';
+    const flowType = d.flowType || 'vol';
+    const units    = d.units    || 'imp';   // 'imp' = US, 'met' = SI
+    const m        = units === 'met';
+    const isL      = phase.includes('liq');
+    const isG      = phase.includes('gas');
+    const isS      = phase === 'steam';
+
+    const Q  = parseFloat(d.Q)  || 0;
+    const P1 = parseFloat(d.P1) || 0;
+    const P2 = parseFloat(d.P2) || 0;
+    const T  = parseFloat(d.T)  || (m ? 20 : 60);
+    const SG = parseFloat(d.SG) || 1;
+    const Pv = parseFloat(d.Pv) || 0;
+    const D  = parseFloat(d.D)  || (m ? 52.5 : 2.067);
+    const FL = parseFloat(d.FL) || 0.9;
+    const k  = parseFloat(d.k)  || 1.4;
+    const Z  = parseFloat(d.Z)  || 1.0;
+    const fluidVisc  = parseFloat(d.fluidVisc) || 1.0;
+    const fluidPc    = d.fluidPc ? parseFloat(d.fluidPc) : null;
+    const steamFluid = d.steamFluid || '';
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+    const warns = [];
+    let hasError = false;
+
+    if (P1 <= 0) { warns.push({ cls:'warn-red', txt:'❌ Inlet pressure P₁ must be positive.' }); hasError=true; }
+    if (P2 < 0)  { warns.push({ cls:'warn-red', txt:'❌ Outlet pressure P₂ cannot be negative.' }); hasError=true; }
+    if (!hasError && P2 >= P1) { warns.push({ cls:'warn-red', txt:'❌ P₂ ≥ P₁: Outlet pressure must be less than inlet pressure.' }); hasError=true; }
+    if (Q <= 0)  { warns.push({ cls:'warn-red', txt:'❌ Flow rate must be greater than zero.' }); hasError=true; }
+    if (isL && SG <= 0) { warns.push({ cls:'warn-red', txt:'❌ Specific gravity must be positive.' }); hasError=true; }
+    if (isG && SG <= 0) { warns.push({ cls:'warn-red', txt:'❌ Molecular weight must be positive.' }); hasError=true; }
+    if (FL <= 0 || FL > 1) warns.push({ cls:'warn-amber', txt:'⚠ FL/xT should be between 0.1 and 1.0.' });
+    if (Z <= 0  || Z > 1.5) warns.push({ cls:'warn-amber', txt:'⚠ Compressibility Z outside typical range (0.7–1.05).' });
+
+    // Gauge pressure warnings
+    if (!hasError && isL && !m && P1 < 14.5 && P1 > 0)
+      warns.push({ cls:'warn-amber', txt:`⚠ P₁ = ${P1} psi looks like gauge pressure. IEC 60534 requires ABSOLUTE pressure. Add 14.7 psia.` });
+    if (!hasError && m && P1 < 1.013 && P1 > 0 && isL)
+      warns.push({ cls:'warn-amber', txt:`⚠ P₁ = ${P1} bar looks like gauge pressure. IEC 60534 requires ABSOLUTE pressure (bara). Add 1.013 bar.` });
+    if (isL && Pv > 0 && Pv >= P1) {
+      warns.push({ cls:'warn-red', txt:'❌ Vapour pressure Pv ≥ P₁: fluid already vaporised at inlet.' }); hasError=true;
+    }
+
+    if (hasError) return res.status(200).json({ error: null, warns, Cv:null, Kv:null });
+
+    // ── UNIT CONVERSIONS to US base ───────────────────────────────────────────
+    let P1a = P1, P2a = P2, Pva = Pv, T_F = T, D_in = D;
+    if (m) {
+      P1a  *= 14.5038;   // bara → psia
+      P2a  *= 14.5038;
+      Pva  *= 14.5038;
+      D_in  = D / 25.4;  // mm → in
+      T_F   = T * 9/5 + 32; // °C → °F
+    }
+    const dP   = Math.max(P1a - P2a, 0.0001);
+    const TR   = T_F + 459.67;  // Rankine
+    const A_in2 = Math.PI / 4 * D_in * D_in;
+    const Pc_psia = fluidPc ? fluidPc * 14.5038 : 3208;
+
+    // ── FLOW CONVERSION to canonical units ────────────────────────────────────
+    let Qc = Q;
+    if (isL) {
+      if      (flowType === 'vol')  { if (m) Qc = Q * 4.40287; }
+      else if (flowType === 'mass') {
+        const rho = SG * 8.3454;
+        Qc = m ? (Q * 2.20462) / (rho * 60) : Q / (rho * 60);
+      } else { if (m) Qc = Q * 4.40287; }
+    } else if (isG) {
+      if      (flowType === 'vol')  { if (m) Qc = Q * 35.3147; }
+      else if (flowType === 'mass') { const lbh = m ? Q * 2.20462 : Q; Qc = (lbh / SG) * 379.5; }
+      else { if (m) Qc = Q * 35.3147; }
+    } else {
+      Qc = m ? Q * 2.20462 : Q; // steam → lb/h
+    }
+
+    // ── CORE IEC 60534-2-1 CALCULATIONS ──────────────────────────────────────
+    let Cv = 0, vel = 0, dPmax = 0, dPeff = dP, x_ratio = 0;
+    let flowState = '', noiseDb = 0, Y = null, FR = null, Rev = null;
+
+    if (isL) {
+      // LIQUID — IEC 60534-2-1 §5.1
+      const FF  = Math.min(0.96, 0.96 - 0.28 * Math.sqrt(Math.max(Pva / Pc_psia, 0)));
+      dPmax     = Math.max(FL * FL * (P1a - FF * Pva), 0.001);
+      dPeff     = Math.min(dP, dPmax);
+      Cv        = Qc * Math.sqrt(SG / Math.max(dPeff, 0.0001));
+
+      // Reynolds viscosity correction IEC 60534 §5.3
+      Rev = 76000 * Qc / (fluidVisc * Math.sqrt(Math.max(Cv * FL * FL, 0.001)));
+      FR  = 1.0;
+      if (Rev < 10000) {
+        if      (Rev < 10)    FR = 0.026 * Math.pow(Rev, 0.33);
+        else if (Rev < 100)   FR = 0.12  * Math.pow(Rev, 0.20);
+        else if (Rev < 1000)  FR = 0.34  * Math.pow(Rev, 0.10);
+        else                  FR = 0.70  * Math.pow(Rev / 10000, 0.04);
+        FR = Math.min(Math.max(FR, 0.1), 1.0);
+        Cv = Cv / FR;
+      }
+
+      vel = Qc * 0.002228 / (A_in2 / 144.0);
+
+      const sigma = (P1a - Pva) / Math.max(dP, 0.0001);
+      const ci    = dP / Math.max(dPmax, 0.0001);
+      x_ratio     = Math.min(ci, 1.0);
+
+      if      (dP >= dPmax) flowState = '🔴 Choked / Flashing';
+      else if (ci > 0.75)   flowState = `🟡 Cavitation Risk (σ=${sigma.toFixed(2)})`;
+      else if (ci > 0.50)   flowState = `🟠 Incipient Cavitation (σ=${sigma.toFixed(2)})`;
+      else                  flowState = '🟢 Normal Liquid';
+
+      noiseDb = Math.round(68 + 10*Math.log10(Math.max(Cv,1)) + 12*(ci>1?1:ci)*Math.log10(Math.max(P1a/14.7,1.1)));
+
+      if (dP >= dPmax) warns.push({ cls:'warn-red',   txt:`⚠️ Choked flow — Cv at ΔP_choked = ${fmt2(m?dPmax/14.5038:dPmax)} ${m?'bara':'psia'}. Hardened trim required.` });
+      else if (ci > 0.75) warns.push({ cls:'warn-amber', txt:`⚠ Cavitation risk (ΔP/ΔP_choked = ${(ci*100).toFixed(0)}%). Anti-cavitation trim recommended. σ = ${sigma.toFixed(2)}.` });
+      else if (ci > 0.50) warns.push({ cls:'warn-amber', txt:`⚠ Incipient cavitation. Monitor trim. σ = ${sigma.toFixed(2)}.` });
+      if (FR < 0.95) warns.push({ cls:'warn-amber', txt:`⚠ Viscosity correction: FR=${FR.toFixed(3)}, Rev=${Rev.toFixed(0)}. Cv +${((1/FR-1)*100).toFixed(1)}% for viscous flow.` });
+
+    } else if (isG) {
+      // GAS — IEC 60534-2-1 §5.2
+      const MW     = SG;
+      const xT     = FL;
+      const x      = dP / Math.max(P1a, 0.0001);
+      const Fk     = k / 1.4;
+      const x_crit = Fk * xT;
+      const x_lim  = Math.min(x, x_crit);
+      x_ratio      = x / Math.max(x_crit, 0.0001);
+      Y            = Math.max(1.0 - x_lim / (3.0 * Fk * xT), 0.667);
+      dPmax        = x_crit * P1a;
+
+      Cv = Qc * Math.sqrt(MW * TR * Z) / (1360.0 * P1a * Y * Math.sqrt(Math.max(x_lim, 0.0001)));
+
+      const Q_cfs = Qc * (14.696 / Math.max(P2a,14.696)) * (TR / 519.67) / 3600.0;
+      vel = Q_cfs / (A_in2 / 144.0);
+
+      if      (x >= x_crit)       { flowState = '🔴 Choked Gas (Sonic)';  warns.push({ cls:'warn-red',   txt:`⚠️ Sonic flow: x=${(x*100).toFixed(1)}% ≥ Fk·xT=${(x_crit*100).toFixed(1)}%. Flow will NOT increase with higher ΔP.` }); }
+      else if (x > x_crit * 0.8)  { flowState = `🟡 Near-Critical Gas`;   warns.push({ cls:'warn-amber', txt:`⚠ Near sonic: x/x_crit=${(x_ratio*100).toFixed(0)}%. Significant noise likely.` }); }
+      else                         { flowState = '🟢 Normal Gas Flow'; }
+      if (vel > 100) warns.push({ cls:'warn-amber', txt:`⚠ Inlet velocity ${vel.toFixed(0)} ft/s > 100 ft/s. Consider larger pipe.` });
+
+      noiseDb = Math.round(62 + 10*Math.log10(Math.max(Cv,1)) + 18*x_lim + 5*Math.log10(Math.max(P1a/14.7,1.1)));
+
+    } else {
+      // STEAM — ISA S75.01
+      const W          = Qc;
+      const x_s        = dP / Math.max(P1a, 0.0001);
+      const x_crit_s   = 0.42;
+      dPmax            = x_crit_s * P1a;
+      x_ratio          = x_s / x_crit_s;
+      const dPeff_s    = Math.min(dP, dPmax);
+      const isSup      = steamFluid === 'Superheated Steam';
+      const isWet      = steamFluid === 'Wet Steam (90%)';
+
+      if (isSup) {
+        const Tsat_F = -459.67 + 49.16 * Math.pow(P1a, 0.2345) + 200;
+        const Fs     = 1.0 + 0.00065 * Math.max(T_F - Tsat_F, 0);
+        Cv = W * Fs / (2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
+      } else if (isWet) {
+        Cv = W / (0.90 * 2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
+      } else {
+        Cv = W / (2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
+      }
+
+      const v_spec = (85.76 * TR) / (P2a * 144.0);
+      vel = W * v_spec / (3600.0 * A_in2 / 144.0);
+
+      flowState = x_ratio >= 1 ? '🔴 Choked Steam' : '🟢 Steam Flow OK';
+      if (x_ratio >= 1) warns.push({ cls:'warn-red', txt:`⚠️ Choked steam: ΔP/P₁=${(x_s*100).toFixed(1)}% > 42%. Verify flash piping downstream.` });
+      noiseDb = Math.round(65 + 10*Math.log10(Math.max(Cv,1)) + 15*(x_ratio>1?1:x_ratio));
+    }
+
+    const Kv = Cv / 1.1561;
+
+    // ── VELOCITY DISPLAY (convert to metric if needed) ────────────────────────
+    const vel_disp = m ? vel * 0.3048 : vel;
+    const velLim   = isL ? (m ? 5 : 15) : (m ? 30 : 100);
+    const velOk    = vel_disp < velLim;
+    if (!velOk) warns.push({ cls:'warn-amber', txt:`ℹ Pipe velocity (${vel_disp.toFixed(1)} ${m?'m/s':'ft/s'}) exceeds recommended limit. Consider larger bore piping.` });
+
+    // ── VALVE SIZE RECOMMENDATION ─────────────────────────────────────────────
+    const stdCv = [
+      {s:'1"',Cv_rated:11},{s:'1.5"',Cv_rated:25},{s:'2"',Cv_rated:55},
+      {s:'3"',Cv_rated:120},{s:'4"',Cv_rated:240},{s:'6"',Cv_rated:550},
+      {s:'8"',Cv_rated:1000},{s:'10"',Cv_rated:1800},{s:'12"',Cv_rated:3000},
+      {s:'14"',Cv_rated:4500},{s:'16"',Cv_rated:6500},
+    ];
+    const ri0 = stdCv.findIndex(s => s.Cv_rated * 0.8 >= Cv);
+    const ri   = ri0 === -1 ? stdCv.length-1 : Math.max(0, Math.min(ri0, stdCv.length-1));
+    const sizes = {
+      smaller: stdCv[Math.max(ri-1,0)],
+      rec:     stdCv[ri],
+      larger:  stdCv[Math.min(ri+1, stdCv.length-1)],
+    };
+
+    // ── DISPLAY LABELS (built server side so no math in client) ──────────────
+    const pu        = m ? 'bar' : 'psi';
+    const dp2label  = v => v == null ? '—' : (m ? (v/14.5038).toFixed(3) : v.toFixed(2)) + ' ' + pu;
+
+    return res.status(200).json({
+      Cv:         fmtN(Cv),
+      Kv:         fmtN(Kv),
+      vel:        fmtN(vel_disp),
+      velOk,
+      velLim,
+      dP,   dPeff, dPmax,
+      dpRatioPct: ((dP / Math.max(P1a,0.001)) * 100).toFixed(1),
+      Y:          isG ? fmtN(Y) : null,
+      Rev:        isL && Rev != null ? Rev : null,
+      flowState,
+      noiseDb,
+      sizes,
+      warns,
+      // Display labels — all formatting done server side
+      sgLabel:    SG.toFixed(3) + (isL?' (SG)': isG?' g/mol':' (steam MW=18.02)'),
+      tempLabel:  m ? ((T_F-32)*5/9).toFixed(1)+'°C' : T_F.toFixed(1)+'°F',
+      flLabel:    FL.toFixed(3) + (isG?' (xT)':' (FL)'),
+      pipeLabel:  m ? (D_in*25.4).toFixed(1)+' mm' : D_in.toFixed(3)+' in',
+      dPmaxLabel: isL||isS ? dp2label(dPmax) : 'x_crit='+((k/1.4)*FL).toFixed(3),
+    });
+
+  
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+// ========================================================================
+// SECTION: COOLING TOWER
+// ========================================================================
+
+// ── COOLING TOWER: MERKEL NTU CALCULATION ───────────────────────
+// [FIX-CT-1] Guards for zero/negative approach, non-finite inputs
+function merkelNTU(Twi, Two, Twb, nSteps = 20) {
+  if (!isFinite(Twi) || !isFinite(Two) || !isFinite(Twb)) return 0;
+  if (Twi <= Two)  return 0;   // no temperature range
+  if (Two <= Twb)  return 0;   // approach ≤ 0 → integration blows up
+
+  const hw = T => {
+    const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));  // kPa
+    const Ws   = 0.622 * Psat / (101.325 - Psat);
+    return 1.006 * T + Ws * (2501 + 1.86 * T);
+  };
+
+  const ha_in = hw(Twb);
+  const LG    = 1.2;
+  const cpa   = 1.006;
+  const dT    = (Twi - Two) / nSteps;
+  let ntu = 0, Tw = Two, ha = ha_in;
+
+  for (let i = 0; i < nSteps; i++) {
+    const Tw1 = Tw, Tw2 = Tw + dT;
+    const ha1 = ha, ha2 = ha + (Tw2 - Tw1) * cpa * LG;
+    const hs1 = hw(Tw1), hs2 = hw(Tw2);
+    const d1 = hs1 - ha1, d2 = hs2 - ha2;
+    if (d1 > 0 && d2 > 0 && isFinite(1/d1) && isFinite(1/d2))
+      ntu += (1/d1 + 1/d2) / 2 * dT;
+    Tw = Tw2;
+    ha = ha2;
+  }
+  return Math.max(0, ntu);
+}
 
 
+// ── COOLING TOWER: FULL PERFORMANCE CALCULATION ──────────────────
+function runCalculate(p) {
+  try {
+
+    // ── Input validation ─────────────────────────────────────────
+    const REQUIRED = ['dWB_C','dCWT_C','dHWT_C','aWB_C','aCWT_C','aHWT_C'];
+    for (const k of REQUIRED) {
+      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
+        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
+    }
+
+    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C), dHWT_C = Number(p.dHWT_C);
+    const aWB_C  = Number(p.aWB_C),  aCWT_C = Number(p.aCWT_C), aHWT_C = Number(p.aHWT_C);
+    const thW_C  = isFinite(Number(p.thW_C)) ? Number(p.thW_C) : 1.5;
+    const thB_C  = isFinite(Number(p.thB_C)) ? Number(p.thB_C) : 3.0;
+    const dWR    = isFinite(Number(p.dWR))   ? Number(p.dWR)   : null; // m³/h water flow
+    const dAR    = isFinite(Number(p.dAR))   ? Number(p.dAR)   : null; // m³/h air flow
+
+    // Physical sanity
+    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be > design CWT (${dCWT_C}°C).` };
+    if (aHWT_C <= aCWT_C) return { error: `Actual HWT (${aHWT_C}°C) must be > actual CWT (${aCWT_C}°C).` };
+    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be > design WBT (${dWB_C}°C) — approach cannot be ≤ 0.` };
+    if (aCWT_C <= aWB_C)  return { error: `Actual CWT (${aCWT_C}°C) must be > actual WBT (${aWB_C}°C) — approach cannot be ≤ 0.` };
+
+    // ── Atmospheric pressure ─────────────────────────────────────
+    let Patm_kPa = 101.325;
+    if (isFinite(Number(p.patm)) && Number(p.patm) > 70 && Number(p.patm) < 110)
+      Patm_kPa = Number(p.patm);
+    else if (isFinite(Number(p.elev)) && Number(p.elev) >= 0)
+      Patm_kPa = 101.325 * Math.pow(1 - 2.25577e-5 * Number(p.elev), 5.25588);
+
+    const safe = v => (isFinite(v) ? v : 0);
+
+    // ── Basic deltas ─────────────────────────────────────────────
+    const dRng  = dHWT_C - dCWT_C;
+    const aRng  = aHWT_C - aCWT_C;
+    const app_d = dCWT_C - dWB_C;
+    const app_a = aCWT_C - aWB_C;
+
+    // ── Merkel NTU ───────────────────────────────────────────────
+    const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
+    const kavl_a = merkelNTU(aHWT_C, aCWT_C, aWB_C);
+
+    if (!isFinite(kavl_d) || kavl_d <= 0)
+      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
+
+    // ── Fill performance ─────────────────────────────────────────
+    const fillPctValid = kavl_d > 0;
+    const kavl_a_norm  = fillPctValid ? safe(kavl_a / kavl_d) : 0;
+    const fillPct      = fillPctValid ? kavl_a_norm * 100 : 0;
+
+    // ── κ bisection solver ───────────────────────────────────────
+    const dWBT = aWB_C - dWB_C;
+    let kappa = 0.60, kappaOK = false;
+    if (Math.abs(dWBT) > 0.01) {
+      let lo = 0.2, hi = 1.5;
+      for (let iter = 0; iter < 60; iter++) {
+        const mid = (lo + hi) / 2;
+        const pc  = dCWT_C + mid * dWBT;
+        if (pc <= aWB_C) { lo = mid; continue; }
+        const ntu = merkelNTU(aHWT_C, pc, aWB_C);
+        if (ntu > kavl_d) hi = mid; else lo = mid;
+        if (hi - lo < 1e-5) { kappaOK = true; break; }
+      }
+      kappa = (lo + hi) / 2;
+    } else {
+      kappa = 0.60; kappaOK = true;
+    }
+    if (!isFinite(kappa)) kappa = 0.60;
+
+    const pred_cwt   = safe(dCWT_C + kappa * dWBT);
+    const pred_app   = safe(pred_cwt - aWB_C);
+    const dApp       = safe(app_a - app_d);
+    const dAppVsPred = safe(app_a - pred_app);
+    const cwtDev     = safe(aCWT_C - pred_cwt);
+    const absDevC    = Math.abs(dAppVsPred);
+
+    // ── Tower effectiveness ε = Range / (HWT − WBT) ─────────────
+    // [MISSING FIELD FIX] Frontend uses r.effectiveness_d and r.effectiveness_a
+    const effectiveness_d = safe(dRng / (dHWT_C - dWB_C));
+    const effectiveness_a = safe(aRng / (aHWT_C - aWB_C));
+
+    // ── Fluid densities ──────────────────────────────────────────
+    // [MISSING FIELD FIX] Frontend uses r.RHO_W_d and r.RHO_A_site
+    // Water density at design CWT (simple correlation, kg/m³)
+    const RHO_W_d   = safe(999.842 - 0.0622 * dCWT_C - 0.00357 * dCWT_C * dCWT_C);
+    // Moist air density at site (kg/m³), approximate
+    const RHO_A_site = safe((Patm_kPa * 1000) / (287.05 * (aWB_C + 273.15)));
+
+    // ── L/G mass ratio ───────────────────────────────────────────
+    // [MISSING FIELD FIX] Frontend uses r.lg, r.Lmass, r.Gmass, r.dWR_r, r.dAR_r
+    let lg = null, Lmass = null, Gmass = null;
+    if (dWR !== null && dAR !== null && dAR > 0) {
+      Lmass = dWR * RHO_W_d;           // kg/h
+      Gmass = dAR * RHO_A_site;        // kg/h
+      lg    = safe(Lmass / Gmass);     // dimensionless
+    }
+
+    // ── Status objects ───────────────────────────────────────────
+    // [MISSING FIELD FIX] appSt needs .t text; fillSt needs .icon, .bar, .t; lgSt is fully missing
+
+    let appSt;
+    if (absDevC <= thW_C) {
+      appSt = {
+        cls: 'ok', icon: '✅', lbl: 'NORMAL',
+        t: 'Actual approach is within normal tolerance of the κ-predicted value. Tower is performing as expected at this WBT.'
+      };
+    } else if (absDevC <= thB_C) {
+      appSt = {
+        cls: 'warn', icon: '⚠️', lbl: 'DEGRADED',
+        t: `Actual approach deviates ${absDevC.toFixed(1)}°C from κ-prediction. Minor fouling or drift loss suspected. Monitor trend and schedule inspection.`
+      };
+    } else {
+      appSt = {
+        cls: 'bad', icon: '🔴', lbl: 'ALERT',
+        t: `Actual approach deviates ${absDevC.toFixed(1)}°C from κ-prediction. Significant performance loss. Inspect fill, nozzles, drift eliminators and fan operation.`
+      };
+    }
+
+    let fillSt;
+    if (!fillPctValid) {
+      fillSt = { cls: 'ok', icon: '—', lbl: 'N/A', bar: 'ok', t: 'Fill data not available — design NTU could not be computed.' };
+    } else if (fillPct >= 90) {
+      fillSt = { cls: 'ok',  icon: '✅', lbl: 'GOOD',     bar: 'ok',   t: `Fill efficiency is ${fillPct.toFixed(1)}%. Transfer performance is within design expectations.` };
+    } else if (fillPct >= 75) {
+      fillSt = { cls: 'warn',icon: '⚠️', lbl: 'DEGRADED', bar: 'warn', t: `Fill efficiency is ${fillPct.toFixed(1)}%. Partial fouling or scaling suspected. Plan cleaning at next opportunity.` };
+    } else {
+      fillSt = { cls: 'bad', icon: '🔴', lbl: 'FOULED',   bar: 'bad',  t: `Fill efficiency is ${fillPct.toFixed(1)}%. Severe fill degradation. Immediate inspection and cleaning recommended.` };
+    }
+
+    // [MISSING FIELD FIX] lgSt — L/G status object
+    let lgSt;
+    if (lg === null) {
+      lgSt = { cls: 'info', icon: '—', lbl: 'N/A', t: 'Air flow rate not provided. Enter design air flow to enable L/G analysis.' };
+    } else if (lg >= 0.75 && lg <= 1.50) {
+      lgSt = { cls: 'ok',   icon: '✅', lbl: 'NORMAL',   t: `L/G = ${lg.toFixed(2)} — within typical CTI range (0.75–1.50). Mass balance is healthy.` };
+    } else if (lg < 0.75) {
+      lgSt = { cls: 'warn', icon: '⚠️', lbl: 'LOW L/G',  t: `L/G = ${lg.toFixed(2)} — below typical range. Check water flow measurement or consider higher air flow.` };
+    } else {
+      lgSt = { cls: 'warn', icon: '⚠️', lbl: 'HIGH L/G', t: `L/G = ${lg.toFixed(2)} — above typical range. Check air flow measurement or consider reducing water loading.` };
+    }
+
+    // ── Overall score & status ───────────────────────────────────
+    const appScore = Math.max(0, 100 - absDevC * 20);
+    const score    = Math.round(Math.max(0, Math.min(100,
+      fillPctValid ? (safe(fillPct) * 0.6 + appScore * 0.4) : appScore
+    )));
+
+    const worst = [appSt.cls, fillSt.cls].includes('bad')  ? 'bad'
+                : [appSt.cls, fillSt.cls].includes('warn') ? 'warn' : 'ok';
+
+    const sInfo = worst === 'ok'   ? { lbl: 'NORMAL',   c: '#00c853' }
+                : worst === 'warn' ? { lbl: 'DEGRADED', c: '#ffab00' }
+                :                    { lbl: 'ALERT',     c: '#ff1744' };
+
+    // ── largeRange flag ──────────────────────────────────────────
+    // [MISSING FIELD FIX] Frontend uses r.largeRange to show '8-point' vs '4-point'
+    const largeRange = (aHWT_C - aCWT_C) > 15;
+
+    // ── WBT sweep table data ─────────────────────────────────────
+    // [MISSING FIELD FIX] Frontend sweep table needs: s.wb, s.pred, s.app, s.isActual, s.kavlV
+    const sweepData = [];
+    for (let dWBT_s = -8; dWBT_s <= 8; dWBT_s += 1) {
+      const wb      = dWB_C + dWBT_s;                          // absolute WBT in °C
+      const pred    = safe(dCWT_C + kappa * dWBT_s);           // predicted CWT
+      const app     = safe(pred - wb);                          // predicted approach
+      const kavlV   = (app > 0) ? safe(merkelNTU(dHWT_C, pred, wb)) : null;
+      const isActual = Math.abs(dWBT_s - dWBT) < 0.5;
+      sweepData.push({ wb, pred, app, kavlV, isActual, dWBT: dWBT_s });
+    }
+
+    // ── Merkel chart data ────────────────────────────────────────
+    // Frontend buildMerkelChartSVG destructures chartData as an OBJECT:
+    // { satCurve[], chevPts[], hADesign, hAActual, aCWT, aHWT, Tmin, Tmax }
+    const hw_fn = T => {
+      const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));
+      const Ws   = 0.622 * Psat / (101.325 - Psat);
+      return 1.006 * T + Ws * (2501 + 1.86 * T);
+    };
+    const ha_inlet  = hw_fn(aWB_C);
+    const ha_design = hw_fn(dWB_C);
+    const cpa       = 1.006;
+    const LG        = 1.2;
+    const Tmin      = Math.min(aCWT_C, aWB_C, dWB_C) - 1;
+    const Tmax      = aHWT_C + 1;
+
+    // satCurve: array of {T, h} for the saturation enthalpy curve
+    const satCurve = [];
+    const steps = 40;
+    for (let i = 0; i <= steps; i++) {
+      const T  = Tmin + (Tmax - Tmin) * i / steps;
+      satCurve.push({ T: safe(T), h: safe(hw_fn(T)) });
+    }
+
+    // chevPts: Chebyshev integration points with hs (sat) and ha (operating line)
+    // 4-point Chebyshev nodes mapped onto [aCWT_C, aHWT_C]
+    const chevNodes = largeRange
+      ? [0.0694, 0.2500, 0.5000, 0.7500, 0.9306]   // 5-point (large range)
+      : [0.1127, 0.5000, 0.8873];                    // 3-point (standard, shown as 4-pt Chebyshev in UI)
+    const chevPts = chevNodes.map(frac => {
+      const T  = aCWT_C + frac * (aHWT_C - aCWT_C);
+      const hs = safe(hw_fn(T));
+      const ha = safe(ha_inlet + (T - aCWT_C) * cpa * LG);
+      return { T: safe(T), hs, ha };
+    });
+
+    // hADesign / hAActual — horizontal reference lines for inlet air enthalpy
+    const hADesign = safe(ha_design);
+    const hAActual = safe(ha_inlet);
+
+    const chartData = {
+      satCurve,
+      chevPts,
+      hADesign,
+      hAActual,
+      aCWT:  aCWT_C,
+      aHWT:  aHWT_C,
+      Tmin:  safe(Tmin),
+      Tmax:  safe(Tmax),
+    };
+
+    return {
+      // ── Echo inputs ──────────────────────────────────────────
+      dWB: dWB_C, dCWT: dCWT_C, dHWT: dHWT_C,
+      aWB: aWB_C, aCWT: aCWT_C, aHWT: aHWT_C,
+      dWR_r: dWR,                 // echoed for frontend unit display
+      dAR_r: dAR,                 // echoed for frontend unit display
+
+      // ── Temperatures & deltas ────────────────────────────────
+      app_d: safe(app_d), app_a: safe(app_a),
+      rng_d: safe(dRng),  rng_a: safe(aRng),
+      dApp:  safe(dApp),  dWBT:  safe(dWBT),
+      pred_cwt: safe(pred_cwt), pred_app: safe(pred_app),
+      dAppVsPred: safe(dAppVsPred), cwtDev: safe(cwtDev),
+
+      // ── Merkel NTU / fill ────────────────────────────────────
+      kavl_d: safe(kavl_d), kavl_a: safe(kavl_a),
+      kavl_d_norm: 1.0,
+      kavl_a_norm: safe(kavl_a_norm),
+      fillPct:     safe(fillPct),
+      fillPctValid,
+
+      // ── κ ────────────────────────────────────────────────────
+      kappa: safe(kappa), kappaOK,
+
+      // ── Effectiveness [FIXED] ────────────────────────────────
+      effectiveness_d: safe(effectiveness_d),
+      effectiveness_a: safe(effectiveness_a),
+
+      // ── Densities [FIXED] ────────────────────────────────────
+      RHO_W_d:   safe(RHO_W_d),
+      RHO_A_site: safe(RHO_A_site),
+
+      // ── L/G [FIXED] ──────────────────────────────────────────
+      lg:    lg !== null ? safe(lg)    : null,
+      Lmass: lg !== null ? safe(Lmass) : null,
+      Gmass: lg !== null ? safe(Gmass) : null,
+
+      // ── Status objects [FIXED — now include .t and .bar] ─────
+      appSt,   // {cls, icon, lbl, t}
+      fillSt,  // {cls, icon, lbl, bar, t}
+      lgSt,    // {cls, icon, lbl, t}  ← was entirely missing
+
+      // ── Score & overall ──────────────────────────────────────
+      score: safe(score), worst, sInfo,
+
+      // ── largeRange flag [FIXED] ──────────────────────────────
+      largeRange,
+
+      // ── Chart & sweep data [FIXED] ───────────────────────────
+      sweepData,  // [{wb, pred, app, kavlV, isActual, dWBT}]
+      chartData,  // [{T, hs, ha}]
+
+      Patm_kPa: safe(Patm_kPa),
+      ts: new Date().toISOString(),
+    };
+
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+
+// ── COOLING TOWER: PREDICT CWT FROM DESIGN + ACTUAL WBT ──────────
+function runPredictCWT(p) {
+  try {
+
+    const REQUIRED = ['dWB_C','dCWT_C','dHWT_C','aWB_C'];
+    for (const k of REQUIRED) {
+      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
+        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
+    }
+
+    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C);
+    const dHWT_C = Number(p.dHWT_C), aWB_C  = Number(p.aWB_C);
+    const Patm_kPa = isFinite(Number(p.Patm_kPa)) ? Number(p.Patm_kPa) : 101.325;
+
+    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be > design CWT (${dCWT_C}°C).` };
+    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be > design WBT (${dWB_C}°C).` };
+
+    const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
+    if (!isFinite(kavl_d) || kavl_d <= 0)
+      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
+
+    const dWBT = aWB_C - dWB_C;
+    let kappa  = 0.60;
+    if (Math.abs(dWBT) > 0.01) {
+      let lo = 0.2, hi = 1.5;
+      for (let iter = 0; iter < 60; iter++) {
+        const mid  = (lo + hi) / 2;
+        const pred = dCWT_C + mid * dWBT;
+        if (pred <= aWB_C) { lo = mid; continue; }
+        const ntu  = merkelNTU(dHWT_C, pred, aWB_C);
+        if (ntu > kavl_d) hi = mid; else lo = mid;
+        if (hi - lo < 1e-5) break;
+      }
+      kappa = (lo + hi) / 2;
+    }
+    if (!isFinite(kappa)) kappa = 0.60;
+
+    const safe       = v => (isFinite(v) ? v : 0);
+    const pred_C     = safe(dCWT_C + kappa * dWBT);
+    const dCWT_delta = safe(kappa * dWBT);
+
+    return {
+      pred_C,
+      kappa:      safe(kappa),
+      dWBT_C:     safe(dWBT),
+      dCWT_delta,
+      Patm_kPa:   safe(Patm_kPa),
+    };
+
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// ========================================================================
+// SECTION: EOS
+// ========================================================================
 
 // ── EOS LOGIC ──────────────────────────────────────────
 // ================================================================
@@ -372,6 +996,189 @@ const SECRET_KEY = 'cv-k3y9x';  // must match _K in index.html
 // ================================================================
 
 
+
+// ── EOS: CUBIC EQUATION OF STATE SOLVER ──────────────────────────
+// Supports: VdW, RK, SRK, PR, PT
+function solveCubic(a2, a1, a0) {
+  // Solve Z^3 + a2*Z^2 + a1*Z + a0 = 0 using Cardano/numerical
+  const roots = [];
+  const p = a1 - a2 * a2 / 3;
+  const q = 2 * a2 * a2 * a2 / 27 - a2 * a1 / 3 + a0;
+  const D = q * q / 4 + p * p * p / 27;
+
+  if (D > 1e-12) {
+    // One real root
+    const sqrtD = Math.sqrt(D);
+    const u = Math.cbrt(-q / 2 + sqrtD);
+    const v = Math.cbrt(-q / 2 - sqrtD);
+    roots.push(u + v - a2 / 3);
+  } else if (D < -1e-12) {
+    // Three real roots (casus irreducibilis)
+    const r = Math.sqrt(-p * p * p / 27);
+    const theta = Math.acos(Math.max(-1, Math.min(1, -q / (2 * r))));
+    const m = 2 * Math.cbrt(r);
+    for (let k = 0; k < 3; k++) {
+      roots.push(m * Math.cos((theta + 2 * Math.PI * k) / 3) - a2 / 3);
+    }
+  } else {
+    // Repeated root
+    const u = Math.cbrt(-q / 2);
+    roots.push(2 * u - a2 / 3);
+    roots.push(-u - a2 / 3);
+  }
+  return roots.filter(z => isFinite(z) && z > 0);
+}
+
+function runEOS(eosType, T_K, P_Pa, Tc_K, Pc_Pa, omega) {
+  const R = 8.314462;  // J/(mol·K)
+  let results = [];
+
+  const eos = eosType.toLowerCase();
+
+  if (eos === 'vdw') {
+    // Van der Waals
+    const a = 27 * R * R * Tc_K * Tc_K / (64 * Pc_Pa);
+    const b = R * Tc_K / (8 * Pc_Pa);
+    const A = a * P_Pa / (R * R * T_K * T_K);
+    const B = b * P_Pa / (R * T_K);
+    // Z^3 - (1+B)Z^2 + AZ - AB = 0
+    const roots = solveCubic(-(1 + B), A, -A * B);
+    for (const Z of roots) {
+      if (Z <= B) continue;
+      const Vm = Z * R * T_K / P_Pa;
+      const lnPhi = b / (Vm - b) - 2 * a / (R * T_K * Vm) - Math.log(P_Pa * (Vm - b) / (R * T_K));
+      const phi = Math.exp(lnPhi);
+      results.push({ Z, Vm, phi, A, B, a, b, m: 0, kappa: 0, alpha: 1, label: Z === Math.max(...roots) ? 'Vapour' : 'Liquid' });
+    }
+  } else if (eos === 'rk') {
+    // Redlich-Kwong
+    const a = 0.42748 * R * R * Math.pow(Tc_K, 2.5) / Pc_Pa;
+    const b = 0.08664 * R * Tc_K / Pc_Pa;
+    const A = a * P_Pa / (R * R * Math.pow(T_K, 2.5));
+    const B = b * P_Pa / (R * T_K);
+    // Z^3 - Z^2 + (A-B-B^2)Z - AB = 0
+    const roots = solveCubic(-1, A - B - B * B, -A * B);
+    for (const Z of roots) {
+      if (Z <= B) continue;
+      const Vm = Z * R * T_K / P_Pa;
+      const lnPhi = (Z - 1) - Math.log(Z - B) - A / B * Math.log(1 + B / Z);
+      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: 0, kappa: 0, alpha: 1, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
+    }
+  } else if (eos === 'srk') {
+    // Soave-Redlich-Kwong
+    const m = 0.480 + 1.574 * omega - 0.176 * omega * omega;
+    const Tr = T_K / Tc_K;
+    const alpha = Math.pow(1 + m * (1 - Math.sqrt(Tr)), 2);
+    const a = 0.42748 * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
+    const b = 0.08664 * R * Tc_K / Pc_Pa;
+    const A = a * P_Pa / (R * R * T_K * T_K);
+    const B = b * P_Pa / (R * T_K);
+    const roots = solveCubic(-1, A - B - B * B, -A * B);
+    for (const Z of roots) {
+      if (Z <= B) continue;
+      const Vm = Z * R * T_K / P_Pa;
+      const lnPhi = (Z - 1) - Math.log(Z - B) - A / B * Math.log(1 + B / Z);
+      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m, kappa: m, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
+    }
+  } else if (eos === 'pr') {
+    // Peng-Robinson
+    const kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega * omega;
+    const Tr = T_K / Tc_K;
+    const alpha = Math.pow(1 + kappa * (1 - Math.sqrt(Tr)), 2);
+    const a = 0.45724 * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
+    const b = 0.07780 * R * Tc_K / Pc_Pa;
+    const A = a * P_Pa / (R * R * T_K * T_K);
+    const B = b * P_Pa / (R * T_K);
+    // PR: Z^3 - (1-B)Z^2 + (A-3B^2-2B)Z - (AB-B^2-B^3) = 0
+    const roots = solveCubic(-(1 - B), A - 3 * B * B - 2 * B, -(A * B - B * B - B * B * B));
+    for (const Z of roots) {
+      if (Z <= B) continue;
+      const Vm = Z * R * T_K / P_Pa;
+      const sq2 = Math.SQRT2;
+      const lnPhi = (Z - 1) - Math.log(Z - B) - A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
+      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: kappa, kappa, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
+    }
+  } else if (eos === 'pt') {
+    // Patel-Teja (simplified, uses PR-like form)
+    const kappa = 0.452413 + 1.30982 * omega - 0.295937 * omega * omega;
+    const Tr = T_K / Tc_K;
+    const alpha = Math.pow(1 + kappa * (1 - Math.sqrt(Tr)), 2);
+    const Zc = 0.329032 - 0.076799 * omega + 0.0211947 * omega * omega;
+    const b = Zc * R * Tc_K / Pc_Pa;
+    const a = (3 * Zc * Zc + 3 * (1 - 2 * Zc) * (b * Pc_Pa / (R * Tc_K)) + (b * Pc_Pa / (R * Tc_K)) ** 2 + 1 - 3 * Zc) * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
+    const A = a * P_Pa / (R * R * T_K * T_K);
+    const B = b * P_Pa / (R * T_K);
+    const roots = solveCubic(-(2 * B + 1 - B), A - 3 * B * B - 2 * B, -(A * B - B * B - B * B * B));
+    for (const Z of roots) {
+      if (Z <= B) continue;
+      const Vm = Z * R * T_K / P_Pa;
+      const sq2 = Math.SQRT2;
+      const lnPhi = (Z - 1) - Math.log(Z - B) - A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
+      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: kappa, kappa, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
+    }
+  } else {
+    // Fallback: ideal gas
+    results.push({ Z: 1.0, Vm: R * T_K / P_Pa, phi: 1.0, A: 0, B: 0, a: 0, b: 0, m: 0, kappa: 0, alpha: 1, label: 'Ideal Gas' });
+  }
+
+  // Remove duplicate roots
+  const unique = [];
+  for (const r of results) {
+    if (!unique.some(u => Math.abs(u.Z - r.Z) < 1e-6)) unique.push(r);
+  }
+  return unique;
+}
+
+function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
+  const warnings = [];
+  if (Tr < 0.5) warnings.push({ level: 'error', msg: `Temperature very far below critical (Tr = ${Tr.toFixed(3)}). Results may be unreliable.` });
+  if (Tr > 5)   warnings.push({ level: 'info',  msg: `High reduced temperature (Tr = ${Tr.toFixed(2)}). Approaching ideal-gas behaviour.` });
+  if (Pr > 10)  warnings.push({ level: 'warn',  msg: `Very high reduced pressure (Pr = ${Pr.toFixed(2)}). Cubic EOS accuracy degrades significantly.` });
+  if (Math.abs(Tr - 1) < 0.05 && Math.abs(Pr - 1) < 0.1) warnings.push({ level: 'warn', msg: 'Conditions near critical point — EOS accuracy is reduced. Results are approximate.' });
+  if (roots.length > 1) warnings.push({ level: 'info', msg: `Two-phase region detected (${roots.length} real roots). Largest Z (vapour root) selected.` });
+  if (Z < 0.1) warnings.push({ level: 'warn', msg: `Very low Z-factor (${Z.toFixed(4)}) — dense liquid-like behaviour. Verify inputs.` });
+  const eosLower = eos.toLowerCase();
+  if (['vdw','rk'].includes(eosLower)) warnings.push({ level: 'info', msg: 'VdW/RK equations are less accurate for polar fluids. Consider SRK or PR for better results.' });
+  if (omega > 0.5) warnings.push({ level: 'info', msg: `High acentric factor (ω = ${omega.toFixed(4)}) — polar/associating fluid. SRK/PR accuracy may be limited.` });
+  return warnings;
+}
+
+
+async function handle_eos(body, res) {
+  const { eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, M, n } = body;
+  if (!eos)           return res.status(400).json({ error: 'Missing EOS type' });
+  if (!isFinite(T_K)  || T_K  <= 0) return res.status(400).json({ error: 'Temperature must be positive and finite.' });
+  if (!isFinite(P_Pa) || P_Pa <= 0) return res.status(400).json({ error: 'Pressure must be positive and finite.' });
+  if (!isFinite(Tc_K) || Tc_K <= 0) return res.status(400).json({ error: 'Critical temperature Tc must be positive.' });
+  if (!isFinite(Pc_Pa)|| Pc_Pa<= 0) return res.status(400).json({ error: 'Critical pressure Pc must be positive.' });
+  if (!isFinite(M)    || M    <  1)  return res.status(400).json({ error: 'Molar mass must be ≥ 1 g/mol.' });
+  if (!isFinite(n)    || n    <= 0)  return res.status(400).json({ error: 'Number of moles must be positive.' });
+  if (T_K < 10) return res.status(400).json({ error: `Temperature ${T_K.toFixed(2)} K is below 10 K.` });
+  const roots = runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega);
+  if (!roots.length) return res.status(400).json({ error: 'No real solution found.' });
+  const primary = roots.reduce((a, b) => a.Z > b.Z ? a : b);
+  const Z = primary.Z;
+  if (!isFinite(Z) || Z <= 0) return res.status(400).json({ error: `EOS produced an invalid Z-factor (${Z}).` });
+  if (Z > 20) return res.status(400).json({ error: `Z = ${Z.toFixed(3)} — unusually high. Check inputs.` });
+  const phi = primary.phi;
+  const Vm_SI = primary.Vm;
+  const rho_mass = (1 / Vm_SI) * (M / 1000);
+  const f_Pa = phi * P_Pa;
+  const Tr = T_K / Tc_K, Pr = P_Pa / Pc_Pa;
+  const warnings = buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots);
+  return res.status(200).json({ success: true, data: {
+    Z, phi, Vm_SI, rho_mass, f_Pa, Tr, Pr,
+    roots: roots.map(r => ({ Z: r.Z, Vm: r.Vm, phi: r.phi, label: r.label })),
+    rootCount: roots.length,
+    eosParams: { A: primary.A, B: primary.B, a: primary.a, b: primary.b,
+                 m: primary.m, kappa: primary.kappa, alpha: primary.alpha },
+    warnings
+  }});
+}
+
+// ========================================================================
+// SECTION: FAN
+// ========================================================================
 
 // ── FAN LOGIC ──────────────────────────────────────────
 // api/fan.js  — Vercel Serverless Function
@@ -545,6 +1352,17 @@ function fanCalc(params) {
 /* ─── Vercel handler ─────────────────────────────────────────────────── */
 
 
+async function handle_fan(body, res) {
+  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
+  const err = validateFanInputs(body);
+  if (err) return res.status(400).json({ error: err });
+  return res.status(200).json(fanCalc(body));
+}
+
+// ========================================================================
+// SECTION: HEATXPERT
+// ========================================================================
+
 // ── HEATXPERT LOGIC ──────────────────────────────────────────
 // ─── VERCEL DEPLOYMENT: place this file at /api/heatxpert.js in your repo root ───
 // Route auto-created at /api/heatxpert by Vercel
@@ -552,6 +1370,454 @@ function fanCalc(params) {
 // [DEDUP] removed duplicate config declaration
 
 
+
+// ── HEAT EXCHANGER CALC FUNCTIONS ───────────────────────────────
+function lmtd(Th1, Th2, Tc1, Tc2, flow = 'counter') {
+  const dT1 = flow === 'counter' ? Th1 - Tc2 : Th1 - Tc1;
+  const dT2 = flow === 'counter' ? Th2 - Tc1 : Th2 - Tc2;
+  if (Math.abs(dT1 - dT2) < 1e-6) return dT1;
+  if (dT1 <= 0 || dT2 <= 0) return NaN;
+  return (dT1 - dT2) / Math.log(dT1 / dT2);
+}
+
+// ── HEAT EXCHANGER FLUID PROPERTIES HELPER ─────────────────────────────────
+// Returns {rho, mu_Pa, cp, k_f, Pr, name} for HX calcs
+// Works with pressure-drop FLUID_DB array
+function hxFluidProps(fluidId, T_C, P_bar) {
+  // cp lookup table [J/kg·K] and k_f [W/m·K] for common fluids
+  const CP_TABLE = {
+    water:4182, sea_water:3990, brine_25:3200, glycol_eg50:3400, glycol_pg50:3600,
+    crude_30api:2000, crude_40api:2100, diesel:2000, lube_100:2000, lube_32:2050,
+    gasoline:2200, kerosene:2100, naphtha:2200, fuel_oil_6:1850, bitumen:1800,
+    pentane:2300, hexane:2250, heptane:2200, octane:2170, cyclohexane:1850,
+    toluene:1690, benzene:1720, xylene:1700, cumene:1725, styrene:1800,
+    methanol:2530, ethanol:2440, isopropanol:2600, n_butanol:2400,
+    ethylene_glycol:2390, glycerol:2430,
+    dcm:1150, chloroform:960, ccl4:840, pce:880,
+    acetone:2170, mek:2300, ethyl_acetate:1920,
+    mea:3280, dea:2820, mdea:2920,
+    sulfuric_98:1380, hcl_32:3100, nitric_65:1840, naoh_50:3100,
+    liq_n2:2000, liq_o2:1700, liq_co2:2000, liq_nh3:4740, liq_lpg:2400,
+    liq_propane:2520,
+    styrene_liq:1800, acrylonitrile:2100, vinyl_acetate:2000,
+    phenol:2050, diethyl_ether:2360, thf:1770, dmf:1630, dmso:1920,
+    acetic_acid:2080, formic_acid:2150, phosphoric:2100,
+    r22_liq:1200, r134a_liq:1465, r410a_liq:1560,
+    dowtherm_a:1550, therminol_66:1600, molten_salt:1500,
+    air_g:1005, nitrogen_g:1040, oxygen_g:920, hydrogen_g:14300,
+    co2_g:840, methane_g:2220, nat_gas_g:2180, propane_g:1670,
+    h2s_g:1000, ammonia_g:2170, chlorine_g:480, so2_g:630,
+    hcl_g:800, steam_g:2010, flue_gas_g:1100, argon_g:520,
+    helium_g:5193, co_g:1040, ethylene_g:1560, ethane_g:1750,
+    hf_g:1500, phosgene_g:620,
+  };
+  const KF_TABLE = {
+    water:0.600, sea_water:0.580, brine_25:0.530, glycol_eg50:0.420, glycol_pg50:0.400,
+    crude_30api:0.130, crude_40api:0.135, diesel:0.130, lube_100:0.140, lube_32:0.138,
+    gasoline:0.120, kerosene:0.130, naphtha:0.125, fuel_oil_6:0.130,
+    pentane:0.113, hexane:0.124, heptane:0.130, octane:0.132, cyclohexane:0.123,
+    toluene:0.133, benzene:0.143, xylene:0.130, cumene:0.130, styrene:0.136,
+    methanol:0.200, ethanol:0.170, isopropanol:0.135, n_butanol:0.150,
+    ethylene_glycol:0.258, glycerol:0.285,
+    dcm:0.130, chloroform:0.120, ccl4:0.100, pce:0.108,
+    acetone:0.160, mek:0.155, ethyl_acetate:0.148,
+    mea:0.400, dea:0.380, mdea:0.370,
+    sulfuric_98:0.470, hcl_32:0.500, nitric_65:0.490, naoh_50:0.600,
+    liq_n2:0.152, liq_o2:0.152, liq_co2:0.087, liq_nh3:0.500, liq_lpg:0.100,
+    liq_propane:0.097, liq_lpg:0.100,
+    air_g:0.026, nitrogen_g:0.026, oxygen_g:0.027, hydrogen_g:0.183,
+    co2_g:0.018, methane_g:0.034, nat_gas_g:0.033, propane_g:0.018,
+    h2s_g:0.013, ammonia_g:0.025, chlorine_g:0.010, so2_g:0.009,
+    hcl_g:0.013, steam_g:0.025, flue_gas_g:0.030, argon_g:0.018,
+    helium_g:0.152, co_g:0.025, ethylene_g:0.021, ethane_g:0.021,
+  };
+  
+  const base = calcFluidProps(fluidId, T_C, P_bar);
+  if (!base) return null;
+  
+  const cp  = CP_TABLE[fluidId] || (base.isGas ? 1000 : 2000);
+  const k_f = KF_TABLE[fluidId] || (base.isGas ? 0.025 : 0.150);
+  const mu_Pa = base.mu * 1e-3;  // cP → Pa·s
+  const Pr  = (mu_Pa * cp) / k_f;
+  
+  return {
+    rho:   base.rho,
+    mu_Pa,
+    cp,
+    k_f,
+    Pr:    Math.max(0.5, Pr),
+    isGas: base.isGas,
+    name:  base.name || fluidId,
+  };
+}
+
+// ── FULL BELL-DELAWARE / KERN SHELL & TUBE CALCULATOR ──────────────────────
+function calcShellTube(body) {
+  try {
+    const {
+      hFlKey, cFlKey, hPop = 1.01325, cPop = 1.01325,
+      hTi, hTo, cTi, hF,
+      coldMode = 'flow', cF = 0, cTo: cTo_in = 0,
+      OD = 25, tw = 2.0, L = 4.0, pitch: pitch_in,
+      Rfo = 0.0002, Rfi = 0.0002,
+      arr = 'counter', mat = 'cs', hxType = 'fixed',
+      tema = 'B', bcut = 0.25, bsp = 0.50,
+      velMode = 'target', targetVel = 1.5, numTubesFixed = 0,
+      pdAllowShell = 0.70, pdAllowTube = 1.00,
+      pitchLayout = 'triangular',
+      N_shells = 1, N_passes = 2,
+    } = body;
+
+    // ── Material conductivity ─────────────────────────────────────────
+    const kW = {cs:50,ss316:16,ss304:16,cu:380,cuNi:50,ti:22,inconel:15,hastelloy:12}[mat] || 50;
+    const OD_m = OD / 1000;
+    const ID_m = OD_m - 2 * (tw / 1000);
+    if (ID_m <= 0) return { error: 'Wall thickness exceeds tube radius' };
+    const pitch = pitch_in || (OD_m * 1.25);
+
+    // ── Mean temperatures ─────────────────────────────────────────────
+    const hTmean = (hTi + hTo) / 2;
+    const hProps = hxFluidProps(hFlKey, hTmean, hPop);
+    if (!hProps) return { error: `Unknown hot fluid: ${hFlKey}` };
+
+    // ── Hot side energy balance ────────────────────────────────────────
+    const mh = hF / 3600;  // kg/s
+    const Q = mh * hProps.cp * (hTi - hTo);  // W
+    if (Q <= 0) return { error: 'Hot inlet temp must be higher than hot outlet temp' };
+
+    // ── Cold side: determine cTo or cF ────────────────────────────────
+    let cToCalc, cFCalc, cTmean;
+    if (coldMode === 'temp') {
+      cToCalc = cTo_in;
+      cTmean  = (cTi + cToCalc) / 2;
+      const cProps0 = hxFluidProps(cFlKey, cTmean, cPop);
+      if (!cProps0) return { error: `Unknown cold fluid: ${cFlKey}` };
+      cFCalc  = (Q / (cProps0.cp * (cToCalc - cTi))) * 3600;  // kg/h
+    } else {
+      cFCalc  = cF;
+      const mc = cF / 3600;
+      if (mc <= 0) return { error: 'Cold flow rate must be positive' };
+      // estimate cTo: iterate once
+      cTmean  = (cTi + cTi + 30) / 2;
+      const cPropsEst = hxFluidProps(cFlKey, cTmean, cPop);
+      if (!cPropsEst) return { error: `Unknown cold fluid: ${cFlKey}` };
+      cToCalc = cTi + Q / (mc * cPropsEst.cp);
+      cTmean  = (cTi + cToCalc) / 2;
+    }
+
+    const cProps = hxFluidProps(cFlKey, cTmean, cPop);
+    if (!cProps) return { error: `Unknown cold fluid: ${cFlKey}` };
+
+    // ── LMTD ─────────────────────────────────────────────────────────
+    const [T1h, T2h, T1c, T2c] = arr === 'counter'
+      ? [hTi, hTo, cToCalc, cTi]
+      : [hTi, hTo, cTi, cToCalc];
+    const dT1 = T1h - T1c, dT2 = T2h - T2c;
+    let LMTD;
+    if (Math.abs(dT1 - dT2) < 0.01) {
+      LMTD = dT1;
+    } else if (dT1 <= 0 || dT2 <= 0) {
+      return { error: `Temperature cross detected: ΔT₁=${dT1.toFixed(1)}°C, ΔT₂=${dT2.toFixed(1)}°C. Check inputs.` };
+    } else {
+      LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
+    }
+
+    // F-correction for multi-pass
+    const R = (hTi - hTo) / Math.max(0.01, cToCalc - cTi);
+    const P = (cToCalc - cTi) / Math.max(0.01, hTi - cTi);
+    let F = 1.0;
+    if (N_passes >= 2 && Math.abs(R - 1) > 0.01) {
+      const S = Math.sqrt(R * R + 1);
+      const arg1 = (1 - P) / Math.max(1e-10, 1 - P * R);
+      if (arg1 > 0) {
+        const num = S * Math.log(arg1);
+        const argDen = (2 - P * (R + 1 - S)) / Math.max(1e-10, 2 - P * (R + 1 + S));
+        if (argDen > 0) F = num / ((R - 1) * Math.log(argDen));
+      }
+    }
+    F = Math.max(0.5, Math.min(1.0, isFinite(F) ? F : 1.0));
+    const FLMTD = LMTD * F;
+
+    // ── Tube count & geometry ─────────────────────────────────────────
+    // Use tube-side velocity to determine tube count
+    // Put the higher-pressure / cleaner fluid on tube side (default: cold)
+    const tubeFluid  = cProps;  // cold side in tubes
+    const shellFluid = hProps;  // hot side on shell
+
+    let numTubes;
+    const Ai = Math.PI * ID_m * ID_m / 4;  // flow area per tube per pass
+    const mc = cFCalc / 3600;  // kg/s
+    if (numTubesFixed > 0) {
+      numTubes = numTubesFixed;
+    } else {
+      // target velocity method
+      const rho_t = tubeFluid.rho;
+      const Ntarget = (mc / rho_t / targetVel / Ai) * N_passes;
+      numTubes = Math.max(4, Math.round(Ntarget));
+    }
+    const nTubesPerPass = Math.max(1, Math.round(numTubes / N_passes));
+    const actualNumTubes = nTubesPerPass * N_passes;
+    const flowAreaTube = Ai * nTubesPerPass;
+    const tubeVel = mc / (tubeFluid.rho * flowAreaTube);
+
+    // Shell ID estimate from tube count and pitch
+    // Bundle diameter Db = OD_m × (N / k1)^(1/n1) — simplified
+    const CL = 1.0, CTP = 0.93;
+    const Db = OD_m * Math.pow(actualNumTubes / (CTP * 0.785 * (pitch / OD_m) * (pitch / OD_m)), 0.5);
+    const shellID = Db / 0.85;  // rough bundle-to-shell clearance factor
+    const Ds = shellID;
+
+    // Baffle spacing & window
+    const Lbc = bsp * Ds;  // baffle spacing [m]
+    const N_b  = Math.max(1, Math.round(L / Lbc) - 1);  // number of baffles
+
+    // ── Tube-side heat transfer (Dittus-Boelter) ─────────────────────
+    const Re_t  = tubeFluid.rho * tubeVel * ID_m / tubeFluid.mu_Pa;
+    const Pr_t  = tubeFluid.Pr;
+    const nu_t  = Re_t > 10000
+      ? 0.023 * Math.pow(Re_t, 0.8) * Math.pow(Pr_t, (cToCalc > cTi ? 0.4 : 0.3))
+      : (Re_t > 2300
+        ? 0.116 * (Math.pow(Re_t, 2/3) - 125) * Math.pow(Pr_t, 1/3)  // Hausen
+        : 3.66);  // laminar
+    const hi = nu_t * tubeFluid.k_f / ID_m;  // W/m²·K
+
+    // ── Shell-side heat transfer (simplified Kern / Bell–Delaware) ────
+    const pitchRatio = pitch / OD_m;
+    // Cross-flow area at shell centreline
+    const as  = Ds * bcut * (pitch - OD_m) / pitch * Lbc;  // m²
+    const Gs  = shellFluid.rho > 0 ? (mh / as) : 100;       // kg/m²·s (hot side)
+    const De  = pitchLayout === 'triangular'
+      ? (4 * (0.5 * pitch * (pitch * Math.sqrt(3) / 2) - Math.PI * OD_m * OD_m / 8)) / (Math.PI * OD_m / 2)
+      : (4 * (pitch * pitch - Math.PI * OD_m * OD_m / 4)) / (Math.PI * OD_m);
+    const Re_s = Gs * De / shellFluid.mu_Pa;
+    const Pr_s = shellFluid.Pr;
+    const jH   = Re_s < 100 ? 0.24 * Math.pow(Re_s, -0.40)
+               : Re_s < 1e4  ? 0.36 * Math.pow(Re_s, -0.55)
+               :                0.36 * Math.pow(Re_s, -0.55);  // Kern j_H
+    const ho   = jH * shellFluid.k_f / De * Pr_s > 0 ? jH * (shellFluid.k_f / De) * Math.pow(Pr_s, 1/3) : 500;
+
+    // ── Wall resistance ───────────────────────────────────────────────
+    const A_ratio = OD_m / ID_m;
+    const Rwall = OD_m * Math.log(OD_m / ID_m) / (2 * kW);  // per unit OA
+
+    // ── Overall U (based on outer area) ──────────────────────────────
+    const U = 1 / (1/ho + Rfo + Rwall + Rfi * A_ratio + (1/hi) * A_ratio);
+
+    // ── Required area ─────────────────────────────────────────────────
+    const A_req = Q / (U * FLMTD);  // m²
+
+    // ── Actual area from geometry ─────────────────────────────────────
+    const A_act = Math.PI * OD_m * L * actualNumTubes;
+    const overSurf = ((A_act - A_req) / A_req) * 100;
+
+    // ── Effectiveness ─────────────────────────────────────────────────
+    const Ch   = mh * hProps.cp;
+    const Cc   = mc * cProps.cp;
+    const Cmin = Math.min(Ch, Cc);
+    const Cmax = Math.max(Ch, Cc);
+    const NTU  = U * A_req / Cmin;
+    const Cr   = Cmin / Cmax;
+    let eff;
+    if (arr === 'counter' && Math.abs(Cr - 1) < 0.01) {
+      eff = NTU / (1 + NTU);
+    } else if (arr === 'counter') {
+      const e1 = Math.exp(-NTU * (1 - Cr));
+      eff = (1 - e1) / (1 - Cr * e1);
+    } else {
+      eff = (1 - Math.exp(-NTU * (1 + Cr))) / (1 + Cr);
+    }
+    eff = Math.max(0, Math.min(1, eff || 0));
+
+    // ── Pressure drops ────────────────────────────────────────────────
+    // Tube side (Darcy-Weisbach, includes inlet/outlet loss)
+    let f_t;
+    if (Re_t > 4000) f_t = 0.316 * Math.pow(Re_t, -0.25);
+    else f_t = 64 / Math.max(1, Re_t);
+    const tubeDp = (f_t * L * N_passes / ID_m + 4 * N_passes) * tubeFluid.rho * tubeVel * tubeVel / 2 / 1e5; // bar
+
+    // Shell side (simplified Kern)
+    const shellVel = Gs / shellFluid.rho;
+    let f_s = 0.5;  // friction factor approximation
+    const shellDP = f_s * (N_b + 1) * Ds * Gs * Gs / (De * shellFluid.rho) / 1e5;  // bar
+
+    // ── Warnings ─────────────────────────────────────────────────────
+    const warns = [];
+    if (F < 0.75)     warns.push(`F-factor = ${F.toFixed(2)} < 0.75 — temperature cross near-pinch. Consider 2 shells in series.`);
+    if (tubeVel < 0.5) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is low — fouling risk elevated.`);
+    if (tubeVel > 3.0) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is high — erosion risk for liquids > 2.5 m/s.`);
+    if (Re_t < 10000)  warns.push(`Re_t = ${Re_t.toFixed(0)} — transition/laminar flow on tube side; heat transfer model less accurate.`);
+    if (shellDP > pdAllowShell)  warns.push(`Shell-side ΔP ${shellDP.toFixed(3)} bar exceeds allowable ${pdAllowShell} bar.`);
+    if (tubeDp  > pdAllowTube)   warns.push(`Tube-side ΔP ${tubeDp.toFixed(3)} bar exceeds allowable ${pdAllowTube} bar.`);
+    if (overSurf < -10) warns.push(`Undersurfaced by ${(-overSurf).toFixed(1)}% — increase tube count or length.`);
+
+    // ── Status badge ──────────────────────────────────────────────────
+    const feasible = A_act > 0 && isFinite(U) && U > 0 && isFinite(LMTD) && LMTD > 0;
+    const st    = overSurf >= 5 ? 'ok' : overSurf >= 0 ? 'marginal' : 'under';
+    const stTxt = overSurf >= 5 ? '✅ ADEQUATE' : overSurf >= 0 ? '⚠ MARGINAL' : '🔴 UNDERSIZED';
+
+    const Qh = Q / 1000, Qc = Q / 1000;
+
+    return {
+      ok: true,
+      // Core thermal
+      Q: Q/1000, Qh, Qc, LMTD: FLMTD, FLMTD, F_factor: F,
+      area: A_req, U, eff, NTU,
+      // Temperatures
+      hTi, hTo, cTi, cTo: cToCalc, hTmean, cTmean,
+      hF, cF: cFCalc,
+      // Geometry
+      numTubes: actualNumTubes, nTubesPerPass, shellID, L, nShells: N_shells, nPasses: N_passes,
+      OD_mm: OD, ID_mm: ID_m * 1000, pitchLayout, velMode,
+      tubeVel, shellVel,
+      overSurf, pdAllowShell, pdAllowTube,
+      // Pressure drops
+      shellDP, tubeDp,
+      // Fluid info
+      hFluid: { name: hProps.name, rho: hProps.rho, mu: hProps.mu_Pa * 1000, cp: hProps.cp, k: hProps.k_f, Pr: hProps.Pr, Z: 1.0, zMethod: 'ideal' },
+      cFluid: { name: cProps.name, rho: cProps.rho, mu: cProps.mu_Pa * 1000, cp: cProps.cp, k: cProps.k_f, Pr: cProps.Pr, Z: 1.0, zMethod: 'ideal' },
+      hFluidDB: { rho: hProps.rho },
+      cFluidDB: { rho: cProps.rho },
+      hPop, cPop,
+      // Status
+      st, stTxt, tema, type: 'Shell & Tube',
+      // Heat transfer coefficients
+      hi, ho,
+      // Reynolds numbers
+      Re_t, Re_s,
+      warns,
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+
+function calcPlate(body) {
+  try {
+    const r = hxBaseCalc(body);
+    const { N_plates = 20 } = body;
+    const A_per_plate = r.A_m2 ? (parseFloat(r.A_m2) / N_plates).toFixed(4) : null;
+    return { ...r, N_plates, A_per_plate_m2: A_per_plate, type: 'Plate Heat Exchanger' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcAirCooled(body) {
+  try {
+    const { Q_kW, T_air_in = 35, T_air_out, T_proc_in, T_proc_out, U = 40 } = body;
+    const T_air_out_calc = T_air_out || (T_air_in + Q_kW * 1000 / (U * 100));
+    const LMTD = lmtd(T_proc_in, T_proc_out, T_air_in, T_air_out_calc, 'counter');
+    const A = Q_kW * 1000 / (U * LMTD);
+    return { Q_kW, LMTD: LMTD.toFixed(2), A_m2: A.toFixed(3), U_Wm2K: U, T_air_in, T_air_out: T_air_out_calc.toFixed(1), type: 'Air Cooled' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcFinFan(body) {
+  try {
+    const r = calcAirCooled(body);
+    const { N_bays = 1, N_fans = 2 } = body;
+    const A_per_bay = r.A_m2 ? (parseFloat(r.A_m2) / N_bays).toFixed(3) : null;
+    return { ...r, N_bays, N_fans, A_per_bay_m2: A_per_bay, type: 'Fin-Fan (Air Cooled)' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcDoublePipe(body) {
+  try {
+    const r = hxBaseCalc(body);
+    const { L_per_pass = 6 } = body;
+    const n_passes = r.A_m2 ? Math.ceil(parseFloat(r.A_m2) / (Math.PI * 0.05 * L_per_pass)) : null;
+    return { ...r, L_per_pass_m: L_per_pass, n_passes, type: 'Double Pipe' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcLmtdNtu(body) {
+  try {
+    const { C_hot, C_cold, U, A, Th_in, Tc_in } = body;
+    // NTU-effectiveness method
+    const C_min = Math.min(C_hot, C_cold);
+    const C_max = Math.max(C_hot, C_cold);
+    const Cr = C_min / C_max;
+    const NTU = U * A / C_min;
+    // Counter-flow effectiveness
+    let eps;
+    if (Math.abs(Cr - 1) < 1e-6) {
+      eps = NTU / (1 + NTU);
+    } else {
+      const e = Math.exp(-NTU * (1 - Cr));
+      eps = (1 - e) / (1 - Cr * e);
+    }
+    const Q = eps * C_min * (Th_in - Tc_in);
+    const Th_out = Th_in - Q / C_hot;
+    const Tc_out = Tc_in + Q / C_cold;
+    const LMTD = lmtd(Th_in, Th_out, Tc_in, Tc_out, 'counter');
+    return { NTU: NTU.toFixed(3), effectiveness: (eps * 100).toFixed(1), Q_kW: (Q / 1000).toFixed(2), Th_out: Th_out.toFixed(2), Tc_out: Tc_out.toFixed(2), LMTD: LMTD.toFixed(2), type: 'NTU-Effectiveness' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcWallThickness(body) {
+  try {
+    const { P_MPa, D_mm, S_MPa = 138, E = 1.0, Y = 0.4 } = body;
+    // ASME Sec VIII Div 1
+    const t = P_MPa * D_mm / (2 * S_MPa * E - 2 * Y * P_MPa);
+    const t_min = t * 1.125;  // add 12.5% mill tolerance
+    return { t_required_mm: t.toFixed(2), t_min_mm: t_min.toFixed(2), P_MPa, D_mm, S_MPa, E, Y, standard: 'ASME Sec VIII Div 1' };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcFouling(body) {
+  try {
+    const { U_clean, Rf_hot = 0.0002, Rf_cold = 0.0002 } = body;
+    const Rf_total = Rf_hot + Rf_cold;
+    const U_fouled = 1 / (1 / U_clean + Rf_total);
+    const fouling_factor = ((U_clean - U_fouled) / U_clean * 100).toFixed(1);
+    return { U_clean, U_fouled: U_fouled.toFixed(2), Rf_total: Rf_total.toFixed(5), fouling_pct: fouling_factor, Rf_hot, Rf_cold };
+  } catch (e) { return { error: e.message }; }
+}
+
+function calcSelector(body) {
+  try {
+    const { Q_kW, LMTD, duty_type = 'liquid-liquid' } = body;
+    // Suggest HX type based on duty
+    const suggestions = [];
+    if (duty_type === 'liquid-liquid') {
+      suggestions.push({ type: 'Plate HX', U_range: '1000–5000 W/m²K', note: 'Best for clean, compatible liquids' });
+      suggestions.push({ type: 'Shell & Tube', U_range: '300–1000 W/m²K', note: 'Fouling services, high pressure' });
+    } else if (duty_type === 'gas-liquid') {
+      suggestions.push({ type: 'Shell & Tube', U_range: '50–300 W/m²K', note: 'Standard for gas cooling/heating' });
+      suggestions.push({ type: 'Plate-Fin', U_range: '100–800 W/m²K', note: 'Compact, process intensification' });
+    } else {
+      suggestions.push({ type: 'Air Cooled (Fin-Fan)', U_range: '30–60 W/m²K', note: 'Gas-gas or gas-air service' });
+    }
+    const A_est = LMTD && Q_kW ? (Q_kW * 1000 / (suggestions[0] ? 500 * LMTD : 1)).toFixed(1) : null;
+    return { Q_kW, LMTD, duty_type, suggestions, A_estimate_m2: A_est };
+  } catch (e) { return { error: e.message }; }
+}
+
+
+
+async function handle_heatxpert(body, res) {
+  let hxBody = body;
+  if (typeof hxBody === 'string') { try { hxBody = JSON.parse(hxBody); } catch { return res.status(400).json({ error: 'Invalid JSON body' }); } }
+  const { calcType } = hxBody;
+  if (!calcType) return res.status(400).json({ error: 'calcType required' });
+  switch (calcType) {
+
+      case 'shellTube':   return res.json(calcShellTube(body));
+      case 'plate':       return res.json(calcPlate(body));
+      case 'airCooled':   return res.json(calcAirCooled(body));
+      case 'finFan':      return res.json(calcFinFan(body));
+      case 'doublePipe':  return res.json(calcDoublePipe(body));
+      case 'lmtdNtu':     return res.json(calcLmtdNtu(body));
+      case 'wallThick':   return res.json(calcWallThickness(body));
+      case 'fouling':     return res.json(calcFouling(body));
+      case 'selector':    return res.json(calcSelector(body));
+      default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
+
+  }
+}
+
+// ========================================================================
+// SECTION: ORIFICE
+// ========================================================================
 
 // ── ORIFICE-FLOW LOGIC ──────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════
@@ -1172,6 +2438,63 @@ function readBody(req) {
 }
 
 
+
+async function handle_orifice_flow(body, res) {
+  try {
+
+// [DEDUP] body already passed as parameter
+
+    // ── PARSE & NORMALISE ALL INPUTS TO SI ──────────────────────────
+    const mode     = body.mode    || 'flow';
+    const cat      = body.cat     || 'gas';
+    const tapType  = body.tapType || 'sharp_corner';
+    const isMetric = (body.unitSys || 'metric') === 'metric';
+
+    // Pressure & temperature
+    let P_bar = parseFloat(body.P) || 10;
+    let T_c   = parseFloat(body.T) || 20;
+    if (!isMetric) { P_bar = P_bar * 0.0689476; T_c = (T_c - 32) * 5/9; }
+
+    // Pipe & bore in mm
+    const D_mm = dimToMm(parseFloat(body.D) || 154.05, body.D_unit || 'mm');
+    const d_mm = dimToMm(parseFloat(body.d) || 75.00,  body.d_unit || 'mm');
+
+    // DP in Pa
+    const dp_Pa_in = dpToPa(parseFloat(body.dp) || 0, body.dp_unit || 'mmH2O');
+
+    // Flow input
+    const flow_in   = parseFloat(body.flow) || 0;
+    const flow_unit = body.flow_unit || 'Nm3hr';
+
+    const params = {
+      mode, cat, tapType,
+      customCd:  body.customCd,
+      P_bar, T_c,
+      Z_input:   parseFloat(body.Z)   || 1,
+      k:         parseFloat(body.k)   || 1.4,
+      mu_input:  parseFloat(body.mu)  || 1.82e-5,
+      sg:        parseFloat(body.sg)  || 0.65,
+      MW_input:  parseFloat(body.MW)  || 28.964,
+      fluidKey:  body.fluidKey || null,
+      D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
+    };
+
+    const result = calculate(params);
+
+    res.statusCode = 200;
+    return res.end(JSON.stringify({ ok: true, ...result }));
+
+  
+  } catch (err) {
+    console.error('orifice-flow error:', err);
+    res.statusCode = 500;
+    return res.end(JSON.stringify({ ok: false, error: err.message }));
+  }
+}
+
+// ========================================================================
+// SECTION: PRESSURE DROP
+// ========================================================================
 
 // ── PRESSURE-DROP-CALCULATOR LOGIC ──────────────────────────────────────────
 // api/pressure-drop-calculator.js
@@ -1828,6 +3151,108 @@ function calcHW(inputs) {
 ═══════════════════════════════════════════════════════════════ */
 
 
+async function handle_pressure_drop(req, body, res) {
+
+  setCORS(req, res);
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return err(res, 405, 'Method not allowed');
+
+  // body is already parsed by main handler
+
+  const action = sanitizeString(body.action, 32);
+
+  /* ── ACTION: fluidList ── */
+  if (action === 'fluidList') {
+    const list = FLUID_DB.map(f => ({
+      id:    f.id,
+      name:  f.name,
+      cat:   f.cat,
+      isGas: f.isGas,
+    }));
+    return res.status(200).json({ ok: true, fluids: list });
+  }
+
+  /* ── ACTION: fluidProps ── */
+  if (action === 'fluidProps') {
+    const id    = sanitizeString(body.fluidId, 64);
+    const T_C   = sanitizeNumber(body.T_C);
+    const P_bar = sanitizeNumber(body.P_bar, 1.0);
+
+    if (!id || T_C === null || !isFinite(T_C))
+      return err(res, 400, 'fluidId and T_C are required');
+    if (T_C < -273 || T_C > 2000)
+      return err(res, 400, 'T_C out of reasonable range');
+
+    const props = calcFluidProps(id, T_C, P_bar);
+    if (!props) return err(res, 404, `Unknown fluid: ${id}`);
+    return res.status(200).json({ ok: true, ...props });
+  }
+
+  /* ── ACTION: fittingsList ── */
+  if (action === 'fittingsList') {
+    const list = Object.entries(FITTING_CATALOGUE).map(([id, v]) => ({
+      id, label: v.label, k: v.k,
+    }));
+    return res.status(200).json({ ok: true, fittings: list });
+  }
+
+  /* ── ACTION: calculate (Darcy-Weisbach) ── */
+  if (action === 'calculate') {
+    const D         = sanitizeNumber(body.D);
+    const L         = sanitizeNumber(body.L);
+    const Q         = sanitizeNumber(body.Q);
+    const rho       = sanitizeNumber(body.rho);
+    const mu        = sanitizeNumber(body.mu);
+    const dz        = sanitizeNumber(body.dz, 0);
+    const epsBase   = sanitizeNumber(body.epsBase, 0.046);
+    const foulingMm = sanitizeNumber(body.foulingMm, 0);
+    const pumpEff   = Math.max(0.01, Math.min(1, sanitizeNumber(body.pumpEff, 0.75)));
+    const motorEff  = Math.max(0.01, Math.min(1, sanitizeNumber(body.motorEff, 0.92)));
+    const unitMode  = body.unitMode === 'imperial' ? 'imperial' : 'metric';
+    const isGasFluid = !!body.isGasFluid;
+
+    // Sanitize fittings array
+    const rawFits = Array.isArray(body.fittings) ? body.fittings.slice(0, 200) : [];
+    const fittings = rawFits.map(f => ({
+      k:   sanitizeNumber(f.k, 0),
+      qty: Math.max(0, Math.min(999, parseInt(f.qty) || 0)),
+    }));
+
+    if ([D, L, Q, rho, mu].some(v => v === null))
+      return err(res, 400, 'D, L, Q, rho, mu are required');
+
+    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode });
+    if (!result.ok) return err(res, 422, result.error);
+
+    if (isGasFluid)
+      result.warnings.unshift('⚠ Compressible fluid detected. Darcy-Weisbach with constant density is approximate. Valid only if ΔP/P₁ < 10%.');
+
+    return res.status(200).json(result);
+  }
+
+  /* ── ACTION: calcHW (Hazen-Williams) ── */
+  if (action === 'calcHW') {
+    const D_mm  = sanitizeNumber(body.D_mm);
+    const L_m   = sanitizeNumber(body.L_m);
+    const Q_m3h = sanitizeNumber(body.Q_m3h);
+    const C     = sanitizeNumber(body.C);
+
+    if ([D_mm, L_m, Q_m3h, C].some(v => v === null))
+      return err(res, 400, 'D_mm, L_m, Q_m3h, C are required');
+
+    const result = calcHW({ D_mm, L_m, Q_m3h, C });
+    if (!result.ok) return err(res, 422, result.error);
+    return res.status(200).json(result);
+  }
+
+  return err(res, 400, `Unknown action: ${action}`);
+}
+
+// ========================================================================
+// SECTION: PSYCHROMETRIC
+// ========================================================================
+
 // ── PSYCHROMETRIC LOGIC ──────────────────────────────────────────
 // ============================================================
 // Vercel Serverless API — Psychrometric Engine
@@ -2012,6 +3437,86 @@ function calcChartData(p_kPa) {
 // VERCEL HANDLER
 // ════════════════════════════════════════════════════════════
 
+
+async function handle_psychrometric(body, res) {
+  try {
+    const { action, payload } = body;
+
+    // ── STATE POINT ─────────────────────────────────────────
+    if (action === 'statePoint') {
+      const { T, mode, z, p_override, rh, wb, dp, W_in } = payload;
+
+      if (T < -60 || T > 80) {
+        return res.status(400).json({ error: 'Temperature out of valid range (−60°C to 80°C)' });
+      }
+      const p = p_override > 0 ? p_override : altitudePressure(z);
+      const ps = satPressure(T);
+      let pv, rh_val, W_val;
+
+      if (mode === 'rh') {
+        rh_val = rh / 100;
+        pv = ps * rh_val;
+      } else if (mode === 'wb') {
+        if (wb > T) return res.status(400).json({ error: 'Wet bulb must be ≤ dry bulb temperature' });
+        const psw = satPressure(wb);
+        pv = psw - 0.000662 * p * (T - wb);
+        rh_val = pv / ps;
+      } else if (mode === 'dp') {
+        if (dp >= T) return res.status(400).json({ error: 'Dew point must be < dry bulb temperature' });
+        pv = satPressure(dp);
+        rh_val = pv / ps;
+      } else if (mode === 'w') {
+        W_val = W_in;
+        pv = W_val * p / (0.621945 + W_val);
+        rh_val = pv / ps;
+      }
+
+      rh_val = Math.max(0, Math.min(1, rh_val));
+      if (!W_val) W_val = humidityRatio(pv, p);
+      const h = enthalpy(T, W_val);
+      const v = specVolume(T, W_val, p);
+      const rho = (1 + W_val) / v;
+      const dp_C = dewPoint(rh_val, T);
+      const wb_C = wetBulbApprox(T, rh_val, p);
+
+      return res.status(200).json({
+        T, p, ps, pv, rh: rh_val, W: W_val, h, v, rho, dp: dp_C, wb: wb_C
+      });
+    }
+
+    // ── HVAC PROCESS ────────────────────────────────────────
+    if (action === 'process') {
+      const { T1, rh1, T2, rh2, Q_m3h, z } = payload;
+      return res.status(200).json(calcProcess(T1, rh1, T2, rh2, Q_m3h, z));
+    }
+
+    // ── DUCT ────────────────────────────────────────────────
+    if (action === 'duct') {
+      const { T, rh, z, shape, dims, Q_m3h, L, rough_mm } = payload;
+      return res.status(200).json(calcDuct(T, rh, z, shape, dims, Q_m3h, L, rough_mm));
+    }
+
+    // ── CHART DATA ──────────────────────────────────────────
+    if (action === 'chartData') {
+      const { p } = payload;
+      return res.status(200).json(calcChartData(p || 101.325));
+    }
+
+    // ── ALTITUDE → PRESSURE ─────────────────────────────────
+    if (action === 'altPressure') {
+      return res.status(200).json({ p: altitudePressure(payload.z) });
+    }
+
+    return res.status(400).json({ error: 'Unknown action' });
+  } catch (err) {
+    console.error('[psychrometric]', err);
+    return res.status(500).json({ error: err.message || 'Calculation error.' });
+  }
+}
+
+// ========================================================================
+// SECTION: PUMP
+// ========================================================================
 
 // ── PUMP LOGIC ──────────────────────────────────────────
 // api/pump.js  — Vercel Serverless Function
@@ -2211,6 +3716,17 @@ function pumpCalc(params) {
 
 /* ─── Vercel handler ─────────────────────────────────────────────────── */
 
+
+async function handle_pump(body, res) {
+  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
+  const err = validatePumpInputs(body);
+  if (err) return res.status(400).json({ error: err });
+  return res.status(200).json(pumpCalc(body));
+}
+
+// ========================================================================
+// SECTION: RANKINE
+// ========================================================================
 
 // ── RANKINE LOGIC ──────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
@@ -2439,6 +3955,36 @@ function calcCarnot({TH,TC,QH,actual}){
 
 // ── VERCEL HANDLER ─────────────────────────────────────────────────
 
+
+async function handle_rankine(body, res) {
+  const { type, params } = body || {};
+  if (!type) return res.status(400).json({ error: 'Missing type' });
+  try {
+    let result;
+    switch (type) {
+
+      case 'basic':      result = calcBasic(params);      break;
+      case 'superheat':  result = calcSuperheat(params);  break;
+      case 'reheat':     result = calcReheat(params);     break;
+      case 'regen':      result = calcRegenFWH(params);   break;
+      case 'carnot':     result = calcCarnot(params);     break;
+      // Lightweight helpers also served from API
+      case 'tsat':
+        result = { ok:true, tsat: tSatMPa(params.P_MPa) };
+        break;
+      default:
+        return res.status(400).json({ error: `Unknown calculation type: ${type}` });
+    }
+    if (!result) return res.status(400).json({ error: 'Unknown type: ' + type });
+    return res.status(200).json(result);
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+}
+
+// ========================================================================
+// SECTION: STEAM QUENCH
+// ========================================================================
 
 // ── STEAM-QUENCH LOGIC ──────────────────────────────────────────
 /**
@@ -2712,1700 +4258,6 @@ function propUncertainty(P_bar, T_C, isSteam) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-// ── STEAM-TURBINE-POWER LOGIC ──────────────────────────────────────────
-// ================================================================
-// /api/calculate.js  — Vercel Serverless Function
-//
-// ALL thermodynamic logic lives here — tables, interpolation,
-// isentropic solver, and all four turbine power calculations.
-//
-// Three actions (POST JSON):
-//   inletProps   → h, s, T_sat, phase   (inlet / extraction autofill)
-//   exhaustProps → h2s, hf, hg, hfg, T_sat   (exhaust autofill)
-//   calculate    → all power/heat outputs (all turbine types)
-// ================================================================
-
-// ── IAPWS-IF97 Saturation Table ────────────────────────────────
-// Raw: [P_bar, T_C, hf, hg, sf, sg, vf, vg]
-const SAT_TABLE = (() => {
-    const raw = [
-        [0.00611, 0.01,   0.00,   2501.4, 0.0000, 9.1562, 0.0010002, 206.140],
-        [0.010,   6.98,  29.30,   2514.2, 0.1059, 8.9756, 0.0010001, 129.208],
-        [0.015,  13.03,  54.70,   2525.3, 0.1956, 8.8278, 0.0010007,  87.980],
-        [0.020,  17.50,  73.47,   2533.5, 0.2607, 8.7236, 0.0010013,  67.006],
-        [0.030,  24.08, 101.03,   2545.5, 0.3545, 8.5775, 0.0010028,  45.665],
-        [0.040,  28.96, 121.44,   2554.4, 0.4226, 8.4746, 0.0010041,  34.797],
-        [0.050,  32.88, 137.79,   2561.4, 0.4763, 8.3950, 0.0010053,  28.193],
-        [0.075,  40.29, 168.76,   2574.8, 0.5763, 8.2514, 0.0010080,  19.238],
-        [0.100,  45.81, 191.81,   2584.6, 0.6492, 8.1501, 0.0010103,  14.674],
-        [0.150,  53.97, 225.90,   2599.1, 0.7548, 8.0084, 0.0010146,  10.021],
-        [0.200,  60.06, 251.38,   2609.7, 0.8319, 7.9085, 0.0010182,   7.649],
-        [0.300,  69.10, 289.21,   2625.3, 0.9439, 7.7686, 0.0010243,   5.229],
-        [0.500,  81.33, 340.47,   2645.9, 1.0910, 7.5939, 0.0010341,   3.240],
-        [0.700,  89.95, 376.70,   2660.1, 1.1919, 7.4790, 0.0010416,   2.365],
-        [1.00,   99.62, 417.44,   2675.5, 1.3025, 7.3593, 0.0010432,   1.6940],
-        [1.25,  105.99, 444.30,   2685.3, 1.3739, 7.2843, 0.0010479,   1.3750],
-        [1.50,  111.37, 467.08,   2693.5, 1.4335, 7.2232, 0.0010524,   1.1590],
-        [2.00,  120.23, 504.68,   2706.6, 1.5300, 7.1271, 0.0010605,   0.8857],
-        [2.50,  127.43, 535.34,   2716.9, 1.6072, 7.0526, 0.0010681,   0.7187],
-        [3.00,  133.55, 561.45,   2725.3, 1.6717, 6.9918, 0.0010732,   0.6058],
-        [4.00,  143.63, 604.73,   2738.5, 1.7766, 6.8958, 0.0010840,   0.4624],
-        [5.00,  151.86, 640.21,   2748.7, 1.8606, 6.8212, 0.0010940,   0.3748],
-        [6.00,  158.85, 670.54,   2756.8, 1.9311, 6.7600, 0.0011006,   0.3156],
-        [7.00,  164.97, 697.20,   2763.5, 1.9922, 6.7080, 0.0011080,   0.2728],
-        [8.00,  170.43, 721.10,   2769.1, 2.0461, 6.6627, 0.0011148,   0.2404],
-        [9.00,  175.38, 742.82,   2773.9, 2.0946, 6.6225, 0.0011213,   0.2150],
-        [10.00, 179.91, 762.79,   2778.1, 2.1386, 6.5864, 0.0011273,   0.1944],
-        [12.00, 187.99, 798.64,   2784.8, 2.2165, 6.5233, 0.0011390,   0.1633],
-        [15.00, 198.32, 844.87,   2792.1, 2.3150, 6.4448, 0.0011565,   0.1318],
-        [20.00, 212.42, 908.77,   2799.5, 2.4473, 6.3408, 0.0011767,   0.0996],
-        [25.00, 223.99, 962.09,   2803.1, 2.5546, 6.2574, 0.0011972,   0.0800],
-        [30.00, 233.90,1008.41,   2804.1, 2.6456, 6.1869, 0.0012163,   0.0666],
-        [35.00, 242.60,1049.75,   2803.8, 2.7253, 6.1253, 0.0012347,   0.0571],
-        [40.00, 250.40,1087.29,   2801.4, 2.7963, 6.0700, 0.0012524,   0.0498],
-        [50.00, 263.99,1154.21,   2794.3, 2.9201, 5.9733, 0.0012859,   0.0394],
-        [60.00, 275.64,1213.32,   2784.3, 3.0248, 5.8902, 0.0013190,   0.0324],
-        [70.00, 285.88,1266.97,   2772.1, 3.1210, 5.8132, 0.0013524,   0.0274],
-        [80.00, 295.06,1316.61,   2757.9, 3.2076, 5.7450, 0.0013843,   0.0235],
-        [90.00, 303.40,1363.26,   2742.8, 3.2857, 5.6811, 0.0014184,   0.0205],
-        [100.00,311.06,1407.53,   2724.7, 3.3595, 5.6140, 0.0014526,   0.0180],
-        [110.00,318.15,1450.26,   2705.0, 3.4295, 5.5473, 0.0014890,   0.0160],
-        [120.00,324.75,1491.24,   2684.8, 3.4961, 5.4923, 0.0015267,   0.0143],
-        [130.00,330.93,1531.46,   2662.9, 3.5605, 5.4295, 0.0015670,   0.0127],
-        [140.00,336.75,1570.98,   2638.7, 3.6229, 5.3717, 0.0016107,   0.0115],
-        [150.00,342.24,1609.02,   2614.5, 3.6834, 5.3108, 0.0016582,   0.0103],
-        [160.00,347.44,1649.55,   2580.6, 3.7428, 5.2455, 0.0017105,   0.0094],
-        [170.00,352.37,1690.73,   2548.5, 3.7996, 5.1832, 0.0017651,   0.0084],
-        [180.00,357.06,1731.97,   2509.1, 3.8553, 5.1044, 0.0018403,   0.0075],
-        [190.00,361.54,1776.53,   2468.4, 3.9102, 5.0218, 0.0019262,   0.0067],
-        [200.00,365.81,1826.18,   2409.7, 4.0139, 4.9269, 0.0020360,   0.0059],
-        [210.00,369.89,1886.25,   2336.8, 4.1014, 4.8013, 0.0022130,   0.0051],
-        [220.00,373.71,2010.30,   2192.4, 4.2887, 4.5481, 0.0027900,   0.0038],
-        [220.64,374.14,2099.26,   2099.3, 4.4120, 4.4120, 0.0031550,   0.0032],
-    ];
-    return raw.map(r => ({
-        P:r[0], T:r[1], hf:r[2], hg:r[3], hfg:r[3]-r[2],
-        sf:r[4], sg:r[5], sfg:r[5]-r[4], vf:r[6], vg:r[7]
-    }));
-})();
-
-// ── Superheated steam table — [T°C, h(kJ/kg), s(kJ/kg·K), v(m³/kg)] ──
-// [DEDUP] removed duplicate declaration of: SH_FB
-
-// ── Cubic-spline interpolation (exact copy from original) ──────
-// [DEDUP] removed duplicate declaration of: csplineInterp
-
-// ── Saturation props by pressure (exact copy from original getSatProps) ──
-function getSatProps(P_bar) {
-    if (!P_bar || P_bar <= 0) P_bar = 0.00611;
-    if (P_bar <= SAT_TABLE[0].P) return {...SAT_TABLE[0]};
-    if (P_bar >= SAT_TABLE[SAT_TABLE.length-1].P) return {...SAT_TABLE[SAT_TABLE.length-1]};
-    const xs = SAT_TABLE.map(r=>r.P);
-    const interp = key => csplineInterp(xs, SAT_TABLE.map(r=>r[key]), P_bar);
-    const hf=interp('hf'), hg=interp('hg'), sf=interp('sf'), sg=interp('sg');
-    return { P:P_bar, T:interp('T'), hf, hg, hfg:hg-hf, sf, sg, sfg:sg-sf,
-             vf:interp('vf'), vg:interp('vg') };
-}
-
-// ── Superheated props (exact copy from original getSuperheatedProps_fb) ──
-function getSuperheatedProps(P_bar, T_C) {
-    const sat = getSatProps(P_bar);
-    if (T_C <= sat.T + 0.5) return { h:sat.hg, s:sat.sg, v:sat.vg, phase:'sat' };
-    const prs = SH_FB.map(b=>b.P);
-    function atBlock(idx, T) {
-        const d = SH_FB[idx].d;
-        return {
-            h: csplineInterp(d.map(r=>r[0]), d.map(r=>r[1]), T),
-            s: csplineInterp(d.map(r=>r[0]), d.map(r=>r[2]), T),
-            v: csplineInterp(d.map(r=>r[0]), d.map(r=>r[3]), T)
-        };
-    }
-    if (P_bar <= prs[0]) return { ...atBlock(0, T_C), phase:'superheated' };
-    if (P_bar >= prs[prs.length-1]) return { ...atBlock(prs.length-1, T_C), phase:'superheated' };
-    let lo = 0;
-    for (let i=0; i<prs.length-1; i++) { if (prs[i]<=P_bar && P_bar<=prs[i+1]) { lo=i; break; } }
-    const fP = (P_bar-prs[lo])/(prs[lo+1]-prs[lo]);
-    const a = atBlock(lo, T_C), b = atBlock(lo+1, T_C);
-    return { h:a.h+fP*(b.h-a.h), s:a.s+fP*(b.s-a.s), v:a.v+fP*(b.v-a.v), phase:'superheated' };
-}
-
-// ── Isentropic exhaust enthalpy (exact copy from original isentropicExhaustEnthalpy_fb) ──
-function isentropicExhaust(s1_SI, P2_bar, T2_C_opt) {
-    const sat2 = getSatProps(P2_bar);
-    if (T2_C_opt && T2_C_opt > sat2.T + 0.5) {
-        const sup = getSuperheatedProps(P2_bar, T2_C_opt);
-        return { h2s:sup.h, phase:'Superheated (specified T)' };
-    }
-    if (s1_SI >= sat2.sg) {
-        // Superheated exit — bisection for T where s(P2,T)=s1
-        let Tlo=sat2.T+1, Thi=1400;
-        for (let iter=0; iter<60; iter++) {
-            const Tmid=(Tlo+Thi)/2;
-            const sp=getSuperheatedProps(P2_bar, Tmid);
-            if(sp.s<s1_SI) Tlo=Tmid; else Thi=Tmid;
-            if(Thi-Tlo<0.05) break;
-        }
-        const Tmid=(Tlo+Thi)/2;
-        const sup=getSuperheatedProps(P2_bar, Tmid);
-        return { h2s:sup.h, phase:`Superheated (T₂s ≈ ${Tmid.toFixed(0)}°C)` };
-    } else if (s1_SI >= sat2.sf) {
-        const x=(s1_SI-sat2.sf)/(sat2.sg-sat2.sf);
-        return { h2s:sat2.hf+x*sat2.hfg, x, phase:`Wet (x=${(x*100).toFixed(1)}%)` };
-    }
-    return { h2s:sat2.hf, phase:'Subcooled / Liquid' };
-}
-
-// ================================================================
-// VERCEL HANDLER
-// ================================================================
-
-
-// ── STEAM LOGIC ──────────────────────────────────────────
-// ================================================================
-// api/steam.js  —  Vercel Serverless Function
-// 🔐 ALL CALCULATION LOGIC RUNS ON SERVER — NEVER EXPOSED TO BROWSER
-// Place this file in your GitHub repo at: /api/steam.js
-// ================================================================
-
-
-
-
-// ================================================================
-// MISSING FUNCTIONS — Added to fix undefined reference errors
-// These functions were in separate API files before the merge
-// ================================================================
-
-// ── EOS: CUBIC EQUATION OF STATE SOLVER ──────────────────────────
-// Supports: VdW, RK, SRK, PR, PT
-function solveCubic(a2, a1, a0) {
-  // Solve Z^3 + a2*Z^2 + a1*Z + a0 = 0 using Cardano/numerical
-  const roots = [];
-  const p = a1 - a2 * a2 / 3;
-  const q = 2 * a2 * a2 * a2 / 27 - a2 * a1 / 3 + a0;
-  const D = q * q / 4 + p * p * p / 27;
-
-  if (D > 1e-12) {
-    // One real root
-    const sqrtD = Math.sqrt(D);
-    const u = Math.cbrt(-q / 2 + sqrtD);
-    const v = Math.cbrt(-q / 2 - sqrtD);
-    roots.push(u + v - a2 / 3);
-  } else if (D < -1e-12) {
-    // Three real roots (casus irreducibilis)
-    const r = Math.sqrt(-p * p * p / 27);
-    const theta = Math.acos(Math.max(-1, Math.min(1, -q / (2 * r))));
-    const m = 2 * Math.cbrt(r);
-    for (let k = 0; k < 3; k++) {
-      roots.push(m * Math.cos((theta + 2 * Math.PI * k) / 3) - a2 / 3);
-    }
-  } else {
-    // Repeated root
-    const u = Math.cbrt(-q / 2);
-    roots.push(2 * u - a2 / 3);
-    roots.push(-u - a2 / 3);
-  }
-  return roots.filter(z => isFinite(z) && z > 0);
-}
-
-function runEOS(eosType, T_K, P_Pa, Tc_K, Pc_Pa, omega) {
-  const R = 8.314462;  // J/(mol·K)
-  let results = [];
-
-  const eos = eosType.toLowerCase();
-
-  if (eos === 'vdw') {
-    // Van der Waals
-    const a = 27 * R * R * Tc_K * Tc_K / (64 * Pc_Pa);
-    const b = R * Tc_K / (8 * Pc_Pa);
-    const A = a * P_Pa / (R * R * T_K * T_K);
-    const B = b * P_Pa / (R * T_K);
-    // Z^3 - (1+B)Z^2 + AZ - AB = 0
-    const roots = solveCubic(-(1 + B), A, -A * B);
-    for (const Z of roots) {
-      if (Z <= B) continue;
-      const Vm = Z * R * T_K / P_Pa;
-      const lnPhi = b / (Vm - b) - 2 * a / (R * T_K * Vm) - Math.log(P_Pa * (Vm - b) / (R * T_K));
-      const phi = Math.exp(lnPhi);
-      results.push({ Z, Vm, phi, A, B, a, b, m: 0, kappa: 0, alpha: 1, label: Z === Math.max(...roots) ? 'Vapour' : 'Liquid' });
-    }
-  } else if (eos === 'rk') {
-    // Redlich-Kwong
-    const a = 0.42748 * R * R * Math.pow(Tc_K, 2.5) / Pc_Pa;
-    const b = 0.08664 * R * Tc_K / Pc_Pa;
-    const A = a * P_Pa / (R * R * Math.pow(T_K, 2.5));
-    const B = b * P_Pa / (R * T_K);
-    // Z^3 - Z^2 + (A-B-B^2)Z - AB = 0
-    const roots = solveCubic(-1, A - B - B * B, -A * B);
-    for (const Z of roots) {
-      if (Z <= B) continue;
-      const Vm = Z * R * T_K / P_Pa;
-      const lnPhi = (Z - 1) - Math.log(Z - B) - A / B * Math.log(1 + B / Z);
-      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: 0, kappa: 0, alpha: 1, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
-    }
-  } else if (eos === 'srk') {
-    // Soave-Redlich-Kwong
-    const m = 0.480 + 1.574 * omega - 0.176 * omega * omega;
-    const Tr = T_K / Tc_K;
-    const alpha = Math.pow(1 + m * (1 - Math.sqrt(Tr)), 2);
-    const a = 0.42748 * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
-    const b = 0.08664 * R * Tc_K / Pc_Pa;
-    const A = a * P_Pa / (R * R * T_K * T_K);
-    const B = b * P_Pa / (R * T_K);
-    const roots = solveCubic(-1, A - B - B * B, -A * B);
-    for (const Z of roots) {
-      if (Z <= B) continue;
-      const Vm = Z * R * T_K / P_Pa;
-      const lnPhi = (Z - 1) - Math.log(Z - B) - A / B * Math.log(1 + B / Z);
-      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m, kappa: m, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
-    }
-  } else if (eos === 'pr') {
-    // Peng-Robinson
-    const kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega * omega;
-    const Tr = T_K / Tc_K;
-    const alpha = Math.pow(1 + kappa * (1 - Math.sqrt(Tr)), 2);
-    const a = 0.45724 * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
-    const b = 0.07780 * R * Tc_K / Pc_Pa;
-    const A = a * P_Pa / (R * R * T_K * T_K);
-    const B = b * P_Pa / (R * T_K);
-    // PR: Z^3 - (1-B)Z^2 + (A-3B^2-2B)Z - (AB-B^2-B^3) = 0
-    const roots = solveCubic(-(1 - B), A - 3 * B * B - 2 * B, -(A * B - B * B - B * B * B));
-    for (const Z of roots) {
-      if (Z <= B) continue;
-      const Vm = Z * R * T_K / P_Pa;
-      const sq2 = Math.SQRT2;
-      const lnPhi = (Z - 1) - Math.log(Z - B) - A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
-      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: kappa, kappa, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
-    }
-  } else if (eos === 'pt') {
-    // Patel-Teja (simplified, uses PR-like form)
-    const kappa = 0.452413 + 1.30982 * omega - 0.295937 * omega * omega;
-    const Tr = T_K / Tc_K;
-    const alpha = Math.pow(1 + kappa * (1 - Math.sqrt(Tr)), 2);
-    const Zc = 0.329032 - 0.076799 * omega + 0.0211947 * omega * omega;
-    const b = Zc * R * Tc_K / Pc_Pa;
-    const a = (3 * Zc * Zc + 3 * (1 - 2 * Zc) * (b * Pc_Pa / (R * Tc_K)) + (b * Pc_Pa / (R * Tc_K)) ** 2 + 1 - 3 * Zc) * R * R * Tc_K * Tc_K / Pc_Pa * alpha;
-    const A = a * P_Pa / (R * R * T_K * T_K);
-    const B = b * P_Pa / (R * T_K);
-    const roots = solveCubic(-(2 * B + 1 - B), A - 3 * B * B - 2 * B, -(A * B - B * B - B * B * B));
-    for (const Z of roots) {
-      if (Z <= B) continue;
-      const Vm = Z * R * T_K / P_Pa;
-      const sq2 = Math.SQRT2;
-      const lnPhi = (Z - 1) - Math.log(Z - B) - A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
-      results.push({ Z, Vm, phi: Math.exp(lnPhi), A, B, a, b, m: kappa, kappa, alpha, label: Z === Math.max(...roots.filter(r=>r>B)) ? 'Vapour' : 'Liquid' });
-    }
-  } else {
-    // Fallback: ideal gas
-    results.push({ Z: 1.0, Vm: R * T_K / P_Pa, phi: 1.0, A: 0, B: 0, a: 0, b: 0, m: 0, kappa: 0, alpha: 1, label: 'Ideal Gas' });
-  }
-
-  // Remove duplicate roots
-  const unique = [];
-  for (const r of results) {
-    if (!unique.some(u => Math.abs(u.Z - r.Z) < 1e-6)) unique.push(r);
-  }
-  return unique;
-}
-
-function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
-  const warnings = [];
-  if (Tr < 0.5) warnings.push({ level: 'error', msg: `Temperature very far below critical (Tr = ${Tr.toFixed(3)}). Results may be unreliable.` });
-  if (Tr > 5)   warnings.push({ level: 'info',  msg: `High reduced temperature (Tr = ${Tr.toFixed(2)}). Approaching ideal-gas behaviour.` });
-  if (Pr > 10)  warnings.push({ level: 'warn',  msg: `Very high reduced pressure (Pr = ${Pr.toFixed(2)}). Cubic EOS accuracy degrades significantly.` });
-  if (Math.abs(Tr - 1) < 0.05 && Math.abs(Pr - 1) < 0.1) warnings.push({ level: 'warn', msg: 'Conditions near critical point — EOS accuracy is reduced. Results are approximate.' });
-  if (roots.length > 1) warnings.push({ level: 'info', msg: `Two-phase region detected (${roots.length} real roots). Largest Z (vapour root) selected.` });
-  if (Z < 0.1) warnings.push({ level: 'warn', msg: `Very low Z-factor (${Z.toFixed(4)}) — dense liquid-like behaviour. Verify inputs.` });
-  const eosLower = eos.toLowerCase();
-  if (['vdw','rk'].includes(eosLower)) warnings.push({ level: 'info', msg: 'VdW/RK equations are less accurate for polar fluids. Consider SRK or PR for better results.' });
-  if (omega > 0.5) warnings.push({ level: 'info', msg: `High acentric factor (ω = ${omega.toFixed(4)}) — polar/associating fluid. SRK/PR accuracy may be limited.` });
-  return warnings;
-}
-
-
-// ── COOLING TOWER: MERKEL NTU CALCULATION ───────────────────────
-// [FIX-CT-1] Guards for zero/negative approach, non-finite inputs
-function merkelNTU(Twi, Two, Twb, nSteps = 20) {
-  if (!isFinite(Twi) || !isFinite(Two) || !isFinite(Twb)) return 0;
-  if (Twi <= Two)  return 0;   // no temperature range
-  if (Two <= Twb)  return 0;   // approach ≤ 0 → integration blows up
-
-  const hw = T => {
-    const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));  // kPa
-    const Ws   = 0.622 * Psat / (101.325 - Psat);
-    return 1.006 * T + Ws * (2501 + 1.86 * T);
-  };
-
-  const ha_in = hw(Twb);
-  const LG    = 1.2;
-  const cpa   = 1.006;
-  const dT    = (Twi - Two) / nSteps;
-  let ntu = 0, Tw = Two, ha = ha_in;
-
-  for (let i = 0; i < nSteps; i++) {
-    const Tw1 = Tw, Tw2 = Tw + dT;
-    const ha1 = ha, ha2 = ha + (Tw2 - Tw1) * cpa * LG;
-    const hs1 = hw(Tw1), hs2 = hw(Tw2);
-    const d1 = hs1 - ha1, d2 = hs2 - ha2;
-    if (d1 > 0 && d2 > 0 && isFinite(1/d1) && isFinite(1/d2))
-      ntu += (1/d1 + 1/d2) / 2 * dT;
-    Tw = Tw2;
-    ha = ha2;
-  }
-  return Math.max(0, ntu);
-}
-
-
-// ── COOLING TOWER: FULL PERFORMANCE CALCULATION ──────────────────
-function runCalculate(p) {
-  try {
-
-    // ── Input validation ─────────────────────────────────────────
-    const REQUIRED = ['dWB_C','dCWT_C','dHWT_C','aWB_C','aCWT_C','aHWT_C'];
-    for (const k of REQUIRED) {
-      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
-        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
-    }
-
-    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C), dHWT_C = Number(p.dHWT_C);
-    const aWB_C  = Number(p.aWB_C),  aCWT_C = Number(p.aCWT_C), aHWT_C = Number(p.aHWT_C);
-    const thW_C  = isFinite(Number(p.thW_C)) ? Number(p.thW_C) : 1.5;
-    const thB_C  = isFinite(Number(p.thB_C)) ? Number(p.thB_C) : 3.0;
-    const dWR    = isFinite(Number(p.dWR))   ? Number(p.dWR)   : null; // m³/h water flow
-    const dAR    = isFinite(Number(p.dAR))   ? Number(p.dAR)   : null; // m³/h air flow
-
-    // Physical sanity
-    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be > design CWT (${dCWT_C}°C).` };
-    if (aHWT_C <= aCWT_C) return { error: `Actual HWT (${aHWT_C}°C) must be > actual CWT (${aCWT_C}°C).` };
-    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be > design WBT (${dWB_C}°C) — approach cannot be ≤ 0.` };
-    if (aCWT_C <= aWB_C)  return { error: `Actual CWT (${aCWT_C}°C) must be > actual WBT (${aWB_C}°C) — approach cannot be ≤ 0.` };
-
-    // ── Atmospheric pressure ─────────────────────────────────────
-    let Patm_kPa = 101.325;
-    if (isFinite(Number(p.patm)) && Number(p.patm) > 70 && Number(p.patm) < 110)
-      Patm_kPa = Number(p.patm);
-    else if (isFinite(Number(p.elev)) && Number(p.elev) >= 0)
-      Patm_kPa = 101.325 * Math.pow(1 - 2.25577e-5 * Number(p.elev), 5.25588);
-
-    const safe = v => (isFinite(v) ? v : 0);
-
-    // ── Basic deltas ─────────────────────────────────────────────
-    const dRng  = dHWT_C - dCWT_C;
-    const aRng  = aHWT_C - aCWT_C;
-    const app_d = dCWT_C - dWB_C;
-    const app_a = aCWT_C - aWB_C;
-
-    // ── Merkel NTU ───────────────────────────────────────────────
-    const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
-    const kavl_a = merkelNTU(aHWT_C, aCWT_C, aWB_C);
-
-    if (!isFinite(kavl_d) || kavl_d <= 0)
-      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
-
-    // ── Fill performance ─────────────────────────────────────────
-    const fillPctValid = kavl_d > 0;
-    const kavl_a_norm  = fillPctValid ? safe(kavl_a / kavl_d) : 0;
-    const fillPct      = fillPctValid ? kavl_a_norm * 100 : 0;
-
-    // ── κ bisection solver ───────────────────────────────────────
-    const dWBT = aWB_C - dWB_C;
-    let kappa = 0.60, kappaOK = false;
-    if (Math.abs(dWBT) > 0.01) {
-      let lo = 0.2, hi = 1.5;
-      for (let iter = 0; iter < 60; iter++) {
-        const mid = (lo + hi) / 2;
-        const pc  = dCWT_C + mid * dWBT;
-        if (pc <= aWB_C) { lo = mid; continue; }
-        const ntu = merkelNTU(aHWT_C, pc, aWB_C);
-        if (ntu > kavl_d) hi = mid; else lo = mid;
-        if (hi - lo < 1e-5) { kappaOK = true; break; }
-      }
-      kappa = (lo + hi) / 2;
-    } else {
-      kappa = 0.60; kappaOK = true;
-    }
-    if (!isFinite(kappa)) kappa = 0.60;
-
-    const pred_cwt   = safe(dCWT_C + kappa * dWBT);
-    const pred_app   = safe(pred_cwt - aWB_C);
-    const dApp       = safe(app_a - app_d);
-    const dAppVsPred = safe(app_a - pred_app);
-    const cwtDev     = safe(aCWT_C - pred_cwt);
-    const absDevC    = Math.abs(dAppVsPred);
-
-    // ── Tower effectiveness ε = Range / (HWT − WBT) ─────────────
-    // [MISSING FIELD FIX] Frontend uses r.effectiveness_d and r.effectiveness_a
-    const effectiveness_d = safe(dRng / (dHWT_C - dWB_C));
-    const effectiveness_a = safe(aRng / (aHWT_C - aWB_C));
-
-    // ── Fluid densities ──────────────────────────────────────────
-    // [MISSING FIELD FIX] Frontend uses r.RHO_W_d and r.RHO_A_site
-    // Water density at design CWT (simple correlation, kg/m³)
-    const RHO_W_d   = safe(999.842 - 0.0622 * dCWT_C - 0.00357 * dCWT_C * dCWT_C);
-    // Moist air density at site (kg/m³), approximate
-    const RHO_A_site = safe((Patm_kPa * 1000) / (287.05 * (aWB_C + 273.15)));
-
-    // ── L/G mass ratio ───────────────────────────────────────────
-    // [MISSING FIELD FIX] Frontend uses r.lg, r.Lmass, r.Gmass, r.dWR_r, r.dAR_r
-    let lg = null, Lmass = null, Gmass = null;
-    if (dWR !== null && dAR !== null && dAR > 0) {
-      Lmass = dWR * RHO_W_d;           // kg/h
-      Gmass = dAR * RHO_A_site;        // kg/h
-      lg    = safe(Lmass / Gmass);     // dimensionless
-    }
-
-    // ── Status objects ───────────────────────────────────────────
-    // [MISSING FIELD FIX] appSt needs .t text; fillSt needs .icon, .bar, .t; lgSt is fully missing
-
-    let appSt;
-    if (absDevC <= thW_C) {
-      appSt = {
-        cls: 'ok', icon: '✅', lbl: 'NORMAL',
-        t: 'Actual approach is within normal tolerance of the κ-predicted value. Tower is performing as expected at this WBT.'
-      };
-    } else if (absDevC <= thB_C) {
-      appSt = {
-        cls: 'warn', icon: '⚠️', lbl: 'DEGRADED',
-        t: `Actual approach deviates ${absDevC.toFixed(1)}°C from κ-prediction. Minor fouling or drift loss suspected. Monitor trend and schedule inspection.`
-      };
-    } else {
-      appSt = {
-        cls: 'bad', icon: '🔴', lbl: 'ALERT',
-        t: `Actual approach deviates ${absDevC.toFixed(1)}°C from κ-prediction. Significant performance loss. Inspect fill, nozzles, drift eliminators and fan operation.`
-      };
-    }
-
-    let fillSt;
-    if (!fillPctValid) {
-      fillSt = { cls: 'ok', icon: '—', lbl: 'N/A', bar: 'ok', t: 'Fill data not available — design NTU could not be computed.' };
-    } else if (fillPct >= 90) {
-      fillSt = { cls: 'ok',  icon: '✅', lbl: 'GOOD',     bar: 'ok',   t: `Fill efficiency is ${fillPct.toFixed(1)}%. Transfer performance is within design expectations.` };
-    } else if (fillPct >= 75) {
-      fillSt = { cls: 'warn',icon: '⚠️', lbl: 'DEGRADED', bar: 'warn', t: `Fill efficiency is ${fillPct.toFixed(1)}%. Partial fouling or scaling suspected. Plan cleaning at next opportunity.` };
-    } else {
-      fillSt = { cls: 'bad', icon: '🔴', lbl: 'FOULED',   bar: 'bad',  t: `Fill efficiency is ${fillPct.toFixed(1)}%. Severe fill degradation. Immediate inspection and cleaning recommended.` };
-    }
-
-    // [MISSING FIELD FIX] lgSt — L/G status object
-    let lgSt;
-    if (lg === null) {
-      lgSt = { cls: 'info', icon: '—', lbl: 'N/A', t: 'Air flow rate not provided. Enter design air flow to enable L/G analysis.' };
-    } else if (lg >= 0.75 && lg <= 1.50) {
-      lgSt = { cls: 'ok',   icon: '✅', lbl: 'NORMAL',   t: `L/G = ${lg.toFixed(2)} — within typical CTI range (0.75–1.50). Mass balance is healthy.` };
-    } else if (lg < 0.75) {
-      lgSt = { cls: 'warn', icon: '⚠️', lbl: 'LOW L/G',  t: `L/G = ${lg.toFixed(2)} — below typical range. Check water flow measurement or consider higher air flow.` };
-    } else {
-      lgSt = { cls: 'warn', icon: '⚠️', lbl: 'HIGH L/G', t: `L/G = ${lg.toFixed(2)} — above typical range. Check air flow measurement or consider reducing water loading.` };
-    }
-
-    // ── Overall score & status ───────────────────────────────────
-    const appScore = Math.max(0, 100 - absDevC * 20);
-    const score    = Math.round(Math.max(0, Math.min(100,
-      fillPctValid ? (safe(fillPct) * 0.6 + appScore * 0.4) : appScore
-    )));
-
-    const worst = [appSt.cls, fillSt.cls].includes('bad')  ? 'bad'
-                : [appSt.cls, fillSt.cls].includes('warn') ? 'warn' : 'ok';
-
-    const sInfo = worst === 'ok'   ? { lbl: 'NORMAL',   c: '#00c853' }
-                : worst === 'warn' ? { lbl: 'DEGRADED', c: '#ffab00' }
-                :                    { lbl: 'ALERT',     c: '#ff1744' };
-
-    // ── largeRange flag ──────────────────────────────────────────
-    // [MISSING FIELD FIX] Frontend uses r.largeRange to show '8-point' vs '4-point'
-    const largeRange = (aHWT_C - aCWT_C) > 15;
-
-    // ── WBT sweep table data ─────────────────────────────────────
-    // [MISSING FIELD FIX] Frontend sweep table needs: s.wb, s.pred, s.app, s.isActual, s.kavlV
-    const sweepData = [];
-    for (let dWBT_s = -8; dWBT_s <= 8; dWBT_s += 1) {
-      const wb      = dWB_C + dWBT_s;                          // absolute WBT in °C
-      const pred    = safe(dCWT_C + kappa * dWBT_s);           // predicted CWT
-      const app     = safe(pred - wb);                          // predicted approach
-      const kavlV   = (app > 0) ? safe(merkelNTU(dHWT_C, pred, wb)) : null;
-      const isActual = Math.abs(dWBT_s - dWBT) < 0.5;
-      sweepData.push({ wb, pred, app, kavlV, isActual, dWBT: dWBT_s });
-    }
-
-    // ── Merkel chart data ────────────────────────────────────────
-    // Frontend buildMerkelChartSVG destructures chartData as an OBJECT:
-    // { satCurve[], chevPts[], hADesign, hAActual, aCWT, aHWT, Tmin, Tmax }
-    const hw_fn = T => {
-      const Psat = 0.6105 * Math.exp(17.27 * T / (T + 237.3));
-      const Ws   = 0.622 * Psat / (101.325 - Psat);
-      return 1.006 * T + Ws * (2501 + 1.86 * T);
-    };
-    const ha_inlet  = hw_fn(aWB_C);
-    const ha_design = hw_fn(dWB_C);
-    const cpa       = 1.006;
-    const LG        = 1.2;
-    const Tmin      = Math.min(aCWT_C, aWB_C, dWB_C) - 1;
-    const Tmax      = aHWT_C + 1;
-
-    // satCurve: array of {T, h} for the saturation enthalpy curve
-    const satCurve = [];
-    const steps = 40;
-    for (let i = 0; i <= steps; i++) {
-      const T  = Tmin + (Tmax - Tmin) * i / steps;
-      satCurve.push({ T: safe(T), h: safe(hw_fn(T)) });
-    }
-
-    // chevPts: Chebyshev integration points with hs (sat) and ha (operating line)
-    // 4-point Chebyshev nodes mapped onto [aCWT_C, aHWT_C]
-    const chevNodes = largeRange
-      ? [0.0694, 0.2500, 0.5000, 0.7500, 0.9306]   // 5-point (large range)
-      : [0.1127, 0.5000, 0.8873];                    // 3-point (standard, shown as 4-pt Chebyshev in UI)
-    const chevPts = chevNodes.map(frac => {
-      const T  = aCWT_C + frac * (aHWT_C - aCWT_C);
-      const hs = safe(hw_fn(T));
-      const ha = safe(ha_inlet + (T - aCWT_C) * cpa * LG);
-      return { T: safe(T), hs, ha };
-    });
-
-    // hADesign / hAActual — horizontal reference lines for inlet air enthalpy
-    const hADesign = safe(ha_design);
-    const hAActual = safe(ha_inlet);
-
-    const chartData = {
-      satCurve,
-      chevPts,
-      hADesign,
-      hAActual,
-      aCWT:  aCWT_C,
-      aHWT:  aHWT_C,
-      Tmin:  safe(Tmin),
-      Tmax:  safe(Tmax),
-    };
-
-    return {
-      // ── Echo inputs ──────────────────────────────────────────
-      dWB: dWB_C, dCWT: dCWT_C, dHWT: dHWT_C,
-      aWB: aWB_C, aCWT: aCWT_C, aHWT: aHWT_C,
-      dWR_r: dWR,                 // echoed for frontend unit display
-      dAR_r: dAR,                 // echoed for frontend unit display
-
-      // ── Temperatures & deltas ────────────────────────────────
-      app_d: safe(app_d), app_a: safe(app_a),
-      rng_d: safe(dRng),  rng_a: safe(aRng),
-      dApp:  safe(dApp),  dWBT:  safe(dWBT),
-      pred_cwt: safe(pred_cwt), pred_app: safe(pred_app),
-      dAppVsPred: safe(dAppVsPred), cwtDev: safe(cwtDev),
-
-      // ── Merkel NTU / fill ────────────────────────────────────
-      kavl_d: safe(kavl_d), kavl_a: safe(kavl_a),
-      kavl_d_norm: 1.0,
-      kavl_a_norm: safe(kavl_a_norm),
-      fillPct:     safe(fillPct),
-      fillPctValid,
-
-      // ── κ ────────────────────────────────────────────────────
-      kappa: safe(kappa), kappaOK,
-
-      // ── Effectiveness [FIXED] ────────────────────────────────
-      effectiveness_d: safe(effectiveness_d),
-      effectiveness_a: safe(effectiveness_a),
-
-      // ── Densities [FIXED] ────────────────────────────────────
-      RHO_W_d:   safe(RHO_W_d),
-      RHO_A_site: safe(RHO_A_site),
-
-      // ── L/G [FIXED] ──────────────────────────────────────────
-      lg:    lg !== null ? safe(lg)    : null,
-      Lmass: lg !== null ? safe(Lmass) : null,
-      Gmass: lg !== null ? safe(Gmass) : null,
-
-      // ── Status objects [FIXED — now include .t and .bar] ─────
-      appSt,   // {cls, icon, lbl, t}
-      fillSt,  // {cls, icon, lbl, bar, t}
-      lgSt,    // {cls, icon, lbl, t}  ← was entirely missing
-
-      // ── Score & overall ──────────────────────────────────────
-      score: safe(score), worst, sInfo,
-
-      // ── largeRange flag [FIXED] ──────────────────────────────
-      largeRange,
-
-      // ── Chart & sweep data [FIXED] ───────────────────────────
-      sweepData,  // [{wb, pred, app, kavlV, isActual, dWBT}]
-      chartData,  // [{T, hs, ha}]
-
-      Patm_kPa: safe(Patm_kPa),
-      ts: new Date().toISOString(),
-    };
-
-  } catch (e) {
-    return { error: e.message };
-  }
-}
-
-
-// ── COOLING TOWER: PREDICT CWT FROM DESIGN + ACTUAL WBT ──────────
-function runPredictCWT(p) {
-  try {
-
-    const REQUIRED = ['dWB_C','dCWT_C','dHWT_C','aWB_C'];
-    for (const k of REQUIRED) {
-      if (p[k] === undefined || p[k] === null || !isFinite(Number(p[k])))
-        return { error: `Missing or invalid field: "${k}" — must be a finite number.` };
-    }
-
-    const dWB_C  = Number(p.dWB_C),  dCWT_C = Number(p.dCWT_C);
-    const dHWT_C = Number(p.dHWT_C), aWB_C  = Number(p.aWB_C);
-    const Patm_kPa = isFinite(Number(p.Patm_kPa)) ? Number(p.Patm_kPa) : 101.325;
-
-    if (dHWT_C <= dCWT_C) return { error: `Design HWT (${dHWT_C}°C) must be > design CWT (${dCWT_C}°C).` };
-    if (dCWT_C <= dWB_C)  return { error: `Design CWT (${dCWT_C}°C) must be > design WBT (${dWB_C}°C).` };
-
-    const kavl_d = merkelNTU(dHWT_C, dCWT_C, dWB_C);
-    if (!isFinite(kavl_d) || kavl_d <= 0)
-      return { error: 'Design conditions produced zero or invalid NTU — verify design temperatures.' };
-
-    const dWBT = aWB_C - dWB_C;
-    let kappa  = 0.60;
-    if (Math.abs(dWBT) > 0.01) {
-      let lo = 0.2, hi = 1.5;
-      for (let iter = 0; iter < 60; iter++) {
-        const mid  = (lo + hi) / 2;
-        const pred = dCWT_C + mid * dWBT;
-        if (pred <= aWB_C) { lo = mid; continue; }
-        const ntu  = merkelNTU(dHWT_C, pred, aWB_C);
-        if (ntu > kavl_d) hi = mid; else lo = mid;
-        if (hi - lo < 1e-5) break;
-      }
-      kappa = (lo + hi) / 2;
-    }
-    if (!isFinite(kappa)) kappa = 0.60;
-
-    const safe       = v => (isFinite(v) ? v : 0);
-    const pred_C     = safe(dCWT_C + kappa * dWBT);
-    const dCWT_delta = safe(kappa * dWBT);
-
-    return {
-      pred_C,
-      kappa:      safe(kappa),
-      dWBT_C:     safe(dWBT),
-      dCWT_delta,
-      Patm_kPa:   safe(Patm_kPa),
-    };
-
-  } catch (e) {
-    return { error: e.message };
-  }
-}
-
-// ── HEAT EXCHANGER CALC FUNCTIONS ───────────────────────────────
-function lmtd(Th1, Th2, Tc1, Tc2, flow = 'counter') {
-  const dT1 = flow === 'counter' ? Th1 - Tc2 : Th1 - Tc1;
-  const dT2 = flow === 'counter' ? Th2 - Tc1 : Th2 - Tc2;
-  if (Math.abs(dT1 - dT2) < 1e-6) return dT1;
-  if (dT1 <= 0 || dT2 <= 0) return NaN;
-  return (dT1 - dT2) / Math.log(dT1 / dT2);
-}
-
-// ── HEAT EXCHANGER FLUID PROPERTIES HELPER ─────────────────────────────────
-// Returns {rho, mu_Pa, cp, k_f, Pr, name} for HX calcs
-// Works with pressure-drop FLUID_DB array
-function hxFluidProps(fluidId, T_C, P_bar) {
-  // cp lookup table [J/kg·K] and k_f [W/m·K] for common fluids
-  const CP_TABLE = {
-    water:4182, sea_water:3990, brine_25:3200, glycol_eg50:3400, glycol_pg50:3600,
-    crude_30api:2000, crude_40api:2100, diesel:2000, lube_100:2000, lube_32:2050,
-    gasoline:2200, kerosene:2100, naphtha:2200, fuel_oil_6:1850, bitumen:1800,
-    pentane:2300, hexane:2250, heptane:2200, octane:2170, cyclohexane:1850,
-    toluene:1690, benzene:1720, xylene:1700, cumene:1725, styrene:1800,
-    methanol:2530, ethanol:2440, isopropanol:2600, n_butanol:2400,
-    ethylene_glycol:2390, glycerol:2430,
-    dcm:1150, chloroform:960, ccl4:840, pce:880,
-    acetone:2170, mek:2300, ethyl_acetate:1920,
-    mea:3280, dea:2820, mdea:2920,
-    sulfuric_98:1380, hcl_32:3100, nitric_65:1840, naoh_50:3100,
-    liq_n2:2000, liq_o2:1700, liq_co2:2000, liq_nh3:4740, liq_lpg:2400,
-    liq_propane:2520,
-    styrene_liq:1800, acrylonitrile:2100, vinyl_acetate:2000,
-    phenol:2050, diethyl_ether:2360, thf:1770, dmf:1630, dmso:1920,
-    acetic_acid:2080, formic_acid:2150, phosphoric:2100,
-    r22_liq:1200, r134a_liq:1465, r410a_liq:1560,
-    dowtherm_a:1550, therminol_66:1600, molten_salt:1500,
-    air_g:1005, nitrogen_g:1040, oxygen_g:920, hydrogen_g:14300,
-    co2_g:840, methane_g:2220, nat_gas_g:2180, propane_g:1670,
-    h2s_g:1000, ammonia_g:2170, chlorine_g:480, so2_g:630,
-    hcl_g:800, steam_g:2010, flue_gas_g:1100, argon_g:520,
-    helium_g:5193, co_g:1040, ethylene_g:1560, ethane_g:1750,
-    hf_g:1500, phosgene_g:620,
-  };
-  const KF_TABLE = {
-    water:0.600, sea_water:0.580, brine_25:0.530, glycol_eg50:0.420, glycol_pg50:0.400,
-    crude_30api:0.130, crude_40api:0.135, diesel:0.130, lube_100:0.140, lube_32:0.138,
-    gasoline:0.120, kerosene:0.130, naphtha:0.125, fuel_oil_6:0.130,
-    pentane:0.113, hexane:0.124, heptane:0.130, octane:0.132, cyclohexane:0.123,
-    toluene:0.133, benzene:0.143, xylene:0.130, cumene:0.130, styrene:0.136,
-    methanol:0.200, ethanol:0.170, isopropanol:0.135, n_butanol:0.150,
-    ethylene_glycol:0.258, glycerol:0.285,
-    dcm:0.130, chloroform:0.120, ccl4:0.100, pce:0.108,
-    acetone:0.160, mek:0.155, ethyl_acetate:0.148,
-    mea:0.400, dea:0.380, mdea:0.370,
-    sulfuric_98:0.470, hcl_32:0.500, nitric_65:0.490, naoh_50:0.600,
-    liq_n2:0.152, liq_o2:0.152, liq_co2:0.087, liq_nh3:0.500, liq_lpg:0.100,
-    liq_propane:0.097, liq_lpg:0.100,
-    air_g:0.026, nitrogen_g:0.026, oxygen_g:0.027, hydrogen_g:0.183,
-    co2_g:0.018, methane_g:0.034, nat_gas_g:0.033, propane_g:0.018,
-    h2s_g:0.013, ammonia_g:0.025, chlorine_g:0.010, so2_g:0.009,
-    hcl_g:0.013, steam_g:0.025, flue_gas_g:0.030, argon_g:0.018,
-    helium_g:0.152, co_g:0.025, ethylene_g:0.021, ethane_g:0.021,
-  };
-  
-  const base = calcFluidProps(fluidId, T_C, P_bar);
-  if (!base) return null;
-  
-  const cp  = CP_TABLE[fluidId] || (base.isGas ? 1000 : 2000);
-  const k_f = KF_TABLE[fluidId] || (base.isGas ? 0.025 : 0.150);
-  const mu_Pa = base.mu * 1e-3;  // cP → Pa·s
-  const Pr  = (mu_Pa * cp) / k_f;
-  
-  return {
-    rho:   base.rho,
-    mu_Pa,
-    cp,
-    k_f,
-    Pr:    Math.max(0.5, Pr),
-    isGas: base.isGas,
-    name:  base.name || fluidId,
-  };
-}
-
-// ── FULL BELL-DELAWARE / KERN SHELL & TUBE CALCULATOR ──────────────────────
-function calcShellTube(body) {
-  try {
-    const {
-      hFlKey, cFlKey, hPop = 1.01325, cPop = 1.01325,
-      hTi, hTo, cTi, hF,
-      coldMode = 'flow', cF = 0, cTo: cTo_in = 0,
-      OD = 25, tw = 2.0, L = 4.0, pitch: pitch_in,
-      Rfo = 0.0002, Rfi = 0.0002,
-      arr = 'counter', mat = 'cs', hxType = 'fixed',
-      tema = 'B', bcut = 0.25, bsp = 0.50,
-      velMode = 'target', targetVel = 1.5, numTubesFixed = 0,
-      pdAllowShell = 0.70, pdAllowTube = 1.00,
-      pitchLayout = 'triangular',
-      N_shells = 1, N_passes = 2,
-    } = body;
-
-    // ── Material conductivity ─────────────────────────────────────────
-    const kW = {cs:50,ss316:16,ss304:16,cu:380,cuNi:50,ti:22,inconel:15,hastelloy:12}[mat] || 50;
-    const OD_m = OD / 1000;
-    const ID_m = OD_m - 2 * (tw / 1000);
-    if (ID_m <= 0) return { error: 'Wall thickness exceeds tube radius' };
-    const pitch = pitch_in || (OD_m * 1.25);
-
-    // ── Mean temperatures ─────────────────────────────────────────────
-    const hTmean = (hTi + hTo) / 2;
-    const hProps = hxFluidProps(hFlKey, hTmean, hPop);
-    if (!hProps) return { error: `Unknown hot fluid: ${hFlKey}` };
-
-    // ── Hot side energy balance ────────────────────────────────────────
-    const mh = hF / 3600;  // kg/s
-    const Q = mh * hProps.cp * (hTi - hTo);  // W
-    if (Q <= 0) return { error: 'Hot inlet temp must be higher than hot outlet temp' };
-
-    // ── Cold side: determine cTo or cF ────────────────────────────────
-    let cToCalc, cFCalc, cTmean;
-    if (coldMode === 'temp') {
-      cToCalc = cTo_in;
-      cTmean  = (cTi + cToCalc) / 2;
-      const cProps0 = hxFluidProps(cFlKey, cTmean, cPop);
-      if (!cProps0) return { error: `Unknown cold fluid: ${cFlKey}` };
-      cFCalc  = (Q / (cProps0.cp * (cToCalc - cTi))) * 3600;  // kg/h
-    } else {
-      cFCalc  = cF;
-      const mc = cF / 3600;
-      if (mc <= 0) return { error: 'Cold flow rate must be positive' };
-      // estimate cTo: iterate once
-      cTmean  = (cTi + cTi + 30) / 2;
-      const cPropsEst = hxFluidProps(cFlKey, cTmean, cPop);
-      if (!cPropsEst) return { error: `Unknown cold fluid: ${cFlKey}` };
-      cToCalc = cTi + Q / (mc * cPropsEst.cp);
-      cTmean  = (cTi + cToCalc) / 2;
-    }
-
-    const cProps = hxFluidProps(cFlKey, cTmean, cPop);
-    if (!cProps) return { error: `Unknown cold fluid: ${cFlKey}` };
-
-    // ── LMTD ─────────────────────────────────────────────────────────
-    const [T1h, T2h, T1c, T2c] = arr === 'counter'
-      ? [hTi, hTo, cToCalc, cTi]
-      : [hTi, hTo, cTi, cToCalc];
-    const dT1 = T1h - T1c, dT2 = T2h - T2c;
-    let LMTD;
-    if (Math.abs(dT1 - dT2) < 0.01) {
-      LMTD = dT1;
-    } else if (dT1 <= 0 || dT2 <= 0) {
-      return { error: `Temperature cross detected: ΔT₁=${dT1.toFixed(1)}°C, ΔT₂=${dT2.toFixed(1)}°C. Check inputs.` };
-    } else {
-      LMTD = (dT1 - dT2) / Math.log(dT1 / dT2);
-    }
-
-    // F-correction for multi-pass
-    const R = (hTi - hTo) / Math.max(0.01, cToCalc - cTi);
-    const P = (cToCalc - cTi) / Math.max(0.01, hTi - cTi);
-    let F = 1.0;
-    if (N_passes >= 2 && Math.abs(R - 1) > 0.01) {
-      const S = Math.sqrt(R * R + 1);
-      const arg1 = (1 - P) / Math.max(1e-10, 1 - P * R);
-      if (arg1 > 0) {
-        const num = S * Math.log(arg1);
-        const argDen = (2 - P * (R + 1 - S)) / Math.max(1e-10, 2 - P * (R + 1 + S));
-        if (argDen > 0) F = num / ((R - 1) * Math.log(argDen));
-      }
-    }
-    F = Math.max(0.5, Math.min(1.0, isFinite(F) ? F : 1.0));
-    const FLMTD = LMTD * F;
-
-    // ── Tube count & geometry ─────────────────────────────────────────
-    // Use tube-side velocity to determine tube count
-    // Put the higher-pressure / cleaner fluid on tube side (default: cold)
-    const tubeFluid  = cProps;  // cold side in tubes
-    const shellFluid = hProps;  // hot side on shell
-
-    let numTubes;
-    const Ai = Math.PI * ID_m * ID_m / 4;  // flow area per tube per pass
-    const mc = cFCalc / 3600;  // kg/s
-    if (numTubesFixed > 0) {
-      numTubes = numTubesFixed;
-    } else {
-      // target velocity method
-      const rho_t = tubeFluid.rho;
-      const Ntarget = (mc / rho_t / targetVel / Ai) * N_passes;
-      numTubes = Math.max(4, Math.round(Ntarget));
-    }
-    const nTubesPerPass = Math.max(1, Math.round(numTubes / N_passes));
-    const actualNumTubes = nTubesPerPass * N_passes;
-    const flowAreaTube = Ai * nTubesPerPass;
-    const tubeVel = mc / (tubeFluid.rho * flowAreaTube);
-
-    // Shell ID estimate from tube count and pitch
-    // Bundle diameter Db = OD_m × (N / k1)^(1/n1) — simplified
-    const CL = 1.0, CTP = 0.93;
-    const Db = OD_m * Math.pow(actualNumTubes / (CTP * 0.785 * (pitch / OD_m) * (pitch / OD_m)), 0.5);
-    const shellID = Db / 0.85;  // rough bundle-to-shell clearance factor
-    const Ds = shellID;
-
-    // Baffle spacing & window
-    const Lbc = bsp * Ds;  // baffle spacing [m]
-    const N_b  = Math.max(1, Math.round(L / Lbc) - 1);  // number of baffles
-
-    // ── Tube-side heat transfer (Dittus-Boelter) ─────────────────────
-    const Re_t  = tubeFluid.rho * tubeVel * ID_m / tubeFluid.mu_Pa;
-    const Pr_t  = tubeFluid.Pr;
-    const nu_t  = Re_t > 10000
-      ? 0.023 * Math.pow(Re_t, 0.8) * Math.pow(Pr_t, (cToCalc > cTi ? 0.4 : 0.3))
-      : (Re_t > 2300
-        ? 0.116 * (Math.pow(Re_t, 2/3) - 125) * Math.pow(Pr_t, 1/3)  // Hausen
-        : 3.66);  // laminar
-    const hi = nu_t * tubeFluid.k_f / ID_m;  // W/m²·K
-
-    // ── Shell-side heat transfer (simplified Kern / Bell–Delaware) ────
-    const pitchRatio = pitch / OD_m;
-    // Cross-flow area at shell centreline
-    const as  = Ds * bcut * (pitch - OD_m) / pitch * Lbc;  // m²
-    const Gs  = shellFluid.rho > 0 ? (mh / as) : 100;       // kg/m²·s (hot side)
-    const De  = pitchLayout === 'triangular'
-      ? (4 * (0.5 * pitch * (pitch * Math.sqrt(3) / 2) - Math.PI * OD_m * OD_m / 8)) / (Math.PI * OD_m / 2)
-      : (4 * (pitch * pitch - Math.PI * OD_m * OD_m / 4)) / (Math.PI * OD_m);
-    const Re_s = Gs * De / shellFluid.mu_Pa;
-    const Pr_s = shellFluid.Pr;
-    const jH   = Re_s < 100 ? 0.24 * Math.pow(Re_s, -0.40)
-               : Re_s < 1e4  ? 0.36 * Math.pow(Re_s, -0.55)
-               :                0.36 * Math.pow(Re_s, -0.55);  // Kern j_H
-    const ho   = jH * shellFluid.k_f / De * Pr_s > 0 ? jH * (shellFluid.k_f / De) * Math.pow(Pr_s, 1/3) : 500;
-
-    // ── Wall resistance ───────────────────────────────────────────────
-    const A_ratio = OD_m / ID_m;
-    const Rwall = OD_m * Math.log(OD_m / ID_m) / (2 * kW);  // per unit OA
-
-    // ── Overall U (based on outer area) ──────────────────────────────
-    const U = 1 / (1/ho + Rfo + Rwall + Rfi * A_ratio + (1/hi) * A_ratio);
-
-    // ── Required area ─────────────────────────────────────────────────
-    const A_req = Q / (U * FLMTD);  // m²
-
-    // ── Actual area from geometry ─────────────────────────────────────
-    const A_act = Math.PI * OD_m * L * actualNumTubes;
-    const overSurf = ((A_act - A_req) / A_req) * 100;
-
-    // ── Effectiveness ─────────────────────────────────────────────────
-    const Ch   = mh * hProps.cp;
-    const Cc   = mc * cProps.cp;
-    const Cmin = Math.min(Ch, Cc);
-    const Cmax = Math.max(Ch, Cc);
-    const NTU  = U * A_req / Cmin;
-    const Cr   = Cmin / Cmax;
-    let eff;
-    if (arr === 'counter' && Math.abs(Cr - 1) < 0.01) {
-      eff = NTU / (1 + NTU);
-    } else if (arr === 'counter') {
-      const e1 = Math.exp(-NTU * (1 - Cr));
-      eff = (1 - e1) / (1 - Cr * e1);
-    } else {
-      eff = (1 - Math.exp(-NTU * (1 + Cr))) / (1 + Cr);
-    }
-    eff = Math.max(0, Math.min(1, eff || 0));
-
-    // ── Pressure drops ────────────────────────────────────────────────
-    // Tube side (Darcy-Weisbach, includes inlet/outlet loss)
-    let f_t;
-    if (Re_t > 4000) f_t = 0.316 * Math.pow(Re_t, -0.25);
-    else f_t = 64 / Math.max(1, Re_t);
-    const tubeDp = (f_t * L * N_passes / ID_m + 4 * N_passes) * tubeFluid.rho * tubeVel * tubeVel / 2 / 1e5; // bar
-
-    // Shell side (simplified Kern)
-    const shellVel = Gs / shellFluid.rho;
-    let f_s = 0.5;  // friction factor approximation
-    const shellDP = f_s * (N_b + 1) * Ds * Gs * Gs / (De * shellFluid.rho) / 1e5;  // bar
-
-    // ── Warnings ─────────────────────────────────────────────────────
-    const warns = [];
-    if (F < 0.75)     warns.push(`F-factor = ${F.toFixed(2)} < 0.75 — temperature cross near-pinch. Consider 2 shells in series.`);
-    if (tubeVel < 0.5) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is low — fouling risk elevated.`);
-    if (tubeVel > 3.0) warns.push(`Tube-side velocity ${tubeVel.toFixed(2)} m/s is high — erosion risk for liquids > 2.5 m/s.`);
-    if (Re_t < 10000)  warns.push(`Re_t = ${Re_t.toFixed(0)} — transition/laminar flow on tube side; heat transfer model less accurate.`);
-    if (shellDP > pdAllowShell)  warns.push(`Shell-side ΔP ${shellDP.toFixed(3)} bar exceeds allowable ${pdAllowShell} bar.`);
-    if (tubeDp  > pdAllowTube)   warns.push(`Tube-side ΔP ${tubeDp.toFixed(3)} bar exceeds allowable ${pdAllowTube} bar.`);
-    if (overSurf < -10) warns.push(`Undersurfaced by ${(-overSurf).toFixed(1)}% — increase tube count or length.`);
-
-    // ── Status badge ──────────────────────────────────────────────────
-    const feasible = A_act > 0 && isFinite(U) && U > 0 && isFinite(LMTD) && LMTD > 0;
-    const st    = overSurf >= 5 ? 'ok' : overSurf >= 0 ? 'marginal' : 'under';
-    const stTxt = overSurf >= 5 ? '✅ ADEQUATE' : overSurf >= 0 ? '⚠ MARGINAL' : '🔴 UNDERSIZED';
-
-    const Qh = Q / 1000, Qc = Q / 1000;
-
-    return {
-      ok: true,
-      // Core thermal
-      Q: Q/1000, Qh, Qc, LMTD: FLMTD, FLMTD, F_factor: F,
-      area: A_req, U, eff, NTU,
-      // Temperatures
-      hTi, hTo, cTi, cTo: cToCalc, hTmean, cTmean,
-      hF, cF: cFCalc,
-      // Geometry
-      numTubes: actualNumTubes, nTubesPerPass, shellID, L, nShells: N_shells, nPasses: N_passes,
-      OD_mm: OD, ID_mm: ID_m * 1000, pitchLayout, velMode,
-      tubeVel, shellVel,
-      overSurf, pdAllowShell, pdAllowTube,
-      // Pressure drops
-      shellDP, tubeDp,
-      // Fluid info
-      hFluid: { name: hProps.name, rho: hProps.rho, mu: hProps.mu_Pa * 1000, cp: hProps.cp, k: hProps.k_f, Pr: hProps.Pr, Z: 1.0, zMethod: 'ideal' },
-      cFluid: { name: cProps.name, rho: cProps.rho, mu: cProps.mu_Pa * 1000, cp: cProps.cp, k: cProps.k_f, Pr: cProps.Pr, Z: 1.0, zMethod: 'ideal' },
-      hFluidDB: { rho: hProps.rho },
-      cFluidDB: { rho: cProps.rho },
-      hPop, cPop,
-      // Status
-      st, stTxt, tema, type: 'Shell & Tube',
-      // Heat transfer coefficients
-      hi, ho,
-      // Reynolds numbers
-      Re_t, Re_s,
-      warns,
-    };
-  } catch (e) {
-    return { error: e.message };
-  }
-}
-
-
-function calcPlate(body) {
-  try {
-    const r = hxBaseCalc(body);
-    const { N_plates = 20 } = body;
-    const A_per_plate = r.A_m2 ? (parseFloat(r.A_m2) / N_plates).toFixed(4) : null;
-    return { ...r, N_plates, A_per_plate_m2: A_per_plate, type: 'Plate Heat Exchanger' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcAirCooled(body) {
-  try {
-    const { Q_kW, T_air_in = 35, T_air_out, T_proc_in, T_proc_out, U = 40 } = body;
-    const T_air_out_calc = T_air_out || (T_air_in + Q_kW * 1000 / (U * 100));
-    const LMTD = lmtd(T_proc_in, T_proc_out, T_air_in, T_air_out_calc, 'counter');
-    const A = Q_kW * 1000 / (U * LMTD);
-    return { Q_kW, LMTD: LMTD.toFixed(2), A_m2: A.toFixed(3), U_Wm2K: U, T_air_in, T_air_out: T_air_out_calc.toFixed(1), type: 'Air Cooled' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcFinFan(body) {
-  try {
-    const r = calcAirCooled(body);
-    const { N_bays = 1, N_fans = 2 } = body;
-    const A_per_bay = r.A_m2 ? (parseFloat(r.A_m2) / N_bays).toFixed(3) : null;
-    return { ...r, N_bays, N_fans, A_per_bay_m2: A_per_bay, type: 'Fin-Fan (Air Cooled)' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcDoublePipe(body) {
-  try {
-    const r = hxBaseCalc(body);
-    const { L_per_pass = 6 } = body;
-    const n_passes = r.A_m2 ? Math.ceil(parseFloat(r.A_m2) / (Math.PI * 0.05 * L_per_pass)) : null;
-    return { ...r, L_per_pass_m: L_per_pass, n_passes, type: 'Double Pipe' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcLmtdNtu(body) {
-  try {
-    const { C_hot, C_cold, U, A, Th_in, Tc_in } = body;
-    // NTU-effectiveness method
-    const C_min = Math.min(C_hot, C_cold);
-    const C_max = Math.max(C_hot, C_cold);
-    const Cr = C_min / C_max;
-    const NTU = U * A / C_min;
-    // Counter-flow effectiveness
-    let eps;
-    if (Math.abs(Cr - 1) < 1e-6) {
-      eps = NTU / (1 + NTU);
-    } else {
-      const e = Math.exp(-NTU * (1 - Cr));
-      eps = (1 - e) / (1 - Cr * e);
-    }
-    const Q = eps * C_min * (Th_in - Tc_in);
-    const Th_out = Th_in - Q / C_hot;
-    const Tc_out = Tc_in + Q / C_cold;
-    const LMTD = lmtd(Th_in, Th_out, Tc_in, Tc_out, 'counter');
-    return { NTU: NTU.toFixed(3), effectiveness: (eps * 100).toFixed(1), Q_kW: (Q / 1000).toFixed(2), Th_out: Th_out.toFixed(2), Tc_out: Tc_out.toFixed(2), LMTD: LMTD.toFixed(2), type: 'NTU-Effectiveness' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcWallThickness(body) {
-  try {
-    const { P_MPa, D_mm, S_MPa = 138, E = 1.0, Y = 0.4 } = body;
-    // ASME Sec VIII Div 1
-    const t = P_MPa * D_mm / (2 * S_MPa * E - 2 * Y * P_MPa);
-    const t_min = t * 1.125;  // add 12.5% mill tolerance
-    return { t_required_mm: t.toFixed(2), t_min_mm: t_min.toFixed(2), P_MPa, D_mm, S_MPa, E, Y, standard: 'ASME Sec VIII Div 1' };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcFouling(body) {
-  try {
-    const { U_clean, Rf_hot = 0.0002, Rf_cold = 0.0002 } = body;
-    const Rf_total = Rf_hot + Rf_cold;
-    const U_fouled = 1 / (1 / U_clean + Rf_total);
-    const fouling_factor = ((U_clean - U_fouled) / U_clean * 100).toFixed(1);
-    return { U_clean, U_fouled: U_fouled.toFixed(2), Rf_total: Rf_total.toFixed(5), fouling_pct: fouling_factor, Rf_hot, Rf_cold };
-  } catch (e) { return { error: e.message }; }
-}
-
-function calcSelector(body) {
-  try {
-    const { Q_kW, LMTD, duty_type = 'liquid-liquid' } = body;
-    // Suggest HX type based on duty
-    const suggestions = [];
-    if (duty_type === 'liquid-liquid') {
-      suggestions.push({ type: 'Plate HX', U_range: '1000–5000 W/m²K', note: 'Best for clean, compatible liquids' });
-      suggestions.push({ type: 'Shell & Tube', U_range: '300–1000 W/m²K', note: 'Fouling services, high pressure' });
-    } else if (duty_type === 'gas-liquid') {
-      suggestions.push({ type: 'Shell & Tube', U_range: '50–300 W/m²K', note: 'Standard for gas cooling/heating' });
-      suggestions.push({ type: 'Plate-Fin', U_range: '100–800 W/m²K', note: 'Compact, process intensification' });
-    } else {
-      suggestions.push({ type: 'Air Cooled (Fin-Fan)', U_range: '30–60 W/m²K', note: 'Gas-gas or gas-air service' });
-    }
-    const A_est = LMTD && Q_kW ? (Q_kW * 1000 / (suggestions[0] ? 500 * LMTD : 1)).toFixed(1) : null;
-    return { Q_kW, LMTD, duty_type, suggestions, A_estimate_m2: A_est };
-  } catch (e) { return { error: e.message }; }
-}
-
-
-
-// ── ROUTE HANDLERS ────────────────────────────────────────────────────────
-
-async function handle_compressor(body, res) {
-  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
-  const err = validateCompInputs(body);
-  if (err) return res.status(400).json({ error: err });
-  return res.status(200).json(compressorCalc(body));
-}
-
-
-async function handle_control_valve(req, body, res) {
-  const SECRET_KEY = 'cv-k3y9x';
-  if (req.headers['x-api-key'] !== SECRET_KEY)
-    return res.status(403).json({ error: 'Forbidden' });
-  try {
-    const d = body;
-
-// [DEDUP] removed duplicate d = req.body
-
-    // ── RAW INPUTS ────────────────────────────────────────────────────────────
-    const phase    = d.phase    || 'liq_gen';
-    const flowType = d.flowType || 'vol';
-    const units    = d.units    || 'imp';   // 'imp' = US, 'met' = SI
-    const m        = units === 'met';
-    const isL      = phase.includes('liq');
-    const isG      = phase.includes('gas');
-    const isS      = phase === 'steam';
-
-    const Q  = parseFloat(d.Q)  || 0;
-    const P1 = parseFloat(d.P1) || 0;
-    const P2 = parseFloat(d.P2) || 0;
-    const T  = parseFloat(d.T)  || (m ? 20 : 60);
-    const SG = parseFloat(d.SG) || 1;
-    const Pv = parseFloat(d.Pv) || 0;
-    const D  = parseFloat(d.D)  || (m ? 52.5 : 2.067);
-    const FL = parseFloat(d.FL) || 0.9;
-    const k  = parseFloat(d.k)  || 1.4;
-    const Z  = parseFloat(d.Z)  || 1.0;
-    const fluidVisc  = parseFloat(d.fluidVisc) || 1.0;
-    const fluidPc    = d.fluidPc ? parseFloat(d.fluidPc) : null;
-    const steamFluid = d.steamFluid || '';
-
-    // ── VALIDATION ────────────────────────────────────────────────────────────
-    const warns = [];
-    let hasError = false;
-
-    if (P1 <= 0) { warns.push({ cls:'warn-red', txt:'❌ Inlet pressure P₁ must be positive.' }); hasError=true; }
-    if (P2 < 0)  { warns.push({ cls:'warn-red', txt:'❌ Outlet pressure P₂ cannot be negative.' }); hasError=true; }
-    if (!hasError && P2 >= P1) { warns.push({ cls:'warn-red', txt:'❌ P₂ ≥ P₁: Outlet pressure must be less than inlet pressure.' }); hasError=true; }
-    if (Q <= 0)  { warns.push({ cls:'warn-red', txt:'❌ Flow rate must be greater than zero.' }); hasError=true; }
-    if (isL && SG <= 0) { warns.push({ cls:'warn-red', txt:'❌ Specific gravity must be positive.' }); hasError=true; }
-    if (isG && SG <= 0) { warns.push({ cls:'warn-red', txt:'❌ Molecular weight must be positive.' }); hasError=true; }
-    if (FL <= 0 || FL > 1) warns.push({ cls:'warn-amber', txt:'⚠ FL/xT should be between 0.1 and 1.0.' });
-    if (Z <= 0  || Z > 1.5) warns.push({ cls:'warn-amber', txt:'⚠ Compressibility Z outside typical range (0.7–1.05).' });
-
-    // Gauge pressure warnings
-    if (!hasError && isL && !m && P1 < 14.5 && P1 > 0)
-      warns.push({ cls:'warn-amber', txt:`⚠ P₁ = ${P1} psi looks like gauge pressure. IEC 60534 requires ABSOLUTE pressure. Add 14.7 psia.` });
-    if (!hasError && m && P1 < 1.013 && P1 > 0 && isL)
-      warns.push({ cls:'warn-amber', txt:`⚠ P₁ = ${P1} bar looks like gauge pressure. IEC 60534 requires ABSOLUTE pressure (bara). Add 1.013 bar.` });
-    if (isL && Pv > 0 && Pv >= P1) {
-      warns.push({ cls:'warn-red', txt:'❌ Vapour pressure Pv ≥ P₁: fluid already vaporised at inlet.' }); hasError=true;
-    }
-
-    if (hasError) return res.status(200).json({ error: null, warns, Cv:null, Kv:null });
-
-    // ── UNIT CONVERSIONS to US base ───────────────────────────────────────────
-    let P1a = P1, P2a = P2, Pva = Pv, T_F = T, D_in = D;
-    if (m) {
-      P1a  *= 14.5038;   // bara → psia
-      P2a  *= 14.5038;
-      Pva  *= 14.5038;
-      D_in  = D / 25.4;  // mm → in
-      T_F   = T * 9/5 + 32; // °C → °F
-    }
-    const dP   = Math.max(P1a - P2a, 0.0001);
-    const TR   = T_F + 459.67;  // Rankine
-    const A_in2 = Math.PI / 4 * D_in * D_in;
-    const Pc_psia = fluidPc ? fluidPc * 14.5038 : 3208;
-
-    // ── FLOW CONVERSION to canonical units ────────────────────────────────────
-    let Qc = Q;
-    if (isL) {
-      if      (flowType === 'vol')  { if (m) Qc = Q * 4.40287; }
-      else if (flowType === 'mass') {
-        const rho = SG * 8.3454;
-        Qc = m ? (Q * 2.20462) / (rho * 60) : Q / (rho * 60);
-      } else { if (m) Qc = Q * 4.40287; }
-    } else if (isG) {
-      if      (flowType === 'vol')  { if (m) Qc = Q * 35.3147; }
-      else if (flowType === 'mass') { const lbh = m ? Q * 2.20462 : Q; Qc = (lbh / SG) * 379.5; }
-      else { if (m) Qc = Q * 35.3147; }
-    } else {
-      Qc = m ? Q * 2.20462 : Q; // steam → lb/h
-    }
-
-    // ── CORE IEC 60534-2-1 CALCULATIONS ──────────────────────────────────────
-    let Cv = 0, vel = 0, dPmax = 0, dPeff = dP, x_ratio = 0;
-    let flowState = '', noiseDb = 0, Y = null, FR = null, Rev = null;
-
-    if (isL) {
-      // LIQUID — IEC 60534-2-1 §5.1
-      const FF  = Math.min(0.96, 0.96 - 0.28 * Math.sqrt(Math.max(Pva / Pc_psia, 0)));
-      dPmax     = Math.max(FL * FL * (P1a - FF * Pva), 0.001);
-      dPeff     = Math.min(dP, dPmax);
-      Cv        = Qc * Math.sqrt(SG / Math.max(dPeff, 0.0001));
-
-      // Reynolds viscosity correction IEC 60534 §5.3
-      Rev = 76000 * Qc / (fluidVisc * Math.sqrt(Math.max(Cv * FL * FL, 0.001)));
-      FR  = 1.0;
-      if (Rev < 10000) {
-        if      (Rev < 10)    FR = 0.026 * Math.pow(Rev, 0.33);
-        else if (Rev < 100)   FR = 0.12  * Math.pow(Rev, 0.20);
-        else if (Rev < 1000)  FR = 0.34  * Math.pow(Rev, 0.10);
-        else                  FR = 0.70  * Math.pow(Rev / 10000, 0.04);
-        FR = Math.min(Math.max(FR, 0.1), 1.0);
-        Cv = Cv / FR;
-      }
-
-      vel = Qc * 0.002228 / (A_in2 / 144.0);
-
-      const sigma = (P1a - Pva) / Math.max(dP, 0.0001);
-      const ci    = dP / Math.max(dPmax, 0.0001);
-      x_ratio     = Math.min(ci, 1.0);
-
-      if      (dP >= dPmax) flowState = '🔴 Choked / Flashing';
-      else if (ci > 0.75)   flowState = `🟡 Cavitation Risk (σ=${sigma.toFixed(2)})`;
-      else if (ci > 0.50)   flowState = `🟠 Incipient Cavitation (σ=${sigma.toFixed(2)})`;
-      else                  flowState = '🟢 Normal Liquid';
-
-      noiseDb = Math.round(68 + 10*Math.log10(Math.max(Cv,1)) + 12*(ci>1?1:ci)*Math.log10(Math.max(P1a/14.7,1.1)));
-
-      if (dP >= dPmax) warns.push({ cls:'warn-red',   txt:`⚠️ Choked flow — Cv at ΔP_choked = ${fmt2(m?dPmax/14.5038:dPmax)} ${m?'bara':'psia'}. Hardened trim required.` });
-      else if (ci > 0.75) warns.push({ cls:'warn-amber', txt:`⚠ Cavitation risk (ΔP/ΔP_choked = ${(ci*100).toFixed(0)}%). Anti-cavitation trim recommended. σ = ${sigma.toFixed(2)}.` });
-      else if (ci > 0.50) warns.push({ cls:'warn-amber', txt:`⚠ Incipient cavitation. Monitor trim. σ = ${sigma.toFixed(2)}.` });
-      if (FR < 0.95) warns.push({ cls:'warn-amber', txt:`⚠ Viscosity correction: FR=${FR.toFixed(3)}, Rev=${Rev.toFixed(0)}. Cv +${((1/FR-1)*100).toFixed(1)}% for viscous flow.` });
-
-    } else if (isG) {
-      // GAS — IEC 60534-2-1 §5.2
-      const MW     = SG;
-      const xT     = FL;
-      const x      = dP / Math.max(P1a, 0.0001);
-      const Fk     = k / 1.4;
-      const x_crit = Fk * xT;
-      const x_lim  = Math.min(x, x_crit);
-      x_ratio      = x / Math.max(x_crit, 0.0001);
-      Y            = Math.max(1.0 - x_lim / (3.0 * Fk * xT), 0.667);
-      dPmax        = x_crit * P1a;
-
-      Cv = Qc * Math.sqrt(MW * TR * Z) / (1360.0 * P1a * Y * Math.sqrt(Math.max(x_lim, 0.0001)));
-
-      const Q_cfs = Qc * (14.696 / Math.max(P2a,14.696)) * (TR / 519.67) / 3600.0;
-      vel = Q_cfs / (A_in2 / 144.0);
-
-      if      (x >= x_crit)       { flowState = '🔴 Choked Gas (Sonic)';  warns.push({ cls:'warn-red',   txt:`⚠️ Sonic flow: x=${(x*100).toFixed(1)}% ≥ Fk·xT=${(x_crit*100).toFixed(1)}%. Flow will NOT increase with higher ΔP.` }); }
-      else if (x > x_crit * 0.8)  { flowState = `🟡 Near-Critical Gas`;   warns.push({ cls:'warn-amber', txt:`⚠ Near sonic: x/x_crit=${(x_ratio*100).toFixed(0)}%. Significant noise likely.` }); }
-      else                         { flowState = '🟢 Normal Gas Flow'; }
-      if (vel > 100) warns.push({ cls:'warn-amber', txt:`⚠ Inlet velocity ${vel.toFixed(0)} ft/s > 100 ft/s. Consider larger pipe.` });
-
-      noiseDb = Math.round(62 + 10*Math.log10(Math.max(Cv,1)) + 18*x_lim + 5*Math.log10(Math.max(P1a/14.7,1.1)));
-
-    } else {
-      // STEAM — ISA S75.01
-      const W          = Qc;
-      const x_s        = dP / Math.max(P1a, 0.0001);
-      const x_crit_s   = 0.42;
-      dPmax            = x_crit_s * P1a;
-      x_ratio          = x_s / x_crit_s;
-      const dPeff_s    = Math.min(dP, dPmax);
-      const isSup      = steamFluid === 'Superheated Steam';
-      const isWet      = steamFluid === 'Wet Steam (90%)';
-
-      if (isSup) {
-        const Tsat_F = -459.67 + 49.16 * Math.pow(P1a, 0.2345) + 200;
-        const Fs     = 1.0 + 0.00065 * Math.max(T_F - Tsat_F, 0);
-        Cv = W * Fs / (2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
-      } else if (isWet) {
-        Cv = W / (0.90 * 2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
-      } else {
-        Cv = W / (2.1 * Math.sqrt(Math.max(dPeff_s * (P1a + P2a), 0.0001)));
-      }
-
-      const v_spec = (85.76 * TR) / (P2a * 144.0);
-      vel = W * v_spec / (3600.0 * A_in2 / 144.0);
-
-      flowState = x_ratio >= 1 ? '🔴 Choked Steam' : '🟢 Steam Flow OK';
-      if (x_ratio >= 1) warns.push({ cls:'warn-red', txt:`⚠️ Choked steam: ΔP/P₁=${(x_s*100).toFixed(1)}% > 42%. Verify flash piping downstream.` });
-      noiseDb = Math.round(65 + 10*Math.log10(Math.max(Cv,1)) + 15*(x_ratio>1?1:x_ratio));
-    }
-
-    const Kv = Cv / 1.1561;
-
-    // ── VELOCITY DISPLAY (convert to metric if needed) ────────────────────────
-    const vel_disp = m ? vel * 0.3048 : vel;
-    const velLim   = isL ? (m ? 5 : 15) : (m ? 30 : 100);
-    const velOk    = vel_disp < velLim;
-    if (!velOk) warns.push({ cls:'warn-amber', txt:`ℹ Pipe velocity (${vel_disp.toFixed(1)} ${m?'m/s':'ft/s'}) exceeds recommended limit. Consider larger bore piping.` });
-
-    // ── VALVE SIZE RECOMMENDATION ─────────────────────────────────────────────
-    const stdCv = [
-      {s:'1"',Cv_rated:11},{s:'1.5"',Cv_rated:25},{s:'2"',Cv_rated:55},
-      {s:'3"',Cv_rated:120},{s:'4"',Cv_rated:240},{s:'6"',Cv_rated:550},
-      {s:'8"',Cv_rated:1000},{s:'10"',Cv_rated:1800},{s:'12"',Cv_rated:3000},
-      {s:'14"',Cv_rated:4500},{s:'16"',Cv_rated:6500},
-    ];
-    const ri0 = stdCv.findIndex(s => s.Cv_rated * 0.8 >= Cv);
-    const ri   = ri0 === -1 ? stdCv.length-1 : Math.max(0, Math.min(ri0, stdCv.length-1));
-    const sizes = {
-      smaller: stdCv[Math.max(ri-1,0)],
-      rec:     stdCv[ri],
-      larger:  stdCv[Math.min(ri+1, stdCv.length-1)],
-    };
-
-    // ── DISPLAY LABELS (built server side so no math in client) ──────────────
-    const pu        = m ? 'bar' : 'psi';
-    const dp2label  = v => v == null ? '—' : (m ? (v/14.5038).toFixed(3) : v.toFixed(2)) + ' ' + pu;
-
-    return res.status(200).json({
-      Cv:         fmtN(Cv),
-      Kv:         fmtN(Kv),
-      vel:        fmtN(vel_disp),
-      velOk,
-      velLim,
-      dP,   dPeff, dPmax,
-      dpRatioPct: ((dP / Math.max(P1a,0.001)) * 100).toFixed(1),
-      Y:          isG ? fmtN(Y) : null,
-      Rev:        isL && Rev != null ? Rev : null,
-      flowState,
-      noiseDb,
-      sizes,
-      warns,
-      // Display labels — all formatting done server side
-      sgLabel:    SG.toFixed(3) + (isL?' (SG)': isG?' g/mol':' (steam MW=18.02)'),
-      tempLabel:  m ? ((T_F-32)*5/9).toFixed(1)+'°C' : T_F.toFixed(1)+'°F',
-      flLabel:    FL.toFixed(3) + (isG?' (xT)':' (FL)'),
-      pipeLabel:  m ? (D_in*25.4).toFixed(1)+' mm' : D_in.toFixed(3)+' in',
-      dPmaxLabel: isL||isS ? dp2label(dPmax) : 'x_crit='+((k/1.4)*FL).toFixed(3),
-    });
-
-  
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-}
-
-
-async function handle_cooling_tower(body, res) {
-  const { action, params } = body;
-  if (!action) return res.status(400).json({ error: 'Missing action' });
-  if (action === 'calculate') {
-    const result = runCalculate(params);
-    if (result.error) return res.status(400).json({ error: result.error });
-    return res.status(200).json({ success: true, data: result });
-  }
-  if (action === 'predictCWT') {
-    const result = runPredictCWT(params);
-    if (result.error) return res.status(400).json({ error: result.error });
-    return res.status(200).json({ success: true, data: result });
-  }
-  return res.status(400).json({ error: 'Unknown action' });
-}
-
-
-async function handle_eos(body, res) {
-  const { eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, M, n } = body;
-  if (!eos)           return res.status(400).json({ error: 'Missing EOS type' });
-  if (!isFinite(T_K)  || T_K  <= 0) return res.status(400).json({ error: 'Temperature must be positive and finite.' });
-  if (!isFinite(P_Pa) || P_Pa <= 0) return res.status(400).json({ error: 'Pressure must be positive and finite.' });
-  if (!isFinite(Tc_K) || Tc_K <= 0) return res.status(400).json({ error: 'Critical temperature Tc must be positive.' });
-  if (!isFinite(Pc_Pa)|| Pc_Pa<= 0) return res.status(400).json({ error: 'Critical pressure Pc must be positive.' });
-  if (!isFinite(M)    || M    <  1)  return res.status(400).json({ error: 'Molar mass must be ≥ 1 g/mol.' });
-  if (!isFinite(n)    || n    <= 0)  return res.status(400).json({ error: 'Number of moles must be positive.' });
-  if (T_K < 10) return res.status(400).json({ error: `Temperature ${T_K.toFixed(2)} K is below 10 K.` });
-  const roots = runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega);
-  if (!roots.length) return res.status(400).json({ error: 'No real solution found.' });
-  const primary = roots.reduce((a, b) => a.Z > b.Z ? a : b);
-  const Z = primary.Z;
-  if (!isFinite(Z) || Z <= 0) return res.status(400).json({ error: `EOS produced an invalid Z-factor (${Z}).` });
-  if (Z > 20) return res.status(400).json({ error: `Z = ${Z.toFixed(3)} — unusually high. Check inputs.` });
-  const phi = primary.phi;
-  const Vm_SI = primary.Vm;
-  const rho_mass = (1 / Vm_SI) * (M / 1000);
-  const f_Pa = phi * P_Pa;
-  const Tr = T_K / Tc_K, Pr = P_Pa / Pc_Pa;
-  const warnings = buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots);
-  return res.status(200).json({ success: true, data: {
-    Z, phi, Vm_SI, rho_mass, f_Pa, Tr, Pr,
-    roots: roots.map(r => ({ Z: r.Z, Vm: r.Vm, phi: r.phi, label: r.label })),
-    rootCount: roots.length,
-    eosParams: { A: primary.A, B: primary.B, a: primary.a, b: primary.b,
-                 m: primary.m, kappa: primary.kappa, alpha: primary.alpha },
-    warnings
-  }});
-}
-
-
-async function handle_fan(body, res) {
-  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
-  const err = validateFanInputs(body);
-  if (err) return res.status(400).json({ error: err });
-  return res.status(200).json(fanCalc(body));
-}
-
-
-async function handle_heatxpert(body, res) {
-  let hxBody = body;
-  if (typeof hxBody === 'string') { try { hxBody = JSON.parse(hxBody); } catch { return res.status(400).json({ error: 'Invalid JSON body' }); } }
-  const { calcType } = hxBody;
-  if (!calcType) return res.status(400).json({ error: 'calcType required' });
-  switch (calcType) {
-
-      case 'shellTube':   return res.json(calcShellTube(body));
-      case 'plate':       return res.json(calcPlate(body));
-      case 'airCooled':   return res.json(calcAirCooled(body));
-      case 'finFan':      return res.json(calcFinFan(body));
-      case 'doublePipe':  return res.json(calcDoublePipe(body));
-      case 'lmtdNtu':     return res.json(calcLmtdNtu(body));
-      case 'wallThick':   return res.json(calcWallThickness(body));
-      case 'fouling':     return res.json(calcFouling(body));
-      case 'selector':    return res.json(calcSelector(body));
-      default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
-
-  }
-}
-
-
-async function handle_orifice_flow(body, res) {
-  try {
-
-// [DEDUP] body already passed as parameter
-
-    // ── PARSE & NORMALISE ALL INPUTS TO SI ──────────────────────────
-    const mode     = body.mode    || 'flow';
-    const cat      = body.cat     || 'gas';
-    const tapType  = body.tapType || 'sharp_corner';
-    const isMetric = (body.unitSys || 'metric') === 'metric';
-
-    // Pressure & temperature
-    let P_bar = parseFloat(body.P) || 10;
-    let T_c   = parseFloat(body.T) || 20;
-    if (!isMetric) { P_bar = P_bar * 0.0689476; T_c = (T_c - 32) * 5/9; }
-
-    // Pipe & bore in mm
-    const D_mm = dimToMm(parseFloat(body.D) || 154.05, body.D_unit || 'mm');
-    const d_mm = dimToMm(parseFloat(body.d) || 75.00,  body.d_unit || 'mm');
-
-    // DP in Pa
-    const dp_Pa_in = dpToPa(parseFloat(body.dp) || 0, body.dp_unit || 'mmH2O');
-
-    // Flow input
-    const flow_in   = parseFloat(body.flow) || 0;
-    const flow_unit = body.flow_unit || 'Nm3hr';
-
-    const params = {
-      mode, cat, tapType,
-      customCd:  body.customCd,
-      P_bar, T_c,
-      Z_input:   parseFloat(body.Z)   || 1,
-      k:         parseFloat(body.k)   || 1.4,
-      mu_input:  parseFloat(body.mu)  || 1.82e-5,
-      sg:        parseFloat(body.sg)  || 0.65,
-      MW_input:  parseFloat(body.MW)  || 28.964,
-      fluidKey:  body.fluidKey || null,
-      D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
-    };
-
-    const result = calculate(params);
-
-    res.statusCode = 200;
-    return res.end(JSON.stringify({ ok: true, ...result }));
-
-  
-  } catch (err) {
-    console.error('orifice-flow error:', err);
-    res.statusCode = 500;
-    return res.end(JSON.stringify({ ok: false, error: err.message }));
-  }
-}
-
-
-async function handle_pressure_drop(req, body, res) {
-
-  setCORS(req, res);
-
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return err(res, 405, 'Method not allowed');
-
-  // body is already parsed by main handler
-
-  const action = sanitizeString(body.action, 32);
-
-  /* ── ACTION: fluidList ── */
-  if (action === 'fluidList') {
-    const list = FLUID_DB.map(f => ({
-      id:    f.id,
-      name:  f.name,
-      cat:   f.cat,
-      isGas: f.isGas,
-    }));
-    return res.status(200).json({ ok: true, fluids: list });
-  }
-
-  /* ── ACTION: fluidProps ── */
-  if (action === 'fluidProps') {
-    const id    = sanitizeString(body.fluidId, 64);
-    const T_C   = sanitizeNumber(body.T_C);
-    const P_bar = sanitizeNumber(body.P_bar, 1.0);
-
-    if (!id || T_C === null || !isFinite(T_C))
-      return err(res, 400, 'fluidId and T_C are required');
-    if (T_C < -273 || T_C > 2000)
-      return err(res, 400, 'T_C out of reasonable range');
-
-    const props = calcFluidProps(id, T_C, P_bar);
-    if (!props) return err(res, 404, `Unknown fluid: ${id}`);
-    return res.status(200).json({ ok: true, ...props });
-  }
-
-  /* ── ACTION: fittingsList ── */
-  if (action === 'fittingsList') {
-    const list = Object.entries(FITTING_CATALOGUE).map(([id, v]) => ({
-      id, label: v.label, k: v.k,
-    }));
-    return res.status(200).json({ ok: true, fittings: list });
-  }
-
-  /* ── ACTION: calculate (Darcy-Weisbach) ── */
-  if (action === 'calculate') {
-    const D         = sanitizeNumber(body.D);
-    const L         = sanitizeNumber(body.L);
-    const Q         = sanitizeNumber(body.Q);
-    const rho       = sanitizeNumber(body.rho);
-    const mu        = sanitizeNumber(body.mu);
-    const dz        = sanitizeNumber(body.dz, 0);
-    const epsBase   = sanitizeNumber(body.epsBase, 0.046);
-    const foulingMm = sanitizeNumber(body.foulingMm, 0);
-    const pumpEff   = Math.max(0.01, Math.min(1, sanitizeNumber(body.pumpEff, 0.75)));
-    const motorEff  = Math.max(0.01, Math.min(1, sanitizeNumber(body.motorEff, 0.92)));
-    const unitMode  = body.unitMode === 'imperial' ? 'imperial' : 'metric';
-    const isGasFluid = !!body.isGasFluid;
-
-    // Sanitize fittings array
-    const rawFits = Array.isArray(body.fittings) ? body.fittings.slice(0, 200) : [];
-    const fittings = rawFits.map(f => ({
-      k:   sanitizeNumber(f.k, 0),
-      qty: Math.max(0, Math.min(999, parseInt(f.qty) || 0)),
-    }));
-
-    if ([D, L, Q, rho, mu].some(v => v === null))
-      return err(res, 400, 'D, L, Q, rho, mu are required');
-
-    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode });
-    if (!result.ok) return err(res, 422, result.error);
-
-    if (isGasFluid)
-      result.warnings.unshift('⚠ Compressible fluid detected. Darcy-Weisbach with constant density is approximate. Valid only if ΔP/P₁ < 10%.');
-
-    return res.status(200).json(result);
-  }
-
-  /* ── ACTION: calcHW (Hazen-Williams) ── */
-  if (action === 'calcHW') {
-    const D_mm  = sanitizeNumber(body.D_mm);
-    const L_m   = sanitizeNumber(body.L_m);
-    const Q_m3h = sanitizeNumber(body.Q_m3h);
-    const C     = sanitizeNumber(body.C);
-
-    if ([D_mm, L_m, Q_m3h, C].some(v => v === null))
-      return err(res, 400, 'D_mm, L_m, Q_m3h, C are required');
-
-    const result = calcHW({ D_mm, L_m, Q_m3h, C });
-    if (!result.ok) return err(res, 422, result.error);
-    return res.status(200).json(result);
-  }
-
-  return err(res, 400, `Unknown action: ${action}`);
-}
-
-
-async function handle_psychrometric(body, res) {
-  try {
-    const { action, payload } = body;
-
-    // ── STATE POINT ─────────────────────────────────────────
-    if (action === 'statePoint') {
-      const { T, mode, z, p_override, rh, wb, dp, W_in } = payload;
-
-      if (T < -60 || T > 80) {
-        return res.status(400).json({ error: 'Temperature out of valid range (−60°C to 80°C)' });
-      }
-      const p = p_override > 0 ? p_override : altitudePressure(z);
-      const ps = satPressure(T);
-      let pv, rh_val, W_val;
-
-      if (mode === 'rh') {
-        rh_val = rh / 100;
-        pv = ps * rh_val;
-      } else if (mode === 'wb') {
-        if (wb > T) return res.status(400).json({ error: 'Wet bulb must be ≤ dry bulb temperature' });
-        const psw = satPressure(wb);
-        pv = psw - 0.000662 * p * (T - wb);
-        rh_val = pv / ps;
-      } else if (mode === 'dp') {
-        if (dp >= T) return res.status(400).json({ error: 'Dew point must be < dry bulb temperature' });
-        pv = satPressure(dp);
-        rh_val = pv / ps;
-      } else if (mode === 'w') {
-        W_val = W_in;
-        pv = W_val * p / (0.621945 + W_val);
-        rh_val = pv / ps;
-      }
-
-      rh_val = Math.max(0, Math.min(1, rh_val));
-      if (!W_val) W_val = humidityRatio(pv, p);
-      const h = enthalpy(T, W_val);
-      const v = specVolume(T, W_val, p);
-      const rho = (1 + W_val) / v;
-      const dp_C = dewPoint(rh_val, T);
-      const wb_C = wetBulbApprox(T, rh_val, p);
-
-      return res.status(200).json({
-        T, p, ps, pv, rh: rh_val, W: W_val, h, v, rho, dp: dp_C, wb: wb_C
-      });
-    }
-
-    // ── HVAC PROCESS ────────────────────────────────────────
-    if (action === 'process') {
-      const { T1, rh1, T2, rh2, Q_m3h, z } = payload;
-      return res.status(200).json(calcProcess(T1, rh1, T2, rh2, Q_m3h, z));
-    }
-
-    // ── DUCT ────────────────────────────────────────────────
-    if (action === 'duct') {
-      const { T, rh, z, shape, dims, Q_m3h, L, rough_mm } = payload;
-      return res.status(200).json(calcDuct(T, rh, z, shape, dims, Q_m3h, L, rough_mm));
-    }
-
-    // ── CHART DATA ──────────────────────────────────────────
-    if (action === 'chartData') {
-      const { p } = payload;
-      return res.status(200).json(calcChartData(p || 101.325));
-    }
-
-    // ── ALTITUDE → PRESSURE ─────────────────────────────────
-    if (action === 'altPressure') {
-      return res.status(200).json({ p: altitudePressure(payload.z) });
-    }
-
-    return res.status(400).json({ error: 'Unknown action' });
-  } catch (err) {
-    console.error('[psychrometric]', err);
-    return res.status(500).json({ error: err.message || 'Calculation error.' });
-  }
-}
-
-
-async function handle_pump(body, res) {
-  if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Invalid request body.' });
-  const err = validatePumpInputs(body);
-  if (err) return res.status(400).json({ error: err });
-  return res.status(200).json(pumpCalc(body));
-}
-
-
-async function handle_rankine(body, res) {
-  const { type, params } = body || {};
-  if (!type) return res.status(400).json({ error: 'Missing type' });
-  try {
-    let result;
-    switch (type) {
-
-      case 'basic':      result = calcBasic(params);      break;
-      case 'superheat':  result = calcSuperheat(params);  break;
-      case 'reheat':     result = calcReheat(params);     break;
-      case 'regen':      result = calcRegenFWH(params);   break;
-      case 'carnot':     result = calcCarnot(params);     break;
-      // Lightweight helpers also served from API
-      case 'tsat':
-        result = { ok:true, tsat: tSatMPa(params.P_MPa) };
-        break;
-      default:
-        return res.status(400).json({ error: `Unknown calculation type: ${type}` });
-    }
-    if (!result) return res.status(400).json({ error: 'Unknown type: ' + type });
-    return res.status(200).json(result);
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-}
-
-
 async function handle_steam_quench(req, body, res) {
   // body already parsed by router
 
@@ -4601,6 +4453,157 @@ async function handle_steam_quench(req, body, res) {
 
 }
 
+// ========================================================================
+// SECTION: STEAM TURBINE
+// ========================================================================
+
+// ── STEAM-TURBINE-POWER LOGIC ──────────────────────────────────────────
+// ================================================================
+// /api/calculate.js  — Vercel Serverless Function
+//
+// ALL thermodynamic logic lives here — tables, interpolation,
+// isentropic solver, and all four turbine power calculations.
+//
+// Three actions (POST JSON):
+//   inletProps   → h, s, T_sat, phase   (inlet / extraction autofill)
+//   exhaustProps → h2s, hf, hg, hfg, T_sat   (exhaust autofill)
+//   calculate    → all power/heat outputs (all turbine types)
+// ================================================================
+
+// ── IAPWS-IF97 Saturation Table ────────────────────────────────
+// Raw: [P_bar, T_C, hf, hg, sf, sg, vf, vg]
+const SAT_TABLE = (() => {
+    const raw = [
+        [0.00611, 0.01,   0.00,   2501.4, 0.0000, 9.1562, 0.0010002, 206.140],
+        [0.010,   6.98,  29.30,   2514.2, 0.1059, 8.9756, 0.0010001, 129.208],
+        [0.015,  13.03,  54.70,   2525.3, 0.1956, 8.8278, 0.0010007,  87.980],
+        [0.020,  17.50,  73.47,   2533.5, 0.2607, 8.7236, 0.0010013,  67.006],
+        [0.030,  24.08, 101.03,   2545.5, 0.3545, 8.5775, 0.0010028,  45.665],
+        [0.040,  28.96, 121.44,   2554.4, 0.4226, 8.4746, 0.0010041,  34.797],
+        [0.050,  32.88, 137.79,   2561.4, 0.4763, 8.3950, 0.0010053,  28.193],
+        [0.075,  40.29, 168.76,   2574.8, 0.5763, 8.2514, 0.0010080,  19.238],
+        [0.100,  45.81, 191.81,   2584.6, 0.6492, 8.1501, 0.0010103,  14.674],
+        [0.150,  53.97, 225.90,   2599.1, 0.7548, 8.0084, 0.0010146,  10.021],
+        [0.200,  60.06, 251.38,   2609.7, 0.8319, 7.9085, 0.0010182,   7.649],
+        [0.300,  69.10, 289.21,   2625.3, 0.9439, 7.7686, 0.0010243,   5.229],
+        [0.500,  81.33, 340.47,   2645.9, 1.0910, 7.5939, 0.0010341,   3.240],
+        [0.700,  89.95, 376.70,   2660.1, 1.1919, 7.4790, 0.0010416,   2.365],
+        [1.00,   99.62, 417.44,   2675.5, 1.3025, 7.3593, 0.0010432,   1.6940],
+        [1.25,  105.99, 444.30,   2685.3, 1.3739, 7.2843, 0.0010479,   1.3750],
+        [1.50,  111.37, 467.08,   2693.5, 1.4335, 7.2232, 0.0010524,   1.1590],
+        [2.00,  120.23, 504.68,   2706.6, 1.5300, 7.1271, 0.0010605,   0.8857],
+        [2.50,  127.43, 535.34,   2716.9, 1.6072, 7.0526, 0.0010681,   0.7187],
+        [3.00,  133.55, 561.45,   2725.3, 1.6717, 6.9918, 0.0010732,   0.6058],
+        [4.00,  143.63, 604.73,   2738.5, 1.7766, 6.8958, 0.0010840,   0.4624],
+        [5.00,  151.86, 640.21,   2748.7, 1.8606, 6.8212, 0.0010940,   0.3748],
+        [6.00,  158.85, 670.54,   2756.8, 1.9311, 6.7600, 0.0011006,   0.3156],
+        [7.00,  164.97, 697.20,   2763.5, 1.9922, 6.7080, 0.0011080,   0.2728],
+        [8.00,  170.43, 721.10,   2769.1, 2.0461, 6.6627, 0.0011148,   0.2404],
+        [9.00,  175.38, 742.82,   2773.9, 2.0946, 6.6225, 0.0011213,   0.2150],
+        [10.00, 179.91, 762.79,   2778.1, 2.1386, 6.5864, 0.0011273,   0.1944],
+        [12.00, 187.99, 798.64,   2784.8, 2.2165, 6.5233, 0.0011390,   0.1633],
+        [15.00, 198.32, 844.87,   2792.1, 2.3150, 6.4448, 0.0011565,   0.1318],
+        [20.00, 212.42, 908.77,   2799.5, 2.4473, 6.3408, 0.0011767,   0.0996],
+        [25.00, 223.99, 962.09,   2803.1, 2.5546, 6.2574, 0.0011972,   0.0800],
+        [30.00, 233.90,1008.41,   2804.1, 2.6456, 6.1869, 0.0012163,   0.0666],
+        [35.00, 242.60,1049.75,   2803.8, 2.7253, 6.1253, 0.0012347,   0.0571],
+        [40.00, 250.40,1087.29,   2801.4, 2.7963, 6.0700, 0.0012524,   0.0498],
+        [50.00, 263.99,1154.21,   2794.3, 2.9201, 5.9733, 0.0012859,   0.0394],
+        [60.00, 275.64,1213.32,   2784.3, 3.0248, 5.8902, 0.0013190,   0.0324],
+        [70.00, 285.88,1266.97,   2772.1, 3.1210, 5.8132, 0.0013524,   0.0274],
+        [80.00, 295.06,1316.61,   2757.9, 3.2076, 5.7450, 0.0013843,   0.0235],
+        [90.00, 303.40,1363.26,   2742.8, 3.2857, 5.6811, 0.0014184,   0.0205],
+        [100.00,311.06,1407.53,   2724.7, 3.3595, 5.6140, 0.0014526,   0.0180],
+        [110.00,318.15,1450.26,   2705.0, 3.4295, 5.5473, 0.0014890,   0.0160],
+        [120.00,324.75,1491.24,   2684.8, 3.4961, 5.4923, 0.0015267,   0.0143],
+        [130.00,330.93,1531.46,   2662.9, 3.5605, 5.4295, 0.0015670,   0.0127],
+        [140.00,336.75,1570.98,   2638.7, 3.6229, 5.3717, 0.0016107,   0.0115],
+        [150.00,342.24,1609.02,   2614.5, 3.6834, 5.3108, 0.0016582,   0.0103],
+        [160.00,347.44,1649.55,   2580.6, 3.7428, 5.2455, 0.0017105,   0.0094],
+        [170.00,352.37,1690.73,   2548.5, 3.7996, 5.1832, 0.0017651,   0.0084],
+        [180.00,357.06,1731.97,   2509.1, 3.8553, 5.1044, 0.0018403,   0.0075],
+        [190.00,361.54,1776.53,   2468.4, 3.9102, 5.0218, 0.0019262,   0.0067],
+        [200.00,365.81,1826.18,   2409.7, 4.0139, 4.9269, 0.0020360,   0.0059],
+        [210.00,369.89,1886.25,   2336.8, 4.1014, 4.8013, 0.0022130,   0.0051],
+        [220.00,373.71,2010.30,   2192.4, 4.2887, 4.5481, 0.0027900,   0.0038],
+        [220.64,374.14,2099.26,   2099.3, 4.4120, 4.4120, 0.0031550,   0.0032],
+    ];
+    return raw.map(r => ({
+        P:r[0], T:r[1], hf:r[2], hg:r[3], hfg:r[3]-r[2],
+        sf:r[4], sg:r[5], sfg:r[5]-r[4], vf:r[6], vg:r[7]
+    }));
+})();
+
+// ── Superheated steam table — [T°C, h(kJ/kg), s(kJ/kg·K), v(m³/kg)] ──
+// [DEDUP] removed duplicate declaration of: SH_FB
+
+// ── Cubic-spline interpolation (exact copy from original) ──────
+// [DEDUP] removed duplicate declaration of: csplineInterp
+
+// ── Saturation props by pressure (exact copy from original getSatProps) ──
+function getSatProps(P_bar) {
+    if (!P_bar || P_bar <= 0) P_bar = 0.00611;
+    if (P_bar <= SAT_TABLE[0].P) return {...SAT_TABLE[0]};
+    if (P_bar >= SAT_TABLE[SAT_TABLE.length-1].P) return {...SAT_TABLE[SAT_TABLE.length-1]};
+    const xs = SAT_TABLE.map(r=>r.P);
+    const interp = key => csplineInterp(xs, SAT_TABLE.map(r=>r[key]), P_bar);
+    const hf=interp('hf'), hg=interp('hg'), sf=interp('sf'), sg=interp('sg');
+    return { P:P_bar, T:interp('T'), hf, hg, hfg:hg-hf, sf, sg, sfg:sg-sf,
+             vf:interp('vf'), vg:interp('vg') };
+}
+
+// ── Superheated props (exact copy from original getSuperheatedProps_fb) ──
+function getSuperheatedProps(P_bar, T_C) {
+    const sat = getSatProps(P_bar);
+    if (T_C <= sat.T + 0.5) return { h:sat.hg, s:sat.sg, v:sat.vg, phase:'sat' };
+    const prs = SH_FB.map(b=>b.P);
+    function atBlock(idx, T) {
+        const d = SH_FB[idx].d;
+        return {
+            h: csplineInterp(d.map(r=>r[0]), d.map(r=>r[1]), T),
+            s: csplineInterp(d.map(r=>r[0]), d.map(r=>r[2]), T),
+            v: csplineInterp(d.map(r=>r[0]), d.map(r=>r[3]), T)
+        };
+    }
+    if (P_bar <= prs[0]) return { ...atBlock(0, T_C), phase:'superheated' };
+    if (P_bar >= prs[prs.length-1]) return { ...atBlock(prs.length-1, T_C), phase:'superheated' };
+    let lo = 0;
+    for (let i=0; i<prs.length-1; i++) { if (prs[i]<=P_bar && P_bar<=prs[i+1]) { lo=i; break; } }
+    const fP = (P_bar-prs[lo])/(prs[lo+1]-prs[lo]);
+    const a = atBlock(lo, T_C), b = atBlock(lo+1, T_C);
+    return { h:a.h+fP*(b.h-a.h), s:a.s+fP*(b.s-a.s), v:a.v+fP*(b.v-a.v), phase:'superheated' };
+}
+
+// ── Isentropic exhaust enthalpy (exact copy from original isentropicExhaustEnthalpy_fb) ──
+function isentropicExhaust(s1_SI, P2_bar, T2_C_opt) {
+    const sat2 = getSatProps(P2_bar);
+    if (T2_C_opt && T2_C_opt > sat2.T + 0.5) {
+        const sup = getSuperheatedProps(P2_bar, T2_C_opt);
+        return { h2s:sup.h, phase:'Superheated (specified T)' };
+    }
+    if (s1_SI >= sat2.sg) {
+        // Superheated exit — bisection for T where s(P2,T)=s1
+        let Tlo=sat2.T+1, Thi=1400;
+        for (let iter=0; iter<60; iter++) {
+            const Tmid=(Tlo+Thi)/2;
+            const sp=getSuperheatedProps(P2_bar, Tmid);
+            if(sp.s<s1_SI) Tlo=Tmid; else Thi=Tmid;
+            if(Thi-Tlo<0.05) break;
+        }
+        const Tmid=(Tlo+Thi)/2;
+        const sup=getSuperheatedProps(P2_bar, Tmid);
+        return { h2s:sup.h, phase:`Superheated (T₂s ≈ ${Tmid.toFixed(0)}°C)` };
+    } else if (s1_SI >= sat2.sf) {
+        const x=(s1_SI-sat2.sf)/(sat2.sg-sat2.sf);
+        return { h2s:sat2.hf+x*sat2.hfg, x, phase:`Wet (x=${(x*100).toFixed(1)}%)` };
+    }
+    return { h2s:sat2.hf, phase:'Subcooled / Liquid' };
+}
+
+// ================================================================
+// VERCEL HANDLER
+// ================================================================
+
 
 async function handle_steam_turbine(body, res) {
   try {
@@ -4772,6 +4775,24 @@ async function handle_steam_turbine(body, res) {
     }
 }
 
+// ========================================================================
+// SECTION: STEAM
+// ========================================================================
+
+// ── STEAM LOGIC ──────────────────────────────────────────
+// ================================================================
+// api/steam.js  —  Vercel Serverless Function
+// 🔐 ALL CALCULATION LOGIC RUNS ON SERVER — NEVER EXPOSED TO BROWSER
+// Place this file in your GitHub repo at: /api/steam.js
+// ================================================================
+
+
+
+
+// ================================================================
+// MISSING FUNCTIONS — Added to fix undefined reference errors
+// These functions were in separate API files before the merge
+// ================================================================
 
 async function handle_steam(body, res) {
   try {
@@ -5086,6 +5107,10 @@ function convertToImperial(r) {
 // Repo: github.com/nagtesting/nagtesting
 // Path: /api/calculate.js
 // ============================================================
+
+// ========================================================================
+// SECTION: NPSH VESSEL
+// ========================================================================
 
 // ── UNIT CONVERSION LIBRARY ──────────────────────────────────
 function toM3h(val, u) {
@@ -6091,6 +6116,10 @@ async function handle_npsh_calculator(body, res) {
 // Covers: Beam, Column, Footing, Concrete Mix, Steel Section,
 //         Pipe Flow, Retaining Wall, Earthwork, Surveying
 // ============================================================
+
+// ========================================================================
+// SECTION: CIVIL
+// ========================================================================
 
 // ── SAFE HELPERS ─────────────────────────────────────────────
 function safeDiv(num, den, fallback = Infinity) {
@@ -7167,6 +7196,10 @@ function calcLLA(raw) {
   };
 }
 
+// ========================================================================
+// SECTION: INSTRUMENTATION
+// ========================================================================
+
 async function handle_instrumentation(body, res) {
   const { tool, inputs } = body || {};
   if (!tool)   return res.status(400).json({ ok: false, error: 'Missing tool' });
@@ -7730,6 +7763,10 @@ function calcHVTest({ Uo, U, L_m, T_deg, method, cond, insType, sheathType }) {
     warn: warnMsg,
   };
 }
+
+// ========================================================================
+// SECTION: ELECTRICAL
+// ========================================================================
 
 async function handle_electrical(body, res) {
   const ELEC_CALCS = {
@@ -8384,6 +8421,10 @@ function mech_materialProps(inp) {
 
 // ── Route handler ─────────────────────────────────────────────────
 
+// ========================================================================
+// SECTION: MECHANICAL
+// ========================================================================
+
 async function handle_mechanical_engineering(body, res) {
   const { calculator, inputs } = body || {};
   if (!calculator || !inputs) {
@@ -8847,6 +8888,10 @@ function mocParseBody(body) {
   };
 }
 
+// ========================================================================
+// SECTION: MOC
+// ========================================================================
+
 async function handle_moc(req, body, res) {
   // GET → catalog
   if (req.method === 'GET') {
@@ -8869,6 +8914,10 @@ async function handle_moc(req, body, res) {
 // ================================================================
 // MAIN VERCEL HANDLER — routes by URL path
 // ================================================================
+
+// ========================================================================
+// SECTION: MAIN HANDLER
+// ========================================================================
 
 export default async function handler(req, res) {
   // CORS — allow vercel preview + production domains
