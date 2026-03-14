@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -315,6 +316,28 @@ body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:10
 .warn-box strong{font-weight:700}
 .ok-box{background:var(--grn-lt);border:1px solid var(--grn-bd);border-radius:8px;padding:12px 14px;margin:12px 0;font-size:.84rem;color:var(--grn-txt);line-height:1.65}
 .info-box{background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:8px;padding:12px 14px;margin:12px 0;font-size:.84rem;color:var(--navy);line-height:1.65}
+/* ── VLE / Saturated service banner ── */
+.vle-banner{
+  display:none;background:#fff0f0;border:2.5px solid var(--red-bd);
+  border-left:6px solid var(--red);border-radius:var(--r2);
+  padding:16px 18px;margin-bottom:16px;
+}
+.vle-banner.show{display:block}
+.vle-banner-hd{font-family:var(--mono);font-size:.82rem;font-weight:800;color:var(--red);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.vle-banner-body{font-size:.88rem;color:var(--red);line-height:1.75}
+.vle-banner-body strong{font-weight:700;color:var(--red)}
+.vle-banner-eq{
+  background:#fff;border:1px solid var(--red-bd);border-left:3px solid var(--red);
+  border-radius:0 7px 7px 0;padding:8px 12px;margin:10px 0;
+  font-family:var(--mono);font-size:.82rem;color:var(--navy);line-height:2;
+}
+.vle-npsha-note{
+  margin-top:10px;padding:8px 12px;border-radius:8px;
+  background:#fff;border:1px solid var(--red-bd);
+  font-family:var(--mono);font-size:.84rem;font-weight:700;color:var(--red);
+  text-align:center;
+}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
@@ -613,12 +636,31 @@ body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:10
     <!-- RESULTS -->
     <div class="results" id="resultsDiv">
 
+      <!-- ══ VLE / SATURATED SERVICE BANNER — shown only when isSaturatedService=true ══ -->
+      <div class="vle-banner" id="vleBanner">
+        <div class="vle-banner-hd">⛔ Saturated liquid service detected — standard NPSH formula does not apply</div>
+        <div class="vle-banner-body">
+          This vessel contains a <strong>pure single-component fluid in vapour-liquid equilibrium (VLE)</strong>
+          — liquid and vapour coexist at the same temperature and pressure on the saturation curve.
+          The vessel pressure and the vapour pressure are <strong>the same thermodynamic state</strong> and cancel exactly in the NPSH formula.
+          <div class="vle-banner-eq">
+            NPSHa = (P<sub>vessel</sub> − P<sub>v</sub>)/ρg + z − h<sub>f</sub><br>
+            Since P<sub>vessel</sub> = P<sub>v</sub> in VLE &nbsp;→&nbsp; pressure terms = 0<br>
+            <strong>NPSHa = z − h<sub>f</sub> only</strong>
+          </div>
+          The value shown above is the <strong>true thermodynamically correct NPSHa</strong> based on static head minus friction losses only.
+          Do <strong>not</strong> use a standard centrifugal pump for this service.
+          Specify a <strong>canned motor pump, barrel pump with inducer, or submerged pump</strong> rated for near-zero NPSH(R).
+          <div class="vle-npsha-note" id="vleNpshaNote">True NPSHa = z − h_f = — m</div>
+        </div>
+      </div>
+
       <!-- ══ CAVITATION CHECK — Pressure Domain ══ -->
       <div class="cav-check-block" id="cavCheckBlock">
         <div class="cav-check-hd">⚡ Cavitation Check — Pressure Domain</div>
         <table class="cav-check-table">
           <tr><td>Vapour pressure (Pv)</td><td id="cc_pv">—</td></tr>
-          <tr><td>Actual suction pressure (Ps = Pv + NPSHa·ρg)</td><td id="cc_ps">—</td></tr>
+          <tr><td id="cc_ps_label">Actual suction pressure (Ps = Pv + NPSHa·ρg)</td><td id="cc_ps">—</td></tr>
           <tr><td>Minimum required pressure (Pv + NPSHr·ρg)</td><td id="cc_pmin">—</td></tr>
         </table>
         <hr class="cav-check-sep">
@@ -1211,6 +1253,19 @@ function renderResults(r) {
   const fN2 = (v, dp) => fN(v, dp);
   const sM  = x => UNIT === 'SI' ? fN(x, 3) + ' m' : fN(x * 3.281, 3) + ' ft';
 
+  // ── VLE / Saturated service banner ──
+  const vleBanner = E('vleBanner');
+  if (r.isSaturatedService) {
+    vleBanner.classList.add('show');
+    E('vleNpshaNote').textContent =
+      'True NPSHa = z − h_f = ' + fN(r.z, 3) + ' − ' + fN(r.hf, 3) + ' = ' + fN(r.npsha, 3) + ' m';
+    // Fix Ps label to not imply a real pressure gap
+    E('cc_ps_label').textContent = 'Actual suction pressure Ps (= P_vessel, VLE — pressure terms cancel)';
+  } else {
+    vleBanner.classList.remove('show');
+    E('cc_ps_label').textContent = 'Actual suction pressure (Ps = Pv + NPSHa·ρg)';
+  }
+
   // ── Engineering warnings ──
   const wDiv = E('eng_warnings');
   if (r.warnings && r.warnings.length > 0) {
@@ -1311,7 +1366,15 @@ function renderResults(r) {
   satBox.classList.remove('sat-ok', 'sat-warn', 'sat-crit');
   E('satProxVal').textContent  = 'S = ' + fN(r.cavS, 4);
   E('satBarFill').style.width  = fN(cavSpct, 1) + '%';
-  if (r.cavS >= 0.95) {
+  if (r.isSaturatedService) {
+    satBox.classList.add('sat-crit');
+    E('satProxLabel').textContent = '⛔ Saturated liquid service — VLE vessel';
+    E('satProxMsg').innerHTML =
+      '<strong>P_vessel = P_vapour (pure component VLE).</strong><br>'
+      + 'The saturation ratio S = ' + fN(r.cavS, 4) + ' confirms the fluid is at or extremely close to its bubble point. '
+      + 'Pressure terms cancel in the NPSH formula. NPSHa is governed entirely by static head minus friction. '
+      + 'Standard centrifugal pump selection using the displayed NPSHa from pressure terms is invalid for this service.';
+  } else if (r.cavS >= 0.95) {
     satBox.classList.add('sat-crit');
     E('satProxLabel').textContent = '⛔ Saturation proximity  S = Pv/Ps';
     E('satProxMsg').innerHTML = '<strong>Critical — operating at ' + fN(cavSpct, 1) + '% of saturation.</strong><br>'
@@ -1362,26 +1425,49 @@ function renderResults(r) {
     r.margin_actual > 0 ? 'var(--grn)' : r.margin_actual > -1 ? 'var(--amb)' : 'var(--red)';
 
   // ── Step-by-step calculation note ──
-  E('r_calc_note').innerHTML =
-    '<div style="font-weight:800;color:var(--navy);font-size:.77rem;margin-bottom:3px">Why NPSHa ≠ vessel pressure — the cancellation</div>'
-    + '<div style="line-height:1.9">'
-    + '<span style="color:var(--blue2);font-weight:700">P<sub>vessel</sub> ' + fN(r.P_abs_Pa / 1e5, 3) + ' bar</span>'
-    + ' &minus; '
-    + '<span style="color:var(--grn-txt);font-weight:700">Pv ' + fN(r.pv_bar, 3) + ' bar</span>'
-    + ' = '
-    + '<strong style="color:var(--navy)">Net ΔP = ' + fN(r.netDP_bar, 3) + ' bar = ' + fN(r.netDP_m, 2) + ' m of ' + r.fluidShort + ' head</strong>'
-    + '</div>'
-    + '<div style="line-height:1.9">NPSHa'
-    + ' = <span style="color:var(--navy)">' + fN(r.netDP_m, 2) + '</span>'
-    + ' + z(' + fN(r.z, 2) + ')'
-    + ' − hf(' + fN(r.hf, 3) + ')'
-    + ' = <strong style="color:var(--blue2)">' + fN(r.npsha, 3) + ' m</strong>'
-    + ' ≡ ΔP = ' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv'
-    + '</div>'
-    + '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--bdr2);color:var(--txt3);font-size:.70rem;line-height:1.6">'
-    + '⚠️ Vessel pressure (' + fN(r.P_abs_Pa / 1e5, 2) + ' bar abs) is almost entirely cancelled by vapour pressure Pv (' + fN(r.pv_bar, 2) + ' bar). '
-    + 'The NPSHa is governed by the small <em>net difference</em> between them (' + fN(r.netDP_bar, 3) + ' bar), plus the flooded head z.'
-    + '</div>';
+  if (r.isSaturatedService) {
+    E('r_calc_note').innerHTML =
+      '<div style="font-weight:800;color:var(--red);font-size:.77rem;margin-bottom:3px">⛔ VLE vessel — pressure terms cancel exactly</div>'
+      + '<div style="line-height:1.9">'
+      + '<span style="color:var(--red);font-weight:700">P<sub>vessel</sub> ' + fN(r.P_abs_Pa / 1e5, 3) + ' bar</span>'
+      + ' = '
+      + '<span style="color:var(--red);font-weight:700">P<sub>v</sub> ' + fN(r.pv_bar, 3) + ' bar</span>'
+      + ' &nbsp;→&nbsp; '
+      + '<strong style="color:var(--red)">(P<sub>vessel</sub> − P<sub>v</sub>) = 0 in true VLE</strong>'
+      + '</div>'
+      + '<div style="line-height:1.9">NPSHa'
+      + ' = 0 (pressure terms cancel)'
+      + ' + z(' + fN(r.z, 3) + ')'
+      + ' − hf(' + fN(r.hf, 3) + ')'
+      + ' = <strong style="color:var(--red)">' + fN(r.npsha, 3) + ' m</strong>'
+      + '</div>'
+      + '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--red-bd);color:var(--red);font-size:.70rem;line-height:1.6">'
+      + '⚠️ Any apparent difference between vessel pressure and Pv(T) is an instrument reading inconsistency, not real subcooling. '
+      + 'In a pure single-component VLE vessel, P_vessel = P_sat(T_bulk liquid) always. '
+      + 'NPSHa = <strong>' + fN(r.npsha, 3) + ' m</strong> (static head minus friction only).'
+      + '</div>';
+  } else {
+    E('r_calc_note').innerHTML =
+      '<div style="font-weight:800;color:var(--navy);font-size:.77rem;margin-bottom:3px">Why NPSHa ≠ vessel pressure — the cancellation</div>'
+      + '<div style="line-height:1.9">'
+      + '<span style="color:var(--blue2);font-weight:700">P<sub>vessel</sub> ' + fN(r.P_abs_Pa / 1e5, 3) + ' bar</span>'
+      + ' &minus; '
+      + '<span style="color:var(--grn-txt);font-weight:700">Pv ' + fN(r.pv_bar, 3) + ' bar</span>'
+      + ' = '
+      + '<strong style="color:var(--navy)">Net ΔP = ' + fN(r.netDP_bar, 3) + ' bar = ' + fN(r.netDP_m, 2) + ' m of ' + r.fluidShort + ' head</strong>'
+      + '</div>'
+      + '<div style="line-height:1.9">NPSHa'
+      + ' = <span style="color:var(--navy)">' + fN(r.netDP_m, 2) + '</span>'
+      + ' + z(' + fN(r.z, 2) + ')'
+      + ' − hf(' + fN(r.hf, 3) + ')'
+      + ' = <strong style="color:var(--blue2)">' + fN(r.npsha, 3) + ' m</strong>'
+      + ' ≡ ΔP = ' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv'
+      + '</div>'
+      + '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed var(--bdr2);color:var(--txt3);font-size:.70rem;line-height:1.6">'
+      + '⚠️ Vessel pressure (' + fN(r.P_abs_Pa / 1e5, 2) + ' bar abs) is almost entirely cancelled by vapour pressure Pv (' + fN(r.pv_bar, 2) + ' bar). '
+      + 'The NPSHa is governed by the small <em>net difference</em> between them (' + fN(r.netDP_bar, 3) + ' bar), plus the flooded head z.'
+      + '</div>';
+  }
 
   E('resultsDiv').classList.add('show');
   E('theoryPlaceholder').style.display = 'none';
@@ -1584,9 +1670,18 @@ function genPDF() {
   h += '<tr><td>Friction loss h_f</td><td>' + fN(r.hf, 4) + ' m</td></tr>';
   h += '</table>';
   h += '<h3>NPSHa Calculation</h3>';
-  h += '<div class="fml">NPSHa = H_abs + z &minus; h_f &minus; h_vp<br>';
-  h += 'NPSHa = ' + fN(r.H_abs, 3) + ' + (' + fN(r.z, 3) + ') &minus; ' + fN(r.hf, 4) + ' &minus; ' + fN(r.h_vp, 4) + '<br>';
-  h += 'NPSHa = <strong>' + fN(r.npsha, 4) + ' m</strong> = <strong>' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv</strong> = <strong>' + fN(r.npsha_ft, 3) + ' ft</strong></div>';
+  if (r.isSaturatedService) {
+    h += '<div class="err">⛔ SATURATED LIQUID SERVICE (VLE VESSEL) — Standard NPSH formula does not apply.<br>';
+    h += 'P_vessel = P_vapour in pure component VLE. Pressure terms cancel exactly.<br>';
+    h += 'NPSHa = z − h_f only.</div>';
+    h += '<div class="fml">NPSHa = z − h_f &nbsp;&nbsp;[VLE vessel — pressure terms cancel]<br>';
+    h += 'NPSHa = (' + fN(r.z, 3) + ') &minus; ' + fN(r.hf, 4) + '<br>';
+    h += 'NPSHa = <strong>' + fN(r.npsha, 4) + ' m</strong></div>';
+  } else {
+    h += '<div class="fml">NPSHa = H_abs + z &minus; h_f &minus; h_vp<br>';
+    h += 'NPSHa = ' + fN(r.H_abs, 3) + ' + (' + fN(r.z, 3) + ') &minus; ' + fN(r.hf, 4) + ' &minus; ' + fN(r.h_vp, 4) + '<br>';
+    h += 'NPSHa = <strong>' + fN(r.npsha, 4) + ' m</strong> = <strong>' + fN(r.npsha_deltaP_bar, 4) + ' bar above Pv</strong> = <strong>' + fN(r.npsha_ft, 3) + ' ft</strong></div>';
+  }
   h += '<h3>NPSHa vs NPSHr Comparison (HI 9.6.1)</h3>';
   h += '<table><tr><th>Check</th><th>Value</th><th>Limit</th><th>Result</th></tr>';
   h += '<tr><td>NPSHa</td><td>' + fN(r.npsha, 3) + ' m</td><td>&gt; NPSHr + margin</td><td>&mdash;</td></tr>';
