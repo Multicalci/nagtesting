@@ -1905,7 +1905,56 @@ function requireFinite(val, name) {
   if (!isFinite(parseFloat(val))) throw new Error(`Invalid input: ${name} must be a finite number`);
   return parseFloat(val);
 }
+// ─── UNIT CONVERSION HELPERS (server-side) ───────────────────────────────────
+function toSI_temp(val, unitSys) {
+  return unitSys === 'imperial' ? (val - 32) * 5 / 9 : val;
+}
 
+function toSI_flow(val, unitSys) {
+  return unitSys === 'imperial' ? val / 2.20462 : val;
+}
+
+function toSI_flowWithUnit(val, flowUnit, fluidKey, T_degC, P_bar) {
+  if (!flowUnit || flowUnit === 'kgh') return val;
+  const fluid = getFluid(fluidKey);
+  const rho_n = (fluid.M || 29) * P_REF_DB * 1e5 / (8314 * T_REF_DB);
+  const rho_s = (fluid.M || 29) * P_REF_DB * 1e5 / (8314 * 288.15);
+  if (flowUnit === 'nm3h') return val * rho_n;
+  if (flowUnit === 'sm3h') return val * rho_s;
+  return val;
+}
+
+// ─── RESISTANCE BREAKDOWN HELPER ─────────────────────────────────────────────
+function calcResistanceBreakdown(hShell, hTube, Rfo, Rfi, Rwall, Ao_Ai) {
+  const r_shell = 1 / Math.max(hShell, 0.001);
+  const r_tube  = (Ao_Ai || 1) / Math.max(hTube, 0.001);
+  const r_fo    = Rfo || 0;
+  const r_fi    = (Ao_Ai || 1) * (Rfi || 0);
+  const r_w     = Rwall || 0;
+  const Rt      = r_shell + r_tube + r_fo + r_fi + r_w;
+  if (Rt <= 0) return [];
+  const pct = v => parseFloat((v / Rt * 100).toFixed(1));
+  return [
+    { label: 'Shell-side film', pct: pct(r_shell), color: '#E24B4A' },
+    { label: 'Tube-side film',  pct: pct(r_tube),  color: '#378ADD' },
+    { label: 'Shell fouling',   pct: pct(r_fo),    color: '#BA7517' },
+    { label: 'Tube fouling',    pct: pct(r_fi),    color: '#854F0B' },
+    { label: 'Wall conduction', pct: pct(r_w),     color: '#1D9E75' },
+  ];
+}
+```
+
+The result will be:
+```
+1908  [blank]
+1909  // ─── UNIT CONVERSION HELPERS ...
+1910  function toSI_temp(...
+      ...
+      [resistance breakdown block]
+      [blank line]
+19XX  // ── SHELL & TUBE ──
+19XX  function calcShellTube(b) {
+19XX    const hFlKey=...
 // ─── SHELL & TUBE ─────────────────────────────────────────────────────────────
 function calcShellTube(b) {
   const hFlKey=b.hFlKey||'water', cFlKey=b.cFlKey||'water';
@@ -2009,13 +2058,14 @@ function calcShellTube(b) {
   if(tubeDp>pdAllowTube) warns.push(`Tube ΔP ${tubeDp.toFixed(3)} bar exceeds allowable`);
   if(overSurf<0) warns.push('Insufficient area — increase tube count, length, or passes');
   const st=overSurf<-5?'err':overSurf<5?'warn':'ok';
+  const resistanceBreakdown = calcResistanceBreakdown(hShell, hTube, Rfo, Rfi, Rwall, OD/Di);
   return {
     Q,Qh,Qc,U,U_clean,area,area_provided,overSurf,lmtd,F,FLMTD,dT1,dT2,lmtdArr,
     numTubes,nTubesPerPass,nPasses,nShells,shellID,Di,OD,L:L_eff,tubeVel,targetVel,velMode,
     shellDP,tubeDp,pdAllowShell,pdAllowTube,bdCorr:{...bdRes,hShell,hTube},
     NTU,eff,balErr,tema,pitchLayout,hTmean,cTmean,hTi,hTo,cTi,cTo,hPop,cPop,
     hFluid,cFluid,hFluidDB,cFluidDB,shellRe:bdRes.shellRe,shellVel:bdRes.shellVel,
-    st,warns
+    resistanceBreakdown, st, warns
   };
 }
 
@@ -2097,10 +2147,12 @@ function calcPlate(b) {
   if(dpH>pdAllowH) warns.push(`Hot ΔP ${dpH.toFixed(3)} bar exceeds allowable`);
   if(dpC>pdAllowC) warns.push(`Cold ΔP ${dpC.toFixed(3)} bar exceeds allowable`);
   if(overDesign<0) warns.push('Insufficient plate area — increase plate count');
+  const minApproachDT = Math.min(hTi - cTo, hTo - cTi);
   return {
     Q,Qhot,Qcold,U,U_clean,balErr,lmtd,F,FLMTD,dT1,dT2,
     A_req,A_provided,overDesign,nPlates,A_plate,dpH,dpC,pdAllowH,pdAllowC,
     hH,hC,NTU,eff,hTi,hTo,cTi,cTo,cF,
+    minApproachDT,
     hFluid,cFluid,st,warns
   };
 }
