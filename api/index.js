@@ -3161,7 +3161,57 @@ async function orificeFlow_handler(req, res) {
 
   try {
     const body = await readBody(req);
+// ── DENSITY PREVIEW (lightweight — called on every T/P/fluid change) ──
+    if (body.action === 'density-preview') {
+      const isMetric = (body.unitSys || 'metric') === 'metric';
+      let P_bar = parseFloat(body.P) || 10;
+      let T_c   = parseFloat(body.T) || 20;
+      if (!isMetric) { P_bar = P_bar * 0.0689476; T_c = (T_c - 32) * 5/9; }
+      const T_K = T_c + 273.15;
+      const P_Pa = P_bar * 1e5;
+      const cat      = body.cat      || 'gas';
+      const fluidKey = body.fluidKey || null;
+      const sg_input = parseFloat(body.sg) || 1.0;
 
+      let rho = null, mu_out = null, Z_out = null;
+
+      if (cat === 'steam') {
+        const sres = steamDensity(P_bar, T_c);
+        rho    = sres.rho;
+        mu_out = sres.mu;
+      } else if (cat === 'liquid') {
+        const f = FLUID_DB_orifice[fluidKey] || null;
+        if (f?.t === 'l' && f.rho0 && f.beta_T !== undefined) {
+          rho = f.rho0 / (1 + f.beta_T * (T_c - f.T0));
+          rho = Math.max(100, rho);
+        } else {
+          rho = sg_input * 1000;
+        }
+      } else {
+        // Gas
+        const f = FLUID_DB_orifice[fluidKey] || null;
+        if (f?.t === 'g') {
+          const zr   = pitzerZ(f, T_K, P_Pa);
+          Z_out      = zr.Z;
+          mu_out     = sutherlandViscosity(f, T_K);
+          const MW   = f.M;
+          rho        = (P_Pa * MW) / (Z_out * 8314.46 * T_K);
+        } else {
+          const MW   = (parseFloat(body.MW) > 1) ? parseFloat(body.MW) : sg_input * 28.964;
+          const Z    = parseFloat(body.Z) || 1;
+          rho        = (P_Pa * MW) / (Z * 8314.46 * T_K);
+        }
+      }
+
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
+        ok: true,
+        rho_op: rho,
+        mu_auto: mu_out,
+        Z_auto:  Z_out,
+      }));
+    }
+    
     // ── PARSE & NORMALISE ALL INPUTS TO SI ──────────────────────────
     const mode     = body.mode    || 'flow';
     const cat      = body.cat     || 'gas';
