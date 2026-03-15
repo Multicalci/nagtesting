@@ -2797,6 +2797,26 @@ const FLUID_DB_orifice = {
   'Acetylene':      {t:'g',sg:0.897,M:26.038,k:1.232,mu:1.03e-5,Z:0.990,Tc:308.3,Pc:6.14, omega:0.187,mu_ref:9.570e-6,T_ref:273.15,S:234.0},
   'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4},
 };
+// ── Liquids ── rho0=kg/m³ at T0°C, beta_T=thermal expansion coefficient /°C
+  // ρ(T) = rho0 / (1 + beta_T*(T - T0))
+  'Water':             {t:'l', rho0:998.2,  T0:20, beta_T:2.1e-4},
+  'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4},
+  'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4},
+  'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4},
+  'Kerosene':          {t:'l', rho0:800.0,  T0:15, beta_T:8.0e-4},
+  'Gasoline':          {t:'l', rho0:720.0,  T0:15, beta_T:9.5e-4},
+  'Methanol':          {t:'l', rho0:791.0,  T0:20, beta_T:1.19e-3},
+  'Ethanol':           {t:'l', rho0:789.0,  T0:20, beta_T:1.08e-3},
+  'Toluene':           {t:'l', rho0:867.0,  T0:20, beta_T:1.07e-3},
+  'Benzene':           {t:'l', rho0:879.0,  T0:20, beta_T:1.21e-3},
+  'Acetone':           {t:'l', rho0:791.0,  T0:20, beta_T:1.46e-3},
+  'Sulfuric Acid 98%': {t:'l', rho0:1836.0, T0:20, beta_T:5.5e-4},
+  'HCl 32%':           {t:'l', rho0:1157.0, T0:20, beta_T:4.5e-4},
+  'NaOH 50%':          {t:'l', rho0:1525.0, T0:20, beta_T:5.0e-4},
+  'MEA':               {t:'l', rho0:1018.0, T0:20, beta_T:8.0e-4},
+  'Glycerol':          {t:'l', rho0:1261.0, T0:20, beta_T:5.0e-4},
+  'Ethylene Glycol':   {t:'l', rho0:1113.0, T0:20, beta_T:6.0e-4},
+};
 
 // ═════════════════════════════════════════════════════════════════════
 //  MAIN CALCULATION ENGINE
@@ -2842,8 +2862,15 @@ function calculate(params) {
     mu = sres.mu;
     mu_auto = mu;
     Z_used  = 1;
-  } else if (isLiq) {
-    rho_op = sg * 1000;
+ } else if (isLiq) {
+    // Temperature-corrected liquid density: ρ(T) = ρ₀ / (1 + β·(T − T₀))
+    const f_liq = FLUID_DB_orifice[fluidKey] || null;
+    if (f_liq?.t === 'l' && f_liq.rho0 && f_liq.beta_T !== undefined) {
+      rho_op = f_liq.rho0 / (1 + f_liq.beta_T * (T_c - f_liq.T0));
+      rho_op = Math.max(100, rho_op);
+    } else {
+      rho_op = sg * 1000; // fallback: SG already T-corrected by client
+    }
     mu     = mu_input;
     Z_used = 1;
   } else {
