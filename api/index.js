@@ -7647,12 +7647,12 @@ const NZ_SVC_LIMITS = {
 // Previously: DEFAULTS object in HTML lines 1638–1644 pre-filled fields.
 // Now:        API applies these when client sends blank / zero / missing values.
 const VS_DEFAULTS = {
-  h2p:  { tr: 3,      LD: 3,   K: 0.107, surge: 1.25, margin: 85 },
-  v2p:  { tr: 3,      K: 0.107, surge: 1.25, margin: 85, boot: 0.3, intern: 0.4 },
+  h2p:  { tr: 3,      LD: 3,   K: 0.107, surge: 1.25, margin: 85, svcFactor: 1.0, llfrac: 0.5 },
+  v2p:  { tr: 3,      K: 0.107, surge: 1.25, margin: 85, boot: 0.3, intern: 0.4, svcFactor: 1.0 },
   '3ph':{ tro: 3,     trw: 3,  LD: 4,   K: 0.107, surge: 1.25,
-          dp_um: 200, mu_cP: 2.0, boot: 0.3, icm: 0.15 },
+  dp_um: 200, mu_cP: 2.0, boot: 0.3, icm: 0.15, svcFactor: 1.0 },
   pv:   { E: 1.0,     CA: 3,   minT: 3.175 },
-  mist: { margin: 80, K: 0.107 },
+  mist: { margin: 80, K: 0.107, svcFactor: 1.0, orient: 'horizontal' },
   nz:   { vel: 20,    rhov2: 4000 },
 };
 
@@ -7660,7 +7660,8 @@ const VS_DEFAULTS = {
 // Call this at the top of handle_vessel_separator() before dispatch.
 // Returns a sanitised, safe copy of body — never mutates the original.
 function sanitiseVesselInputs(body) {
-  const type = body.type || body.calculator || '';
+  const rawType = body.type || body.calculator || '';
+  const type = rawType === '3p' ? '3ph' : rawType;
   const b    = { ...body };   // shallow copy — safe to mutate
   const def  = VS_DEFAULTS[type] || {};
 
@@ -7679,6 +7680,8 @@ function sanitiseVesselInputs(body) {
       applyDefault('margin', def.margin);
       // Clamp margin to 50–100 %
       b.margin = Math.min(100, Math.max(50, parseFloat(b.margin) || def.margin));
+      const sf_h2p = parseFloat(b.svcFactor);
+      if (!isFinite(sf_h2p) || sf_h2p <= 0) b.svcFactor = def.svcFactor;
       break;
 
     case 'v2p':
@@ -7689,6 +7692,8 @@ function sanitiseVesselInputs(body) {
       applyDefault('boot',   def.boot);
       applyDefault('intern', def.intern);
       b.margin = Math.min(100, Math.max(50, parseFloat(b.margin) || def.margin));
+      const sf_v2p = parseFloat(b.svcFactor);
+      if (!isFinite(sf_v2p) || sf_v2p <= 0) b.svcFactor = def.svcFactor;
       break;
 
     case '3ph':
@@ -7701,6 +7706,8 @@ function sanitiseVesselInputs(body) {
       applyDefault('mu_cP', def.mu_cP);
       applyDefault('boot',  def.boot);
       applyDefault('icm',   def.icm);
+      const sf_3ph = parseFloat(b.svcFactor);
+      if (!isFinite(sf_3ph) || sf_3ph <= 0) b.svcFactor = def.svcFactor;
       break;
 
     case 'pv': {
@@ -7730,6 +7737,9 @@ function sanitiseVesselInputs(body) {
         }
       }
       b.margin = Math.min(100, Math.max(50, parseFloat(b.margin) || def.margin));
+      const sf_mist = parseFloat(b.svcFactor);
+      if (!isFinite(sf_mist) || sf_mist <= 0) b.svcFactor = def.svcFactor;
+      if (!b.orient || b.orient.trim() === '') b.orient = def.orient;
       break;
     }
 
@@ -7783,7 +7793,8 @@ async function handle_vessel_separator(req, body, res) {
   switch (type) {
     case 'h2p':    result = calcH2P(safe);    break;
     case 'v2p':    result = calcV2P(safe);    break;
-    case '3p':     result = calc3P(safe);     break;
+     case '3p':
+    case '3ph':    result = calc3P(safe);     break;
     case 'pv':     result = calcPV(safe);     break;
     case 'mist':   result = calcMist(safe);   break;
     case 'nozzle': result = calcNozzle(safe); break;
