@@ -2524,7 +2524,7 @@ function dpToPa(val, unit) {
     mmH2O: 9.80665, inH2O: 249.089, Pa: 1, kPa: 1000,
     mbar: 100, bar: 1e5, psi: 6894.757, kgcm2: 98066.5,
   };
-  return val * (map[unit] ?? 9.80665);
+  return val * (map[unit] ?? 1);
 }
 
 function dimToMm(val, unit) {
@@ -2564,14 +2564,14 @@ function computeCd_ISO(Re, beta, tapType, D_mm) {
 
   // Tap corrections (L1, L2)
   let L1 = 0, L2 = 0;
-  if (tapType === 'sharp_flange' || tapType === 'sharp_corner') {
+  if (tapType === 'sharp_flange') {
     L1 = 25.4 / (D_mm || 100);
     L2 = L1;
-  } else if (tapType === 'd_d2_tap') {
+} else if (tapType === 'd_d2_tap') {
     L1 = 1.0; L2 = 0.47;
-  } else {
-    L1 = 0; L2 = 0; // corner tap
-  }
+} else {
+    L1 = 0; L2 = 0; // corner tap and sharp_corner
+}
 
   const M2 = 2 * L2 / (1 - b);
   Cd += (0.0390 - 0.0337 * Math.pow(b,7)) * L1 * b4 / (1 - 4*b4);
@@ -2621,7 +2621,7 @@ function computePressureRecovery(beta, Cd, tapType) {
     return (1 - Math.pow(beta, 1.9) * Cd * Cd) * 100;
   }
   if (tapType === 'venturi_tube') {
-    return (1 - Cd) * (1 - Math.pow(beta, 2)) * 100;
+   return (1 - Math.pow(beta, 2) * Cd * Cd) * 100;
   }
   // Orifice ISO 5167-1 Eq.(22)
   const b2  = beta * beta;
@@ -2644,7 +2644,7 @@ function estimateUncertainty(beta, Re, tapType, isGas) {
   const u_dp   = 0.005;
   const u_beta = 0.001;
   const b4     = Math.pow(beta, 4);
-  const u_beta_flow = 2 * u_beta * b4 / (1 - b4);
+  const u_beta_flow = 4 * u_beta * b4 / (1 - b4);
   const u_comb = Math.sqrt(u_Cd**2 + (0.5*u_dp)**2 + (0.5*u_rho)**2 + u_beta_flow**2);
   return (u_comb * 2 * 100).toFixed(2);
 }
@@ -2762,8 +2762,8 @@ function validateInputs({ D_m, d_m, P_Pa, rho, mu, beta, Z }) {
   if (d_m >= D_m)           errs.push('Bore d must be smaller than pipe ID D');
   if (rho <= 0)             errs.push('Density must be > 0');
   if (mu  <= 0)             errs.push('Viscosity must be > 0 Pa·s');
-  if (P_Pa <= 0)            errs.push('Pressure must be > 0 — ensure ABSOLUTE pressure is entered (not gauge)');
-  if (P_Pa < 10000)         errs.push(`Pressure = ${(P_Pa/1e5).toFixed(4)} bara — very low; confirm ABSOLUTE pressure (bara/psia), not gauge`);
+  if (P_Pa <= 0)         errs.push('Pressure must be > 0 — ensure ABSOLUTE pressure is entered (not gauge)');
+else if (P_Pa < 10000) errs.push(`Pressure = ${(P_Pa/1e5).toFixed(4)} bara — very low; confirm ABSOLUTE pressure (bara/psia), not gauge`);
   if (beta <= 0 || beta>=1) errs.push('Beta ratio β must be between 0 and 1 (exclusive)');
   const D_mm = D_m * 1000;
   if (D_mm < 50)   errs.push(`Pipe ID = ${D_mm.toFixed(1)} mm < ISO 5167 minimum 50 mm — small-pipe correction applied`);
