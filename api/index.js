@@ -654,7 +654,7 @@ function controlValve_handler(req, res) {
     }
 
     // ── CORE IEC 60534-2-1 CALCULATIONS ──────────────────────────────────────
-    let Cv = 0, vel = 0, dPmax = 0, dPeff = dP, x_ratio = 0;
+    let Cv = 0, vel = 0, dPmax = 0, dPeff = dP, x_ratio = 0, Fp = 1.0, Fp_g = 1.0;
     let flowState = '', noiseDb = 0, Y = null, FR = null, Rev = null;
 
     if (isL) {
@@ -676,7 +676,7 @@ function controlValve_handler(req, res) {
         Cv = Cv / FR;
       }
 // ── Fp PIPING GEOMETRY FACTOR — IEC 60534-2-1 §4.1 Eq.2 ──────────────
-      let Fp = 1.0;
+      Fp = 1.0;
       if (d_valve_in && d_valve_in < D_in * 0.99) {
         const beta  = d_valve_in / D_in;
         const beta2 = beta * beta;
@@ -722,7 +722,7 @@ function controlValve_handler(req, res) {
 
       Cv = Qc * Math.sqrt(MW * TR * Z) / (1360.0 * P1a * Y * Math.sqrt(Math.max(x_lim, 0.0001)));
 // ── Fp PIPING GEOMETRY FACTOR for Gas ───────────────────────────────────
-      let Fp_g = 1.0;
+      Fp_g = 1.0;
       if (d_valve_in && d_valve_in < D_in * 0.99) {
         const beta_g  = d_valve_in / D_in;
         const beta2_g = beta_g * beta_g;
@@ -871,8 +871,8 @@ function controlValve_handler(req, res) {
       flLabel:         FL.toFixed(3) + (isG ? ' (xT)' : ' (FL)'),
       pipeLabel:       m ? (D_in * 25.4).toFixed(1) + ' mm' : D_in.toFixed(3) + ' in',
        
-Fp:              (typeof Fp!=='undefined'&&Fp<1.0)?+Fp.toFixed(4):(typeof Fp_g!=='undefined'&&Fp_g<1.0)?+Fp_g.toFixed(4):1.0,
-      FpLabel:         (typeof Fp!=='undefined'&&Fp<1.0)?Fp.toFixed(3):(typeof Fp_g!=='undefined'&&Fp_g<1.0)?Fp_g.toFixed(3):'1.000',
+Fp:              Fp < 1.0 ? +Fp.toFixed(4) : Fp_g < 1.0 ? +Fp_g.toFixed(4) : 1.0,
+      FpLabel:         Fp < 1.0 ? Fp.toFixed(3) : Fp_g < 1.0 ? Fp_g.toFixed(3) : '1.000',
       Cv_min:          Cv_min!=null ? fmtN(Cv_min) : null,
       turndown:        turndown!=null ? +turndown.toFixed(1) : null,
       turndownOk,
