@@ -8191,15 +8191,19 @@ async function handle_calculate(body, res) {
   if (!calc || !params) {
     return res.status(400).json({ error: 'Missing calc type or params.' });
   }
+  // Inject type so sanitiseVesselInputs knows which case to run
+  const safeParams = sanitiseVesselInputs({ ...params, type: calc === '3ph' ? '3ph' : calc });
+  if (safeParams.__sanitiseError)
+    return res.status(422).json({ ok: false, error: safeParams.__sanitiseError });
   let result;
   try {
     switch (calc) {
-      case 'h2p':    result = calcH2P(params);    break;
-      case 'v2p':    result = calcV2P(params);    break;
-      case '3ph':    result = calc3P(params);     break;
-      case 'pv':     result = calcPV(params);     break;
-      case 'mist':   result = calcMist(params);   break;
-      case 'nozzle': result = calcNozzle(params); break;
+      case 'h2p':    result = calcH2P(safeParams);    break;
+      case 'v2p':    result = calcV2P(safeParams);    break;
+      case '3ph':    result = calc3P(safeParams);     break;
+      case 'pv':     result = calcPV(safeParams);     break;
+      case 'mist':   result = calcMist(safeParams);   break;
+      case 'nozzle': result = calcNozzle(safeParams); break;
       default:
         return res.status(400).json({ error: `Unknown calc type: ${calc}` });
     }
