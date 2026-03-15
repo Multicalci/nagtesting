@@ -3531,9 +3531,9 @@ ${dp?`
 <div class="kpi-strip">
   <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(dp.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
   <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${dp.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
-  <div class="kpi t"><div class="kl">Req. Length</div><div class="kv">${dp.reqL.toFixed(1)}<span class="ku"> m</span></div></div>
+  <div class="kpi t"><div class="kl">Req. Length</div><div class="kv">${(dp.A_req!=null?dp.A_req.toFixed(2):'—')}<span class="ku"> m</span></div></div>
   <div class="kpi g"><div class="kl">U Overall</div><div class="kv">${convU(dp.U).toFixed(0)}<span class="ku"> ${Uu}</span></div></div>
-  <div class="kpi b"><div class="kl">No. Hairpins</div><div class="kv">${dp.numHairpins||'—'}</div></div>
+  <div class="kpi b"><div class="kl">No. Hairpins</div><div class="kv">${dp.nHairpins||'—'}</div></div>
   <div class="kpi ${dp.eff>0.6?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${(dp.eff*100).toFixed(1)}<span class="ku"> %</span></div></div>
 </div>
 
@@ -3545,13 +3545,13 @@ ${dp?`
   <tbody>
     <tr><td class="lbl">Fluid</td><td>—</td><td>${dp.hFluid.name}</td></tr>
     <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(dp.hTi).toFixed(2)} / ${tDisp(dp.hTo).toFixed(2)}</td></tr>
-    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.hF.toFixed(1)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.hF!=null?dp.hF.toFixed(1):'—'}</td></tr>
     <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(dp.Qhot).toFixed(3)}</td></tr>
-    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.vel_inner!=null?dp.vel_inner.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.velInner!=null?dp.velInner.toFixed(3):'—'}</td></tr>
     <tr><td class="lbl">Re</td><td>—</td><td>${dp.Re_inner!=null?dp.Re_inner.toFixed(0):'—'} ${dp.Re_inner>=10000?'✓ turbulent':dp.Re_inner>=2300?'transition':'⚠ laminar'}</td></tr>
-    <tr><td class="lbl">Film HTC h_i</td><td>W/m²K</td><td>${dp.h_inner!=null?dp.h_inner.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Film HTC h_i</td><td>W/m²K</td><td>${dp.hInner!=null?dp.hInner.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
-      <td class="${dp.dpH>dp.pdAllowH?'hi-err':'hi-ok'}">${convP(dp.dpH).toFixed(4)} ${dp.dpH>dp.pdAllowH?'✗':'✓'}</td></tr>
+      <td class="${dp.dpInner>dp.pdAllow?'hi-err':'hi-ok'}">${convP(dp.dpInner).toFixed(4)} ${dp.dpInner>dp.pdAllow?'✗':'✓'}</td></tr>
   </tbody>
 </table>
 </div>
@@ -3562,13 +3562,13 @@ ${dp?`
   <tbody>
     <tr><td class="lbl">Fluid</td><td>—</td><td>${dp.cFluid.name}</td></tr>
     <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(dp.cTi).toFixed(2)} / ${tDisp(dp.cTo).toFixed(2)}</td></tr>
-    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.cF.toFixed(1)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.cF!=null?dp.cF.toFixed(1):'—'}</td></tr>
     <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(dp.Qcold).toFixed(3)}</td></tr>
-    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.vel_ann!=null?dp.vel_ann.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.velAnn!=null?dp.velAnn.toFixed(3):'—'}</td></tr>
     <tr><td class="lbl">Re</td><td>—</td><td>${dp.Re_ann!=null?dp.Re_ann.toFixed(0):'—'} ${dp.Re_ann>=10000?'✓ turbulent':dp.Re_ann>=2300?'transition':'⚠ laminar'}</td></tr>
-    <tr><td class="lbl">Film HTC h_ann</td><td>W/m²K</td><td>${dp.h_ann!=null?dp.h_ann.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Film HTC h_ann</td><td>W/m²K</td><td>${dp.hAnn!=null?dp.hAnn.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
-      <td class="${dp.dpC>dp.pdAllowC?'hi-err':'hi-ok'}">${convP(dp.dpC).toFixed(4)} ${dp.dpC>dp.pdAllowC?'✗':'✓'}</td></tr>
+      <td class="${dp.dpAnn>dp.pdAllow?'hi-err':'hi-ok'}">${convP(dp.dpAnn).toFixed(4)} ${dp.dpAnn>dp.pdAllow?'✗':'✓'}</td></tr>
   </tbody>
 </table>
 </div>
@@ -3582,26 +3582,26 @@ ${dp?`
       <td class="lbl">Inner pipe OD/ID</td><td>mm</td>
       <td>${dp.iOD!=null?(dp.iOD*1000).toFixed(1):'—'} / ${dp.iID!=null?(dp.iID*1000).toFixed(1):'—'}</td>
       <td class="lbl">Annulus Dh</td><td>mm</td>
-      <td>${dp.Dh_ann!=null?(dp.Dh_ann*1000).toFixed(1):'—'}</td>
+      <td>—</td>
     </tr>
     <tr>
-      <td class="lbl">Outer pipe ID</td><td>mm</td><td>${dp.oID!=null?(dp.oID*1000).toFixed(1):'—'}</td>
-      <td class="lbl">Flow arrangement</td><td>—</td><td>${dp.coldMode==='flow'?'Countercurrent':'Countercurrent'}</td>
+      <td class="lbl">Outer pipe ID</td><td>mm</td><td>${dp.iOD!=null?((dp.iOD+0.006)*1000).toFixed(1):'—'}</td>
+      <td class="lbl">Flow arrangement</td><td>—</td><td>Countercurrent</td>
     </tr>
     <tr>
-      <td class="lbl">Hairpin length</td><td>m</td><td>${dp.hpLen||'—'}</td>
-      <td class="lbl">No. hairpins</td><td>—</td><td>${dp.numHairpins||'—'}</td>
+      <td class="lbl">Hairpin length</td><td>m</td><td>${dp.L||'—'}</td>
+      <td class="lbl">No. hairpins</td><td>—</td><td>${dp.nHairpins||'—'}</td>
     </tr>
     <tr>
-      <td class="lbl">Total active length</td><td>m</td><td>${dp.totalL!=null?dp.totalL.toFixed(1):'—'}</td>
+      <td class="lbl">Total active length</td><td>m</td><td>${dp.L_total!=null?dp.L_total.toFixed(1):'—'}</td>
       <td class="lbl">Over-surface</td><td>%</td>
-      <td class="${dp.overSurf>40?'hi-warn':'hi-ok'}">${dp.overSurf!=null?dp.overSurf.toFixed(1):'—'}</td>
+      <td class="${dp.overDesign>40?'hi-warn':'hi-ok'}">${dp.overDesign!=null?dp.overDesign.toFixed(1):'—'}</td>
     </tr>
     <tr>
       <td class="lbl">LMTD / F×LMTD</td><td>${T}</td>
       <td>${dp.lmtd.toFixed(4)} / <b>${dp.FLMTD.toFixed(4)}</b></td>
       <td class="lbl">Balance Error</td><td>%</td>
-      <td class="${dp.balErr_in>5?'hi-warn':'hi-ok'}">${dp.balErr_in.toFixed(3)}</td>
+      <td class="${dp.balErr>5?'hi-warn':'hi-ok'}">${dp.balErr.toFixed(3)}</td>
     </tr>
     <tr>
       <td class="lbl">Effectiveness ε</td><td>%</td><td>${(dp.eff*100).toFixed(2)}</td>
@@ -3625,8 +3625,8 @@ ${lm?`
 <table>
   <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
   <tbody>
-    <tr><td class="lbl">Hot side: T_in → T_out</td><td>${tDisp(lm.hTi).toFixed(4)} → ${tDisp(lm.hTo).toFixed(4)} ${T}</td><td>ΔT_hot = ${(lm.hTi-lm.hTo).toFixed(4)} ${T}</td></tr>
-    <tr><td class="lbl">Cold side: T_in → T_out</td><td>${tDisp(lm.cTi).toFixed(4)} → ${tDisp(lm.cTo).toFixed(4)} ${T}</td><td>ΔT_cold = ${(lm.cTo-lm.cTi).toFixed(4)} ${T}</td></tr>
+    <tr><td class="lbl">Hot side: T_in → T_out</td><td>${lm.hTi.toFixed(2)} → ${lm.hTo.toFixed(2)} °C</td><td>ΔT_hot = ${(lm.hTi-lm.hTo).toFixed(4)} ${T}</td></tr>
+    <tr><td class="lbl">Cold side: T_in → T_out</td><td>${lm.cTi.toFixed(2)} → ${lm.cTo.toFixed(2)} °C</td><td>ΔT_cold = ${(lm.cTo-lm.cTi).toFixed(4)} ${T}</td></tr>
     <tr><td class="lbl">ΔT₁ / ΔT₂</td><td>${lm.dT1.toFixed(6)} / ${lm.dT2.toFixed(6)} ${T}</td><td>${lm.arr==='counter'?'T_h,in−T_c,out / T_h,out−T_c,in':'Parallel end differences'}</td></tr>
     <tr><td class="lbl">LMTD (log mean)</td><td>${lm.lmtd.toFixed(6)} ${T}</td><td>ΔT_LM = (ΔT₁−ΔT₂)/ln(ΔT₁/ΔT₂)</td></tr>
     <tr><td class="lbl">F correction factor</td><td>${lm.F.toFixed(6)}</td><td>${lm.arr} arrangement</td></tr>
@@ -3634,7 +3634,7 @@ ${lm?`
     ${lm.eff!=null?`<tr><td class="lbl">Effectiveness ε</td><td>${(lm.eff*100).toFixed(4)} %</td><td>ε = Q_actual / Q_max</td></tr>`:''}
     ${lm.NTU!=null?`<tr><td class="lbl">NTU</td><td>${lm.NTU.toFixed(6)}</td><td>NTU = U·A/C_min</td></tr>`:''}
     ${lm.UA!=null?`<tr><td class="lbl">U·A product</td><td>${(lm.UA/1000).toFixed(4)} kW/K</td><td>Direct from NTU × C_min</td></tr>`:''}
-    ${lm.Cmin_kW!=null?`<tr><td class="lbl">C_min / C_max</td><td>${lm.Cmin_kW.toFixed(4)} / ${(lm.UA/lm.NTU/1000).toFixed(4)} kW/K</td><td>C_r = ${(Math.min(lm.Cmin_kW,(lm.UA/lm.NTU/1000))/Math.max(lm.Cmin_kW,(lm.UA/lm.NTU/1000))).toFixed(4)}</td></tr>`:''}
+    ${(lm.Cmin_kW!=null&&lm.NTU!=null&&lm.NTU>0)?`<tr><td class="lbl">C_min / C_max</td><td>${lm.Cmin_kW.toFixed(4)} / ${(lm.UA/lm.NTU/1000).toFixed(4)} kW/K</td><td>C_r = ${(Math.min(lm.Cmin_kW,(lm.UA/lm.NTU/1000))/Math.max(lm.Cmin_kW,(lm.UA/lm.NTU/1000))).toFixed(4)}</td></tr>`:''}
   </tbody>
 </table>
 `:''}
@@ -4265,7 +4265,7 @@ document.getElementById('dpForm').addEventListener('submit', async function(e){
       L: getLenM('dp_hplen'), nHairpins: 1,
       arr: g('dp_arr').value, mat: g('dp_mat').value,
       foul: parseFloat((g('dp_foul')||{value:'0.0002'}).value)||0.0002,
-      pdAllow: getPresVal('dp_pdH'),
+      pdAllow: Math.min(getPresVal('dp_pdH'), getPresVal('dp_pdC')),
     };
     const r = await callAPI(payload);
     if (r.error) return showErr('dp', r.error);
