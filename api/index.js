@@ -7324,7 +7324,9 @@ function calc3P(p) {
   const boot  = parseFloat(p.boot) || 0.3;
   const icm   = parseFloat(p.icm)  || 0.15;
   const svcFactor = parseFloat(p.svcFactor);
-
+const platePack = p.platePack === true || p.platePack === 'true';
+  const ppCredit  = platePack ? 0.60 : 1.0;
+  
   if ([Qg,Qo,Qw,rhog,rhoo,rhow,tro,trw,LD,K].some(x => !isFinite(x)) || Qg<=0 || Qo<=0 || Qw<=0)
     return { error: 'Fill all fields with positive values.' };
   if (rhog >= rhoo || rhog >= rhow)
@@ -7337,8 +7339,8 @@ function calc3P(p) {
   const K_eff    = K_pcorr * svcFactor;
   const Uterm    = K_eff * Math.sqrt((rhoo - rhog) / rhog);
   const Udesign  = 0.85 * Uterm;
-  const Vo       = Qo_s * tro * 60 * surge;
-  const Vw       = Qw_s * trw * 60 * surge;
+   const Vo = Qo_s * tro * 60 * surge * ppCredit;
+  const Vw = Qw_s * trw * 60 * surge * ppCredit;
   const Vliq     = Vo + Vw;
   const fo       = Vliq > 0 ? Vo / Vliq : 0;
   const D_liq    = Math.cbrt(Vliq / (0.5 * Math.PI / 4 * LD));
@@ -7375,6 +7377,7 @@ function calc3P(p) {
   if (stokesOk === false) { warns.push('⚠ Stokes check: oil droplet may NOT settle in available time. Increase L/D, reduce dp requirement, or add coalescer pack.'); status = 'WARN'; }
   if (svcFactor < 1.0) warns.push(`⚠ Service derating ×${svcFactor} applied to K.`);
   warns.push('ℹ 3-phase sized by retention time + Stokes check only. Emulsion, dynamic interface and upset behaviour require engineer review.');
+  if (platePack) warns.push('ℹ Plate pack credit applied: retention time reduced by 40% per API 12J §6.4.4. Plate pack must be designed and installed per vendor specification. Credit valid only when plates cover full liquid cross-section.');
 
   return {
     status, warns, stokesInfo,
@@ -7389,22 +7392,38 @@ function calc3P(p) {
       { label:'Oil Pad Height (est.)',   value: H_oil.toFixed(3)+' m', warn: false },
       { label:'Water Boot (design)',     value: H_boot_design.toFixed(3)+' m', warn: false },
       { label:'Oil Fraction',            value: (fo*100).toFixed(1)+'%', warn: false },
+      { label:'Plate Pack Credit', value: platePack ? '✅ 40% applied (API 12J)' : 'Not applied', warn: false },
     ],
     summary: `K_eff=${K_eff.toFixed(4)} | ρg=${rhog.toFixed(2)} | ρo=${rhoo.toFixed(1)} | ρw=${rhow.toFixed(1)} kg/m³ | tro=${tro} | trw=${trw} min | icm=${icm}m`
   };
 }
 
 // ── CALC 4: PRESSURE VESSEL THICKNESS (ASME VIII) ─────────────
+
 function calcPV(p) {
   const P      = toMPag(p.P, p.P_u);
   const D_mm   = toMm(p.D, p.D_u);
-  const S      = toMPaStress(p.S, p.S_u);
-  const E      = parseFloat(p.E);
   const CA     = toMm(p.CA, p.CA_u);
   const head   = p.head;
   const minT   = parseFloat(p.minT);
   const T_C    = toC(p.T, p.T_u);
   const cat    = p.cat;
+  const L_mm   = toMm(p.L, p.L_u);
+  const matKey = p.matKey || '';
+  const noz    = Array.isArray(p.nozzles) ? p.nozzles : [];
+
+  // Material / Stress resolution
+  let S, S_note = null;
+  const matEntry = ASME_STRESS_TABLE[matKey];
+  if (matEntry && isFinite(T_C)) {
+    S = asmeStressAtTemp(matKey, T_C);
+    S_note = `${matEntry.name} | S at ${T_C.toFixed(0)}°C = ${S} MPa (ASME Sec.II Part D)`;
+    if (T_C > 400) S_note += ' ⚠ Above 400°C — verify S from Sec.II Part D table directly.';
+  } else {
+    S = toMPaStress(p.S, p.S_u);
+  }
+
+  const E = parseFloat(p.E);
 
   if ([P,D_mm,S,E,CA].some(x => !isFinite(x) || isNaN(x)) || P<=0 || D_mm<=0 || S<=0 || E<=0)
     return { error: 'Fill all design parameters with valid positive values.' };
@@ -7446,37 +7465,151 @@ function calcPV(p) {
   const t_hd_net = headOk ? t_hd_calc + CA : 0;
   const t_hd_nom = headOk ? Math.max(minT, Math.ceil(t_hd_net * 2) / 2) : 0;
 
-  const MAWP       = (S * E * t_sh_nom) / (R + 0.6 * t_sh_nom);
-  const P_hyd      = 1.3 * MAWP;
+  const MAWP        = (S * E * t_sh_nom) / (R + 0.6 * t_sh_nom);
+  const P_hyd       = 1.3 * MAWP;
   const thick_ratio = P / (S * E);
 
+  // ── HEAD VOLUME ──────────────────────────────────────────────
+  const D_m = D_mm / 1000;
+  const t_sh = t_sh_nom / 1000;
+  const t_hd = t_hd_nom / 1000;
+  let V_head = 0, V_head_label = '';
+  if (headOk) {
+    if (head === 'ellipsoidal') {
+      V_head = (Math.PI / 24) * Math.pow(D_m, 3);
+      V_head_label = 'Ellipsoidal head (per head)';
+    } else if (head === 'hemispherical') {
+      V_head = (Math.PI / 12) * Math.pow(D_m, 3);
+      V_head_label = 'Hemispherical head (per head)';
+    } else if (head === 'conical30' || head === 'conical45') {
+      const alpha = head === 'conical30' ? 30 : 45;
+      const H_cone = (D_m / 2) / Math.tan(alpha * Math.PI / 180);
+      V_head = (Math.PI / 12) * Math.pow(D_m / 2, 2) * H_cone;
+      V_head_label = `Conical α=${alpha}° head (per head)`;
+    } else {
+      V_head = 0; V_head_label = 'Flat cover (no head volume)';
+    }
+  }
+  const L_eff_m = isFinite(L_mm) && L_mm > 0 ? L_mm / 1000 : null;
+  const V_shell = L_eff_m ? (Math.PI / 4) * Math.pow(D_m, 2) * L_eff_m : null;
+  const V_total = (V_shell !== null) ? V_shell + 2 * V_head : null;
+
+  // ── VESSEL EMPTY WEIGHT ──────────────────────────────────────
+  const rho_steel = isFinite(parseFloat(p.rho_steel)) ? parseFloat(p.rho_steel) : 7850;
+  let W_shell = null, W_heads = null, W_total = null;
+  if (L_eff_m) {
+    W_shell = Math.PI * D_m * L_eff_m * t_sh * rho_steel;
+    const hd_sf = head === 'ellipsoidal' ? 1.09 :
+                  head === 'hemispherical' ? 1.0 :
+                  head === 'conical30' ? 1/Math.cos(30*Math.PI/180) :
+                  head === 'conical45' ? 1/Math.cos(45*Math.PI/180) : 1.0;
+    W_heads = 2 * (Math.PI / 4) * Math.pow(D_m, 2) * t_hd * rho_steel * hd_sf;
+    W_total = W_shell + W_heads;
+  }
+
+  // ── UG-37 NOZZLE REINFORCEMENT ───────────────────────────────
+  const ug37Results = [];
+  if (noz.length > 0) {
+    noz.forEach((nz, i) => {
+      const dn = toMm(parseFloat(nz.d), nz.d_u || 'mm');
+      const tn = toMm(parseFloat(nz.t), nz.t_u || 'mm');
+      if (!isFinite(dn) || dn <= 0) return;
+      const tr     = t_sh_calc;
+      const F      = 1.0;
+      const A_req  = dn * tr * F;
+      const A_shell  = (2 * dn) * (t_sh_nom - t_sh_calc);
+      const A_nozzle = isFinite(tn) && tn > 0
+        ? 2 * Math.min(2.5 * t_sh_nom, 2.5 * tn) * tn : 0;
+      const A_avail  = A_shell + A_nozzle;
+      const reinf_ok = A_avail >= A_req;
+      const pad_req  = reinf_ok ? 0 : A_req - A_avail;
+      ug37Results.push({
+        id: nz.id || `N${i+1}`,
+        dn: dn.toFixed(0), tr: tr.toFixed(2),
+        A_req: A_req.toFixed(1), A_avail: A_avail.toFixed(1),
+        ok: reinf_ok,
+        pad_req: pad_req > 0 ? pad_req.toFixed(0) : '—'
+      });
+    });
+  }
+
+  // ── WARNINGS ─────────────────────────────────────────────────
   let warns = [], status = 'PASS';
+  if (S_note) warns.push(`ℹ ${S_note}`);
   if (head === 'flat') warns.push('⚠ Flat cover: UG-34 simplified formula only. Real flat covers require full UG-34 analysis including attachment weld classification, bolt loading, and effective gasket seating width. Engineer review mandatory.');
   if (head === 'conical45') warns.push('⚠ α=45° conical: approaching practical limit. Knuckle reinforcement per UG-33 likely required.');
   if (!headOk) warns.push('⚠ Head denominator ≤ 0 — head calculation invalid. Pressure exceeds allowable.');
   if (thick_ratio > 0.385) { warns.push('⚠ P/(S×E) > 0.385 — ASME UG-27 thin-wall formula is no longer valid. Use ASME Appendix 1-2 thick-wall formula: t = R[e^(P/SE) − 1]. Consult a certified PV engineer.'); status = 'WARN'; }
   else if (thick_ratio > 0.3) warns.push('⚠ P/(S×E) > 0.3 — approaching thin-wall formula limit (0.385). Consider ASME App.1-2 thick-wall analysis for accuracy.');
   if (isFinite(T_C)) {
-    if (T_C > 260) warns.push('⚠ T>260°C: Verify allowable stress S at operating temperature from ASME Sec.II Part D. Tabulated S may be lower than ambient value.');
+    if (T_C > 260 && !matEntry) warns.push('⚠ T>260°C: Verify allowable stress S at operating temperature from ASME Sec.II Part D. Tabulated S may be lower than ambient value.');
     if (T_C < -29) warns.push('⚠ T<−29°C: MDMT and Charpy impact testing per ASME UCS-66 apply. Do not use standard CS at this temperature without impact test verification.');
+    if (matEntry && T_C < matEntry.mdmt) warns.push(`⚠ T=${T_C.toFixed(0)}°C is below MDMT of ${matEntry.name} (MDMT=${matEntry.mdmt}°C). Charpy impact testing per UCS-66 required or switch to lower-MDMT material.`);
   }
-  warns.push('ℹ UG-37 nozzle reinforcement NOT calculated. All nozzles, manholes and openings require separate UG-37 pad reinforcement analysis or FEA for Code compliance.');
+  if (noz.length === 0) warns.push('ℹ UG-37 nozzle reinforcement: No nozzles entered. Add nozzle data to check reinforcement. All openings in pressure vessels require UG-37 area replacement analysis.');
+  else {
+    const failNoz = ug37Results.filter(n => !n.ok);
+    if (failNoz.length > 0) {
+      warns.push(`⚠ UG-37: ${failNoz.length} nozzle(s) require reinforcement pad: ${failNoz.map(n=>`${n.id} (need ${n.pad_req} mm² more)`).join(', ')}.`);
+      status = 'WARN';
+    } else {
+      warns.push(`✅ UG-37: All ${ug37Results.length} nozzle(s) pass reinforcement check.`);
+    }
+  }
   if (cat === 'detailed') warns.push('ℹ Detailed design category selected — this tool gives preliminary sizing only. Full ASME Sec.VIII Div.1 review by a qualified PV engineer required.');
   if (!headOk || thick_ratio > 0.5) status = 'WARN';
 
+  // ── RESULTS ──────────────────────────────────────────────────
+  const results = [
+    { label:'Shell: t_calc',        value: t_sh_calc.toFixed(2)+' mm  ('+(t_sh_calc/25.4).toFixed(3)+'")', warn: false },
+    { label:'Shell: t + CA',        value: t_sh_net.toFixed(2)+' mm', warn: false },
+    { label:'Shell: t_nominal',     value: t_sh_nom.toFixed(1)+' mm  ('+(t_sh_nom/25.4).toFixed(3)+'")', warn: t_sh_nom<minT },
+    { label:head_label+': t_calc',  value: headOk ? t_hd_calc.toFixed(2)+' mm' : 'INVALID', warn: !headOk, cls: headOk ? '' : 'f' },
+    { label:head_label+': t_nom',   value: headOk ? t_hd_nom.toFixed(1)+' mm' : '—', warn: false },
+    { label:'MAWP (shell nom.)',     value: MAWP.toFixed(3)+' MPag  ('+(MAWP/0.1).toFixed(1)+' barg)', warn: false },
+    { label:'Design Pressure',      value: P.toFixed(3)+' MPag  ('+(P/0.1).toFixed(1)+' barg)', warn: false },
+    { label:'P/(S×E) ratio',        value: thick_ratio.toFixed(4), warn: thick_ratio>0.385 },
+    { label:'Hydrotest (~1.3×MAWP)',value: P_hyd.toFixed(3)+' MPag', warn: false },
+    { label:'Corrosion Allow.',     value: CA.toFixed(1)+' mm', warn: false },
+  ];
+
+  // Head volume
+  if (headOk && V_head > 0) {
+    results.push({ label: V_head_label,    value: V_head.toFixed(4)+' m³  ('+(V_head*1000).toFixed(1)+' L)', warn: false });
+    results.push({ label: '2× Head Volume',value: (2*V_head).toFixed(4)+' m³', warn: false });
+  }
+
+  // Shell + total volume
+  if (V_shell !== null) {
+    results.push({ label:'Shell Volume (inside)', value: V_shell.toFixed(3)+' m³  ('+(V_shell*1000).toFixed(0)+' L)', warn: false });
+    results.push({ label:'Total Vessel Volume',   value: V_total.toFixed(3)+' m³  ('+(V_total*1000).toFixed(0)+' L)', warn: false });
+  }
+
+  // Vessel weight
+  if (W_total !== null) {
+    results.push({ label:'Shell Empty Weight', value: W_shell.toFixed(0)+' kg  ('+(W_shell*2.20462).toFixed(0)+' lb)', warn: false });
+    results.push({ label:'Heads Empty Weight', value: W_heads.toFixed(0)+' kg  ('+(W_heads*2.20462).toFixed(0)+' lb)', warn: false });
+    results.push({ label:'Total Empty Weight', value: W_total.toFixed(0)+' kg  ('+(W_total*2.20462).toFixed(0)+' lb)', warn: W_total>50000 });
+  }
+
+  // UG-37 nozzle rows
+  if (ug37Results.length > 0) {
+    ug37Results.forEach(n => {
+      results.push({
+        label: `UG-37 Nozzle ${n.id} (DN${n.dn}mm)`,
+        value: `A_req=${n.A_req}mm² | A_avail=${n.A_avail}mm² | Pad=${n.pad_req}mm² → ${n.ok?'✅ PASS':'⚠ NEEDS PAD'}`,
+        warn: !n.ok
+      });
+    });
+  }
+
   return {
     status, warns,
-    results: [
-      { label:'Shell: t_calc',           value: t_sh_calc.toFixed(2)+' mm  ('+( t_sh_calc/25.4).toFixed(3)+'")', warn: false },
-      { label:'Shell: t + CA',           value: t_sh_net.toFixed(2)+' mm', warn: false },
-      { label:'Shell: t_nominal',        value: t_sh_nom.toFixed(1)+' mm  ('+( t_sh_nom/25.4).toFixed(3)+'")', warn: t_sh_nom<minT },
-      { label:head_label+': t_calc',     value: headOk ? t_hd_calc.toFixed(2)+' mm' : 'INVALID', warn: !headOk, cls: headOk ? '' : 'f' },
-      { label:head_label+': t_nom',      value: headOk ? t_hd_nom.toFixed(1)+' mm' : '—', warn: false },
-      { label:'MAWP (shell nom.)',        value: MAWP.toFixed(3)+' MPag  ('+( MAWP/0.1).toFixed(1)+' barg)', warn: false },
-      { label:'Design Pressure',         value: P.toFixed(3)+' MPag  ('+( P/0.1).toFixed(1)+' barg)', warn: false },
-      { label:'P/(S×E) ratio',           value: thick_ratio.toFixed(4), warn: thick_ratio>0.385 },
-      { label:'Hydrotest (~1.3×MAWP)',   value: P_hyd.toFixed(3)+' MPag', warn: false },
-      { label:'Corrosion Allow.',        value: CA.toFixed(1)+' mm', warn: false },
+    results,
+    ug37: ug37Results,
+    summary: `ASME Sec.VIII Div.1 | ID=${D_mm.toFixed(0)} mm (${(D_mm/25.4).toFixed(2)}") | S=${S.toFixed(1)} MPa | E=${E.toFixed(2)}${isFinite(T_C)?' | T='+T_C.toFixed(0)+'°C':''}${L_eff_m?' | L='+L_eff_m.toFixed(2)+'m':''}`
+  };
+}
     ],
     summary: `ASME Sec.VIII Div.1 | ID=${D_mm.toFixed(0)} mm (${(D_mm/25.4).toFixed(2)}") | S=${S.toFixed(1)} MPa | E=${E.toFixed(2)}${isFinite(T_C)?' | T='+T_C.toFixed(0)+'°C':''}`
   };
