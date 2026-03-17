@@ -3003,16 +3003,23 @@ function renderSTResults(r, warns=[]) {
         ⚠ ${r.designAdvisor.problem}
       </div>
       <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t2);margin-bottom:10px">
-        Choose an engineering lever — click Apply to recalculate instantly:
+        Choose an engineering lever — all lengths are TEMA standard — click Apply to recalculate:
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
 
         ${r.designAdvisor.levers.A_increase_length ? `
         <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:12px;border-top:3px solid var(--red);display:flex;flex-direction:column;gap:6px">
-          <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red)">Lever A — Increase tube length</div>
+          <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red)">Lever A — Longer tube (TEMA standard)</div>
           <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">L = ${r.designAdvisor.levers.A_increase_length.L_required_m} m</div>
+          <div style="font-size:.78rem;color:var(--t2)">
+            ${r.designAdvisor.levers.A_increase_length.numTubes} tubes (${r.designAdvisor.levers.A_increase_length.nTubesPerPass}/pass)
+            &nbsp;· vel = <strong style="color:${r.designAdvisor.levers.A_increase_length.partial?'var(--warn)':'var(--ok)'}">${r.designAdvisor.levers.A_increase_length.velocity} m/s</strong>
+            &nbsp;· Shell ID ≈ ${r.designAdvisor.levers.A_increase_length.shellID_mm} mm
+          </div>
           <div style="font-size:.75rem;color:var(--t3)">${r.designAdvisor.levers.A_increase_length.note}</div>
-          <div style="font-size:.70rem;color:var(--warn)">⚠ Needs horizontal/vertical bay space</div>
+          ${r.designAdvisor.levers.A_increase_length.partial
+            ? `<div style="font-size:.70rem;color:var(--warn)">⚠ Max TEMA length — combine with Lever B or D for full target</div>`
+            : `<div style="font-size:.70rem;color:var(--warn)">⚠ Needs horizontal/vertical bay space</div>`}
           <button onclick="applyAdvisorLever('A',${r.designAdvisor.levers.A_increase_length.L_required_m},null,null,null)"
             style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--red);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">
             ↗ Apply — set L = ${r.designAdvisor.levers.A_increase_length.L_required_m} m
@@ -3024,29 +3031,29 @@ function renderSTResults(r, warns=[]) {
           <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue)">Lever B — More tube passes</div>
           <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">${r.designAdvisor.levers.B_more_passes.passes} passes</div>
           <div style="font-size:.78rem;color:var(--t2)">
-            ${r.designAdvisor.levers.B_more_passes.tubes} tubes (${r.designAdvisor.levers.B_more_passes.tubesPerPass}/pass)
+            ${r.designAdvisor.levers.B_more_passes.numTubes} tubes (${r.designAdvisor.levers.B_more_passes.nTubesPerPass}/pass)
             &nbsp;· vel = <strong style="color:var(--ok)">${r.designAdvisor.levers.B_more_passes.velocity} m/s</strong>
             &nbsp;· Shell ID ≈ ${r.designAdvisor.levers.B_more_passes.shellID_mm} mm
           </div>
           <div style="font-size:.75rem;color:var(--t3)">${r.designAdvisor.levers.B_more_passes.note}</div>
-          <div style="font-size:.70rem;color:var(--ok)">✓ Same tube length — no extra bay space</div>
-          <button onclick="applyAdvisorLever('B',null,${r.designAdvisor.levers.B_more_passes.passes},null,${r.designAdvisor.levers.B_more_passes.tubes})"
+          <div style="font-size:.70rem;color:var(--ok)">✓ Same tube length — no extra bay space needed</div>
+          <button onclick="applyAdvisorLever('B',null,${r.designAdvisor.levers.B_more_passes.passes},null,${r.designAdvisor.levers.B_more_passes.numTubes})"
             style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--blue);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">
-            ↗ Apply — ${r.designAdvisor.levers.B_more_passes.passes} passes, ${r.designAdvisor.levers.B_more_passes.tubes} tubes
+            ↗ Apply — ${r.designAdvisor.levers.B_more_passes.passes} passes, ${r.designAdvisor.levers.B_more_passes.numTubes} tubes
           </button>
         </div>` : ''}
 
         ${r.designAdvisor.levers.C_more_shells ? `
         <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:12px;border-top:3px solid var(--teal);display:flex;flex-direction:column;gap:6px">
           <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--teal)">Lever C — Shells in series</div>
-          <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">${r.designAdvisor.levers.C_more_shells.shells} shells</div>
+          <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">${r.designAdvisor.levers.C_more_shells.shells} × shells</div>
           <div style="font-size:.78rem;color:var(--t2)">
-            ${r.designAdvisor.levers.C_more_shells.tubesPerShell} tubes/shell (${r.designAdvisor.levers.C_more_shells.tubesPerPass}/pass)
+            ${r.designAdvisor.levers.C_more_shells.tubesPerShell} tubes/shell (${r.designAdvisor.levers.C_more_shells.nTubesPerPass}/pass)
             &nbsp;· vel = <strong style="color:var(--ok)">${r.designAdvisor.levers.C_more_shells.velocity} m/s</strong>
             &nbsp;· Shell ID ≈ ${r.designAdvisor.levers.C_more_shells.shellID_mm} mm each
           </div>
           <div style="font-size:.75rem;color:var(--t3)">${r.designAdvisor.levers.C_more_shells.note}</div>
-          <div style="font-size:.70rem;color:var(--warn)">⚠ Higher capital cost — needs piping for series connection</div>
+          <div style="font-size:.70rem;color:var(--warn)">⚠ Higher capital cost — series piping required</div>
           <button onclick="applyAdvisorLever('C',null,null,${r.designAdvisor.levers.C_more_shells.shells},${r.designAdvisor.levers.C_more_shells.tubesPerShell})"
             style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--teal);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">
             ↗ Apply — ${r.designAdvisor.levers.C_more_shells.shells} shells in series
@@ -3055,19 +3062,36 @@ function renderSTResults(r, warns=[]) {
 
         ${r.designAdvisor.levers.D_smaller_OD ? `
         <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:12px;border-top:3px solid #7c3aed;display:flex;flex-direction:column;gap:6px">
-          <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed">Lever D — Reduce tube OD</div>
+          <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7c3aed">Lever D — Reduce tube OD (TEMA standard)</div>
           <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">OD = ${r.designAdvisor.levers.D_smaller_OD.OD_mm} mm</div>
           <div style="font-size:.78rem;color:var(--t2)">
             ID = ${r.designAdvisor.levers.D_smaller_OD.Di_mm} mm
-            &nbsp;· ${r.designAdvisor.levers.D_smaller_OD.tubes} tubes (${r.designAdvisor.levers.D_smaller_OD.tubesPerPass}/pass)
+            &nbsp;· ${r.designAdvisor.levers.D_smaller_OD.numTubes} tubes (${r.designAdvisor.levers.D_smaller_OD.nTubesPerPass}/pass)
             &nbsp;· vel = <strong style="color:var(--ok)">${r.designAdvisor.levers.D_smaller_OD.velocity} m/s</strong>
             &nbsp;· Shell ID ≈ ${r.designAdvisor.levers.D_smaller_OD.shellID_mm} mm
           </div>
           <div style="font-size:.75rem;color:var(--t3)">${r.designAdvisor.levers.D_smaller_OD.note}</div>
-          <div style="font-size:.70rem;color:var(--ok)">✓ Same length · Check fouling/cleaning access for smaller bore</div>
-          <button onclick="applyAdvisorLever('D',null,null,null,${r.designAdvisor.levers.D_smaller_OD.tubes},${r.designAdvisor.levers.D_smaller_OD.OD_mm},${r.designAdvisor.levers.D_smaller_OD.tw_mm})"
+          <div style="font-size:.70rem;color:var(--ok)">✓ Same tube length · Confirm cleaning access for smaller bore</div>
+          <button onclick="applyAdvisorLever('D',null,null,null,${r.designAdvisor.levers.D_smaller_OD.numTubes},${r.designAdvisor.levers.D_smaller_OD.OD_mm},${r.designAdvisor.levers.D_smaller_OD.tw_mm})"
             style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:#7c3aed;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">
-            ↗ Apply — OD ${r.designAdvisor.levers.D_smaller_OD.OD_mm} mm, ${r.designAdvisor.levers.D_smaller_OD.tubes} tubes
+            ↗ Apply — OD ${r.designAdvisor.levers.D_smaller_OD.OD_mm} mm, ${r.designAdvisor.levers.D_smaller_OD.numTubes} tubes
+          </button>
+        </div>` : ''}
+
+        ${r.designAdvisor.levers.E_combined ? `
+        <div style="background:var(--surf);border:1px solid var(--bdr);border-radius:8px;padding:12px;border-top:3px solid var(--gold);display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gold)">Lever E — Combined: length + passes</div>
+          <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--t1)">L=${r.designAdvisor.levers.E_combined.L_required_m} m · ${r.designAdvisor.levers.E_combined.passes} passes</div>
+          <div style="font-size:.78rem;color:var(--t2)">
+            ${r.designAdvisor.levers.E_combined.numTubes} tubes (${r.designAdvisor.levers.E_combined.nTubesPerPass}/pass)
+            &nbsp;· vel = <strong style="color:var(--ok)">${r.designAdvisor.levers.E_combined.velocity} m/s</strong>
+            &nbsp;· Shell ID ≈ ${r.designAdvisor.levers.E_combined.shellID_mm} mm
+          </div>
+          <div style="font-size:.75rem;color:var(--t3)">${r.designAdvisor.levers.E_combined.note}</div>
+          <div style="font-size:.70rem;color:var(--warn)">⚠ Use when no single lever alone achieves target</div>
+          <button onclick="applyAdvisorLever('E',${r.designAdvisor.levers.E_combined.L_required_m},${r.designAdvisor.levers.E_combined.passes},null,${r.designAdvisor.levers.E_combined.numTubes})"
+            style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--gold);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">
+            ↗ Apply — L=${r.designAdvisor.levers.E_combined.L_required_m} m, ${r.designAdvisor.levers.E_combined.passes} passes
           </button>
         </div>` : ''}
 
@@ -4268,6 +4292,22 @@ function applyAdvisorLever(lever, newL, newPasses, newShells, newTubes, newOD_mm
     if (newTW_mm != null) {
       const twField = g('st_tw');
       if (twField) twField.value = newTW_mm;
+    }
+    if (newTubes != null) {
+      const numTubesField = g('st_numTubesFixed');
+      const velModeField  = g('st_velMode');
+      if (numTubesField) numTubesField.value = newTubes;
+      if (velModeField)  velModeField.value  = 'fixedtubes';
+      onVelModeChange();
+    }
+  }
+  // Lever E — combined length + passes
+  if (lever === 'E') {
+    if (newL != null) { const lenField = g('st_len'); if (lenField) lenField.value = newL; }
+    if (newPasses != null) {
+      const hxMap = {1:'1-1', 2:'1-2', 4:'1-4', 6:'1-4', 8:'1-4'};
+      const hxTypeField = g('st_hxType') || g('st_type');
+      if (hxTypeField && hxMap[newPasses]) hxTypeField.value = hxMap[newPasses];
     }
     if (newTubes != null) {
       const numTubesField = g('st_numTubesFixed');
