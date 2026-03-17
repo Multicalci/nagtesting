@@ -602,9 +602,11 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="fgrid">
           <div class="fg"><label>HX Type</label>
             <select id="st_type">
-              <option value="1-1">1-1 (1 Shell, 1 Tube Pass)</option>
-              <option value="1-2" selected>1-2 (1 Shell, 2 Tube Passes)</option>
-              <option value="2-4">2-4 (2 Shell, 4 Tube Passes)</option>
+              <option value="1-1">1-1 (1 Shell, 1 Pass)</option>
+              <option value="1-2" selected>1-2 (1 Shell, 2 Passes)</option>
+              <option value="1-4">1-4 (1 Shell, 4 Passes)</option>
+              <option value="1-6">1-6 (1 Shell, 6 Passes)</option>
+              <option value="2-4">2-4 (2 Shells, 4 Passes)</option>
             </select>
           </div>
           <div class="fg"><label>Flow Arrangement</label>
@@ -2810,6 +2812,7 @@ const GAS_RHO_THRESHOLD = 50;
 // ── Sub-render helpers (eliminates deep template nesting) ────────────────────
 
 function renderBlockDiagram(r) {
+  var _uid = 's'+Date.now();
   var shellID_mm = (r.shellID * 1000).toFixed(0);
   var OD_mm      = (r.OD * 1000).toFixed(1);
   var Di_mm      = (r.Di * 1000).toFixed(1);
@@ -2857,29 +2860,29 @@ function renderBlockDiagram(r) {
     +'<rect x="180" y="64" width="32" height="28" rx="3" fill="#fff3ee" stroke="#e8500a" stroke-width="1.5"/>'
     +'<text x="196" y="56" text-anchor="middle" fill="#e8500a" font-size="9" font-weight="700">HOT IN</text>'
     +'<text x="196" y="46" text-anchor="middle" fill="#e8500a" font-size="8">'+tDisp(r.hTi).toFixed(1)+' '+T+'</text>'
-    +'<line x1="196" y1="64" x2="196" y2="90" stroke="#e8500a" stroke-width="1.5" marker-end="url(#sarr)"/>'
+    +'<line x1="196" y1="64" x2="196" y2="90" stroke="#e8500a" stroke-width="1.5" marker-end=""+_uid+"_arr)"/>'
     // Hot OUT nozzle
     +'<rect x="430" y="218" width="32" height="28" rx="3" fill="#fff3ee" stroke="#c03d00" stroke-width="1.5"/>'
     +'<text x="446" y="261" text-anchor="middle" fill="#c03d00" font-size="9" font-weight="700">HOT OUT</text>'
     +'<text x="446" y="272" text-anchor="middle" fill="#c03d00" font-size="8">'+tDisp(r.hTo).toFixed(1)+' '+T+'</text>'
-    +'<line x1="446" y1="246" x2="446" y2="220" stroke="#c03d00" stroke-width="1.5" marker-end="url(#sarr)"/>'
+    +'<line x1="446" y1="246" x2="446" y2="220" stroke="#c03d00" stroke-width="1.5" marker-end=""+_uid+"_arr)"/>'
     // Cold IN nozzle
     +'<rect x="52" y="137" width="28" height="36" rx="3" fill="#eef4ff" stroke="#0055c8" stroke-width="1.5"/>'
     +'<text x="30" y="149" text-anchor="end" fill="#0055c8" font-size="9" font-weight="700">COLD IN</text>'
     +'<text x="30" y="161" text-anchor="end" fill="#0055c8" font-size="8">'+tDisp(r.cTi).toFixed(1)+' '+T+'</text>'
-    +'<line x1="80" y1="155" x2="90" y2="155" stroke="#0055c8" stroke-width="2" marker-end="url(#sarr)"/>'
+    +'<line x1="80" y1="155" x2="90" y2="155" stroke="#0055c8" stroke-width="2" marker-end=""+_uid+"_arr)"/>'
     // Cold OUT nozzle
     +'<rect x="620" y="137" width="28" height="36" rx="3" fill="#eef4ff" stroke="#008f76" stroke-width="1.5"/>'
     +'<text x="756" y="149" text-anchor="end" fill="#008f76" font-size="9" font-weight="700">COLD OUT</text>'
     +'<text x="756" y="161" text-anchor="end" fill="#008f76" font-size="8">'+tDisp(r.cTo).toFixed(1)+' '+T+'</text>'
-    +'<line x1="620" y1="155" x2="610" y2="155" stroke="#008f76" stroke-width="2" marker-start="url(#sarr)"/>'
+    +'<line x1="620" y1="155" x2="610" y2="155" stroke="#008f76" stroke-width="2" marker-start=""+_uid+"_arr)"/>'
     // Tube length dimension line
-    +'<line x1="90" y1="278" x2="610" y2="278" stroke="#444" stroke-width="1" marker-start="url(#sdim)" marker-end="url(#sdim)"/>'
+    +'<line x1="90" y1="278" x2="610" y2="278" stroke="#444" stroke-width="1" marker-start=""+_uid+"_dim)" marker-end=""+_uid+"_dim)"/>'
     +'<line x1="90" y1="266" x2="90" y2="290" stroke="#444" stroke-width="0.8"/>'
     +'<line x1="610" y1="266" x2="610" y2="290" stroke="#444" stroke-width="0.8"/>'
     +'<text x="350" y="300" text-anchor="middle" fill="#0c1322" font-size="12" font-weight="700">L = '+L_m+' m  (tube length)</text>'
     // Shell ID dimension line
-    +'<line x1="42" y1="90" x2="42" y2="220" stroke="#444" stroke-width="1" marker-start="url(#sdim)" marker-end="url(#sdim)"/>'
+    +'<line x1="42" y1="90" x2="42" y2="220" stroke="#444" stroke-width="1" marker-start=""+_uid+"_dim)" marker-end=""+_uid+"_dim)"/>'
     +'<line x1="30" y1="90" x2="55" y2="90" stroke="#444" stroke-width="0.8"/>'
     +'<line x1="30" y1="220" x2="55" y2="220" stroke="#444" stroke-width="0.8"/>'
     +'<text x="24" y="162" text-anchor="middle" fill="#0c1322" font-size="10" font-weight="700" transform="rotate(-90,24,162)">ID = '+shellID_mm+' mm</text>'
@@ -2955,7 +2958,7 @@ function renderDesignAdvisor(r) {
       '<div style="font-size:.78rem;color:var(--t2)">'+c.tubesPerShell+' tubes/shell ('+c.nTubesPerPass+'/pass) &middot; vel=<strong style="color:var(--ok)">'+c.velocity+' m/s</strong> &middot; Shell ID&asymp;'+c.shellID_mm+' mm each</div>',
       '<div style="font-size:.75rem;color:var(--t3)">'+c.note+'</div>',
       '<div style="font-size:.70rem;color:var(--warn)">⚠ Higher capital cost</div>',
-      '<button onclick="applyAdvisorLever(\'C\',null,null,'+c.shells+','+c.tubesPerShell+')" style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--teal);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">↗ Apply — '+c.shells+' shells</button>');
+      '<button onclick="applyAdvisorLever(\'C\',null,null,'+c.shells+')" style="margin-top:auto;padding:6px 14px;border:none;border-radius:6px;background:var(--teal);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer">↗ Apply — '+c.shells+' shells</button>');
   }
   if (lv.D_smaller_OD) {
     var d = lv.D_smaller_OD;
@@ -4343,101 +4346,101 @@ async function runGeoOptimizer(area_req, massC_kgs, L_fixed, rho_c, target_vel) 
 }
 
 function applyGeoSolution(od_mm, nPasses, nShells, numTubes) {
-  // Apply the selected geometry back to the input form
-  const odField = document.getElementById('st_OD');
-  const hxTypeField = document.getElementById('st_hxType');
-  const numTubesField = document.getElementById('st_numTubesFixed');
-  const velModeField = document.getElementById('st_velMode');
-  if (odField) odField.value = od_mm;
-  // Map nPasses to hxType
-  const hxMap = {1:'1-1', 2:'1-2', 4:'1-4'};
-  if (hxTypeField && hxMap[nPasses]) hxTypeField.value = hxMap[nPasses];
-  if (numTubesField) numTubesField.value = numTubes;
-  if (velModeField) velModeField.value = 'fixedtubes';
-  // Trigger recalculation
-  const calcBtn = document.querySelector('#tab-st .btn-calc');
-  if (calcBtn) calcBtn.click();
-  // Scroll to results
-  document.getElementById('st_res')?.scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-// ── FIX 6: applyAdvisorLever — one-click apply from Design Advisor cards ─────
-// Each lever card calls this with only the params it knows about.
-// null params are left unchanged in the form.
-function applyAdvisorLever(lever, newL, newPasses, newShells, newTubes, newOD_mm, newTW_mm) {
-  const g = id => document.getElementById(id);
-  // Lever A — increase tube length
-  if (lever === 'A' && newL != null) {
-    const lenField = g('st_len');
-    if (lenField) lenField.value = newL;
-  }
-  // Lever B — more passes, set hxType and fixed tube count
-  if (lever === 'B' && newPasses != null) {
-    const hxMap = {1:'1-1', 2:'1-2', 4:'1-4', 6:'1-4', 8:'1-4'}; // best effort mapping
-    const hxTypeField = g('st_hxType') || g('st_type');
-    if (hxTypeField && hxMap[newPasses]) hxTypeField.value = hxMap[newPasses];
-    if (newTubes != null) {
-      const numTubesField = g('st_numTubesFixed');
-      const velModeField  = g('st_velMode');
-      if (numTubesField) numTubesField.value = newTubes;
-      if (velModeField)  velModeField.value  = 'fixedtubes';
-      onVelModeChange();
-    }
-  }
-  // Lever C — more shells: set hxType to 2-4 if available
-  if (lever === 'C' && newShells != null) {
-    const hxTypeField = g('st_hxType') || g('st_type');
-    if (hxTypeField && newShells >= 2) hxTypeField.value = '2-4';
-    if (newTubes != null) {
-      const numTubesField = g('st_numTubesFixed');
-      const velModeField  = g('st_velMode');
-      if (numTubesField) numTubesField.value = newTubes;
-      if (velModeField)  velModeField.value  = 'fixedtubes';
-      onVelModeChange();
-    }
-  }
-  // Lever D — smaller OD
-  if (lever === 'D' && newOD_mm != null) {
-    const odField = g('st_OD') || g('st_od');
-    if (odField) odField.value = newOD_mm;
-    if (newTW_mm != null) {
-      const twField = g('st_tw');
-      if (twField) twField.value = newTW_mm;
-    }
-    if (newTubes != null) {
-      const numTubesField = g('st_numTubesFixed');
-      const velModeField  = g('st_velMode');
-      if (numTubesField) numTubesField.value = newTubes;
-      if (velModeField)  velModeField.value  = 'fixedtubes';
-      onVelModeChange();
-    }
-  }
-  // Lever E — combined length + passes
-  if (lever === 'E') {
-    if (newL != null) { const lenField = g('st_len'); if (lenField) lenField.value = newL; }
-    if (newPasses != null) {
-      const hxMap = {1:'1-1', 2:'1-2', 4:'1-4', 6:'1-4', 8:'1-4'};
-      const hxTypeField = g('st_hxType') || g('st_type');
-      if (hxTypeField && hxMap[newPasses]) hxTypeField.value = hxMap[newPasses];
-    }
-    if (newTubes != null) {
-      const numTubesField = g('st_numTubesFixed');
-      const velModeField  = g('st_velMode');
-      if (numTubesField) numTubesField.value = newTubes;
-      if (velModeField)  velModeField.value  = 'fixedtubes';
-      onVelModeChange();
-    }
-  }
-  // Show toast confirmation
-  const leverNames = {A:'Tube length updated', B:'Pass count updated', C:'Shell count updated', D:'Tube OD updated'};
-  showToast(`✅ ${leverNames[lever] || 'Applied'} — recalculating…`);
-  // Trigger recalculation
-  setTimeout(() => {
-    const calcBtn = document.querySelector('#tab-st .btn-calc');
+  var g = function(id) { return document.getElementById(id); };
+  var odField      = g('st_od');
+  var typeField    = g('st_type');
+  var velModeField = g('st_velMode');
+  var hxMap = {1:'1-1', 2:'1-2', 4: nShells>=2 ? '2-4' : '1-4', 6:'1-6', 8:'1-4'};
+  if (odField)      odField.value      = od_mm;
+  if (typeField)    typeField.value    = hxMap[nPasses] || '1-2';
+  if (velModeField) velModeField.value = 'target';
+  onVelModeChange();
+  showToast('✅ Geometry applied — recalculating…');
+  setTimeout(function() {
+    var calcBtn = document.querySelector('#tab-st .btn-calc');
     if (calcBtn) calcBtn.click();
-    document.getElementById('st_res')?.scrollIntoView({behavior:'smooth', block:'start'});
+    var res = document.getElementById('st_res');
+    if (res) res.scrollIntoView({behavior:'smooth', block:'start'});
   }, 150);
 }
+
+function applyAdvisorLever(lever, newL, newPasses, newShells, newTubes, newOD_mm, newTW_mm) {
+  var g = function(id) { return document.getElementById(id); };
+
+  var hTi = parseFloat((g('st_hTi') || {}).value);
+  var hTo  = parseFloat((g('st_hTo') || {}).value);
+  var cTi  = parseFloat((g('st_cTi') || {}).value);
+  if (!isFinite(hTi) || !isFinite(hTo) || !isFinite(cTi) || hTo >= hTi) {
+    showToast('⚠ Check temperatures before applying — hot outlet must be below hot inlet');
+    return;
+  }
+
+  var typeField    = g('st_type');
+  var lenField     = g('st_len');
+  var odField      = g('st_od');
+  var twField      = g('st_tw');
+  var velModeField = g('st_velMode');
+  var hxMap = {1:'1-1', 2:'1-2', 4:'1-4', 6:'1-6', 8:'1-4'};
+
+  if (lever === 'A') {
+    if (newL != null && lenField) lenField.value = newL;
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'B') {
+    if (newPasses != null && typeField) {
+      typeField.value = hxMap[newPasses] || '1-4';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'C') {
+    if (newShells != null && typeField) {
+      typeField.value = newShells >= 2 ? '2-4' : '1-2';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+    if (newShells > 2) {
+      showToast('ℹ️ Note: form supports up to 2 shells. For ' + newShells + ' shells, apply twice.');
+      return;
+    }
+  }
+
+  if (lever === 'D') {
+    if (newOD_mm != null && odField) odField.value = newOD_mm;
+    if (newTW_mm != null && twField)  twField.value = newTW_mm;
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'E') {
+    if (newL != null && lenField)    lenField.value = newL;
+    if (newPasses != null && typeField) {
+      typeField.value = hxMap[newPasses] || '1-4';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  var leverNames = {
+    A: 'Tube length updated',
+    B: 'Pass count updated',
+    C: 'Shells in series applied',
+    D: 'Tube OD updated',
+    E: 'Combined length + passes applied'
+  };
+  showToast('✅ ' + (leverNames[lever] || 'Applied') + ' — recalculating…');
+
+  setTimeout(function() {
+    var calcBtn = document.querySelector('#tab-st .btn-calc');
+    if (calcBtn) calcBtn.click();
+    var res = document.getElementById('st_res');
+    if (res) res.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 150);
+}
+
 
 function showRes(pfx, html) {
   document.getElementById(pfx+'_spin').classList.remove('show');
