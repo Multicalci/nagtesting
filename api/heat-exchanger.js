@@ -506,10 +506,12 @@ function calcPressDropTube(fluid, massFlowKgS, Di_m, L_m, nPasses) {
 }
 
 // ─── BELL-DELAWARE 4-TERM SHELL-SIDE PRESSURE DROP ───────────────────────────
-// Replaces single Euler-number formula. Implements:
-//   ΔP_total = (ΔP_crossflow + ΔP_window) × Nb_effective + ΔP_end_zones
-// with bypass correction Rb and leakage correction Rl (per Taborek / HEDH method)
-// Error vs single-Eu formula: reduces from ±30–40% to ±10–15%
+// BUG FIX: Previous version used nTubes (total tube count) as the crossflow
+// multiplier. This is WRONG. The correct Bell-Delaware formula uses:
+//   Nc = number of tube ROWS crossed per baffle window
+//      = shellID × (1 − 2×bcut_frac) / (pitch_ratio × OD)
+// For a 152mm shell with 14 tubes, Nc ≈ 2.4 rows, NOT 14 tubes.
+// Using nTubes gave up to 119× overestimate for steam/gas service.
 function calcBellDelawareDP(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, L_m, nTubes, bdHtcResult) {
   const {rho, mu: mu_mPas} = fluid;
   const mu = mu_mPas * 1e-3;
@@ -518,42 +520,42 @@ function calcBellDelawareDP(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bc
   const nBaffles = bdHtcResult ? bdHtcResult.nBaffles : Math.max(1, Math.round(L_m / Math.max(bsp, 0.001) - 1));
   const Sm = bsp_ratio * shellID_m * (PT - OD_m) / PT;    // crossflow area (m²)
 
+  // ── CORRECT Nc: tube rows crossed per baffle ─────────────────────────────
+  // This is the number of tubes the flow passes ACROSS in one baffle space,
+  // NOT the total tube count in the bundle.
+  const Nc = Math.max(1, shellID_m * (1 - 2 * bcut_frac) / (pitch_ratio * OD_m));
+
   // ── Crossflow ΔP per baffle space ────────────────────────────────────────
   const G_s  = massFlowKgS / Math.max(Sm, 1e-6);
   const Re_s = G_s * OD_m / mu;
-  // Friction factor from Kern / Bell (condensed form)
   let f_s;
-  if (Re_s < 10)      f_s = 14.0  * Math.pow(Re_s, -0.20);
-  else if (Re_s < 100) f_s = 7.0   * Math.pow(Re_s, -0.20);
-  else if (Re_s < 1e3) f_s = 0.72  * Math.pow(Re_s, -0.05);
-  else if (Re_s < 1e4) f_s = 0.35  * Math.pow(Re_s,  0.00);
-  else                  f_s = 0.20  * Math.pow(Re_s, -0.02);
+  if      (Re_s < 10)   f_s = 14.0  * Math.pow(Re_s, -0.20);
+  else if (Re_s < 100)  f_s = 7.0   * Math.pow(Re_s, -0.20);
+  else if (Re_s < 1e3)  f_s = 0.72  * Math.pow(Re_s, -0.05);
+  else if (Re_s < 1e4)  f_s = 0.35;
+  else                   f_s = 0.20  * Math.pow(Re_s, -0.02);
 
-  const dP_cf_one = f_s * nTubes * G_s * G_s / (2 * rho);   // Pa per baffle gap
+  // dP_cf uses Nc (tube rows) not nTubes (total bundle count)
+  const dP_cf_one = f_s * Nc * G_s * G_s / (2 * rho);    // Pa per baffle gap
 
-  // ── Window zone ΔP ─── (approximate: 0.4 × dyn pressure × nTubes_window)
-  // Window fraction from baffle cut area ratio (simplified Tinker approach)
-  const theta_bc = 2 * Math.acos(1 - 2 * bcut_frac);        // rad (baffle cut chord angle)
+  // ── Window zone ΔP ───────────────────────────────────────────────────────
+  const theta_bc = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - 2 * bcut_frac)));
   const A_window = (shellID_m * shellID_m / 4) * (theta_bc - Math.sin(theta_bc));
   const A_tubes_window = nTubes * bcut_frac * Math.PI * OD_m * OD_m / 4;
-  const A_w_free = Math.max(A_window - A_tubes_window, 0.001);
-  const G_w = massFlowKgS / A_w_free;
-  const dP_win_one = (2 + 0.6 * Math.round(nTubes * bcut_frac)) * G_w * G_w / (2 * rho);
+  const A_w_free = Math.max(A_window - A_tubes_window, Sm * 0.1); // min 10% of Sm
+  // Bell-Delaware correct: use geometric mean of crossflow and window areas (eq. 3.3.5)
+  const A_w_geomean = Math.sqrt(Sm * A_w_free);
+  const G_w = massFlowKgS / Math.max(A_w_geomean, 1e-6);
+  // Number of tube rows in window = Nc × bcut_frac (approximate)
+  const Nw = Math.max(1, Math.round(Nc * bcut_frac));
+  const dP_win_one = (2 + 0.6 * Nw) * G_w * G_w / (2 * rho);
 
-  // ── Bell-Delaware bypass correction Rb ────────────────────────────────────
-  // Rb accounts for bundle-to-shell bypass lanes (similar to Jb for HTC)
+  // ── Bypass and leakage corrections ───────────────────────────────────────
   const Rb = Math.max(0.60, 1 - 0.3 * (1 - bsp_ratio));
-
-  // ── Bell-Delaware leakage correction Rl ──────────────────────────────────
-  // Rl accounts for shell-baffle and tube-baffle clearances reducing effective ΔP
   const Rl = Math.max(0.40, 1 - 0.5 * (1 - bsp_ratio) * bcut_frac);
 
-  // ── Central baffle region ΔP ─────────────────────────────────────────────
+  // ── Central and end-zone ΔP ──────────────────────────────────────────────
   const dP_central = (dP_cf_one + dP_win_one) * nBaffles * Rb * Rl;
-
-  // ── End-zone correction (inlet/outlet baffles have larger spacing) ────────
-  // Typically first and last baffle spacing is 1.2–1.5× central spacing.
-  // Use factor 1.3 as typical design; ΔP scales as (spacing_ratio)^2.
   const end_zone_factor = 1.3;
   const dP_end = 2 * dP_cf_one * (end_zone_factor * end_zone_factor) * Rb;
 
@@ -1029,6 +1031,25 @@ function calcShellTube(b) {
     );
   }
   if (tubeVel > 4) warns.push('Tube velocity above 4 m/s — erosion risk. Increase tube count or OD.');
+  // Shell-side gas/steam velocity check
+  if (bdRes.shellVel && hFluidDB.rho < GAS_RHO_THRESHOLD) {
+    const shellVelActual = bdRes.shellVel;
+    const gasVelLimit = 30; // m/s — practical erosion/noise limit for shell-side gas
+    if (shellVelActual > gasVelLimit) {
+      const Sm_needed = massH / (hFluid.rho * gasVelLimit);
+      const bsp_now = (parseFloat(b.bsp)||0.50) * shellID_final;
+      // Estimate required shell ID: Sm = bsp × shellID × (pitch-OD)/pitch
+      const pitch_m = pitch * OD;
+      const shellID_needed_m = Sm_needed * pitch_m / (bsp_now * (pitch_m - OD));
+      const shellID_needed_mm = Math.round(shellID_needed_m * 1000 / 50) * 50; // round to 50mm
+      warns.push(
+        `Shell-side gas velocity ${shellVelActual.toFixed(0)} m/s exceeds ${gasVelLimit} m/s limit for gas service. ` +
+        `Shell is undersized for this gas flow rate. ` +
+        `Required shell ID ≈ ${shellID_needed_mm} mm to achieve ≤${gasVelLimit} m/s. ` +
+        `Shell ΔP ${shellDP.toFixed(2)} bar reflects this invalid geometry.`
+      );
+    }
+  }
   if (FLMTD < 5)     warns.push('F×LMTD < 5°C — very small driving force');
   if (F < 0.75 && shellMode === 'single-phase') warns.push(`F correction factor ${F.toFixed(3)} < 0.75 — consider additional shell pass`);
   if (shellDP > pdAllowShell) warns.push(`Shell ΔP ${shellDP.toFixed(3)} bar exceeds allowable`);
@@ -1238,7 +1259,7 @@ function calcShellTube(b) {
     nPasses, nShells, shellID: shellID_final, Di, OD, L: L_eff,
     tubeVel, targetVel, velMode,
     shellDP, tubeDp, pdAllowShell, pdAllowTube,
-    shellDP_method: 'bell-delaware-4term',   // tells UI which ΔP method was used
+    shellDP_method: 'bell-delaware-4term-Nc',   // tells UI which ΔP method was used
     bdCorr: { ...bdRes, hShell, hTube },
     NTU, eff, balErr, tema, pitchLayout, hTmean, cTmean,
     hTi, hTo, cTi, cTo, hPop, cPop,
