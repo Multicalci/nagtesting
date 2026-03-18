@@ -784,6 +784,58 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           ⚙ Tube ID and pass count are <strong>auto-calculated</strong> from flow rate + target velocity + tube length.
           Override any field manually — changes trigger instant recalculation.
         </div>
+
+        <!-- ── Tube Standard Selector ─────────────────────────────────────── -->
+        <div style="margin-bottom:10px;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px">
+          <div style="font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);margin-bottom:8px">
+            📐 Select Standard Tube Size <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--t3)">(auto-fills OD &amp; wall thickness — override below if needed)</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:160px">
+              <label style="font-size:.7rem;color:var(--t3);font-weight:600;display:block;margin-bottom:3px">Standard</label>
+              <select id="st_tube_std" onchange="onTubeStdChange()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--bdr);background:var(--surf);font-size:.8rem">
+                <option value="">— Manual entry —</option>
+                <optgroup label="TEMA / HEDH Standard (mm)">
+                  <option value="tema_12.7_1.2">12.7mm OD × 1.2mm WT (1/2" TEMA)</option>
+                  <option value="tema_15.88_1.2">15.88mm OD × 1.2mm WT (5/8" TEMA)</option>
+                  <option value="tema_19.05_1.6">19.05mm OD × 1.6mm WT (3/4" TEMA)</option>
+                  <option value="tema_25.4_2.0" selected>25.4mm OD × 2.0mm WT (1" TEMA) ← default</option>
+                  <option value="tema_31.75_2.0">31.75mm OD × 2.0mm WT (1¼" TEMA)</option>
+                  <option value="tema_38.1_2.6">38.1mm OD × 2.6mm WT (1½" TEMA)</option>
+                  <option value="tema_50.8_3.0">50.8mm OD × 3.0mm WT (2" TEMA)</option>
+                </optgroup>
+                <optgroup label="BWG (Birmingham Wire Gauge) — inch tubes">
+                  <option value="bwg_19.05_bwg14">19.05mm OD × 2.11mm WT (3/4" BWG 14)</option>
+                  <option value="bwg_19.05_bwg16">19.05mm OD × 1.65mm WT (3/4" BWG 16)</option>
+                  <option value="bwg_25.4_bwg14">25.4mm OD × 2.11mm WT (1" BWG 14)</option>
+                  <option value="bwg_25.4_bwg16">25.4mm OD × 1.65mm WT (1" BWG 16)</option>
+                  <option value="bwg_25.4_bwg18">25.4mm OD × 1.24mm WT (1" BWG 18)</option>
+                  <option value="bwg_31.75_bwg14">31.75mm OD × 2.11mm WT (1¼" BWG 14)</option>
+                  <option value="bwg_38.1_bwg12">38.1mm OD × 2.77mm WT (1½" BWG 12)</option>
+                </optgroup>
+                <optgroup label="ANSI Pipe Schedule (as tube)">
+                  <option value="ansi_21.3_sch40">21.3mm OD × 2.77mm WT (3/4" NPS Sch 40)</option>
+                  <option value="ansi_26.67_sch40">26.67mm OD × 2.87mm WT (1" NPS Sch 40)</option>
+                  <option value="ansi_33.4_sch40">33.4mm OD × 3.38mm WT (1¼" NPS Sch 40)</option>
+                  <option value="ansi_42.16_sch40">42.16mm OD × 3.56mm WT (1½" NPS Sch 40)</option>
+                  <option value="ansi_26.67_sch80">26.67mm OD × 3.91mm WT (1" NPS Sch 80)</option>
+                  <option value="ansi_33.4_sch80">33.4mm OD × 4.55mm WT (1¼" NPS Sch 80)</option>
+                </optgroup>
+                <optgroup label="DIN EN 10216 (metric seamless)">
+                  <option value="din_20_2">20mm OD × 2.0mm WT (DIN 20×2)</option>
+                  <option value="din_25_2">25mm OD × 2.0mm WT (DIN 25×2)</option>
+                  <option value="din_25_2.5">25mm OD × 2.5mm WT (DIN 25×2.5)</option>
+                  <option value="din_30_2">30mm OD × 2.0mm WT (DIN 30×2)</option>
+                  <option value="din_38_2.5">38mm OD × 2.5mm WT (DIN 38×2.5)</option>
+                </optgroup>
+              </select>
+            </div>
+            <div style="font-size:.72rem;color:var(--t3);padding-bottom:8px">
+              ID = <strong id="st_tube_id_display">21.4 mm</strong>
+              &nbsp;|&nbsp; t/OD = <strong id="st_tube_ratio_display">7.9%</strong>
+            </div>
+          </div>
+        </div>
         <div class="fgrid">
           <div class="fg">
             <label class="tip" data-tip="Auto-calculated from flow/velocity. Standard: 16, 19.05, 25.4, 31.75, 38.1 mm OD">
@@ -793,7 +845,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
             <div class="irow">
               <input type="number" id="st_od" value="25.4" step="0.1" min="6" max="80"
                 oninput="document.getElementById('odAutoTag').textContent='(manual)';
-                         document.getElementById('odAutoTag').style.color='var(--warn)';autoTubeSpecs()">
+                         document.getElementById('odAutoTag').style.color='var(--warn)';onTubeGeomChange()">
               <select id="st_od_usel" class="u-sel u-dim-sel" onchange="onDimUnitChange2('st_od',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="mm" selected>mm</option>
 <option value="cm">cm</option>
@@ -4790,7 +4842,77 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-// ── Vel mode ─────────────────────────────────────────────────────────────────
+// ── Tube standard selector ────────────────────────────────────────────────────
+const TUBE_STANDARDS = {
+  // value: [OD_mm, WT_mm]
+  'tema_12.7_1.2':    [12.7,  1.2],
+  'tema_15.88_1.2':   [15.88, 1.2],
+  'tema_19.05_1.6':   [19.05, 1.6],
+  'tema_25.4_2.0':    [25.4,  2.0],
+  'tema_31.75_2.0':   [31.75, 2.0],
+  'tema_38.1_2.6':    [38.1,  2.6],
+  'tema_50.8_3.0':    [50.8,  3.0],
+  'bwg_19.05_bwg14':  [19.05, 2.11],
+  'bwg_19.05_bwg16':  [19.05, 1.65],
+  'bwg_25.4_bwg14':   [25.4,  2.11],
+  'bwg_25.4_bwg16':   [25.4,  1.65],
+  'bwg_25.4_bwg18':   [25.4,  1.24],
+  'bwg_31.75_bwg14':  [31.75, 2.11],
+  'bwg_38.1_bwg12':   [38.1,  2.77],
+  'ansi_21.3_sch40':  [21.3,  2.77],
+  'ansi_26.67_sch40': [26.67, 2.87],
+  'ansi_33.4_sch40':  [33.4,  3.38],
+  'ansi_42.16_sch40': [42.16, 3.56],
+  'ansi_26.67_sch80': [26.67, 3.91],
+  'ansi_33.4_sch80':  [33.4,  4.55],
+  'din_20_2':         [20.0,  2.0],
+  'din_25_2':         [25.0,  2.0],
+  'din_25_2.5':       [25.0,  2.5],
+  'din_30_2':         [30.0,  2.0],
+  'din_38_2.5':       [38.0,  2.5],
+};
+
+function onTubeStdChange() {
+  const sel = g('st_tube_std');
+  if (!sel || !sel.value) return;
+  const spec = TUBE_STANDARDS[sel.value];
+  if (!spec) return;
+  const [od, tw] = spec;
+  const idField = g('st_od'), twField = g('st_tw');
+  if (idField) {
+    idField.value = od;
+    // Clear manual override tag
+    const tag = g('odAutoTag');
+    if (tag) { tag.textContent = '(standard)'; tag.style.color = 'var(--teal)'; }
+  }
+  if (twField) twField.value = tw;
+  // Update ID and ratio display
+  updateTubeIdDisplay(od, tw);
+  autoTubeSpecs();
+}
+
+function updateTubeIdDisplay(od_mm, tw_mm) {
+  const id_mm = od_mm - 2 * tw_mm;
+  const ratio  = (tw_mm / od_mm * 100).toFixed(1);
+  const idEl   = g('st_tube_id_display');
+  const ratioEl = g('st_tube_ratio_display');
+  if (idEl)    idEl.textContent   = id_mm.toFixed(1) + ' mm';
+  if (ratioEl) ratioEl.textContent = ratio + '%';
+}
+
+// Update display whenever OD or WT fields change manually
+function onTubeGeomChange() {
+  const od = parseFloat(g('st_od')?.value) || 25.4;
+  const tw = parseFloat(g('st_tw')?.value) || 2.0;
+  updateTubeIdDisplay(od, tw);
+  // Reset standard selector if user overrides manually
+  const sel = g('st_tube_std');
+  if (sel) {
+    const spec = TUBE_STANDARDS[sel.value];
+    if (!spec || spec[0] !== od || spec[1] !== tw) sel.value = '';
+  }
+  autoTubeSpecs();
+}
 function onVelModeChange(){
   const mode=(g('st_velMode')||{value:'target'}).value;
   const tgt=g('st_targetVel_row'), fix=g('st_numTubesFixed_row');
