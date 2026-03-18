@@ -3068,13 +3068,34 @@ function renderDesignAdvisor(r) {
 function renderTemaShell(r) {
   if (!r.temaShell) return '';
   var ts = r.temaShell;
-  return '<div class="note" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr);border-left:4px solid var(--teal);border-radius:10px;padding:10px 14px">'
+  // Gas resize banner — shown above TEMA shell info when shell was auto-enlarged
+  var gasResizeBanner = '';
+  if (r.gasResizeNote && !r.gasResizeNote.infeasible) {
+    gasResizeBanner = '<div style="margin-bottom:8px;padding:8px 12px;background:#eef4ff;border-radius:6px;border-left:3px solid var(--blue);font-size:.78rem;line-height:1.5">'
+      +'<span style="font-weight:700;color:var(--blue)">ℹ Gas Service — Shell Auto-Resized</span><br>'
+      +'Tube bundle requires <strong>'+r.gasResizeNote.original_mm+' mm</strong> shell, but at '+r.gasResizeNote.vel_original+' m/s crossflow velocity '
+      +'this exceeds the 30 m/s gas erosion limit. Shell enlarged to '
+      +'<strong style="color:var(--teal)">'+r.gasResizeNote.required_mm+' mm</strong> '
+      +'('+r.gasResizeNote.vel_new+' m/s crossflow) and ΔP recomputed as <strong>'+r.gasResizeNote.dp_new+' bar</strong>.'
+      +'</div>';
+  } else if (r.gasResizeNote && r.gasResizeNote.infeasible) {
+    gasResizeBanner = '<div style="margin-bottom:8px;padding:8px 12px;background:var(--red-lt);border-radius:6px;border-left:3px solid var(--err);font-size:.78rem;line-height:1.5">'
+      +'<span style="font-weight:700;color:var(--err)">⚠ Gas Service — Shell Size Infeasible</span><br>'
+      +'Required shell ID <strong>'+r.gasResizeNote.required_mm+' mm</strong> exceeds the largest TEMA standard (1524 mm). '
+      +'Reduce gas flow rate, increase baffle spacing, or use multiple shells in parallel.'
+      +'</div>';
+  }
+  return gasResizeBanner
+    +'<div class="note" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr);border-left:4px solid var(--teal);border-radius:10px;padding:10px 14px">'
     +'<div style="font-size:.78rem;font-weight:700;color:var(--teal);margin-bottom:4px">🏗 TEMA Shell Sizing (Table D-5)</div>'
     +'<div style="font-size:.78rem;color:var(--t2);display:flex;flex-wrap:wrap;gap:16px">'
     +'<span>Calculated min ID: <strong>'+ts.D_min_mm+' mm</strong></span>'
     +'<span>\u2192 TEMA standard: <strong style="color:var(--teal)">'+ts.D_std_mm+' mm</strong>'+(ts.isStandard?'':' <span style="color:var(--err)">⚠ exceeds standard table</span>')+'</span>'
     +(ts.prevSize_mm?'<span style="color:var(--t3)">Previous size: '+ts.prevSize_mm+' mm</span>':'')
-    +'<span style="color:var(--t3)">Shell \u0394P method: <strong>'+(r.shellDP_method||'bell-delaware')+'</strong></span>'
+    +'<span style="color:var(--t3)">Shell \u0394P method: <strong>'+(r.shellDP_method||'bell-delaware-Nc')+'</strong></span>'
+    +(r.gasResizeNote && !r.gasResizeNote.infeasible
+      ? '<span style="color:var(--blue)">Gas service shell: <strong>'+r.gasResizeNote.required_mm+' mm</strong></span>'
+      : '')
     +'</div></div>';
 }
 
@@ -3168,6 +3189,11 @@ function renderSTResults(r, warns=[]) {
       <tr><td class="lbl-col">Calc. ΔP</td>
         <td style="color:${r.shellDP>r.pdAllowShell?'var(--err)':'var(--ok)'};font-weight:700">
           ${sDP.toFixed(3)} ${Pu} ${r.shellDP>r.pdAllowShell?'✗ EXCEEDS':'✓ OK'}
+          ${r.gasResizeNote && !r.gasResizeNote.infeasible
+            ? `<br><span style="font-size:.68rem;color:var(--blue);font-weight:600">ℹ gas shell ${r.gasResizeNote.required_mm} mm (bundle ${r.gasResizeNote.original_mm} mm) — auto-sized for ≤30 m/s</span>`
+            : r.gasResizeNote && r.gasResizeNote.infeasible
+              ? `<br><span style="font-size:.68rem;color:var(--err);font-weight:600">⚠ Gas shell infeasible — needs ${r.gasResizeNote.required_mm} mm (max TEMA 1524 mm)</span>`
+              : ''}
         </td>
         <td style="color:${r.tubeDp>r.pdAllowTube?'var(--err)':'var(--ok)'};font-weight:700">
           ${tDP.toFixed(3)} ${Pu} ${r.tubeDp>r.pdAllowTube?'✗ EXCEEDS':'✓ OK'}
