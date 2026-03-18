@@ -629,28 +629,10 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           🌡️ <span id="st_phaseNoteText"></span>
         </div>
 
-        <div class="sec-hd" style="color:var(--red);border-bottom-color:#f0cfc0;flex-wrap:wrap;gap:6px">
-          🔴 Hot Side (Shell)
-          <span style="margin-left:auto;display:flex;gap:4px;flex-shrink:0">
-            <button type="button" id="hotModeFlowBtn" onclick="setHotMode('flow')"
-              style="padding:4px 11px;border-radius:6px;border:1.5px solid var(--red);
-                     background:var(--red);color:#fff;font-size:.7rem;font-weight:700;cursor:pointer;white-space:nowrap">
-              ✦ Know Flow → Auto T<sub>out</sub>
-            </button>
-            <button type="button" id="hotModeTempBtn" onclick="setHotMode('temp')"
-              style="padding:4px 11px;border-radius:6px;border:1.5px solid var(--red);
-                     background:transparent;color:var(--red);font-size:.7rem;font-weight:700;cursor:pointer;white-space:nowrap">
-              ✦ Know T<sub>out</sub> → Auto Flow
-            </button>
-          </span>
-        </div>
-        <div id="hotModeHint" style="font-size:.72rem;padding:6px 10px;border-radius:6px;
-             margin-bottom:10px;background:var(--red-lt);border:1px solid rgba(232,80,10,.2)">
-          ✅ <strong>Mode: Know Outlet Temp</strong> — enter hot outlet temp; hot flow rate is given.
-        </div>
+        <div class="sec-hd" style="color:var(--red);border-bottom-color:#f0cfc0">🔴 Hot Side (Shell)</div>
         <div class="fgrid">
           <div class="fg"><label>Inlet Temp (<span class="u-temp">°C</span>)</label>
-            <div class="irow"><input type="number" id="st_hTi" step="0.1" value="120" required oninput="hotBalancePreview()"><select id="st_hTi_usel" class="u-sel u-temp-sel" onchange="onTempUnitChange('st_hTi',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
+            <div class="irow"><input type="number" id="st_hTi" step="0.1" value="120" required oninput="coldBalancePreview()"><select id="st_hTi_usel" class="u-sel u-temp-sel" onchange="onTempUnitChange('st_hTi',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="c" selected>°C</option>
 <option value="f">°F</option>
 <option value="k">K</option>
@@ -658,7 +640,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           </div>
           <div class="fg" id="hotToGroup">
             <label>Outlet Temp <span id="hotToMode" style="font-size:.65rem;color:var(--red);font-style:italic">(enter value)</span> (<span class="u-temp">°C</span>)</label>
-            <div class="irow"><input type="number" id="st_hTo" step="0.1" value="60" required oninput="hotBalancePreview()"><select id="st_hTo_usel" class="u-sel u-temp-sel" onchange="onTempUnitChange('st_hTo',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
+            <div class="irow"><input type="number" id="st_hTo" step="0.1" value="60" required oninput="coldBalancePreview()"><select id="st_hTo_usel" class="u-sel u-temp-sel" onchange="onTempUnitChange('st_hTo',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="c" selected>°C</option>
 <option value="f">°F</option>
 <option value="k">K</option>
@@ -667,8 +649,8 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           <div class="fg" id="hotFlowGroup">
             <label>Flow Rate <span id="hotFlowMode" style="font-size:.65rem;color:var(--red);font-style:italic">← enter value</span></label>
             <div class="irow" style="gap:4px">
-              <input type="number" id="st_hF" step="1" value="5000" required style="flex:1;min-width:0" oninput="hotBalancePreview()">
-              <select id="st_hFunit" onchange="updateFlowUnit('st_hFunit','st_hFulab');hotBalancePreview()" style="width:90px;padding:6px 4px;font-size:.73rem">
+              <input type="number" id="st_hF" step="1" value="5000" required style="flex:1;min-width:0" oninput="coldBalancePreview()">
+              <select id="st_hFunit" onchange="updateFlowUnit('st_hFunit','st_hFulab')" style="width:90px;padding:6px 4px;font-size:.73rem">
                 <option value="kgh">kg/h</option>
                 <option value="nm3h">Nm³/h</option>
                 <option value="sm3h">Sm³/h</option>
@@ -4779,49 +4761,8 @@ function setColdMode(mode){
 }
 
 // ── Hot-side flow/temp mode ───────────────────────────────────────────────────
-let hotMode = 'temp'; // default: know hTi, hTo, hF → API uses all three
-
-function setHotMode(mode) {
-  hotMode = mode;
-  const flowBtn = g('hotModeFlowBtn'), tempBtn = g('hotModeTempBtn');
-  if (flowBtn) { flowBtn.style.background = mode==='flow' ? 'var(--red)' : 'transparent'; flowBtn.style.color = mode==='flow' ? '#fff' : 'var(--red)'; }
-  if (tempBtn) { tempBtn.style.background = mode==='temp' ? 'var(--red)' : 'transparent'; tempBtn.style.color = mode==='temp' ? '#fff' : 'var(--red)'; }
-  const hint = g('hotModeHint');
-  if (hint) hint.innerHTML = mode==='flow'
-    ? '✅ <strong>Mode: Know Outlet Temp</strong> — enter hot outlet temp; <strong>hot flow rate</strong> will be auto-calculated from heat balance.'
-    : '✅ <strong>Mode: Know Outlet Temp</strong> — enter hot outlet temp; hot flow rate is given.';
-  const hToEl = g('st_hTo'), hFEl = g('st_hF');
-  // In 'flow' mode: hTo is entered, hF becomes auto-calculated (shown as readonly)
-  // In 'temp' mode (default): hTo is entered, hF is entered (both known)
-  if (hToEl) {
-    const toMode = g('hotToMode');
-    if (toMode) toMode.textContent = '(enter value)';
-  }
-  if (hFEl) {
-    hFEl.readOnly = mode === 'flow';
-    hFEl.style.borderStyle = mode === 'flow' ? 'dashed' : 'solid';
-    hFEl.style.color = mode === 'flow' ? 'var(--t3)' : 'var(--t1)';
-    const hotFlowMode = g('hotFlowMode');
-    if (hotFlowMode) hotFlowMode.textContent = mode === 'flow' ? '(auto-calculated)' : '← enter value';
-  }
-}
-
-function hotBalancePreview() {
-  // Live preview only — actual calculation is server-side
-  // If hotMode==='flow': hTi, hTo, cold flow/temp known → can estimate hF client-side
-  if (hotMode !== 'flow') return;
-  try {
-    const hTi = parseFloat(g('st_hTi')?.value);
-    const hTo = parseFloat(g('st_hTo')?.value);
-    const cTi = parseFloat(g('st_cTi')?.value);
-    if (!isFinite(hTi) || !isFinite(hTo) || hTo >= hTi) return;
-    // Rough estimate: assume cp_h = cp_c = 4.18 kJ/kgK (water)
-    // hF = cF × cp_c × ΔTc / (cp_h × ΔTh)  — needs cold side data
-    // Just show placeholder until API calculates
-    const hFEl = g('st_hF');
-    if (hFEl && hFEl.readOnly) hFEl.placeholder = 'auto';
-  } catch(e) {}
-}
+// Hot side: always uses known hTi, hTo, hF — no toggle needed
+function hotBalancePreview() { coldBalancePreview(); }
 function plToggleColdMode(){
   const mode=g('pl_coldMode').value;
   const showFlow=mode==='flow';
@@ -4961,7 +4902,7 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
     const hFlKey=g('st_hFl').value, cFlKey=g('st_cFl').value;
     const hTi=getTempVal('st_hTi'), hTo=getTempVal('st_hTo'), cTi=getTempVal('st_cTi');
     const hPop=getPresVal('st_hPop'), cPop=getPresVal('st_cPop');
-    const hFraw = hotMode==='flow' ? 0 : (parseFloat(g('st_hF').value)||0);
+    const hFraw = parseFloat(g('st_hF').value)||0;
     const hFunit=(g('st_hFunit')||{value:'kgh'}).value;
 
     let cFraw=0, cToVal=0;
@@ -4977,7 +4918,6 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
       hFlKey, cFlKey, hPop, cPop,
       hTi, hTo, cTi, hF: hFraw, hFunit,
       coldMode, cF: cFraw, cTo: cToVal,
-      hotMode,
       OD: getDimMm('st_od'), tw: getDimMm('st_tw'), L: getLenM('st_len'),
       pitch: v('st_pitch'),
       Rfo: parseFloat(g('st_foulS').value)||0.0002,
@@ -5008,10 +4948,6 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
       g('st_cTo').value = dispVal.toFixed(2);
     }
     else if(coldMode==='temp' && g('st_cF')) g('st_cF').value = r.cF.toFixed(1);
-    // Auto-fill hot flow if in hotMode=flow
-    if(hotMode==='flow' && r.hF && g('st_hF')) {
-      g('st_hF').value = r.hF.toFixed(1);
-    }
     showRes('st', renderSTResults(r, r.warns||[]));
   } catch(err) { showErr('st', err.message); }
 });
@@ -5439,7 +5375,6 @@ function onShellModeChange() {
 // ── INIT ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
   buildFluidOptions();
-  setHotMode('temp');   // initialise hot-side toggle to default state
   setColdMode('flow');  // initialise cold-side toggle to default state
   plToggleColdMode();
   dpToggleColdMode();
