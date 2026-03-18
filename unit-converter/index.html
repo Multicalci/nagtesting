@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -166,20 +167,6 @@ font-family:'DM Mono',monospace;font-size:.8rem;color:var(--text);cursor:pointer
 .ref-table tr:last-child td{border-bottom:none;}
 .ref-table td:nth-child(2){color:var(--accent);}
 
-/* ── HISTORY ── */
-.history-wrap{padding:20px 28px 28px;border-top:1px solid var(--border);}
-.history-title{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:2px;
-color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
-.clear-btn{background:none;border:none;color:var(--danger);font-size:.7rem;cursor:pointer;
-font-family:'DM Sans',sans-serif;opacity:.7;transition:opacity .2s;}
-.clear-btn:hover{opacity:1;}
-.history-list{display:flex;flex-direction:column;gap:6px;}
-.history-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;
-font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted);
-display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:border-color .15s;}
-.history-item:hover{border-color:var(--accent2);color:var(--text);}
-.history-item .hist-result{color:var(--accent);font-weight:500;}
-.empty-history{color:var(--muted);font-size:.8rem;opacity:.5;text-align:center;padding:16px 0;}
 
 /* ── SEO CONTENT SECTION ── */
 .seo-section{margin-top:24px;background:var(--surface);border:1px solid var(--border);
@@ -309,6 +296,44 @@ background:var(--surface);border:1px solid var(--border);border-radius:4px;paddi
 .defs-none{text-align:center;color:var(--muted);padding:32px 0;font-size:.85rem;}
 .def-source{font-size:.7rem;color:var(--muted);opacity:.6;margin-top:8px;font-family:"DM Mono",monospace;}
 
+/* ── CONCENTRATION PANEL ── */
+.conc-panel{padding:20px 28px 26px;background:rgba(0,229,176,.025);border-top:1px solid var(--border);}
+.conc-section-title{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;
+letter-spacing:2px;color:var(--accent);margin-bottom:14px;}
+.conc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+@media(max-width:700px){.conc-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:440px){.conc-grid{grid-template-columns:1fr;}}
+.conc-group{display:flex;flex-direction:column;gap:5px;}
+.conc-label{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;
+letter-spacing:1px;color:var(--muted);}
+.conc-input{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;
+padding:9px 11px;font-family:'DM Mono',monospace;font-size:.95rem;font-weight:500;
+color:var(--text);outline:none;width:100%;transition:border-color .2s,box-shadow .2s;
+-moz-appearance:textfield;}
+.conc-input::-webkit-outer-spin-button,.conc-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.conc-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,176,.1);}
+.conc-input.highlight{border-color:var(--accent2);}
+.conc-density-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;
+background:rgba(91,106,240,.05);border:1px solid rgba(91,106,240,.2);
+border-radius:8px;padding:12px 14px;margin-bottom:12px;}
+@media(max-width:600px){.conc-density-row{grid-template-columns:1fr 1fr;}}
+.conc-density-label{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;
+letter-spacing:1px;color:var(--accent2);margin-bottom:4px;}
+.conc-density-input{background:var(--surface2);border:1.5px solid rgba(91,106,240,.3);border-radius:6px;
+padding:7px 10px;font-family:'DM Mono',monospace;font-size:.9rem;color:var(--text);
+outline:none;width:100%;transition:border-color .2s;-moz-appearance:textfield;}
+.conc-density-input::-webkit-outer-spin-button,.conc-density-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.conc-density-input:focus{border-color:var(--accent2);}
+.conc-note{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);
+background:rgba(0,229,176,.04);border:1px solid rgba(0,229,176,.12);border-radius:6px;
+padding:8px 12px;line-height:1.6;margin-top:4px;}
+.conc-note strong{color:var(--accent);}
+.conc-mode-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.conc-mode-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+padding:5px 14px;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);
+cursor:pointer;transition:all .15s;}
+.conc-mode-btn.active{background:rgba(0,229,176,.12);border-color:var(--accent);color:var(--accent);}
+.conc-mode-btn:hover:not(.active){color:var(--text);}
 /* ── BRAND PROTECTION ── */
 /* Watermark: fixed overlay, cannot be clicked through */
 #mc-watermark{
@@ -422,15 +447,106 @@ background:var(--surface);border:1px solid var(--border);border-radius:4px;paddi
         </table>
       </div>
 
-      <section class="history-wrap" aria-label="Conversion history">
-        <div class="history-title">
-          <span>Recent Conversions</span>
-          <button class="clear-btn" onclick="clearHistory()">Clear all</button>
+      <!-- CONCENTRATION CONVERTER PANEL -->
+      <div class="conc-panel" id="concPanel" style="display:none;">
+        <p class="conc-section-title">🧪 Concentration Converter</p>
+
+        <!-- Mode tabs -->
+        <div class="conc-mode-tabs">
+          <button class="conc-mode-btn active" id="concModeLiquid" onclick="setConcMode('liquid')">💧 Liquid / Aqueous</button>
+          <button class="conc-mode-btn" id="concModeGas" onclick="setConcMode('gas')">💨 Gas / Air</button>
         </div>
-        <div class="history-list" id="historyList" aria-live="polite">
-          <div class="empty-history">No conversions yet</div>
+
+        <!-- Density / Molar Mass inputs -->
+        <div class="conc-density-row">
+          <div class="conc-group">
+            <div class="conc-density-label" id="densityLabel">Solution Density (g/mL)</div>
+            <input type="number" class="conc-density-input" id="concDensity" value="1.000" step="0.001" min="0.001"
+                   oninput="runConcCalc()" aria-label="Density">
+            <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:3px;" id="densityHint">
+              Default: water = 1.000 g/mL
+            </div>
+          </div>
+          <div class="conc-group" id="mwGroup">
+            <div class="conc-density-label">Molar Mass (g/mol) <span style="color:var(--muted);font-size:.6rem;">optional</span></div>
+            <input type="number" class="conc-density-input" id="concMW" value="" step="0.01" min="0"
+                   placeholder="e.g. 58.44" oninput="runConcCalc()" aria-label="Molar mass">
+            <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:3px;">
+              Required for mol/L ↔ other
+            </div>
+          </div>
+          <div class="conc-group" id="tempGroup">
+            <div class="conc-density-label">Temp (°C) &amp; Pressure (atm)</div>
+            <div style="display:flex;gap:5px;">
+              <input type="number" class="conc-density-input" id="concTemp" value="25" step="1"
+                     oninput="runConcCalc()" aria-label="Temperature" style="width:50%;">
+              <input type="number" class="conc-density-input" id="concPressure" value="1" step="0.01" min="0.01"
+                     oninput="runConcCalc()" aria-label="Pressure" style="width:50%;">
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:3px;" id="vmolHint">
+              Vm = 24.45 L/mol @ 25°C, 1 atm
+            </div>
+          </div>
         </div>
-      </section>
+
+        <!-- Concentration input grid -->
+        <div class="conc-grid">
+          <div class="conc-group">
+            <div class="conc-label">ppm (mg/kg)</div>
+            <input type="number" class="conc-input" id="c_ppm" placeholder="0" oninput="runConcCalc('ppm')" aria-label="ppm">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">mg/L</div>
+            <input type="number" class="conc-input" id="c_mgL" placeholder="0" oninput="runConcCalc('mgL')" aria-label="mg/L">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">mg/m³</div>
+            <input type="number" class="conc-input" id="c_mgm3" placeholder="0" oninput="runConcCalc('mgm3')" aria-label="mg/m3">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">ppb (µg/kg = µg/L*)</div>
+            <input type="number" class="conc-input" id="c_ppb" placeholder="0" oninput="runConcCalc('ppb')" aria-label="ppb">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">µg/m³</div>
+            <input type="number" class="conc-input" id="c_ugm3" placeholder="0" oninput="runConcCalc('ugm3')" aria-label="µg/m³">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">% w/w</div>
+            <input type="number" class="conc-input" id="c_pww" placeholder="0" oninput="runConcCalc('pww')" aria-label="% w/w">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">% w/v</div>
+            <input type="number" class="conc-input" id="c_pwv" placeholder="0" oninput="runConcCalc('pwv')" aria-label="% w/v">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">g/L</div>
+            <input type="number" class="conc-input" id="c_gL" placeholder="0" oninput="runConcCalc('gL')" aria-label="g/L">
+          </div>
+          <div class="conc-group">
+            <div class="conc-label">g/m³</div>
+            <input type="number" class="conc-input" id="c_gm3" placeholder="0" oninput="runConcCalc('gm3')" aria-label="g/m3">
+          </div>
+          <div class="conc-group" id="cMolGroup">
+            <div class="conc-label">mol/L (M)</div>
+            <input type="number" class="conc-input" id="c_molL" placeholder="MW req." oninput="runConcCalc('molL')" aria-label="mol/L">
+          </div>
+          <div class="conc-group" id="cMmolGroup">
+            <div class="conc-label">mmol/L (mM)</div>
+            <input type="number" class="conc-input" id="c_mmolL" placeholder="MW req." oninput="runConcCalc('mmolL')" aria-label="mmol/L">
+          </div>
+          <div class="conc-group" id="cPpmvGroup" style="display:none;">
+            <div class="conc-label">ppmv (vol/vol gas)</div>
+            <input type="number" class="conc-input" id="c_ppmv" placeholder="MW req." oninput="runConcCalc('ppmv')" aria-label="ppmv">
+          </div>
+        </div>
+
+        <!-- formula note -->
+        <div class="conc-note" id="concFormulaNote">
+          <strong>Liquid mode (water, ρ=1.000 g/mL):</strong>
+          ppm = mg/L ÷ ρ &nbsp;|&nbsp; % w/w = ppm ÷ 10,000 &nbsp;|&nbsp; % w/v = (ppm × ρ) ÷ 100,000
+        </div>
+      </div>
     </article>
 
     <!-- SEO CONTENT SECTION -->
@@ -596,12 +712,26 @@ const CATEGORIES = {
   "Time":{icon:"⏱️",slug:"time",
     units:{"Second (s)":1,"Millisecond (ms)":0.001,"Microsecond (us)":1e-6,"Nanosecond (ns)":1e-9,"Picosecond (ps)":1e-12,"Femtosecond (fs)":1e-15,"Minute (min)":60,"Hour (hr)":3600,"Day":86400,"Week":604800,"Fortnight":1209600,"Month (30d)":2592000,"Year (365d)":31536000,"Leap Year (366d)":31622400,"Decade":315360000,"Century":3153600000,"Millennium":31536000000},
     desc:"Time units span nanoseconds to years. Used in process control, scheduling, physics, and signal processing.",
-    aboutText:`<h2>About Time Conversion</h2><p>Time ranges from nanoseconds (electronics) to geological eons. SI unit: second. 1 day = 86,400 s. 1 year ≈ 31,536,000 s. Nanoseconds are critical in digital electronics (1 GHz processor cycles in 1 ns).</p>`}
+    aboutText:`<h2>About Time Conversion</h2><p>Time ranges from nanoseconds (electronics) to geological eons. SI unit: second. 1 day = 86,400 s. 1 year ≈ 31,536,000 s. Nanoseconds are critical in digital electronics (1 GHz processor cycles in 1 ns).</p>`},
+
+  "Concentration":{icon:"🧪",slug:"concentration",special:"concentration",
+    units:["ppm (mg/kg)","mg/L","mg/m³","µg/L (ppb)","µg/m³","% w/w","% w/v","% v/v","g/L","g/m³","mol/L (M)","mmol/L (mM)","µmol/L (µM)"],
+    desc:"Concentration conversions between ppm, mg/L, %, ppb and molar units. Default matrix: water (density 1.0 g/mL) for liquids, air for gases.",
+    aboutText:`<h2>About Concentration Conversion</h2>
+    <p>Concentration expresses the amount of a solute in a solution or mixture. Different industries use different units:</p>
+    <h3>Liquids (default: water, ρ = 1.0 g/mL)</h3>
+    <p><strong>ppm (mg/kg)</strong> — parts per million by mass. For dilute aqueous solutions: 1 ppm ≈ 1 mg/L. For non-aqueous solvents, multiply by density.</p>
+    <p><strong>mg/L</strong> — milligrams per litre. Most common in water quality and environmental analysis. Equals ppm for water.</p>
+    <p><strong>% w/w</strong> — grams of solute per 100 g solution. No density needed. 1% = 10,000 ppm.</p>
+    <p><strong>% w/v</strong> — grams of solute per 100 mL solution. Density needed to convert to/from ppm by mass.</p>
+    <h3>Gases (default: air, MW = 28.97 g/mol, at 25°C 1 atm)</h3>
+    <p>Gas ppm is volume-based (ppmv). Formula: mg/m³ = ppm × MW / 24.45 (at 25°C). If molar mass is unknown, the tool uses air density (1.2 kg/m³) for µg/m³ conversions.</p>
+    <h3>Key Equivalences (water matrix)</h3>
+    <p>1 ppm = 1 mg/kg = 1 mg/L = 0.0001% w/w = 1000 ppb = 1000 µg/L</p>`}
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let currentCat = "Pressure";
-let convHistory = [];
 let sidebarOpen = false;
 
 // ─── URL ROUTING ─────────────────────────────────────────────────────────────
@@ -884,6 +1014,10 @@ function setupSelectors(urlState){
   const s1=document.getElementById('unit1'),s2=document.getElementById('unit2');
   s1.innerHTML=s2.innerHTML="";
   const cat=CATEGORIES[currentCat];
+  if(cat.special==="concentration"){
+    document.getElementById('catSub').textContent=`— 13 concentration units`;
+    return;
+  }
   const units=cat.special==="temp"?cat.units:Object.keys(cat.units);
   units.forEach(u=>{s1.add(new Option(u,u));s2.add(new Option(u,u));});
   if(urlState&&urlState.fromUnit){s1.value=urlState.fromUnit;s2.value=urlState.toUnit;}
@@ -918,8 +1052,174 @@ function setCategory(cat,doURL=true){
   document.getElementById('mobileCatName').textContent=cat;
   document.getElementById('bcCategory').textContent=cat;
   document.getElementById('val1').value="1";
-  setupSelectors(null);
-  convert(1);
+  // Show/hide concentration panel
+  const cp=document.getElementById('concPanel');
+  const isConc=(cat==="Concentration");
+  if(cp) cp.style.display=isConc?'block':'none';
+  // Hide normal converter row when concentration active
+  const ca=document.querySelector('.conversion-area');
+  const fb=document.querySelector('.formula-bar');
+  const rt=document.querySelector('.ref-table-wrap');
+  if(ca) ca.style.display=isConc?'none':'block';
+  if(fb) fb.style.display=isConc?'none':'flex';
+  if(rt) rt.style.display=isConc?'none':'block';
+  if(!isConc){setupSelectors(null);convert(1);}
+  else{resetConcFields();setConcMode(currentConcMode);}
+}
+
+// ─── CONCENTRATION CONVERTER ──────────────────────────────────────────────────
+let currentConcMode = 'liquid'; // 'liquid' or 'gas'
+let _concLock = false; // prevent re-entrant updates
+
+function setConcMode(mode){
+  currentConcMode = mode;
+  document.getElementById('concModeLiquid').classList.toggle('active', mode==='liquid');
+  document.getElementById('concModeGas').classList.toggle('active', mode==='gas');
+
+  const isGas = mode==='gas';
+  // Update density label and default
+  const dLabel = document.getElementById('densityLabel');
+  const dHint  = document.getElementById('densityHint');
+  const dInput = document.getElementById('concDensity');
+  const tGroup = document.getElementById('tempGroup');
+  const ppmvG  = document.getElementById('cPpmvGroup');
+
+  if(isGas){
+    dLabel.textContent = 'Air Density (kg/m³ → g/L)';
+    dHint.textContent  = 'Default: dry air = 1.2041 g/L @ 20°C, 1 atm';
+    if(parseFloat(dInput.value)===1.000 || parseFloat(dInput.value)===1.2041) dInput.value='1.2041';
+    tGroup.style.display='flex';
+    if(ppmvG) ppmvG.style.display='flex';
+  } else {
+    dLabel.textContent = 'Solution Density (g/mL)';
+    dHint.textContent  = 'Default: water = 1.000 g/mL';
+    if(parseFloat(dInput.value)===1.2041 || parseFloat(dInput.value)===1.000) dInput.value='1.000';
+    tGroup.style.display='flex'; // keep temp visible but used only for Vm note
+    if(ppmvG) ppmvG.style.display='none';
+  }
+  updateVmNote();
+  runConcCalc();
+}
+
+function updateVmNote(){
+  const T = parseFloat(document.getElementById('concTemp').value)||25;
+  const P = parseFloat(document.getElementById('concPressure').value)||1;
+  // Ideal gas molar volume: Vm = RT/P, R=0.08206 L·atm/mol·K
+  const Vm = (0.082057*(T+273.15))/P;
+  const el = document.getElementById('vmolHint');
+  if(el) el.textContent = `Vm = ${Vm.toFixed(3)} L/mol @ ${T}°C, ${P} atm`;
+}
+
+function resetConcFields(){
+  ['c_ppm','c_mgL','c_mgm3','c_ppb','c_ugm3','c_pww','c_pwv','c_gL','c_gm3','c_molL','c_mmolL','c_ppmv']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+}
+
+// Molar volume at given T (°C) and P (atm) in L/mol
+function getMolarVolume(){
+  const T = parseFloat(document.getElementById('concTemp').value)||25;
+  const P = parseFloat(document.getElementById('concPressure').value)||1;
+  return (0.082057*(T+273.15))/P; // L/mol
+}
+
+function runConcCalc(source){
+  if(_concLock) return;
+  const rho  = parseFloat(document.getElementById('concDensity').value)||1.0; // g/mL for liquid, g/L for gas (air)
+  const MW   = parseFloat(document.getElementById('concMW').value)||0;
+  const Vm   = getMolarVolume(); // L/mol
+  updateVmNote();
+
+  // --- Read the source field ---
+  const get = id => { const el=document.getElementById(id); return el?parseFloat(el.value):NaN; };
+
+  // Convert everything TO a common base: mg/kg (ppm w/w by mass)
+  // For gas mode ppmv is volume-based, handled separately
+  let ppm_base = NaN; // mg/kg (mass-based ppm)
+
+  const isGas = currentConcMode==='gas';
+
+  if(!source) return; // nothing to convert from
+
+  switch(source){
+    case 'ppm':   ppm_base = get('c_ppm'); break;
+    // mg/L → ppm: ppm = mg/L / rho  (rho in g/mL = kg/L)
+    case 'mgL':   ppm_base = get('c_mgL') / rho; break;
+    // mg/m³ → ppm: mg/m³ / 1000 = mg/L, then /rho
+    case 'mgm3':  ppm_base = (get('c_mgm3')/1000) / rho; break;
+    case 'ppb':   ppm_base = get('c_ppb') / 1000; break;
+    // µg/m³ → mg/m³ /1000 → mg/L /rho
+    case 'ugm3':  ppm_base = (get('c_ugm3')/1e6) / rho; break;
+    // % w/w → ppm
+    case 'pww':   ppm_base = get('c_pww') * 10000; break;
+    // % w/v (g/100mL) → mg/L → ppm
+    case 'pwv':   ppm_base = (get('c_pwv')*10000) / rho; break;
+    // g/L → mg/L → ppm
+    case 'gL':    ppm_base = (get('c_gL')*1000) / rho; break;
+    // g/m³ = mg/L → ppm
+    case 'gm3':   ppm_base = get('c_gm3') / rho; break;
+    // mol/L → g/L → mg/L → ppm
+    case 'molL':  if(MW>0) ppm_base = (get('c_molL')*MW*1000)/rho; break;
+    case 'mmolL': if(MW>0) ppm_base = (get('c_mmolL')*MW)/rho; break;
+    // ppmv (gas): mg/m³ = ppmv × MW / Vm(L/mol)  → then to ppm mass
+    case 'ppmv':
+      if(MW>0){
+        const mgm3 = get('c_ppmv') * MW / Vm;
+        ppm_base = (mgm3/1000)/rho;
+      } break;
+  }
+
+  if(isNaN(ppm_base)||!isFinite(ppm_base)) return;
+
+  // Now compute all outputs from ppm_base
+  const mgL  = ppm_base * rho;              // mg/L
+  const mgm3 = mgL * 1000;                  // mg/m³
+  const ppb  = ppm_base * 1000;             // µg/kg ≈ µg/L
+  const ugm3 = mgm3 * 1000;                 // µg/m³
+  const pww  = ppm_base / 10000;            // % w/w
+  const pwv  = (mgL / 10000);               // % w/v  (mg/L / 10000)
+  const gL   = mgL / 1000;                  // g/L
+  const gm3  = mgm3 / 1000;                 // g/m³ = mg/L
+  const molL = MW>0 ? mgL/(MW*1000) : NaN;  // mol/L
+  const mmolL= MW>0 ? molL*1000 : NaN;      // mmol/L
+  const ppmv = (MW>0) ? (mgm3*Vm/MW) : NaN; // ppmv (gas)
+
+  const fmt = v => {
+    if(isNaN(v)||!isFinite(v)) return '';
+    const a=Math.abs(v);
+    if(a===0) return '0';
+    if(a>=0.0001&&a<1e10) return parseFloat(v.toPrecision(7)).toString();
+    return v.toExponential(4);
+  };
+
+  _concLock = true;
+  const set = (id,val) => { const el=document.getElementById(id); if(el&&source!==id.replace('c_','')) el.value=fmt(val); };
+  set('c_ppm',  ppm_base);
+  set('c_mgL',  mgL);
+  set('c_mgm3', mgm3);
+  set('c_ppb',  ppb);
+  set('c_ugm3', ugm3);
+  set('c_pww',  pww);
+  set('c_pwv',  pwv);
+  set('c_gL',   gL);
+  set('c_gm3',  gm3);
+  if(MW>0){ set('c_molL', molL); set('c_mmolL', mmolL); }
+  if(isGas&&MW>0) set('c_ppmv', ppmv);
+  _concLock = false;
+
+  // Update formula note
+  const note = document.getElementById('concFormulaNote');
+  if(note){
+    if(isGas){
+      const vmStr=Vm.toFixed(3);
+      note.innerHTML=`<strong>Gas mode (air, ρ=${rho} g/L, Vm=${vmStr} L/mol):</strong>
+        ppmv → mg/m³ = ppmv × MW / Vm &nbsp;|&nbsp; µg/m³ = mg/m³ × 1000 &nbsp;|&nbsp;
+        ${MW>0?`Using MW=${MW} g/mol`:'<em>Enter Molar Mass for ppmv conversion</em>'}`;
+    } else {
+      note.innerHTML=`<strong>Liquid mode (ρ=${rho} g/mL):</strong>
+        ppm = mg/L ÷ ρ &nbsp;|&nbsp; % w/w = ppm ÷ 10,000 &nbsp;|&nbsp;
+        % w/v = mg/L ÷ 10,000 &nbsp;|&nbsp; 1 ppm = 1 mg/L (water)`;
+    }
+  }
 }
 
 // ─── CONVERSION LOGIC ─────────────────────────────────────────────────────────
@@ -958,6 +1258,7 @@ function getConvertedValue(inputVal,fromUnit,toUnit){
   return inputVal*cat.units[fromUnit]/cat.units[toUnit];
 }
 function convert(dir){
+  if(currentCat==="Concentration") return; // handled by runConcCalc
   const v1El=document.getElementById('val1'),v2El=document.getElementById('val2');
   const u1=document.getElementById('unit1').value,u2=document.getElementById('unit2').value;
   const rawFrom=dir===1?v1El.value:v2El.value;
@@ -971,7 +1272,6 @@ function convert(dir){
   const formatted=formatNumber(result);
   if(dir===1) v2El.value=formatted; else v1El.value=formatted;
   updateFormula(u1,u2); updateRefTable(); refreshSEOContent(currentCat,u1,u2);
-  addHistory(inputVal,dir===1?u1:u2,result,dir===1?u2:u1);
 }
 function formatNumber(num){
   if(!isFinite(num)) return "∞";
@@ -1018,34 +1318,6 @@ function updateRefTable(){
   });
 }
 
-// ─── HISTORY ─────────────────────────────────────────────────────────────────
-function addHistory(val,fromU,result,toU){
-  const item={from:`${formatNumber(val)} ${fromU}`,to:`${formatNumber(result)} ${toU}`,cat:currentCat,fromU,toU};
-  if(convHistory.length>0&&convHistory[0].from===item.from&&convHistory[0].to===item.to) return;
-  convHistory.unshift(item);
-  if(convHistory.length>8) convHistory.pop();
-  renderHistory();
-}
-function renderHistory(){
-  const list=document.getElementById('historyList');
-  if(convHistory.length===0){list.innerHTML='<div class="empty-history">No conversions yet</div>';return;}
-  list.innerHTML=convHistory.map((h,i)=>{
-    const cat=CATEGORIES[h.cat];
-    const href=cat?`/unit-converter/${cat.slug}/${slugify(h.fromU||'')}-to-${slugify(h.toU||'')}/`:'#';
-    return `<div class="history-item" role="listitem"
-      aria-label="Reapply: ${h.from} to ${h.to}" onclick="applyHistory(${i})">
-      <span>${h.from} → <span class="hist-result">${h.to}</span></span>
-      <span style="color:var(--muted);font-size:.68rem">${h.cat}</span>
-    </div>`;
-  }).join('');
-}
-function applyHistory(i){
-  const h=convHistory[i];
-  if(h.cat!==currentCat) setCategory(h.cat,true);
-  document.getElementById('val1').value=h.from.split(' ')[0];
-  convert(1);
-}
-function clearHistory(){convHistory=[];renderHistory();}
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 function copyVal(n){
