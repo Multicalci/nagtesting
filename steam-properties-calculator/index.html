@@ -904,13 +904,13 @@ function setSys(sys) {
     }
     if (qEl && prevQ !== '') qEl.value = prevQ;
     liveHint();
-    // Clear old result on unit switch — user must click Calculate again
-    // Avoids blinking/premature recalculation with incomplete inputs
+    // Do NOT auto-recalculate on unit switch
+    // Clear old results so user explicitly clicks Calculate
     if (_lastResult) {
       _lastResult = null;
       document.getElementById('results').innerHTML = '';
       const rb = document.getElementById('resultsBody');
-      if (rb) rb.innerHTML = '';
+      if (rb) { rb.querySelectorAll('.ph').forEach(e=>e.remove()); }
     }
   }
 }
@@ -1922,11 +1922,13 @@ function toggleShare(e) {
 }
 document.addEventListener('click', () => { document.getElementById('shareDD')?.classList.remove('open'); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('shareDD')?.classList.remove('open'); });
-// Allow Enter key in input fields to trigger calculation
+// Enter key in any input/select triggers Calculate
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    const tag = document.activeElement?.tagName;
-    if (tag === 'INPUT' || tag === 'SELECT') { e.preventDefault(); doCalcClick(); }
+  if (e.key !== 'Enter') return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT') {
+    e.preventDefault();
+    doCalcClick();
   }
 });
 
