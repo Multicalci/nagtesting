@@ -975,12 +975,13 @@ async function autoSteam(section) {
 }
 
 async function _doAutoSteam(section) {
-    updateEngineStatus('loading');
+    // No loading indicator for autoSteam — silent background helper
+    // updateEngineStatus only changes during Calculate button press
     try {
         if (section === 'inlet') {
             const P_bar = P_to_bar(g('p1'));
             const T_C   = T_to_C(g('t1'));
-            if (!P_bar || !T_C) { updateEngineStatus('ready'); return; }
+            if (!P_bar || !T_C) { return; }
 
             const r = await apiCall({ action:'inletProps', P_bar, T_C });
 
@@ -996,7 +997,7 @@ async function _doAutoSteam(section) {
 
         } else if (section === 'exhaust') {
             const P_bar = P_to_bar(g('p2'));
-            if (!P_bar) { updateEngineStatus('ready'); return; }
+            if (!P_bar) { return; }
             const s1_SI = s_to_SI(g('s1'));
             const t2_raw = g('t2');
             const T2_C   = t2_raw ? T_to_C(t2_raw) : null;
@@ -1019,7 +1020,7 @@ async function _doAutoSteam(section) {
 
         } else if (section === 'extraction') {
             const P_bar = P_to_bar(g('pe'));
-            if (!P_bar) { updateEngineStatus('ready'); return; }
+            if (!P_bar) { return; }
             const T_C = g('te') ? T_to_C(g('te')) : null;
 
             const r = await apiCall({ action:'inletProps', P_bar, T_C });
@@ -1028,7 +1029,7 @@ async function _doAutoSteam(section) {
 
         } else if (section === 'mixed_ext') {
             const P_bar = P_to_bar(g('pe2'));
-            if (!P_bar) { updateEngineStatus('ready'); return; }
+            if (!P_bar) { return; }
             const T_C = g('te2') ? T_to_C(g('te2')) : null;
 
             const r = await apiCall({ action:'inletProps', P_bar, T_C });
@@ -1042,10 +1043,10 @@ async function _doAutoSteam(section) {
             }
             // calculate() removed — user must click Calculate button
         }
-        updateEngineStatus('ready');
+        // autoSteam complete — no status update needed
     } catch(e) {
         console.warn('autoSteam error:', e);
-        updateEngineStatus('error');
+        // Silent fail for autoSteam — don't change header status
     }
 }
 
