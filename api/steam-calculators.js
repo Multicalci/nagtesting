@@ -2267,7 +2267,7 @@ function fanCalc(params) {
     tip_speed, tipWarn,
     // Conditions
     Q: Q_m3h, rho: rho_kgm3,
-    Mach_tip, compressibleWarn,  // [BUG-6 FIX]
+    Mach_tip, compressibleWarn: compressibleWarn || '',  // [BUG-6]
     densityDeviates,
     // Affinity law predictions
     affinity: {
@@ -2675,8 +2675,8 @@ function compressorCalc(params) {
     gamma, M, R_spec, Cp, Cp_overridden, rho1, mdot,
     // Ratios
     r_total, r_stage: stageRatios[0], n_stages,
-    // Thermo [FIX-C: n_poly only meaningful in polytropic mode]
-    n_poly: eff_mode === 'isentropic' ? null : n_poly,
+    // Thermo
+    n_poly,   // always returned; only physically meaningful when eff_mode='polytropic'
     eff_mode, eta, eta_mec, eta_drv,
     T1: T1_C, P1: P1_bar, Pout: Pout_bar, actual_Pout,
     scfm_std: (unitMode === 'US')   // [FIX-D]
@@ -2691,7 +2691,7 @@ function compressorCalc(params) {
     // Warnings
     realGasWarn, isRealGasRisk: isRealGas, P_ratio_high,
     gasName: gasEntry.name,
-    icWarnings: icWarnings.length ? icWarnings : null,
+    icWarnings: icWarnings.length ? icWarnings : [],
     PoutWarn,
   };
 }
