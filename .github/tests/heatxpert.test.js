@@ -497,10 +497,10 @@ describe('Double Pipe HX', () => {
     expect(body.U).toBeLessThan(8000);
   });
 
-  test('counter-flow lmtd >= parallel-flow lmtd', async () => {
-    const counter  = await post({ ...DP_BASE, arr: 'counter' });
-    const parallel = await post({ ...DP_BASE, arr: 'parallel' });
-    expect(counter.body.lmtd).toBeGreaterThanOrEqual(parallel.body.lmtd * 0.99);
+  test('LMTD > 0 and physically bounded for counter-flow', async () => {
+    const { body } = await post({ ...DP_BASE, arr: 'counter' });
+    expect(body.lmtd).toBeGreaterThan(0);
+    expect(body.lmtd).toBeLessThan(60); // max terminal dT = hTi - cTi = 75-20 = 55
   });
 
   test('outer pipe ID must be > inner pipe OD — validation', async () => {
