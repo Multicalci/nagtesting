@@ -268,8 +268,9 @@ describe('Shell & Tube — pressure drop direction', () => {
   });
 
   test('shellDP increases with increasing hot flow', async () => {
-    const lo = await post({ ...ST_SMALL, cF: 20000, hF: 20000 });
-    const hi = await post({ ...ST_SMALL, cF: 20000, hF: 80000 });
+    // Use large cold flow (150000 kg/h) to prevent cTo > hTi at high hF
+    const lo = await post({ ...ST_SMALL, cF: 150000, hF: 20000 });
+    const hi = await post({ ...ST_SMALL, cF: 150000, hF: 80000 });
     expect(lo.body.shellDP).toBeGreaterThan(0);
     expect(hi.body.shellDP).toBeGreaterThan(0);
     expect(hi.body.shellDP).toBeGreaterThan(lo.body.shellDP);
