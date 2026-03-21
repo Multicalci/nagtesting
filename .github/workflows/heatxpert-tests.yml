@@ -1,22 +1,6 @@
 # ════════════════════════════════════════════════════════════════════════════
 # .github/workflows/heatxpert-tests.yml
-# HeatXpert Pro — Automated API Test Suite
-#
-# Triggers:
-#   • Every push to main (any file changed)
-#   • Every pull request targeting main
-#   • Manual trigger from Actions tab (workflow_dispatch)
-#   • Daily at 06:00 UTC (catches silent Vercel/API regressions)
-#
-# What it does:
-#   1. Spins up Node.js 20
-#   2. Installs Jest + node-fetch
-#   3. Runs heatxpert.test.js against https://multicalci.com/api/heatxpert
-#   4. Uploads the JUnit XML test report as a build artifact
-#   5. Posts a summary table to the Actions run page
-#
-# To run manually against a Vercel preview URL:
-#   Actions → HeatXpert Pro API Tests → Run workflow → enter preview URL
+# HeatXpert Pro — Automated API Test Suite (fixed)
 # ════════════════════════════════════════════════════════════════════════════
 
 name: HeatXpert Pro API Tests
@@ -27,7 +11,7 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '0 6 * * *'       # Daily 06:00 UTC health-check
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       base_url:
@@ -35,7 +19,6 @@ on:
         required: false
         default: 'https://multicalci.com'
 
-# Cancel in-progress runs on the same branch to save minutes
 concurrency:
   group: heatxpert-tests-${{ github.ref }}
   cancel-in-progress: true
@@ -47,7 +30,6 @@ jobs:
     timeout-minutes: 10
 
     env:
-      # Use manual override URL if provided, otherwise production
       BASE_URL: ${{ github.event.inputs.base_url || 'https://multicalci.com' }}
       NODE_ENV: test
 
@@ -57,64 +39,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Setup Node.js ────────────────────────────────────────────────
+      # ── 2. Setup Node.js (no cache — package.json created on the fly) ───
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # ── 3. Write package.json (no package.json needed in repo) ──────────
-      - name: Create package.json for test runner
+      # ── 3. Create package.json and install deps ──────────────────────────
+      - name: Install Jest and dependencies
         run: |
           cat > package.json << 'EOF'
           {
             "name": "multicalci-heatxpert-tests",
             "version": "1.0.0",
             "private": true,
-            "type": "module",
             "scripts": {
-              "test": "jest --forceExit --detectOpenHandles"
+              "test": "jest --forceExit"
             },
             "jest": {
               "testEnvironment": "node",
-              "transform": {},
               "testMatch": ["**/*.test.js"],
               "testTimeout": 30000,
               "reporters": [
                 "default",
                 ["jest-junit", {
                   "outputDirectory": "test-results",
-                  "outputName": "heatxpert-results.xml",
-                  "classname": "HeatXpertAPI",
-                  "title": "{title}"
+                  "outputName": "heatxpert-results.xml"
                 }]
               ]
-            },
-            "dependencies": {},
-            "devDependencies": {
-              "jest": "^29.7.0",
-              "jest-junit": "^16.0.0",
-              "node-fetch": "^3.3.2"
             }
           }
           EOF
+          npm install --save-dev jest jest-junit node-fetch
 
-      # ── 4. Install dependencies ──────────────────────────────────────────
-      - name: Install test dependencies
-        run: npm install
-
-      # ── 5. Copy test file from .github/tests/ to working directory ──────
+      # ── 4. Copy test file into working directory ─────────────────────────
       - name: Prepare test file
         run: |
           cp .github/tests/heatxpert.test.js ./heatxpert.test.js
-          echo "✅ Test file ready"
-          echo "🎯 Target API: $BASE_URL/api/heatxpert"
+          echo "Target API: $BASE_URL/api/heatxpert"
 
-      # ── 6. Verify API is reachable before running tests ──────────────────
+      # ── 5. Smoke-check API is reachable ──────────────────────────────────
       - name: Smoke-check API reachability
         run: |
-          echo "Pinging $BASE_URL/api/heatxpert ..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "$BASE_URL/api/heatxpert" \
             -H "Content-Type: application/json" \
@@ -122,56 +88,35 @@ jobs:
             --max-time 15)
           echo "HTTP status: $STATUS"
           if [ "$STATUS" != "200" ]; then
-            echo "❌ API returned $STATUS — aborting tests"
+            echo "API returned $STATUS — aborting"
             exit 1
           fi
-          echo "✅ API reachable and returning 200"
+          echo "API reachable"
 
-      # ── 7. Run the full test suite ────────────────────────────────────────
+      # ── 6. Run tests ─────────────────────────────────────────────────────
       - name: Run HeatXpert test suite
         run: |
           mkdir -p test-results
-          npx jest heatxpert.test.js \
-            --forceExit \
-            --detectOpenHandles \
-            --verbose \
-            --ci
+          npx jest heatxpert.test.js --forceExit --verbose --ci
         env:
           BASE_URL: ${{ env.BASE_URL }}
 
-      # ── 8. Upload JUnit XML report as artifact ────────────────────────────
+      # ── 7. Upload XML report ──────────────────────────────────────────────
       - name: Upload test results
-        if: always()           # upload even on failure so you can inspect
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: heatxpert-test-results-${{ github.run_number }}
           path: test-results/heatxpert-results.xml
           retention-days: 30
 
-      # ── 9. Publish test summary to Actions run page ───────────────────────
-      - name: Publish test summary
-        if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: HeatXpert API Test Report
-          path: test-results/heatxpert-results.xml
-          reporter: jest-junit
-          fail-on-error: false   # don't double-fail; job already failed above
-
-      # ── 10. Print friendly summary on failure ─────────────────────────────
+      # ── 8. Print failure summary ──────────────────────────────────────────
       - name: Print failure summary
         if: failure()
         run: |
-          echo ""
           echo "════════════════════════════════════════"
-          echo "  ❌  HEATXPERT TESTS FAILED"
-          echo "════════════════════════════════════════"
-          echo "  Target URL : $BASE_URL"
-          echo "  Run number : ${{ github.run_number }}"
-          echo "  Commit     : ${{ github.sha }}"
-          echo "  Branch     : ${{ github.ref_name }}"
-          echo ""
-          echo "  → Check the test report artifact above"
-          echo "  → Or re-run with a Vercel preview URL:"
-          echo "    Actions → Run workflow → paste preview URL"
+          echo "  HEATXPERT TESTS FAILED"
+          echo "  Target : $BASE_URL"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Branch : ${{ github.ref_name }}"
           echo "════════════════════════════════════════"
