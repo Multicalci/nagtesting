@@ -358,8 +358,10 @@ function showTab(name,btn){
 function init(){
   const urlState=parseURL();
   if(urlState) currentCat=urlState.cat;
+  else if(window.DEFAULT_CAT && CATEGORIES[window.DEFAULT_CAT]) currentCat=window.DEFAULT_CAT;
   buildSidebar();
-  setupSelectors(urlState);
+  const effectiveState = urlState || (window.DEFAULT_FROM ? {cat:currentCat, fromUnit:window.DEFAULT_FROM, toUnit:window.DEFAULT_TO} : null);
+  setupSelectors(effectiveState);
   setupSearch();
   setupInputListeners();
   convert(1);
