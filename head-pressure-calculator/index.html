@@ -16,231 +16,601 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="index, follow">
-
-<!-- Google tag -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-KFPWC93KGX"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-KFPWC93KGX');</script>
-
-<!-- Structured Data -->
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Head to Pressure Converter","description":"Engineering calculator to convert between fluid head and pressure for any process fluid with temperature-corrected density.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/head-pressure-calculator/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I convert metres of water to bar?","acceptedAnswer":{"@type":"Answer","text":"Use P (bar) = H (m) x density (kg/m3) x 9.81 / 100000. For water at 20C: P = H x 0.09791."}},{"@type":"Question","name":"What is fluid head in pump engineering?","acceptedAnswer":{"@type":"Answer","text":"Fluid head H is the equivalent height of a fluid column that produces a given pressure. H = P / (rho x g). Pump curves use metres of head because head is independent of fluid density."}}]}</script>
-
 <!-- Fonts — non-render-blocking -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@700;800&display=swap"></noscript>
-
 <!-- External CSS -->
 <link rel="stylesheet" href="/head-pressure-calculator/head-pressure.css">
 </head>
 <body>
 
-<div id="toast" class="toast"></div>
-
+<!-- HEADER -->
 <header>
   <div class="hdr-inner">
     <a href="https://multicalci.com/" class="logo">
-      <div class="logo-mark">mc</div>
-      <span class="logo-name">multi<span>calci</span>.com</span>
+      <div class="logo-mark">M</div>
+      <span class="logo-name">multi<span>calci</span></span>
     </a>
     <div class="hdr-sep"></div>
-    <a href="https://multicalci.com/" class="hdr-link">&#8592; All Calculators</a>
+    <a href="https://multicalci.com/" class="hdr-link" style="background:var(--navy);color:#fff;font-weight:700;">🏠 Home</a>
+    <a href="/npsh-calculator/" class="hdr-link">NPSH Calc</a>
+    <a href="#learn" class="hdr-link">Guide</a>
+    <a href="#faq" class="hdr-link">FAQ</a>
   </div>
 </header>
 
 <div class="wrap">
-  <div class="hero">
-    <div class="hero-eyebrow">Engineering Calculator</div>
-    <h1>Head <span class="accent">&#8596;</span> Pressure <span class="accent">Converter</span></h1>
-    <p class="hero-sub">Convert between fluid column head and pressure for any process fluid — with temperature-corrected density and 11 pressure units.</p>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-eyebrow">Engineering Fluid Calculator</div>
+    <h1>Head <span class="accent">&#x21C4;</span> Pressure<br>Converter</h1>
+    <p class="hero-sub">
+      Convert between fluid column head and pressure for any process fluid —
+      with temperature-corrected density, 11 output units, and a full fluid library.
+    </p>
     <div class="tags">
       <span class="tag hi">31 Fluids</span>
-      <span class="tag hi">Temp-corrected &#961;</span>
       <span class="tag hi">11 Pressure Units</span>
-      <span class="tag">Head &#8594; Pressure</span>
-      <span class="tag">Pressure &#8594; Head</span>
-      <span class="tag">SI &amp; Imperial</span>
-      <span class="tag">Free · No login</span>
+      <span class="tag hi">Temperature Correction</span>
+      <span class="tag hi">Custom Density / SG</span>
+      <span class="tag">Fluid Comparison</span>
+      <span class="tag">Click-to-Copy</span>
+      <span class="tag">SI + Imperial</span>
+      <span class="tag">Free &middot; No Login</span>
     </div>
-  </div>
+  </section>
 
+  <!-- MAIN GRID -->
   <div class="main-grid">
-    <!-- LEFT COLUMN: INPUTS -->
+
+    <!-- LEFT: Inputs -->
     <div>
-      <!-- Mode toggle -->
+
+      <!-- Converter Card -->
       <div class="card">
         <div class="card-hd">
           <div class="card-hd-bar navy"></div>
-          <span class="card-ttl">Conversion Mode</span>
+          <span class="card-ttl">Converter</span>
+          <span class="card-sub">P = &rho;&middot;g&middot;H</span>
         </div>
         <div class="card-bd">
+
           <div class="mode-tog">
-            <button class="mbtn active" id="btnHP" onclick="setMode('hp')">Head &#8594; Pressure</button>
-            <button class="mbtn" id="btnPH" onclick="setMode('ph')">Pressure &#8594; Head</button>
+            <button class="mbtn on" id="btnHP" onclick="setMode('hp')">Head &rarr; Pressure</button>
+            <button class="mbtn"    id="btnPH" onclick="setMode('ph')">Pressure &rarr; Head</button>
           </div>
 
-          <!-- Input value -->
-          <div class="frow">
-            <label class="flbl" id="valLbl">Head value</label>
-            <div class="inp-grp">
-              <input type="number" id="valInp" class="finp" placeholder="e.g. 10" oninput="calc()" min="0" step="any">
-              <select id="inUnit" class="fsel" onchange="calc()"></select>
+          <div class="field">
+            <label class="flbl" id="inputLbl">Fluid Head (H)</label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="valInp"
+                     value="10" step="any" min="0"
+                     oninput="calc()" inputmode="decimal">
+              <div class="unit-pill" id="inPill">m</div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Fluid selection -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-hd-bar navy"></div>
-          <span class="card-ttl">Fluid</span>
-          <span class="card-sub">31 fluids available</span>
-        </div>
-        <div class="card-bd">
-          <div class="frow">
-            <label class="flbl">Select fluid</label>
-            <select id="fluidSel" class="fsel w100" onchange="onFluidChange()"></select>
+            <select class="sel" id="inUnit" onchange="onUnitChange()" style="margin-top:6px"></select>
+            <p class="hint" id="inputHint">Enter the fluid column height in your chosen unit.</p>
           </div>
 
-          <!-- Fluid meta -->
-          <div class="fluid-meta" id="fluidMeta"></div>
+          <div class="field">
+            <label class="flbl">Process Fluid</label>
+            <select class="sel" id="fluidSel" onchange="onFluidChange()"></select>
+          </div>
 
-          <!-- Density override -->
-          <details class="override-panel">
-            <summary class="ov-sum">&#9881;&#65039; Override density / SG</summary>
-            <div class="ov-body">
-              <div class="ov-row">
-                <div class="ov-grp">
-                  <label class="flbl">Density (kg/m&#179;)</label>
-                  <input type="number" id="rhoOv" class="finp" placeholder="auto" oninput="onRhoChange()" min="0" step="any">
-                </div>
-                <div class="ov-grp">
-                  <label class="flbl">Spec. Gravity</label>
-                  <input type="number" id="sgOv" class="finp" placeholder="auto" oninput="onSGChange()" min="0" step="any">
-                </div>
-              </div>
-              <button class="clr-btn" onclick="clearOverride()">&#10005; Clear override</button>
+          <div class="field">
+            <label class="flbl">Operating Temperature</label>
+            <div class="temp-row">
+              <input type="range" class="tslider" id="tempSl"
+                     min="0" max="150" value="20"
+                     oninput="onTempSlider()">
+              <span class="tbadge" id="tempBadge">20&deg;C</span>
             </div>
-          </details>
-        </div>
-      </div>
-
-      <!-- Temperature -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-hd-bar amber"></div>
-          <span class="card-ttl">Temperature</span>
-          <span class="card-sub" id="tempBadge">20&#176;C</span>
-        </div>
-        <div class="card-bd">
-          <div class="frow">
-            <div class="inp-grp">
-              <input type="number" id="tempInp" class="finp" value="20" oninput="onTempInput()" step="any">
-              <select id="tempUnit" class="fsel" onchange="onTempUnitChange()">
-                <option value="C">&#176;C</option>
-                <option value="F">&#176;F</option>
+            <div style="display:grid; grid-template-columns:1fr auto; gap:6px; margin-top:4px">
+              <input class="inp" type="number" id="tempInp"
+                     value="20" step="1" oninput="onTempInput()" inputmode="decimal">
+              <select class="sel" id="tempUnit" onchange="onTempUnitChange()" style="min-width:62px">
+                <option value="C">&deg;C</option>
+                <option value="F">&deg;F</option>
                 <option value="K">K</option>
               </select>
             </div>
           </div>
-          <div class="sl-wrap">
-            <span class="sl-lbl">0&#176;C</span>
-            <input type="range" id="tempSl" class="sl" min="0" max="150" value="20" oninput="onTempSlider()" style="--pct:13.3%">
-            <span class="sl-lbl">150&#176;C</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- Gravity -->
+          <!-- Fluid property chips -->
+          <div class="fmeta" id="fluidMeta"></div>
+
+          <div class="field" style="margin-top:14px">
+            <label class="flbl">Gravitational Acceleration</label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="gravInp"
+                     value="9.81" step="0.001" oninput="calc()" inputmode="decimal">
+              <div class="unit-pill">m/s&sup2;</div>
+            </div>
+            <p class="hint">Earth 9.81 &middot; Moon 1.62 &middot; Mars 3.72 &middot; Jupiter 24.79</p>
+          </div>
+
+          <button class="btn-calc" onclick="calc()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Convert
+          </button>
+
+        </div>
+      </div><!-- /Converter Card -->
+
+      <!-- Custom Density Card -->
       <div class="card">
         <div class="card-hd">
-          <div class="card-hd-bar navy"></div>
-          <span class="card-ttl">Gravity (m/s&#178;)</span>
+          <div class="card-hd-bar amber"></div>
+          <span class="card-ttl">Custom Density</span>
+          <span class="card-sub">optional override</span>
         </div>
         <div class="card-bd">
-          <div class="frow">
-            <input type="number" id="gravInp" class="finp" value="9.81" oninput="calc()" step="0.001" min="0">
+          <div class="field">
+            <label class="flbl">Density Override</label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="rhoOv"
+                     placeholder="auto (from fluid + temp)"
+                     step="any" oninput="calc()" inputmode="decimal">
+              <div class="unit-pill">kg/m&sup3;</div>
+            </div>
+            <p class="hint">Leave empty for auto temperature-corrected density. Use for slurries or unlisted fluids.</p>
           </div>
-          <div class="grav-presets">
-            <button class="gp" onclick="setGrav(9.80665)">Standard (9.80665)</button>
-            <button class="gp" onclick="setGrav(9.81)">Common (9.81)</button>
-            <button class="gp" onclick="setGrav(9.807)">Precise (9.807)</button>
+          <div class="field">
+            <label class="flbl">Specific Gravity (SG)</label>
+            <div class="inp-row">
+              <input class="inp" type="number" id="sgOv"
+                     placeholder="e.g. 1.25"
+                     step="0.001" oninput="onSGChange()" inputmode="decimal">
+              <div class="unit-pill">SG</div>
+            </div>
+            <p class="hint">Entering SG auto-fills density. SG = &rho; / 1000 kg/m&sup3;.</p>
           </div>
         </div>
-      </div>
-    </div>
+      </div><!-- /Custom Density -->
 
-    <!-- RIGHT COLUMN: RESULTS -->
+    </div><!-- /Left -->
+
+    <!-- RIGHT: Results -->
     <div>
-      <div class="card results-card" id="resultsPanel">
-        <!-- Placeholder -->
-        <div class="placeholder" id="placeholder">
-          <div class="ph-icon">&#8597;</div>
-          <p class="ph-txt">Enter a value on the left to see results</p>
-        </div>
 
-        <!-- Big result -->
-        <div class="big-result" id="bigResult">
-          <div class="br-lbl" id="brLbl">RESULTING PRESSURE</div>
-          <div class="br-val-row">
-            <span class="br-val" id="brVal">—</span>
-            <span class="br-unit" id="brUnit">bar</span>
-          </div>
+      <div class="results-panel" id="resultsPanel">
+        <div class="big-readout">
+          <div class="br-lbl" id="brLbl">RESULT</div>
+          <div class="br-val" id="brVal">&mdash;</div>
+          <div class="br-unit" id="brUnit"></div>
           <div class="br-formula" id="brFormula"></div>
         </div>
-
-        <!-- Unit grid -->
-        <div class="ug-hd">All units</div>
         <div class="units-grid" id="unitsGrid"></div>
+
       </div>
 
-      <!-- FAQ -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-hd-bar navy"></div>
-          <span class="card-ttl">FAQ</span>
+      <div id="placeholder" class="card">
+        <div class="ph-eq">P = &rho;&middot;g&middot;H</div>
+        <div class="ph-sub">Select fluid &middot; set value &middot; press convert</div>
+        <div class="ph-examples">
+          <div class="ph-ex">&#x25BA; 10 m of <strong>water</strong> = 0.981 bar = 14.22 psi</div>
+          <div class="ph-ex">&#x25BA; 10 m of <strong>mercury</strong> = 13.29 bar = 192.8 psi</div>
+          <div class="ph-ex">&#x25BA; 1 bar = 10.20 m of water = 33.47 ft</div>
+          <div class="ph-ex">&#x25BA; 1 psi = 0.703 m H&sup2;O = 2.307 ft H&sup2;O</div>
+          <div class="ph-ex">&#x25BA; 760 mmHg = 1 atm = 10.33 m H&sup2;O</div>
         </div>
-        <div class="card-bd">
-          <div class="faq-list">
-            <div class="faq-item">
-              <button class="faq-btn" onclick="toggleFaq(this)">
-                <span>How do I convert metres of water to bar?</span>
-                <span class="faq-arr">&#9660;</span>
-              </button>
-              <div class="faq-ans">Use P (bar) = H (m) &#215; density (kg/m&#179;) &#215; 9.81 / 100,000. For water at 20&#176;C: P = H &#215; 0.09791 bar.</div>
-            </div>
-            <div class="faq-item">
-              <button class="faq-btn" onclick="toggleFaq(this)">
-                <span>What is fluid head in pump engineering?</span>
-                <span class="faq-arr">&#9660;</span>
-              </button>
-              <div class="faq-ans">Fluid head H is the equivalent height of a fluid column producing a given pressure. H = P / (&#961; &#215; g). Pump curves use metres of head because head is independent of fluid density.</div>
-            </div>
-            <div class="faq-item">
-              <button class="faq-btn" onclick="toggleFaq(this)">
-                <span>Why does temperature affect the conversion?</span>
-                <span class="faq-arr">&#9660;</span>
-              </button>
-              <div class="faq-ans">Fluid density changes with temperature. Water at 20&#176;C is 998.2 kg/m&#179; but at 80&#176;C only 971.8 kg/m&#179; — a 2.6% difference that directly affects head-pressure conversion accuracy.</div>
-            </div>
-            <div class="faq-item">
-              <button class="faq-btn" onclick="toggleFaq(this)">
-                <span>What is specific gravity and how is it used?</span>
-                <span class="faq-arr">&#9660;</span>
-              </button>
-              <div class="faq-ans">Specific gravity (SG) is fluid density relative to water at 4&#176;C (1000 kg/m&#179;). SG = &#961; / 1000. The calculator lets you override density or SG directly for custom fluids.</div>
-            </div>
+      </div>
+
+    </div><!-- /Right -->
+
+  </div><!-- /main-grid -->
+
+
+  <!-- ENGINEERING REFERENCE -->
+  <section id="learn" style="margin-top:52px">
+    <div class="section-ttl">Engineering Reference</div>
+    <p class="section-sub">Physics, formulas and practical guidance for every engineer</p>
+
+    <div class="edu-grid">
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">1</div><div class="edu-ttl">The Fundamental Formula</div></div>
+        <div class="edu-bd">
+          The relationship between <strong>fluid head H</strong> and <strong>pressure P</strong>
+          comes from hydrostatics:
+          <div class="eqb">
+            <span class="kw">P = &rho; &times; g &times; H</span><br>
+            <span class="kw">H = P / (&rho; &times; g)</span><br>
+            <span class="nt">P = pressure (Pa) &nbsp;|&nbsp; &rho; = density (kg/m&sup3;)</span><br>
+            <span class="nt">g = gravity (m/s&sup2;) &nbsp;|&nbsp; H = head (m)</span>
+          </div>
+          Head is <strong>fluid-specific</strong>. 10 m of mercury exerts 13.5&times; more pressure
+          than 10 m of water.
+          <div class="infobox">
+            &nbsp;&#x2139;&nbsp; Quick check: 1 m of water at 20&deg;C &asymp; 0.0979 bar &asymp; 1.420 psi &asymp; 9.79 kPa.
           </div>
         </div>
       </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">2</div><div class="edu-ttl">Why Pump Curves Use Head</div></div>
+        <div class="edu-bd">
+          Centrifugal pump curves are in <strong>metres of head</strong> — the same impeller
+          at the same speed produces the same head for any fluid.<br><br>
+          Example &mdash; 50 m head pump:
+          <ul>
+            <li><strong>Water</strong> (998 kg/m&sup3;) &rarr; 4.89 bar</li>
+            <li><strong>Diesel</strong> (840 kg/m&sup3;) &rarr; 4.12 bar</li>
+            <li><strong>Sulfuric acid</strong> (1840 kg/m&sup3;) &rarr; 9.01 bar</li>
+          </ul>
+          <div class="notebox">
+            &nbsp;&#x26A0;&nbsp; Never size pipe or valves using water pressure if pumping a denser fluid like acid, brine, or mercury.
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">3</div><div class="edu-ttl">Temperature &amp; Density</div></div>
+        <div class="edu-bd">
+          Most liquids expand when heated &mdash; density decreases.
+          <div class="eqb">
+            <span class="kw">&rho;(T) &asymp; &rho;&sub2;&sub0; &times; [1 &minus; &beta; &times; (T &minus; 20)]</span><br>
+            <span class="nt">&beta; = thermal expansion coefficient (1/&deg;C)</span><br>
+            <span class="nt">Water: &beta; &asymp; 2.1&times;10&sup2;/&deg;C</span>
+          </div>
+          <table>
+            <thead><tr><th>Temp</th><th>Water &rho; (kg/m&sup3;)</th><th>m per bar</th></tr></thead>
+            <tbody>
+              <tr><td>4&deg;C</td><td>1000.0</td><td>10.197</td></tr>
+              <tr><td>20&deg;C</td><td>998.2</td><td>10.215</td></tr>
+              <tr><td>60&deg;C</td><td>983.2</td><td>10.372</td></tr>
+              <tr><td>100&deg;C</td><td>958.4</td><td>10.639</td></tr>
+            </tbody>
+          </table>
+          For organic solvents &beta; is 4&ndash;7&times; higher &mdash; always apply temperature correction.
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">4</div><div class="edu-ttl">Pressure Unit Conversions</div></div>
+        <div class="edu-bd">
+          <div class="eqb">
+            <span class="kw">1 bar = 100,000 Pa</span><br>
+            <span class="kw">1 psi = 6,894.757 Pa</span><br>
+            <span class="kw">1 atm = 101,325 Pa</span><br>
+            <span class="kw">1 mmHg = 133.322 Pa</span><br>
+            <span class="nt">1 bar &asymp; 14.504 psi &asymp; 0.987 atm &asymp; 750.1 mmHg</span>
+          </div>
+          <table>
+            <thead><tr><th>Unit</th><th>Typical Use</th></tr></thead>
+            <tbody>
+              <tr><td>bar / mbar</td><td>Process plants, Europe</td></tr>
+              <tr><td>psi / psig</td><td>USA industry, piping</td></tr>
+              <tr><td>kPa / MPa</td><td>SI standard, civil</td></tr>
+              <tr><td>atm</td><td>Chemistry, altitude</td></tr>
+              <tr><td>mmHg / inHg</td><td>Medical, barometers</td></tr>
+              <tr><td>m H&sub2;O / ft H&sub2;O</td><td>Pumps, HVAC</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">5</div><div class="edu-ttl">Gauge vs Absolute Pressure</div></div>
+        <div class="edu-bd">
+          <div class="eqb">
+            <span class="kw">P_abs = P_gauge + P_atm</span><br>
+            <span class="nt">P_atm = 1.01325 bar = 14.696 psia</span>
+          </div>
+          <strong>Absolute pressure</strong> is measured from perfect vacuum.
+          Used for NPSH, vapour pressure, and gas law calculations.<br><br>
+          <strong>Gauge pressure</strong> is measured above atmospheric.
+          What industrial gauges display.
+          <div class="notebox">
+            &nbsp;&#x26A0;&nbsp; For NPSHa calculations always use absolute pressures.
+            See our <a href="/npsh-calculator/" style="color:var(--navy);font-weight:600">NPSH Calculator</a>.
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card">
+        <div class="edu-card-hd"><div class="edu-num">6</div><div class="edu-ttl">Specific Gravity &amp; Custom Fluids</div></div>
+        <div class="edu-bd">
+          <strong>Specific gravity (SG)</strong> = fluid density / 1000 (dimensionless):
+          <div class="eqb">
+            <span class="kw">SG = &rho;_fluid / 1000</span><br>
+            <span class="kw">P = H &times; SG &times; 1000 &times; g</span><br>
+            <span class="nt">For slurries: &rho;_mix = &rho;_liq &times;(1&minus;Cv) + &rho;_sol &times;Cv</span>
+          </div>
+          Common SG: diesel 0.84 &middot; seawater 1.025 &middot; H&sub2;SO&sub4; 1.84 &middot; mercury 13.55
+          <div class="infobox">
+            &nbsp;&#x2139;&nbsp; Enter SG in the Custom Density panel for any slurry, blend, or mixture.
+          </div>
+        </div>
+      </div>
+
+      <div class="edu-card" style="grid-column: 1 / -1">
+        <div class="edu-card-hd"><div class="edu-num">7</div><div class="edu-ttl">How to Read Pump Curves</div></div>
+        <div class="edu-bd">
+
+          <p style="margin-bottom:12px">
+            A <strong>pump performance curve</strong> is a graph published by the pump manufacturer showing how a specific
+            pump model behaves across its full operating range. Understanding it is essential for correct pump selection,
+            system design, and troubleshooting. Every pump curve contains the same core elements.
+          </p>
+
+          <!-- SVG Pump Curve Diagram -->
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:var(--r2); padding:20px; margin:14px 0; overflow-x:auto">
+            <svg viewBox="0 0 620 320" width="100%" style="max-width:620px; display:block; margin:0 auto; font-family:'DM Sans',sans-serif">
+
+              <!-- Grid lines -->
+              <defs>
+                <pattern id="grid" width="52" height="40" patternUnits="userSpaceOnUse" x="60" y="20">
+                  <path d="M 52 0 L 0 0 0 40" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                </pattern>
+              </defs>
+              <rect x="60" y="20" width="520" height="240" fill="url(#grid)"/>
+              <rect x="60" y="20" width="520" height="240" fill="none" stroke="#d1d5db" stroke-width="1.5"/>
+
+              <!-- Axis labels -->
+              <text x="320" y="315" text-anchor="middle" fill="#6b7280" font-size="12" font-weight="600">Flow Rate Q (m³/h)</text>
+              <text x="14" y="140" text-anchor="middle" fill="#6b7280" font-size="12" font-weight="600" transform="rotate(-90,14,140)">Head H (m)</text>
+              <text x="595" y="140" text-anchor="middle" fill="#6b7280" font-size="11" transform="rotate(90,595,140)">Efficiency η (%)  /  Power P (kW)</text>
+
+              <!-- X axis ticks & labels -->
+              <text x="60"  y="278" text-anchor="middle" fill="#9ca3af" font-size="10">0</text>
+              <text x="164" y="278" text-anchor="middle" fill="#9ca3af" font-size="10">50</text>
+              <text x="268" y="278" text-anchor="middle" fill="#9ca3af" font-size="10">100</text>
+              <text x="372" y="278" text-anchor="middle" fill="#9ca3af" font-size="10">150</text>
+              <text x="476" y="278" text-anchor="middle" fill="#9ca3af" font-size="10">200</text>
+              <text x="580" y="278" text-anchor="middle" fill="#9ca3af" font-size="10">250</text>
+
+              <!-- Y axis ticks & labels (Head) -->
+              <text x="52" y="264" text-anchor="end" fill="#9ca3af" font-size="10">0</text>
+              <text x="52" y="224" text-anchor="end" fill="#9ca3af" font-size="10">10</text>
+              <text x="52" y="184" text-anchor="end" fill="#9ca3af" font-size="10">20</text>
+              <text x="52" y="144" text-anchor="end" fill="#9ca3af" font-size="10">30</text>
+              <text x="52" y="104" text-anchor="end" fill="#9ca3af" font-size="10">40</text>
+              <text x="52" y="64"  text-anchor="end" fill="#9ca3af" font-size="10">50</text>
+              <text x="52" y="24"  text-anchor="end" fill="#9ca3af" font-size="10">60</text>
+
+              <!-- H-Q CURVE (navy, bold) — falls from top-left to bottom-right -->
+              <path d="M 60,52 C 130,56 220,72 320,120 C 400,158 470,200 580,258"
+                    fill="none" stroke="#1a3a6b" stroke-width="3" stroke-linecap="round"/>
+              <text x="90" y="48" fill="#1a3a6b" font-size="11" font-weight="700">H-Q curve</text>
+
+              <!-- EFFICIENCY CURVE (green, dashed) — bell shape peaking around BEP -->
+              <path d="M 100,255 C 160,230 240,130 320,108 C 390,90 440,105 510,155 C 540,178 560,210 580,240"
+                    fill="none" stroke="#15803d" stroke-width="2" stroke-dasharray="6,3" stroke-linecap="round"/>
+              <text x="310" y="96" fill="#15803d" font-size="11" font-weight="600">η curve</text>
+
+              <!-- POWER CURVE (amber) — rises left to right -->
+              <path d="M 60,240 C 150,228 270,210 380,195 C 460,184 520,178 580,172"
+                    fill="none" stroke="#e8920a" stroke-width="2" stroke-linecap="round"/>
+              <text x="430" y="172" fill="#e8920a" font-size="11" font-weight="600">P curve</text>
+
+              <!-- SYSTEM CURVE (dashed red) — parabola from origin -->
+              <path d="M 60,260 C 150,245 250,200 360,148 C 430,115 500,90 560,68"
+                    fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,4" stroke-linecap="round"/>
+              <text x="530" y="58" fill="#dc2626" font-size="11" font-weight="600">System</text>
+
+              <!-- OPERATING POINT — intersection of H-Q and system curve -->
+              <!-- Approx intersection at Q≈150, H≈120 → svg x=372, y=120 -->
+              <circle cx="372" cy="120" r="7" fill="white" stroke="#1a3a6b" stroke-width="2.5"/>
+              <circle cx="372" cy="120" r="3" fill="#1a3a6b"/>
+              <!-- Drop lines -->
+              <line x1="372" y1="120" x2="372" y2="260" stroke="#1a3a6b" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+              <line x1="60"  y1="120" x2="372" y2="120" stroke="#1a3a6b" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+              <text x="376" y="115" fill="#1a3a6b" font-size="10" font-weight="700">Operating</text>
+              <text x="376" y="127" fill="#1a3a6b" font-size="10" font-weight="700">Point</text>
+
+              <!-- BEP marker on efficiency curve — peak ~Q=150 -->
+              <circle cx="320" cy="108" r="5" fill="#15803d" opacity="0.85"/>
+              <text x="286" y="100" fill="#15803d" font-size="10" font-weight="700">BEP</text>
+
+              <!-- NPSH required curve (light blue, at bottom) -->
+              <path d="M 60,250 C 160,248 280,244 380,236 C 460,230 520,220 580,206"
+                    fill="none" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="3,3"/>
+              <text x="450" y="222" fill="#0ea5e9" font-size="10" font-weight="600">NPSHr</text>
+
+              <!-- Shutoff head label -->
+              <text x="64" y="49" fill="#374151" font-size="10">Shutoff</text>
+              <text x="64" y="60" fill="#374151" font-size="10">head</text>
+
+            </svg>
+          </div>
+
+          <!-- Legend -->
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.68rem;color:var(--txt2)">
+              <svg width="28" height="4"><line x1="0" y1="2" x2="28" y2="2" stroke="#1a3a6b" stroke-width="3"/></svg> H-Q Curve
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.68rem;color:var(--txt2)">
+              <svg width="28" height="4"><line x1="0" y1="2" x2="28" y2="2" stroke="#15803d" stroke-width="2" stroke-dasharray="6,3"/></svg> Efficiency &eta;
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.68rem;color:var(--txt2)">
+              <svg width="28" height="4"><line x1="0" y1="2" x2="28" y2="2" stroke="#e8920a" stroke-width="2"/></svg> Power P
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.68rem;color:var(--txt2)">
+              <svg width="28" height="4"><line x1="0" y1="2" x2="28" y2="2" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,4"/></svg> System Curve
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.68rem;color:var(--txt2)">
+              <svg width="28" height="4"><line x1="0" y1="2" x2="28" y2="2" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="3,3"/></svg> NPSHr
+            </div>
+          </div>
+
+          <!-- Explanation table -->
+          <table>
+            <thead>
+              <tr>
+                <th>Curve / Point</th>
+                <th>What It Shows</th>
+                <th>How to Use It</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong style="color:var(--navy)">H-Q curve</strong></td>
+                <td>Head (m) the pump delivers at each flow rate. Always falls from left (high head, zero flow) to right (low head, max flow).</td>
+                <td>For your required flow Q, read up to this curve to find the head the pump will produce. Convert to pressure using P = &rho;gH.</td>
+              </tr>
+              <tr>
+                <td><strong>Shutoff head</strong></td>
+                <td>Maximum head at zero flow — where the H-Q curve meets the Y-axis. Pump is running but no fluid is moving.</td>
+                <td>Never operate at shutoff for more than a few seconds. Heat builds rapidly in the casing and can damage the pump.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:var(--green)">BEP</strong></td>
+                <td>Best Efficiency Point — the flow rate where the pump converts the most shaft power into useful hydraulic energy. Efficiency peaks here.</td>
+                <td>Select a pump so normal operating flow is within &plusmn;10% of BEP. Operating far from BEP increases vibration, heat, and wear.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:var(--green)">&eta; curve</strong></td>
+                <td>Pump efficiency (%) at each flow rate. Bell-shaped, peaking at BEP. Typical centrifugal pumps peak at 70&ndash;90%.</td>
+                <td>Use to calculate shaft power: P_shaft = (&rho; &times; g &times; Q &times; H) / &eta;. Higher efficiency = lower running cost.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:var(--amber)">P curve</strong></td>
+                <td>Shaft power (kW) drawn from the motor at each flow rate. For most centrifugal pumps, power rises with flow.</td>
+                <td>Motor must be sized for the maximum power point on the curve (usually at max flow). Add 10&ndash;15% safety margin.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:var(--red)">System curve</strong></td>
+                <td>The head your <em>system</em> demands at each flow rate: H_sys = static head + (friction losses &times; Q&sup2;). Parabola from the static head point.</td>
+                <td>Draw your system curve on the pump curve. Where they intersect is the <strong>operating point</strong> — actual flow and head in service.</td>
+              </tr>
+              <tr>
+                <td><strong>Operating point</strong></td>
+                <td>The intersection of the H-Q curve and the system curve. This is where the pump will actually run.</td>
+                <td>Read off the flow (Q) and head (H) — use this calculator to convert that head to pressure for your fluid.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:#0ea5e9">NPSHr curve</strong></td>
+                <td>Net Positive Suction Head <em>required</em> by the pump at each flow. Rises steeply at high flows. Pump will cavitate if NPSHa &lt; NPSHr.</td>
+                <td>Your available NPSHa (calculated from suction conditions) must always exceed NPSHr + 0.5 m safety margin. Use our NPSH Calculator.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="notebox" style="margin-top:14px">
+            &nbsp;&#x26A0;&nbsp; <strong>Pump curves are for water at 20&deg;C.</strong> When pumping a different fluid, head stays the same but pressure changes with density (P = &rho;gH). Motor power also changes &mdash; denser fluids draw more power at the same flow.
+          </div>
+
+          <div class="infobox" style="margin-top:10px">
+            &nbsp;&#x2139;&nbsp; <strong>Multiple impeller speeds:</strong> Manufacturers often publish a family of curves at different speeds or impeller diameters on one chart. The Affinity Laws govern how head, flow and power scale: Q &prop; N, H &prop; N&sup2;, P &prop; N&sup3;.
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="margin-top:44px">
+    <h2 class="faq-ttl">Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How do I convert metres of water to bar?
+        <span class="arr">&#x25BE;</span>
+      </button>
+      <div class="faq-a">
+        <div class="faq-ai">
+          Multiply head in metres by fluid density and gravity, then divide by 100,000:
+          <code>P (bar) = H (m) &times; &rho; (kg/m&sup3;) &times; 9.81 / 100,000</code>.
+          For water at 20&deg;C (&rho; = 998.2 kg/m&sup3;): <code>P = H &times; 0.09791</code>.
+          So 10 metres of water = 0.979 bar.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        What is the difference between head and pressure?
+        <span class="arr">&#x25BE;</span>
+      </button>
+      <div class="faq-a">
+        <div class="faq-ai">
+          <strong>Pressure</strong> (Pa, bar, psi) is force per unit area.
+          <strong>Head</strong> is the equivalent height of fluid that generates that pressure: <code>H = P / (&rho; &times; g)</code>.
+          1 bar = 10.2 m of water = 0.75 m of mercury.
+          Pump engineers use head because pump curves in metres are valid for any fluid.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How do I convert psi to feet of water?
+        <span class="arr">&#x25BE;</span>
+      </button>
+      <div class="faq-a">
+        <div class="faq-ai">
+          For water at 20&deg;C (SG = 0.998): <code>H (ft) = P (psi) &times; 2.308</code>.
+          So 1 psi = 2.31 ft of water.
+          Exact formula: <code>H (ft) = P (psi) &times; 6894.757 / (&rho; &times; 9.81 &times; 0.3048)</code>.
+          For non-water fluids, divide the water result by the SG of your fluid.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Why does the same pump head produce different pressures for different fluids?
+        <span class="arr">&#x25BE;</span>
+      </button>
+      <div class="faq-a">
+        <div class="faq-ai">
+          Because <code>&Delta;P = &rho; &times; g &times; H</code> &mdash; pressure depends on fluid density.
+          A pump producing 50 m of head gives 4.89 bar with water but 9.01 bar with sulfuric acid (1840 kg/m&sup3;).
+          Pump curves use head precisely because head is independent of fluid density.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How does temperature affect head-to-pressure conversion?
+        <span class="arr">&#x25BE;</span>
+      </button>
+      <div class="faq-a">
+        <div class="faq-ai">
+          Higher temperature &rarr; lower density (most liquids) &rarr; less pressure per metre of head.
+          For water, this is about 0.2% per 10&deg;C.
+          For organic solvents the thermal expansion is 4&ndash;7&times; higher &mdash;
+          temperature correction is much more important.
+          This calculator applies temperature-corrected density automatically using each fluid's expansion coefficient.
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="foot">
+    <span class="foot-txt">&copy; 2025&ndash;2026 multicalci.com &mdash; Professional engineering calculators, free forever</span>
+    <div class="foot-links">
+      <a href="/npsh-calculator/">NPSH Calculator</a>
+      <a href="#learn">Engineering Guide</a>
+      <a href="#faq">FAQ</a>
     </div>
   </div>
-</div>
+</footer>
 
-<!-- External JS — deferred, never blocks render -->
+<div class="toast" id="toast">Copied!</div>
+
+<!-- ============================================================
+     JAVASCRIPT — clean, unminified, no obfuscation
+     ============================================================ -->
+<!-- External JS — deferred -->
 <script defer src="/head-pressure-calculator/head-pressure.js"></script>
-
 </body>
 </html>
