@@ -19,6 +19,97 @@
     <meta name="twitter:title" content="Control Valve Sizing Calculator — IEC 60534, Cv/Kv, Choked Flow | Free | multicalci.com">
     <meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Control Valve Sizing Calculator — IEC 60534, Cv/Kv, Choked Flow","description":"Free control valve sizing calculator per IEC 60534-2-1. Calculate Cv, Kv, flow coefficient, choked flow, cavitation index and noise estimate for liquid, gas and steam service. SI and Imperial units.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/control-valve-sizing/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+======================================================================
+FILE: control-valve-sizing/index.html
+INSERT this <script> block inside <head> (after existing ld+json if any)
+======================================================================
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FAQPage",
+      "name": "Control Valve Sizing Calculator (IEC 60534) \u2014 multicalci.com",
+      "url": "https://multicalci.com/control-valve-sizing/",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why does my valve hunt (oscillate) even with correct sizing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Valve hunting (rapid opening/closing oscillation around setpoint) is almost never caused by incorrect sizing \u2014 it is a control loop tuning and mechanical problem. The three most common causes are: Oversized valve operating at very small openings: At 5\u201310% open, most trims have a very steep Cv vs. position relationship \u2014 a tiny stem movement causes a large flow change, making the loop very difficult to stabilise. The fix is to size the valve correctly (normal flow at 40\u201360% open), not to de-tune the controller to compensate. Stick-slip (stiction): High friction in packing causes the valve to \"stick\" as the controller output slowly ramps up, then suddenly \"slip\" when friction is overcome \u2014 shooting past setpoint. The controller then corrects and the cycle repeats. Solution: check packing gland torque (tighten only enough to prevent leakage); consider low-friction packing (PTFE laminated rings); verify positioner has integral action to handle stiction. Controller tuning too aggressive (integral too fast): If integral time is too short, the controller \"chases\" measurement noise. Reduce integral action. Use the lambda tuning method \u2014 target the closed-loop time constant (lambda) at 3\u20135\u00d7"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is Fp (piping geometry factor) and when must it be applied?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The piping geometry factor Fp corrects the installed Cv for the effect of reducers, expanders, or other fittings attached directly to the valve body. IEC 60534 requires Fp to be applied whenever the pipe nominal diameter differs from the valve body nominal diameter. When a reducer is used to install a smaller valve in a larger pipe (common in refineries where a 4\" valve is installed in a 6\" pipe), the flow contraction and expansion losses in the reducers increase the effective \u0394P across the valve-reducer assembly, reducing the effective Cv below the bare-valve Cv. The Fp factor accounts for this: Cv_installed = Cv_valve \u00d7 Fp Fp = 1 / \u221a(1 + \u03a3K \u00d7 (Cv_valve/(d\u00b2))\u00b2 / 890) where \u03a3K = sum of inlet reducer K + outlet expander K (typically 1.5 for standard concentric reducers) d = valve body diameter (inches) For small size reductions (valve 1 size below pipe), Fp \u2248 0.95\u20130.99 \u2014 generally negligible. For large reductions (valve 2 sizes below pipe, e.g., 2\" valve in 6\" pipe), Fp can be 0.7\u20130.85 \u2014 significant and must be accounted for or the valve will be undersized. Rule of thumb: always include Fp when valve is more than one nominal pipe size smaller than the connected piping."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I size a valve for two-phase (mixed liquid-vapour) flow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "IEC 60534-2-1 does not provide a standardised method for two-phase flow sizing. This is an area where proprietary methods and engineering judgement are required. The commonly used approaches are: Homogeneous flow model: Treat the mixture as a single phase with a weighted average density. Use the liquid Cv equation with \u03c1_mix = x_v\u00b7\u03c1_gas + (1\u2212x_v)\u00b7\u03c1_liquid where x_v is vapour quality (mass fraction). This underestimates Cv for high-quality vapour \u2014 use as a starting point only. Segregated flow correction (Chisholm method): Applies a two-phase multiplier \u03c6_LO to the all-liquid Cv. More accurate than homogeneous for void fractions > 20%. Used in some piping system codes (ASME) but not standardised for control valves. Manufacturer sizing tools: Emerson, Metso, and Flowserve have proprietary methods calibrated against test data for specific trim types. For important two-phase applications, send the process conditions to at least two valve manufacturers for independent sizing and compare results. For flashing service (liquid that flashes to vapour as it passes through the valve): use the choked liquid Cv equation (with \u0394P_choked) to size \u2014 this gives the minimum Cv for passing the liquid"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between control valve CV and Kv? Why two standards?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cv and Kv are both flow coefficients defined by water flow tests, differing only in the units used: Cv (US/ISA S75): Flow of water in US gallons per minute (GPM) at 60\u00b0F producing 1 psi pressure drop. Predominantly used in North America and by manufacturers following ISA/ANSI standards (Fisher/Emerson, Masoneilan/Baker Hughes, Flowserve). Kv (European/IEC 60534): Flow of water in m\u00b3/hour at 5\u201340\u00b0C producing 1 bar pressure drop. Used by European manufacturers (Samson, Neles/Metso, ARI) and in IEC documentation. Conversion: Kv = Cv / 1.1561 (exact: 1.1561 \u00b1 0.0003) Cv = Kv \u00d7 1.1561 The ratio 1.1561 comes from the unit conversions: 1 GPM = 0.22712 m\u00b3/h and 1 psi = 0.068948 bar, combined in the \u221a(flow\u00b2/\u0394P) relationship. The two standards use identical physics \u2014 the only difference is unit system. When comparing manufacturer data sheets across US and European vendors, always convert to the same coefficient before comparing. Note: some older literature uses Av (flow coefficient in SI units with \u0394P in Pa and flow in m\u00b3/s). Av = Kv \u00d7 2.778\u00d710\u207b\u2075. This is rarely used in modern practice but appears in some IEC documents and German DIN standards."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the FL factor and how does it affect valve selection?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The liquid pressure recovery factor FL (also called Km or Cf in older literature) describes how much of the kinetic energy created at the vena contracta is recovered as static pressure downstream. It is a fundamental hydrodynamic property of the valve geometry and directly controls when choked flow and cavitation occur. Physically: flow accelerates through the valve restriction, converting static pressure to velocity (kinetic energy). At the vena contracta, all that kinetic energy is in velocity. Downstream, the flow decelerates and some kinetic energy converts back to pressure \u2014 this is pressure recovery. A valve with high FL (0.85\u20130.92) recovers little pressure \u2014 the downstream pressure stays close to the vena contracta minimum. A valve with low FL (0.55\u20130.70) recovers most of the kinetic energy \u2014 the downstream pressure recovers significantly above the vena contracta minimum. \u0394P_choked = FL\u00b2 \u00d7 (P\u2081 \u2212 0.96\u00b7Pv) High FL (globe): \u0394P_choked is large \u2192 can tolerate high \u0394P before choking Low FL (butterfly): \u0394P_choked is small \u2192 chokes at low \u0394P, severe cavitation risk For cavitation service: choose a valve body type with FL \u2265 0.85 (cage-guided globe valve). For applications where cavit"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I account for viscosity corrections at low Reynolds number?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The standard Cv equation assumes fully turbulent (high Reynolds number) flow. When viscosity is high or flow rate is low, the flow through the valve becomes transitional or laminar, and the actual Cv required is larger than the turbulent Cv equation predicts \u2014 the valve needs to be oversized to pass the required flow. IEC 60534-2-1 defines a valve Reynolds number Rev (not the same as pipe Reynolds number Re_D) and a Reynolds number factor FR : Rev = (N\u2084 \u00b7 FR \u00b7 Q) / (\u03bd \u00b7 \u221a(Cv \u00b7 FL\u00b2)) [IEC 60534 valve Reynolds number] where: N\u2084 = unit-dependent constant (76,000 for Cv in GPM, \u03bd in cSt, Q in GPM) \u03bd = kinematic viscosity (centistokes; water at 20\u00b0C = 1.004 cSt; heavy oil SAE30 = 100+ cSt) FR = Reynolds number factor (from IEC 60534 curve; FR When is this important? Water, light hydrocarbons, and most process gases: Rev is large, FR \u2248 1.0, no correction needed. Viscous hydrocarbons (heavy crude, lube oil), polymers, glycol: \u03bd can be 50\u201310,000 cSt. At \u03bd > 100 cSt, expect FR = 0.6\u20130.9 \u2014 10\u201340% larger Cv required. At \u03bd > 1000 cSt, always perform the full IEC 60534 viscosity correction \u2014 oversizing by 2\u00d7 may be necessary. Valve manufacturers (Fisher, Samson) include viscosity correction in "
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What pressure class should I specify? (ANSI 150, 300, 600, 900, 1500, 2500)",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ANSI/ASME B16.34 and the equivalent IEC 60534-1 define pressure-temperature ratings for valve bodies. The class (150, 300, 600, etc.) is not the working pressure in psi \u2014 it is a nominal designation. The actual allowable pressure depends on material and temperature: Class WCB Carbon Steel @38\u00b0C (100\u00b0F) CF8M 316SS @38\u00b0C Typical Application Class 150 19.6 bar (285 psi) 15.3 bar (220 psi) Low-pressure utilities, HVAC, water service Class 300 51.1 bar (740 psi) 38.6 bar (560 psi) Most process plant, medium-pressure hydrocarbon Class 600 102 bar (1480 psi) 77.2 bar (1120 psi) High-pressure process, HP steam, high-pressure oil/gas Class 900 153 bar (2220 psi) \u2014 Very high pressure; HP boiler feedwater Class 1500 255 bar (3705 psi) \u2014 Wellhead service, HP gas injection, HP hydraulic Class 2500 425 bar (6170 psi) \u2014 Extreme high pressure; HP well control; special applications Selection rule: add the design safety margin per your piping specification (typically MAWP = operating pressure \u00d7 1.1 or + 10% per ASME B31.3), then select the lowest class that covers MAWP at the maximum design temperature. Specifying a higher class than necessary adds cost and weight \u2014 a Class 600 valve is 2\u20133\u00d7 the cos"
+          }
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Control Valve Sizing Calculator (IEC 60534) \u2014 multicalci.com",
+      "url": "https://multicalci.com/control-valve-sizing/",
+      "applicationCategory": "EngineeringApplication",
+      "operatingSystem": "Any web browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "multicalci.com",
+        "url": "https://multicalci.com"
+      }
+    }
+  ]
+}
+</script>
 <meta name="robots" content="index, follow">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
