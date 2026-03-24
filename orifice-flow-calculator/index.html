@@ -21,6 +21,98 @@
 
 
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Orifice Flow Calculator — ISO 5167","description":"Free ISO 5167 orifice plate flow calculator with Reader-Harris/Gallagher discharge coefficient, IAPWS-IF97 steam properties and expansibility factor.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/orifice-flow-calculator/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+======================================================================
+FILE: orifice-flow-calculator/index.html
+INSERT this <script> block inside <head> (after existing ld+json if any)
+======================================================================
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FAQPage",
+      "name": "Orifice Flow Calculator (ISO 5167) \u2014 multicalci.com",
+      "url": "https://multicalci.com/orifice-flow-calculator/",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why does the orifice equation use \u221a\u0394P and not \u0394P directly? What does this mean for meter turndown?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Because the Bernoulli equation relates pressure difference to the square of velocity: \u0394P = \u00bd\u03c1v\u00b2. Solving for v gives v \u221d \u221a\u0394P, and since Q = Av, we have Q \u221d \u221a\u0394P. This is a direct consequence of kinetic energy being proportional to v\u00b2. The practical consequence is poor turndown . If maximum flow gives \u0394P_max = 100 kPa: At 50% flow: \u0394P = 25 kPa (25% of max \u2014 not 50%) At 30% flow: DP = 9 kPa (9% of max) At 10% flow: \u0394P = 1 kPa (1% of max \u2014 below most transmitter accuracy) This limits orifice meters to a practical turndown of 3:1 to 5:1 , compared to 100:1 for Coriolis meters. For applications requiring wider flow range (e.g., variable-flow processes), consider using two transmitters with different ranges on the same taps, or specifying a senior orifice fitting with interchangeable bore plates."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the vena contracta, exactly, and why does it make Cd \u2248 0.61?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "When fluid approaches a sharp-edged orifice, the streamlines must turn sharply inward to pass through the bore. Due to fluid inertia (momentum), the streamlines cannot make a 90\u00b0 turn at the bore edge \u2014 they overshoot and continue converging beyond the bore face. The jet cross-section continues to decrease for a short distance downstream until reaching a minimum area at the vena contracta (\"contracted vein\" in Latin). Beyond that point, the jet expands and turbulent mixing with the surrounding slow fluid begins. The ratio of vena contracta area to bore area is the contraction coefficient Cc . For a sharp-edged orifice, the streamlines' inability to negotiate the abrupt 90\u00b0 corner results in Cc \u2248 0.611 \u2014 a result that can be derived analytically for a 2D slot using complex potential flow theory (the Kirchhoff solution) and is well confirmed experimentally for 3D orifices. Since Cd = Cc \u00d7 Cv and Cv \u2248 0.98 (small viscous loss correction), Cd \u2248 0.61 \u00d7 0.98 \u2248 0.60. The 0.61 figure is not arbitrary \u2014 it is fundamentally the geometric consequence of fluid inertia at a sharp-edged opening. For a rounded-entry orifice, streamlines follow the curved surface smoothly with no separation, Cc \u2192 "
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I correct an orifice flow reading for a change in operating conditions?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The orifice equation shows Q \u221d \u221a(1/\u03c1). If density changes at the same \u0394P, actual flow changes. In automated flow computers (RTUs, DCS), pressure and temperature are read continuously and used to compute flowing density in real time \u2014 this is called flow compensation and is mandatory for custody transfer metering. For manual correction when conditions deviate from design: Q_actual = Q_indicated \u00d7 \u221a(\u03c1_design / \u03c1_actual) Examples: Gas line pressure drops from 10 barg to 8 barg (isothermal): \u03c1_actual/\u03c1_design = (8+1.013)/(10+1.013) = 0.819. Actual flow = indicated \u00d7 \u221a(1/0.819) = indicated \u00d7 1.104. The meter under-reads by 10.4% \u2014 a significant error in gas accounting. Liquid temperature rises from 20\u00b0C to 60\u00b0C : water density drops from 998 to 983 kg/m\u00b3. Actual flow = indicated \u00d7 \u221a(998/983) = indicated \u00d7 1.0076. Only 0.8% error \u2014 usually negligible for liquids but matters in precise chemical dosing. Gas composition changes (e.g., natural gas heating value changes): molar mass M changes, density changes proportionally, flow correction = \u221a(M_design/M_actual)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I calculate the energy cost of the permanent pressure loss?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The permanent pressure loss \u0394P_perm is the irrecoverable portion of \u0394P \u2014 the energy permanently converted to heat by turbulent mixing downstream of the vena contracta. It is approximately: \u0394P_perm \u2248 \u0394P \u00d7 (1 \u2212 \u03b2\u00b2) / (1 + \u03b2\u00b2) [sharp-edged orifice, approximate] For \u03b2 = 0.5: \u0394P_perm \u2248 \u0394P \u00d7 0.60 (60% lost). For \u03b2 = 0.7: \u0394P_perm \u2248 \u0394P \u00d7 0.34 (34% lost). Compare to a venturi tube where permanent loss \u2248 5\u201310% of \u0394P. Annual pumping cost of permanent pressure loss: Cost ($/yr) = (\u0394P_perm \u00d7 Q \u00d7 8760 \u00d7 C_elec) / (\u03b7_pump \u00d7 3,600,000) \u0394P_perm in Pa, Q in m\u00b3/s, C_elec in $/kWh, \u03b7_pump = pump efficiency (decimal) Example: 150 mm pipe, \u03b2 = 0.6, \u0394P = 25 kPa, so \u0394P_perm \u2248 13.5 kPa, Q = 50 m\u00b3/hr = 0.0139 m\u00b3/s, 8760 hr/yr, $0.10/kWh, \u03b7 = 0.70: Cost \u2248 $760/yr For a large 600 mm natural gas header at high flow, the same calculation can yield $50,000\u2013$200,000/yr \u2014 enough to justify replacing the orifice with a venturi tube in 1\u20132 years."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between ISO 5167 and AGA-3? Which should I use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ISO 5167-2 is the international standard covering orifice plates for liquids, gases, and steam. It allows corner taps, flange taps, and D&D/2 taps. Uses the RG Cd equation. Published by ISO, adopted in Europe, Asia, and international projects. Applies to all fluids. AGA Report No. 3 (ANSI/API 14.3) is the North American standard specifically for natural gas custody transfer. It mandates flange taps, uses the RG Cd equation (harmonised with ISO 5167 in 1992), requires gas compressibility calculated per AGA-8, and specifies additional quality requirements for custody transfer including flow computer standards, chart integration, and uncertainty budgets. For most engineering calculations, the two give essentially identical results (<0.1% difference) when using the same tap configuration and RG equation. Use AGA-3 if: you are metering natural gas for billing/custody transfer in North America, or the contract specifies it. Use ISO 5167 if: you are outside North America, metering liquids or steam, or the contract/local regulations specify it. For process indication (non-custody), either standard is acceptable \u2014 just be consistent."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "When should I not use an orifice plate?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Orifice plates are a poor choice in the following situations: High viscosity fluids (Re < 5000): Cd becomes unstable and inaccurate. Use a positive displacement meter, Coriolis, or laminar flow element. Two-phase flow (liquid with gas, or wet steam): The equation is not valid and readings are unreliable. Use a dedicated multiphase meter or separate the phases upstream. Slurries and fluids with suspended solids: Solids settle in impulse lines and erode the bore edge. Use a magnetic flowmeter (conductive liquids) or Coriolis. Very low flow or wide turndown (>5:1): Poor signal at low \u0394P. Use a Coriolis, ultrasonic, or variable area meter. Very dirty gases (catalyst fines, heavy tars): Bore fouls rapidly. Consider an annubar or averaging pitot which can be retracted for cleaning without shutdown. Cryogenic or very high temperature service where straight run is unavailable: The cost of piping modifications may exceed the cost of a more compact meter (Coriolis, ultrasonic) that requires less straight run."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How accurate is the orifice plate and what contributes to measurement uncertainty?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "For a standard orifice plate conforming to ISO 5167, the combined uncertainty is approximately \u00b10.5% to \u00b12% of reading. The main contributors are: Discharge coefficient Cd: ISO 5167 claims \u00b10.5\u20130.75% for Cd in the preferred \u03b2 range. This is the dominant term. Bore diameter d: A \u00b10.1% error in d causes \u00b10.2% error in d\u00b2 (and hence flow). Requires precision bore gauging \u2014 not a standard workshop tool. Differential pressure measurement: DP transmitter accuracy typically \u00b10.1\u20130.5% of span. At low flow (small \u0394P), this becomes the dominant uncertainty. Fluid density: \u00b10.5% error in \u03c1 causes \u00b10.25% error in Q (because Q \u221d \u221a(1/\u03c1)). For gases, this depends on accuracy of P, T measurement and compressibility correlation. Installation effects: Insufficient straight run, non-circular pipe cross-section, gasket intrusion \u2014 each can add 0.5\u20135% systematic bias. For custody transfer applications, an uncertainty budget per ISO 5167 Annex B or AGA-3 is required, documenting each contributor with its Type A or Type B evaluation."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Orifice Flow Calculator (ISO 5167) \u2014 multicalci.com",
+      "url": "https://multicalci.com/orifice-flow-calculator/",
+      "applicationCategory": "EngineeringApplication",
+      "operatingSystem": "Any web browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "multicalci.com",
+        "url": "https://multicalci.com"
+      }
+    }
+  ]
+}
+</script>
+
 <meta name="robots" content="index, follow">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
