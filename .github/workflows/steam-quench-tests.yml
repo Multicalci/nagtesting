@@ -100,10 +100,12 @@ jobs:
           echo "API reachable ✅"
 
       # ── 6. Run tests ──────────────────────────────────────────────────────
+      # --testPathPattern anchored to exact filename prevents Jest from
+      # picking up heatxpert.test.js or any other .test.js in the workspace.
       - name: Run Steam Quench test suite
         run: |
           mkdir -p test-results
-          npx jest steam-quench.test.js --forceExit --verbose --ci
+          npx jest --testPathPattern="steam-quench\.test\.js$" --forceExit --verbose --ci
         env:
           BASE_URL: ${{ env.BASE_URL }}
 
