@@ -1,0 +1,122 @@
+# ════════════════════════════════════════════════════════════════════════════
+# .github/workflows/steam-quench-tests.yml
+# Steam Quench / Desuperheater Calculator — Automated API Test Suite
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Steam Quench API Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override API base URL (e.g. Vercel preview URL)'
+        required: false
+        default: 'https://multicalci.com'
+
+concurrency:
+  group: steam-quench-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Steam Quench API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://www.multicalci.com' }}
+      NODE_ENV: test
+
+    steps:
+
+      # ── 1. Checkout repo ────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Setup Node.js ─────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. Create package.json and install deps ───────────────────────────
+      - name: Install Jest and dependencies
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "multicalci-steam-quench-tests",
+            "version": "1.0.0",
+            "private": true,
+            "scripts": {
+              "test": "jest --forceExit"
+            },
+            "jest": {
+              "testEnvironment": "node",
+              "testMatch": ["**/*.test.js"],
+              "testTimeout": 30000,
+              "reporters": [
+                "default",
+                ["jest-junit", {
+                  "outputDirectory": "test-results",
+                  "outputName": "steam-quench-results.xml"
+                }]
+              ]
+            }
+          }
+          EOF
+          npm install --save-dev jest jest-junit node-fetch
+
+      # ── 4. Copy test file into working directory ──────────────────────────
+      - name: Prepare test file
+        run: |
+          cp .github/tests/steam-quench.test.js ./steam-quench.test.js
+          echo "Target API: $BASE_URL/api/steam-quench"
+
+      # ── 5. Smoke-check API reachability ───────────────────────────────────
+      - name: Smoke-check API reachability
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L \
+            -X POST "$BASE_URL/api/steam-quench" \
+            -H "Content-Type: application/json" \
+            -d '{"action":"preview","P_s":10,"T1":300,"Tw":80,"Pw":12,"T2":250}' \
+            --max-time 20)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "API returned $STATUS — aborting"
+            exit 1
+          fi
+          echo "API reachable and returning 200"
+
+      # ── 6. Run tests ──────────────────────────────────────────────────────
+      - name: Run Steam Quench test suite
+        run: |
+          mkdir -p test-results
+          npx jest steam-quench.test.js --forceExit --verbose --ci
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+
+      # ── 7. Upload XML report ───────────────────────────────────────────────
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steam-quench-test-results-${{ github.run_number }}
+          path: test-results/steam-quench-results.xml
+          retention-days: 30
+
+      # ── 8. Print failure summary ───────────────────────────────────────────
+      - name: Print failure summary
+        if: failure()
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  STEAM QUENCH TESTS FAILED"
+          echo "  Target : $BASE_URL"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Branch : ${{ github.ref_name }}"
+          echo "════════════════════════════════════════"
