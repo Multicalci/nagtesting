@@ -1841,8 +1841,14 @@ function calcDoublePipe(b) {
   const Pr_ann=Math.max(cFluid.mu*1e-3*cFluid.cp*1000/cFluid.k,0.5);
   let Nu_ann;
   if(Re_ann<2300){
-    // Sieder-Tate laminar with entry correction
-    const Gz_ann = Re_ann * Pr_ann * Dh_ann / Math.max(L_total, 0.01);
+    // Sieder-Tate laminar with entry correction.
+    // Use per-hairpin leg length (L_total / (nHairpins * 2)) as the thermal
+    // entry length, NOT L_total. Each hairpin leg restarts the developing
+    // flow profile at the bend, so the Graetz number must be based on the
+    // individual leg length. Using L_total overestimates L/D, suppresses
+    // the entry-length Nu boost, and underpredicts h_ann in multi-hairpin units.
+    const L_per_leg = L_total / (nHairpins * 2);
+    const Gz_ann = Re_ann * Pr_ann * Dh_ann / Math.max(L_per_leg, 0.01);
     Nu_ann = Math.max(3.66, 1.86*Math.pow(Gz_ann, 0.333));
   } else {
     // Dittus-Boelter turbulent — Pr^0.4 for cold fluid being heated
