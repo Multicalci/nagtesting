@@ -1160,7 +1160,14 @@ function calculate(params) {
  } else if (isLiq) {
     // Temperature-corrected liquid density: ρ(T) = ρ₀ / (1 + β·(T − T₀))
     const f_liq = FLUID_DB_orifice[fluidKey] || null;
-    if (f_liq?.t === 'l' && f_liq.rho0 && f_liq.beta_T !== undefined) {
+    if (f_liq?.t === 'l' && f_liq.rhoModel === 'poly_water') {
+      // IAPWS-IF97 sat liquid water — degree-6 poly, ±0.5% for 0–360°C
+      const T = T_c;
+      const T2 = T*T, T3 = T2*T, T4 = T3*T, T5 = T4*T, T6 = T5*T;
+      rho_op = -3.430583e-12*T6 + 3.305509e-09*T5 - 1.216454e-06*T4
+               + 2.120305e-04*T3 - 2.009065e-02*T2 + 4.039409e-01*T + 998.117618;
+      rho_op = Math.max(100, Math.min(1005, rho_op));
+    } else if (f_liq?.t === 'l' && f_liq.rho0 && f_liq.beta_T !== undefined) {
       rho_op = f_liq.rho0 / (1 + f_liq.beta_T * (T_c - f_liq.T0));
       rho_op = Math.max(100, rho_op);
     } else {
