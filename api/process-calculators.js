@@ -1091,7 +1091,7 @@ const FLUID_DB_orifice = {
   'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4},
 // ── Liquids ── rho0=kg/m³ at T0°C, beta_T=thermal expansion coefficient /°C
   // ρ(T) = rho0 / (1 + beta_T*(T - T0))
-  'Water':             {t:'l', rho0:998.2,  T0:20, beta_T:2.1e-4},
+  'Water':             {t:'l', rhoModel:'poly_water'},
   'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4},
   'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4},
   'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4},
