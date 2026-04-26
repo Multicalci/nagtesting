@@ -320,12 +320,66 @@
   }
   footer.site p { margin: 4px 0; }
 
-  @media (max-width: 600px) {
-    header.site { padding: 24px 0 22px; }
-    header.site h1 { font-size: 22px; }
-    .grid { grid-template-columns: 1fr; }
-    .panel-head { padding: 20px 20px 16px; }
-    .panel-body { padding: 18px 20px 22px; }
+  /* horizontal scroll-shadow for mobile filter strips */
+  .filter-row {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+
+  @media (max-width: 700px) {
+    /* ── Header: tighter, hide long description ── */
+    header.site { padding: 18px 0 16px; }
+    header.site h1 { font-size: 19px; line-height: 1.25; margin-bottom: 0; }
+    header.site p { display: none; }
+    header.site .home-btn {
+      font-size: 12px;
+      padding: 5px 11px;
+      margin-bottom: 10px;
+    }
+
+    /* ── Toolbar: tighter padding ── */
+    .toolbar { padding: 10px 0 8px; }
+    .search-input { padding: 9px 12px; font-size: 14.5px; }
+    .stat { font-size: 12px; }
+
+    /* ── Filter rows: HORIZONTAL SCROLL (single row, no wrap) ── */
+    .filter-row {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin-top: 8px;
+      padding: 2px 16px 4px 0;
+      gap: 6px;
+      /* fade hint on right edge so user knows to scroll */
+      mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    }
+    /* Hide "CATEGORY:" / "REGION:" labels on mobile — chips are self-evident */
+    .filter-label { display: none; }
+
+    /* Chips smaller, no shrink so they all stay visible while scrolling */
+    .chip {
+      flex-shrink: 0;
+      padding: 6px 11px;
+      font-size: 12.5px;
+      white-space: nowrap;
+    }
+
+    /* ── Cards single column ── */
+    .grid { grid-template-columns: 1fr; gap: 10px; }
+
+    /* ── Modal: full-width on mobile ── */
+    .panel-head { padding: 18px 18px 14px; }
+    .panel-body { padding: 16px 18px 22px; }
+
+    /* Less main padding so cards appear higher on first paint */
+    main { padding: 14px 0 40px; }
+  }
+
+  /* even tighter for very small screens */
+  @media (max-width: 380px) {
+    header.site h1 { font-size: 17px; }
+    .chip { padding: 5px 10px; font-size: 12px; }
   }
 </style>
 </head>
