@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,6 +46,7 @@
   --text:#eceef4;--muted:#6b7390;--dim:#3d4460;
   --c-process:#38bdf8;--c-heat:#fb923c;--c-vessels:#34d399;
   --c-civil:#a78bfa;--c-elec:#fbbf24;--c-instr:#22d3ee;--c-mech:#f472b6;
+  --c-reference:#e879f9;
   --r:12px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -137,20 +137,21 @@ nav{position:sticky;top:0;z-index:200;
   cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1.4;}
 .fpill:hover{color:var(--text);background:rgba(255,255,255,.04);}
 .fpill.on{background:var(--pb,var(--accent-dim));border-color:var(--pc,var(--accent));color:var(--pt,var(--accent));}
-.fpill[data-d=process]{--pb:rgba(56,189,248,.1);--pc:var(--c-process);--pt:var(--c-process);}
-.fpill[data-d=heat]   {--pb:rgba(251,146,60,.1); --pc:var(--c-heat);   --pt:var(--c-heat);}
-.fpill[data-d=vessels]{--pb:rgba(52,211,153,.1); --pc:var(--c-vessels);--pt:var(--c-vessels);}
-.fpill[data-d=civil]  {--pb:rgba(167,139,250,.1);--pc:var(--c-civil);  --pt:var(--c-civil);}
-.fpill[data-d=electrical]{--pb:rgba(251,191,36,.1);--pc:var(--c-elec); --pt:var(--c-elec);}
-.fpill[data-d=instruments]{--pb:rgba(34,211,238,.1);--pc:var(--c-instr);--pt:var(--c-instr);}
-.fpill[data-d=mechanical]{--pb:rgba(244,114,182,.1);--pc:var(--c-mech);--pt:var(--c-mech);}
+.fpill[data-d=process]   {--pb:rgba(56,189,248,.1); --pc:var(--c-process);   --pt:var(--c-process);}
+.fpill[data-d=heat]      {--pb:rgba(251,146,60,.1);  --pc:var(--c-heat);      --pt:var(--c-heat);}
+.fpill[data-d=vessels]   {--pb:rgba(52,211,153,.1);  --pc:var(--c-vessels);   --pt:var(--c-vessels);}
+.fpill[data-d=civil]     {--pb:rgba(167,139,250,.1); --pc:var(--c-civil);     --pt:var(--c-civil);}
+.fpill[data-d=electrical]{--pb:rgba(251,191,36,.1);  --pc:var(--c-elec);      --pt:var(--c-elec);}
+.fpill[data-d=instruments]{--pb:rgba(34,211,238,.1); --pc:var(--c-instr);     --pt:var(--c-instr);}
+.fpill[data-d=mechanical]{--pb:rgba(244,114,182,.1); --pc:var(--c-mech);      --pt:var(--c-mech);}
+.fpill[data-d=reference] {--pb:rgba(232,121,249,.1); --pc:var(--c-reference); --pt:var(--c-reference);}
 .tb-count{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);
   margin-left:auto;white-space:nowrap;flex-shrink:0;}
 
 /* ── MAIN GRID ── */
 .container{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:20px 24px 0;}
 
-/* ── FEATURED ROW — top 6 most-searched, full-width horizontal ── */
+/* ── FEATURED ROW ── */
 .featured-label{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;
   letter-spacing:.1em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
 .featured-label::after{content:'';flex:1;height:1px;background:var(--border);}
@@ -172,6 +173,11 @@ nav{position:sticky;top:0;z-index:200;
   font-size:.8rem;transition:color .18s,transform .18s;}
 .fcard:hover .fcard-arr{color:var(--accent);transform:translateX(2px);}
 
+/* NEW — accent-strip variant for standards finder card */
+.fcard.fcard-ref::before{background:var(--c-reference);}
+.fcard.fcard-ref:hover{border-color:var(--c-reference);}
+.fcard.fcard-ref:hover .fcard-arr{color:var(--c-reference);}
+
 /* ── DISCIPLINE SECTIONS ── */
 .section{margin-bottom:26px;}
 .section.hidden-sec{display:none;}
@@ -182,17 +188,18 @@ nav{position:sticky;top:0;z-index:200;
 .sec-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;color:var(--text);}
 .sec-count{font-size:.68rem;color:var(--muted);background:var(--surface2);
   padding:.15rem .48rem;border-radius:20px;margin-left:auto;font-family:'DM Mono',monospace;}
-.section.process{--dc:var(--c-process);}
-.section.heat{--dc:var(--c-heat);}
-.section.vessels{--dc:var(--c-vessels);}
-.section.civil{--dc:var(--c-civil);}
+.section.process   {--dc:var(--c-process);}
+.section.heat      {--dc:var(--c-heat);}
+.section.vessels   {--dc:var(--c-vessels);}
+.section.civil     {--dc:var(--c-civil);}
 .section.electrical{--dc:var(--c-elec);}
 .section.instruments{--dc:var(--c-instr);}
 .section.mechanical{--dc:var(--c-mech);}
+.section.reference {--dc:var(--c-reference);}
 
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:8px;}
 
-/* ── SUITES ROW — civil/elec/instr/mech in single 4-col row ── */
+/* ── SUITES ROW ── */
 .suites-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:28px;}
 .suite-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
   padding:1rem 1.05rem;text-decoration:none;color:inherit;display:flex;flex-direction:column;
@@ -204,10 +211,10 @@ nav{position:sticky;top:0;z-index:200;
 .suite-card:hover::after{opacity:1;}
 .suite-card:hover{border-color:var(--sc,var(--accent));}
 .suite-card.hidden{display:none!important;}
-.suite-card[data-disc=civil]{--sc:var(--c-civil);}
-.suite-card[data-disc=electrical]{--sc:var(--c-elec);}
-.suite-card[data-disc=instruments]{--sc:var(--c-instr);}
-.suite-card[data-disc=mechanical]{--sc:var(--c-mech);}
+.suite-card[data-disc=civil]       {--sc:var(--c-civil);}
+.suite-card[data-disc=electrical]  {--sc:var(--c-elec);}
+.suite-card[data-disc=instruments] {--sc:var(--c-instr);}
+.suite-card[data-disc=mechanical]  {--sc:var(--c-mech);}
 .sc-top{display:flex;align-items:flex-start;gap:.6rem;}
 .sc-ico{font-size:1.35rem;flex-shrink:0;margin-top:.05rem;}
 .sc-title{font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;color:var(--text);line-height:1.3;}
@@ -237,6 +244,9 @@ nav{position:sticky;top:0;z-index:200;
 .tag{font-size:.63rem;padding:.1rem .4rem;border-radius:4px;
   background:var(--surface3);border:1px solid var(--border);
   color:var(--muted);font-family:'DM Mono',monospace;}
+
+/* highlight badge for new tools */
+.tag-new{background:rgba(232,121,249,.12);border-color:rgba(232,121,249,.3);color:var(--c-reference);}
 
 /* ── EMPTY STATE ── */
 .empty-state{display:none;flex-direction:column;align-items:center;
@@ -297,7 +307,6 @@ footer{background:var(--surface);border-top:1px solid var(--border);
   cursor:pointer;transition:all .15s;white-space:nowrap;}
 .share-btn:hover{background:rgba(0,229,176,.22);transform:translateY(-1px);}
 .share-btn svg{flex-shrink:0;}
-/* share toast */
 .share-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(12px);
   background:var(--surface2);border:1px solid var(--border2);color:var(--text);
   font-family:'DM Mono',monospace;font-size:.75rem;border-radius:8px;
@@ -359,6 +368,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
       <a href="#process">Process</a>
       <a href="#heat">Heat &amp; Thermo</a>
       <a href="#vessels">Vessels</a>
+      <a href="#reference">Standards</a>
       <a href="#suites">Suites</a>
     </div>
     <div class="nav-right">
@@ -375,10 +385,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);
 <section class="hero">
   <div class="hero-left">
     <div class="hero-brand">multi<em>calci</em><small>.com</small></div>
-    <div class="hero-tag">Standards-based Engineering Calculators · Free · Browser-based · No login</div>
+    <div class="hero-tag">Standards-based Engineering Calculators &amp; Reference Tools · Free · Browser-based · No login</div>
     <div class="hero-stats">
-      <div class="hstat"><div class="hstat-n">24</div><div class="hstat-l">Tools</div></div>
-      <div class="hstat"><div class="hstat-n">7</div><div class="hstat-l">Disciplines</div></div>
+      <div class="hstat"><div class="hstat-n">25</div><div class="hstat-l">Tools</div></div>
+      <div class="hstat"><div class="hstat-n">8</div><div class="hstat-l">Disciplines</div></div>
       <div class="hstat"><div class="hstat-n">SI+US</div><div class="hstat-l">Units</div></div>
       <div class="hstat"><div class="hstat-n">Free</div><div class="hstat-l">Always</div></div>
     </div>
@@ -398,18 +408,19 @@ footer{background:var(--surface);border-top:1px solid var(--border);
 <div class="toolbar">
   <div class="toolbar-inner">
     <div class="tb-sw">
-      <input type="text" id="searchQ" placeholder="Search… e.g. steam, pressure drop, valve" autocomplete="off" oninput="onSearch(this.value)">
+      <input type="text" id="searchQ" placeholder="Search… e.g. steam, pressure drop, API 610" autocomplete="off" oninput="onSearch(this.value)">
       <button class="tb-clr" id="clrBtn" onclick="clearSearch()" aria-label="Clear">✕</button>
     </div>
     <div class="filters">
-      <button class="fpill on"  data-d="all"          onclick="setDisc(this)">All</button>
-      <button class="fpill"     data-d="process"       onclick="setDisc(this)">⚗️ Process</button>
-      <button class="fpill"     data-d="heat"          onclick="setDisc(this)">🌡️ Heat</button>
-      <button class="fpill"     data-d="vessels"       onclick="setDisc(this)">🛢️ Vessels</button>
-      <button class="fpill"     data-d="civil"         onclick="setDisc(this)">🏗️ Civil</button>
-      <button class="fpill"     data-d="electrical"    onclick="setDisc(this)">⚡ Electrical</button>
-      <button class="fpill"     data-d="instruments"   onclick="setDisc(this)">📡 Instruments</button>
-      <button class="fpill"     data-d="mechanical"    onclick="setDisc(this)">⚙️ Mechanical</button>
+      <button class="fpill on"  data-d="all"           onclick="setDisc(this)">All</button>
+      <button class="fpill"     data-d="process"        onclick="setDisc(this)">⚗️ Process</button>
+      <button class="fpill"     data-d="heat"           onclick="setDisc(this)">🌡️ Heat</button>
+      <button class="fpill"     data-d="vessels"        onclick="setDisc(this)">🛢️ Vessels</button>
+      <button class="fpill"     data-d="civil"          onclick="setDisc(this)">🏗️ Civil</button>
+      <button class="fpill"     data-d="electrical"     onclick="setDisc(this)">⚡ Electrical</button>
+      <button class="fpill"     data-d="instruments"    onclick="setDisc(this)">📡 Instruments</button>
+      <button class="fpill"     data-d="mechanical"     onclick="setDisc(this)">⚙️ Mechanical</button>
+      <button class="fpill"     data-d="reference"      onclick="setDisc(this)">📋 Standards</button>
     </div>
     <div class="tb-count" id="tbCnt" aria-live="polite"></div>
   </div>
@@ -418,12 +429,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);
 <!-- ══ MAIN ══ -->
 <main class="container" id="main">
 
-  <!-- ★ MOST-USED / FEATURED — ordered by search volume & industry frequency ★ -->
+  <!-- ★ MOST-USED / FEATURED ★ -->
   <div id="most-used" style="scroll-margin-top:110px">
-    <div class="featured-label">⭐ Most-used calculators</div>
+    <div class="featured-label">⭐ Most-used calculators &amp; reference tools</div>
     <div class="featured-grid" id="featuredGrid">
 
-      <!-- 1. Unit Converter — highest traffic, universal use -->
+      <!-- 1. Unit Converter -->
       <a href="/unit-converter/" class="fcard" data-disc="process" data-s="unit converter pressure flow temperature energy power viscosity si imperial">
         <div class="fcard-ico">🔄</div>
         <div class="fcard-title">Engineering Unit Converter</div>
@@ -431,7 +442,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 2. Heat Exchanger — highest search vol in process HX design -->
+      <!-- 2. Heat Exchanger -->
       <a href="/heat-exchanger-design/" class="fcard" data-disc="heat" data-s="heat exchanger shell tube tema bell delaware lmtd u value fouling">
         <div class="fcard-ico">♨️</div>
         <div class="fcard-title">Heat Exchanger Design</div>
@@ -439,7 +450,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 3. Control Valve — very high search volume globally -->
+      <!-- 3. Control Valve -->
       <a href="/control-valve-sizing/" class="fcard" data-disc="process" data-s="control valve sizing cv kv iec 60534 choked flow noise">
         <div class="fcard-ico">🎛️</div>
         <div class="fcard-title">Control Valve Sizing</div>
@@ -447,7 +458,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 4. Pressure Drop — one of the most searched engineering calcs -->
+      <!-- 4. Pressure Drop -->
       <a href="/pressure-drop-calculator/" class="fcard" data-disc="process" data-s="pressure drop pipe friction darcy weisbach colebrook fittings">
         <div class="fcard-ico">📉</div>
         <div class="fcard-title">Pipe Pressure Drop</div>
@@ -455,7 +466,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 5. Orifice — ISO 5167 very high search volume -->
+      <!-- 5. Orifice -->
       <a href="/orifice-flow-calculator/" class="fcard" data-disc="process" data-s="orifice flow iso 5167 dp meter discharge coefficient beta ratio">
         <div class="fcard-ico">🎯</div>
         <div class="fcard-title">Orifice Design &amp; Sizing</div>
@@ -463,7 +474,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 6. Steam Properties — IAPWS-IF97 very high search volume -->
+      <!-- 6. Steam Properties -->
       <a href="/steam-properties-calculator/" class="fcard" data-disc="heat" data-s="steam properties iapws if97 saturated superheated enthalpy entropy">
         <div class="fcard-ico">💨</div>
         <div class="fcard-title">Steam Properties</div>
@@ -487,7 +498,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 10. Gas EOS -->
+      <!-- 9. Gas EOS -->
       <a href="/gas-equation-of-state/" class="fcard" data-disc="process" data-s="gas equation of state peng robinson srk z factor compressibility">
         <div class="fcard-ico">🧪</div>
         <div class="fcard-title">Gas Equation of State</div>
@@ -495,7 +506,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 11. Rankine Cycle -->
+      <!-- 10. Rankine Cycle -->
       <a href="/rankine-cycle-calculator/" class="fcard" data-disc="heat" data-s="rankine cycle thermal efficiency boiler condenser turbine pump">
         <div class="fcard-ico">🔁</div>
         <div class="fcard-title">Rankine Cycle</div>
@@ -503,11 +514,19 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <span class="fcard-arr">→</span>
       </a>
 
-      <!-- 12. Cooling Tower -->
+      <!-- 11. Cooling Tower -->
       <a href="/cooling-tower-performance/" class="fcard" data-disc="heat" data-s="cooling tower cti atc-105 merkel ntu approach range drift">
         <div class="fcard-ico">🏭</div>
         <div class="fcard-title">Cooling Tower Performance</div>
         <div class="fcard-std">CTI ATC-105 · NTU-Merkel</div>
+        <span class="fcard-arr">→</span>
+      </a>
+
+      <!-- 12. Engineering Standards Finder — NEW -->
+      <a href="/engineering-standards-finder/" class="fcard fcard-ref" data-disc="reference" data-s="engineering standards codes api asme astm iso din is ibr pressure vessel piping pump valve heat exchanger tank equipment reference finder">
+        <div class="fcard-ico">📋</div>
+        <div class="fcard-title">Standards &amp; Codes Finder</div>
+        <div class="fcard-std">API · ASME · ISO · IS · IBR · 200+ standards</div>
         <span class="fcard-arr">→</span>
       </a>
 
@@ -552,6 +571,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <div class="card-top"><span class="card-ico">📐</span><span class="card-title">Head &amp; Pressure Calculator</span><span class="card-arrow">→</span></div>
         <div class="card-desc">Static, dynamic &amp; total head calculations. Pump head, system curve, fluid column pressure for any fluid density &amp; elevation difference.</div>
         <div class="card-tags"><span class="tag">Static Head</span><span class="tag">System Curve</span><span class="tag">Pump Head</span></div>
+      </a>
+      <a href="/control-valve-sizing/" class="card" data-s="control valve sizing cv kv iec 60534 choked flow cavitation noise">
+        <div class="card-top"><span class="card-ico">🎛️</span><span class="card-title">Control Valve Sizing</span><span class="card-arrow">→</span></div>
+        <div class="card-desc">IEC 60534 Cv/Kv sizing for liquids, gases &amp; steam. Choked flow, cavitation index, inherent characteristics &amp; noise prediction.</div>
+        <div class="card-tags"><span class="tag">IEC 60534</span><span class="tag">Cv/Kv</span><span class="tag">Choked Flow</span></div>
       </a>
     </div>
   </div>
@@ -625,7 +649,73 @@ footer{background:var(--surface);border-top:1px solid var(--border);
     </div>
   </div>
 
-  <!-- ══ ENGINEERING SUITES — single 4-column row ══ -->
+  <!-- ══ ENGINEERING STANDARDS & CODES — NEW SECTION ══ -->
+  <div class="section reference" id="reference" data-disc="reference" style="scroll-margin-top:110px">
+    <div class="sec-hdr">
+      <div class="sec-bar"></div>
+      <span class="sec-icon">📋</span>
+      <span class="sec-title">Engineering Standards &amp; Codes</span>
+      <span class="sec-count">1 tool</span>
+    </div>
+    <div class="cards">
+      <a href="/engineering-standards-finder/" class="card" data-s="engineering standards codes api asme astm iso din is ibr pressure vessel piping pump valve heat exchanger tank equipment rotating fired instrumentation electrical indian standards reference finder lookup">
+        <div class="card-top">
+          <span class="card-ico">📋</span>
+          <span class="card-title">Engineering Standards &amp; Codes Finder</span>
+          <span class="card-arrow">→</span>
+        </div>
+        <div class="card-desc">
+          Instantly look up applicable codes for any equipment — pumps, vessels, valves, piping, tanks, heat exchangers, instruments &amp; more.
+          Covers API, ASME, ASTM, ISO, EN, DIN, BS, JIS and Indian Standards (IS, IBR) with latest edition, scope, key requirements &amp; related standards.
+        </div>
+        <div class="card-tags">
+          <span class="tag">API</span>
+          <span class="tag">ASME</span>
+          <span class="tag">ISO</span>
+          <span class="tag">IS / IBR</span>
+          <span class="tag">200+ Standards</span>
+          <span class="tag tag-new">New</span>
+        </div>
+      </a>
+
+      <!-- Placeholder cross-link: material grades is also a reference tool -->
+      <a href="/material-grades-library/" class="card" data-disc="reference" data-s="material grades library astm din en iso steel alloy specifications reference">
+        <div class="card-top">
+          <span class="card-ico">📚</span>
+          <span class="card-title">Material Grades Library</span>
+          <span class="card-arrow">→</span>
+        </div>
+        <div class="card-desc">
+          Cross-reference ASTM, DIN, EN, ISO &amp; IS material designations for steels, stainless, alloy and non-ferrous materials used in process plant design.
+        </div>
+        <div class="card-tags">
+          <span class="tag">ASTM</span>
+          <span class="tag">DIN / EN</span>
+          <span class="tag">BIS / IS</span>
+          <span class="tag">Cross-reference</span>
+        </div>
+      </a>
+
+      <a href="/material-of-construction/" class="card" data-disc="reference" data-s="material of construction moc corrosion guide alloy selection fluid chemistry reference">
+        <div class="card-top">
+          <span class="card-ico">🔬</span>
+          <span class="card-title">Material of Construction Guide</span>
+          <span class="card-arrow">→</span>
+        </div>
+        <div class="card-desc">
+          Select the right material for pipes &amp; equipment based on fluid chemistry, temperature and corrosion resistance data.
+          Practical reference for alloy screening in process plant specifications.
+        </div>
+        <div class="card-tags">
+          <span class="tag">Corrosion Guide</span>
+          <span class="tag">Alloy Selection</span>
+          <span class="tag">Reference</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ══ ENGINEERING SUITES ══ -->
   <div id="suites" style="scroll-margin-top:110px;margin-bottom:28px;">
     <div class="featured-label" style="margin-bottom:8px">Engineering suites</div>
     <div class="suites-row">
@@ -666,8 +756,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);
 
 <!-- ══ SEO DIRECTORY ══ -->
 <section class="seo-dir" aria-label="Complete calculators directory">
-  <h2>Complete Engineering Calculators Directory</h2>
-  <p>Browse all free engineering calculators including process, heat transfer, civil, electrical, mechanical and instrumentation tools.</p>
+  <h2>Complete Engineering Calculators &amp; Reference Tools Directory</h2>
+  <p>Browse all free engineering calculators and reference tools including process, heat transfer, civil, electrical, mechanical, instrumentation and engineering standards lookup.</p>
   <div class="seo-grid">
     <div>
       <h3>Process &amp; Fluid Systems</h3>
@@ -702,6 +792,14 @@ footer{background:var(--surface);border-top:1px solid var(--border);
         <li><a href="/material-grades-library/">Material Grades Library</a></li>
         <li><a href="/water-treatment-calculator/">Water Treatment Calculator</a></li>
       </ul>
+      <h3>Standards &amp; Reference</h3>
+      <ul>
+        <li><a href="/engineering-standards-finder/">Engineering Standards &amp; Codes Finder (API, ASME, ISO, IS, IBR)</a></li>
+        <li><a href="/material-grades-library/">Material Grades Cross-Reference Library</a></li>
+        <li><a href="/material-of-construction/">Material of Construction Guide</a></li>
+      </ul>
+    </div>
+    <div>
       <h3>Engineering Suites</h3>
       <ul>
         <li><a href="/civil-engineering-calculators/">Civil Engineering Calculators</a></li>
@@ -717,9 +815,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);
 <div class="faq">
   <h2>Frequently Asked Questions</h2>
   <details><summary>Are the calculators free to use?</summary><p>Yes — all calculators are completely free, run in your browser and require no login, registration or subscription. They work on any device with a modern browser.</p></details>
-  <details><summary>Which engineering standards are implemented?</summary><p>ISO 5167 (orifice/flow), IEC 60534 (control valves), IAPWS-IF97 (steam properties), TEMA E/F/G/H/J/X (heat exchangers), ASME B31.3/VIII (piping/vessels), CTI ATC-105 (cooling towers), Darcy-Weisbach + Colebrook-White (pipe flow), ASME PTC 19.3 (thermowell analysis), API 12J (separators), Peng-Robinson &amp; SRK EOS (gas properties).</p></details>
+  <details><summary>Which engineering standards are implemented?</summary><p>ISO 5167 (orifice/flow), IEC 60534 (control valves), IAPWS-IF97 (steam properties), TEMA E/F/G/H/J/X (heat exchangers), ASME B31.3/VIII (piping/vessels), CTI ATC-105 (cooling towers), Darcy-Weisbach + Colebrook-White (pipe flow), ASME PTC 19.3 (thermowell analysis), API 12J (separators), Peng-Robinson &amp; SRK EOS (gas properties). The Standards &amp; Codes Finder covers 200+ standards across API, ASME, ASTM, ISO, EN, DIN, BS and Indian Standards (IS, IBR).</p></details>
   <details><summary>Do calculators support both SI and Imperial units?</summary><p>Yes. All process and fluid calculators support one-click switching between SI (metric) and US Customary (Imperial) unit systems. Results update instantly without re-entering data.</p></details>
   <details><summary>Can results be used for final engineering designs?</summary><p>These calculators are suitable for preliminary engineering, feasibility studies, educational use and cross-checking. All results must be independently verified by a qualified registered engineer against applicable codes and standards before use in final designs.</p></details>
+  <details><summary>What does the Standards &amp; Codes Finder cover?</summary><p>The Engineering Standards &amp; Codes Finder covers 200+ standards including API, ASME, ASTM, ISO, EN, DIN, BS, JIS and Indian Standards (IS, IBR). Search by equipment type — pumps, valves, vessels, piping, heat exchangers, storage tanks, instruments, rotating machinery and more — to instantly see applicable codes, latest edition, scope, key technical requirements and related standards.</p></details>
 </div>
 
 <!-- ══ FOOTER ══ -->
@@ -752,6 +851,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);
       <a href="/material-of-construction/">Material of Construction</a>
       <a href="/material-grades-library/">Material Grades Library</a>
       <a href="/water-treatment-calculator/">Water Treatment</a>
+    </div>
+    <div class="footer-col">
+      <h4>Standards &amp; Reference</h4>
+      <a href="/engineering-standards-finder/">Standards &amp; Codes Finder</a>
+      <a href="/material-grades-library/">Material Grades Library</a>
+      <a href="/material-of-construction/">MOC Guide</a>
     </div>
     <div class="footer-col">
       <h4>Suites</h4>
@@ -864,14 +969,8 @@ const stt=document.getElementById('stt');
 window.addEventListener('scroll',()=>stt.classList.toggle('vis',scrollY>400),{passive:true});
 
 /* nav active highlight */
-const secEls=[...document.querySelectorAll('[id]')].filter(e=>['most-used','process','heat','vessels','suites'].includes(e.id));
+const secEls=[...document.querySelectorAll('[id]')].filter(e=>['most-used','process','heat','vessels','reference','suites'].includes(e.id));
 const navAs=[...document.querySelectorAll('.nav-links a')];
-new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting)
-      navAs.forEach(a=>a.classList.toggle('nav-active',a.getAttribute('href')==='#'+e.target.id));
-  });
-},{rootMargin:'-15% 0px -75% 0px'}).observe;
 secEls.forEach(s=>new IntersectionObserver(entries=>{
   entries.forEach(e=>{
     if(e.isIntersecting)
@@ -887,12 +986,10 @@ async function sharesite(){
   if(navigator.share&&navigator.canShare&&navigator.canShare(data)){
     try{await navigator.share(data);return;}catch(e){if(e.name==='AbortError')return;}
   }
-  /* fallback: copy URL */
   try{
     await navigator.clipboard.writeText('https://multicalci.com/');
     showShareToast('🔗 Link copied to clipboard!');
   }catch(e){
-    /* last resort: prompt */
     prompt('Copy this link:','https://multicalci.com/');
   }
 }
