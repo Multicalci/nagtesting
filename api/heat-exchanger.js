@@ -1650,26 +1650,46 @@ function calcPlate(b) {
   const A_provided=nPlates_final*A_plate;
   const overDesign=(A_provided/A_req-1)*100;
 
-  // ─── CORRECTED pdPlate — Martin (1996) Darcy friction factor ───────────────
+  // ─── CORRECTED pdPlate — Martin (1996/VDI) Darcy friction factor ─────────
+  // Based on Caleb Bell's fluids library implementation of Martin's correlation
+  // https://github.com/CalebBell/fluids/blob/master/fluids/friction.py
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
 
-    // Martin (1996) VDI Heat Atlas — Darcy friction factor for chevron PHE
-    // Using validated continuous formulation:
-    //   Laminar:   f_D = 64 / Re
-    //   Turbulent: f_D = 2.0 / Re^0.25
-    //   Transition: max of both (smooth crossover around Re ≈ 150–250)
-    const f_lam = 64 / Math.max(Re, 0.1);
-    const f_turb = 2.0 * Math.pow(Math.max(Re, 1), -0.25);
-    const f_pl = Math.max(f_lam, f_turb);
+    // Martin VDI (2010) Darcy friction factor for chevron PHE
+    // phi_rad = chevron angle in RADIANS (not the enlargement factor!)
+    const phi_rad = angle * Math.PI / 180;
+    
+    let f0, f1;
+    if (Re < 2000) {
+      // Laminar regime
+      f0 = 64 / Math.max(Re, 0.1);
+      f1 = 597 / Math.max(Re, 0.1) + 3.85;
+    } else {
+      // Turbulent regime
+      f0 = Math.pow(1.8 * Math.log10(Re) - 1.5, -2);
+      f1 = 39 * Math.pow(Re, -0.289);
+    }
+
+    const a = 3.8, b = 0.18, c = 0.36;
+    const cos_phi = Math.cos(phi_rad);
+    const sin_phi = Math.sin(phi_rad);
+    const tan_phi = Math.tan(phi_rad);
+
+    // Martin's composite friction factor formula
+    const term1 = cos_phi / Math.sqrt(b * tan_phi + c * sin_phi + f0 / cos_phi);
+    const term2 = (1 - cos_phi) / Math.sqrt(a * f1);
+    const rhs = term1 + term2;
+    const f_pl = Math.pow(rhs, -2);  // This is the Darcy friction factor
 
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
     const dyn = fluid.rho * vel * vel / 2;
 
-    // Channel friction loss — Darcy-Weisbach with developed length (× phi)
-    const dP_friction = f_pl * (plen * phi / Dh) * dyn;
+    // Channel friction loss — Darcy-Weisbach with STRAIGHT length (not developed)
+    // Martin correlation already accounts for corrugations via angle terms
+    const dP_friction = f_pl * (plen / Dh) * dyn;
 
     // Port/nozzle losses — 1.4 velocity heads (0.7 inlet + 0.7 outlet)
     let dP_port;
@@ -1678,7 +1698,7 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     } else {
-      // Estimate port area from total channel area (no arbitrary 0.5 factor)
+      // Estimate port area from total channel area (removed arbitrary 0.5 factor)
       const A_port_est = Math.max(nChannels * Ac, 1e-6);
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
