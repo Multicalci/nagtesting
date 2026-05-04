@@ -1585,7 +1585,6 @@ function calcShellTube(b) {
     }
   };
 }
-
 // ─── PLATE HX ────────────────────────────────────────────────────────────────
 function calcPlate(b) {
   const hFlKey=b.hFlKey||'water', cFlKey=b.cFlKey||'water';
@@ -1651,34 +1650,32 @@ function calcPlate(b) {
   const A_provided=nPlates_final*A_plate;
   const overDesign=(A_provided/A_req-1)*100;
 
-  // ─── CORRECTED pdPlate — fixed np bug removed, parallel channel logic ───
+  // ─── CORRECTED pdPlate — Martin (1996) three-regime friction factor ───────
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
 
-    // Martin (1996) Darcy friction factor for chevron PHE
-    // f = (cos β / sqrt(b·tan β + c·sin β + cos β/sqrt(f0))) ^ (-1)  [simplified]
-    // Practical form for 45° chevron (β=45°):
-    //   Laminar  Re<400:  f = 1700/Re   (typical PHE laminar, much higher than pipe)
-    //   Turbulent Re>400: f = 12.0/Re^0.4  (Darcy, validated 400<Re<10000)
-    // Reference: Martin H., VDI Heat Atlas 2010, Section N6
+    // Martin (1996) VDI Heat Atlas Darcy friction factor for 45° chevron PHE
+    //   Re < 400   : laminar   f = 1700/Re
+    //   400-10000  : transition f = 12.0/Re^0.40
+    //   Re > 10000 : turbulent  f = 3.8/Re^0.25
     let f_pl;
-    if (Re < 10) {
+    if (Re < 400) {
       f_pl = 1700 / Math.max(Re, 0.1);
-    } else if (Re < 400) {
-      f_pl = 1700 / Re;
+    } else if (Re < 10000) {
+      f_pl = 12.0 * Math.pow(Re, -0.40);
     } else {
-      f_pl = 12.0 * Math.pow(Re, -0.40);   // Darcy factor, 45° chevron
+      f_pl = 3.8 * Math.pow(Re, -0.25);
     }
 
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
-    const dyn = fluid.rho * vel * vel / 2;    // Pa
+    const dyn = fluid.rho * vel * vel / 2;
 
-    // Channel friction ΔP — Darcy-Weisbach with plate L/Dh
+    // Channel friction loss — Darcy-Weisbach
     const dP_friction = f_pl * (plen / Dh) * dyn;
 
-    // Port pressure losses — 1.4 velocity heads (entry + exit)
+    // Port/nozzle losses — 1.4 velocity heads (0.7 inlet + 0.7 outlet)
     let dP_port;
     if (portDia_m && portDia_m > 0) {
       const A_port = Math.PI * portDia_m * portDia_m / 4;
@@ -1714,6 +1711,7 @@ function calcPlate(b) {
     hFluid,cFluid,st,warns
   };
 }
+
 
 // ─── AIR COOLED — IMPROVED (Robinson-Briggs j-factor + fin efficiency) ──────
 function calcAirCooled(b) {
