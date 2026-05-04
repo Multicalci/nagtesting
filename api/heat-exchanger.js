@@ -1624,17 +1624,14 @@ function calcPlate(b) {
   const {lmtd,F,dT1,dT2}=lmtdRes, FLMTD=lmtd*F;
   const Dh=2*gap/phi;
   const Ac=pw*gap;
-
-  // ─── FIX: Determine final plate count FIRST, then calculate channels ─────
   const A_plate=pw*plen;
-  const nPlates_auto = Math.max(4, Math.ceil(A_req/A_plate)+2);
-  const nPlates_final = b.nPlates ? Math.max(4, parseInt(b.nPlates)) : nPlates_auto;
-  
-  // CRITICAL FIX: nChanH and nChanC must use nPlates_final, not nPlates_user
-  const nChanH = Math.max(1, Math.floor(nPlates_final / 2));
-  const nChanC = Math.max(1, nPlates_final - 1 - nChanH);
 
-  // ─── HTC: Martin (1996) Nusselt correlation ───────────────────────────────
+  // ─── PASS 1: Initial estimate with b.nPlates or default ────────────────
+  const nPlates_initial = Math.max(4, parseInt(b.nPlates)||20);
+  const nChanH_initial = Math.max(1, Math.floor(nPlates_initial / 2));
+  const nChanC_initial = Math.max(1, nPlates_initial - 1 - nChanH_initial);
+
+  // ─── HTC: Martin (1996) Nusselt correlation ───────────────────────────
   function htcPlate(fluid, mKgs_total, nChannels) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G=mKgs/Math.max(Ac,1e-8);
@@ -1647,16 +1644,33 @@ function calcPlate(b) {
     return {h:Nu*fluid.k/Dh, Re, G, vel:mKgs/Math.max(fluid.rho*Ac,1e-8)};
   }
   
-  const hRes=htcPlate(hFluid,hF/3600,nChanH), cRes=htcPlate(cFluid,cF/3600,nChanC);
-  const hH=hRes.h, hC=cRes.h;
+  // Calculate heat transfer with initial channel count
+  const hRes_initial=htcPlate(hFluid,hF/3600,nChanH_initial);
+  const cRes_initial=htcPlate(cFluid,cF/3600,nChanC_initial);
+  const hH_initial=hRes_initial.h, hC_initial=cRes_initial.h;
   const Rwall=th/kw;
+  const U_initial=1/(1/hH_initial+1/hC_initial+Rwall+foul);
+  const A_req=Q*1000/(U_initial*FLMTD);
+
+  // ─── PASS 2: Auto-size based on A_req ───────────────────────────────────
+  const nPlates_auto = Math.max(4, Math.ceil(A_req/A_plate)+2);
+  const nPlates_final = b.nPlates ? nPlates_initial : nPlates_auto;
+  
+  // CRITICAL FIX: Recalculate channels from FINAL plate count
+  const nChanH = Math.max(1, Math.floor(nPlates_final / 2));
+  const nChanC = Math.max(1, nPlates_final - 1 - nChanH);
+
+  // Recalculate heat transfer with CORRECT channel count
+  const hRes=htcPlate(hFluid,hF/3600,nChanH);
+  const cRes=htcPlate(cFluid,cF/3600,nChanC);
+  const hH=hRes.h, hC=cRes.h;
   const U=1/(1/hH+1/hC+Rwall+foul);
   const U_clean=1/(1/hH+1/hC+Rwall);
-  const A_req=Q*1000/(U*FLMTD);
+  const A_req_final=Q*1000/(U*FLMTD);
   const A_provided=nPlates_final*A_plate;
-  const overDesign=(A_provided/A_req-1)*100;
+  const overDesign=(A_provided/A_req_final-1)*100;
 
-  // ─── CORRECTED pdPlate — Martin VDI (2010) ──────────────────────────────
+  // ─── CORRECTED pdPlate — Martin VDI (2010) ─────────────────────────────
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
@@ -1702,7 +1716,7 @@ function calcPlate(b) {
   const dpH = pdPlate(hFluid, hF/3600, nChanH, portDia_m);
   const dpC = pdPlate(cFluid, cF/3600, nChanC, portDia_m);
 
-  const NTU=A_req*U/Math.max(Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp)*1000,0.001);
+  const NTU=A_req_final*U/Math.max(Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp)*1000,0.001);
   const Cmin=Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp);
   const eff=Cmin>0?Q/(Cmin*(hTi-cTi)):0;
   const st=overDesign<0?'err':overDesign<5?'warn':'ok';
@@ -1717,7 +1731,7 @@ function calcPlate(b) {
   const minApproachDT = Math.min(hTi - cTo, hTo - cTi);
   return {
     Q,Qhot,Qcold,U,U_clean,balErr,lmtd,F,FLMTD,dT1,dT2,
-    A_req,A_provided,overDesign,nPlates:nPlates_final,A_plate,dpH,dpC,pdAllowH,pdAllowC,
+    A_req:A_req_final,A_provided,overDesign,nPlates:nPlates_final,A_plate,dpH,dpC,pdAllowH,pdAllowC,
     hH,hC,NTU,eff,hTi,hTo,cTi,cTo,cF,
     minApproachDT,
     hFluid,cFluid,st,warns
