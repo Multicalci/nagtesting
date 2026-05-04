@@ -1656,15 +1656,29 @@ function calcPlate(b) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
+
+    // Martin (1996) Darcy friction factor for chevron PHE
+    // f = (cos β / sqrt(b·tan β + c·sin β + cos β/sqrt(f0))) ^ (-1)  [simplified]
+    // Practical form for 45° chevron (β=45°):
+    //   Laminar  Re<400:  f = 1700/Re   (typical PHE laminar, much higher than pipe)
+    //   Turbulent Re>400: f = 12.0/Re^0.4  (Darcy, validated 400<Re<10000)
+    // Reference: Martin H., VDI Heat Atlas 2010, Section N6
     let f_pl;
-    if (Re < 400) {
-      f_pl = 50 / Math.max(Re, 1);
+    if (Re < 10) {
+      f_pl = 1700 / Math.max(Re, 0.1);
+    } else if (Re < 400) {
+      f_pl = 1700 / Re;
     } else {
-      f_pl = 0.60 * Math.pow(Re, -0.20);
+      f_pl = 12.0 * Math.pow(Re, -0.40);   // Darcy factor, 45° chevron
     }
+
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
-    const dyn = fluid.rho * vel * vel / 2;
+    const dyn = fluid.rho * vel * vel / 2;    // Pa
+
+    // Channel friction ΔP — Darcy-Weisbach with plate L/Dh
     const dP_friction = f_pl * (plen / Dh) * dyn;
+
+    // Port pressure losses — 1.4 velocity heads (entry + exit)
     let dP_port;
     if (portDia_m && portDia_m > 0) {
       const A_port = Math.PI * portDia_m * portDia_m / 4;
@@ -1675,6 +1689,7 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     }
+
     return Math.max((dP_friction + dP_port) / 1e5, 0);
   }
   const portDia_m = parseFloat(b.portDia) / 1000 || 0;
