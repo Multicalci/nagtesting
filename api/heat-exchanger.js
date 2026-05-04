@@ -1585,97 +1585,80 @@ function calcShellTube(b) {
     }
   };
 }
-// ─── PLATE HX ────────────────────────────────────────────────────────────────
 function calcPlate(b) {
-  const hFlKey=b.hFlKey||'water', cFlKey=b.cFlKey||'water';
-  const hFluidDB=getFluid(hFlKey), cFluidDB=getFluid(cFlKey);
-  const hPop=parseFloat(b.hPop)||P_REF_DB, cPop=parseFloat(b.cPop)||P_REF_DB;
-  const hTi=requireFinite(b.hTi,'hTi'), hTo=requireFinite(b.hTo,'hTo'), cTi=requireFinite(b.cTi,'cTi');
-  const hF=requireFinite(b.hF,'hF');
-  if (hF<=0) throw new Error('Hot flow must be positive');
-  if (hTo>=hTi) throw new Error('Hot outlet must be below hot inlet');
-  if (cTi>=hTo) throw new Error('Cold inlet must be below hot outlet');
-  const hTmean=(hTi+hTo)/2;
-  const hFluid=fluidAtConditions(hFlKey,hTmean,hPop);
-  const Qhot=(hF/3600)*hFluid.cp*(hTi-hTo);
-  let cF=parseFloat(b.cF)||0, cTo=parseFloat(b.cTo)||0;
-  const coldMode=b.coldMode||'flow';
-  if (coldMode==='temp') {
-    if (cTo<=cTi) throw new Error('Cold outlet must be > cold inlet');
-    if (cTo>=hTi) throw new Error('Cold outlet cannot exceed hot inlet');
-    cF=(Qhot/(hFluid.cp*(cTo-cTi)))*3600;
+  const hFlKey = b.hFlKey || 'water', cFlKey = b.cFlKey || 'water';
+  const hFluidDB = getFluid(hFlKey), cFluidDB = getFluid(cFlKey);
+  const hPop = parseFloat(b.hPop) || P_REF_DB, cPop = parseFloat(b.cPop) || P_REF_DB;
+  const hTi = requireFinite(b.hTi, 'hTi'), hTo = requireFinite(b.hTo, 'hTo'), cTi = requireFinite(b.cTi, 'cTi');
+  const hF = requireFinite(b.hF, 'hF');
+  
+  // --- Input validation ---
+  if (hF <= 0) throw new Error('Hot flow must be positive');
+  if (hTo >= hTi) throw new Error('Hot outlet must be below hot inlet');
+  if (cTi >= hTo) throw new Error('Cold inlet must be below hot outlet');
+  
+  // --- Fluid properties at mean temperatures ---
+  const hTmean = (hTi + hTo) / 2;
+  const hFluid = fluidAtConditions(hFlKey, hTmean, hPop);
+  const Qhot = (hF / 3600) * hFluid.cp * (hTi - hTo);
+  
+  let cF = parseFloat(b.cF) || 0, cTo = parseFloat(b.cTo) || 0;
+  const coldMode = b.coldMode || 'flow';
+  
+  if (coldMode === 'temp') {
+    if (cTo <= cTi) throw new Error('Cold outlet must be > cold inlet');
+    if (cTo >= hTi) throw new Error('Cold outlet cannot exceed hot inlet');
+    cF = (Qhot / (hFluid.cp * (cTo - cTi))) * 3600;
   } else {
-    if (cF<=0) throw new Error('Cold flow must be positive');
-    cTo=cTi+Qhot/((cF/3600)*hFluid.cp);
-    if (cTo>=hTi) throw new Error('Cold outlet exceeds hot inlet — check flow/temps');
+    if (cF <= 0) throw new Error('Cold flow must be positive');
+    cTo = cTi + Qhot / ((cF / 3600) * hFluid.cp);
+    if (cTo >= hTi) throw new Error('Cold outlet exceeds hot inlet — check flow/temps');
   }
-  const Qcold=(cF/3600)*hFluid.cp*(cTo-cTi);
-  const balErr=Math.abs(Qhot-Qcold)/Math.max(Qhot,Qcold,0.001)*100;
-  const Q=(Qhot+Qcold)/2;
-  const cTmean=(cTi+cTo)/2;
-  const cFluid=fluidAtConditions(cFlKey,cTmean,cPop);
-  const th=requireFinite(b.th,'th')/1000, angle=parseFloat(b.angle)||45;
-  const gap=requireFinite(b.gap,'gap')/1000, pw=requireFinite(b.pw,'pw')/1000;
-  const plen=requireFinite(b.plen,'plen')/1000, phi=parseFloat(b.phi)||1.17;
-  const kw=KMAT[b.mat]||14, foul=parseFloat(b.foul)||0.0002;
-  const pdAllowH=parseFloat(b.pdAllowH)||1.5, pdAllowC=parseFloat(b.pdAllowC)||1.5;
-  const lmtdRes=calcLMTD(hTi,hTo,cTi,cTo,'counter');
-  if (!lmtdRes.lmtd) throw new Error(lmtdRes.err||'LMTD error');
-  const {lmtd,F,dT1,dT2}=lmtdRes, FLMTD=lmtd*F;
-  const Dh=2*gap/phi;
-  const Ac=pw*gap;
-  const A_plate=pw*plen;
-
-  // ─── PASS 1: Initial estimate with b.nPlates or default ────────────────
-  const nPlates_initial = Math.max(4, parseInt(b.nPlates)||20);
-  const nChanH_initial = Math.max(1, Math.floor(nPlates_initial / 2));
-  const nChanC_initial = Math.max(1, nPlates_initial - 1 - nChanH_initial);
-
-  // ─── HTC: Martin (1996) Nusselt correlation ───────────────────────────
+  
+  const Qcold = (cF / 3600) * hFluid.cp * (cTo - cTi);
+  const balErr = Math.abs(Qhot - Qcold) / Math.max(Qhot, Qcold, 0.001) * 100;
+  const Q = (Qhot + Qcold) / 2;
+  
+  const cTmean = (cTi + cTo) / 2;
+  const cFluid = fluidAtConditions(cFlKey, cTmean, cPop);
+  
+  // --- Geometry ---
+  const th = requireFinite(b.th, 'th') / 1000, angle = parseFloat(b.angle) || 45;
+  const gap = requireFinite(b.gap, 'gap') / 1000, pw = requireFinite(b.pw, 'pw') / 1000;
+  const plen = requireFinite(b.plen, 'plen') / 1000, phi = parseFloat(b.phi) || 1.17;
+  const kw = KMAT[b.mat] || 14, foul = parseFloat(b.foul) || 0.0002;
+  const pdAllowH = parseFloat(b.pdAllowH) || 1.5, pdAllowC = parseFloat(b.pdAllowC) || 1.5;
+  
+  const lmtdRes = calcLMTD(hTi, hTo, cTi, cTo, 'counter');
+  if (!lmtdRes.lmtd) throw new Error(lmtdRes.err || 'LMTD error');
+  const { lmtd, F, dT1, dT2 } = lmtdRes, FLMTD = lmtd * F;
+  
+  const Dh = 2 * gap / phi;
+  const Ac = pw * gap;
+  const A_plate = pw * plen;
+  
+  // --- HTC: Martin (1996) Nusselt correlation ---
   function htcPlate(fluid, mKgs_total, nChannels) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
-    const G=mKgs/Math.max(Ac,1e-8);
-    const Re=G*Dh/(fluid.mu*1e-3);
-    const Pr=Math.max(fluid.mu*1e-3*fluid.cp*1000/fluid.k,0.5);
-    const ang=angle;
-    let C_Nu,m_Nu;
-    if(ang<=30){C_Nu=0.228;m_Nu=0.65;}else if(ang<=45){C_Nu=0.350;m_Nu=0.68;}else if(ang<=60){C_Nu=0.479;m_Nu=0.70;}else{C_Nu=0.560;m_Nu=0.72;}
-    const Nu=C_Nu*Math.pow(Math.max(Re,10),m_Nu)*Math.pow(Pr,0.333)*phi;
-    return {h:Nu*fluid.k/Dh, Re, G, vel:mKgs/Math.max(fluid.rho*Ac,1e-8)};
+    const G = mKgs / Math.max(Ac, 1e-8);
+    const Re = G * Dh / (fluid.mu * 1e-3);
+    const Pr = Math.max(fluid.mu * 1e-3 * fluid.cp * 1000 / fluid.k, 0.5);
+    const ang = angle;
+    let C_Nu, m_Nu;
+    if (ang <= 30) { C_Nu = 0.228; m_Nu = 0.65; }
+    else if (ang <= 45) { C_Nu = 0.350; m_Nu = 0.68; }
+    else if (ang <= 60) { C_Nu = 0.479; m_Nu = 0.70; }
+    else { C_Nu = 0.560; m_Nu = 0.72; }
+    const Nu = C_Nu * Math.pow(Math.max(Re, 10), m_Nu) * Math.pow(Pr, 0.333) * phi;
+    return { h: Nu * fluid.k / Dh, Re, G, vel: mKgs / Math.max(fluid.rho * Ac, 1e-8) };
   }
   
-  // Calculate heat transfer with initial channel count
-  const hRes_initial=htcPlate(hFluid,hF/3600,nChanH_initial);
-  const cRes_initial=htcPlate(cFluid,cF/3600,nChanC_initial);
-  const hH_initial=hRes_initial.h, hC_initial=cRes_initial.h;
-  const Rwall=th/kw;
-  const U_initial=1/(1/hH_initial+1/hC_initial+Rwall+foul);
-  const A_req=Q*1000/(U_initial*FLMTD);
-
-  // ─── PASS 2: Auto-size based on A_req ───────────────────────────────────
-  const nPlates_auto = Math.max(4, Math.ceil(A_req/A_plate)+2);
-  const nPlates_final = b.nPlates ? nPlates_initial : nPlates_auto;
-  
-  // CRITICAL FIX: Recalculate channels from FINAL plate count
-  const nChanH = Math.max(1, Math.floor(nPlates_final / 2));
-  const nChanC = Math.max(1, nPlates_final - 1 - nChanH);
-
-  // Recalculate heat transfer with CORRECT channel count
-  const hRes=htcPlate(hFluid,hF/3600,nChanH);
-  const cRes=htcPlate(cFluid,cF/3600,nChanC);
-  const hH=hRes.h, hC=cRes.h;
-  const U=1/(1/hH+1/hC+Rwall+foul);
-  const U_clean=1/(1/hH+1/hC+Rwall);
-  const A_req_final=Q*1000/(U*FLMTD);
-  const A_provided=nPlates_final*A_plate;
-  const overDesign=(A_provided/A_req_final-1)*100;
-
-  // ─── CORRECTED pdPlate — Martin VDI (2010) ─────────────────────────────
+  // --- Pressure drop: Martin VDI (2010) ---
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
-    const G    = mKgs / Math.max(Ac, 1e-8);
-    const Re   = G * Dh / (fluid.mu * 1e-3);
-
+    const G = mKgs / Math.max(Ac, 1e-8);
+    const Re = G * Dh / (fluid.mu * 1e-3);
+    
     const phi_rad = angle * Math.PI / 180;
     let f0, f1;
     if (Re < 2000) {
@@ -1685,7 +1668,7 @@ function calcPlate(b) {
       f0 = Math.pow(1.8 * Math.log10(Re) - 1.5, -2);
       f1 = 39 * Math.pow(Re, -0.289);
     }
-
+    
     const a = 3.8, b = 0.18, c = 0.36;
     const cos_phi = Math.cos(phi_rad);
     const sin_phi = Math.sin(phi_rad);
@@ -1694,11 +1677,11 @@ function calcPlate(b) {
     const term2 = (1 - cos_phi) / Math.sqrt(a * f1);
     const rhs = term1 + term2;
     const f_pl = Math.pow(rhs, -2);
-
+    
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
     const dyn = fluid.rho * vel * vel / 2;
     const dP_friction = f_pl * (plen / Dh) * dyn;
-
+    
     let dP_port;
     if (portDia_m && portDia_m > 0) {
       const A_port = Math.PI * portDia_m * portDia_m / 4;
@@ -1709,32 +1692,121 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     }
-
+    
     return Math.max((dP_friction + dP_port) / 1e5, 0);
   }
+  
   const portDia_m = parseFloat(b.portDia) / 1000 || 0;
-  const dpH = pdPlate(hFluid, hF/3600, nChanH, portDia_m);
-  const dpC = pdPlate(cFluid, cF/3600, nChanC, portDia_m);
-
-  const NTU=A_req_final*U/Math.max(Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp)*1000,0.001);
-  const Cmin=Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp);
-  const eff=Cmin>0?Q/(Cmin*(hTi-cTi)):0;
-  const st=overDesign<0?'err':overDesign<5?'warn':'ok';
-  const warns=[];
-  if(FLMTD<3) warns.push('FLMTD < 3°C — very close approach');
-  if(dpH>pdAllowH) warns.push(`Hot ΔP ${dpH.toFixed(3)} bar exceeds allowable`);
-  if(dpC>pdAllowC) warns.push(`Cold ΔP ${dpC.toFixed(3)} bar exceeds allowable`);
-  if(overDesign<0) warns.push('Insufficient plate area — increase plate count');
-  if(hRes.vel>3) warns.push(`Hot velocity ${hRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
-  if(cRes.vel>3) warns.push(`Cold velocity ${cRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
+  
+  // ═══════════════════════════════════════════════════════════════════════
+  // ITERATIVE PLATE COUNT CONVERGENCE
+  // Resolves circular dependency: nPlates → nChan → h → U → A_req → nPlates
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  let nPlates, nChanH, nChanC, hRes, cRes, hH, hC, U, A_req, A_provided, overDesign;
+  let iteration = 0;
+  const MAX_ITER = 50;
+  const CONVERGENCE_TOL = 0.1; // 0.1% tolerance on overDesign
+  
+  if (b.nPlates) {
+    // User-specified plate count: single pass, no iteration needed
+    nPlates = Math.max(4, parseInt(b.nPlates));
+    nChanH = Math.max(1, Math.floor(nPlates / 2));
+    nChanC = Math.max(1, nPlates - 1 - nChanH);
+    
+    hRes = htcPlate(hFluid, hF / 3600, nChanH);
+    cRes = htcPlate(cFluid, cF / 3600, nChanC);
+    hH = hRes.h; hC = cRes.h;
+    
+    const Rwall = th / kw;
+    U = 1 / (1 / hH + 1 / hC + Rwall + foul);
+    A_req = Q * 1000 / (U * FLMTD);
+    A_provided = nPlates * A_plate;
+    overDesign = (A_provided / A_req - 1) * 100;
+    
+  } else {
+    // Auto-size: iterate until nPlates and A_req are consistent
+    // Initial guess: assume reasonable h ~ 5000 W/m²K for water-water
+    const U_guess = 3000; // Conservative initial U [W/m²K]
+    nPlates = Math.max(4, Math.ceil((Q * 1000 / (U_guess * FLMTD)) / A_plate) + 2);
+    
+    let overDesign_prev = Infinity;
+    
+    for (iteration = 1; iteration <= MAX_ITER; iteration++) {
+      // Derive channels from current plate count
+      nChanH = Math.max(1, Math.floor(nPlates / 2));
+      nChanC = Math.max(1, nPlates - 1 - nChanH);
+      
+      // Calculate heat transfer with current channel count
+      hRes = htcPlate(hFluid, hF / 3600, nChanH);
+      cRes = htcPlate(cFluid, cF / 3600, nChanC);
+      hH = hRes.h; hC = cRes.h;
+      
+      const Rwall = th / kw;
+      U = 1 / (1 / hH + 1 / hC + Rwall + foul);
+      A_req = Q * 1000 / (U * FLMTD);
+      
+      // Size plates from consistent A_req
+      const nPlates_new = Math.max(4, Math.ceil(A_req / A_plate) + 2);
+      A_provided = nPlates_new * A_plate;
+      overDesign = (A_provided / A_req - 1) * 100;
+      
+      // Check convergence
+      const delta = Math.abs(overDesign - overDesign_prev);
+      if (Math.abs(nPlates_new - nPlates) <= 1 || delta < CONVERGENCE_TOL) {
+        nPlates = nPlates_new;
+        break;
+      }
+      
+      nPlates = nPlates_new;
+      overDesign_prev = overDesign;
+    }
+    
+    // Recalculate final values with converged nPlates
+    nChanH = Math.max(1, Math.floor(nPlates / 2));
+    nChanC = Math.max(1, nPlates - 1 - nChanH);
+    hRes = htcPlate(hFluid, hF / 3600, nChanH);
+    cRes = htcPlate(cFluid, cF / 3600, nChanC);
+    hH = hRes.h; hC = cRes.h;
+    
+    const Rwall = th / kw;
+    U = 1 / (1 / hH + 1 / hC + Rwall + foul);
+    A_req = Q * 1000 / (U * FLMTD);
+    A_provided = nPlates * A_plate;
+    overDesign = (A_provided / A_req - 1) * 100;
+  }
+  
+  const Rwall = th / kw; // Recalculate for output
+  const U_clean = 1 / (1 / hH + 1 / hC + Rwall);
+  
+  // --- Pressure drop with converged channel counts ---
+  const dpH = pdPlate(hFluid, hF / 3600, nChanH, portDia_m);
+  const dpC = pdPlate(cFluid, cF / 3600, nChanC, portDia_m);
+  
+  // --- Performance metrics ---
+  const NTU = A_req * U / Math.max(Math.min((hF / 3600) * hFluidDB.cp, (cF / 3600) * cFluidDB.cp) * 1000, 0.001);
+  const Cmin = Math.min((hF / 3600) * hFluidDB.cp, (cF / 3600) * cFluidDB.cp);
+  const eff = Cmin > 0 ? Q / (Cmin * (hTi - cTi)) : 0;
+  
+  // --- Status and warnings ---
+  const st = overDesign < 0 ? 'err' : overDesign < 5 ? 'warn' : 'ok';
+  const warns = [];
+  if (FLMTD < 3) warns.push('FLMTD < 3°C — very close approach');
+  if (dpH > pdAllowH) warns.push(`Hot ΔP ${dpH.toFixed(3)} bar exceeds allowable`);
+  if (dpC > pdAllowC) warns.push(`Cold ΔP ${dpC.toFixed(3)} bar exceeds allowable`);
+  if (overDesign < 0) warns.push('Insufficient plate area — increase plate count');
+  if (hRes.vel > 3) warns.push(`Hot velocity ${hRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
+  if (cRes.vel > 3) warns.push(`Cold velocity ${cRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
   
   const minApproachDT = Math.min(hTi - cTo, hTo - cTi);
+  
   return {
-    Q,Qhot,Qcold,U,U_clean,balErr,lmtd,F,FLMTD,dT1,dT2,
-    A_req:A_req_final,A_provided,overDesign,nPlates:nPlates_final,A_plate,dpH,dpC,pdAllowH,pdAllowC,
-    hH,hC,NTU,eff,hTi,hTo,cTi,cTo,cF,
+    Q, Qhot, Qcold, U, U_clean, balErr, lmtd, F, FLMTD, dT1, dT2,
+    A_req, A_provided, overDesign, nPlates, A_plate, dpH, dpC, pdAllowH, pdAllowC,
+    hH, hC, NTU, eff, hTi, hTo, cTi, cTo, cF,
     minApproachDT,
-    hFluid,cFluid,st,warns
+    hFluid, cFluid, st, warns,
+    iterations: iteration // Debug info: how many iterations to converge
   };
 }
 // ─── AIR COOLED — IMPROVED (Robinson-Briggs j-factor + fin efficiency) ──────
