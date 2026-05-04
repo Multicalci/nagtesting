@@ -1627,6 +1627,8 @@ function calcPlate(b) {
   const nPlates_user = Math.max(4, parseInt(b.nPlates)||20);
   const nChanH = Math.max(1, Math.floor(nPlates_user / 2));
   const nChanC = Math.max(1, nPlates_user - 1 - nChanH);
+  
+  // ─── HTC: Martin (1996) Nusselt correlation for chevron plates ─────────────
   function htcPlate(fluid, mKgs_total, nChannels) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G=mKgs/Math.max(Ac,1e-8);
@@ -1638,6 +1640,7 @@ function calcPlate(b) {
     const Nu=C_Nu*Math.pow(Math.max(Re,10),m_Nu)*Math.pow(Pr,0.333)*phi;
     return {h:Nu*fluid.k/Dh, Re, G, vel:mKgs/Math.max(fluid.rho*Ac,1e-8)};
   }
+  
   const hRes=htcPlate(hFluid,hF/3600,nChanH), cRes=htcPlate(cFluid,cF/3600,nChanC);
   const hH=hRes.h, hC=cRes.h;
   const Rwall=th/kw;
@@ -1650,25 +1653,22 @@ function calcPlate(b) {
   const A_provided=nPlates_final*A_plate;
   const overDesign=(A_provided/A_req-1)*100;
 
-  // ─── CORRECTED pdPlate — Martin (1996/VDI) Darcy friction factor ─────────
-  // Based on Caleb Bell's fluids library implementation of Martin's correlation
-  // https://github.com/CalebBell/fluids/blob/master/fluids/friction.py
+  // ─── CORRECTED pdPlate — Martin VDI (2010) Darcy friction factor ─────────
+  // Source: Caleb Bell's fluids library (github.com/CalebBell/fluids)
+  // Based on Martin, H. "Heat Exchangers for HVAC." VDI Heat Atlas, 2010.
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
 
-    // Martin VDI (2010) Darcy friction factor for chevron PHE
-    // phi_rad = chevron angle in RADIANS (not the enlargement factor!)
+    // Martin VDI Darcy friction factor — uses chevron angle in RADIANS
     const phi_rad = angle * Math.PI / 180;
     
     let f0, f1;
     if (Re < 2000) {
-      // Laminar regime
       f0 = 64 / Math.max(Re, 0.1);
       f1 = 597 / Math.max(Re, 0.1) + 3.85;
     } else {
-      // Turbulent regime
       f0 = Math.pow(1.8 * Math.log10(Re) - 1.5, -2);
       f1 = 39 * Math.pow(Re, -0.289);
     }
@@ -1678,27 +1678,25 @@ function calcPlate(b) {
     const sin_phi = Math.sin(phi_rad);
     const tan_phi = Math.tan(phi_rad);
 
-    // Martin's composite friction factor formula
+    // Martin's composite formula — Darcy friction factor
     const term1 = cos_phi / Math.sqrt(b * tan_phi + c * sin_phi + f0 / cos_phi);
     const term2 = (1 - cos_phi) / Math.sqrt(a * f1);
     const rhs = term1 + term2;
-    const f_pl = Math.pow(rhs, -2);  // This is the Darcy friction factor
+    const f_pl = Math.pow(rhs, -2);
 
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
     const dyn = fluid.rho * vel * vel / 2;
 
-    // Channel friction loss — Darcy-Weisbach with STRAIGHT length (not developed)
-    // Martin correlation already accounts for corrugations via angle terms
+    // Channel friction — Darcy-Weisbach with STRAIGHT length
     const dP_friction = f_pl * (plen / Dh) * dyn;
 
-    // Port/nozzle losses — 1.4 velocity heads (0.7 inlet + 0.7 outlet)
+    // Port/nozzle losses — 1.4 velocity heads
     let dP_port;
     if (portDia_m && portDia_m > 0) {
       const A_port = Math.PI * portDia_m * portDia_m / 4;
       const v_port = mKgs_total / Math.max(fluid.rho * A_port, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     } else {
-      // Estimate port area from total channel area (removed arbitrary 0.5 factor)
       const A_port_est = Math.max(nChannels * Ac, 1e-6);
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
@@ -1719,6 +1717,11 @@ function calcPlate(b) {
   if(dpH>pdAllowH) warns.push(`Hot ΔP ${dpH.toFixed(3)} bar exceeds allowable`);
   if(dpC>pdAllowC) warns.push(`Cold ΔP ${dpC.toFixed(3)} bar exceeds allowable`);
   if(overDesign<0) warns.push('Insufficient plate area — increase plate count');
+  
+  // Velocity warnings
+  if(hRes.vel>3) warns.push(`Hot velocity ${hRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
+  if(cRes.vel>3) warns.push(`Cold velocity ${cRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
+  
   const minApproachDT = Math.min(hTi - cTo, hTo - cTi);
   return {
     Q,Qhot,Qcold,U,U_clean,balErr,lmtd,F,FLMTD,dT1,dT2,
