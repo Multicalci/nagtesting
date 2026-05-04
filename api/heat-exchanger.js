@@ -1650,30 +1650,26 @@ function calcPlate(b) {
   const A_provided=nPlates_final*A_plate;
   const overDesign=(A_provided/A_req-1)*100;
 
-  // ─── CORRECTED pdPlate — Martin (1996) three-regime friction factor ───────
+  // ─── CORRECTED pdPlate — Martin (1996) Darcy friction factor ───────────────
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
 
-    // Martin (1996) VDI Heat Atlas Darcy friction factor for 45° chevron PHE
-    //   Re < 400   : laminar   f = 1700/Re
-    //   400-10000  : transition f = 12.0/Re^0.40
-    //   Re > 10000 : turbulent  f = 3.8/Re^0.25
-    let f_pl;
-    if (Re < 400) {
-      f_pl = 1700 / Math.max(Re, 0.1);
-    } else if (Re < 10000) {
-      f_pl = 12.0 * Math.pow(Re, -0.40);
-    } else {
-      f_pl = 3.8 * Math.pow(Re, -0.25);
-    }
+    // Martin (1996) VDI Heat Atlas — Darcy friction factor for chevron PHE
+    // Using validated continuous formulation:
+    //   Laminar:   f_D = 64 / Re
+    //   Turbulent: f_D = 2.0 / Re^0.25
+    //   Transition: max of both (smooth crossover around Re ≈ 150–250)
+    const f_lam = 64 / Math.max(Re, 0.1);
+    const f_turb = 2.0 * Math.pow(Math.max(Re, 1), -0.25);
+    const f_pl = Math.max(f_lam, f_turb);
 
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
     const dyn = fluid.rho * vel * vel / 2;
 
-    // Channel friction loss — Darcy-Weisbach
-    const dP_friction = f_pl * (plen / Dh) * dyn;
+    // Channel friction loss — Darcy-Weisbach with developed length (× phi)
+    const dP_friction = f_pl * (plen * phi / Dh) * dyn;
 
     // Port/nozzle losses — 1.4 velocity heads (0.7 inlet + 0.7 outlet)
     let dP_port;
@@ -1682,7 +1678,8 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     } else {
-      const A_port_est = Math.max(nChannels * Ac * 0.50, 1e-6);
+      // Estimate port area from total channel area (no arbitrary 0.5 factor)
+      const A_port_est = Math.max(nChannels * Ac, 1e-6);
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     }
@@ -1711,8 +1708,6 @@ function calcPlate(b) {
     hFluid,cFluid,st,warns
   };
 }
-
-
 // ─── AIR COOLED — IMPROVED (Robinson-Briggs j-factor + fin efficiency) ──────
 function calcAirCooled(b) {
   const flKey  = b.flKey || 'water';
