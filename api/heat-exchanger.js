@@ -1628,7 +1628,7 @@ function calcPlate(b) {
   const nChanH = Math.max(1, Math.floor(nPlates_user / 2));
   const nChanC = Math.max(1, nPlates_user - 1 - nChanH);
   
-  // ─── HTC: Martin (1996) Nusselt correlation for chevron plates ─────────────
+  // ─── HTC: Martin (1996) Nusselt correlation ───────────────────────────────
   function htcPlate(fluid, mKgs_total, nChannels) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G=mKgs/Math.max(Ac,1e-8);
@@ -1653,15 +1653,18 @@ function calcPlate(b) {
   const A_provided=nPlates_final*A_plate;
   const overDesign=(A_provided/A_req-1)*100;
 
-  // ─── CORRECTED pdPlate — Martin VDI (2010) Darcy friction factor ─────────
-  // Source: Caleb Bell's fluids library (github.com/CalebBell/fluids)
-  // Based on Martin, H. "Heat Exchangers for HVAC." VDI Heat Atlas, 2010.
+  // ─── CORRECTED pdPlate — Martin VDI (2010) ──────────────────────────────
+  // CRITICAL FIXES APPLIED:
+  // 1. Uses actual Martin VDI composite formula (not fake 1700/12.0/3.8)
+  // 2. Returns DARCY friction factor (not Fanning)
+  // 3. Uses STRAIGHT length plen (not developed length plen*phi)
+  // 4. Dynamic pressure is ρv²/2 (standard Darcy-Weisbach)
   function pdPlate(fluid, mKgs_total, nChannels, portDia_m) {
     const mKgs = mKgs_total / Math.max(nChannels, 1);
     const G    = mKgs / Math.max(Ac, 1e-8);
     const Re   = G * Dh / (fluid.mu * 1e-3);
 
-    // Martin VDI Darcy friction factor — uses chevron angle in RADIANS
+    // Martin VDI (2010) — Darcy friction factor for chevron PHE
     const phi_rad = angle * Math.PI / 180;
     
     let f0, f1;
@@ -1678,16 +1681,15 @@ function calcPlate(b) {
     const sin_phi = Math.sin(phi_rad);
     const tan_phi = Math.tan(phi_rad);
 
-    // Martin's composite formula — Darcy friction factor
     const term1 = cos_phi / Math.sqrt(b * tan_phi + c * sin_phi + f0 / cos_phi);
     const term2 = (1 - cos_phi) / Math.sqrt(a * f1);
     const rhs = term1 + term2;
-    const f_pl = Math.pow(rhs, -2);
+    const f_pl = Math.pow(rhs, -2);  // DARCY friction factor
 
     const vel = mKgs / Math.max(fluid.rho * Ac, 1e-8);
-    const dyn = fluid.rho * vel * vel / 2;
+    const dyn = fluid.rho * vel * vel / 2;  // Pa = N/m²
 
-    // Channel friction — Darcy-Weisbach with STRAIGHT length
+    // STRAIGHT length — Martin correlation embeds corrugation effects
     const dP_friction = f_pl * (plen / Dh) * dyn;
 
     // Port/nozzle losses — 1.4 velocity heads
@@ -1701,6 +1703,9 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     }
+
+    // DEBUG: Uncomment to see intermediate values
+    // console.log(`Re=${Re.toFixed(0)}, f_D=${f_pl.toFixed(4)}, vel=${vel.toFixed(3)}m/s, dP_fric=${(dP_friction/1e5).toFixed(4)}bar, dP_port=${(dP_port/1e5).toFixed(4)}bar`);
 
     return Math.max((dP_friction + dP_port) / 1e5, 0);
   }
@@ -1717,8 +1722,6 @@ function calcPlate(b) {
   if(dpH>pdAllowH) warns.push(`Hot ΔP ${dpH.toFixed(3)} bar exceeds allowable`);
   if(dpC>pdAllowC) warns.push(`Cold ΔP ${dpC.toFixed(3)} bar exceeds allowable`);
   if(overDesign<0) warns.push('Insufficient plate area — increase plate count');
-  
-  // Velocity warnings
   if(hRes.vel>3) warns.push(`Hot velocity ${hRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
   if(cRes.vel>3) warns.push(`Cold velocity ${cRes.vel.toFixed(2)} m/s > 3 m/s (erosion risk)`);
   
