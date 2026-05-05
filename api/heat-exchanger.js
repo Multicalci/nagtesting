@@ -1801,13 +1801,18 @@ function calcPlate(b) {
   
   const minApproachDT = Math.min(hTi - cTo, hTo - cTi);
   
-  return {
+ return {
     Q, Qhot, Qcold, U, U_clean, balErr, lmtd, F, FLMTD, dT1, dT2,
     A_req, A_provided, overDesign, nPlates, A_plate, dpH, dpC, pdAllowH, pdAllowC,
     hH, hC, NTU, eff, hTi, hTo, cTi, cTo, cF,
     minApproachDT,
     hFluid, cFluid, st, warns,
-    iterations: iteration // Debug info: how many iterations to converge
+    iterations: iteration || 1,
+    nChanH, nChanC,
+    vH:  hRes.vel,
+    vC:  cRes.vel,
+    Reh: hRes.Re,
+    Rec: cRes.Re
   };
 }
 // ─── AIR COOLED — IMPROVED (Robinson-Briggs j-factor + fin efficiency) ──────
