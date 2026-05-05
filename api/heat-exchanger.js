@@ -1585,6 +1585,7 @@ function calcShellTube(b) {
     }
   };
 }
+
 function calcPlate(b) {
   const hFlKey = b.hFlKey || 'water', cFlKey = b.cFlKey || 'water';
   const hFluidDB = getFluid(hFlKey), cFluidDB = getFluid(cFlKey);
