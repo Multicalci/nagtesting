@@ -5495,7 +5495,27 @@ function renderPlateResults(r){
     <tbody>
       <tr><td class="lbl-col">Inlet Temp</td><td>${tDisp(r.hTi).toFixed(1)} ${T}</td><td>${tDisp(r.cTi).toFixed(1)} ${T}</td></tr>
       <tr><td class="lbl-col">Outlet Temp</td><td>${tDisp(r.hTo).toFixed(1)} ${T}</td><td>${tDisp(r.cTo).toFixed(1)} ${T}</td></tr>
-      <tr><td class="lbl-col">Film HTC h</td><td>${r.hH.toFixed(0)} W/m²K</td><td>${r.hC.toFixed(0)} W/m²K</td></tr>
+     <tr><td class="lbl-col">Film HTC h</td><td>${r.hH.toFixed(0)} W/m²K</td><td>${r.hC.toFixed(0)} W/m²K</td></tr>
+      <tr><td class="lbl-col">Channel Velocity</td>
+        <td style="color:${r.vH!=null&&r.vH>=0.1&&r.vH<=1.5?'var(--ok)':r.vH!=null&&r.vH<0.1?'var(--err)':'var(--warn)'}; font-weight:700">
+          ${r.vH!=null ? r.vH.toFixed(3)+' m/s' : '—'}
+          ${r.vH!=null ? (r.vH<0.1?'⚠ too low':r.vH>1.5?'⚠ high':'✓') : ''}
+        </td>
+        <td style="color:${r.vC!=null&&r.vC>=0.1&&r.vC<=1.5?'var(--ok)':r.vC!=null&&r.vC<0.1?'var(--err)':'var(--warn)'}; font-weight:700">
+          ${r.vC!=null ? r.vC.toFixed(3)+' m/s' : '—'}
+          ${r.vC!=null ? (r.vC<0.1?'⚠ too low':r.vC>1.5?'⚠ high':'✓') : ''}
+        </td>
+      </tr>
+      <tr><td class="lbl-col">Reynolds Number Re</td>
+        <td style="color:${r.Reh!=null&&r.Reh>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
+          ${r.Reh!=null ? r.Reh.toFixed(0) : '—'}
+          ${r.Reh!=null ? (r.Reh<400?'⚠ laminar':r.Reh<1000?'transitional':'✓ turbulent') : ''}
+        </td>
+        <td style="color:${r.Rec!=null&&r.Rec>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
+          ${r.Rec!=null ? r.Rec.toFixed(0) : '—'}
+          ${r.Rec!=null ? (r.Rec<400?'⚠ laminar':r.Rec<1000?'transitional':'✓ turbulent') : ''}
+        </td>
+      </tr>
       <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpH>r.pdAllowH?'var(--err)':'var(--ok)'}">${convP(r.dpH).toFixed(3)} ${Pu}</td><td style="color:${r.dpC>r.pdAllowC?'var(--err)':'var(--ok)'}">${convP(r.dpC).toFixed(3)} ${Pu}</td></tr>
     </tbody></table></div>
   ${warnHtml}`;
