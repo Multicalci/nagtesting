@@ -1538,11 +1538,17 @@ function calcMotor({ Pkw, V, PF, eff, n, phase, poles, freq, SF, start, brkRule,
   };
 }
 
-function calcXfmr({ kVA, V1, V2, PF, xLoad_pct, Pfe, Pcu, Zpct, Rpct, pfType }) {
+// ── ELECTRICAL: TRANSFORMER (FIX-ELEC-1 applied) ──────────────────────────────
+function calcXfmr({ kVA, V1, V2, PF, xLoad_pct, Pfe, Pcu, Zpct, Rpct, pfType, phase }) {
   kVA = parseFloat(kVA); V1 = parseFloat(V1); V2 = parseFloat(V2);
   PF = parseFloat(PF) || 0.8; xLoad_pct = parseFloat(xLoad_pct) || 100;
   Pfe = parseFloat(Pfe) || 1000; Pcu = parseFloat(Pcu) || 3000;
   Zpct = parseFloat(Zpct) || 4; Rpct = parseFloat(Rpct) || 1;
+
+  // FIX-ELEC-1: phase-aware line current. Defaults to 3-phase (matches the
+  // 11 kV / 415 V shipped defaults). Pass phase=1 for a single-phase unit.
+  phase = parseInt(phase) || 3;
+  const ph = phase === 3 ? Math.sqrt(3) : 1;
 
   if (!(kVA > 0 && V1 > 0 && V2 > 0)) return { error: "kVA and voltages must be > 0." };
   if (!(PF > 0 && PF <= 1)) return { error: "PF must be in (0,1]." };
@@ -1550,15 +1556,15 @@ function calcXfmr({ kVA, V1, V2, PF, xLoad_pct, Pfe, Pcu, Zpct, Rpct, pfType }) 
   const xL = xLoad_pct / 100;
   const Xpct = Math.sqrt(Math.max(0, Zpct * Zpct - Rpct * Rpct));
   const a = V1 / V2;
-  const I1 = kVA * 1000 / V1;
-  const I2 = kVA * 1000 / V2;
+  const I1 = kVA * 1000 / (ph * V1);   // was kVA*1000/V1  → missing √3 for 3-phase
+  const I2 = kVA * 1000 / (ph * V2);   // was kVA*1000/V2
   const Pout_W = xL * kVA * 1000 * PF;
   const CuL = xL * xL * Pcu;
   const eff = Pout_W > 0 ? Pout_W / (Pout_W + Pfe + CuL) * 100 : 0;
   const sinp = Math.sqrt(Math.max(0, 1 - PF * PF));
   const VR = Rpct * PF + (pfType === "lead" ? -1 : 1) * Xpct * sinp;
   const xmaxE = Math.sqrt(Pfe / Math.max(1, Pcu));
-  const Isc = I1 / (Math.max(0.01, Zpct) / 100);
+  const Isc = I1 / (Math.max(0.01, Zpct) / 100);   // inherits corrected I1
 
   return {
     a: elec_fN(a, 5), Xpct: elec_fN(Xpct, 3),
@@ -1567,8 +1573,16 @@ function calcXfmr({ kVA, V1, V2, PF, xLoad_pct, Pfe, Pcu, Zpct, Rpct, pfType }) 
     maxEff_pct_kva: elec_fN(xmaxE * 100, 2),
     Isc: elec_fN(Isc, 3),
     CuL_W: elec_fN(CuL, 1), Pout_W: elec_fN(Pout_W, 1),
+    phase,
   };
 }
+// HTML upgrade (optional, enables single-phase too) — add inside the xfmr card:
+//   <div class="field"><label>Phase System</label>
+//     <select id="xPhase" onchange="calcXfmr()">
+//       <option value="3">Three Phase (VL line-to-line)</option>
+//       <option value="1">Single Phase</option>
+//     </select></div>
+// …and in the calcXfmr() collector add:  phase: gv('xPhase'),
 
 function calcCap({ Cu, Lm, R, V, f }) {
   Cu = parseFloat(Cu); Lm = parseFloat(Lm);
@@ -2079,6 +2093,7 @@ function mech_boltFlange(inp) {
   };
 }
 
+// ── MECHANICAL: WELD (FIX-MECH-1 applied) ─────────────────────────────────────
 function mech_weld(inp) {
   let { w, wLeg_u, Lw, wL_u, wtype, config, V, V_u, N_kN, M_kNm, FEXX, e, gw, gh } = inp;
   if (wLeg_u === 'in') w  *= 25.4;
@@ -2094,7 +2109,11 @@ function mech_weld(inp) {
     if (!gw || !gh || gw <= 0 || gh <= 0) return { error: 'Enter valid group dimensions' };
     const Lw_group  = 2*(gw+gh);
     const Aw        = throat * Lw_group;
-    const Jw_unit   = (gw*gh*(gw*gw + gh*gh)) / 6;
+
+    // FIX-MECH-1: line-method unit polar moment for a 4-sided rectangle.
+    // J_w = Ix + Iy = (gw·gh²/2 + gh³/6) + (gh·gw²/2 + gw³/6) = (gw+gh)³/6  [mm³]
+    const Jw_unit   = Math.pow(gw + gh, 3) / 6;   // was gw*gh*(gw²+gh²)/6 (mm⁴, ~37× high)
+
     const r_max     = Math.sqrt(Math.pow(gw/2,2) + Math.pow(gh/2,2));
     const tau_V     = V*1000 / Aw;
     const sigma_N   = (N_kN||0)*1000 / Aw;
@@ -2118,6 +2137,7 @@ function mech_weld(inp) {
       tau_V: +tau_V.toFixed(2), tau_torsion: +tau_torsion.toFixed(2),
       combined: +combined.toFixed(2), allowable: +allowable.toFixed(1),
       util: +util.toFixed(1), Lw_group: +Lw_group.toFixed(0),
+      Jw_unit: +Jw_unit.toFixed(0),
       throatNote, torsionNote, FEXX, gw, gh,
     };
   }
