@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOQ Capital Cost Estimator — MultiCalci</title>
+<meta name="description" content="Search 1,400+ plant line items and get a tiered capital cost estimate. Quick ±30%, Budget ±20%, Detailed ±10% class.">
+<style>
+:root{--ink:#16242f;--mut:#5b6b78;--line:#dde5ea;--brand:#0a5e8a;--brand2:#0d76ac;--bg:#f4f7f9;--ok:#0c7a43;--warn:#a36a00;--err:#b0322a}
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+.wrap{max-width:880px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:1.5rem;margin:.2em 0}.sub{color:var(--mut);margin-bottom:20px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input,select,button{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+input:focus,select:focus{outline:2px solid var(--brand2);border-color:var(--brand2)}
+#q{flex:1;min-width:220px}
+button.primary{background:var(--brand);color:#fff;border-color:var(--brand);cursor:pointer;font-weight:600}
+button.primary:hover{background:var(--brand2)}
+button.primary:disabled{opacity:.55;cursor:not-allowed}
+.hits{margin-top:10px}
+.hit{padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;background:#fff}
+.hit:hover{border-color:var(--brand2);background:#f2f9fd}
+.hit .s{color:var(--mut);font-size:.85em;white-space:nowrap}
+.tiers{display:flex;gap:6px;margin:10px 0}
+.tiers button{flex:1;cursor:pointer}
+.tiers button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:10px 14px}
+legend{font-weight:600;color:var(--brand);padding:0 6px;font-size:.92em}
+.f{display:flex;flex-direction:column;gap:4px;margin:8px 0}
+.f label{font-size:.9em;color:var(--mut)}.f label b{color:var(--ink)}
+.f .u{color:var(--mut);font-size:.85em}
+.req{color:var(--err)}
+.result{border-left:5px solid var(--ok)}
+.total{font-size:1.7rem;font-weight:700}
+.range{color:var(--mut)}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.78em;font-weight:600;margin-right:6px}
+.badge.bench{background:#fff4e0;color:var(--warn)}.badge.cal{background:#e4f5ec;color:var(--ok)}
+.alert{padding:9px 12px;border-radius:8px;margin-top:8px;font-size:.92em}
+.alert.error{background:#fdecea;color:var(--err)}.alert.warning{background:#fff7e6;color:var(--warn)}.alert.info{background:#eef4fb;color:var(--brand)}
+.note{font-size:.85em;color:var(--mut)}
+.hide{display:none}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #cfd9e0;border-top-color:var(--brand);border-radius:50%;animation:r .7s linear infinite;vertical-align:-2px}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>BOQ Capital Cost Estimator</h1>
+  <div class="sub">Search a plant line item, fill the inputs, get a tiered estimate. Quick ±30% · Budget ±20% · Detailed ±10% class.</div>
+
+  <div class="card">
+    <div class="row">
+      <input id="q" type="search" placeholder="Search a line item… e.g. centrifugal pump, RCC M25, earth pit, MV cable" minlength="3" autocomplete="off">
+      <select id="stream"><option value="">All disciplines</option></select>
+      <button class="primary" id="btnSearch">Search</button>
+    </div>
+    <div class="note" style="margin-top:6px">Type at least 3 characters. Top 12 matches shown — refine your search to narrow down.</div>
+    <div class="hits" id="hits"></div>
+  </div>
+
+  <div class="card hide" id="formCard">
+    <h2 id="fTitle" style="margin:0 0 2px;font-size:1.15rem"></h2>
+    <div class="note" id="fMeta"></div>
+    <div class="tiers" id="tiers">
+      <button data-t="1" class="on">Tier 1 · Quick ±30%</button>
+      <button data-t="2">Tier 2 · Budget ±20%</button>
+      <button data-t="3">Tier 3 · Detailed ±10%</button>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <select id="region"></select>
+    </div>
+    <form id="boqForm"></form>
+    <button class="primary" id="btnCalc" style="width:100%">Calculate Estimate</button>
+  </div>
+
+  <div class="card result hide" id="resultCard">
+    <div><span class="badge" id="basisBadge"></span><span class="note" id="rConf"></span></div>
+    <div class="total" id="rTotal"></div>
+    <div class="range" id="rRange"></div>
+    <div class="note" id="rMeta"></div>
+    <div id="rAlerts"></div>
+  </div>
+
+  <div class="note">Estimates are order-of-magnitude planning figures on a USA cost basis localised by region, not vendor quotations. Rates flagged “benchmark estimate” are pending calibration.</div>
+</div>
+
+<script src="boq-client.js"></script>
+</body>
+</html>
