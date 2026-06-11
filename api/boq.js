@@ -208,8 +208,15 @@ function doCalc(body, ip) {
 
   const [itemName, item] = pickItem(s, inputs);
   if (!item) return { status: 422, json: { error: "This template has no priced line item yet." } };
-  const rateKey = Object.keys(item).find(k => k.startsWith("usd_per"));
+  // rate key tolerance: usd_per_* (gold pattern), plain usd, or any rate-ish numeric key
+  let rateKey = Object.keys(item).find(k => k.startsWith("usd_per"));
+  if (!rateKey && typeof item.usd === "number") rateKey = "usd";
+  if (!rateKey) rateKey = Object.keys(item).find(k =>
+    typeof item[k] === "number" && /usd|rate|cost|price/i.test(k) &&
+    !/range|verify|year|low|high|basis|factor/i.test(k));
   const base = Number(item[rateKey]);
+  if (!isFinite(base) || base <= 0)
+    return { status: 422, json: { error: "Pricing entry for this item is incomplete — flagged for calibration." } };
   const qty = Math.max(0, Number(coerce(inputs.quantity)) || 1);
 
   const code = (((s.cost_build_up || {}).regional_cost_index) || {}).universal_code || "CEPCI";
