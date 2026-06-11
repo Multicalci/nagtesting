@@ -158,6 +158,7 @@ function projectForm(sid) {
     stream: s.stream || "",
     item_type: s.item_type || "",
     tier_note: (s.tier_summary && s.tier_summary.note) || "",
+    spec_example: s.spec_example || null,
     fields: (s.fields || []).map(f => {
       const show_if = normalizeCond(f, s.fields || []);
       return {
@@ -216,23 +217,31 @@ function sig3(x) {
   const m = Math.pow(10, 2 - Math.floor(Math.log10(Math.abs(x))));
   return Math.round(x * m) / m;
 }
+const normName = x => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
 function pickItem(s, inputs) {
   const items = ((s.cost_build_up || {}).usd_cost_baseline || {}).items || {};
   const want = inputs.equipment_subtype || inputs.activity_subtype;
   if (Array.isArray(items)) {
     const name = e => e.sub_type || e.name || e.item || "";
-    let e = want && items.find(x => name(x).toLowerCase() === String(want).toLowerCase());
-    if (!e && want) e = items.find(x => name(x).toLowerCase().includes(String(want).toLowerCase()));
-    if (!e) e = items[0];
+    let e = null;
+    if (want) {
+      const w = String(want).toLowerCase(), nw = normName(want);
+      e = items.find(x => name(x).toLowerCase() === w)
+       || items.find(x => normName(name(x)) === nw)
+       || items.find(x => { const a = normName(name(x)); return a.length > 5 && (a.includes(nw) || nw.includes(a)); });
+    } else e = items[0]; // no selection at all -> reference item
     return e ? [name(e), e] : [null, null];
   }
-  if (want && items[want]) return [want, items[want]];
+  const keys = Object.keys(items).filter(k => typeof items[k] === "object" && items[k] !== null);
   if (want) {
-    const k = Object.keys(items).find(k => k.toLowerCase() === String(want).toLowerCase());
-    if (k) return [k, items[k]];
+    const w = String(want).toLowerCase(), nw = normName(want);
+    const k = (items[want] && want)
+      || keys.find(k => k.toLowerCase() === w)
+      || keys.find(k => normName(k) === nw)
+      || keys.find(k => { const a = normName(k); return a.length > 5 && (a.includes(nw) || nw.includes(a)); });
+    return k ? [k, items[k]] : [null, null]; // NEVER silently price a different item
   }
-  const k0 = Object.keys(items)[0];
-  return k0 ? [k0, items[k0]] : [null, null];
+  return keys.length ? [keys[0], items[keys[0]]] : [null, null];
 }
 // Equation-priced entries: { cost_equation: "C = A * (X / B)^n", primary_sizing_var: "volume (m3)" }
 // Returns { base, unitNote } sized by the user's input where given, else at reference size.
@@ -305,7 +314,7 @@ function doCalc(body, ip) {
   const sub = body.sub_region ? String(body.sub_region) : null;
 
   const [itemName, item] = pickItem(s, inputs);
-  if (!item) return { status: 422, json: { error: "This template has no priced line item yet." } };
+  if (!item) return { status: 422, json: { error: `No pricing entry found for "${inputs.equipment_subtype || inputs.activity_subtype || "this item"}" — flagged for calibration.` } };
   // rate key tolerance: usd_per_* (gold pattern), plain usd, any rate-ish numeric
   // key, or an equation-priced entry (cost_equation + sizing variable).
   let base, unitOverride = null;
@@ -341,7 +350,20 @@ function doCalc(body, ip) {
   const alerts = [];
   for (const r of s.compliance_rules || []) {
     if (evalCondition(r.condition_expr, inputs))
-      alerts.push({ severity: String(r.severity || "info").toLowerCase(), message: r.message || "" });
+      alerts.push({ severity: String(r.severity || "info").toLowerCase(), message: r.message || "",
+                    code_basis: r.engineering_basis || r.basis || null });
+  }
+  // BOQ line specification: fill the schema's spec_formula with the user's
+  // inputs and drop unfilled segments. Standards cited in the template
+  // (API/ASME/IS/IEC/...) remain in the line — that is the point.
+  let line_spec = null;
+  if (typeof s.spec_formula === "string" && s.spec_formula.includes("{")) {
+    const filled = s.spec_formula.replace(/\{(\w+)\}/g, (_, k) => {
+      const v = inputs[k]; return (v == null || v === "") ? "\u0000" : String(v);
+    });
+    line_spec = filled.split(/\s*[|;]\s*/)
+      .filter(seg => !seg.includes("\u0000") && seg.trim() !== "")
+      .join(" | ").trim() || null;
   }
 
   return { status: 200, json: {
@@ -353,6 +375,7 @@ function doCalc(body, ip) {
     unit_basis: unitOverride || item.unit || "USD/Unit",
     quantity: qty,
     confidence: tier === 1 ? "+-30% (Quick)" : tier === 2 ? "+-20% (Budget)" : "+-10% class (Detailed)",
+    line_spec,                                      // BOQ line specification w/ applicable codes
     applied_factors: applied,                       // names only — never values
     estimate_basis: item.verify ? "benchmark-estimate (pending calibration)" : (unitOverride ? "equation-priced (reference class)" : "calibrated"),
     alerts
