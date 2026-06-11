@@ -82,6 +82,55 @@ function doSearch(q, stream) {
 
 /* ====================== form projection (render-only) =====================
  * ONLY these keys leave the server. Nothing cost-bearing.                    */
+// Normalize the library's heterogeneous conditional_display shapes into one
+// safe client structure: { field: <spec_key>, op: "in"|"not_in", values: [...] }
+// Unparseable conditions fail OPEN (field always visible).
+function normalizeCond(f, fields) {
+  const c = f.conditional_display ?? f.show_if ?? f.display_condition;
+  if (c == null || c === "") return null;
+  const byId = {}; for (const x of fields) byId[x.field_id] = x.spec_key || x.field_id;
+  const fromStr = (s) => {
+    s = String(s);
+    let m = s.match(/^\s*([A-Za-z_]\w*)\s+(NOT\s+IN|IN)\s+\[([^\]]*)\]\s*$/i);
+    if (m) {
+      const vals = (m[3].match(/'[^']*'|"[^"]*"/g) || []).map(x => x.slice(1, -1));
+      return vals.length ? { field: m[1], op: /not/i.test(m[2]) ? "not_in" : "in", values: vals } : null;
+    }
+    // X === 'A' || X === "B" ... (single field, OR-chain of equalities)
+    const eqs = [...s.matchAll(/([A-Za-z_]\w*)\s*===?\s*('[^']*'|"[^"]*")/g)];
+    if (eqs.length && !/&&|\bAND\b|!==|!=/.test(s)) {
+      const fld = eqs[0][1];
+      if (eqs.every(e => e[1] === fld)) return { field: fld, op: "in", values: eqs.map(e => e[2].slice(1, -1)) };
+    }
+    // X !== 'A' && X !== 'B' (AND-chain of inequalities -> not_in)
+    const neqs = [...s.matchAll(/([A-Za-z_]\w*)\s*!==?\s*('[^']*'|"[^"]*")/g)];
+    if (neqs.length && !/\|\||\bOR\b/.test(s) && ![...s.replace(/!==?/g, "").matchAll(/===?/g)].length) {
+      const fld = neqs[0][1];
+      if (neqs.every(e => e[1] === fld)) return { field: fld, op: "not_in", values: neqs.map(e => e[2].slice(1, -1)) };
+    }
+    // X.startsWith('A') || X.startsWith('B')
+    const sw = [...s.matchAll(/([A-Za-z_]\w*)\.startsWith\(\s*('[^']*'|"[^"]*")\s*\)/g)];
+    if (sw.length && !/&&|!==|!=/.test(s) && sw.every(e => e[1] === sw[0][1]))
+      return { field: sw[0][1], op: "starts_with", values: sw.map(e => e[2].slice(1, -1)) };
+    // X.includes('A') / X.toLowerCase().includes('a') (case-insensitive contains)
+    const inc = [...s.matchAll(/([A-Za-z_]\w*)(?:\.toLowerCase\(\))?\.includes\(\s*('[^']*'|"[^"]*")\s*\)/g)];
+    if (inc.length && !/&&|!==|!=/.test(s) && inc.every(e => e[1] === inc[0][1]))
+      return { field: inc[0][1], op: "contains", values: inc.map(e => e[2].slice(1, -1).toLowerCase()) };
+    return null;
+  };
+  if (typeof c === "string") return fromStr(c);
+  if (typeof c === "object") {
+    const fld = c.field || (c.field_id && byId[c.field_id]) ||
+                (typeof c.show_when === "string" && !/\s/.test(c.show_when) ? c.show_when : null);
+    if (Array.isArray(c.show_when) && (c.field || fld)) return { field: c.field || fld, op: "in", values: c.show_when };
+    const arr = Array.isArray(c.values) ? c.values : (Array.isArray(c.value) ? c.value : null);
+    if (fld && arr) return { field: fld, op: (c.operator === "not_in" ? "not_in" : "in"), values: arr };
+    if (fld && Array.isArray(c.in)) return { field: fld, op: "in", values: c.in };
+    if (fld && Array.isArray(c.not_in)) return { field: fld, op: "not_in", values: c.not_in };
+    for (const k of ["show_if", "show_when", "condition"]) if (typeof c[k] === "string") { const r = fromStr(c[k]); if (r) return r; }
+  }
+  return null;
+}
 function projectForm(sid) {
   const s = SCHEMAS[sid];
   if (!s) return null;
@@ -91,17 +140,21 @@ function projectForm(sid) {
     stream: s.stream || "",
     item_type: s.item_type || "",
     tier_note: (s.tier_summary && s.tier_summary.note) || "",
-    fields: (s.fields || []).map(f => ({
-      field_id: f.field_id,
-      spec_key: f.spec_key || f.field_id,
-      label: f.label,
-      type: f.type,
-      unit: f.unit || null,
-      tier: f.tier || 1,
-      mandatory: !!f.mandatory,
-      section: f.section || "Inputs",
-      ...(f.type === "dropdown" ? { options: f.options || [] } : {})
-    }))
+    fields: (s.fields || []).map(f => {
+      const show_if = normalizeCond(f, s.fields || []);
+      return {
+        field_id: f.field_id,
+        spec_key: f.spec_key || f.field_id,
+        label: f.label,
+        type: f.type,
+        unit: f.unit || null,
+        tier: f.tier || 1,
+        mandatory: !!f.mandatory,
+        section: f.section || "Inputs",
+        ...(show_if ? { show_if } : {}),
+        ...(f.type === "dropdown" ? { options: f.options || [] } : {})
+      };
+    })
   };
 }
 
@@ -148,6 +201,13 @@ function sig3(x) {
 function pickItem(s, inputs) {
   const items = ((s.cost_build_up || {}).usd_cost_baseline || {}).items || {};
   const want = inputs.equipment_subtype || inputs.activity_subtype;
+  if (Array.isArray(items)) {
+    const name = e => e.sub_type || e.name || e.item || "";
+    let e = want && items.find(x => name(x).toLowerCase() === String(want).toLowerCase());
+    if (!e && want) e = items.find(x => name(x).toLowerCase().includes(String(want).toLowerCase()));
+    if (!e) e = items[0];
+    return e ? [name(e), e] : [null, null];
+  }
   if (want && items[want]) return [want, items[want]];
   if (want) {
     const k = Object.keys(items).find(k => k.toLowerCase() === String(want).toLowerCase());
@@ -155,6 +215,26 @@ function pickItem(s, inputs) {
   }
   const k0 = Object.keys(items)[0];
   return k0 ? [k0, items[k0]] : [null, null];
+}
+// Equation-priced entries: { cost_equation: "C = A * (X / B)^n", primary_sizing_var: "volume (m3)" }
+// Returns { base, unitNote } sized by the user's input where given, else at reference size.
+function equationBase(item, inputs) {
+  const eq = String(item.cost_equation || "");
+  const m = eq.match(/=\s*([0-9][0-9.eE+]*)\s*\*\s*\(\s*[A-Za-z_]\w*\s*\/\s*([0-9][0-9.]*)\s*\)\s*(?:\^|\*\*)\s*([0-9.]+)/);
+  const sizeWord = String(item.primary_sizing_var || "").split("(")[0].trim().toLowerCase().replace(/\s+/g, "_");
+  const sizeVal = Number(coerce(inputs[sizeWord]));
+  if (m) {
+    const A = Number(m[1]), B = Number(m[2]), n = Number(m[3]);
+    const x = isFinite(sizeVal) && sizeVal > 0 ? sizeVal : B;
+    return { base: A * Math.pow(x / B, n),
+      unitNote: `USD/Unit (sized by ${item.primary_sizing_var || "reference"}${isFinite(sizeVal) && sizeVal > 0 ? ` = ${sizeVal}` : " @ reference"})` };
+  }
+  const ex = item.usd_example;
+  if (ex && typeof ex === "object") {
+    const vals = Object.values(ex).map(Number).filter(isFinite).sort((a, b) => a - b);
+    if (vals.length) return { base: vals[Math.floor(vals.length / 2)], unitNote: "USD/Unit (mid-range of reference points)" };
+  }
+  return { base: NaN, unitNote: "" };
 }
 function regionalFactor(s, region, sub) {
   const cb = s.cost_build_up || {};
@@ -208,13 +288,19 @@ function doCalc(body, ip) {
 
   const [itemName, item] = pickItem(s, inputs);
   if (!item) return { status: 422, json: { error: "This template has no priced line item yet." } };
-  // rate key tolerance: usd_per_* (gold pattern), plain usd, or any rate-ish numeric key
+  // rate key tolerance: usd_per_* (gold pattern), plain usd, any rate-ish numeric
+  // key, or an equation-priced entry (cost_equation + sizing variable).
+  let base, unitOverride = null;
   let rateKey = Object.keys(item).find(k => k.startsWith("usd_per"));
   if (!rateKey && typeof item.usd === "number") rateKey = "usd";
   if (!rateKey) rateKey = Object.keys(item).find(k =>
     typeof item[k] === "number" && /usd|rate|cost|price/i.test(k) &&
     !/range|verify|year|low|high|basis|factor/i.test(k));
-  const base = Number(item[rateKey]);
+  if (rateKey) base = Number(item[rateKey]);
+  else if (item.cost_equation || item.usd_example) {
+    const e = equationBase(item, inputs);
+    base = e.base; unitOverride = e.unitNote;
+  }
   if (!isFinite(base) || base <= 0)
     return { status: 422, json: { error: "Pricing entry for this item is incomplete — flagged for calibration." } };
   const qty = Math.max(0, Number(coerce(inputs.quantity)) || 1);
@@ -246,11 +332,11 @@ function doCalc(body, ip) {
     total: sig3(total),
     range_low: sig3(total * spread[0]),
     range_high: sig3(total * spread[1]),
-    unit_basis: item.unit || "USD/Unit",
+    unit_basis: unitOverride || item.unit || "USD/Unit",
     quantity: qty,
     confidence: tier === 1 ? "+-30% (Quick)" : tier === 2 ? "+-20% (Budget)" : "+-10% class (Detailed)",
     applied_factors: applied,                       // names only — never values
-    estimate_basis: item.verify ? "benchmark-estimate (pending calibration)" : "calibrated",
+    estimate_basis: item.verify ? "benchmark-estimate (pending calibration)" : (unitOverride ? "equation-priced (reference class)" : "calibrated"),
     alerts
   } };
 }
