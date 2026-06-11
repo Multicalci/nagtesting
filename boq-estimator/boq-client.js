@@ -72,10 +72,27 @@
     $("formCard").scrollIntoView({ behavior: "smooth" });
   }
 
-  function renderFields() {
+  function currentValues() {
+    const v = {};
+    document.querySelectorAll("#boqForm [data-spec]").forEach(el => { if (el.value !== "") v[el.dataset.spec] = el.value; });
+    if (current && !v.equipment_subtype && !v.activity_subtype && current.pickedItem) v.equipment_subtype = current.pickedItem;
+    return v;
+  }
+  function visible(f, vals) {
+    if (!f.show_if) return true;
+    const { field, op, values } = f.show_if;
+    const cur = vals[field];
+    if (cur == null || cur === "") return op === "not_in"; // nothing chosen yet
+    if (op === "starts_with") return values.some(v => String(cur).startsWith(v));
+    if (op === "contains") return values.some(v => String(cur).toLowerCase().includes(v));
+    const hit = values.includes(cur);
+    return op === "in" ? hit : !hit;
+  }
+  function renderFields(keep) {
+    const vals = keep || currentValues();
     const form = $("boqForm"); form.innerHTML = "";
     const bySection = {};
-    current.fields.filter(f => (f.tier || 1) <= tier).forEach(f => {
+    current.fields.filter(f => (f.tier || 1) <= tier && visible(f, vals)).forEach(f => {
       (bySection[f.section] = bySection[f.section] || []).push(f);
     });
     for (const [sec, fields] of Object.entries(bySection)) {
@@ -99,6 +116,8 @@
         }
         el.id = f.field_id; el.dataset.spec = f.spec_key;
         if (f.mandatory) el.required = true;
+        if (vals[f.spec_key] != null) el.value = vals[f.spec_key];
+        if (f.type === "dropdown") el.addEventListener("change", () => renderFields());
         w.appendChild(el); fs.appendChild(w);
       });
       form.appendChild(fs);
