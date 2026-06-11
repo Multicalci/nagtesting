@@ -90,14 +90,14 @@ function normalizeCond(f, fields) {
   if (c == null || c === "") return null;
   const byId = {}; for (const x of fields) byId[x.field_id] = x.spec_key || x.field_id;
   const fromStr = (s) => {
-    s = String(s);
+    s = String(s).replace(/[{}]/g, "");
     let m = s.match(/^\s*([A-Za-z_]\w*)\s+(NOT\s+IN|IN)\s+\[([^\]]*)\]\s*$/i);
     if (m) {
       const vals = (m[3].match(/'[^']*'|"[^"]*"/g) || []).map(x => x.slice(1, -1));
       return vals.length ? { field: m[1], op: /not/i.test(m[2]) ? "not_in" : "in", values: vals } : null;
     }
     // X === 'A' || X === "B" ... (single field, OR-chain of equalities)
-    const eqs = [...s.matchAll(/([A-Za-z_]\w*)\s*===?\s*('[^']*'|"[^"]*")/g)];
+    const eqs = [...s.matchAll(/([A-Za-z_]\w*)\s*={1,3}\s*('[^']*'|"[^"]*")/g)];
     if (eqs.length && !/&&|\bAND\b|!==|!=/.test(s)) {
       const fld = eqs[0][1];
       if (eqs.every(e => e[1] === fld)) return { field: fld, op: "in", values: eqs.map(e => e[2].slice(1, -1)) };
@@ -121,13 +121,31 @@ function normalizeCond(f, fields) {
   if (typeof c === "string") return fromStr(c);
   if (typeof c === "object") {
     const fld = c.field || (c.field_id && byId[c.field_id]) ||
-                (typeof c.show_when === "string" && !/\s/.test(c.show_when) ? c.show_when : null);
+                (typeof c.show_when === "string" && !/\s/.test(c.show_when) ? c.show_when : null) ||
+                (typeof c.show_if === "string" && !/\s/.test(c.show_if) ? c.show_if : null);
     if (Array.isArray(c.show_when) && (c.field || fld)) return { field: c.field || fld, op: "in", values: c.show_when };
     const arr = Array.isArray(c.values) ? c.values : (Array.isArray(c.value) ? c.value : null);
     if (fld && arr) return { field: fld, op: (c.operator === "not_in" ? "not_in" : "in"), values: arr };
     if (fld && Array.isArray(c.in)) return { field: fld, op: "in", values: c.in };
     if (fld && Array.isArray(c.not_in)) return { field: fld, op: "not_in", values: c.not_in };
+    if (fld && typeof c.value === "string")
+      return { field: fld, op: (/not/i.test(c.operator || "") ? "not_in" : "in"), values: [c.value] };
+    if (Array.isArray(c.show_if_subtype)) return { field: "equipment_subtype", op: "in", values: c.show_if_subtype };
+    if (c.show_if_field && Array.isArray(c.show_if_values))
+      return { field: byId[c.show_if_field] || c.show_if_field, op: "in", values: c.show_if_values };
     for (const k of ["show_if", "show_when", "condition"]) if (typeof c[k] === "string") { const r = fromStr(c[k]); if (r) return r; }
+    for (const [k, invert] of [["show_when", false], ["hide_when", true]]) {
+      const x = c[k];
+      if (x && typeof x === "object") {
+        const xf = x.field || (x.field_id && byId[x.field_id]);
+        const xa = Array.isArray(x.values) ? x.values : (Array.isArray(x.value) ? x.value : (typeof x.value === "string" ? [x.value] : null));
+        if (xf && xa) {
+          let op = (x.operator === "not_in" || /not/i.test(x.operator || "")) ? "not_in" : "in";
+          if (invert) op = op === "in" ? "not_in" : "in";
+          return { field: xf, op, values: xa };
+        }
+      }
+    }
   }
   return null;
 }
