@@ -152,14 +152,16 @@
       $("rTotal").textContent = fmt(d.total);
       $("rRange").textContent = `Expected range: ${fmt(d.range_low)} – ${fmt(d.range_high)}`;
       $("rConf").textContent = d.confidence;
-      $("rMeta").textContent = `${d.item} · qty ${d.quantity} · basis ${d.unit_basis} · region ${d.region}` +
-        (d.applied_factors.length ? ` · adjustments applied: ${d.applied_factors.join(", ")}` : "");
+      $("rMeta").innerHTML = esc(`${d.item} · qty ${d.quantity} · basis ${d.unit_basis} · region ${d.region}` +
+        (d.applied_factors.length ? ` · adjustments applied: ${d.applied_factors.join(", ")}` : "")) +
+        (d.line_spec ? `<div style="margin-top:8px;padding:8px 10px;background:#f4f7f9;border-radius:8px;font-family:'DM Mono',Consolas,monospace;font-size:.84em;color:#16242f"><b>Line spec:</b> ${esc(d.line_spec)}</div>` : "");
       const badge = $("basisBadge");
       const bench = (d.estimate_basis || "").startsWith("benchmark");
       badge.className = "badge " + (bench ? "bench" : "cal");
       badge.textContent = bench ? "Benchmark estimate" : "Calibrated rate";
       $("rAlerts").innerHTML = (d.alerts || []).map(a =>
-        `<div class="alert ${esc(a.severity)}">${a.severity === "error" ? "⚠️" : a.severity === "warning" ? "⚠" : "ℹ"} ${esc(a.message)}</div>`).join("");
+        `<div class="alert ${esc(a.severity)}">${a.severity === "error" ? "⚠️" : a.severity === "warning" ? "⚠" : "ℹ"} ${esc(a.message)}` +
+        (a.code_basis ? `<div style="margin-top:3px;font-size:.86em;opacity:.8">Basis: ${esc(a.code_basis)}</div>` : "") + `</div>`).join("");
       $("resultCard").classList.remove("hide");
       $("resultCard").scrollIntoView({ behavior: "smooth" });
     } catch (e) { btn.disabled = false; btn.textContent = "Calculate Estimate"; alert(e.message); }
