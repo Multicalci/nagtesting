@@ -32,6 +32,10 @@
 
   // ---- search
   async function search() {
+    // a new search invalidates any previously selected item: clear stale panels
+    $("formCard").classList.add("hide");
+    $("resultCard").classList.add("hide");
+    current = null;
     const q = $("q").value.trim();
     const hits = $("hits");
     if (q.length < 3) { hits.innerHTML = '<div class="note">Type at least 3 characters.</div>'; return; }
