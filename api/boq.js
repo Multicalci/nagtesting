@@ -68,16 +68,26 @@ function doSearch(q, stream) {
   q = String(q || "").trim().toLowerCase();
   if (q.length < 3) return { error: "Type at least 3 characters to search." };
   const terms = q.split(/\s+/).filter(Boolean).slice(0, 6);
-  const hits = [];
+  const scored = [];
   for (const e of SEARCH_INDEX) {
     if (stream && e.c !== stream) continue;
     const n = e.i.toLowerCase();
-    if (terms.every(t => n.includes(t))) {
-      hits.push({ item: e.i, schema_id: e.s, stream: e.c });
-      if (hits.length >= 12) break;
+    if (!terms.every(t => n.includes(t))) continue;
+    // relevance: name starts with query > first word match > word-boundary > substring
+    let sc = 0;
+    if (n.startsWith(q)) sc += 100;
+    for (const t of terms) {
+      if (n.startsWith(t)) sc += 40;
+      else if (new RegExp("\\b" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(n)) sc += 20;
+      else sc += 5;
     }
+    sc -= Math.min(20, n.indexOf(terms[0]) / 2);   // earlier match = better
+    sc -= n.length / 50;                            // shorter names slightly favoured
+    scored.push([sc, { item: e.i, schema_id: e.s, stream: e.c }]);
   }
-  return { results: hits, capped: hits.length >= 12 };
+  scored.sort((a, b) => b[0] - a[0]);
+  const hits = scored.slice(0, 12).map(x => x[1]);
+  return { results: hits, total_matches: scored.length, capped: scored.length > 12 };
 }
 
 /* ====================== form projection (render-only) =====================
@@ -390,6 +400,11 @@ export default function handler(req, res) {
   const body = req.method === "POST" ? (typeof req.body === "object" && req.body ? req.body : safeJson(req)) : (req.query || {});
   const action = String(body.action || (req.query && req.query.action) || "").toLowerCase();
 
+  if (action === "version") {
+    let n = 0; for (const d of Object.values(SCHEMAS)) n += (d.library_items || []).length;
+    return res.status(200).json({ build: "step7-v6-sync", schemas: Object.keys(SCHEMAS).length,
+      items: n, index_entries: SEARCH_INDEX.length });
+  }
   if (!["search", "form", "calc", "streams"].includes(action))
     return res.status(400).json({ error: "Unknown action." });
   if (!gate(ip, action, action === "form" || action === "calc" ? String(body.schema_id || "") : null))
