@@ -2,9 +2,9 @@
  * /api/boq.js — Universal BOQ Calculator engine (Step 7: IP-isolated)
  * ---------------------------------------------------------------------------
  * SECURITY MODEL (do not weaken):
- *   - The 114 schemas live ONLY in api/_data/schemas.bundle.json, require()'d
- *     here. The _data folder is not a route and must NEVER be copied to
- *     /public or imported by any client script.
+ *   - The 114 schemas live ONLY in api/schemas.bundle.json, read server-side
+ *     here. Files in /api are never served as static routes and must NEVER be
+ *     copied to any public folder or imported by client scripts.
  *   - The browser receives ONLY: search hits (item name + schema id + stream),
  *     a stripped render-only form projection, and computed RESULTS.
  *   - NEVER returned by any code path: base rates, rate tables, formulas,
@@ -19,8 +19,13 @@
  */
 "use strict";
 
-const SCHEMAS = require("./_data/schemas.bundle.json");      // SERVER-ONLY
-const SEARCH_INDEX = require("./_data/search_index.json");   // names only
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// SERVER-ONLY data, loaded from the same /api directory (never a public route):
+const SCHEMAS = JSON.parse(readFileSync(path.join(__dirname, "schemas.bundle.json"), "utf8"));
+const SEARCH_INDEX = JSON.parse(readFileSync(path.join(__dirname, "search_index.json"), "utf8"));
 
 // --- Step 8 hook: live indices come from Supabase later. Base = factor 1.0 today.
 const CURRENT_INDICES = { CEPCI: 816, ENR_CCI: 14250, MARKET_RATES: 1 };
@@ -244,7 +249,7 @@ function doCalc(body, ip) {
 }
 
 /* =============================== handler ================================== */
-module.exports = (req, res) => {
+export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "?";
@@ -269,5 +274,5 @@ module.exports = (req, res) => {
     const out = doCalc(body, ip);
     return res.status(out.status).json(out.json);
   }
-};
+}
 function safeJson(req) { try { return JSON.parse(req.body || "{}"); } catch { return {}; } }
