@@ -66,6 +66,31 @@ function tierNum(t) {
   return m ? parseInt(m[1], 10) : 1;
 }
 
+// ── Measurement unit extraction ──────────────────────────────────────────────
+// Sources, in priority order: item.unit | a usd_per_<unit> key | "USD/<unit>"
+// inside the basis text. Count-type units (each/no./unit) return null because
+// "Qty: 2" is already self-explanatory for countable equipment.
+const COUNT_UNITS = new Set(['unit', 'units', 'no', 'no.', 'nos', 'each', 'ea', 'set', 'item', 'job lot']);
+const UNIT_PRETTY = { m2: 'm²', m3: 'm³', sqm: 'm²', cum: 'm³', rm: 'm (run)', mt: 'tonne', 'man-hour': 'man-hour' };
+function normalizeUnit(u) {
+  if (!u) return null;
+  u = String(u).toLowerCase().replace(/^usd\s*\/\s*/, '').replace(/^per\s+/, '').trim();
+  if (COUNT_UNITS.has(u)) return null;
+  return UNIT_PRETTY[u] || u;
+}
+function itemUnit(item) {
+  if (item.unit) return normalizeUnit(item.unit);
+  for (const k of Object.keys(item)) {
+    const m = k.match(/^usd_per_([a-z0-9_-]+)$/i);
+    if (m && m[1].toLowerCase() !== 'manhour') return normalizeUnit(m[1]);
+  }
+  if (typeof item.basis === 'string') {
+    const m = item.basis.match(/USD\s*\/\s*([A-Za-z][A-Za-z0-9.\-]{0,11})/);
+    if (m) return normalizeUnit(m[1]);
+  }
+  return null;
+}
+
 // ── Factor table resolution ──────────────────────────────────────────────────
 // Tables come in two key styles:
 //  (a) descriptive strings that exactly match dropdown option values
@@ -158,7 +183,7 @@ function relatedValues(tableName, values) {
 //   usd_per_unit | usd | usd_per_manhour (× activity_manhours)
 //   scaling: usd × (param_value / reference)^exponent
 //   fallback: midpoint of range_low / range_high
-function resolveBase(baseline, subtype, values, notes) {
+function resolveBase(baseline, subtype, values, notes, out = {}) {
   const items = baseline && baseline.items;
   let item = null;
   const want = String(subtype || '').trim().toLowerCase();
@@ -178,6 +203,7 @@ function resolveBase(baseline, subtype, values, notes) {
     notes.push(`No USD baseline found for "${subtype}" — cannot compute.`);
     return null;
   }
+  out.unit = itemUnit(item);
 
   // Shape: flat list price (e.g. PLC modules)
   if (item.usd_list_price != null) {
@@ -402,7 +428,9 @@ async function calculate(schema, body) {
   }
 
   // 2) Baseline USD (2024)
-  let base = resolveBase(cb.usd_cost_baseline, subtype, values, notes);
+  const ub = {};
+  let base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
+  const unit = ub.unit || null;
   if (base == null) return { error: 'NO_BASELINE', notes };
 
   // 3) Multiplier tables for this tier
@@ -465,7 +493,7 @@ async function calculate(schema, body) {
   const supplyUsd = base * factorProduct * qty * escalation * (supplyFactor || 1);
 
   const lines = [];
-  lines.push({ line: isActivity ? 'Labour / activity cost' : 'Equipment supply (ex-works, regionalised)', usd: round2(supplyUsd) });
+  lines.push({ line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + (unit ? ` — ${qty} ${unit}` : ''), usd: round2(supplyUsd) });
 
   const t = tierNum(tier);
   let subtotal = supplyUsd;
@@ -512,12 +540,15 @@ async function calculate(schema, body) {
     );
   }
 
-  const accuracy = `±${rf.accuracy_pct || (t === 1 ? 30 : t === 2 ? 20 : 10)}%`;
+  // Accuracy can never be better than the tier's class; regional uncertainty
+  // can only widen it. Take the worse (larger) of the two.
+  const tierAcc = t === 1 ? 30 : t === 2 ? 20 : 10;
+  const accuracy = `±${Math.max(tierAcc, Number(rf.accuracy_pct) || 0)}%`;
   return {
     template_id: schema.template_id,
     template_name: schema.template_name,
     tier, accuracy, region, sub_region: rf.sub_region || subRegion,
-    quantity: qty, spec,
+    quantity: qty, unit, spec,
     factors_applied: applied,
     lines: lines.map((l) => ({ ...l, amount: round2(l.usd * fx) })),
     total: { usd: round2(totalUsd), currency: outCur, amount: round2(totalUsd * fx), fx_rate: fx },
@@ -568,6 +599,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ count: rows.length, templates: rows });
     }
 
+    // ---- REGIONS: region/sub-region/currency options for project settings ---
+    if (action === 'regions' && req.method === 'GET') {
+      const rows = await sb('regional_factors?select=region,sub_region,currency_code,accuracy_pct&order=region,sub_region');
+      const regions = {};
+      for (const r of rows) {
+        regions[r.region] = regions[r.region] || { currency: r.currency_code, sub_regions: [] };
+        if (r.sub_region) regions[r.region].sub_regions.push(r.sub_region);
+      }
+      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+      return res.status(200).json({ regions });
+    }
+
     // ---- FIELDS: form definition for one template/tier ----------------------
     if (action === 'fields' && req.method === 'GET') {
       const id = String(req.query.template || '');
@@ -576,12 +619,21 @@ export default async function handler(req, res) {
       if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });
       const schema = rows[0].schema_json;
       const tier = String(req.query.tier || 'T1');
+      // measurement units per library item (names + units only — no rates)
+      const itemUnits = {};
+      const its = (schema.cost_build_up && schema.cost_build_up.usd_cost_baseline || {}).items;
+      if (Array.isArray(its)) {
+        its.forEach((it) => { if (it && typeof it === 'object') { const u = itemUnit(it); if (u) itemUnits[it.sub_type || it.item_name || it.name] = u; } });
+      } else if (its && typeof its === 'object') {
+        Object.entries(its).forEach(([k, it]) => { if (it && typeof it === 'object') { const u = itemUnit(it); if (u) itemUnits[k] = u; } });
+      }
       res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
       return res.status(200).json({
         template_id: id,
         template_name: schema.template_name,
         tier,
         tier_summary: schema.tier_summary || null,
+        item_units: itemUnits,
         fields: publicFields(schema, tier),
         // deliberately NOT included: library rates, formulas, multiplier
         // tables, compliance rules, cost_build_up — those never leave server.
@@ -610,7 +662,7 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     }
 
-    return res.status(400).json({ error: 'Unknown action. Use list | fields | calc.' });
+    return res.status(400).json({ error: 'Unknown action. Use list | regions | fields | calc.' });
   } catch (e) {
     console.error('BOQ API error:', e.message);
     return res.status(500).json({ error: 'Internal error. Try again shortly.', reason: String(e.message).slice(0, 160) });
