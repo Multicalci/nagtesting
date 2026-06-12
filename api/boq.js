@@ -20,23 +20,27 @@
 //   ALLOWED_ORIGIN        optional, default https://multicalci.com
 // ============================================================================
 
-const SB_URL = process.env.SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+// Normalize: tolerate a pasted REST URL or trailing slash in the env var
+const SB_URL = (process.env.SUPABASE_URL || '')
+  .replace(/\/rest\/v1\/?$/, '')
+  .replace(/\/+$/, '');
+const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DAILY_LIMIT = parseInt(process.env.BOQ_FREE_DAILY_LIMIT || '20', 10);
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://multicalci.com';
 
 // ── Supabase REST (service role) ─────────────────────────────────────────────
+// New-format keys (sb_secret_...) go in the apikey header only; the
+// Authorization: Bearer header is added only for legacy JWT keys (eyJ...),
+// because the gateway rejects non-JWT bearer tokens.
 async function sb(path, opts = {}) {
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers: {
-      apikey: SB_KEY,
-      Authorization: `Bearer ${SB_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: opts.prefer || 'return=minimal',
-      ...(opts.headers || {}),
-    },
-  });
+  const headers = {
+    apikey: SB_KEY,
+    'Content-Type': 'application/json',
+    Prefer: opts.prefer || 'return=minimal',
+    ...(opts.headers || {}),
+  };
+  if (SB_KEY.startsWith('eyJ')) headers.Authorization = `Bearer ${SB_KEY}`;
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...opts, headers });
   if (!r.ok) {
     const txt = await r.text().catch(() => r.statusText);
     throw new Error(`Supabase ${r.status}: ${txt.slice(0, 200)}`);
@@ -609,7 +613,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown action. Use list | fields | calc.' });
   } catch (e) {
     console.error('BOQ API error:', e.message);
-    return res.status(500).json({ error: 'Internal error. Try again shortly.' });
+    return res.status(500).json({ error: 'Internal error. Try again shortly.', reason: String(e.message).slice(0, 160) });
   }
 }
 
