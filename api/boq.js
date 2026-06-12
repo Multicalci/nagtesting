@@ -412,6 +412,65 @@ function tablesForTier(cb, tier) {
   return used.length ? used : all;
 }
 
+
+// ── Self-refreshing FX ────────────────────────────────────────────────────────
+// Strategy: hard-pegged Gulf currencies are constants; everything else comes
+// from currency_rates IF today's row exists, otherwise ONE live fetch
+// (frankfurter.app, ECB daily fix — free, no key) refreshes ALL currencies and
+// caches them back into currency_rates. Net effect: rates are never more than
+// ~a day behind market, with at most one external call per day across all users.
+const FX_PEGGED = { AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376 };
+const FX_LIST = 'INR,GBP,EUR,CNY,JPY,SGD,MYR,THB,IDR,PHP,KRW,CAD,AUD,CHF,VND';
+
+async function getFxRate(outCur, notes) {
+  if (FX_PEGGED[outCur]) {
+    notes.push(`FX: ${outCur} is USD-pegged at ${FX_PEGGED[outCur]}.`);
+    return FX_PEGGED[outCur];
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  let stored = null;
+  try {
+    const rows = await sb(
+      `latest_currency_rates?from_currency=eq.USD&to_currency=eq.${encodeURIComponent(outCur)}&select=rate,rate_date`
+    );
+    if (rows && rows[0]) stored = rows[0];
+  } catch { /* table empty or unreachable — try live below */ }
+
+  if (stored && String(stored.rate_date).slice(0, 10) >= today) {
+    return Number(stored.rate); // already fresh today
+  }
+
+  // Refresh ALL currencies in one live call, cache, return the one we need
+  try {
+    const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${FX_LIST}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.rates) {
+        const payload = Object.entries(d.rates).map(([cur, rate]) => ({
+          from_currency: 'USD', to_currency: cur, rate, rate_date: today, source: 'frankfurter.app (ECB)',
+        }));
+        try {
+          await sb('currency_rates?on_conflict=from_currency,to_currency,rate_date', {
+            method: 'POST',
+            prefer: 'resolution=merge-duplicates,return=minimal',
+            body: JSON.stringify(payload),
+          });
+        } catch { /* caching failed — still use the live value */ }
+        if (d.rates[outCur]) {
+          notes.push(`FX refreshed live: ECB fix of ${d.date}.`);
+          return Number(d.rates[outCur]);
+        }
+      }
+    }
+  } catch { /* offline — fall through to stale */ }
+
+  if (stored) {
+    notes.push(`FX: live refresh unavailable — using stored rate of ${String(stored.rate_date).slice(0, 10)}.`);
+    return Number(stored.rate);
+  }
+  return null;
+}
+
 // ── The calculation ──────────────────────────────────────────────────────────
 async function calculate(schema, body) {
   const cb = schema.cost_build_up || {};
@@ -513,15 +572,13 @@ async function calculate(schema, body) {
   lines.push({ line: `Contingency (${contPct}% ${rf.aace_class || ''})`.trim(), usd: round2(cont) });
   const totalUsd = subtotal + cont;
 
-  // 7) Output currency
-  const outCur = (body.currency || 'USD').toUpperCase();
+  // 7) Output currency — self-refreshing FX
+  let outCur = (body.currency || 'USD').toUpperCase();
   let fx = 1;
   if (outCur !== 'USD') {
-    try {
-      const rows = await sb(`latest_currency_rates?from_currency=eq.USD&to_currency=eq.${encodeURIComponent(outCur)}&select=rate`);
-      if (rows && rows[0]) fx = Number(rows[0].rate) || 1;
-      else { notes.push(`No FX rate for ${outCur} — totals left in USD.`); }
-    } catch { notes.push('FX lookup failed — totals in USD.'); }
+    const got = await getFxRate(outCur, notes);
+    if (got === null) { notes.push(`No FX rate available for ${outCur} — totals shown in USD.`); outCur = 'USD'; }
+    else fx = got;
   }
 
   // 8) Compliance rules — evaluated HERE, never shipped to the client
