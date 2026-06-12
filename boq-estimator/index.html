@@ -1,730 +1,575 @@
-// ============================================================================
-// api/boq.js — multicalci.com BOQ Calculator API (Vercel serverless) v1.0
-// 2026-06-11 · Works with supabase_setup_v3.sql + boq_schema_vault.sql
-//
-// Routes (single function, query param `action`):
-//   GET  /api/boq?action=list
-//        -> all 114 template metadata rows (safe; powers picker & search)
-//   GET  /api/boq?action=fields&template=SCHEMA-XXX&tier=T2
-//        -> field definitions ONLY for that template/tier (form rendering)
-//   POST /api/boq?action=calc
-//        body: { template_id, tier, region, sub_region, currency,
-//                equipment_origin, values: { spec_key: value, ... } }
-//        -> computed BOQ lines + compliance findings. No formulas leave server.
-//
-// Vercel env vars (Settings -> Environment Variables):
-//   SUPABASE_URL          https://YOURPROJECT.supabase.co
-//   SUPABASE_SERVICE_KEY  service_role key (server-only; bypasses RLS)
-//   BOQ_IP_SALT           any random string (hashes IPs for rate limiting)
-//   BOQ_FREE_DAILY_LIMIT  optional, default 20 calcs/IP/day
-//   ALLOWED_ORIGIN        optional, default https://multicalci.com
-// ============================================================================
-
-// Normalize: tolerate a pasted REST URL or trailing slash in the env var
-const SB_URL = (process.env.SUPABASE_URL || '')
-  .replace(/\/rest\/v1\/?$/, '')
-  .replace(/\/+$/, '');
-const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
-const DAILY_LIMIT = parseInt(process.env.BOQ_FREE_DAILY_LIMIT || '20', 10);
-const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://multicalci.com';
-
-// ── Supabase REST (service role) ─────────────────────────────────────────────
-// New-format keys (sb_secret_...) go in the apikey header only; the
-// Authorization: Bearer header is added only for legacy JWT keys (eyJ...),
-// because the gateway rejects non-JWT bearer tokens.
-async function sb(path, opts = {}) {
-  const headers = {
-    apikey: SB_KEY,
-    'Content-Type': 'application/json',
-    Prefer: opts.prefer || 'return=minimal',
-    ...(opts.headers || {}),
-  };
-  if (SB_KEY.startsWith('eyJ')) headers.Authorization = `Bearer ${SB_KEY}`;
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...opts, headers });
-  if (!r.ok) {
-    const txt = await r.text().catch(() => r.statusText);
-    throw new Error(`Supabase ${r.status}: ${txt.slice(0, 200)}`);
-  }
-  return r.status === 204 ? null : r.json();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>BOQ Capital Cost Estimator — 114 Templates, 8 Regions | multicalci.com</title>
+<meta name="description" content="Free BOQ capital cost estimator for process, mechanical, electrical, civil & instrumentation work. 1,400+ line items, ±30/20/10% tiers, 8 regions, live cost indices. Beta.">
+<link rel="canonical" href="https://multicalci.com/boq-estimator/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f12;--panel:#14171c;--panel2:#1a1e25;--line:#262b34;
+  --tx:#e8e6e1;--mut:#8b919c;--dim:#5a606b;
+  --gold:#f5b942;--gold-dim:rgba(245,185,66,.12);--gold-bdr:rgba(245,185,66,.35);
+  --ok:#4ade80;--warn:#fbbf24;--err:#f87171;
+  --disp:'Syne',sans-serif;--mono:'DM Mono',monospace;--body:'Inter',sans-serif;
 }
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:var(--body);font-size:14.5px;line-height:1.55;}
+a{color:var(--gold);text-decoration:none}
+.wrap{max-width:1060px;margin:0 auto;padding:0 20px}
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-const num = (v) => {
-  const n = typeof v === 'number' ? v : parseFloat(v);
-  return Number.isFinite(n) ? n : null;
+/* ── top bar ── */
+.topbar{border-bottom:1px solid var(--line);padding:14px 0;display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:var(--disp);font-weight:800;font-size:1.05rem;color:var(--tx)}
+.brand b{color:var(--gold)}
+.top-links{font-family:var(--mono);font-size:.72rem;color:var(--mut)}
+.top-links a{color:var(--mut);margin-left:18px}
+.top-links a:hover{color:var(--gold)}
+
+/* ── hero ── */
+.hero{padding:42px 0 30px}
+.beta-pill{display:inline-block;font-family:var(--mono);font-size:.62rem;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-bdr);
+  padding:3px 10px;border-radius:4px;margin-bottom:14px}
+h1{font-family:var(--disp);font-weight:800;font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.12;letter-spacing:-.01em}
+h1 em{font-style:normal;color:var(--gold)}
+.hero-sub{color:var(--mut);max-width:620px;margin-top:12px}
+.hero-stats{display:flex;gap:26px;margin-top:20px;flex-wrap:wrap;font-family:var(--mono);font-size:.72rem;color:var(--dim)}
+.hero-stats b{display:block;font-size:1.05rem;color:var(--tx);font-weight:500}
+
+/* ── stepper ── */
+.steps{display:flex;gap:0;margin:26px 0 18px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.step{flex:1;padding:10px 14px;font-family:var(--mono);font-size:.7rem;letter-spacing:.05em;color:var(--dim);
+  background:var(--panel);border-right:1px solid var(--line);cursor:default}
+.step:last-child{border-right:none}
+.step.active{color:var(--gold);background:var(--panel2)}
+.step.done{color:var(--ok)}
+
+/* ── panels ── */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin-bottom:18px}
+.panel h2{font-family:var(--disp);font-weight:700;font-size:1.05rem;margin-bottom:4px}
+.panel .p-sub{color:var(--mut);font-size:.82rem;margin-bottom:16px}
+.hidden{display:none!important}
+
+/* ── search ── */
+.search-box{position:relative}
+.search-box input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  color:var(--tx);font-family:var(--body);font-size:1rem;padding:13px 16px 13px 44px;outline:none}
+.search-box input:focus{border-color:var(--gold-bdr)}
+.search-box .mag{position:absolute;left:15px;top:13px;color:var(--dim)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.chip{font-family:var(--mono);font-size:.68rem;color:var(--mut);background:var(--panel2);
+  border:1px solid var(--line);border-radius:20px;padding:4px 12px;cursor:pointer;user-select:none}
+.chip:hover,.chip.on{color:var(--gold);border-color:var(--gold-bdr)}
+
+/* ── template list ── */
+.tlist{margin-top:14px;max-height:430px;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+.tgroup{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+  padding:9px 14px 5px;background:var(--bg);position:sticky;top:0;border-bottom:1px solid var(--line)}
+.titem{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.titem:hover{background:var(--panel2)}
+.titem:last-child{border-bottom:none}
+.titem .tname{flex:1;font-size:.9rem}
+.titem .tmeta{font-family:var(--mono);font-size:.66rem;color:var(--dim);white-space:nowrap}
+.titem .tarrow{color:var(--dim)}
+.titem:hover .tarrow{color:var(--gold)}
+.no-results{padding:26px;text-align:center;color:var(--mut);font-size:.85rem}
+
+/* ── config row ── */
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:6px}
+label.f-label{display:block;font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--mut);margin-bottom:5px}
+select,input[type=number],input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);
+  border-radius:7px;color:var(--tx);font-family:var(--body);font-size:.9rem;padding:9px 11px;outline:none}
+select:focus,input:focus{border-color:var(--gold-bdr)}
+.tier-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.tier-card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;background:var(--panel2)}
+.tier-card.on{border-color:var(--gold);background:var(--gold-dim)}
+.tier-card.off{opacity:.35;cursor:not-allowed}
+.tier-card b{font-family:var(--mono);font-size:.95rem;color:var(--gold)}
+.tier-card span{display:block;font-size:.72rem;color:var(--mut);margin-top:2px}
+
+/* ── dynamic form ── */
+.fsection{margin-top:18px}
+.fsection-h{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:12px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px}
+.ffield .hint{font-size:.7rem;color:var(--dim);margin-top:4px;line-height:1.45}
+.ffield .unit-tag{font-family:var(--mono);font-size:.64rem;color:var(--gold);margin-left:6px;text-transform:none;letter-spacing:0}
+.req{color:var(--err)}
+
+/* ── buttons ── */
+.btn{display:inline-block;border:none;border-radius:8px;font-family:var(--body);font-weight:600;
+  font-size:.92rem;padding:12px 26px;cursor:pointer}
+.btn-gold{background:var(--gold);color:#1a1405}
+.btn-gold:hover{background:#ffd065}
+.btn-ghost{background:transparent;color:var(--mut);border:1px solid var(--line)}
+.btn-ghost:hover{color:var(--tx);border-color:var(--mut)}
+.btn:disabled{opacity:.45;cursor:wait}
+.actions{display:flex;gap:12px;margin-top:22px;align-items:center;flex-wrap:wrap}
+
+/* ── COST SHEET (the signature) ── */
+.sheet{background:#101317;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sheet-head{padding:18px 22px;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.sheet-head .sh-title{font-family:var(--disp);font-weight:700;font-size:1rem}
+.sheet-head .sh-spec{font-family:var(--mono);font-size:.7rem;color:var(--mut);margin-top:5px;line-height:1.6;max-width:640px}
+.sheet-head .sh-acc{font-family:var(--mono);text-align:right;font-size:.68rem;color:var(--dim)}
+.sheet-head .sh-acc b{display:block;color:var(--gold);font-size:1rem;font-weight:500}
+.sheet table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.82rem}
+.sheet td{padding:10px 22px;border-bottom:1px solid #1b2027}
+.sheet td.amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sheet tr.total td{border-top:2px solid var(--gold-bdr);border-bottom:none;padding-top:14px;padding-bottom:16px;
+  color:var(--gold);font-weight:500;font-size:.95rem}
+.sheet-foot{padding:12px 22px 18px;font-size:.7rem;color:var(--dim);border-top:1px dashed var(--line)}
+
+/* ── compliance & notes ── */
+.findings{margin-top:16px}
+.finding{display:flex;gap:10px;padding:11px 14px;border-radius:8px;margin-bottom:8px;font-size:.82rem;line-height:1.5}
+.finding.error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25)}
+.finding.warning{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22)}
+.finding .sev{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
+.finding.error .sev{color:var(--err)}
+.finding.warning .sev{color:var(--warn)}
+.finding .basis{display:block;font-family:var(--mono);font-size:.66rem;color:var(--dim);margin-top:5px}
+details.xtra{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+details.xtra summary{font-family:var(--mono);font-size:.7rem;color:var(--mut);cursor:pointer;letter-spacing:.05em}
+details.xtra ul{margin:10px 0 4px 18px;font-size:.78rem;color:var(--mut)}
+details.xtra li{margin-bottom:5px}
+
+/* ── status / errors ── */
+.sysmsg{padding:14px 18px;border-radius:8px;font-size:.85rem;margin-bottom:16px}
+.sysmsg.err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#fca5a5}
+.sysmsg.info{background:var(--gold-dim);border:1px solid var(--gold-bdr);color:var(--gold)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+@media(max-width:640px){.tier-row{grid-template-columns:1fr}.sheet td{padding:9px 14px}.steps{flex-direction:column}.step{border-right:none;border-bottom:1px solid var(--line)}}
+@media print{
+  body{background:#fff;color:#000}
+  .topbar,.hero,.steps,#panel-pick,#panel-cfg,.actions,.top-links,.sysmsg{display:none!important}
+  .sheet,.panel{border-color:#999;background:#fff;color:#000}
+  .sheet td{border-color:#ddd}.sheet tr.total td{color:#000;border-top-color:#000}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <a class="brand" href="/">multi<b>calci</b>.com</a>
+    <div class="top-links"><a href="/#most-used">All calculators</a><a href="/contact/">Feedback</a></div>
+  </div>
+
+  <div class="hero">
+    <span class="beta-pill">Beta · free during launch</span>
+    <h1>BOQ Capital Cost <em>Estimator</em></h1>
+    <p class="hero-sub">Pick a template, answer the questions an estimator would ask, and get a tiered
+      capital cost sheet — escalated to current indices, adjusted to your region, with built-in
+      engineering compliance checks.</p>
+    <div class="hero-stats">
+      <div><b>114</b>templates</div>
+      <div><b>1,400+</b>line items</div>
+      <div><b>8</b>regions</div>
+      <div><b>±30/20/10%</b>estimate tiers</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step active" id="st1">1 · CHOOSE TEMPLATE</div>
+    <div class="step" id="st2">2 · TIER &amp; LOCATION</div>
+    <div class="step" id="st3">3 · SPECIFICATION</div>
+    <div class="step" id="st4">4 · COST SHEET</div>
+  </div>
+
+  <div id="sysmsg"></div>
+
+  <!-- ════ STEP 1: PICKER ════ -->
+  <div class="panel" id="panel-pick">
+    <h2>What are you estimating?</h2>
+    <p class="p-sub">Type anything — equipment, activity, or material. “centrifugal pump”, “switchgear”, “earthwork”, “DCS”…</p>
+    <div class="search-box">
+      <span class="mag">⌕</span>
+      <input type="text" id="q" placeholder="Search 114 templates &amp; 1,400+ items…" autocomplete="off">
+    </div>
+    <div class="chips" id="chips">
+      <span class="chip" data-f="">All</span>
+      <span class="chip" data-f="ind:pharma">💊 Pharma</span>
+      <span class="chip" data-f="ind:og">🛢️ Oil &amp; Gas</span>
+      <span class="chip" data-f="ind:power">⚡ Power</span>
+      <span class="chip" data-f="ind:water">💧 Water / ETP</span>
+      <span class="chip" data-f="ind:mfg">🏭 Manufacturing</span>
+      <span class="chip" data-f="ind:safety">🛡️ Control &amp; Safety</span>
+      <span class="chip" data-f="ind:civil">🏗️ Civil works</span>
+    </div>
+    <div class="tlist" id="tlist"><div class="no-results"><span class="spinner"></span>Loading templates…</div></div>
+  </div>
+
+  <!-- ════ STEP 2: TIER & LOCATION ════ -->
+  <div class="panel hidden" id="panel-cfg">
+    <h2 id="cfg-title">Template</h2>
+    <p class="p-sub" id="cfg-sub"></p>
+
+    <label class="f-label">Estimate tier</label>
+    <div class="tier-row" id="tier-row">
+      <div class="tier-card" data-t="T1"><b>Tier 1 · ±30%</b><span>Quick estimate — minimum inputs, AACE Class 5</span></div>
+      <div class="tier-card" data-t="T2"><b>Tier 2 · ±20%</b><span>Budget estimate — duty &amp; materials, AACE Class 4</span></div>
+      <div class="tier-card" data-t="T3"><b>Tier 3 · ±10%</b><span>Detailed — full specification, AACE Class 3</span></div>
+    </div>
+
+    <div class="cfg-grid" style="margin-top:18px">
+      <div><label class="f-label">Project region</label><select id="region"></select></div>
+      <div><label class="f-label">Sub-region</label><select id="subregion"></select></div>
+      <div><label class="f-label">Equipment origin</label>
+        <select id="origin"><option>Local</option><option>Imported</option></select></div>
+      <div><label class="f-label">Output currency</label><select id="currency"></select></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-gold" id="btn-fields">Continue to specification →</button>
+      <button class="btn btn-ghost" onclick="goPick()">← Change template</button>
+    </div>
+  </div>
+
+  <!-- ════ STEP 3: DYNAMIC FORM ════ -->
+  <div class="panel hidden" id="panel-form">
+    <h2 id="form-title">Specification</h2>
+    <p class="p-sub">Fields marked <span class="req">*</span> are required. Everything else sharpens the estimate.</p>
+    <div id="form-body"></div>
+    <div class="actions">
+      <button class="btn btn-gold" id="btn-calc">Calculate cost →</button>
+      <button class="btn btn-ghost" onclick="goCfg()">← Tier &amp; location</button>
+    </div>
+  </div>
+
+  <!-- ════ STEP 4: COST SHEET ════ -->
+  <div class="panel hidden" id="panel-result" style="background:transparent;border:none;padding:0">
+    <div class="sheet" id="sheet"></div>
+    <div class="findings" id="findings"></div>
+    <div id="extras"></div>
+    <div class="actions">
+      <button class="btn btn-gold" onclick="window.print()">Print / save as PDF</button>
+      <button class="btn btn-ghost" onclick="goForm()">← Edit specification</button>
+      <button class="btn btn-ghost" onclick="goPick()">New estimate</button>
+      <span style="font-family:var(--mono);font-size:.68rem;color:var(--dim)">Excel export &amp; multi-item projects — coming in Pro</span>
+    </div>
+  </div>
+
+  <div style="padding:30px 0 50px;font-family:var(--mono);font-size:.66rem;color:var(--dim);border-top:1px solid var(--line);margin-top:30px">
+    Estimates are budgetary (AACE Class 5–3 by tier) and exclude taxes unless stated. Import duties are indicative — verify HS codes.
+    Cost basis: USD 2024 libraries escalated by CEPCI / ENR CCI, regional factors applied. © multicalci.com
+  </div>
+</div>
+
+<script>
+'use strict';
+const API = '/api/boq';
+
+// Region / sub-region / currency data (matches Supabase regional_factors seeds)
+const REGIONS = {
+ "India":{cur:"INR",subs:["Metro (Mumbai/Delhi/Chennai/Kolkata)","Major city (Pune/Hyderabad/Bangalore)","Tier-2 city (Jaipur/Lucknow/Nagpur)","Deep interior / rural"]},
+ "USA":{cur:"USD",subs:["High cost area (CA/NY/MA)","Average (TX/IL/OH/FL)","Low cost area (Midwest/South)","Remote / Alaska / Hawaii"]},
+ "Middle East (GCC)":{cur:"USD",subs:["UAE (Dubai/Abu Dhabi)","Saudi Arabia (Jubail/Yanbu)","Saudi Arabia (Riyadh - interior)","Qatar","Kuwait / Bahrain / Oman"]},
+ "UK":{cur:"GBP",subs:["London / Southeast","Midlands / North England","Scotland / Wales","Remote / Offshore"]},
+ "Europe":{cur:"EUR",subs:["Northwest (Germany/Netherlands/Belgium)","Scandinavia (Norway/Sweden/Denmark)","South (France/Italy/Spain)","Eastern Europe (Poland/Czech/Hungary)"]},
+ "China":{cur:"CNY",subs:["Coastal (Shanghai/Shenzhen/Tianjin)","Inland major city (Beijing/Wuhan/Xian)","Western China (Chengdu/Chongqing)","Remote (Xinjiang/Tibet/Inner Mongolia)"]},
+ "Japan":{cur:"JPY",subs:["Tokyo / Yokohama area","Osaka / Nagoya / Kobe","Regional cities","Remote / Hokkaido / Islands"]},
+ "ASEAN":{cur:"USD",subs:["Singapore","Malaysia (KL/Penang/Johor)","Thailand (Bangkok/Eastern Seaboard)","Indonesia (Java)","Indonesia (Outer islands)","Vietnam (Ho Chi Minh/Hanoi)","Philippines"]}
 };
-const round2 = (v) => Math.round(v * 100) / 100;
+const CURRENCIES = ["INR","USD","EUR","GBP","AED","SAR","CNY","JPY","SGD","MYR","THB","IDR"];
+const IND = { // industry chip -> template_id prefix patterns
+ pharma:["PHARMA","CHEM","HVAC","WATER-UTIL","INST","CLEAN"],
+ og:["OG-","FIRED","PROC-","PUMP","PIPE","VESSEL","COLUMN","COMP-","SKID","FLARE"],
+ power:["POWER","TURBINE","TRANSFORMER","DG-SET","HV-","LV-","MCC","CT-VT","PROT","UPS","VFD","SWITCH"],
+ water:["ETP","WASTE","WATER","SEWER","STORM"],
+ mfg:["MFG"],
+ safety:["DCS","PLC","SIS","FGS","INST","LOCAL-CTRL","CABINET","PANEL"],
+ civil:["BLDG","CONCRETE","EARTH","MASON","PLASTER","FLOOR","ROOF","ROAD","FENC","DOOR","STRUCT","IND-CONST"]
+};
 
-async function sha256Hex(s) {
-  const data = new TextEncoder().encode(s);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+let META = [], picked = null, tier = 'T1', FIELDS = [], ITEM_UNITS = {}, lastResult = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function tierNum(t) {
-  const m = String(t || 'T1').toUpperCase().match(/([123])/);
-  return m ? parseInt(m[1], 10) : 1;
-}
-
-// ── Measurement unit extraction ──────────────────────────────────────────────
-// Sources, in priority order: item.unit | a usd_per_<unit> key | "USD/<unit>"
-// inside the basis text. Count-type units (each/no./unit) return null because
-// "Qty: 2" is already self-explanatory for countable equipment.
-const COUNT_UNITS = new Set(['unit', 'units', 'no', 'no.', 'nos', 'each', 'ea', 'set', 'item', 'job lot']);
-const UNIT_PRETTY = { m2: 'm²', m3: 'm³', sqm: 'm²', cum: 'm³', rm: 'm (run)', mt: 'tonne', 'man-hour': 'man-hour' };
-function normalizeUnit(u) {
-  if (!u) return null;
-  u = String(u).toLowerCase().replace(/^usd\s*\/\s*/, '').replace(/^per\s+/, '').trim();
-  if (COUNT_UNITS.has(u)) return null;
-  return UNIT_PRETTY[u] || u;
-}
-function itemUnit(item) {
-  if (item.unit) return normalizeUnit(item.unit);
-  for (const k of Object.keys(item)) {
-    const m = k.match(/^usd_per_([a-z0-9_-]+)$/i);
-    if (m && m[1].toLowerCase() !== 'manhour') return normalizeUnit(m[1]);
-  }
-  if (typeof item.basis === 'string') {
-    const m = item.basis.match(/USD\s*\/\s*([A-Za-z][A-Za-z0-9.\-]{0,11})/);
-    if (m) return normalizeUnit(m[1]);
-  }
-  return null;
-}
-
-// ── Factor table resolution ──────────────────────────────────────────────────
-// Tables come in two key styles:
-//  (a) descriptive strings that exactly match dropdown option values
-//  (b) range-encoded keys for numeric inputs:
-//      lte_120_c | 120_to_200_c | gt_350_c | lte_20_barg_ASME150 | 50_to_100_barg_ASME600
-function rangeKeyMatch(key, value) {
-  const k = key.toLowerCase();
-  let m = k.match(/^lte?_(\d+(?:\.\d+)?)/);
-  if (m) return value <= parseFloat(m[1]);
-  m = k.match(/^gte?_(\d+(?:\.\d+)?)/);
-  if (m) return value >= parseFloat(m[1]);
-  m = k.match(/^gt_(\d+(?:\.\d+)?)/);
-  if (m) return value > parseFloat(m[1]);
-  m = k.match(/^lt_(\d+(?:\.\d+)?)/);
-  if (m) return value < parseFloat(m[1]);
-  m = k.match(/^(\d+(?:\.\d+)?)_to_(\d+(?:\.\d+)?)/);
-  if (m) return value > parseFloat(m[1]) && value <= parseFloat(m[2]);
-  return false;
-}
-
-function resolveFactor(table, fieldValues) {
-  // Returns { factor, matchedKey, source } or null if nothing in this table applies.
-  const entries = Object.entries(table).filter(
-    ([k, v]) => k !== 'note' && typeof v === 'number'
-  );
-  if (!entries.length) return null;
-
-  const isRangeTable = entries.every(([k]) => /^(lte?|gte?|gt|lt)_\d|^\d+(?:\.\d+)?_to_\d/.test(k));
-
-  if (isRangeTable) {
-    for (const v of Object.values(fieldValues)) {
-      const n = num(v);
-      if (n === null) continue;
-      for (const [k, f] of entries) {
-        if (rangeKeyMatch(k, n)) return { factor: f, matchedKey: k, source: String(v) };
-      }
-    }
-    return null;
-  }
-  // Descriptive table: exact match against any provided string value
-  for (const v of Object.values(fieldValues)) {
-    if (typeof v !== 'string' || !v) continue;
-    for (const [k, f] of entries) {
-      if (k === v) return { factor: f, matchedKey: k, source: v };
-    }
-  }
-  // Tolerant fallback: case-insensitive prefix match (handles minor UI drift)
-  for (const v of Object.values(fieldValues)) {
-    if (typeof v !== 'string' || v.length < 4) continue;
-    const lv = v.toLowerCase();
-    for (const [k, f] of entries) {
-      const lk = k.toLowerCase();
-      if (lk.startsWith(lv) || lv.startsWith(lk)) return { factor: f, matchedKey: k, source: v };
-    }
-  }
-  return null;
-}
-
-// Range tables only apply to the field they describe. To avoid a pressure value
-// matching a temperature table, prefer values whose spec_key relates to the
-// table name; fall back to any value only if nothing related is provided.
-function relatedValues(tableName, values) {
-  const hints = {
-    pressure: ['pressure'],
-    temp: ['temp'],
-    stage: ['stage'],
-    power: ['power', 'kw'],
-    head: ['head'],
-    flow: ['flow'],
-    voltage: ['voltage', 'kv'],
-    size: ['size', 'dn', 'dia'],
-    thickness: ['thick'],
-    capacity: ['capacity', 'duty'],
-  };
-  const tn = tableName.toLowerCase();
-  for (const [group, keys] of Object.entries(hints)) {
-    if (tn.includes(group)) {
-      const sub = {};
-      for (const [k, v] of Object.entries(values)) {
-        if (keys.some((h) => k.toLowerCase().includes(h))) sub[k] = v;
-      }
-      if (Object.keys(sub).length) return sub;
-    }
-  }
-  return values;
-}
-
-// ── Baseline cost resolution ────────────────────────────────────────────────
-// Item shapes seen across the 114 schemas (in priority order):
-//   usd_per_unit | usd | usd_per_manhour (× activity_manhours)
-//   scaling: usd × (param_value / reference)^exponent
-//   fallback: midpoint of range_low / range_high
-function resolveBase(baseline, subtype, values, notes, out = {}) {
-  const items = baseline && baseline.items;
-  let item = null;
-  const want = String(subtype || '').trim().toLowerCase();
-  if (Array.isArray(items)) {
-    // list-form library: entries identified by sub_type / item_name / name
-    item =
-      items.find((it) => String(it.sub_type || it.item_name || it.name || '').trim().toLowerCase() === want) || null;
-  } else if (items) {
-    item = items[subtype] || null;
-    if (!item) {
-      for (const [k, v] of Object.entries(items)) {
-        if (k.trim().toLowerCase() === want) { item = v; break; }
-      }
-    }
-  }
-  if (!item || typeof item !== 'object') {
-    notes.push(`No USD baseline found for "${subtype}" — cannot compute.`);
-    return null;
-  }
-  out.unit = itemUnit(item);
-
-  // Shape: flat list price (e.g. PLC modules)
-  if (item.usd_list_price != null) {
-    return item.usd_list_price;
-  }
-
-  // Shape: unit-rate keys like usd_per_m2 / usd_per_m / usd_per_tonne / usd_per_kg
-  for (const [k, v] of Object.entries(item)) {
-    const m = k.match(/^usd_per_([a-z0-9]+)$/i);
-    if (m && typeof v === 'number' && m[1].toLowerCase() !== 'manhour') {
-      const unit = m[1];
-      // quantity drivers commonly used by civil/piping unit-rate schemas
-      const qv =
-        num(values.area) ?? num(values.length) ?? num(values.weight) ??
-        num(values.volume) ?? num(values.measured_quantity) ?? null;
-      if (qv !== null) {
-        notes.push(`Unit rate: ${v} USD/${unit} × ${qv} ${unit}.`);
-        return v * qv;
-      }
-      notes.push(`Unit rate ${v} USD/${unit} — multiply by your measured quantity (the Quantity field is treated as ${unit}).`);
-      return v; // per-unit; quantity multiplier handles the rest
-    }
-  }
-
-  // Shape: cost equation "C = A * (P / R)^E" (e.g. turbines, generators)
-  if (typeof item.cost_equation === 'string') {
-    const m = item.cost_equation.match(
-      /=\s*([\d.eE+]+)\s*\*\s*\(\s*\w+\s*\/\s*([\d.]+)\s*\)\s*\^\s*([\d.]+)/
-    );
-    if (m) {
-      const A = parseFloat(m[1]), R = parseFloat(m[2]), E = parseFloat(m[3]);
-      const basis = String(item.sizing_basis || '').toLowerCase();
-      let pv = null;
-      for (const [k, v] of Object.entries(values)) {
-        const lk = k.toLowerCase();
-        if (['mw','power','output','capacity','rating','duty','sizing'].some((h) => lk.includes(h) || basis.includes(h) && lk.includes(h.slice(0,4)))) {
-          const n = num(v); if (n !== null) { pv = n; break; }
-        }
-      }
-      if (pv === null) pv = num(values.sizing_value);
-      if (pv !== null) {
-        if (item.valid_range_min_MW != null && pv < item.valid_range_min_MW) notes.push(`Sizing ${pv} below equation valid range — extrapolated.`);
-        if (item.valid_range_max_MW != null && pv > item.valid_range_max_MW) notes.push(`Sizing ${pv} above equation valid range — extrapolated.`);
-        notes.push(`Cost equation: ${A} × (${pv}/${R})^${E} (${item.sizing_basis || 'sizing basis'}).`);
-        return A * Math.pow(pv / R, E);
-      }
-      notes.push(`Provide ${item.sizing_basis || 'the sizing parameter'} to evaluate the cost equation — reference point used.`);
-      return A; // value at reference size as a fallback
-    }
-  }
-
-  // Shape: per-size rate maps (e.g. rates_per_joint_usd keyed by DN)
-  for (const [k, v] of Object.entries(item)) {
-    if (!/rate|usd_per|price_per/i.test(k) || typeof v !== 'object' || v === null) continue;
-    const entries = Object.entries(v).filter(([, x]) => typeof x === 'number');
-    if (!entries.length) continue;
-    for (const val of Object.values(values)) {
-      if (typeof val !== 'string' || !val) continue;
-      const hit =
-        entries.find(([rk]) => rk === val) ||
-        entries.find(([rk]) => rk.toLowerCase().startsWith(val.toLowerCase()) || val.toLowerCase().startsWith(rk.toLowerCase()));
-      if (hit) {
-        notes.push(`Rate basis: ${k} → "${hit[0]}" = ${hit[1]} USD.`);
-        return hit[1];
-      }
-    }
-    notes.push(`Select a size option to price from ${k} — smallest size used as placeholder.`);
-    return entries[0][1];
-  }
-
-  // Activity (man-hour) items
-  if (item.usd_per_manhour != null) {
-    const mh = num(values.activity_manhours) || num(values.manhours) || num(values.man_hours);
-    if (mh) {
-      notes.push(`Labour basis: ${item.usd_per_manhour} USD/man-hour × ${mh} man-hours.`);
-      return item.usd_per_manhour * mh;
-    }
-    if (item.usd == null && item.usd_per_unit == null) {
-      notes.push('Activity item: provide man-hours (activity_manhours) for labour-based pricing.');
-      return null;
-    }
-  }
-
-  let base = item.usd_per_unit != null ? item.usd_per_unit : item.usd;
-
-  // Parametric scaling (e.g. BFP: usd × (motor_kW / reference_kW)^0.7)
-  if (item.scaling_parameter && item.scaling_exponent && base != null) {
-    const ref =
-      item.reference_power_kW || item.reference_value || item.reference || null;
-    // find the user value: match scaling_parameter against provided spec keys
-    const wanted = item.scaling_parameter.toLowerCase().replace(/_kw$/, '');
-    let pv = null;
-    for (const [k, v] of Object.entries(values)) {
-      if (k.toLowerCase().includes(wanted) || wanted.includes(k.toLowerCase())) {
-        pv = num(v);
-        if (pv != null) break;
-      }
-    }
-    if (pv == null) pv = num(values.motor_power);
-    if (pv != null && ref) {
-      base = base * Math.pow(pv / ref, item.scaling_exponent);
-      notes.push(
-        `Parametric scaling: (${pv}/${ref})^${item.scaling_exponent} applied to base.`
-      );
-    } else {
-      notes.push('Scaling parameter value not provided — reference base used unscaled.');
-    }
-  }
-
-  if (base == null && item.range_low != null && item.range_high != null) {
-    base = (item.range_low + item.range_high) / 2;
-    notes.push('Baseline taken as midpoint of published range (no point estimate in library).');
-  }
-  if (base == null) {
-    notes.push(`Baseline for "${subtype}" has no usable rate — cannot compute.`);
-    return null;
-  }
-  if (item.verify) notes.push('Baseline flagged verify=true: public-benchmark estimate pending calibration.');
-  return base;
-}
-
-// ── Compliance mini-language evaluator (NO eval) ─────────────────────────────
-// Handles: a == 'x' | a != 'x' | a < 5 | a >= 5 | 'x' IN a | !'x' IN a |
-//          bare truthiness | clauses joined by AND / OR. Parse failure => skip.
-function evalCondition(expr, values) {
-  try {
-    const orParts = expr.split(/\s+OR\s+/i);
-    return orParts.some((part) =>
-      part.split(/\s+AND\s+/i).every((clause) => evalClause(clause.trim(), values))
-    );
-  } catch {
-    return false; // fail-safe: a rule we can't parse never fires
+function sysmsg(html, cls){ $('sysmsg').innerHTML = html ? `<div class="sysmsg ${cls||'info'}">${html}</div>` : ''; }
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const el = $('st'+i);
+    el.className = 'step' + (i<n ? ' done' : i===n ? ' active' : '');
   }
 }
-function literal(tok, values) {
-  tok = tok.trim();
-  const q = tok.match(/^'(.*)'$|^"(.*)"$/s);
-  if (q) return q[1] !== undefined ? q[1] : q[2];
-  const n = num(tok);
-  if (n !== null && /^[\d.+-]+$/.test(tok)) return n;
-  return values[tok]; // bare identifier -> field value
+function show(panel){
+  ['panel-pick','panel-cfg','panel-form','panel-result'].forEach(p => $(p).classList.add('hidden'));
+  $(panel).classList.remove('hidden');
+  window.scrollTo({top:$('sysmsg').offsetTop - 80, behavior:'smooth'});
 }
-function evalClause(clause, values) {
-  let m = clause.match(/^!\s*(.+?)\s+IN\s+(.+)$/i);
-  if (m) return !inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s+NOT\s+IN\s+(.+)$/i);
-  if (m) return !inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s+IN\s+(.+)$/i);
-  if (m) return inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
-  if (m) {
-    const a = literal(m[1], values);
-    const b = literal(m[3], values);
-    if (a === undefined || a === null || a === '') return false;
-    const an = num(a), bn = num(b);
-    const bothNum = an !== null && bn !== null && typeof b !== 'string';
-    switch (m[2]) {
-      case '==': return bothNum ? an === bn : String(a) === String(b);
-      case '!=': return bothNum ? an !== bn : String(a) !== String(b);
-      case '>':  return an !== null && bn !== null && an > bn;
-      case '<':  return an !== null && bn !== null && an < bn;
-      case '>=': return an !== null && bn !== null && an >= bn;
-      case '<=': return an !== null && bn !== null && an <= bn;
-    }
+function goPick(){ setStep(1); show('panel-pick'); }
+function goCfg(){ setStep(2); show('panel-cfg'); }
+function goForm(){ setStep(3); show('panel-form'); }
+
+// ── STEP 1: load + render picker ─────────────────────────────────────────────
+async function loadMeta(){
+  try{
+    const r = await fetch(API + '?action=list');
+    const d = await r.json();
+    if(!r.ok || !d.templates) throw new Error(d.reason || d.error || 'API unavailable');
+    META = d.templates;
+    renderList();
+  }catch(e){
+    $('tlist').innerHTML = `<div class="no-results">Couldn’t load templates (${esc(e.message)}).<br>
+      Refresh the page — if it persists, the service is being updated.</div>`;
   }
-  const v = literal(clause, values); // bare truthiness
-  return v !== undefined && v !== null && v !== '' && v !== false && v !== 0;
 }
-function inTest(needleTok, hayTok, values) {
-  const needle = literal(needleTok, values);
-  const hay = literal(hayTok, values);
-  if (needle == null || hay == null) return false;
-  if (Array.isArray(hay)) return hay.map(String).includes(String(needle));
-  return String(hay).toLowerCase().includes(String(needle).toLowerCase());
+let activeChip = '';
+function matches(t, q){
+  if(activeChip.startsWith('ind:')){
+    const pats = IND[activeChip.slice(4)] || [];
+    if(!pats.some(p => t.template_id.includes(p))) return false;
+  }
+  if(!q) return true;
+  const hay = (t.template_id+' '+t.template_name+' '+t.keywords).toLowerCase();
+  return q.toLowerCase().split(/\s+/).every(w => hay.includes(w));
 }
-
-// ── Field filtering for the fields endpoint ──────────────────────────────────
-const SAFE_FIELD_KEYS = [
-  'field_id','label','section','section_order','field_order','type','unit','unit_us',
-  'factor_si_to_us','is_temperature','mandatory','options','default','hint','min','max',
-  'min_us','max_us','conditional_display','tier','spec_key',
-];
-function publicFields(schema, tier) {
-  const t = tierNum(tier);
-  return (schema.fields || [])
-    .filter((f) => (f.tier || 1) <= t)
-    .map((f) => Object.fromEntries(SAFE_FIELD_KEYS.map((k) => [k, f[k] ?? null])))
-    .sort((a, b) => (a.section_order - b.section_order) || (a.field_order - b.field_order));
-}
-
-// ── Tier-aware multiplier selection ──────────────────────────────────────────
-// Apply only the factor tables the tier formula mentions (fuzzy name match);
-// if the formula text is missing/unparseable, T1 applies all descriptive
-// tables conservatively.
-function tablesForTier(cb, tier) {
-  const all = Object.entries(cb.cost_multiplier_tables || {});
-  if (!all.length) return [];
-  const t = tierNum(tier);
-  const fml =
-    t === 1 ? cb.tier_1_formula : t === 2 ? cb.tier_2_formula : cb.full_formula;
-  if (typeof fml !== 'string' || !fml) return all;
-  const used = all.filter(([name]) => {
-    const stem = name.toLowerCase().replace(/_factor$/, '').split('_')[0];
-    return fml.toLowerCase().includes(stem);
-  });
-  return used.length ? used : all;
-}
-
-
-// ── Self-refreshing FX ────────────────────────────────────────────────────────
-// Strategy: hard-pegged Gulf currencies are constants; everything else comes
-// from currency_rates IF today's row exists, otherwise ONE live fetch
-// (frankfurter.app, ECB daily fix — free, no key) refreshes ALL currencies and
-// caches them back into currency_rates. Net effect: rates are never more than
-// ~a day behind market, with at most one external call per day across all users.
-const FX_PEGGED = { AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376 };
-const FX_LIST = 'INR,GBP,EUR,CNY,JPY,SGD,MYR,THB,IDR,PHP,KRW,CAD,AUD,CHF,VND';
-
-async function getFxRate(outCur, notes) {
-  if (FX_PEGGED[outCur]) {
-    notes.push(`FX: ${outCur} is USD-pegged at ${FX_PEGGED[outCur]}.`);
-    return FX_PEGGED[outCur];
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  let stored = null;
-  try {
-    const rows = await sb(
-      `latest_currency_rates?from_currency=eq.USD&to_currency=eq.${encodeURIComponent(outCur)}&select=rate,rate_date`
-    );
-    if (rows && rows[0]) stored = rows[0];
-  } catch { /* table empty or unreachable — try live below */ }
-
-  if (stored && String(stored.rate_date).slice(0, 10) >= today) {
-    return Number(stored.rate); // already fresh today
-  }
-
-  // Refresh ALL currencies in one live call, cache, return the one we need
-  try {
-    const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${FX_LIST}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d && d.rates) {
-        const payload = Object.entries(d.rates).map(([cur, rate]) => ({
-          from_currency: 'USD', to_currency: cur, rate, rate_date: today, source: 'frankfurter.app (ECB)',
-        }));
-        try {
-          await sb('currency_rates?on_conflict=from_currency,to_currency,rate_date', {
-            method: 'POST',
-            prefer: 'resolution=merge-duplicates,return=minimal',
-            body: JSON.stringify(payload),
-          });
-        } catch { /* caching failed — still use the live value */ }
-        if (d.rates[outCur]) {
-          notes.push(`FX refreshed live: ECB fix of ${d.date}.`);
-          return Number(d.rates[outCur]);
-        }
-      }
-    }
-  } catch { /* offline — fall through to stale */ }
-
-  if (stored) {
-    notes.push(`FX: live refresh unavailable — using stored rate of ${String(stored.rate_date).slice(0, 10)}.`);
-    return Number(stored.rate);
-  }
-  return null;
-}
-
-// ── The calculation ──────────────────────────────────────────────────────────
-async function calculate(schema, body) {
-  const cb = schema.cost_build_up || {};
-  const values = body.values || {};
-  const tier = body.tier || 'T1';
-  const notes = [];
-  const qty = num(values.quantity) || 1;
-
-  // 1) Subtype: explicit, or the first dropdown field's value
-  let subtype = values.equipment_subtype;
-  if (!subtype) {
-    const dd = (schema.fields || []).find((f) => f.type === 'dropdown' && f.spec_key);
-    subtype = dd ? values[dd.spec_key] : null;
-  }
-
-  // 2) Baseline USD (2024)
-  const ub = {};
-  let base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
-  const unit = ub.unit || null;
-  if (base == null) return { error: 'NO_BASELINE', notes };
-
-  // 3) Multiplier tables for this tier
-  const applied = [];
-  let factorProduct = 1;
-  for (const [name, table] of tablesForTier(cb, tier)) {
-    if (typeof table !== 'object') continue;
-    const hit = resolveFactor(table, relatedValues(name, values));
-    if (hit) {
-      factorProduct *= hit.factor;
-      applied.push({ table: name, matched: hit.matchedKey, factor: hit.factor });
-    }
-  }
-
-  // 4) Escalation from Supabase view (current index ÷ 2024 schema base)
-  let escalation = 1;
-  try {
-    const rows = await sb(
-      `template_index_resolution?template_id=eq.${encodeURIComponent(schema.template_id)}&select=escalation_factor,universal_code`
-    );
-    if (rows && rows[0]) {
-      escalation = Number(rows[0].escalation_factor) || 1;
-      notes.push(`Escalation ×${escalation.toFixed(4)} (${rows[0].universal_code} vs 2024 base).`);
-    }
-  } catch (e) {
-    notes.push('Escalation lookup failed — using ×1.0 (2024 basis).');
-  }
-
-  // 5) Regional factors + duty from Supabase
-  const region = body.region || 'India';
-  const subRegion = body.sub_region || null;
-  let rf = { equipment_factor: 1, labour_factor: 1, civil_factor: 1, inland_freight_pct: 0, contingency_pct: 10, accuracy_pct: 25, aace_class: 'Class 4', currency_code: 'USD' };
-  try {
-    let q = `regional_factors?region=eq.${encodeURIComponent(region)}&select=*`;
-    if (subRegion) q += `&sub_region=eq.${encodeURIComponent(subRegion)}`;
-    const rows = await sb(q);
-    if (rows && rows[0]) rf = rows[0];
-    else notes.push(`Region "${region}" not found — world-average factors (×1.0) used.`);
-  } catch { notes.push('Regional factor lookup failed — ×1.0 used.'); }
-
-  let dutyPct = 0;
-  if ((body.equipment_origin || 'Local') === 'Imported') {
-    const dutyCat =
-      (cb.regional_factors && cb.regional_factors.equipment_duty_category) || 'Process equipment';
-    try {
-      const rows = await sb(
-        `import_duties?region=eq.${encodeURIComponent(region)}&equipment_category=eq.${encodeURIComponent(dutyCat)}&select=total_landed_adder_pct,indicative_duty_pct`
-      );
-      if (rows && rows[0]) {
-        dutyPct = Number(rows[0].total_landed_adder_pct ?? rows[0].indicative_duty_pct) || 0;
-        notes.push(`Import duty applied: ${dutyPct}% landed adder (${dutyCat}, ${region}). Indicative — verify HS code.`);
-      }
-    } catch { /* duty stays 0 */ }
-  }
-
-  // 6) Build lines (USD first)
-  const adders = cb.adders || {};
-  const isActivity = notes.some((n) => n.startsWith('Labour basis'));
-  const supplyFactor = isActivity ? Number(rf.labour_factor) : Number(rf.equipment_factor);
-  const supplyUsd = base * factorProduct * qty * escalation * (supplyFactor || 1);
-
-  const lines = [];
-  lines.push({ line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + (unit ? ` — ${qty} ${unit}` : ''), usd: round2(supplyUsd) });
-
-  const t = tierNum(tier);
-  let subtotal = supplyUsd;
-  if (!isActivity) {
-    const freight = supplyUsd * ((Number(adders.freight_insurance) || 0) + (Number(rf.inland_freight_pct) || 0) / 100);
-    if (freight) { lines.push({ line: 'Freight, insurance & inland transport', usd: round2(freight) }); subtotal += freight; }
-    if (dutyPct) {
-      const duty = supplyUsd * (dutyPct / 100);
-      lines.push({ line: 'Import duty & landed costs (indicative)', usd: round2(duty) });
-      subtotal += duty;
-    }
-    const erect = supplyUsd * (Number(adders.erection_installation) || 0) * (Number(rf.labour_factor) || 1);
-    if (erect) { lines.push({ line: 'Erection & installation (regional labour)', usd: round2(erect) }); subtotal += erect; }
-  }
-  const contPct = Number(rf.contingency_pct ?? (Number(adders.contingency) || 0.1) * 100);
-  const cont = subtotal * (contPct / 100);
-  lines.push({ line: `Contingency (${contPct}% ${rf.aace_class || ''})`.trim(), usd: round2(cont) });
-  const totalUsd = subtotal + cont;
-
-  // 7) Output currency — self-refreshing FX
-  let outCur = (body.currency || 'USD').toUpperCase();
-  let fx = 1;
-  if (outCur !== 'USD') {
-    const got = await getFxRate(outCur, notes);
-    if (got === null) { notes.push(`No FX rate available for ${outCur} — totals shown in USD.`); outCur = 'USD'; }
-    else fx = got;
-  }
-
-  // 8) Compliance rules — evaluated HERE, never shipped to the client
-  const findings = [];
-  for (const r of schema.compliance_rules || []) {
-    if (r.condition_expr && evalCondition(r.condition_expr, values)) {
-      findings.push({ severity: r.severity || 'warning', message: r.message, basis: r.engineering_basis || null });
-    }
-  }
-
-  // 9) Spec string
-  let spec = null;
-  if (typeof schema.spec_formula === 'string') {
-    spec = schema.spec_formula.replace(/\{(\w+)\}/g, (_, k) =>
-      values[k] !== undefined && values[k] !== null && values[k] !== '' ? values[k] : '—'
-    );
-  }
-
-  // Accuracy can never be better than the tier's class; regional uncertainty
-  // can only widen it. Take the worse (larger) of the two.
-  const tierAcc = t === 1 ? 30 : t === 2 ? 20 : 10;
-  const accuracy = `±${Math.max(tierAcc, Number(rf.accuracy_pct) || 0)}%`;
-  return {
-    template_id: schema.template_id,
-    template_name: schema.template_name,
-    tier, accuracy, region, sub_region: rf.sub_region || subRegion,
-    quantity: qty, unit, spec,
-    factors_applied: applied,
-    lines: lines.map((l) => ({ ...l, amount: round2(l.usd * fx) })),
-    total: { usd: round2(totalUsd), currency: outCur, amount: round2(totalUsd * fx), fx_rate: fx },
-    compliance: findings,
-    notes,
-    disclaimer: `Tier ${t} ${accuracy} estimate for budgetary purposes only — not for procurement. multicalci.com`,
-  };
-}
-
-// ── Rate limiting via boq_calc_log ───────────────────────────────────────────
-async function rateLimit(req, templateId, tier, region) {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-  const hash = (await sha256Hex(ip + (process.env.BOQ_IP_SALT || 'multicalci'))).slice(0, 32);
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    const rows = await sb(
-      `boq_calc_log?client_hash=eq.${hash}&created_at=gte.${today}T00:00:00Z&select=id`,
-      { headers: { Prefer: 'count=exact' }, prefer: 'count=exact' }
-    );
-    if (Array.isArray(rows) && rows.length >= DAILY_LIMIT) return { blocked: true };
-    await sb('boq_calc_log', {
-      method: 'POST',
-      body: JSON.stringify({ template_id: templateId, tier, region, client_hash: hash }),
+function renderList(){
+  const q = $('q').value.trim();
+  const hits = META.filter(t => matches(t, q));
+  if(!hits.length){ $('tlist').innerHTML = '<div class="no-results">No templates match. Try a broader word — “pump”, “cable”, “concrete”…</div>'; return; }
+  const groups = {};
+  hits.forEach(t => { (groups[t.stream || 'Other'] = groups[t.stream || 'Other'] || []).push(t); });
+  let html = '';
+  Object.keys(groups).sort().forEach(g => {
+    html += `<div class="tgroup">${esc(g)} · ${groups[g].length}</div>`;
+    groups[g].sort((a,b)=>a.template_name.localeCompare(b.template_name)).forEach(t => {
+      html += `<div class="titem" data-id="${esc(t.template_id)}">
+        <div class="tname">${esc(t.template_name)}</div>
+        <div class="tmeta">${t.item_count} items · ${esc(t.tiers)}</div>
+        <div class="tarrow">→</div></div>`;
     });
-  } catch { /* logging must never break the calc */ }
-  return { blocked: false };
+  });
+  $('tlist').innerHTML = html;
+  $('tlist').querySelectorAll('.titem').forEach(el =>
+    el.addEventListener('click', () => pickTemplate(el.dataset.id)));
+}
+$('q').addEventListener('input', renderList);
+$('chips').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c) return;
+  activeChip = c.dataset.f;
+  $('chips').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x===c));
+  renderList();
+});
+
+// ── STEP 2: configuration ────────────────────────────────────────────────────
+function pickTemplate(id){
+  picked = META.find(t => t.template_id === id);
+  if(!picked) return;
+  $('cfg-title').textContent = picked.template_name;
+  $('cfg-sub').textContent = `${picked.stream} · ${picked.item_count} library items · index basis: ${picked.universal_code}`;
+  const avail = picked.tiers.split(',');
+  document.querySelectorAll('.tier-card').forEach(c => {
+    const ok = avail.includes(c.dataset.t);
+    c.classList.toggle('off', !ok);
+    c.classList.toggle('on', ok && c.dataset.t === (avail.includes(tier) ? tier : avail[0]));
+  });
+  tier = avail.includes(tier) ? tier : avail[0];
+  setStep(2); show('panel-cfg'); sysmsg('');
+}
+document.querySelectorAll('.tier-card').forEach(c => c.addEventListener('click', () => {
+  if(c.classList.contains('off')) return;
+  tier = c.dataset.t;
+  document.querySelectorAll('.tier-card').forEach(x => x.classList.toggle('on', x===c));
+}));
+function fillRegions(){
+  $('region').innerHTML = Object.keys(REGIONS).map(r => `<option>${esc(r)}</option>`).join('');
+  $('currency').innerHTML = CURRENCIES.map(c => `<option>${c}</option>`).join('');
+  syncSubs();
+}
+function syncSubs(){
+  const r = REGIONS[$('region').value];
+  $('subregion').innerHTML = r.subs.map(s => `<option>${esc(s)}</option>`).join('');
+  $('currency').value = CURRENCIES.includes(r.cur) ? r.cur : 'USD';
+}
+$('region').addEventListener('change', syncSubs);
+
+// ── STEP 3: dynamic form ─────────────────────────────────────────────────────
+$('btn-fields').addEventListener('click', async () => {
+  const btn = $('btn-fields'); btn.disabled = true; btn.textContent = 'Loading fields…';
+  try{
+    const r = await fetch(`${API}?action=fields&template=${encodeURIComponent(picked.template_id)}&tier=${tier}`);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.reason || d.error || 'Failed to load fields');
+    FIELDS = d.fields || [];
+    ITEM_UNITS = d.item_units || {};
+    renderForm();
+    $('form-title').textContent = `${picked.template_name} — ${tier} specification`;
+    setStep(3); show('panel-form'); sysmsg('');
+  }catch(e){ sysmsg('Could not load the form: ' + esc(e.message), 'err'); }
+  btn.disabled = false; btn.textContent = 'Continue to specification →';
+});
+
+function renderForm(){
+  const sections = {};
+  FIELDS.forEach(f => { (sections[f.section || 'General'] = sections[f.section || 'General'] || []).push(f); });
+  let html = '';
+  Object.entries(sections).forEach(([sec, fs]) => {
+    html += `<div class="fsection"><div class="fsection-h">${esc(sec)}</div><div class="fgrid">`;
+    fs.forEach(f => {
+      const req = f.mandatory ? ' <span class="req">*</span>' : '';
+      const unit = f.unit ? `<span class="unit-tag">${esc(f.unit)}</span>` : '';
+      let ctrl;
+      if(f.type === 'dropdown' && Array.isArray(f.options)){
+        ctrl = `<select data-k="${esc(f.spec_key)}">` +
+          (f.mandatory ? '' : '<option value="">—</option>') +
+          f.options.map(o => `<option${o===f.default?' selected':''}>${esc(o)}</option>`).join('') + '</select>';
+      } else if(f.type === 'number'){
+        const attrs = [f.min!=null?`min="${f.min}"`:'', f.max!=null?`max="${f.max}"`:'',
+          f.default!=null?`value="${esc(f.default)}"`:'', 'step="any"'].join(' ');
+        ctrl = `<input type="number" data-k="${esc(f.spec_key)}" ${attrs}>`;
+      } else {
+        ctrl = `<input type="text" data-k="${esc(f.spec_key)}" ${f.default!=null?`value="${esc(f.default)}"`:''}>`;
+      }
+      html += `<div class="ffield" data-fid="${esc(f.field_id)}">
+        <label class="f-label">${esc(f.label)}${unit}${req}</label>${ctrl}
+        ${f.hint ? `<div class="hint">${esc(f.hint)}</div>` : ''}</div>`;
+    });
+    html += '</div></div>';
+  });
+  $('form-body').innerHTML = html;
+  $('form-body').querySelectorAll('select,input').forEach(el =>
+    el.addEventListener('change', () => { applyConditions(); syncQtyUnit(); }));
+  applyConditions();
+  syncQtyUnit();
+}
+function syncQtyUnit(){
+  // When the selected library item has a measurement unit (m², m, tonne…),
+  // show it on the Quantity field so "1" is never ambiguous.
+  const qf = FIELDS.find(f => f.spec_key === 'quantity');
+  if(!qf) return;
+  const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(qf.field_id)}"]`);
+  if(!holder) return;
+  const v = currentValues();
+  const sel = v.equipment_subtype || Object.values(v).find(x => ITEM_UNITS[x]);
+  const unit = ITEM_UNITS[sel] || qf.unit || '';
+  let tag = holder.querySelector('.unit-tag');
+  if(!tag){
+    tag = document.createElement('span'); tag.className = 'unit-tag';
+    holder.querySelector('.f-label').appendChild(tag);
+  }
+  tag.textContent = unit ? unit : '';
+}
+function currentValues(){
+  const v = {};
+  $('form-body').querySelectorAll('[data-k]').forEach(el => {
+    const holder = el.closest('.ffield');
+    if(holder && holder.style.display === 'none') return; // hidden fields don't submit
+    if(el.value === '' || el.value == null) return;
+    v[el.dataset.k] = el.type === 'number' ? parseFloat(el.value) : el.value;
+  });
+  return v;
+}
+function applyConditions(){
+  const v = currentValues();
+  FIELDS.forEach(f => {
+    if(!f.conditional_display) return;
+    const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(f.field_id)}"]`);
+    if(!holder) return;
+    const cd = f.conditional_display;
+    const cur = v[cd.show_if];
+    let showIt = true;
+    const op = (cd.operator || 'in').toLowerCase();
+    if(op === 'in' && Array.isArray(cd.value)) showIt = cd.value.includes(cur);
+    else if(op === '==' || op === 'equals') showIt = String(cur) === String(cd.value);
+    else if(op === '!=') showIt = String(cur) !== String(cd.value);
+    else if(op === 'truthy' || cd.value == null) showIt = cur != null && cur !== '';
+    holder.style.display = showIt ? '' : 'none';
+  });
 }
 
-// ── Handler ──────────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
-  const reqOrigin = req.headers.origin || '';
-  const allowed = [ORIGIN, 'http://localhost:3000', 'http://127.0.0.1:3000'];
-  res.setHeader('Access-Control-Allow-Origin', allowed.includes(reqOrigin) ? reqOrigin : ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(204).end();
+// ── STEP 4: calculate & render the cost sheet ────────────────────────────────
+$('btn-calc').addEventListener('click', async () => {
+  // required-field check (visible mandatory fields only)
+  const missing = [];
+  FIELDS.forEach(f => {
+    if(!f.mandatory) return;
+    const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(f.field_id)}"]`);
+    if(!holder || holder.style.display === 'none') return;
+    const el = holder.querySelector('[data-k]');
+    if(!el || el.value === '') missing.push(f.label);
+  });
+  if(missing.length){ sysmsg('Required: ' + esc(missing.slice(0,4).join(', ')) + (missing.length>4?'…':''), 'err'); return; }
 
-  if (!SB_URL || !SB_KEY) {
-    return res.status(500).json({ error: 'Server not configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing).' });
+  const btn = $('btn-calc'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Calculating…';
+  try{
+    const r = await fetch(API + '?action=calc', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        template_id: picked.template_id, tier,
+        region: $('region').value, sub_region: $('subregion').value,
+        currency: $('currency').value, equipment_origin: $('origin').value,
+        values: currentValues(),
+      }),
+    });
+    const d = await r.json();
+    if(r.status === 429){ sysmsg(esc(d.error), 'info'); btn.disabled=false; btn.textContent='Calculate cost →'; return; }
+    if(!r.ok) throw new Error(d.reason || d.error || 'Calculation failed');
+    lastResult = d;
+    renderSheet(d);
+    setStep(4); show('panel-result'); sysmsg('');
+  }catch(e){ sysmsg('Calculation failed: ' + esc(e.message), 'err'); }
+  btn.disabled = false; btn.textContent = 'Calculate cost →';
+});
+
+function fmt(n, cur){
+  return new Intl.NumberFormat(cur==='INR'?'en-IN':'en-US',
+    {maximumFractionDigits: n >= 1000 ? 0 : 2}).format(n);
+}
+function renderSheet(d){
+  const cur = d.total.currency;
+  let rows = d.lines.map(l =>
+    `<tr><td>${esc(l.line)}</td><td class="amt">${cur} ${fmt(l.amount, cur)}</td></tr>`).join('');
+  if(d.unit && d.quantity > 0 && d.lines[0]){
+    rows = rows.replace('</tr>',
+      `</tr><tr><td style="color:var(--dim);font-size:.72rem">&nbsp;&nbsp;↳ rate basis</td>
+       <td class="amt" style="color:var(--dim);font-size:.72rem">${cur} ${fmt(d.lines[0].amount / d.quantity, cur)} / ${esc(d.unit)}</td></tr>`);
   }
-  const action = (req.query.action || '').toLowerCase();
+  const qtyLabel = `qty ${d.quantity}${d.unit ? ' ' + esc(d.unit) : ''}`;
+  rows += `<tr class="total"><td>TOTAL — ${esc(d.tier)} ${esc(d.accuracy)} (${qtyLabel})</td>
+    <td class="amt">${cur} ${fmt(d.total.amount, cur)}</td></tr>`;
+  $('sheet').innerHTML = `
+    <div class="sheet-head">
+      <div><div class="sh-title">${esc(d.template_name)}</div>
+        ${d.spec ? `<div class="sh-spec">${esc(d.spec)}</div>` : ''}</div>
+      <div class="sh-acc">ESTIMATE ACCURACY<b>${esc(d.accuracy)}</b>${esc(d.region)}${d.sub_region ? ' · ' + esc(d.sub_region) : ''}</div>
+    </div>
+    <table>${rows}</table>
+    <div class="sheet-foot">${esc(d.disclaimer)}${d.total.fx_rate !== 1 ? ` · FX 1 USD = ${d.total.fx_rate} ${cur}` : ''}</div>`;
 
-  try {
-    // ---- LIST: public metadata for the picker -------------------------------
-    if (action === 'list' && req.method === 'GET') {
-      const rows = await sb('boq_schema_meta?select=*&order=stream,template_name');
-      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-      return res.status(200).json({ count: rows.length, templates: rows });
-    }
+  $('findings').innerHTML = (d.compliance || []).map(f => `
+    <div class="finding ${f.severity === 'error' ? 'error' : 'warning'}">
+      <div class="sev">${f.severity === 'error' ? '⚠ CHECK' : '△ NOTE'}</div>
+      <div>${esc(f.message)}${f.basis ? `<span class="basis">${esc(f.basis)}</span>` : ''}</div>
+    </div>`).join('');
 
-    // ---- REGIONS: region/sub-region/currency options for project settings ---
-    if (action === 'regions' && req.method === 'GET') {
-      const rows = await sb('regional_factors?select=region,sub_region,currency_code,accuracy_pct&order=region,sub_region');
-      const regions = {};
-      for (const r of rows) {
-        regions[r.region] = regions[r.region] || { currency: r.currency_code, sub_regions: [] };
-        if (r.sub_region) regions[r.region].sub_regions.push(r.sub_region);
-      }
-      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-      return res.status(200).json({ regions });
-    }
-
-    // ---- FIELDS: form definition for one template/tier ----------------------
-    if (action === 'fields' && req.method === 'GET') {
-      const id = String(req.query.template || '');
-      if (!/^SCHEMA-[A-Z0-9-]+$/.test(id)) return res.status(400).json({ error: 'Bad template id.' });
-      const rows = await sb(`boq_schemas?template_id=eq.${id}&select=schema_json`);
-      if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });
-      const schema = rows[0].schema_json;
-      const tier = String(req.query.tier || 'T1');
-      // measurement units per library item (names + units only — no rates)
-      const itemUnits = {};
-      const its = (schema.cost_build_up && schema.cost_build_up.usd_cost_baseline || {}).items;
-      if (Array.isArray(its)) {
-        its.forEach((it) => { if (it && typeof it === 'object') { const u = itemUnit(it); if (u) itemUnits[it.sub_type || it.item_name || it.name] = u; } });
-      } else if (its && typeof its === 'object') {
-        Object.entries(its).forEach(([k, it]) => { if (it && typeof it === 'object') { const u = itemUnit(it); if (u) itemUnits[k] = u; } });
-      }
-      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
-      return res.status(200).json({
-        template_id: id,
-        template_name: schema.template_name,
-        tier,
-        tier_summary: schema.tier_summary || null,
-        item_units: itemUnits,
-        fields: publicFields(schema, tier),
-        // deliberately NOT included: library rates, formulas, multiplier
-        // tables, compliance rules, cost_build_up — those never leave server.
-      });
-    }
-
-    // ---- CALC: the engine ----------------------------------------------------
-    if (action === 'calc' && req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-      const id = String(body.template_id || '');
-      if (!/^SCHEMA-[A-Z0-9-]+$/.test(id)) return res.status(400).json({ error: 'Bad template id.' });
-      if (!body.values || typeof body.values !== 'object') {
-        return res.status(400).json({ error: 'Missing values object.' });
-      }
-      const rl = await rateLimit(req, id, body.tier, body.region);
-      if (rl.blocked) {
-        return res.status(429).json({
-          error: `Free limit reached (${DAILY_LIMIT} calculations/day). Upgrade to Pro for unlimited calculations, PDF & Excel export.`,
-          upgrade_url: 'https://multicalci.com/pro/',
-        });
-      }
-      const rows = await sb(`boq_schemas?template_id=eq.${id}&select=schema_json`);
-      if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });
-      const result = await calculate(rows[0].schema_json, body);
-      if (result.error) return res.status(422).json(result);
-      return res.status(200).json(result);
-    }
-
-    return res.status(400).json({ error: 'Unknown action. Use list | regions | fields | calc.' });
-  } catch (e) {
-    console.error('BOQ API error:', e.message);
-    return res.status(500).json({ error: 'Internal error. Try again shortly.', reason: String(e.message).slice(0, 160) });
+  let extras = '';
+  if((d.factors_applied || []).length){
+    extras += `<details class="xtra"><summary>Cost factors applied (${d.factors_applied.length})</summary><ul>` +
+      d.factors_applied.map(f => `<li>${esc(f.table.replace(/_/g,' '))}: ×${f.factor} — ${esc(f.matched)}</li>`).join('') +
+      '</ul></details>';
   }
+  if((d.notes || []).length){
+    extras += `<details class="xtra"><summary>Engine notes (${d.notes.length})</summary><ul>` +
+      d.notes.map(n => `<li>${esc(n)}</li>`).join('') + '</ul></details>';
+  }
+  $('extras').innerHTML = extras;
 }
 
-// exported for offline testing only
-export const _internal = { resolveFactor, resolveBase, evalCondition, calculate, publicFields, tablesForTier, relatedValues };
+// ── init ─────────────────────────────────────────────────────────────────────
+fillRegions();
+loadMeta();
+</script>
+</body>
+</html>
