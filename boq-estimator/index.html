@@ -292,7 +292,7 @@ const IND = { // industry chip -> template_id prefix patterns
  civil:["BLDG","CONCRETE","EARTH","MASON","PLASTER","FLOOR","ROOF","ROAD","FENC","DOOR","STRUCT","IND-CONST"]
 };
 
-let META = [], picked = null, tier = 'T1', FIELDS = [], lastResult = null;
+let META = [], picked = null, tier = 'T1', FIELDS = [], ITEM_UNITS = {}, lastResult = null;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -403,6 +403,7 @@ $('btn-fields').addEventListener('click', async () => {
     const d = await r.json();
     if(!r.ok) throw new Error(d.reason || d.error || 'Failed to load fields');
     FIELDS = d.fields || [];
+    ITEM_UNITS = d.item_units || {};
     renderForm();
     $('form-title').textContent = `${picked.template_name} — ${tier} specification`;
     setStep(3); show('panel-form'); sysmsg('');
@@ -439,8 +440,26 @@ function renderForm(){
   });
   $('form-body').innerHTML = html;
   $('form-body').querySelectorAll('select,input').forEach(el =>
-    el.addEventListener('change', applyConditions));
+    el.addEventListener('change', () => { applyConditions(); syncQtyUnit(); }));
   applyConditions();
+  syncQtyUnit();
+}
+function syncQtyUnit(){
+  // When the selected library item has a measurement unit (m², m, tonne…),
+  // show it on the Quantity field so "1" is never ambiguous.
+  const qf = FIELDS.find(f => f.spec_key === 'quantity');
+  if(!qf) return;
+  const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(qf.field_id)}"]`);
+  if(!holder) return;
+  const v = currentValues();
+  const sel = v.equipment_subtype || Object.values(v).find(x => ITEM_UNITS[x]);
+  const unit = ITEM_UNITS[sel] || qf.unit || '';
+  let tag = holder.querySelector('.unit-tag');
+  if(!tag){
+    tag = document.createElement('span'); tag.className = 'unit-tag';
+    holder.querySelector('.f-label').appendChild(tag);
+  }
+  tag.textContent = unit ? unit : '';
 }
 function currentValues(){
   const v = {};
@@ -512,7 +531,13 @@ function renderSheet(d){
   const cur = d.total.currency;
   let rows = d.lines.map(l =>
     `<tr><td>${esc(l.line)}</td><td class="amt">${cur} ${fmt(l.amount, cur)}</td></tr>`).join('');
-  rows += `<tr class="total"><td>TOTAL — ${esc(d.tier)} ${esc(d.accuracy)} (qty ${d.quantity})</td>
+  if(d.unit && d.quantity > 0 && d.lines[0]){
+    rows = rows.replace('</tr>',
+      `</tr><tr><td style="color:var(--dim);font-size:.72rem">&nbsp;&nbsp;↳ rate basis</td>
+       <td class="amt" style="color:var(--dim);font-size:.72rem">${cur} ${fmt(d.lines[0].amount / d.quantity, cur)} / ${esc(d.unit)}</td></tr>`);
+  }
+  const qtyLabel = `qty ${d.quantity}${d.unit ? ' ' + esc(d.unit) : ''}`;
+  rows += `<tr class="total"><td>TOTAL — ${esc(d.tier)} ${esc(d.accuracy)} (${qtyLabel})</td>
     <td class="amt">${cur} ${fmt(d.total.amount, cur)}</td></tr>`;
   $('sheet').innerHTML = `
     <div class="sheet-head">
