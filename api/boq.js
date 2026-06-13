@@ -248,9 +248,11 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
   }
 
   // Shape: cost equation "C = A * (P / R)^E" (e.g. turbines, generators)
+  // FIX 2026-06-13: accept Unicode × (U+00D7) as well as ASCII * in the operator
+  // position — schemas generated with the × character were silently failing.
   if (typeof item.cost_equation === 'string') {
     const m = item.cost_equation.match(
-      /=\s*([\d.eE+]+)\s*\*\s*\(\s*\w+\s*\/\s*([\d.]+)\s*\)\s*\^\s*([\d.]+)/
+      /=\s*([\d.eE+]+)\s*[*\u00d7]\s*\(\s*\w+\s*\/\s*([\d.]+)\s*\)\s*\^\s*([\d.]+)/
     );
     if (m) {
       const A = parseFloat(m[1]), R = parseFloat(m[2]), E = parseFloat(m[3]);
@@ -258,12 +260,14 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
       let pv = null;
       for (const [k, v] of Object.entries(values)) {
         const lk = k.toLowerCase();
-        if (['mw','power','output','capacity','rating','duty','sizing'].some((h) => lk.includes(h) || basis.includes(h) && lk.includes(h.slice(0,4)))) {
+        if (['mw','power','output','capacity','rating','duty','sizing','area'].some((h) => lk.includes(h) || basis.includes(h) && lk.includes(h.slice(0,4)))) {
           const n = num(v); if (n !== null) { pv = n; break; }
         }
       }
-      if (pv === null) pv = num(values.sizing_value);
+      if (pv === null) pv = num(values.sizing_value) ?? num(values.area);
       if (pv !== null) {
+        if (item.valid_range_min != null && pv < item.valid_range_min) notes.push(`Sizing ${pv} below equation valid range — extrapolated.`);
+        if (item.valid_range_max != null && pv > item.valid_range_max) notes.push(`Sizing ${pv} above equation valid range — extrapolated.`);
         if (item.valid_range_min_MW != null && pv < item.valid_range_min_MW) notes.push(`Sizing ${pv} below equation valid range — extrapolated.`);
         if (item.valid_range_max_MW != null && pv > item.valid_range_max_MW) notes.push(`Sizing ${pv} above equation valid range — extrapolated.`);
         notes.push(`Cost equation: ${A} × (${pv}/${R})^${E} (${item.sizing_basis || 'sizing basis'}).`);
@@ -510,7 +514,20 @@ async function calculate(schema, body) {
   const ub = {};
   let base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
   const unit = ub.unit || null;
-  if (base == null) return { error: 'NO_BASELINE', notes };
+  if (base == null) {
+    // Surface available subtypes in the error to aid debugging
+    const availItems = (() => {
+      const its = cb.usd_cost_baseline?.items;
+      if (Array.isArray(its)) return its.map(i => i.sub_type || i.item_name || i.name).filter(Boolean);
+      if (its && typeof its === 'object') return Object.keys(its);
+      return [];
+    })();
+    return {
+      error: 'NO_BASELINE',
+      detail: `subtype="${subtype}" not matched. Available: ${availItems.slice(0, 6).join(', ')}`,
+      notes,
+    };
+  }
 
   // 3) Multiplier tables for this tier
   const applied = [];
