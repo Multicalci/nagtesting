@@ -113,8 +113,27 @@ function rangeKeyMatch(key, value) {
 
 function resolveFactor(table, fieldValues) {
   // Returns { factor, matchedKey, source } or null if nothing in this table applies.
+  // Tables carrying a _unit key are RATE tables (USD/m etc.) that belong to the
+  // baseline, not multipliers — never apply them as factors.
+  if (table._unit) return null;
+
+  // Band-format tables: { bands_mm: [{max: 600, factor: 0.85}, ...] }
+  for (const [bk, bv] of Object.entries(table)) {
+    if (Array.isArray(bv) && bv.length && typeof bv[0] === 'object' && bv[0] !== null
+        && 'factor' in bv[0] && 'max' in bv[0]) {
+      const bands = [...bv].sort((a, b) => a.max - b.max);
+      for (const v of Object.values(fieldValues)) {
+        const n = num(v);
+        if (n === null) continue;
+        const band = bands.find((b) => n <= b.max);
+        if (band) return { factor: band.factor, matchedKey: `${bk} ≤${band.max}`, source: String(v) };
+      }
+      return null; // band table but no numeric input matched
+    }
+  }
+
   const entries = Object.entries(table).filter(
-    ([k, v]) => k !== 'note' && typeof v === 'number'
+    ([k, v]) => k !== 'note' && !k.startsWith('_') && typeof v === 'number'
   );
   if (!entries.length) return null;
 
@@ -437,6 +456,7 @@ async function getFxRate(outCur, notes) {
   } catch { /* table empty or unreachable — try live below */ }
 
   if (stored && String(stored.rate_date).slice(0, 10) >= today) {
+    notes.push(`FX: today's cached ECB rate (auto-refreshes daily).`);
     return Number(stored.rate); // already fresh today
   }
 
