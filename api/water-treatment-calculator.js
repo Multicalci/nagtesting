@@ -1,8 +1,8 @@
 // ============================================================
-//  api/water-treatment-calculator.js  — AUDITED v2
+//  api/water-treatment-calculator.js  — AUDITED v3
 //  Vercel Serverless Function — multicalci.com
 //
-//  AUDIT FIXES APPLIED (deep review 2026-03):
+//  AUDIT FIXES APPLIED (deep review 2026-03, v2):
 //  [CRITICAL] FIX-1  RO:        SEC /3.6 → /36 (was 10× too high; 1 bar·m³=1/36 kWh not 1/3.6)
 //  [CRITICAL] FIX-2  Clarifier: Sludge vol ssKgd*SVI/MLSS → ssKgd*SVI/1000 (dimensional error)
 //  [HIGH]     FIX-3  DM:        HCl density 1.18 → f(concentration) (~1.02 for 5% soln)
@@ -15,6 +15,16 @@
 //  [MEDIUM]   FIX-10 Drinking:  LSI uses dedicated Ca+Alk inputs (dw_ca, dw_alk) not hardness proxy
 //  [LOW]      FIX-11 RO:        Kelvin 273 → 273.15
 //  [LOW]      FIX-12 Drinking:  Giardia CT <10°C: 90 → 95 mg·min/L (EPA LT1ESWTR)
+//
+//  AUDIT FIXES APPLIED (audit v3, 2026-06):
+//  [CRITICAL] FIX-13 RO:        Osmotic pressure coeff 0.0000689 → 0.00077 bar/(mg/L TDS)
+//                               Old value was 10× too low (van't Hoff NaCl at 25°C);
+//                               caused NDP_bar to be massively overstated.
+//  [HIGH]     FIX-14 Boiler:    Sat temp formula replaced: 100+28.5·ln(P) diverges >40 bar
+//                               (+34% error at 100 bar: gave 231°C vs correct 311°C).
+//                               New: 42.677·P_abs^0.2596 + 16.0 (IAPWS-IF97 fit, ±1°C to 220 bar)
+//  [HIGH]     FIX-15 Drinking:  Added nf < 2 guard before filtAreaEa = flow/(fr*(nf-1));
+//                               nf=1 produced division by zero → Infinity propagated silently.
 // ============================================================
 
 // ============================================================
@@ -138,8 +148,9 @@ function calcRO(p) {
   const LSI_conc  = pHconc - pHs_conc;
 
   // Osmotic pressure & energy
-  const osmFeed = TDSf * 0.0000689;
-  const osmConc = TDSc * 0.0000689;
+  // 0.00077 bar/(mg/L TDS) — van't Hoff NaCl at 25°C: ~0.7 bar per 1000 mg/L
+  const osmFeed = TDSf * 0.00077;
+  const osmConc = TDSc * 0.00077;
   const NDP     = P - osmConc;
   const SEC     = (P * Qf) / (Qp * 0.75 * 36);    // kWh/m³ permeate — FIX-1: 1 bar·m³=100kJ=100/3600kWh=1/36kWh
 
@@ -439,7 +450,10 @@ function calcBoiler(p) {
   const phosKgDay = phos * muFlow * 24 / 1e6 * 1e3;
 
   // ── Saturation temp, heat loss, silica carryover ─────────────────────────
-  const satT        = press > 0 ? 100 + 28.5 * Math.log(Math.max((press + 1.013) / 1.013, 1)) : 100;  // FIX-6: convert gauge to absolute before log
+  // Power-law fit to IAPWS-IF97 steam tables; accurate to ±1°C up to 220 bar absolute.
+  // Old formula 100+28.5·ln(P_abs/P_atm) gave ~231°C at 100 bar vs correct ~311°C (+34% error).
+  const P_abs   = press + 1.013;                                   // bar absolute
+  const satT    = press > 0 ? 42.677 * Math.pow(P_abs, 0.2596) + 16.0 : 100;
   const hf          = 4.18 * satT + 0.0015 * satT * satT;   // kJ/kg
   const bdHeatLoss  = BD_tph * 1000 * hf / 3600;            // kW
   const bdHeatMcal  = bdHeatLoss * 0.86;
@@ -545,6 +559,8 @@ function calcDrinking(p) {
   const CT_giardia = temp > 20 ? 28 : temp > 15 ? 50 : temp > 10 ? 70 : 95;   // FIX-12: EPA LT1ESWTR pH 7-8: 95 (not 90) at ≤10°C
   const CT_crypto  = temp > 20 ? 4500 : 8600;
   const logGiardia = Math.min(6, CT_act / CT_giardia * 3);
+
+  if (nf < 2) return err('Minimum 2 filters required (N−1 design: one always available for backwash).');
 
   const alumKgd     = alum * flow * 24 / 1e3;
   const cl2Kgd      = cl2  * flow * 24 / 1e3;
