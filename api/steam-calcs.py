@@ -33,7 +33,11 @@ from datetime import datetime
 # Pure-Python IAPWS-IF97 replacement — NO external dependencies
 # Replaces: from iapws import IAPWS97
 # Uses lookup tables identical to the JS steam-calculators.js tables.
-# Accuracy: ±0.05% on h,s; ±0.1% on v — sufficient for all calc sections.
+# Accuracy: ±0.05% on h,s; ±0.1% on v (table interpolation) — fine for the
+#   enthalpy/entropy-based energy balances in every section below.
+# CAVEAT: transport & misc properties exposed on _SteamState (cp, cv, mu, k, w,
+#   sigma) are crude FIXED CONSTANTS, not real correlations — display/screening
+#   only. Do NOT use them for heat-exchanger or pipe-sizing duty.
 # ═══════════════════════════════════════════════════════════════════
 import math
 
@@ -113,6 +117,108 @@ def _Psat_from_T(T_C):
     row = _sat_by_T(T_C)
     return row[0]  # P_bar
 
+# ═══════════════════════════════════════════════════════════════════
+# Transport & misc properties — screening-grade correlations.
+# Ported from steam-calculators.js so the JS and Python APIs agree.
+#   viscosity     : IAPWS 2008 industrial μ0·μ1 (no critical enhancement)  → Pa·s
+#   conductivity  : IAPWS 2011 saturation-table interpolation              → W/m·K
+#   cp            : IAPWS-IF97 table interpolation                         → kJ/kg·K
+#   cv            : cp / γ (phase-typical ratio)                           → kJ/kg·K
+#   speed of sound: liquid fit / steam γRT method                         → m/s
+#   surface tension: IAPWS 1994 (saturation only)                         → N/m
+# Accuracy ~±5–15%. Use for screening/display, NOT detailed HX/pipe sizing.
+# ═══════════════════════════════════════════════════════════════════
+
+def _lerp1(xs, ys, x):
+    if x <= xs[0]:  return ys[0]
+    if x >= xs[-1]: return ys[-1]
+    i = 0
+    for i in range(len(xs) - 1):
+        if xs[i] <= x < xs[i + 1]:
+            break
+    return ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i])
+
+def _dyn_visc(T_C, rho):
+    """IAPWS 2008 industrial viscosity → Pa·s"""
+    T = T_C + 273.15
+    Tstar, rhoStar = 647.096, 317.763
+    Tr, rhoR = T / Tstar, rho / rhoStar
+    if Tr <= 0:
+        return float('nan')
+    H0 = [1.67752, 2.20462, 0.6366564, -0.241605]
+    mu0 = sum(H0[i] / Tr ** i for i in range(4))
+    mu0 = 100.0 * math.sqrt(Tr) / mu0
+    H1 = [
+        [5.20094e-1, 2.22531e-1, -2.81378e-1, 1.61913e-1, -3.25372e-2, 0, 0],
+        [8.50895e-2, 9.99115e-1, -9.06851e-1, 2.57399e-1, 0, 0, 0],
+        [-1.08374,   1.88797,    -7.72479e-1, 0, 0, 0, 0],
+        [-2.89555e-1, 1.26613,   -4.89837e-1, 0, 6.98452e-2, 0, -4.35673e-3],
+        [0, 0, -2.57040e-1, 0, 0, 8.72102e-3, 0],
+        [0, 1.20573e-1, 0, 0, 0, 0, -5.93264e-4],
+    ]
+    mu1 = 0.0
+    for i in range(6):
+        ti = (1.0 / Tr - 1.0) ** i
+        s = sum(H1[i][j] * (rhoR - 1.0) ** j for j in range(7))
+        mu1 += ti * s
+    mu1 = math.exp(rhoR * mu1)
+    return mu0 * mu1 * 1e-6      # μPa·s → Pa·s
+
+def _therm_cond(T_C, rho):
+    """IAPWS 2011 reference-table conductivity → W/m·K"""
+    if rho > 200:   # liquid-like
+        Tl = list(range(0, 301, 10))
+        Ll = [561.0, 580.0, 598.4, 615.4, 630.5, 644.0, 655.8, 665.8, 674.1, 680.9,
+              679.1, 682.3, 683.2, 682.3, 680.0, 675.3, 669.5, 661.8, 652.3, 641.2,
+              628.7, 613.7, 596.7, 578.0, 557.5, 535.5, 511.9, 487.0, 461.5, 435.4, 407.8]
+        return _lerp1(Tl, Ll, min(max(T_C, 0), 300)) * 1e-3
+    Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600]
+    Ls = [25.1, 28.9, 33.1, 37.6, 43.1, 48.9, 55.1, 61.5, 68.0, 74.7, 81.5]
+    base = _lerp1(Ts, Ls, min(max(T_C, 100), 600))
+    corr = 0.01 * max(0.0, rho * 0.004615 * (T_C + 273.15) / 100.0 - 1.0)
+    return (base + corr) * 1e-3
+
+def _cp(T_C, P_bar, phase):
+    """IAPWS-IF97 table cp → kJ/kg·K"""
+    if phase in ('liquid', 'compressed', 'twophase'):
+        CpT = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,
+               200,210,220,230,240,250,260,270,280,290,300,320,340,360,374]
+        CpV = [4.218,4.194,4.182,4.179,4.179,4.182,4.185,4.190,4.198,4.208,4.216,4.229,
+               4.245,4.264,4.285,4.310,4.340,4.376,4.419,4.470,4.497,4.610,4.691,4.790,
+               4.906,5.062,5.267,5.545,5.932,6.550,7.500,12.00,18.00,40.00,100]
+        return _lerp1(CpT, CpV, min(max(T_C, 0), 370))
+    Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 600]
+    Cs = [2.034,1.983,1.975,1.985,1.997,2.017,2.056,2.102,2.150,2.254]
+    base = _lerp1(Ts, Cs, min(max(T_C, 100), 600))
+    return base * (1 + 0.0004 * max(0.0, P_bar - 1))
+
+def _cv(cp, phase):
+    ratio = 1.025 if phase in ('liquid', 'compressed', 'twophase') else 1.30
+    return cp / ratio
+
+def _speed_sound(T_C, P_bar, phase):
+    if phase in ('liquid', 'compressed', 'twophase'):
+        # Liquid-water quartic fit is only valid to ~100 C; above that it diverges
+        # (goes negative near saturation). Clamp the argument and floor the result
+        # so screening output stays physical. Real hot-liquid w is lower than this.
+        Tw = min(max(T_C, 0.0), 100.0)
+        w = (1402.4 + 5.038*Tw - 0.05799*Tw**2 + 3.287e-4*Tw**3
+             - 1.098e-6*Tw**4 + (0.16*P_bar if P_bar > 1 else 0.0))
+        return max(w, 900.0)
+    cp = _cp(T_C, P_bar, 'steam')
+    gamma = cp / _cv(cp, 'steam')
+    R = 8314.46 / 18.015
+    return math.sqrt(gamma * R * (T_C + 273.15))
+
+def _surf_tension(T_C):
+    """IAPWS 1994 surface tension → N/m (saturation)"""
+    T, Tc = T_C + 273.15, 647.096
+    if T >= Tc:
+        return 0.0
+    tau = 1 - T / Tc
+    return 235.8 * tau**1.256 * (1 - 0.625*tau) * 1e-3   # mN/m → N/m
+
+
 class _SteamState:
     """Duck-type replacement for iapws.IAPWS97 objects."""
     def __init__(self, h, s, T_K, P_MPa, v, phase='steam'):
@@ -124,13 +230,18 @@ class _SteamState:
         self.phase = phase
         # Derived / approximated properties
         self.u = h - P_MPa * 1000 * v          # kJ/kg  u = h - Pv
-        self.cp = 2.1 if phase == 'liquid' else 2.0   # kJ/(kg·K) approximate
-        self.cv = self.cp * 0.75
-        self.w  = 450.0 if phase == 'liquid' else 480.0  # m/s approximate
-        self.mu = 2.8e-4 if phase == 'liquid' else 1.5e-5 # Pa·s approximate
-        self.k  = 0.60 if phase == 'liquid' else 0.025     # W/(m·K) approximate
-        self.sigma = 0.059 if phase == 'liquid' else 0.0   # N/m approximate
-        self.Prandt = self.cp*1000 * self.mu / self.k       # dimensionless
+        # Transport & misc — real T/ρ-dependent correlations (screening grade)
+        T_C   = T_K - 273.15
+        P_bar = P_MPa * 10.0
+        rho   = (1.0 / v) if (v and v > 0) else 0.0
+        self.cp    = _cp(T_C, P_bar, phase)              # kJ/(kg·K)
+        self.cv    = _cv(self.cp, phase)                 # kJ/(kg·K)
+        self.w     = _speed_sound(T_C, P_bar, phase)     # m/s
+        self.mu    = _dyn_visc(T_C, rho)                 # Pa·s
+        self.k     = _therm_cond(T_C, rho)               # W/(m·K)
+        self.sigma = _surf_tension(T_C)                  # N/m
+        self.Prandt = (self.cp * 1000 * self.mu / self.k
+                       if self.k else float('nan'))      # dimensionless
 
 class IAPWS97:
     """
@@ -180,11 +291,28 @@ class IAPWS97:
                 h, s, v = _sh_by_PT(P_bar, T_C)
                 phase = 'gas'
             else:
-                # Compressed liquid — use sat liquid + small correction
-                row = _sat_by_P(P_bar)
-                h, s, v = row[2], row[4], row[6]
+                # Compressed (subcooled) liquid.
+                # FIX: take saturated-liquid properties at the ACTUAL temperature
+                # (not at Tsat(P)), then add the Poynting pressure correction
+                #   h(T,P) = hf(T) + vf(T)*(P - Psat(T))
+                # The previous code returned hf/sf/vf at Tsat(P_bar), which ignored
+                # temperature entirely — e.g. 8 bar / 25 C water returned ~721 kJ/kg
+                # (hf at 170 C) instead of ~105 kJ/kg. That corrupted any subcooled
+                # state, including the quench-water enthalpy used in the mass balance.
+                rowT = _sat_by_T(min(max(T_C, 0.01), 373.9))  # [P,T,hf,hg,sf,sg,vf,vg]
+                Psat_bar = rowT[0]
+                hf, sf, vf = rowT[2], rowT[4], rowT[6]
+                dP_kPa = (P_bar - Psat_bar) * 100.0           # bar → kPa
+                h = hf + vf * dP_kPa                          # vf[m3/kg]·kPa = kJ/kg
+                s = sf                                        # ~pressure-independent
+                v = vf
                 phase = 'liquid'
-            self._state = _SteamState(h, s, T+273.15 if T else T_C+273.15, P_bar/10.0, v, phase)
+            # NOTE: T here is already in Kelvin (constructor takes K). The previous
+            # code passed T+273.15, double-converting and leaving .T (and now the
+            # T-dependent transport props) 273.15 K too high for superheated/
+            # compressed states. Use T directly.
+            self._state = _SteamState(h, s, (T if T is not None else T_C + 273.15),
+                                      P_bar / 10.0, v, phase)
         
         # Expose properties directly on self (iapws library does this)
         st = self._state
