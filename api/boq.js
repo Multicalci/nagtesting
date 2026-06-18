@@ -215,6 +215,10 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
     const m = k.match(/^usd_per_([a-z0-9]+)$/i);
     if (m && typeof v === 'number' && m[1].toLowerCase() !== 'manhour') {
       const unit = m[1];
+      // per-each count units must NOT be multiplied by a dimensional field
+      // (the per-each price is flat; the Quantity field applies the count later)
+      const countUnits = ['unit','units','no','nos','nr','each','set','lot','item','job','point','loc','location'];
+      if (countUnits.includes(unit.toLowerCase())) { notes.push(`Per-each rate ${v} USD/${unit} (flat).`); return v; }
       // quantity drivers commonly used by civil/piping unit-rate schemas
       const qv =
         num(values.area) ?? num(values.length) ?? num(values.weight) ??
