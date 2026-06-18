@@ -1,37 +1,49 @@
 // ============================================================================
-// api/boq.js — multicalci.com BOQ Calculator API (Vercel serverless) v1.0
-// 2026-06-11 · Works with supabase_setup_v3.sql + boq_schema_vault.sql
+// api/boq.js — multicalci.com BOQ Calculator API (Vercel serverless) v1.1
+// 2026-06-18 · Drop-in replacement for v1.0. Schemas/SQL unchanged.
 //
-// Routes (single function, query param `action`):
-//   GET  /api/boq?action=list
-//        -> all 114 template metadata rows (safe; powers picker & search)
-//   GET  /api/boq?action=fields&template=SCHEMA-XXX&tier=T2
-//        -> field definitions ONLY for that template/tier (form rendering)
-//   POST /api/boq?action=calc
-//        body: { template_id, tier, region, sub_region, currency,
-//                equipment_origin, values: { spec_key: value, ... } }
-//        -> computed BOQ lines + compliance findings. No formulas leave server.
-//
-// Vercel env vars (Settings -> Environment Variables):
-//   SUPABASE_URL          https://YOURPROJECT.supabase.co
-//   SUPABASE_SERVICE_KEY  service_role key (server-only; bypasses RLS)
-//   BOQ_IP_SALT           any random string (hashes IPs for rate limiting)
-//   BOQ_FREE_DAILY_LIMIT  optional, default 20 calcs/IP/day
-//   ALLOWED_ORIGIN        optional, default https://multicalci.com
+// Engine-side fixes folded in (no schema edits required):
+//   [IP]   Library rates + cost-curve coefficients no longer leak via notes /
+//          factors_applied. Notes are genericised at source; factors_applied
+//          returns only {table, matched} (no multiplier value).
+//   [SIZE] Cost-equation / scaling parameter is now bound to item.sizing_basis
+//          instead of a broad keyword guess (no more capacity_factor vs MW).
+//   [SUB]  Subtype fallback picks the dropdown whose options actually match
+//          baseline item names — not merely "the first dropdown".
+//   [MOC]  Descriptive factor match is exact, with prefix fallback ONLY when a
+//          single unambiguous candidate exists (no silent 304-vs-316L mis-pick).
+//   [ACT]  Activity vs equipment is a real boolean flag from resolveBase, not a
+//          note-string sniff.
+//   [QTY]  When a dimensional unit-rate driver (area/length/…) is consumed, the
+//          count multiplier is forced to 1 (no double-multiply).
+//   [BAND] Range tables pick the TIGHTEST matching band, not the first one.
+//   [PERF] Escalation / regional / duty / FX run concurrently; rate-limit insert
+//          and FX cache-write are fire-and-forget; rate-limit + schema fetch
+//          overlap in the handler.
+//   [FX]   Stale stored rate is served immediately and refreshed in background;
+//          a live fetch blocks only when there is NO stored rate at all.
+//   [CORS] Both www and apex hosts are allowed.
+//   [RGX]  cost_equation regex tolerates scientific notation / negative exponent.
 // ============================================================================
 
-// Normalize: tolerate a pasted REST URL or trailing slash in the env var
 const SB_URL = (process.env.SUPABASE_URL || '')
   .replace(/\/rest\/v1\/?$/, '')
   .replace(/\/+$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DAILY_LIMIT = parseInt(process.env.BOQ_FREE_DAILY_LIMIT || '20', 10);
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://multicalci.com';
+// [CORS] allow both hosts + localhost; dedupe
+const ALLOWED_ORIGINS = [...new Set([
+  ORIGIN,
+  'https://multicalci.com',
+  'https://www.multicalci.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+])];
+
+const enc = encodeURIComponent;
 
 // ── Supabase REST (service role) ─────────────────────────────────────────────
-// New-format keys (sb_secret_...) go in the apikey header only; the
-// Authorization: Bearer header is added only for legacy JWT keys (eyJ...),
-// because the gateway rejects non-JWT bearer tokens.
 async function sb(path, opts = {}) {
   const headers = {
     apikey: SB_KEY,
@@ -54,6 +66,7 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 const round2 = (v) => Math.round(v * 100) / 100;
+const optVal = (o) => (typeof o === 'string' ? o : (o && (o.value ?? o.label ?? o.name)) ?? '');
 
 async function sha256Hex(s) {
   const data = new TextEncoder().encode(s);
@@ -67,9 +80,6 @@ function tierNum(t) {
 }
 
 // ── Measurement unit extraction ──────────────────────────────────────────────
-// Sources, in priority order: item.unit | a usd_per_<unit> key | "USD/<unit>"
-// inside the basis text. Count-type units (each/no./unit) return null because
-// "Qty: 2" is already self-explanatory for countable equipment.
 const COUNT_UNITS = new Set(['unit', 'units', 'no', 'no.', 'nos', 'each', 'ea', 'set', 'item', 'job lot']);
 const UNIT_PRETTY = { m2: 'm²', m3: 'm³', sqm: 'm²', cum: 'm³', rm: 'm (run)', mt: 'tonne', 'man-hour': 'man-hour' };
 function normalizeUnit(u) {
@@ -92,10 +102,6 @@ function itemUnit(item) {
 }
 
 // ── Factor table resolution ──────────────────────────────────────────────────
-// Tables come in two key styles:
-//  (a) descriptive strings that exactly match dropdown option values
-//  (b) range-encoded keys for numeric inputs:
-//      lte_120_c | 120_to_200_c | gt_350_c | lte_20_barg_ASME150 | 50_to_100_barg_ASME600
 function rangeKeyMatch(key, value) {
   const k = key.toLowerCase();
   let m = k.match(/^lte?_(\d+(?:\.\d+)?)/);
@@ -111,8 +117,19 @@ function rangeKeyMatch(key, value) {
   return false;
 }
 
+// [BAND] numeric interval implied by a band key, for tightest-match selection
+function bandInterval(key) {
+  const k = key.toLowerCase();
+  let lo = -Infinity, hi = Infinity, m;
+  if ((m = k.match(/^lte?_(\d+(?:\.\d+)?)/))) hi = parseFloat(m[1]);
+  else if ((m = k.match(/^lt_(\d+(?:\.\d+)?)/))) hi = parseFloat(m[1]);
+  else if ((m = k.match(/^gte?_(\d+(?:\.\d+)?)/))) lo = parseFloat(m[1]);
+  else if ((m = k.match(/^gt_(\d+(?:\.\d+)?)/))) lo = parseFloat(m[1]);
+  else if ((m = k.match(/^(\d+(?:\.\d+)?)_to_(\d+(?:\.\d+)?)/))) { lo = parseFloat(m[1]); hi = parseFloat(m[2]); }
+  return [lo, hi];
+}
+
 function resolveFactor(table, fieldValues) {
-  // Returns { factor, matchedKey, source } or null if nothing in this table applies.
   const entries = Object.entries(table).filter(
     ([k, v]) => k !== 'note' && typeof v === 'number'
   );
@@ -121,37 +138,47 @@ function resolveFactor(table, fieldValues) {
   const isRangeTable = entries.every(([k]) => /^(lte?|gte?|gt|lt)_\d|^\d+(?:\.\d+)?_to_\d/.test(k));
 
   if (isRangeTable) {
+    // [BAND] pick the tightest band that contains the value, not the first match
+    let best = null, bestW = Infinity;
     for (const v of Object.values(fieldValues)) {
       const n = num(v);
       if (n === null) continue;
       for (const [k, f] of entries) {
-        if (rangeKeyMatch(k, n)) return { factor: f, matchedKey: k, source: String(v) };
+        if (rangeKeyMatch(k, n)) {
+          const [lo, hi] = bandInterval(k);
+          const w = hi - lo;
+          if (w < bestW) { bestW = w; best = { factor: f, matchedKey: k, source: String(v) }; }
+        }
       }
     }
-    return null;
+    return best;
   }
-  // Descriptive table: exact match against any provided string value
+
+  // Descriptive table: exact match first
   for (const v of Object.values(fieldValues)) {
     if (typeof v !== 'string' || !v) continue;
     for (const [k, f] of entries) {
       if (k === v) return { factor: f, matchedKey: k, source: v };
     }
   }
-  // Tolerant fallback: case-insensitive prefix match (handles minor UI drift)
+  // [MOC] prefix fallback ONLY when exactly one unambiguous candidate exists
+  const cands = [];
+  const seen = new Set();
   for (const v of Object.values(fieldValues)) {
     if (typeof v !== 'string' || v.length < 4) continue;
     const lv = v.toLowerCase();
     for (const [k, f] of entries) {
       const lk = k.toLowerCase();
-      if (lk.startsWith(lv) || lv.startsWith(lk)) return { factor: f, matchedKey: k, source: v };
+      if (lk === lv) continue;
+      if ((lk.startsWith(lv) || lv.startsWith(lk)) && !seen.has(k)) {
+        seen.add(k);
+        cands.push({ factor: f, matchedKey: k, source: v });
+      }
     }
   }
-  return null;
+  return cands.length === 1 ? cands[0] : null;
 }
 
-// Range tables only apply to the field they describe. To avoid a pressure value
-// matching a temperature table, prefer values whose spec_key relates to the
-// table name; fall back to any value only if nothing related is provided.
 function relatedValues(tableName, values) {
   const hints = {
     pressure: ['pressure'],
@@ -178,17 +205,75 @@ function relatedValues(tableName, values) {
   return values;
 }
 
+// ── Sizing-parameter selection ───────────────────────────────────────────────
+// [SIZE] Bind the cost-curve driver to item.sizing_basis tokens instead of a
+// broad keyword guess. Longer tokens weighted higher so "power output (MW)"
+// beats an unrelated "capacity_factor" field.
+function pickSizingValue(item, values) {
+  const explicit = num(values.sizing_value);
+  if (explicit !== null) return explicit;
+  const basis = String(item.sizing_basis || '').toLowerCase();
+  const stop = new Set(['the', 'for', 'per', 'rated', 'of', 'at', 'in', 'and']);
+  const tokens = basis.split(/[^a-z0-9]+/).filter((t) => t.length >= 2 && !stop.has(t));
+  if (!tokens.length) return null;
+  let best = null, bestScore = 0;
+  for (const [k, v] of Object.entries(values)) {
+    const n = num(v);
+    if (n === null) continue;
+    const lk = k.toLowerCase();
+    let score = 0;
+    for (const t of tokens) if (lk.includes(t)) score += t.length;
+    if (score > bestScore) { bestScore = score; best = n; }
+  }
+  return bestScore > 0 ? best : null;
+}
+
+// ── Subtype selection ────────────────────────────────────────────────────────
+function itemIdSet(baseline) {
+  const set = new Set();
+  const items = baseline && baseline.items;
+  if (Array.isArray(items)) {
+    for (const it of items) {
+      const n = it && (it.sub_type || it.item_name || it.name);
+      if (n) set.add(String(n).trim().toLowerCase());
+    }
+  } else if (items && typeof items === 'object') {
+    for (const k of Object.keys(items)) set.add(String(k).trim().toLowerCase());
+  }
+  return set;
+}
+// [SUB] choose the dropdown that actually drives the baseline, not just the first
+function pickSubtype(schema, values) {
+  const cb = schema.cost_build_up || {};
+  const ids = itemIdSet(cb.usd_cost_baseline);
+  const dropdowns = (schema.fields || []).filter((f) => f.type === 'dropdown' && f.spec_key);
+  if (!dropdowns.length) return null;
+  // 1) a dropdown whose CURRENT value is itself a baseline item
+  for (const f of dropdowns) {
+    const v = values[f.spec_key];
+    if (typeof v === 'string' && ids.has(v.trim().toLowerCase())) return v;
+  }
+  // 2) the dropdown whose OPTIONS overlap baseline item names the most
+  let best = null, bestOverlap = 0;
+  for (const f of dropdowns) {
+    const opts = Array.isArray(f.options) ? f.options : [];
+    const overlap = opts.reduce(
+      (a, o) => a + (ids.has(String(optVal(o)).trim().toLowerCase()) ? 1 : 0), 0
+    );
+    if (overlap > bestOverlap) { bestOverlap = overlap; best = f; }
+  }
+  if (best && values[best.spec_key] != null) return values[best.spec_key];
+  // 3) original fallback: first dropdown
+  return values[dropdowns[0].spec_key] ?? null;
+}
+
 // ── Baseline cost resolution ────────────────────────────────────────────────
-// Item shapes seen across the 114 schemas (in priority order):
-//   usd_per_unit | usd | usd_per_manhour (× activity_manhours)
-//   scaling: usd × (param_value / reference)^exponent
-//   fallback: midpoint of range_low / range_high
+// out flags set for the caller: { unit, isActivity, qtyConsumed }
 function resolveBase(baseline, subtype, values, notes, out = {}) {
   const items = baseline && baseline.items;
   let item = null;
   const want = String(subtype || '').trim().toLowerCase();
   if (Array.isArray(items)) {
-    // list-form library: entries identified by sub_type / item_name / name
     item =
       items.find((it) => String(it.sub_type || it.item_name || it.name || '').trim().toLowerCase() === want) || null;
   } else if (items) {
@@ -205,61 +290,54 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
   }
   out.unit = itemUnit(item);
 
-  // Shape: flat list price (e.g. PLC modules)
+  // Flat list price
   if (item.usd_list_price != null) {
     return item.usd_list_price;
   }
 
-  // Shape: unit-rate keys like usd_per_m2 / usd_per_m / usd_per_tonne / usd_per_kg
+  // Unit-rate keys (usd_per_m2 / usd_per_m / usd_per_tonne / …)
   for (const [k, v] of Object.entries(item)) {
     const m = k.match(/^usd_per_([a-z0-9]+)$/i);
     if (m && typeof v === 'number' && m[1].toLowerCase() !== 'manhour') {
       const unit = m[1];
-      // per-each count units must NOT be multiplied by a dimensional field
-      // (the per-each price is flat; the Quantity field applies the count later)
       const countUnits = ['unit','units','no','nos','nr','each','set','lot','item','job','point','loc','location'];
-      if (countUnits.includes(unit.toLowerCase())) { notes.push(`Per-each rate ${v} USD/${unit} (flat).`); return v; }
-      // quantity drivers commonly used by civil/piping unit-rate schemas
+      if (countUnits.includes(unit.toLowerCase())) {
+        notes.push('Priced as a flat per-each rate.'); // [IP] no rate value
+        return v;
+      }
       const qv =
         num(values.area) ?? num(values.length) ?? num(values.weight) ??
         num(values.volume) ?? num(values.measured_quantity) ?? null;
       if (qv !== null) {
-        notes.push(`Unit rate: ${v} USD/${unit} × ${qv} ${unit}.`);
+        out.qtyConsumed = true; // [QTY] dimension folded in → count must be 1
+        notes.push(`Priced on a unit rate over ${qv} ${unit}.`); // [IP]
         return v * qv;
       }
-      notes.push(`Unit rate ${v} USD/${unit} — multiply by your measured quantity (the Quantity field is treated as ${unit}).`);
-      return v; // per-unit; quantity multiplier handles the rest
+      notes.push(`Priced on a unit rate; the Quantity field is treated as ${unit}.`); // [IP]
+      return v;
     }
   }
 
-  // Shape: cost equation "C = A * (P / R)^E" (e.g. turbines, generators)
+  // Cost equation "C = A * (P / R)^E"  [RGX] tolerate sci-notation / neg exponent
   if (typeof item.cost_equation === 'string') {
     const m = item.cost_equation.match(
-      /=\s*([\d.eE+]+)\s*\*\s*\(\s*\w+\s*\/\s*([\d.]+)\s*\)\s*\^\s*([\d.]+)/
+      /=\s*([\d.]+(?:[eE][+-]?\d+)?)\s*\*\s*\(\s*\w+\s*\/\s*([\d.]+(?:[eE][+-]?\d+)?)\s*\)\s*\^\s*(-?[\d.]+)/
     );
     if (m) {
       const A = parseFloat(m[1]), R = parseFloat(m[2]), E = parseFloat(m[3]);
-      const basis = String(item.sizing_basis || '').toLowerCase();
-      let pv = null;
-      for (const [k, v] of Object.entries(values)) {
-        const lk = k.toLowerCase();
-        if (['mw','power','output','capacity','rating','duty','sizing'].some((h) => lk.includes(h) || basis.includes(h) && lk.includes(h.slice(0,4)))) {
-          const n = num(v); if (n !== null) { pv = n; break; }
-        }
-      }
-      if (pv === null) pv = num(values.sizing_value);
+      const pv = pickSizingValue(item, values); // [SIZE]
       if (pv !== null) {
-        if (item.valid_range_min_MW != null && pv < item.valid_range_min_MW) notes.push(`Sizing ${pv} below equation valid range — extrapolated.`);
-        if (item.valid_range_max_MW != null && pv > item.valid_range_max_MW) notes.push(`Sizing ${pv} above equation valid range — extrapolated.`);
-        notes.push(`Cost equation: ${A} × (${pv}/${R})^${E} (${item.sizing_basis || 'sizing basis'}).`);
+        if (item.valid_range_min_MW != null && pv < item.valid_range_min_MW) notes.push(`Sizing ${pv} below validated range — extrapolated.`);
+        if (item.valid_range_max_MW != null && pv > item.valid_range_max_MW) notes.push(`Sizing ${pv} above validated range — extrapolated.`);
+        notes.push(`Cost-curve estimate at ${pv} (${item.sizing_basis || 'sizing basis'}).`); // [IP]
         return A * Math.pow(pv / R, E);
       }
-      notes.push(`Provide ${item.sizing_basis || 'the sizing parameter'} to evaluate the cost equation — reference point used.`);
-      return A; // value at reference size as a fallback
+      notes.push(`Provide ${item.sizing_basis || 'the sizing parameter'} for a sized estimate — reference point used.`); // [IP]
+      return A;
     }
   }
 
-  // Shape: per-size rate maps (e.g. rates_per_joint_usd keyed by DN)
+  // Per-size rate maps (e.g. rates_per_joint_usd keyed by DN)
   for (const [k, v] of Object.entries(item)) {
     if (!/rate|usd_per|price_per/i.test(k) || typeof v !== 'object' || v === null) continue;
     const entries = Object.entries(v).filter(([, x]) => typeof x === 'number');
@@ -270,19 +348,20 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
         entries.find(([rk]) => rk === val) ||
         entries.find(([rk]) => rk.toLowerCase().startsWith(val.toLowerCase()) || val.toLowerCase().startsWith(rk.toLowerCase()));
       if (hit) {
-        notes.push(`Rate basis: ${k} → "${hit[0]}" = ${hit[1]} USD.`);
+        notes.push(`Rate basis: ${hit[0]}.`); // [IP] no USD value
         return hit[1];
       }
     }
-    notes.push(`Select a size option to price from ${k} — smallest size used as placeholder.`);
+    notes.push(`Select a size option for an exact rate — smallest size used as placeholder.`);
     return entries[0][1];
   }
 
-  // Activity (man-hour) items
+  // Activity (man-hour) items  [ACT] set a real flag
   if (item.usd_per_manhour != null) {
+    out.isActivity = true;
     const mh = num(values.activity_manhours) || num(values.manhours) || num(values.man_hours);
     if (mh) {
-      notes.push(`Labour basis: ${item.usd_per_manhour} USD/man-hour × ${mh} man-hours.`);
+      notes.push(`Labour basis: ${mh} man-hours.`); // [IP] no rate
       return item.usd_per_manhour * mh;
     }
     if (item.usd == null && item.usd_per_unit == null) {
@@ -293,15 +372,15 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
 
   let base = item.usd_per_unit != null ? item.usd_per_unit : item.usd;
 
-  // Parametric scaling (e.g. BFP: usd × (motor_kW / reference_kW)^0.7)
+  // Parametric scaling
   if (item.scaling_parameter && item.scaling_exponent && base != null) {
     const ref =
       item.reference_power_kW || item.reference_value || item.reference || null;
-    // find the user value: match scaling_parameter against provided spec keys
     const wanted = item.scaling_parameter.toLowerCase().replace(/_kw$/, '');
     let pv = null;
     for (const [k, v] of Object.entries(values)) {
-      if (k.toLowerCase().includes(wanted) || wanted.includes(k.toLowerCase())) {
+      const lk = k.toLowerCase();
+      if (lk.includes(wanted) || (lk.length >= 3 && wanted.includes(lk))) {
         pv = num(v);
         if (pv != null) break;
       }
@@ -309,9 +388,7 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
     if (pv == null) pv = num(values.motor_power);
     if (pv != null && ref) {
       base = base * Math.pow(pv / ref, item.scaling_exponent);
-      notes.push(
-        `Parametric scaling: (${pv}/${ref})^${item.scaling_exponent} applied to base.`
-      );
+      notes.push(`Parametric scaling applied (size ${pv}).`); // [IP] no exponent/ref
     } else {
       notes.push('Scaling parameter value not provided — reference base used unscaled.');
     }
@@ -325,13 +402,11 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
     notes.push(`Baseline for "${subtype}" has no usable rate — cannot compute.`);
     return null;
   }
-  if (item.verify) notes.push('Baseline flagged verify=true: public-benchmark estimate pending calibration.');
+  if (item.verify) notes.push('Baseline flagged for verification: public-benchmark estimate pending calibration.');
   return base;
 }
 
 // ── Compliance mini-language evaluator (NO eval) ─────────────────────────────
-// Handles: a == 'x' | a != 'x' | a < 5 | a >= 5 | 'x' IN a | !'x' IN a |
-//          bare truthiness | clauses joined by AND / OR. Parse failure => skip.
 function evalCondition(expr, values) {
   try {
     const orParts = expr.split(/\s+OR\s+/i);
@@ -339,7 +414,7 @@ function evalCondition(expr, values) {
       part.split(/\s+AND\s+/i).every((clause) => evalClause(clause.trim(), values))
     );
   } catch {
-    return false; // fail-safe: a rule we can't parse never fires
+    return false;
   }
 }
 function literal(tok, values) {
@@ -348,7 +423,7 @@ function literal(tok, values) {
   if (q) return q[1] !== undefined ? q[1] : q[2];
   const n = num(tok);
   if (n !== null && /^[\d.+-]+$/.test(tok)) return n;
-  return values[tok]; // bare identifier -> field value
+  return values[tok];
 }
 function evalClause(clause, values) {
   let m = clause.match(/^!\s*(.+?)\s+IN\s+(.+)$/i);
@@ -373,7 +448,7 @@ function evalClause(clause, values) {
       case '<=': return an !== null && bn !== null && an <= bn;
     }
   }
-  const v = literal(clause, values); // bare truthiness
+  const v = literal(clause, values);
   return v !== undefined && v !== null && v !== '' && v !== false && v !== 0;
 }
 function inTest(needleTok, hayTok, values) {
@@ -399,9 +474,6 @@ function publicFields(schema, tier) {
 }
 
 // ── Tier-aware multiplier selection ──────────────────────────────────────────
-// Apply only the factor tables the tier formula mentions (fuzzy name match);
-// if the formula text is missing/unparseable, T1 applies all descriptive
-// tables conservatively.
 function tablesForTier(cb, tier) {
   const all = Object.entries(cb.cost_multiplier_tables || {});
   if (!all.length) return [];
@@ -416,15 +488,30 @@ function tablesForTier(cb, tier) {
   return used.length ? used : all;
 }
 
-
 // ── Self-refreshing FX ────────────────────────────────────────────────────────
-// Strategy: hard-pegged Gulf currencies are constants; everything else comes
-// from currency_rates IF today's row exists, otherwise ONE live fetch
-// (frankfurter.app, ECB daily fix — free, no key) refreshes ALL currencies and
-// caches them back into currency_rates. Net effect: rates are never more than
-// ~a day behind market, with at most one external call per day across all users.
 const FX_PEGGED = { AED: 3.6725, SAR: 3.75, QAR: 3.64, OMR: 0.3845, BHD: 0.376 };
 const FX_LIST = 'INR,GBP,EUR,CNY,JPY,SGD,MYR,THB,IDR,PHP,KRW,CAD,AUD,CHF,VND';
+
+// [FX] one live fetch refreshes ALL currencies; caching is fire-and-forget
+async function refreshAllFx(today) {
+  try {
+    const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${FX_LIST}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (!d || !d.rates) return null;
+    const payload = Object.entries(d.rates).map(([cur, rate]) => ({
+      from_currency: 'USD', to_currency: cur, rate, rate_date: today, source: 'frankfurter.app (ECB)',
+    }));
+    sb('currency_rates?on_conflict=from_currency,to_currency,rate_date', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify(payload),
+    }).catch(() => {}); // fire-and-forget
+    return d.rates;
+  } catch {
+    return null;
+  }
+}
 
 async function getFxRate(outCur, notes) {
   if (FX_PEGGED[outCur]) {
@@ -435,44 +522,62 @@ async function getFxRate(outCur, notes) {
   let stored = null;
   try {
     const rows = await sb(
-      `latest_currency_rates?from_currency=eq.USD&to_currency=eq.${encodeURIComponent(outCur)}&select=rate,rate_date`
+      `latest_currency_rates?from_currency=eq.USD&to_currency=eq.${enc(outCur)}&select=rate,rate_date`
     );
     if (rows && rows[0]) stored = rows[0];
-  } catch { /* table empty or unreachable — try live below */ }
+  } catch { /* try live below */ }
 
   if (stored && String(stored.rate_date).slice(0, 10) >= today) {
-    return Number(stored.rate); // already fresh today
+    return Number(stored.rate); // fresh today
   }
-
-  // Refresh ALL currencies in one live call, cache, return the one we need
-  try {
-    const r = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${FX_LIST}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d && d.rates) {
-        const payload = Object.entries(d.rates).map(([cur, rate]) => ({
-          from_currency: 'USD', to_currency: cur, rate, rate_date: today, source: 'frankfurter.app (ECB)',
-        }));
-        try {
-          await sb('currency_rates?on_conflict=from_currency,to_currency,rate_date', {
-            method: 'POST',
-            prefer: 'resolution=merge-duplicates,return=minimal',
-            body: JSON.stringify(payload),
-          });
-        } catch { /* caching failed — still use the live value */ }
-        if (d.rates[outCur]) {
-          notes.push(`FX refreshed live: ECB fix of ${d.date}.`);
-          return Number(d.rates[outCur]);
-        }
-      }
-    }
-  } catch { /* offline — fall through to stale */ }
-
+  // [FX] stale → serve immediately, refresh in background for next caller
   if (stored) {
-    notes.push(`FX: live refresh unavailable — using stored rate of ${String(stored.rate_date).slice(0, 10)}.`);
+    refreshAllFx(today).catch(() => {});
+    notes.push(`FX: using cached rate of ${String(stored.rate_date).slice(0, 10)}; refreshing in background.`);
     return Number(stored.rate);
   }
+  // no stored rate at all → must fetch live now
+  const live = await refreshAllFx(today);
+  if (live && live[outCur] != null) {
+    notes.push('FX fetched live (ECB daily fix).');
+    return Number(live[outCur]);
+  }
   return null;
+}
+
+// ── Independent Supabase lookups (run concurrently) ──────────────────────────
+async function lookupEscalation(templateId) {
+  try {
+    const rows = await sb(
+      `template_index_resolution?template_id=eq.${enc(templateId)}&select=escalation_factor,universal_code`
+    );
+    if (rows && rows[0]) {
+      return { escalation: Number(rows[0].escalation_factor) || 1, code: rows[0].universal_code };
+    }
+    return { escalation: 1, code: null };
+  } catch {
+    return { escalation: 1, code: null, failed: true };
+  }
+}
+async function lookupRegional(region, subRegion) {
+  try {
+    let q = `regional_factors?region=eq.${enc(region)}&select=*`;
+    if (subRegion) q += `&sub_region=eq.${enc(subRegion)}`;
+    const rows = await sb(q);
+    if (rows && rows[0]) return { rf: rows[0] };
+    return { rf: null, notFound: true };
+  } catch {
+    return { rf: null, failed: true };
+  }
+}
+async function lookupDuty(region, dutyCat) {
+  try {
+    const rows = await sb(
+      `import_duties?region=eq.${enc(region)}&equipment_category=eq.${enc(dutyCat)}&select=total_landed_adder_pct,indicative_duty_pct`
+    );
+    if (rows && rows[0]) return Number(rows[0].total_landed_adder_pct ?? rows[0].indicative_duty_pct) || 0;
+  } catch { /* duty stays 0 */ }
+  return 0;
 }
 
 // ── The calculation ──────────────────────────────────────────────────────────
@@ -481,20 +586,18 @@ async function calculate(schema, body) {
   const values = body.values || {};
   const tier = body.tier || 'T1';
   const notes = [];
-  const qty = num(values.quantity) || 1;
+  let qty = num(values.quantity) || 1;
 
-  // 1) Subtype: explicit, or the first dropdown field's value
+  // 1) Subtype
   let subtype = values.equipment_subtype;
-  if (!subtype) {
-    const dd = (schema.fields || []).find((f) => f.type === 'dropdown' && f.spec_key);
-    subtype = dd ? values[dd.spec_key] : null;
-  }
+  if (!subtype) subtype = pickSubtype(schema, values); // [SUB]
 
   // 2) Baseline USD (2024)
   const ub = {};
-  let base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
+  const base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
   const unit = ub.unit || null;
   if (base == null) return { error: 'NO_BASELINE', notes };
+  if (ub.qtyConsumed) { qty = 1; notes.push('Quantity folded into the measured dimension; count set to 1.'); } // [QTY]
 
   // 3) Multiplier tables for this tier
   const applied = [];
@@ -504,59 +607,66 @@ async function calculate(schema, body) {
     const hit = resolveFactor(table, relatedValues(name, values));
     if (hit) {
       factorProduct *= hit.factor;
-      applied.push({ table: name, matched: hit.matchedKey, factor: hit.factor });
+      applied.push({ table: name, matched: hit.matchedKey }); // [IP] no factor value
     }
   }
 
-  // 4) Escalation from Supabase view (current index ÷ 2024 schema base)
-  let escalation = 1;
-  try {
-    const rows = await sb(
-      `template_index_resolution?template_id=eq.${encodeURIComponent(schema.template_id)}&select=escalation_factor,universal_code`
-    );
-    if (rows && rows[0]) {
-      escalation = Number(rows[0].escalation_factor) || 1;
-      notes.push(`Escalation ×${escalation.toFixed(4)} (${rows[0].universal_code} vs 2024 base).`);
-    }
-  } catch (e) {
-    notes.push('Escalation lookup failed — using ×1.0 (2024 basis).');
-  }
-
-  // 5) Regional factors + duty from Supabase
+  // 4-7) Independent lookups in parallel  [PERF]
   const region = body.region || 'India';
   const subRegion = body.sub_region || null;
-  let rf = { equipment_factor: 1, labour_factor: 1, civil_factor: 1, inland_freight_pct: 0, contingency_pct: 10, accuracy_pct: 25, aace_class: 'Class 4', currency_code: 'USD' };
-  try {
-    let q = `regional_factors?region=eq.${encodeURIComponent(region)}&select=*`;
-    if (subRegion) q += `&sub_region=eq.${encodeURIComponent(subRegion)}`;
-    const rows = await sb(q);
-    if (rows && rows[0]) rf = rows[0];
-    else notes.push(`Region "${region}" not found — world-average factors (×1.0) used.`);
-  } catch { notes.push('Regional factor lookup failed — ×1.0 used.'); }
+  let outCur = (body.currency || 'USD').toUpperCase();
+  const dutyCat =
+    (cb.regional_factors && cb.regional_factors.equipment_duty_category) || 'Process equipment';
+  const isImported = (body.equipment_origin || 'Local') === 'Imported';
 
-  let dutyPct = 0;
-  if ((body.equipment_origin || 'Local') === 'Imported') {
-    const dutyCat =
-      (cb.regional_factors && cb.regional_factors.equipment_duty_category) || 'Process equipment';
-    try {
-      const rows = await sb(
-        `import_duties?region=eq.${encodeURIComponent(region)}&equipment_category=eq.${encodeURIComponent(dutyCat)}&select=total_landed_adder_pct,indicative_duty_pct`
-      );
-      if (rows && rows[0]) {
-        dutyPct = Number(rows[0].total_landed_adder_pct ?? rows[0].indicative_duty_pct) || 0;
-        notes.push(`Import duty applied: ${dutyPct}% landed adder (${dutyCat}, ${region}). Indicative — verify HS code.`);
-      }
-    } catch { /* duty stays 0 */ }
+  const [esc, regional, dutyPctRaw, fxRaw] = await Promise.all([
+    lookupEscalation(schema.template_id),
+    lookupRegional(region, subRegion),
+    isImported ? lookupDuty(region, dutyCat) : Promise.resolve(0),
+    outCur !== 'USD' ? getFxRate(outCur, notes) : Promise.resolve(1),
+  ]);
+
+  // Escalation
+  const escalation = esc.escalation;
+  if (esc.failed) notes.push('Escalation lookup failed — using ×1.0 (2024 basis).');
+  else if (esc.code) notes.push(`Escalation ×${escalation.toFixed(4)} (${esc.code} vs 2024 base).`);
+
+  // Regional factors
+  const DEFAULT_RF = {
+    equipment_factor: 1, labour_factor: 1, civil_factor: 1, inland_freight_pct: 0,
+    contingency_pct: 10, accuracy_pct: 25, aace_class: 'Class 4', currency_code: 'USD',
+  };
+  let rf = DEFAULT_RF;
+  if (regional.rf) rf = regional.rf;
+  else if (regional.notFound) notes.push(`Region "${region}" not found — world-average factors (×1.0) used.`);
+  else if (regional.failed) notes.push('Regional factor lookup failed — ×1.0 used.');
+
+  // Import duty
+  const dutyPct = dutyPctRaw || 0;
+  if (isImported && dutyPct) {
+    notes.push(`Import duty applied: ${dutyPct}% landed adder (${dutyCat}, ${region}). Indicative — verify HS code.`);
+  } else if (isImported && !dutyPct) {
+    notes.push(`No duty row for "${dutyCat}" in ${region} — duty taken as 0%. Verify HS code.`);
   }
 
-  // 6) Build lines (USD first)
+  // FX
+  let fx = 1;
+  if (outCur !== 'USD') {
+    if (fxRaw === null) { notes.push(`No FX rate available for ${outCur} — totals shown in USD.`); outCur = 'USD'; }
+    else fx = fxRaw;
+  }
+
+  // 8) Build lines (USD first)
   const adders = cb.adders || {};
-  const isActivity = notes.some((n) => n.startsWith('Labour basis'));
+  const isActivity = !!ub.isActivity; // [ACT] real flag
   const supplyFactor = isActivity ? Number(rf.labour_factor) : Number(rf.equipment_factor);
   const supplyUsd = base * factorProduct * qty * escalation * (supplyFactor || 1);
 
   const lines = [];
-  lines.push({ line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + (unit ? ` — ${qty} ${unit}` : ''), usd: round2(supplyUsd) });
+  lines.push({
+    line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + (unit ? ` — ${qty} ${unit}` : ''),
+    usd: round2(supplyUsd),
+  });
 
   const t = tierNum(tier);
   let subtotal = supplyUsd;
@@ -576,16 +686,7 @@ async function calculate(schema, body) {
   lines.push({ line: `Contingency (${contPct}% ${rf.aace_class || ''})`.trim(), usd: round2(cont) });
   const totalUsd = subtotal + cont;
 
-  // 7) Output currency — self-refreshing FX
-  let outCur = (body.currency || 'USD').toUpperCase();
-  let fx = 1;
-  if (outCur !== 'USD') {
-    const got = await getFxRate(outCur, notes);
-    if (got === null) { notes.push(`No FX rate available for ${outCur} — totals shown in USD.`); outCur = 'USD'; }
-    else fx = got;
-  }
-
-  // 8) Compliance rules — evaluated HERE, never shipped to the client
+  // 9) Compliance rules — evaluated HERE, never shipped to the client
   const findings = [];
   for (const r of schema.compliance_rules || []) {
     if (r.condition_expr && evalCondition(r.condition_expr, values)) {
@@ -593,7 +694,7 @@ async function calculate(schema, body) {
     }
   }
 
-  // 9) Spec string
+  // 10) Spec string
   let spec = null;
   if (typeof schema.spec_formula === 'string') {
     spec = schema.spec_formula.replace(/\{(\w+)\}/g, (_, k) =>
@@ -601,8 +702,6 @@ async function calculate(schema, body) {
     );
   }
 
-  // Accuracy can never be better than the tier's class; regional uncertainty
-  // can only widen it. Take the worse (larger) of the two.
   const tierAcc = t === 1 ? 30 : t === 2 ? 20 : 10;
   const accuracy = `±${Math.max(tierAcc, Number(rf.accuracy_pct) || 0)}%`;
   return {
@@ -610,11 +709,11 @@ async function calculate(schema, body) {
     template_name: schema.template_name,
     tier, accuracy, region, sub_region: rf.sub_region || subRegion,
     quantity: qty, unit, spec,
-    factors_applied: applied,
+    factors_applied: applied, // [IP] {table, matched} only
     lines: lines.map((l) => ({ ...l, amount: round2(l.usd * fx) })),
     total: { usd: round2(totalUsd), currency: outCur, amount: round2(totalUsd * fx), fx_rate: fx },
     compliance: findings,
-    notes,
+    notes, // [IP] genericised at source — no library rates / coefficients
     disclaimer: `Tier ${t} ${accuracy} estimate for budgetary purposes only — not for procurement. multicalci.com`,
   };
 }
@@ -630,10 +729,11 @@ async function rateLimit(req, templateId, tier, region) {
       { headers: { Prefer: 'count=exact' }, prefer: 'count=exact' }
     );
     if (Array.isArray(rows) && rows.length >= DAILY_LIMIT) return { blocked: true };
-    await sb('boq_calc_log', {
+    // [PERF] logging insert is fire-and-forget — must never delay or break the calc
+    sb('boq_calc_log', {
       method: 'POST',
       body: JSON.stringify({ template_id: templateId, tier, region, client_hash: hash }),
-    });
+    }).catch(() => {});
   } catch { /* logging must never break the calc */ }
   return { blocked: false };
 }
@@ -641,8 +741,7 @@ async function rateLimit(req, templateId, tier, region) {
 // ── Handler ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   const reqOrigin = req.headers.origin || '';
-  const allowed = [ORIGIN, 'http://localhost:3000', 'http://127.0.0.1:3000'];
-  res.setHeader('Access-Control-Allow-Origin', allowed.includes(reqOrigin) ? reqOrigin : ORIGIN);
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS.includes(reqOrigin) ? reqOrigin : ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -653,14 +752,14 @@ export default async function handler(req, res) {
   const action = (req.query.action || '').toLowerCase();
 
   try {
-    // ---- LIST: public metadata for the picker -------------------------------
+    // ---- LIST ---------------------------------------------------------------
     if (action === 'list' && req.method === 'GET') {
       const rows = await sb('boq_schema_meta?select=*&order=stream,template_name');
       res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
       return res.status(200).json({ count: rows.length, templates: rows });
     }
 
-    // ---- REGIONS: region/sub-region/currency options for project settings ---
+    // ---- REGIONS ------------------------------------------------------------
     if (action === 'regions' && req.method === 'GET') {
       const rows = await sb('regional_factors?select=region,sub_region,currency_code,accuracy_pct&order=region,sub_region');
       const regions = {};
@@ -672,7 +771,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ regions });
     }
 
-    // ---- FIELDS: form definition for one template/tier ----------------------
+    // ---- FIELDS -------------------------------------------------------------
     if (action === 'fields' && req.method === 'GET') {
       const id = String(req.query.template || '');
       if (!/^SCHEMA-[A-Z0-9-]+$/.test(id)) return res.status(400).json({ error: 'Bad template id.' });
@@ -680,7 +779,6 @@ export default async function handler(req, res) {
       if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });
       const schema = rows[0].schema_json;
       const tier = String(req.query.tier || 'T1');
-      // measurement units per library item (names + units only — no rates)
       const itemUnits = {};
       const its = (schema.cost_build_up && schema.cost_build_up.usd_cost_baseline || {}).items;
       if (Array.isArray(its)) {
@@ -696,12 +794,10 @@ export default async function handler(req, res) {
         tier_summary: schema.tier_summary || null,
         item_units: itemUnits,
         fields: publicFields(schema, tier),
-        // deliberately NOT included: library rates, formulas, multiplier
-        // tables, compliance rules, cost_build_up — those never leave server.
       });
     }
 
-    // ---- CALC: the engine ----------------------------------------------------
+    // ---- CALC ---------------------------------------------------------------
     if (action === 'calc' && req.method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       const id = String(body.template_id || '');
@@ -709,14 +805,17 @@ export default async function handler(req, res) {
       if (!body.values || typeof body.values !== 'object') {
         return res.status(400).json({ error: 'Missing values object.' });
       }
-      const rl = await rateLimit(req, id, body.tier, body.region);
+      // [PERF] rate-limit check and schema fetch overlap
+      const [rl, rows] = await Promise.all([
+        rateLimit(req, id, body.tier, body.region),
+        sb(`boq_schemas?template_id=eq.${id}&select=schema_json`),
+      ]);
       if (rl.blocked) {
         return res.status(429).json({
           error: `Free limit reached (${DAILY_LIMIT} calculations/day). Upgrade to Pro for unlimited calculations, PDF & Excel export.`,
           upgrade_url: 'https://multicalci.com/pro/',
         });
       }
-      const rows = await sb(`boq_schemas?template_id=eq.${id}&select=schema_json`);
       if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });
       const result = await calculate(rows[0].schema_json, body);
       if (result.error) return res.status(422).json(result);
@@ -731,4 +830,7 @@ export default async function handler(req, res) {
 }
 
 // exported for offline testing only
-export const _internal = { resolveFactor, resolveBase, evalCondition, calculate, publicFields, tablesForTier, relatedValues };
+export const _internal = {
+  resolveFactor, resolveBase, evalCondition, calculate, publicFields,
+  tablesForTier, relatedValues, pickSizingValue, pickSubtype, bandInterval,
+};
