@@ -14,8 +14,11 @@
 //          single unambiguous candidate exists (no silent 304-vs-316L mis-pick).
 //   [ACT]  Activity vs equipment is a real boolean flag from resolveBase, not a
 //          note-string sniff.
-//   [QTY]  When a dimensional unit-rate driver (area/length/…) is consumed, the
-//          count multiplier is forced to 1 (no double-multiply).
+//   [QTY]  Dimensional unit rates (area/length/…) price ONE unit; the separate
+//          Quantity field multiplies the count (rate × dim × qty). No forced
+//          qty=1 — that would undercount multi-unit line items.
+//   [IN]   IN ['a','b'] list literals now parse in compliance rules (previously
+//          such clauses silently never fired).
 //   [BAND] Range tables pick the TIGHTEST matching band, not the first one.
 //   [PERF] Escalation / regional / duty / FX run concurrently; rate-limit insert
 //          and FX cache-write are fire-and-forget; rate-limit + schema fetch
@@ -309,7 +312,8 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
         num(values.area) ?? num(values.length) ?? num(values.weight) ??
         num(values.volume) ?? num(values.measured_quantity) ?? null;
       if (qv !== null) {
-        out.qtyConsumed = true; // [QTY] dimension folded in → count must be 1
+        // area/length/… is the per-unit dimension; the separate Quantity field
+        // is the COUNT, applied later in calculate(). rate × dim × qty is correct.
         notes.push(`Priced on a unit rate over ${qv} ${unit}.`); // [IP]
         return v * qv;
       }
@@ -451,10 +455,21 @@ function evalClause(clause, values) {
   const v = literal(clause, values);
   return v !== undefined && v !== null && v !== '' && v !== false && v !== 0;
 }
+function parseListLiteral(tok) {
+  const m = String(tok).trim().match(/^\[(.*)\]$/s);
+  if (!m) return null;
+  return m[1]
+    .split(',')
+    .map((s) => s.trim().replace(/^(['"])(.*)\1$/, '$2').trim())
+    .filter((s) => s.length > 0);
+}
 function inTest(needleTok, hayTok, values) {
   const needle = literal(needleTok, values);
+  if (needle == null) return false;
+  const list = parseListLiteral(hayTok); // [IN] handle  X IN ['a','b']
+  if (list) return list.map(String).includes(String(needle));
   const hay = literal(hayTok, values);
-  if (needle == null || hay == null) return false;
+  if (hay == null) return false;
   if (Array.isArray(hay)) return hay.map(String).includes(String(needle));
   return String(hay).toLowerCase().includes(String(needle).toLowerCase());
 }
@@ -597,7 +612,6 @@ async function calculate(schema, body) {
   const base = resolveBase(cb.usd_cost_baseline, subtype, values, notes, ub);
   const unit = ub.unit || null;
   if (base == null) return { error: 'NO_BASELINE', notes };
-  if (ub.qtyConsumed) { qty = 1; notes.push('Quantity folded into the measured dimension; count set to 1.'); } // [QTY]
 
   // 3) Multiplier tables for this tier
   const applied = [];
