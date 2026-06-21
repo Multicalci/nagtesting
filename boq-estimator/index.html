@@ -562,13 +562,38 @@ function evalShowIf(showIf, values){
       .some(part => part.split(/\s+AND\s+/i).every(c => _clause(c.trim(), values)));
   }catch{ return true; }                      // fail OPEN — show rather than hide
 }
+// Evaluate a field's conditional_display in EITHER shape the 114 schemas use:
+//   • object form  {show_if:"equipment_subtype", operator:"in"|"not_in"|"=="|"!="|">"|…, value:[…]|scalar}
+//   • string form  show_if:"equipment_subtype IN ['a','b']"   (legacy mini-language)
+// The object form is identified by the presence of an explicit `operator`.
+function evalConditional(cd, values){
+  if(!cd) return true;                                   // no rule → visible
+  if(cd.operator){
+    const fv  = values[cd.show_if];
+    const op  = String(cd.operator).toLowerCase();
+    const arr = Array.isArray(cd.value) ? cd.value.map(String) : [String(cd.value)];
+    if(op === 'in')     return arr.includes(String(fv));
+    if(op === 'not_in') return !arr.includes(String(fv));
+    const a = parseFloat(fv), b = parseFloat(cd.value);
+    const bn = Number.isFinite(a) && Number.isFinite(b);
+    switch(op){
+      case '==': return bn ? a===b : String(fv)===String(cd.value);
+      case '!=': return bn ? a!==b : String(fv)!==String(cd.value);
+      case '>':  return bn && a >  b;
+      case '<':  return bn && a <  b;
+      case '>=': return bn && a >= b;
+      case '<=': return bn && a <= b;
+    }
+    return true;
+  }
+  return evalShowIf(cd.show_if, values);                 // legacy string expression
+}
 function applyConditions(){
   const v = currentValues();
   FIELDS.forEach(f => {
     const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(f.field_id)}"]`);
     if(!holder) return;
-    const showIf = f.conditional_display && f.conditional_display.show_if;
-    holder.style.display = evalShowIf(showIf, v) ? '' : 'none';
+    holder.style.display = evalConditional(f.conditional_display, v) ? '' : 'none';
   });
 }
 
