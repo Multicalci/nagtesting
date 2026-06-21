@@ -513,21 +513,62 @@ function currentValues(){
   });
   return v;
 }
+function _lit(tok, values){
+  tok = String(tok).trim();
+  const q = tok.match(/^'(.*)'$|^"(.*)"$/s);
+  if(q) return q[1] !== undefined ? q[1] : q[2];
+  if(/^[\d.+-]+$/.test(tok)){ const n = parseFloat(tok); if(Number.isFinite(n)) return n; }
+  return values[tok];                       // bare identifier → field value
+}
+function _list(tok){
+  const m = String(tok).trim().match(/^\[(.*)\]$/s);
+  if(!m) return null;
+  return m[1].split(',')
+    .map(s => s.trim().replace(/^(['"])(.*)\1$/, '$2').trim())
+    .filter(s => s.length);
+}
+function _in(needleTok, hayTok, values){
+  const needle = _lit(needleTok, values);
+  if(needle == null) return false;
+  const list = _list(hayTok);
+  return list ? list.map(String).includes(String(needle)) : false;
+}
+function _clause(clause, values){
+  let m = clause.match(/^!\s*(.+?)\s+IN\s+(.+)$/i);  if(m) return !_in(m[1], m[2], values);
+  m = clause.match(/^(.+?)\s+NOT\s+IN\s+(.+)$/i);     if(m) return !_in(m[1], m[2], values);
+  m = clause.match(/^(.+?)\s+IN\s+(.+)$/i);           if(m) return _in(m[1], m[2], values);
+  m = clause.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
+  if(m){
+    const a = _lit(m[1], values), b = _lit(m[3], values);
+    if(a == null || a === '') return false;
+    const an = parseFloat(a), bn = parseFloat(b);
+    const bothNum = Number.isFinite(an) && Number.isFinite(bn) && typeof b !== 'string';
+    switch(m[2]){
+      case '==': return bothNum ? an === bn : String(a) === String(b);
+      case '!=': return bothNum ? an !== bn : String(a) !== String(b);
+      case '>':  return Number.isFinite(an) && Number.isFinite(bn) && an >  bn;
+      case '<':  return Number.isFinite(an) && Number.isFinite(bn) && an <  bn;
+      case '>=': return Number.isFinite(an) && Number.isFinite(bn) && an >= bn;
+      case '<=': return Number.isFinite(an) && Number.isFinite(bn) && an <= bn;
+    }
+  }
+  const val = _lit(clause, values);          // bare truthiness
+  return val != null && val !== '' && val !== false && val !== 0;
+}
+function evalShowIf(showIf, values){
+  if(!showIf) return true;                    // no rule → always visible
+  try{
+    return String(showIf).split(/\s+OR\s+/i)
+      .some(part => part.split(/\s+AND\s+/i).every(c => _clause(c.trim(), values)));
+  }catch{ return true; }                      // fail OPEN — show rather than hide
+}
 function applyConditions(){
   const v = currentValues();
   FIELDS.forEach(f => {
-    if(!f.conditional_display) return;
     const holder = $('form-body').querySelector(`[data-fid="${CSS.escape(f.field_id)}"]`);
     if(!holder) return;
-    const cd = f.conditional_display;
-    const cur = v[cd.show_if];
-    let showIt = true;
-    const op = (cd.operator || 'in').toLowerCase();
-    if(op === 'in' && Array.isArray(cd.value)) showIt = cd.value.includes(cur);
-    else if(op === '==' || op === 'equals') showIt = String(cur) === String(cd.value);
-    else if(op === '!=') showIt = String(cur) !== String(cd.value);
-    else if(op === 'truthy' || cd.value == null) showIt = cur != null && cur !== '';
-    holder.style.display = showIt ? '' : 'none';
+    const showIf = f.conditional_display && f.conditional_display.show_if;
+    holder.style.display = evalShowIf(showIf, v) ? '' : 'none';
   });
 }
 
