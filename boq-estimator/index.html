@@ -562,6 +562,14 @@ const GAS_PROPS = { // [MW g/mol, k=Cp/Cv] — indicative, for sizing only
  'Hydrogen':[2.016,1.41],'CO₂':[44.01,1.28],'Syngas':[20.0,1.36],'Ammonia':[17.03,1.31],
  'Chlorine':[70.9,1.34],'Hydrocarbon':[30.0,1.20],'Inert':[20.0,1.55],'Steam':[18.02,1.33]};
 function gasProps(t){ const key=String(t||'').split(/[ (/]/)[0]; return GAS_PROPS[key] || GAS_PROPS['Air']; }
+// liquid specific gravity for pump sizing, inferred from the fluid/gas_type label
+function sgOf(t){ const s=String(t||'').toLowerCase();
+  if(s.includes('ammonia')) return 0.68; if(s.includes('water')||s.includes('condensate')) return 1.0;
+  if(s.includes('hydrocarbon')||s.includes('propane')||s.includes('propylene')) return 0.51;
+  if(s.includes('acid')) return 1.2; return 1.0; }
+// stage count from a num_stages label ("Single-stage","2-stage",…)
+function stageOf(t){ const m=String(t||'').match(/(\d+)/); if(m) return Math.max(1,+m[1]);
+  return /single/i.test(String(t||'')) ? 1 : 1; }
 function api610Margin(shaftkW){ return shaftkW<22 ? 1.25 : shaftkW<=55 ? 1.15 : 1.10; }
 function nextFrame(kW, std){
   if(std==='NEMA'){ const hp=kW/HP_KW; const h=NEMA_HP.find(x=>x>=hp-1e-9);
@@ -574,8 +582,13 @@ function nextFrame(kW, std){
 function recommendDrive(v, subtype, region){
   const std = /usa|united states/i.test(region||'') ? 'NEMA' : 'IEC';
   let shaft=null, basis='', approx=false;
+  // Refrigeration compressor cost scales on refrigeration_capacity_kw, not motor — skip auto-sizing
+  if(/refrigerat/i.test(subtype)) return null;
   if(/blower|compressor/i.test(subtype)){
-    const Q=+v.gas_flow_rate, dP=+v.diff_press_kpa;          // Nm³/h, kPa
+    // field-name aliases: this template uses flow_rate / design_pressure(bar g),
+    // the legacy compressor template uses gas_flow_rate / diff_press_kpa
+    const Q = +v.gas_flow_rate || +v.flow_rate;                          // Nm³/h
+    const dP = +v.diff_press_kpa || (+v.design_pressure>0 ? +v.design_pressure*100 : 0); // kPa
     if(!(Q>0 && dP>0)) return null;
     const gp=gasProps(v.gas_type), MW=gp[0], isComp=/compressor/i.test(subtype);
     const k=(+v.gas_k>0 ? +v.gas_k : gp[1]);                 // manual k (Cp/Cv) override if supplied
@@ -584,17 +597,20 @@ function recommendDrive(v, subtype, region){
     if(isComp){
       const P1=(+v.suction_press_kpa>0 ? +v.suction_press_kpa : 101.325);   // kPa abs, user-overridable
       const P2=P1+dP, r=P2/P1, T1=(+v.design_temperature>0?+v.design_temperature:40)+273.15;
+      const z=stageOf(v.num_stages);                          // multi-stage w/ intercooling to T1
       const mdot=Q*(MW/22.414)/3600, Rs=8314/MW;             // kg/s ; J/kg·K (Nm³ @0°C,1atm)
-      const head=Rs*T1*(k/(k-1))*(Math.pow(r,(k-1)/k)-1);    // J/kg
+      const head=z*Rs*T1*(k/(k-1))*(Math.pow(r,(k-1)/(k*z))-1);    // J/kg
       shaft=mdot*head/eta/1000;
-      basis=`adiabatic ${Q} Nm³/h, r=${r.toFixed(2)} (P₁=${P1.toFixed(0)}→P₂=${P2.toFixed(0)} kPa abs), ${kTag}, η_is ${(eta*100)|0}%`;
+      basis=`adiabatic ${Q} Nm³/h, ${z}-stage, r=${r.toFixed(2)} (P₁=${P1.toFixed(0)}→P₂=${P2.toFixed(0)} kPa abs), ${kTag}, η_is ${(eta*100)|0}%`;
       approx=true;
     } else {
       shaft=Q*dP/(3600*eta);
       basis=`${Q} Nm³/h × ${dP} kPa ÷ (3600·η ${(eta*100)|0}%)`; approx=true;
     }
   } else if(/pump|jockey/i.test(subtype)){
-    const Q=+v.flow_rate, H=+v.diff_head_m, SG=(+v.specific_gravity>0?+v.specific_gravity:1);
+    // aliases: this template uses pump_flow_rate + gas_type(fluid); legacy uses flow_rate + specific_gravity
+    const Q=+v.pump_flow_rate || +v.flow_rate, H=+v.diff_head_m;
+    const SG=(+v.specific_gravity>0?+v.specific_gravity: sgOf(v.gas_type));
     if(!(Q>0 && H>0)) return null;
     const eta=(+v.efficiency>0 ? +v.efficiency/100 : 0.70);
     shaft=Q*H*SG/367.0/eta;
@@ -622,7 +638,9 @@ function syncMotor(){
   const rec = recommendDrive(v, v.equipment_subtype, $('region') ? $('region').value : '');
   if(!rec){ setMotorHint(''); return; }
   const cur = el.value.trim();
-  const overridden = cur!=='' && (motorAuto.last==null || Math.abs(parseFloat(cur)-motorAuto.last)>0.01);
+  // overridden only once we've auto-filled at least once and the user has since
+  // changed it — the schema's default value must NOT count as a manual override
+  const overridden = motorAuto.last!=null && cur!=='' && Math.abs(parseFloat(cur)-motorAuto.last)>0.01;
   const pct = Math.round((rec.margin-1)*100);
   if(!overridden){
     el.value = rec.frame.kW; motorAuto.last = rec.frame.kW;
@@ -785,7 +803,7 @@ function renderSheet(d){
   let extras = '';
   if((d.factors_applied || []).length){
     extras += `<details class="xtra"><summary>Cost factors applied (${d.factors_applied.length})</summary><ul>` +
-      d.factors_applied.map(f => `<li>${esc(f.table.replace(/_/g,' '))}: ×${f.factor} — ${esc(f.matched)}</li>`).join('') +
+      d.factors_applied.map(f => `<li>${esc(f.table.replace(/_/g,' '))} — ${esc(f.matched)}</li>`).join('') +
       '</ul></details>';
   }
   if((d.notes || []).length){
