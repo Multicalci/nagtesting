@@ -101,10 +101,17 @@ h1 em{font-style:normal;color:var(--gold)}
   cursor:pointer;border-left:2px solid transparent}
 .titem:hover{background:var(--panel2);border-left-color:var(--gold)}
 .titem:last-child{border-bottom:none}
-.titem .tname{flex:1;font-size:.98rem;font-weight:500}
-.titem .tmeta{font-family:var(--mono);font-size:.74rem;color:var(--dim);white-space:nowrap}
-.titem .tarrow{color:var(--dim)}
+.titem .tbody{flex:1;min-width:0}
+.titem .tname{font-size:.98rem;font-weight:500}
+.titem .tsub{display:flex;gap:8px;align-items:baseline;margin-top:3px;font-family:var(--mono);
+  font-size:.7rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.titem .tid{color:var(--cyan);flex:none}
+.titem .tkw{color:var(--mut);overflow:hidden;text-overflow:ellipsis}
+.titem .tkw::before{content:"· ";color:var(--dim)}
+.titem .tmeta{font-family:var(--mono);font-size:.74rem;color:var(--dim);white-space:nowrap;flex:none}
+.titem .tarrow{color:var(--dim);flex:none}
 .titem:hover .tarrow{color:var(--gold);transform:translateX(2px)}
+.titem mark{background:rgba(212,160,80,.28);color:inherit;border-radius:2px;padding:0 1px}
 .no-results{padding:30px;text-align:center;color:var(--mut);font-size:.95rem;line-height:1.6}
 
 /* ── config row ── */
@@ -372,6 +379,23 @@ function matches(t, q){
 }
 function renderList(){
   const q = $('q').value.trim();
+  // escape, then wrap any matched query words in <mark> so the user sees WHY a row matched
+  const hl = (text) => {
+    let s = esc(text);
+    q.toLowerCase().split(/\s+/).filter(Boolean).forEach(w => {
+      const re = new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+      s = s.replace(re, '<mark>$1</mark>');
+    });
+    return s;
+  };
+  // short preview of what's inside the template, from its keywords (the real disambiguator)
+  const kwPreview = (t) => {
+    let parts = String(t.keywords||'').split(/[,;|]+|\s{2,}/).map(x=>x.trim()).filter(Boolean);
+    if(parts.length<2) parts = String(t.keywords||'').split(/\s+/).filter(Boolean);
+    const name = String(t.template_name||'').toLowerCase(), seen=new Set(), out=[];
+    for(const p of parts){ const k=p.toLowerCase(); if(seen.has(k)||k===name) continue; seen.add(k); out.push(p); if(out.length>=6) break; }
+    return out.join(' · ');
+  };
   const hits = META.filter(t => matches(t, q));
   if(!hits.length){ $('tlist').innerHTML = '<div class="no-results">No templates match. Try a broader word — “pump”, “cable”, “concrete”…</div>'; return; }
   const groups = {};
@@ -380,8 +404,12 @@ function renderList(){
   Object.keys(groups).sort().forEach(g => {
     html += `<div class="tgroup">${esc(g)} · ${groups[g].length}</div>`;
     groups[g].sort((a,b)=>a.template_name.localeCompare(b.template_name)).forEach(t => {
+      const kw = kwPreview(t);
       html += `<div class="titem" data-id="${esc(t.template_id)}">
-        <div class="tname">${esc(t.template_name)}</div>
+        <div class="tbody">
+          <div class="tname">${hl(t.template_name)}</div>
+          <div class="tsub"><span class="tid">${esc(t.template_id)}</span>${kw ? `<span class="tkw">${hl(kw)}</span>` : ''}</div>
+        </div>
         <div class="tmeta">${t.item_count} items · ${esc(t.tiers)}</div>
         <div class="tarrow">→</div></div>`;
     });
