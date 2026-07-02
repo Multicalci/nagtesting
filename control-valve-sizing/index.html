@@ -350,9 +350,9 @@ select option{background:var(--ink2)}
       <div class="custom-sec" id="customSec">
         <div class="row2" style="margin-top:10px">
           <div class="field"><label id="custSGlbl">SG / MW <span class="hint">liquid SG or gas MW</span></label>
-            <input type="number" id="custSG" value="1.0" step="0.001" oninput="clearChipSel();calc()"></div>
+            <input type="number" id="custSG" value="1.0" step="0.001" oninput="syncCustomFluid()"></div>
           <div class="field"><label>Vapor Pressure <span class="hint" id="custPvUnit">(psia)</span></label>
-            <input type="number" id="custPv" value="0.3" step="0.01" oninput="clearChipSel();calc()"></div>
+            <input type="number" id="custPv" value="0.3" step="0.01" oninput="syncCustomFluid()"></div>
         </div>
       </div>
       <hr class="sep">
@@ -404,7 +404,7 @@ select option{background:var(--ink2)}
         <div class="field"><label data-tip="Fluid vapor pressure at operating temperature">Vapor Pressure Pᵥ</label>
           <div class="iw"><input type="number" id="pv" value="0.3" oninput="calc()"><span class="iunit" id="uPv">psia</span></div></div>
         <div class="field"><label id="sgLabel" data-tip="Specific gravity (liquids) or molecular weight (gases)">Specific Gravity</label>
-          <div class="iw"><input type="number" id="sg" value="1.0" step="0.001" oninput="clearChipSel();calc()"><span class="iunit" id="uSG">SG</span></div></div>
+          <div class="iw"><input type="number" id="sg" value="1.0" step="0.001" oninput="clearChipSel();document.getElementById('custSG').value=this.value;calc()"><span class="iunit" id="uSG">SG</span></div></div>
       </div>
       <div class="row2" id="gasRow" style="display:none">
         <div class="field">
@@ -991,11 +991,24 @@ function selectFluid(f){
   document.getElementById('pv').value=f.pv||0;
   document.getElementById('kval').value=f.k||1.40;
   document.getElementById('zf').value=f.z||1.00;
+  document.getElementById('custSG').value=f.sg;
+  document.getElementById('custPv').value=f.pv||0;
   calc();
   autoZ();  // immediately compute Z for current T/P via PR EOS
 }
 
 function clearChipSel(){selFluid=null;document.querySelectorAll('#fChips .fchip').forEach(c=>c.classList.remove('active','gold'));}
+
+// FIX: "Custom fluid properties" panel (custSG/custPv) was previously a dead UI —
+// its values were never read by calc(); the payload always used the main sg/pv
+// fields, which still held the last-selected chip's fluid (e.g. Air, MW=28.97).
+// This pushes the custom values into the real sg/pv fields that actually get sent.
+function syncCustomFluid(){
+  clearChipSel();
+  document.getElementById('sg').value = document.getElementById('custSG').value;
+  document.getElementById('pv').value = document.getElementById('custPv').value;
+  calc();
+}
 
 // ── AUTO Z — PR EOS via /api/eos when gas phase + named fluid selected ────
 let _zDebounce = null;
