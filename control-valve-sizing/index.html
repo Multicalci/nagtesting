@@ -305,6 +305,10 @@ select option{background:var(--ink2)}
 #copyToast.show{transform:translateX(-50%) translateY(0)}
 @media(max-width:480px){.cv-num.big{font-size:1.8rem}.cv-num.med{font-size:1.5rem}.cv-num.sm{font-size:1.2rem}
   .valve-size-strip{flex-direction:column}.share-row{grid-template-columns:repeat(2,1fr)}}
+.trim-rec{margin-top:10px;padding:9px 12px;border:1px dashed rgba(0,122,108,.45);border-radius:7px;
+  background:rgba(0,122,108,.04);font-size:.7rem;color:var(--text2);line-height:1.55}
+.trim-rec b{color:var(--teal);font-family:var(--mono)}
+.trim-rec .tr-note{display:block;margin-top:3px;font-size:.62rem;color:var(--text3)}
 /* ── U-1/U-2: manual-calculate workflow & stale results state ── */
 .results-col.stale .cv-hero,.results-col.stale .diag-card{opacity:.55;filter:saturate(.55);
   transition:opacity .25s,filter .25s}
@@ -548,6 +552,7 @@ select option{background:var(--ink2)}
         <div class="vs-chip rec"><span class="vsc-size" id="vsz2">—</span><span class="vsc-pct" id="vop2">RECOMMENDED</span></div>
         <div class="vs-chip lrg"><span class="vsc-size" id="vsz3">—</span><span class="vsc-pct" id="vop3">—</span></div>
       </div>
+      <div class="trim-rec" id="trimRec" style="display:none"></div>
     </div>
 
     <div class="diag-card">
@@ -1382,6 +1387,22 @@ async function _calcAsync(){
     setEl('vsz1', s0.s); setEl('vop1', opLbl(r.openPct_smaller, r.openFlags?.smaller, s0.s===s1.s));
     setEl('vsz2', s1.s); setEl('vop2', opLbl(openPn,            r.openFlags?.rec,     false));
     setEl('vsz3', s2.s); setEl('vop3', opLbl(r.openPct_larger,  r.openFlags?.larger,  s2.s===s1.s));
+  }
+
+  // FIX V-6: preferred trim recommendation strip
+  const tr = document.getElementById('trimRec');
+  if (tr) {
+    if (r.trimRec) {
+      const t = r.trimRec;
+      tr.style.display = '';
+      tr.innerHTML = '🎯 <strong>Preferred trim:</strong> rated Cv ≈ <b>' + t.Cv_rated + '</b>'
+        + ' → <b>' + t.openMax + '%</b> open at max design flow'
+        + (t.openMin != null ? ', <b>' + t.openMin + '%</b> at min flow' + (t.minOk === false ? ' ⚠' : '') : '')
+        + ' &nbsp;(sensible rated-Cv band: ' + t.bandLo + '–' + t.bandHi + ')'
+        + '<span class="tr-note">Generic decade series (1.0 / 1.6 / 2.5 / 4.0 / 6.3…) with a 60–80% max-flow opening target — vendor trim steps and curves differ, so enter the quoted trim\'s rated Cv above once known.</span>';
+    } else {
+      tr.style.display = 'none';
+    }
   }
 
   setEl('dv_state', r.flowState);
