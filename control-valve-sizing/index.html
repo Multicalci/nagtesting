@@ -1374,9 +1374,14 @@ async function _calcAsync(){
     setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
     setEl('vsz3','—'); setEl('vop3','n/a');
   } else {
-    setEl('vsz1', s0.s); setEl('vop1', s0.s===s1.s?'—':(r.openPct_smaller??0).toFixed(0)+'% open');
-    setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
-    setEl('vsz3', s2.s); setEl('vop3', s2.s===s1.s?'—':(r.openPct_larger??0).toFixed(0)+'% open');
+    // FIX V-5: sizes whose minimum controllable Cv exceeds the required Cv are
+    // labelled, not shown as a meaningless "0% open".
+    const opLbl=(pct,flag,same)=> same ? '—'
+      : flag==='belowMin' ? 'below min ctrl'
+      : (pct??0).toFixed(0)+'% open';
+    setEl('vsz1', s0.s); setEl('vop1', opLbl(r.openPct_smaller, r.openFlags?.smaller, s0.s===s1.s));
+    setEl('vsz2', s1.s); setEl('vop2', opLbl(openPn,            r.openFlags?.rec,     false));
+    setEl('vsz3', s2.s); setEl('vop3', opLbl(r.openPct_larger,  r.openFlags?.larger,  s2.s===s1.s));
   }
 
   setEl('dv_state', r.flowState);
@@ -1389,7 +1394,7 @@ async function _calcAsync(){
 
   colorEl('dv_state', r.flowState&&r.flowState.includes('🟢')?'ok':r.flowState&&(r.flowState.includes('🟡')||r.flowState.includes('🟠'))?'warn':'danger');
   colorEl('dv_noise', r.noiseDb<75?'ok':r.noiseDb<85?'warn':'danger');
-  colorEl('dv_open',  openPn<80?'ok':openPn<100?'warn':'danger');
+  colorEl('dv_open',  openPn>=20&&openPn<80?'ok':openPn<=100?'warn':'danger');  // FIX V-5: <20% open is a controllability warning too
 
   setPB('pb_open',  openPn, 100);
   setPB('pb_dp',    r.dpRatioPct||0, 100);
