@@ -448,6 +448,11 @@ select option{background:var(--ink2)}
         <div class="field"><label data-tip="Rangeability R: max/min controllable Cv ratio">Rangeability R</label>
           <input type="number" id="rangeR" value="50" step="1" min="10" max="200" oninput="updateCharChart()"></div>
       </div>
+      <div class="row2">
+        <div class="field"><label data-tip="Optional: enter the actual rated (100%-open) Cv of the selected trim from a vendor datasheet. When set, % open is calculated against this value instead of a generic full-bore size table.">Rated Cv — Vendor Trim <span class="hint">optional</span></label>
+          <div class="iw"><input type="number" id="cvRatedCustom" placeholder="e.g. 3.60" step="0.01" min="0" oninput="calc()"><span class="iunit">Cv</span></div></div>
+        <div class="field"></div>
+      </div>
       <div class="field row1"><label>Pipe Size — Quick Select</label>
         <div class="pipe-chips" id="pipeChips"></div></div>
       <div class="row3">
@@ -1220,6 +1225,7 @@ async function _calcAsync(){
         steamFluid, fluidVisc, fluidPc,
         charType:  document.getElementById('valveChar').value,
         R_trim:    document.getElementById('rangeR').value,
+        Cv_rated_custom: document.getElementById('cvRatedCustom').value || null,
       }),
     });
     apiResult = await resp.json();
@@ -1245,9 +1251,15 @@ async function _calcAsync(){
   const openPn = r.openPct_rec ?? 0;
   lastOpenPct  = Math.min(openPn, 100);
 
-  setEl('vsz1', s0.s); setEl('vop1', s0.s===s1.s?'—':(r.openPct_smaller??0).toFixed(0)+'% open');
-  setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
-  setEl('vsz3', s2.s); setEl('vop3', s2.s===s1.s?'—':(r.openPct_larger??0).toFixed(0)+'% open');
+  if (r.usingCustomTrim) {
+    setEl('vsz1','—'); setEl('vop1','n/a');
+    setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
+    setEl('vsz3','—'); setEl('vop3','n/a');
+  } else {
+    setEl('vsz1', s0.s); setEl('vop1', s0.s===s1.s?'—':(r.openPct_smaller??0).toFixed(0)+'% open');
+    setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
+    setEl('vsz3', s2.s); setEl('vop3', s2.s===s1.s?'—':(r.openPct_larger??0).toFixed(0)+'% open');
+  }
 
   setEl('dv_state', r.flowState);
   setEl('dv_noise', r.noiseDb+' dB');
