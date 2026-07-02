@@ -144,8 +144,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .utbtn{padding:7px 16px;border:none;background:transparent;font-family:var(--head);font-size:.74rem;
   font-weight:700;letter-spacing:1px;color:var(--text3);cursor:pointer;transition:all .2s}
 .utbtn.on{background:var(--teal);color:var(--ink)}
-.app{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:22px 18px;
-  display:grid;grid-template-columns:420px 1fr;gap:18px;align-items:start}
+.app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:22px 20px;
+  display:grid;grid-template-columns:minmax(410px,5fr) 7fr;gap:20px;align-items:start}
 @media(max-width:980px){.app{grid-template-columns:1fr}}
 @media(max-width:480px){.hdr{padding:10px 12px}.app{padding:12px 10px;gap:12px}}
 .card{background:var(--ink2);border:1px solid var(--line);border-radius:var(--r);padding:18px;
@@ -210,7 +210,9 @@ select option{background:var(--ink2)}
 .cv-hero::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,122,108,.04) 0%,transparent 50%);pointer-events:none}
 .cv-hero::after{content:'Cv';position:absolute;right:18px;top:50%;transform:translateY(-50%);
   font-family:var(--head);font-size:4.5rem;font-weight:800;color:rgba(0,122,108,.06);pointer-events:none;line-height:1}
-.cv-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start}
+.cv-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:stretch}
+.cv-val-wrap{background:rgba(0,122,108,.035);border:1px solid var(--line);border-radius:7px;
+  padding:11px 12px;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:3px}
 @media(max-width:480px){.cv-row{grid-template-columns:1fr 1fr}}
 .cv-val-wrap .cv-label{font-family:var(--body);font-size:.73rem;font-weight:600;letter-spacing:.5px;
   color:var(--text2);margin-bottom:5px;text-transform:uppercase}
@@ -303,6 +305,34 @@ select option{background:var(--ink2)}
 #copyToast.show{transform:translateX(-50%) translateY(0)}
 @media(max-width:480px){.cv-num.big{font-size:1.8rem}.cv-num.med{font-size:1.5rem}.cv-num.sm{font-size:1.2rem}
   .valve-size-strip{flex-direction:column}.share-row{grid-template-columns:repeat(2,1fr)}}
+/* ── U-1/U-2: manual-calculate workflow & stale results state ── */
+.results-col.stale .cv-hero,.results-col.stale .diag-card{opacity:.55;filter:saturate(.55);
+  transition:opacity .25s,filter .25s}
+.calc-bar{position:sticky;bottom:14px;z-index:20;background:var(--ink2);border:1.5px solid var(--teal);
+  border-radius:var(--r);padding:12px 14px;box-shadow:0 10px 28px rgba(0,77,66,.15);
+  display:flex;flex-direction:column;gap:7px;animation:fadeUp .5s .18s ease both}
+.btn-calc{width:100%;padding:13px 16px;border:none;border-radius:8px;cursor:pointer;
+  font-family:var(--head);font-size:.9rem;font-weight:800;letter-spacing:2px;color:#fff;
+  background:linear-gradient(135deg,var(--teal) 0%,var(--teal2) 100%);
+  box-shadow:0 4px 14px rgba(0,122,108,.35);transition:transform .15s,box-shadow .2s}
+.btn-calc:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,122,108,.45)}
+.btn-calc:active{transform:translateY(0)}
+.btn-calc:disabled{opacity:.6;cursor:wait;transform:none}
+.calc-note{font-size:.68rem;color:var(--text3);text-align:center;font-family:var(--mono)}
+.calc-note.alert{color:var(--gold);font-weight:600}
+.live-dot.stale-dot{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+@media(prefers-reduced-motion:reduce){.calc-bar,.card,.cv-hero{animation:none}}
+/* ── U-3: vendor Cv vs travel table ── */
+.cvt-head{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--teal2);cursor:pointer;
+  margin-top:6px;font-weight:600;letter-spacing:.3px}
+.cvt-head:hover{color:var(--teal)}
+.cvt-sec{display:none;margin-top:6px}.cvt-sec.open{display:block}
+.cvt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.cvt-cell label{display:block;font-family:var(--mono);font-size:.6rem;color:var(--text3);
+  margin-bottom:2px;text-align:center}
+.cvt-cell input{padding:6px 5px;font-size:.74rem;text-align:center}
+.cvt-hint{font-size:.63rem;color:var(--text3);margin-top:6px;line-height:1.55}
+@media(max-width:480px){.cvt-grid{grid-template-columns:repeat(3,1fr)}}
 
 /* ── HOME BUTTON ── */
 .home-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;border-radius:8px;
@@ -451,7 +481,25 @@ select option{background:var(--ink2)}
       <div class="row2">
         <div class="field"><label data-tip="Optional: enter the actual rated (100%-open) Cv of the selected trim from a vendor datasheet. When set, % open is calculated against this value instead of a generic full-bore size table.">Rated Cv — Vendor Trim <span class="hint">optional</span></label>
           <div class="iw"><input type="number" id="cvRatedCustom" placeholder="e.g. 3.60" step="0.01" min="0" oninput="calc()"><span class="iunit">Cv</span></div></div>
-        <div class="field"></div>
+        <div class="field"><label data-tip="Optional: valve body size. When smaller than the line, the Fp piping-geometry correction (IEC 60534-2-1 §4.1) is applied to the required Cv.">Valve Size — NPS <span class="hint">optional</span></label>
+          <div class="iw"><input type="number" id="valveNPS" placeholder="e.g. 2" step="0.001" min="0" oninput="calc()"><span class="iunit" id="uValveNPS">in</span></div></div>
+      </div>
+      <div class="cvt-head" onclick="toggleCvTable()"><span id="cvtArrow">▸</span> Vendor Cv vs Travel Table <span class="hint" style="font-weight:400;text-transform:none">— match the datasheet opening exactly</span></div>
+      <div class="cvt-sec" id="cvtSec">
+        <div class="cvt-hint">Enter the Cv values published in the vendor datasheet at each travel step. Any 2+ points work — the predicted opening is then interpolated on the <strong>actual trim curve</strong> instead of an ideal characteristic (which typically deviates 10–25 travel points from real hardware).</div>
+        <div class="cvt-grid">
+          <div class="cvt-cell"><label>10 %</label><input type="number" id="cvT10" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>20 %</label><input type="number" id="cvT20" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>30 %</label><input type="number" id="cvT30" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>40 %</label><input type="number" id="cvT40" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>50 %</label><input type="number" id="cvT50" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>60 %</label><input type="number" id="cvT60" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>70 %</label><input type="number" id="cvT70" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>80 %</label><input type="number" id="cvT80" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>90 %</label><input type="number" id="cvT90" step="0.001" min="0" oninput="calc()"></div>
+          <div class="cvt-cell"><label>100 %</label><input type="number" id="cvT100" step="0.001" min="0" oninput="calc()"></div>
+        </div>
+        <div class="cvt-hint" style="text-align:right"><span style="cursor:pointer;color:var(--red)" onclick="clearCvTable()">✕ clear table</span></div>
       </div>
       <div class="field row1"><label>Pipe Size — Quick Select</label>
         <div class="pipe-chips" id="pipeChips"></div></div>
@@ -475,6 +523,11 @@ select option{background:var(--ink2)}
       </div>
     </div>
 
+    <div class="calc-bar">
+      <button class="btn-calc" id="btnCalc" onclick="runCalc()">▶ &nbsp;CALCULATE Cv &amp; VALVE OPENING</button>
+      <div class="calc-note" id="calcNote">Enter your process data, then press Calculate</div>
+    </div>
+
   </div><!-- /left -->
 
   <!-- RIGHT -->
@@ -482,11 +535,11 @@ select option{background:var(--ink2)}
 
     <div class="cv-hero">
       <div class="ch"><div class="ch-icon">📊</div><div class="ch-title">Sizing Results</div>
-        <div class="info-pill" style="margin-left:auto"><div class="live-dot"></div>LIVE</div></div>
+        <div class="info-pill" style="margin-left:auto" id="livePill"><div class="live-dot stale-dot"></div>READY</div></div>
       <div class="cv-row">
         <div class="cv-val-wrap"><div class="cv-label">REQUIRED Cv</div><div class="cv-num big" id="resCv">—</div></div>
         <div class="cv-val-wrap"><div class="cv-label">REQUIRED Kv</div><div class="cv-num med" id="resKv">—</div></div>
-        <div class="cv-val-wrap" style="text-align:right"><div class="cv-label">INLET VELOCITY</div>
+        <div class="cv-val-wrap"><div class="cv-label">INLET VELOCITY</div>
           <div class="cv-num sm" id="resVel">—</div>
           <div style="font-size:.56rem;color:var(--text3);margin-top:2px" id="velStatus">—</div></div>
       </div>
@@ -519,6 +572,7 @@ select option{background:var(--ink2)}
       <div class="warn-bar" id="wbar1"><span></span></div>
       <div class="warn-bar" id="wbar2"><span></span></div>
       <div class="warn-bar" id="wbar3"><span></span></div>
+      <div class="warn-bar" id="wbar4"><span></span></div>
     </div>
 
     <!-- VALVE CHARACTERISTICS -->
@@ -598,7 +652,7 @@ select option{background:var(--ink2)}
         <span class="hl">Kv = Cv/1.1561 (IEC exact) | Equal%: f(h)=R^(h−1) | Installed: fi·√(α/(α+(1−α)fi²))</span>
       </div>
       <div class="actions">
-        <button class="btn btn-primary" onclick="calc()">↻ RECALCULATE</button>
+        <button class="btn btn-primary" onclick="runCalc()">↻ RECALCULATE</button>
         <button class="btn btn-secondary" onclick="generatePDF()">🖨 PRINT / PDF</button>
       </div>
       <div style="margin-top:12px">
@@ -946,7 +1000,13 @@ function updateCharChart(){
 window.addEventListener('DOMContentLoaded',()=>{
   buildPipeChips();buildFluidChips();
   selectFluid(FLUID_DB.liq_gen[0]);
-  updateUnitLabels();calc();
+  updateUnitLabels();calc();   // FIX U-1: marks stale only — no API call until the user presses Calculate
+  const n=document.getElementById('calcNote');
+  if(n){ n.classList.remove('alert'); n.textContent='Enter your process data, then press Calculate'; }
+  const p=document.getElementById('livePill');
+  if(p){ p.innerHTML='<div class="live-dot stale-dot"></div>READY'; }
+  // Enter in any input runs the calculation
+  document.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{ if(e.key==='Enter') runCalc(); }));
   setTimeout(buildCharChart,300);
 });
 
@@ -1124,6 +1184,7 @@ function updateUnitLabels(){
   document.getElementById('uPv').textContent=m?'bara':'psia';
   document.getElementById('uTemp').textContent=m?'°C':'°F';
   document.getElementById('uPipe').textContent=m?'mm':'in';
+  const uv=document.getElementById('uValveNPS'); if(uv)uv.textContent=m?'mm':'in';
   document.getElementById('custPvUnit').textContent=m?'(bara)':'(psia)';
   setFlowType(FTYPE);syncPipeID();
 }
@@ -1179,18 +1240,73 @@ function switchCharTab(panel,el){
 
 function setCharType(type,el){
   charType=type;
-  document.getElementById('valveChar').value=type;
+  // FIX U-5: this used to set the <select> to values it doesn't contain
+  // ('hyperbolic'/'camflex'), blanking it — the API then silently sized with
+  // equal_pct while the chart showed a different curve. Sync only when the
+  // option exists; chart-only curves no longer alter the sizing characteristic.
+  const sel=document.getElementById('valveChar');
+  if([...sel.options].some(o=>o.value===type)){
+    if(sel.value!==type){ sel.value=type; markStale(); }
+  }
   document.querySelectorAll('.char-tab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
   buildCharChart();
 }
 
-// ── MAIN CALC — API only, no math client side ─────────────────────────────
+// ── MAIN CALC — manual trigger; API only, no math client side ─────────────
 const API_URL = '/api/control-valve';
-let _calcDebounce = null;
-function calc(){
-  clearTimeout(_calcDebounce);
-  _calcDebounce = setTimeout(_calcAsync, 80);
+let RESULTS_STALE = true;
+
+// FIX U-1: calc() used to fire the API on every keystroke (debounced 80 ms),
+// which (a) computed with half-typed numbers, (b) burned one serverless call
+// per keystroke, and (c) made the Calculate button meaningless. It is now an
+// alias that only flags the results as stale; the API runs exclusively from
+// runCalc() (Calculate button or the Enter key).
+function calc(){ markStale(); }
+
+function markStale(){
+  RESULTS_STALE = true;
+  updatePressureHints();   // keep the live gauge→absolute hints responsive
+  document.querySelector('.results-col')?.classList.add('stale');
+  const n = document.getElementById('calcNote');
+  if(n){ n.textContent = 'Inputs changed — press Calculate to update results'; n.classList.add('alert'); }
+  const p = document.getElementById('livePill');
+  if(p){ p.innerHTML = '<div class="live-dot stale-dot"></div>STALE'; }
+}
+
+async function runCalc(){
+  const btn = document.getElementById('btnCalc');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ CALCULATING…'; }
+  try{
+    // refresh Z at the current T/P first (gas + named fluid, unless overridden)
+    if(PHASE.includes('gas') && selFluid && selFluid.Tc && !_zUserOverride){
+      clearTimeout(_zDebounce);
+      await _autoZAsync();
+    }
+    await _calcAsync();
+  } finally {
+    if(btn){ btn.disabled = false; btn.innerHTML = '▶ &nbsp;CALCULATE Cv & VALVE OPENING'; }
+  }
+}
+
+// FIX U-3: collect the vendor Cv/travel points (2+ needed to activate)
+function collectCvTable(){
+  const pts = [];
+  for(let h = 10; h <= 100; h += 10){
+    const el = document.getElementById('cvT' + h);
+    if(!el) continue;
+    const v = parseFloat(el.value);
+    if(isFinite(v) && v > 0) pts.push({ h: h, cv: v });
+  }
+  return pts.length >= 2 ? pts : null;
+}
+function toggleCvTable(){
+  const s = document.getElementById('cvtSec'); s.classList.toggle('open');
+  const a = document.getElementById('cvtArrow'); if(a) a.textContent = s.classList.contains('open') ? '▾' : '▸';
+}
+function clearCvTable(){
+  for(let h = 10; h <= 100; h += 10){ const el = document.getElementById('cvT' + h); if(el) el.value = ''; }
+  markStale();
 }
 async function _calcAsync(){
   const m=UNITS==='met', isL=PHASE.includes('liq'), isG=PHASE.includes('gas'), isS=PHASE==='steam';
@@ -1226,6 +1342,8 @@ async function _calcAsync(){
         charType:  document.getElementById('valveChar').value,
         R_trim:    document.getElementById('rangeR').value,
         Cv_rated_custom: document.getElementById('cvRatedCustom').value || null,
+        d_valve:   document.getElementById('valveNPS')?.value || null,   // FIX U-4: Fp was dead server code — never sent before
+        Cv_travel_table: collectCvTable(),                               // FIX U-3
       }),
     });
     apiResult = await resp.json();
@@ -1263,7 +1381,7 @@ async function _calcAsync(){
 
   setEl('dv_state', r.flowState);
   setEl('dv_noise', r.noiseDb+' dB');
-  setEl('dv_open',  openPn.toFixed(1)+'%');  // openPn from API
+  setEl('dv_open',  openPn.toFixed(1)+'%'+(r.openBasis==='vendor_table'?' (vendor)':''));  // openPn from API
   setEl('dv_re',  r.Rev  != null ? r.Rev.toExponential(2)  : 'N/A (gas)');
   setEl('dv_dp',  r.dpRatioPct != null ? r.dpRatioPct+'%' : '—');
   setEl('dv_flap', r.dPmaxLabel ?? '—');
@@ -1294,6 +1412,14 @@ async function _calcAsync(){
 
   renderWarnings(allWarns);
   updateCharChart();
+
+  // FIX U-1: results are now in sync with inputs — clear the stale state
+  RESULTS_STALE = false;
+  document.querySelector('.results-col')?.classList.remove('stale');
+  const note = document.getElementById('calcNote');
+  if(note){ note.classList.remove('alert'); note.textContent = '✓ Results updated at ' + new Date().toLocaleTimeString(); }
+  const pill = document.getElementById('livePill');
+  if(pill){ pill.innerHTML = '<div class="live-dot"></div>UPDATED'; }
 }
 
 function clearResults(){
@@ -1304,7 +1430,7 @@ function clearResults(){
 
 function renderWarnings(warns){
   const bars=[document.getElementById('wbar1'),document.getElementById('wbar2'),
-               document.getElementById('wbar3')];
+               document.getElementById('wbar3'),document.getElementById('wbar4')];
   bars.forEach((el,i)=>{
     if(!el)return;
     el.className='warn-bar';
