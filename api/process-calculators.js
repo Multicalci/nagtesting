@@ -154,6 +154,12 @@ function controlValve_handler(req, res) {
     const d_valve_in  = d_valve_raw ? (m ? d_valve_raw/25.4 : d_valve_raw) : null;
     // Q_min for turndown check
     const Q_min_raw   = d.Q_min ? parseFloat(d.Q_min) : null;
+    // Custom rated Cv override — lets the user enter the actual selected
+    // trim's rated (100%-open) Cv, e.g. from a vendor datasheet, instead
+    // of relying on the generic full-bore size table below. When supplied,
+    // this Cv is used directly for the % open calculation (bypasses table lookup).
+    const Cv_rated_custom_raw = d.Cv_rated_custom ? parseFloat(d.Cv_rated_custom) : null;
+    const Cv_rated_custom = (Cv_rated_custom_raw && Cv_rated_custom_raw > 0) ? Cv_rated_custom_raw : null;
 
     // ── VALIDATION ────────────────────────────────────────────────────────────
     const warns = [];
@@ -458,6 +464,15 @@ function controlValve_handler(req, res) {
       rec:     stdCv[ri],
       larger:  stdCv[Math.min(ri+1, stdCv.length-1)],
     };
+    // If the user supplied the actual selected trim's rated Cv (e.g. from a
+    // vendor datasheet - reduced/characterized trim, not generic full-bore),
+    // override "rec" with it so % open matches the real hardware instead of
+    // the generic size-table assumption.
+    let usingCustomTrim = false;
+    if (Cv_rated_custom) {
+      usingCustomTrim = true;
+      sizes.rec = { s: sizes.rec.s + ' (custom trim)', Cv_rated: Cv_rated_custom };
+    }
 
     // ── OPEN % CALCULATION ────────────────────────────────────────────────────
     function openPct_eq(CvReq, szCv) {
@@ -474,8 +489,13 @@ function controlValve_handler(req, res) {
       }
     }
     const openPct_rec     = openPct_eq(Cv, sizes.rec.Cv_rated);
-    const openPct_smaller = openPct_eq(Cv, sizes.smaller.Cv_rated);
-    const openPct_larger  = openPct_eq(Cv, sizes.larger.Cv_rated);
+    // Smaller/larger comparisons only make sense against the generic
+    // full-bore table — suppress them when a custom trim Cv is in use.
+    const openPct_smaller = usingCustomTrim ? null : openPct_eq(Cv, sizes.smaller.Cv_rated);
+    const openPct_larger  = usingCustomTrim ? null : openPct_eq(Cv, sizes.larger.Cv_rated);
+    if (usingCustomTrim) {
+      warns.push({ cls:'warn-amber', txt:`ℹ Using custom rated Cv = ${fmtN(Cv_rated_custom)} (vendor/selected trim) instead of generic full-bore table. Smaller/larger size options are not applicable.` });
+    }
 
     // FIX F-11: below-rangeability warning
     const ratioRec = Cv / Math.max(sizes.rec.Cv_rated, 0.001);
@@ -485,7 +505,10 @@ function controlValve_handler(req, res) {
 
     // ── >100% open warning (moved from client) ────────────────────────────────
     if (openPct_rec > 100) {
-      warns.push({ cls:'warn-red', txt:`⚠️ Cv ${fmtN(Cv)} exceeds rated Cv of ${sizes.rec.s} (${sizes.rec.Cv_rated}). Select: ${sizes.larger.s}.` });
+      const suggestion = usingCustomTrim
+        ? 'Select a larger trim/port size.'
+        : `Select: ${sizes.larger.s}.`;
+      warns.push({ cls:'warn-red', txt:`⚠️ Cv ${fmtN(Cv)} exceeds rated Cv of ${sizes.rec.s} (${sizes.rec.Cv_rated}). ${suggestion}` });
     }
 // ── TURNDOWN / Q_MIN CHECK ───────────────────────────────────────────────
     let Cv_min = null, turndown = null, turndownOk = null;
@@ -528,6 +551,7 @@ function controlValve_handler(req, res) {
       flowState,
       noiseDb,
       sizes,
+      usingCustomTrim,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
