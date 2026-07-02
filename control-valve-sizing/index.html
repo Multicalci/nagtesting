@@ -1375,7 +1375,11 @@ async function _calcAsync(){
 
   // Valve size chips — open% now computed server-side
   const s0=r.sizes.smaller, s1=r.sizes.rec, s2=r.sizes.larger;
-  const openPn = r.openPct_rec ?? 0;
+  const openPnRaw = r.openPct_rec ?? 0;
+  // FIX V-9: when a reduced trim is advised, the headline opening is reported
+  // on the preferred trim (openPct_display), not the rejected full-port bore.
+  const openPn = (r.openPct_display != null) ? r.openPct_display : openPnRaw;
+  const openNote = r.openDisplayNote ? ' (pref. trim)' : (r.openBasis==='vendor_table' ? ' (vendor)' : '');
   lastOpenPct  = Math.min(openPn, 100);
 
   if (r.usingCustomTrim) {
@@ -1411,7 +1415,7 @@ async function _calcAsync(){
 
   setEl('dv_state', r.flowState);
   setEl('dv_noise', r.noiseDb+' dB');
-  setEl('dv_open',  openPn.toFixed(1)+'%'+(r.openBasis==='vendor_table'?' (vendor)':''));  // openPn from API
+  setEl('dv_open',  openPn.toFixed(1)+'%'+openNote);
   setEl('dv_re',  r.Rev  != null ? r.Rev.toExponential(2)  : 'N/A (gas)');
   setEl('dv_dp',  r.dpRatioPct != null ? r.dpRatioPct+'%' : '—');
   setEl('dv_flap', r.dPmaxLabel ?? '—');
@@ -1424,7 +1428,7 @@ async function _calcAsync(){
   setPB('pb_open',  openPn, 100);
   setPB('pb_dp',    r.dpRatioPct||0, 100);
   setPB('pb_noise', ((r.noiseDb||60)-60)/40*100, 100);
-  setEl('pb_open_txt',  openPn.toFixed(1)+'%');
+  setEl('pb_open_txt',  openPn.toFixed(1)+'%'+openNote);
   setEl('pb_dp_txt',    (r.dpRatioPct||0)+'%');
   setEl('pb_noise_txt', r.noiseDb+' dB (estimated)');
 
