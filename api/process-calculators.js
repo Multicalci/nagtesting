@@ -583,6 +583,36 @@ function controlValve_handler(req, res) {
       warns.push({ cls:'warn-amber', txt:`ℹ Using custom rated Cv = ${fmtN(Cv_rated_custom)} (vendor/selected trim) instead of generic full-bore table. Smaller/larger size options are not applicable.` });
     }
 
+    // FIX V-5: classify each size's opening. For eq% the inherent curve cannot
+    //   deliver Cv below Cv_rated/R — inversion returns ~0% travel, which the
+    //   UI used to display as a nonsensical "0% open". Flag it instead.
+    function openFlag(pct, szCv) {
+      if (pct == null) return null;
+      const ratio = Cv / Math.max(szCv, 0.001);
+      if (charType === 'equal_pct' && ratio <= 1 / R_trim) return 'belowMin';
+      if (pct < 5)   return 'belowMin';
+      if (pct < 20)  return 'low';
+      if (pct > 100) return 'over';
+      return 'ok';
+    }
+    const openFlags = {
+      rec:     openFlag(openPct_rec,     sizes.rec.Cv_rated),
+      smaller: openFlag(openPct_smaller, sizes.smaller.Cv_rated),
+      larger:  openFlag(openPct_larger,  sizes.larger.Cv_rated),
+    };
+    // FIX V-5: grossly-oversized guidance. Valves should normally run 20-80%
+    //   open at design flow. When required Cv sits far below full-port sizes,
+    //   the correct engineering answer is a REDUCED-PORT / characterized trim
+    //   in a line-size body (exactly how vendors quote small-Cv services),
+    //   not a smaller full-port body.
+    if (openPct_rec > 0 && openPct_rec < 20) {
+      if (!usingCustomTrim) {
+        warns.push({ cls:'warn-amber', txt:`⚠ Only ${openPct_rec.toFixed(0)}% open at design flow — a full-port ${sizes.rec.s} is grossly oversized for Cv ${fmtN(Cv)}. Specify a reduced-port/characterized trim with rated Cv ≈ ${fmtN(Cv*2.5)}–${fmtN(Cv*5)} (2.5–5× required Cv) in a line-size body, then enter it under "Rated Cv — Vendor Trim".` });
+      } else {
+        warns.push({ cls:'warn-amber', txt:`⚠ Only ${openPct_rec.toFixed(0)}% open at design flow with this trim — consider a smaller trim (rated Cv ≈ ${fmtN(Cv*2.5)}–${fmtN(Cv*5)}) for better controllability.` });
+      }
+    }
+
     // FIX F-11: below-rangeability warning
     const ratioRec = Cv / Math.max(sizes.rec.Cv_rated, 0.001);
     if (ratioRec < 1 / R_trim) {
@@ -639,6 +669,7 @@ function controlValve_handler(req, res) {
       sizes,
       usingCustomTrim,
       openBasis,
+      openFlags,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
