@@ -146,7 +146,12 @@ function controlValve_handler(req, res) {
     const fluidVisc  = parseFloat(d.fluidVisc) || 1.0;
     const fluidPc    = d.fluidPc ? parseFloat(d.fluidPc) : null;
     const steamFluid = d.steamFluid || '';
-    const charType   = d.charType  || 'equal_pct'; // valve characteristic for open% calc
+    // FIX V-3: validate charType against the whitelist. The UI chart tabs
+    //   could previously blank the <select> ('hyperbolic'/'camflex' are not
+    //   options), sending charType:'' — which silently coerced to equal_pct
+    //   while the user believed another curve was active.
+    const _charValid = ['linear','equal_pct','quick_open','modified_parabolic','hyperbolic','camflex'];
+    const charType   = _charValid.includes(d.charType) ? d.charType : 'equal_pct'; // valve characteristic for open% calc
     const R_trim     = Math.max(10, Math.min(200, parseFloat(d.R_trim) || 50)); // rangeability
       // Valve NPS for Fp piping geometry factor (IEC 60534-2-1 §4.1)
     // If not supplied → Fp = 1.0 (no correction)
@@ -160,6 +165,25 @@ function controlValve_handler(req, res) {
     // this Cv is used directly for the % open calculation (bypasses table lookup).
     const Cv_rated_custom_raw = d.Cv_rated_custom ? parseFloat(d.Cv_rated_custom) : null;
     const Cv_rated_custom = (Cv_rated_custom_raw && Cv_rated_custom_raw > 0) ? Cv_rated_custom_raw : null;
+    // FIX V-2: Vendor Cv-vs-travel table from the datasheet:
+    //   [{h: travel %, cv: Cv at that travel}, ...] — 2+ valid points.
+    //   Ideal analytic characteristics rarely reproduce a real trim's published
+    //   curve (10-25 travel-point deviations are normal, especially below 50%
+    //   travel). Interpolating the actual table is the only method that
+    //   matches vendor-predicted openings.
+    let cvTable = null;
+    if (Array.isArray(d.Cv_travel_table)) {
+      const pts = d.Cv_travel_table
+        .map(p => ({ h: parseFloat(p && p.h), cv: parseFloat(p && p.cv) }))
+        .filter(p => isFinite(p.h) && isFinite(p.cv) && p.h > 0 && p.h <= 100 && p.cv > 0)
+        .sort((a, b) => a.h - b.h);
+      const clean = [];
+      for (const p of pts) {
+        if (clean.length && p.h === clean[clean.length - 1].h) continue; // dedupe travel
+        clean.push(p);
+      }
+      if (clean.length >= 2) cvTable = clean;
+    }
 
     // ── VALIDATION ────────────────────────────────────────────────────────────
     const warns = [];
@@ -473,27 +497,89 @@ function controlValve_handler(req, res) {
       usingCustomTrim = true;
       sizes.rec = { s: sizes.rec.s + ' (custom trim)', Cv_rated: Cv_rated_custom };
     }
+    // FIX V-2: a vendor Cv/travel table takes precedence — it IS the actual trim.
+    //   Rated Cv becomes the table's top point unless a custom rated Cv was given.
+    if (cvTable) {
+      usingCustomTrim = true;
+      const tableTop = cvTable[cvTable.length - 1].cv;
+      if (!Cv_rated_custom) sizes.rec = { s: sizes.rec.s + ' (vendor curve)', Cv_rated: tableTop };
+    }
 
     // ── OPEN % CALCULATION ────────────────────────────────────────────────────
-    function openPct_eq(CvReq, szCv) {
-      const ratio = Math.min(CvReq / Math.max(szCv, 0.001), 1.5);
-      if (charType === 'equal_pct') {
-        // FIX F-11: explicitly flag below-rangeability (ratio < 1/R)
-        // Formula: h = 1 + log(ratio)/log(R)  [inversion of f(h) = R^(h-1)]
-        const h = ratio <= 0 ? 0 : 1 + Math.log(Math.max(ratio, 1 / R_trim)) / Math.log(R_trim);
-        return Math.max(0, Math.min(h * 100, 200));
-      } else if (charType === 'quick_open') {
-        return Math.min(Math.sqrt(ratio) * 100, 200);  // inversion of f(h)=sqrt(h)
-      } else {
-        return Math.min(ratio * 100, 200); // linear and others
+    // charFunc_srv MUST remain identical to the front-end chart's charFunc().
+    // FIX V-1: previously only equal_pct and quick_open were inverted; the UI's
+    //   'modified_parabolic' option silently fell through to LINEAR (a 15-30
+    //   travel-point error at mid-range), and hyperbolic/camflex were unhandled.
+    //   All six characteristics are now inverted numerically (bisection, 60
+    //   iterations — exact to machine precision, monotone curves guaranteed).
+    function charFunc_srv(type, h, R) {
+      h = Math.max(0, Math.min(1, h));
+      switch (type) {
+        case 'linear':      return h;
+        case 'equal_pct':   return Math.pow(R, h - 1);
+        case 'quick_open':  return Math.sqrt(h);
+        case 'modified_parabolic':
+          if (h < 0.25) return 0.5 * Math.sqrt(h);
+          { const t  = (h - 0.25) / 0.75;
+            const p0 = 0.25, p1 = 1.0, m0 = 0.5 * 0.75, m1 = 1.0 * 0.75; // Hermite, scaled tangents
+            return (2*t*t*t - 3*t*t + 1) * p0 + (t*t*t - 2*t*t + t) * m0
+                 + (-2*t*t*t + 3*t*t)    * p1 + (t*t*t - t*t)       * m1; }
+        case 'hyperbolic':  return h / (R * (1 - h) + h);
+        case 'camflex':     return Math.pow(h, 1.3) * (1 + 0.25 * Math.sin(Math.PI * h));
+        default:            return h;
       }
     }
-    const openPct_rec     = openPct_eq(Cv, sizes.rec.Cv_rated);
+    // Invert f(h) = target for travel h. target ≥ 1 (required Cv above rated) is
+    // extrapolated linearly along the curve's exit slope so the '>100% open'
+    // warning still fires with a meaningful magnitude.
+    function invertChar(type, target, R) {
+      if (!isFinite(target) || target <= 0) return 0;
+      if (target >= 1) {
+        const slope = Math.max((charFunc_srv(type, 1, R) - charFunc_srv(type, 0.999, R)) / 0.001, 0.05);
+        return Math.min((1 + (target - 1) / slope) * 100, 200);
+      }
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 60; i++) {
+        const mid = 0.5 * (lo + hi);
+        if (charFunc_srv(type, mid, R) < target) lo = mid; else hi = mid;
+      }
+      return 0.5 * (lo + hi) * 100;
+    }
+    function openPct_eq(CvReq, szCv) {
+      const ratio = Math.min(CvReq / Math.max(szCv, 0.001), 1.5);
+      return invertChar(charType, ratio, R_trim);
+    }
+    // FIX V-2: monotone piecewise-linear interpolation on the vendor table.
+    function openPct_table(CvReq) {
+      const t = cvTable;
+      if (CvReq <= t[0].cv) {
+        // Below the first tabulated point — interpolate toward the seat (0, 0)
+        return Math.max(0, t[0].h * (CvReq / t[0].cv));
+      }
+      for (let i = 1; i < t.length; i++) {
+        if (CvReq <= t[i].cv) {
+          const a = t[i - 1], b = t[i];
+          return a.h + (b.h - a.h) * (CvReq - a.cv) / Math.max(b.cv - a.cv, 1e-9);
+        }
+      }
+      // Above the last tabulated point — extrapolate on the final segment, cap 200%
+      const a = t[t.length - 2], b = t[t.length - 1];
+      return Math.min(b.h + (b.h - a.h) * (CvReq - b.cv) / Math.max(b.cv - a.cv, 1e-9), 200);
+    }
+
+    const openBasis       = cvTable ? 'vendor_table' : charType;
+    const openPct_rec     = cvTable ? openPct_table(Cv) : openPct_eq(Cv, sizes.rec.Cv_rated);
     // Smaller/larger comparisons only make sense against the generic
-    // full-bore table — suppress them when a custom trim Cv is in use.
+    // full-bore table — suppress them when a custom trim / vendor curve is in use.
     const openPct_smaller = usingCustomTrim ? null : openPct_eq(Cv, sizes.smaller.Cv_rated);
     const openPct_larger  = usingCustomTrim ? null : openPct_eq(Cv, sizes.larger.Cv_rated);
-    if (usingCustomTrim) {
+    if (cvTable) {
+      warns.push({ cls:'warn-amber', txt:`ℹ Valve opening interpolated from vendor Cv/travel table (${cvTable.length} points, rated Cv = ${fmtN(sizes.rec.Cv_rated)}) — matches the datasheet trim, not an ideal characteristic.` });
+      if (Cv > cvTable[cvTable.length - 1].cv)
+        warns.push({ cls:'warn-red', txt:`⚠️ Required Cv ${fmtN(Cv)} exceeds the top of the vendor Cv table (${fmtN(cvTable[cvTable.length - 1].cv)}). Select a larger trim/port.` });
+      else if (Cv < cvTable[0].cv)
+        warns.push({ cls:'warn-amber', txt:`⚠ Required Cv ${fmtN(Cv)} is below the first vendor point (${fmtN(cvTable[0].cv)} @ ${cvTable[0].h}% travel) — opening extrapolated toward the seat; controllability is doubtful this low.` });
+    } else if (usingCustomTrim) {
       warns.push({ cls:'warn-amber', txt:`ℹ Using custom rated Cv = ${fmtN(Cv_rated_custom)} (vendor/selected trim) instead of generic full-bore table. Smaller/larger size options are not applicable.` });
     }
 
@@ -552,6 +638,7 @@ function controlValve_handler(req, res) {
       noiseDb,
       sizes,
       usingCustomTrim,
+      openBasis,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
