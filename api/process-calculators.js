@@ -629,7 +629,10 @@ function controlValve_handler(req, res) {
     //   in a line-size body (exactly how vendors quote small-Cv services),
     //   not a smaller full-port body.
     if (openPct_rec > 0 && openPct_rec < 20) {
-      if (!usingCustomTrim) {
+      if (!usingCustomTrim && bodyNote === 'reducedTrim') {
+        // FIX V-9: V-8 already anchored the body to line size and instructed a
+        // reduced trim — repeating the oversized-full-port warning is noise.
+      } else if (!usingCustomTrim) {
         warns.push({ cls:'warn-amber', txt:`⚠ Only ${openPct_rec.toFixed(0)}% open at design flow — a full-port ${sizes.rec.s} is grossly oversized for Cv ${fmtN(Cv)}. Specify a reduced-port/characterized trim with rated Cv ≈ ${fmtN(Cv*2.5)}–${fmtN(Cv*5)} (2.5–5× required Cv) in a line-size body, then enter it under "Rated Cv — Vendor Trim".` });
       } else {
         warns.push({ cls:'warn-amber', txt:`⚠ Only ${openPct_rec.toFixed(0)}% open at design flow with this trim — consider a smaller trim (rated Cv ≈ ${fmtN(Cv*2.5)}–${fmtN(Cv*5)}) for better controllability.` });
@@ -706,6 +709,18 @@ function controlValve_handler(req, res) {
       }
     }
 
+    // ── FIX V-9: HEADLINE OPENING ─────────────────────────────────────────────
+    //   When the body is line-anchored and capacity must come from a reduced
+    //   trim, the opening of the FULL-PORT bore (e.g. 0.9%) is meaningless and
+    //   alarming as a headline. Report the opening on the preferred trim
+    //   instead, clearly labelled, until the actual vendor trim Cv is entered.
+    let openPct_display = openPct_rec;
+    let openDisplayNote = null;
+    if (bodyNote === 'reducedTrim' && !usingCustomTrim && trimRec) {
+      openPct_display = trimRec.openMax;
+      openDisplayNote = 'on preferred trim Cv ' + trimRec.Cv_rated;
+    }
+
     // ── DISPLAY LABELS (all formatting done server side) ──────────────────────
     const pu       = m ? 'bar' : 'psi';
     const dp2label = v => v == null ? '—' : (m ? (v / 14.5038).toFixed(3) : v.toFixed(2)) + ' ' + pu;
@@ -734,6 +749,8 @@ function controlValve_handler(req, res) {
       openFlags,
       trimRec,
       bodyNote,
+      openPct_display,
+      openDisplayNote,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
