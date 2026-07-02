@@ -372,11 +372,33 @@ select option{background:var(--ink2)}
         <div class="field"><label>Temperature</label>
           <div class="iw"><input type="number" id="temp" value="60" oninput="calc();autoZ()"><span class="iunit" id="uTemp">°F</span></div></div>
       </div>
+      <div class="row2" style="margin-bottom:6px">
+        <div class="field"><label>Pressure Unit</label>
+          <select id="pUnit" onchange="onPressureUnitChange()">
+            <option value="bar">bar</option>
+            <option value="kPa">kPa</option>
+            <option value="psi">psi</option>
+            <option value="kgcm2">kg/cm²</option>
+            <option value="mmHg">mmHg</option>
+            <option value="atm">atm</option>
+          </select></div>
+        <div class="field"><label>Reference <span class="hint">gauge or absolute</span></label>
+          <select id="pMode" onchange="onPressureUnitChange()">
+            <option value="abs">Absolute</option>
+            <option value="gauge">Gauge</option>
+          </select></div>
+      </div>
+      <div class="row2" id="atmField" style="display:none;margin-bottom:6px">
+        <div class="field"><label>Atmospheric Ref <span class="hint">added to gauge → abs</span></label>
+          <div class="iw"><input type="number" id="atmRef" value="1.01325" step="0.00001" oninput="calc()"><span class="iunit" id="atmRefUnit">bar</span></div></div>
+      </div>
       <div class="row2">
         <div class="field"><label>Inlet Pressure P₁</label>
-          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ()"><span class="iunit" id="uP">psi</span></div></div>
+          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ()"><span class="iunit" id="uP">psi</span></div>
+          <span id="p1AbsHint" style="font-family:var(--mono);font-size:.66rem;color:var(--text3)"></span></div>
         <div class="field"><label>Outlet Pressure P₂</label>
-          <div class="iw"><input type="number" id="p2" value="70" oninput="calc()"><span class="iunit" id="uP2">psi</span></div></div>
+          <div class="iw"><input type="number" id="p2" value="70" oninput="calc()"><span class="iunit" id="uP2">psi</span></div>
+          <span id="p2AbsHint" style="font-family:var(--mono);font-size:.66rem;color:var(--text3)"></span></div>
       </div>
       <div class="row2" id="pvRow">
         <div class="field"><label data-tip="Fluid vapor pressure at operating temperature">Vapor Pressure Pᵥ</label>
@@ -694,6 +716,68 @@ let charType='equal_pct';
 let charChartObj=null, instChartObj=null, compareChartObj=null;
 let lastOpenPct=50;
 
+// ── PRESSURE ENTRY: unit + gauge/absolute ─────────────────────────────────
+// FIX: users constantly receive vendor datasheets in kg/cm²(g) (gauge) — e.g.
+// MASCOT-style sheets — while the sizing engine always requires ABSOLUTE
+// pressure in bar or psi. Previously the app just showed an amber warning and
+// left the user to do the gauge→absolute conversion by hand, which is exactly
+// what caused the ~10-30% Cv errors this class of mistake is known for.
+// PUNIT/PMODE let the user enter P1/P2 in whatever unit & reference their
+// datasheet uses; the app converts to true absolute bar/psi before sizing.
+let PUNIT='bar', PMODE='abs';
+const PUNIT_TO_BAR={bar:1, kPa:0.01, psi:0.0689476, kgcm2:0.980665, mmHg:0.00133322, atm:1.01325};
+const PUNIT_LABEL={bar:'bar', kPa:'kPa', psi:'psi', kgcm2:'kg/cm²', mmHg:'mmHg', atm:'atm'};
+
+function onPressureUnitChange(){
+  PUNIT=document.getElementById('pUnit').value;
+  PMODE=document.getElementById('pMode').value;
+  const showAtm = PMODE==='gauge';
+  document.getElementById('atmField').style.display = showAtm ? '' : 'none';
+  if(showAtm){
+    // default the reference to 1 standard atmosphere, expressed in the chosen unit
+    const stdAtmInUnit = 1.01325 / PUNIT_TO_BAR[PUNIT];
+    document.getElementById('atmRef').value = +stdAtmInUnit.toFixed(5);
+    document.getElementById('atmRefUnit').textContent = PUNIT_LABEL[PUNIT];
+  }
+  updatePressureUnitLabels();
+  calc();
+}
+
+function updatePressureUnitLabels(){
+  const suffix = PMODE==='gauge' ? '(g)' : '(a)';
+  const lbl = PUNIT_LABEL[PUNIT]+suffix;
+  document.getElementById('uP').textContent = lbl;
+  document.getElementById('uP2').textContent = lbl;
+}
+
+// Converts a raw P1/P2 field value (in the currently selected PUNIT/PMODE)
+// to true absolute pressure, in bar.
+function pRawToAbsBar(raw){
+  raw = parseFloat(raw) || 0;
+  let bar = raw * PUNIT_TO_BAR[PUNIT];
+  if(PMODE==='gauge'){
+    const atmRaw = parseFloat(document.getElementById('atmRef')?.value) || (1.01325/PUNIT_TO_BAR[PUNIT]);
+    bar += atmRaw * PUNIT_TO_BAR[PUNIT];
+  }
+  return bar;
+}
+
+// Converts absolute bar to whatever base unit the API expects for the
+// currently active global unit system (bar for SI, psi for US).
+function absBarToApiBase(bar){
+  return UNITS==='met' ? bar : bar/0.0689476; // 1 psi = 0.0689476 bar
+}
+
+function getP1AbsBase(){ return absBarToApiBase(pRawToAbsBar(document.getElementById('p1').value)); }
+function getP2AbsBase(){ return absBarToApiBase(pRawToAbsBar(document.getElementById('p2').value)); }
+
+function updatePressureHints(){
+  const unitTxt = UNITS==='met' ? 'bara' : 'psia';
+  const p1h=document.getElementById('p1AbsHint'), p2h=document.getElementById('p2AbsHint');
+  if(p1h) p1h.textContent = '= '+getP1AbsBase().toFixed(3)+' '+unitTxt;
+  if(p2h) p2h.textContent = '= '+getP2AbsBase().toFixed(3)+' '+unitTxt;
+}
+
 // ── CHAR FUNCTIONS ─────────────────────────────────────────
 function charFunc(type,h,R){
   h=Math.max(0,Math.min(1,h));
@@ -938,7 +1022,7 @@ async function _autoZAsync(){
 
   const m     = UNITS === 'met';
   const T_raw = parseFloat(document.getElementById('temp').value);
-  const P_raw = parseFloat(document.getElementById('p1').value);
+  const P_raw = getP1AbsBase();   // FIX: use true absolute pressure (was raw field value, wrong if gauge/other unit)
   if(!isFinite(T_raw) || !isFinite(P_raw) || P_raw <= 0) return;
 
   // Convert to absolute SI for EOS
@@ -1011,8 +1095,14 @@ function setUnits(u){
 
 function updateUnitLabels(){
   const m=UNITS==='met';
-  document.getElementById('uP').textContent=m?'bar':'psi';
-  document.getElementById('uP2').textContent=m?'bar':'psi';
+  // Reset pressure entry to the plain absolute bar/psi default for the chosen
+  // system; user can still switch to kg/cm²/gauge etc. via the dropdowns.
+  PUNIT = m?'bar':'psi';
+  PMODE = 'abs';
+  document.getElementById('pUnit').value = PUNIT;
+  document.getElementById('pMode').value = PMODE;
+  document.getElementById('atmField').style.display='none';
+  updatePressureUnitLabels();
   document.getElementById('uPv').textContent=m?'bara':'psia';
   document.getElementById('uTemp').textContent=m?'°C':'°F';
   document.getElementById('uPipe').textContent=m?'mm':'in';
@@ -1086,6 +1176,7 @@ function calc(){
 }
 async function _calcAsync(){
   const m=UNITS==='met', isL=PHASE.includes('liq'), isG=PHASE.includes('gas'), isS=PHASE==='steam';
+  updatePressureHints();
 
   // ── SEND RAW INPUTS ONLY — all conversions and math done server side ──────
   setEl('resCv','…'); setEl('resKv','…');
@@ -1104,8 +1195,8 @@ async function _calcAsync(){
         flowType:  FTYPE,
         units:     UNITS,
         Q:         document.getElementById('flow').value,
-        P1:        document.getElementById('p1').value,
-        P2:        document.getElementById('p2').value,
+        P1:        getP1AbsBase(),
+        P2:        getP2AbsBase(),
         T:         document.getElementById('temp').value,
         SG:        document.getElementById('sg').value,
         Pv:        document.getElementById('pv').value,
@@ -1338,8 +1429,8 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
   <table><thead><tr><th colspan="2">Input Conditions</th></tr></thead>
   <tbody>
     <tr><td>Flow Rate</td><td>${v('flow')} ${document.getElementById('uFlow')?.textContent||''}</td></tr>
-    <tr><td>Inlet Pressure P₁</td><td>${v('p1')} ${pu}</td></tr>
-    <tr><td>Outlet Pressure P₂</td><td>${v('p2')} ${pu}</td></tr>
+    <tr><td>Inlet Pressure P₁</td><td>${v('p1')} ${PUNIT_LABEL[PUNIT]}${PMODE==='gauge'?'(g)':'(a)'} &nbsp;→&nbsp; ${getP1AbsBase().toFixed(3)} ${pu}(a)</td></tr>
+    <tr><td>Outlet Pressure P₂</td><td>${v('p2')} ${PUNIT_LABEL[PUNIT]}${PMODE==='gauge'?'(g)':'(a)'} &nbsp;→&nbsp; ${getP2AbsBase().toFixed(3)} ${pu}(a)</td></tr>
     <tr><td>Temperature</td><td>${g('pt_temp')}</td></tr>
     <tr><td>SG / MW</td><td>${g('pt_sg')}</td></tr>
     <tr><td>Pipe ID</td><td>${g('pt_pipe')}</td></tr>
