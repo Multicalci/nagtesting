@@ -482,12 +482,35 @@ function controlValve_handler(req, res) {
     // FIX F-10: Use 75% of rated Cv as threshold (targets ~75% valve opening, best practice)
     //   Previous 80% threshold sized the valve slightly small in borderline cases
     const ri0 = stdCv.findIndex(s => s.Cv_rated * 0.75 >= Cv);
-    const ri   = ri0 === -1 ? stdCv.length-1 : Math.max(0, Math.min(ri0, stdCv.length-1));
+    let ri     = ri0 === -1 ? stdCv.length-1 : Math.max(0, Math.min(ri0, stdCv.length-1));
+    // FIX V-8: the body recommendation must respect the selected line size.
+    //   Practice: control valve body = line size or one size smaller, never
+    //   larger. When even the Cv-based full-port pick would run nearly closed
+    //   (<25% open) or sits 2+ sizes below the line, the correct selection is
+    //   a LINE-SIZE BODY with a REDUCED TRIM carrying the capacity — exactly
+    //   how vendors quote small-Cv services (invertChar is block-hoisted).
+    let bodyNote = null;
+    const lineIn = d.lineNPS ? parseFloat(d.lineNPS) : null;
+    if (lineIn && isFinite(lineIn)) {
+      let lineIdx = stdCv.findIndex(s => parseFloat(s.s) === lineIn);
+      if (lineIdx === -1) lineIdx = stdCv.length - 1;   // e.g. 20" line — clamp to table top
+      const pickOpen = invertChar(charType, Math.min(Cv / stdCv[ri].Cv_rated, 1.5), R_trim);
+      if (ri > lineIdx) {
+        warns.push({ cls:'warn-red', txt:`⚠️ Required Cv ${fmtN(Cv)} needs a valve larger than the ${lineIn}" line — a control valve should never exceed line size. Review line sizing or available ΔP.` });
+        ri = lineIdx; bodyNote = 'lineLimit';
+      } else if (ri <= lineIdx - 2 || pickOpen < 25) {
+        ri = lineIdx; bodyNote = 'reducedTrim';
+        warns.push({ cls:'warn-amber', txt:`ℹ Body held at line size (${stdCv[lineIdx].s}) — a full-port trim would run nearly closed at this Cv. Specify a reduced trim in the line-size body to carry the capacity (see preferred trim), as vendors quote small-Cv services.` });
+      }
+      // ri === lineIdx-1 with a healthy opening: classic one-size-below-line full-port pick — kept as-is
+    }
     const sizes = {
       smaller: stdCv[Math.max(ri-1,0)],
       rec:     stdCv[ri],
       larger:  stdCv[Math.min(ri+1, stdCv.length-1)],
     };
+    // FIX V-8: never offer a body above line size
+    if (bodyNote) sizes.larger = stdCv[ri];
     // If the user supplied the actual selected trim's rated Cv (e.g. from a
     // vendor datasheet - reduced/characterized trim, not generic full-bore),
     // override "rec" with it so % open matches the real hardware instead of
@@ -710,6 +733,7 @@ function controlValve_handler(req, res) {
       openBasis,
       openFlags,
       trimRec,
+      bodyNote,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
