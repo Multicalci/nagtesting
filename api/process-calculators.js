@@ -629,11 +629,14 @@ function controlValve_handler(req, res) {
 // ── TURNDOWN / Q_MIN CHECK ───────────────────────────────────────────────
     let Cv_min = null, turndown = null, turndownOk = null;
     if (Q_min_raw && Q_min_raw > 0 && Q_min_raw < Q) {
-      const Qc_min = Qc * (Q_min_raw / Q);
-      // FIX F-24 + FIX 1: use dPeff directly; gas uses Gg = SG/28.97 not raw SG(MW)
-      if (isL)       Cv_min = (Qc_min * Math.sqrt(SG / Math.max(dPeff, 0.0001))) / (FR||1);
-      else if (isG)  Cv_min = Qc_min * Math.sqrt((SG/28.97) * TR * Z) / (1360.0 * P1a * Y * Math.sqrt(Math.max(dPeff, 0.0001)));
-      else           Cv_min = Qc_min / (2.1 * Math.sqrt(Math.max(dPeff * (P1a + P2a), 0.0001)));
+      // FIX V-7: Cv_min was recomputed per-phase, and the gas branch used
+      //   sqrt(dPeff in psi) where the IEC gas equation needs sqrt(x) — the
+      //   dimensionless dP/P1 ratio — understating Cv_min by ~10-15x and
+      //   inflating the reported turndown accordingly (e.g. 208:1 for a true
+      //   15:1 service). At identical pressures, Cv scales exactly linearly
+      //   with flow for every phase (all pressure/Y/FF terms cancel), and this
+      //   also inherits the Fp and FR corrections consistently.
+      Cv_min = Cv * (Q_min_raw / Q);
       turndown   = Cv / Math.max(Cv_min, 0.0001);
       turndownOk = turndown <= R_trim;
       if (!turndownOk)
@@ -644,6 +647,42 @@ function controlValve_handler(req, res) {
           txt:`⚠ Cv at minimum flow (${fmtN(Cv_min)}) is < 3% of rated Cv — poor low-flow controllability. Consider characterised trim.` });
     }
       
+    // ── FIX V-6: PREFERRED TRIM RECOMMENDATION ───────────────────────────────
+    //   Rule of thumb: the trim should place the max design flow at 60-80%
+    //   open on its inherent characteristic. Candidate rated-Cv values follow
+    //   the decade series used by most reduced-trim catalogues
+    //   (1.0 / 1.6 / 2.5 / 4.0 / 6.3 / 10 ...). The smallest series value that
+    //   keeps max flow <= 80% open is preferred (it also maximises the min-flow
+    //   opening). This is generic guidance — actual vendor trim steps differ,
+    //   so the quoted trim's rated Cv should be entered once known.
+    const trimSeries = [0.1,0.16,0.25,0.4,0.63,1.0,1.6,2.5,4.0,6.3,10,16,25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300];
+    let trimRec = null;
+    {
+      const f80 = charFunc_srv(charType, 0.80, R_trim);   // Cv fraction at 80% travel
+      const f60 = charFunc_srv(charType, 0.60, R_trim);   // Cv fraction at 60% travel
+      const ratedLo = Cv / Math.max(f80, 0.01);           // smallest sensible rated Cv
+      const ratedHi = Cv / Math.max(f60, 0.01);           // largest sensible rated Cv
+      const pick = trimSeries.find(s => s >= ratedLo) || null;
+      if (pick) {
+        const openMax = invertChar(charType, Math.min(Cv / pick, 1.5), R_trim);
+        const openMin = (Cv_min != null)
+          ? invertChar(charType, Math.min(Cv_min / pick, 1.5), R_trim)
+          : null;
+        const minCtrlCv = charType === 'equal_pct' ? pick / R_trim : null;
+        trimRec = {
+          Cv_rated: pick,
+          bandLo:   +ratedLo.toFixed(3),
+          bandHi:   +ratedHi.toFixed(3),
+          openMax:  +openMax.toFixed(1),
+          openMin:  openMin != null ? +openMin.toFixed(1) : null,
+          minOk:    (Cv_min == null) ? null
+                    : (minCtrlCv != null ? Cv_min > minCtrlCv * 1.1 : openMin >= 10),
+        };
+        if (trimRec.minOk === false)
+          warns.push({ cls:'warn-amber', txt:`⚠ Preferred trim (rated Cv ${pick}) covers max flow at ${trimRec.openMax}% open, but minimum flow (Cv ${fmtN(Cv_min)}) sits at/below its controllable floor — the turndown may need a characterized trim or split-range arrangement. Confirm the low end against the vendor's actual trim curve.` });
+      }
+    }
+
     // ── DISPLAY LABELS (all formatting done server side) ──────────────────────
     const pu       = m ? 'bar' : 'psi';
     const dp2label = v => v == null ? '—' : (m ? (v / 14.5038).toFixed(3) : v.toFixed(2)) + ' ' + pu;
@@ -670,6 +709,7 @@ function controlValve_handler(req, res) {
       usingCustomTrim,
       openBasis,
       openFlags,
+      trimRec,
       openPct_rec,
       openPct_smaller,
       openPct_larger,
