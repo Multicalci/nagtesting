@@ -648,9 +648,9 @@ function controlValve_handler(req, res) {
     // ── >100% open warning (moved from client) ────────────────────────────────
     if (openPct_rec > 100) {
       const suggestion = usingCustomTrim
-        ? 'Select a larger trim/port size.'
+        ? `Select a larger trim — and verify you entered the trim's RATED Cv (its capacity at 100% open), not the port designation. On a vendor sheet listing "0.38 / 3.60 / Equal %", the rated Cv is 3.60.`
         : `Select: ${sizes.larger.s}.`;
-      warns.push({ cls:'warn-red', txt:`⚠️ Cv ${fmtN(Cv)} exceeds rated Cv of ${sizes.rec.s} (${sizes.rec.Cv_rated}). ${suggestion}` });
+      warns.push({ cls:'warn-red', txt:`⚠️ IMPOSSIBLE OPERATING POINT — required Cv ${fmtN(Cv)} exceeds the rated Cv of ${sizes.rec.s} (${sizes.rec.Cv_rated}): the valve cannot pass this flow at any opening. ${suggestion}` });
     }
 // ── TURNDOWN / Q_MIN CHECK ───────────────────────────────────────────────
     let Cv_min = null, turndown = null, turndownOk = null;
