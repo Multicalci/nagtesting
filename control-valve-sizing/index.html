@@ -1380,17 +1380,21 @@ async function _calcAsync(){
   // on the preferred trim (openPct_display), not the rejected full-port bore.
   const openPn = (r.openPct_display != null) ? r.openPct_display : openPnRaw;
   const openNote = r.openDisplayNote ? ' (pref. trim)' : (r.openBasis==='vendor_table' ? ' (vendor)' : '');
+  // FIX V-10: an "opening" above 100% is not an operating point — it means the
+  // trim cannot pass the required Cv. Present it as an undersize verdict.
+  const overCap = openPn > 100;
   lastOpenPct  = Math.min(openPn, 100);
 
   if (r.usingCustomTrim) {
     setEl('vsz1','—'); setEl('vop1','n/a');
-    setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
+    setEl('vsz2', s1.s); setEl('vop2', overCap ? 'UNDERSIZED ✗' : openPn.toFixed(0)+'% open');
     setEl('vsz3','—'); setEl('vop3','n/a');
   } else {
     // FIX V-5: sizes whose minimum controllable Cv exceeds the required Cv are
     // labelled, not shown as a meaningless "0% open".
     const opLbl=(pct,flag,same)=> same ? '—'
       : flag==='belowMin' ? 'below min ctrl'
+      : flag==='over'     ? 'exceeds capacity'
       : (pct??0).toFixed(0)+'% open';
     setEl('vsz1', s0.s); setEl('vop1', opLbl(r.openPct_smaller, r.openFlags?.smaller, s0.s===s1.s));
     setEl('vsz2', s1.s); setEl('vop2', r.bodyNote==='reducedTrim' ? 'w/ reduced trim' : opLbl(openPn, r.openFlags?.rec, false));
@@ -1415,7 +1419,7 @@ async function _calcAsync(){
 
   setEl('dv_state', r.flowState);
   setEl('dv_noise', r.noiseDb+' dB');
-  setEl('dv_open',  openPn.toFixed(1)+'%'+openNote);
+  setEl('dv_open',  overCap ? '>100% — undersized' : openPn.toFixed(1)+'%'+openNote);
   setEl('dv_re',  r.Rev  != null ? r.Rev.toExponential(2)  : 'N/A (gas)');
   setEl('dv_dp',  r.dpRatioPct != null ? r.dpRatioPct+'%' : '—');
   setEl('dv_flap', r.dPmaxLabel ?? '—');
@@ -1428,7 +1432,7 @@ async function _calcAsync(){
   setPB('pb_open',  openPn, 100);
   setPB('pb_dp',    r.dpRatioPct||0, 100);
   setPB('pb_noise', ((r.noiseDb||60)-60)/40*100, 100);
-  setEl('pb_open_txt',  openPn.toFixed(1)+'%'+openNote);
+  setEl('pb_open_txt',  overCap ? 'exceeds trim capacity (needs '+openPn.toFixed(0)+'% of rated)' : openPn.toFixed(1)+'%'+openNote);
   setEl('pb_dp_txt',    (r.dpRatioPct||0)+'%');
   setEl('pb_noise_txt', r.noiseDb+' dB (estimated)');
 
