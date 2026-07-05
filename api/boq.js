@@ -1,6 +1,17 @@
 // ============================================================================
-// api/boq.js — multicalci.com BOQ Calculator API (Vercel serverless) v1.1
-// 2026-06-18 · Drop-in replacement for v1.0. Schemas/SQL unchanged.
+// api/boq.js — multicalci.com BOQ Calculator API (Vercel serverless) v1.2
+// 2026-07-05 · Drop-in replacement for v1.1. Schemas/SQL unchanged.
+//
+// v1.2:
+//   [DIM]  Dimensional unit-rate items (usd_per_m / _m2 / …) now surface the
+//          measured dimension. Previously the length/area consumed inside
+//          resolveBase was discarded, so the supply line was labelled by the
+//          run COUNT (" — 1 m") and the result carried no length, forcing the
+//          UI "rate basis" to divide by quantity (=1) and show the whole supply
+//          as the per-metre rate. Now: resolveBase reports out.measured; the
+//          supply line reads " — 100 m"; the result adds measured_dimension /
+//          total_dimension / unit_rate so the UI can show the true /m rate.
+//          Prices are UNCHANGED — this is label/reporting only.
 //
 // Engine-side fixes folded in (no schema edits required):
 //   [IP]   Library rates + cost-curve coefficients no longer leak via notes /
@@ -314,6 +325,8 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
       if (qv !== null) {
         // area/length/… is the per-unit dimension; the separate Quantity field
         // is the COUNT, applied later in calculate(). rate × dim × qty is correct.
+        out.measured = qv;   // [DIM] dimension priced here (e.g. 100 m) — was discarded, so the
+        out.rateUnit = unit; // [DIM] supply label could only show the run count. Surface it now.
         notes.push(`Priced on a unit rate over ${qv} ${unit}.`); // [IP]
         return v * qv;
       }
@@ -676,9 +689,17 @@ async function calculate(schema, body) {
   const supplyFactor = isActivity ? Number(rf.labour_factor) : Number(rf.equipment_factor);
   const supplyUsd = base * factorProduct * qty * escalation * (supplyFactor || 1);
 
+  // [DIM] For dimensional unit rates the measured dimension (length/area/…) was
+  // consumed in resolveBase; reflect it in the label instead of the run count.
+  const measured = ub.measured != null ? ub.measured : null;          // per run, e.g. 100 (m)
+  const totalDim = measured != null ? round2(measured * qty) : null;  // total across runs
+  const dimLabel = !unit ? ''
+    : (measured != null ? ` — ${qty > 1 ? qty + ' × ' : ''}${measured} ${unit}`
+                        : ` — ${qty} ${unit}`);                        // per-each items unchanged
+
   const lines = [];
   lines.push({
-    line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + (unit ? ` — ${qty} ${unit}` : ''),
+    line: (isActivity ? 'Labour / activity cost' : 'Supply (ex-works, regionalised)') + dimLabel,
     usd: round2(supplyUsd),
   });
 
@@ -723,6 +744,9 @@ async function calculate(schema, body) {
     template_name: schema.template_name,
     tier, accuracy, region, sub_region: rf.sub_region || subRegion,
     quantity: qty, unit, spec,
+    measured_dimension: measured, // [DIM] per run, e.g. 100 (m)
+    total_dimension: totalDim,    // [DIM] total, e.g. 100 (m) — divide supply by this for the /unit rate
+    unit_rate: (measured != null && totalDim) ? round2((supplyUsd / totalDim) * fx) : null, // [DIM] correct /m rate
     factors_applied: applied, // [IP] {table, matched} only
     lines: lines.map((l) => ({ ...l, amount: round2(l.usd * fx) })),
     total: { usd: round2(totalUsd), currency: outCur, amount: round2(totalUsd * fx), fx_rate: fx },
