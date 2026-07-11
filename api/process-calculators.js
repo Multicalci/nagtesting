@@ -136,7 +136,10 @@ function controlValve_handler(req, res) {
     const Q  = parseFloat(d.Q)  || 0;
     const P1 = parseFloat(d.P1) || 0;
     const P2 = parseFloat(d.P2) || 0;
-    const T  = parseFloat(d.T)  || (m ? 20 : 60);
+    // FIX R-1: `parseFloat(d.T) || default` silently replaced a legitimate 0°C
+    //   (chilled water) or 0°F input with 20°C/60°F — zero is falsy in JS.
+    const T_in = parseFloat(d.T);
+    const T  = Number.isFinite(T_in) ? T_in : (m ? 20 : 60);
     const SG = parseFloat(d.SG) || 1;
     const Pv = parseFloat(d.Pv) || 0;
     const D  = parseFloat(d.D)  || (m ? 52.5 : 2.067);
@@ -319,7 +322,13 @@ function controlValve_handler(req, res) {
       FR  = 1.0;
       let Cv_iter = Cv;
       for (let iter = 0; iter < 3; iter++) {
-        Rev = 76000 * Qc / (fluidVisc * Math.pow(FL, 1.5) * Math.sqrt(Math.max(Cv_iter, 0.001)));
+        // FIX R-2: N₄ = 76,000 in IEC 60534-2-3 is for Q in m³/h (with ν in cSt).
+        //   Qc here is in GPM — the matching US-unit constant is N₄ ≈ 17,300
+        //   (Fisher Catalog / ISA S75.01 US table; check: 76,000 × 0.22712
+        //   m³/h-per-GPM = 17,262). Using 76,000 with GPM overstated Rev by
+        //   4.4×, so the laminar/transitional FR correction under-fired —
+        //   viscous services (lube oil, glycerin) were sized ~5-40% small.
+        Rev = 17300 * Qc / (fluidVisc * Math.pow(FL, 1.5) * Math.sqrt(Math.max(Cv_iter, 0.001)));
         let FR_iter = 1.0;
         if (Rev < 10000) {
           if      (Rev < 10)    FR_iter = 0.026 * Math.pow(Rev, 0.33);
@@ -411,7 +420,9 @@ function controlValve_handler(req, res) {
       if      (x >= x_crit)       { flowState = '🔴 Choked Gas (Sonic)';  warns.push({ cls:'warn-red',   txt:`⚠️ Sonic flow: x=${(x*100).toFixed(1)}% ≥ Fk·xT=${(x_crit*100).toFixed(1)}%. Flow will NOT increase with higher ΔP.` }); }
       else if (x > x_crit * 0.8)  { flowState = `🟡 Near-Critical Gas`;   warns.push({ cls:'warn-amber', txt:`⚠ Near sonic: x/x_crit=${(x_ratio*100).toFixed(0)}%. Significant noise likely.` }); }
       else                         { flowState = '🟢 Normal Gas Flow'; }
-      if (vel > 100) warns.push({ cls:'warn-amber', txt:`⚠ Inlet velocity ${vel.toFixed(0)} ft/s > 100 ft/s. Consider larger pipe.` });
+      // FIX R-3: inline `vel > 100` warning removed — it duplicated the generic
+      //   velOk check below (which fires in the correct display units for both
+      //   systems), producing two velocity warnings for every fast US gas case.
 
       noiseDb = Math.round(62 + 10*Math.log10(Math.max(Cv,1)) + 18*x_lim + 5*Math.log10(Math.max(P1a/14.7,1.1)));
 
