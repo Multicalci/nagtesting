@@ -2732,6 +2732,37 @@ function calcFluidProps(id, T_C, P_bar) {
 /* ═══════════════════════════════════════════════════════════════
    DARCY-WEISBACH + COLEBROOK-WHITE CALCULATION ENGINE
 ═══════════════════════════════════════════════════════════════ */
+// FIX NPSH-2: friction factor extracted into a shared helper so the main line
+// and the optional NPSH suction line use the SAME engine (Churchill 1977 for
+// laminar/transitional, Swamee-Jain seed + Colebrook-White iteration for
+// turbulent). Math is byte-identical to the previous inline block.
+function dwFrictionFactor(Re, eps_m, Dm) {
+  let f;
+  if (Re < 2300) {
+    f = 64 / Re;  // Laminar: Hagen-Poiseuille exact
+  } else if (Re < 4000) {
+    const A_ch = Math.pow(2.457 * Math.log(1 / (Math.pow(7 / Re, 0.9) + 0.27 * (eps_m / Dm))), 16);
+    const B_ch = Math.pow(37530 / Re, 16);
+    f = 8 * Math.pow(Math.pow(8 / Re, 12) + 1 / Math.pow(A_ch + B_ch, 1.5), 1 / 12);
+    const fCB = Math.pow(-2 * Math.log10(eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(0.02))), -2);
+    f = Math.max(f, fCB);
+  } else {
+    // Swamee-Jain seed → Colebrook-White iteration
+    const arg = eps_m / (3.7 * Dm) + 5.74 / Math.pow(Re, 0.9);
+    f = arg > 0 ? 0.25 / Math.pow(Math.log10(arg), 2) : 0.02;
+    if (!isFinite(f) || f <= 0) f = 0.02;
+    for (let i = 0; i < 50; i++) {
+      const inner = eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(f));
+      if (inner <= 0 || !isFinite(inner)) break;
+      const fn = Math.pow(-2 * Math.log10(inner), -2);
+      if (!isFinite(fn) || fn <= 0) break;
+      if (Math.abs(fn - f) < 1e-10) { f = fn; break; }
+      f = fn;
+    }
+  }
+  return f;
+}
+
 function calcPressureDrop(inputs) {
   let { D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode } = inputs;
 
@@ -2764,30 +2795,7 @@ function calcPressureDrop(inputs) {
 
   if (Re < 1) return { ok: false, error: 'Reynolds number < 1 — check inputs.' };
 
-  // Friction factor — Churchill (1977) spans ALL regimes
-  let f;
-  if (Re < 2300) {
-    f = 64 / Re;  // Laminar: Hagen-Poiseuille exact
-  } else if (Re < 4000) {
-    const A_ch = Math.pow(2.457 * Math.log(1 / (Math.pow(7 / Re, 0.9) + 0.27 * (eps_m / Dm))), 16);
-    const B_ch = Math.pow(37530 / Re, 16);
-    f = 8 * Math.pow(Math.pow(8 / Re, 12) + 1 / Math.pow(A_ch + B_ch, 1.5), 1 / 12);
-    const fCB = Math.pow(-2 * Math.log10(eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(0.02))), -2);
-    f = Math.max(f, fCB);
-  } else {
-    // Swamee-Jain seed → Colebrook-White iteration
-    const arg = eps_m / (3.7 * Dm) + 5.74 / Math.pow(Re, 0.9);
-    f = arg > 0 ? 0.25 / Math.pow(Math.log10(arg), 2) : 0.02;
-    if (!isFinite(f) || f <= 0) f = 0.02;
-    for (let i = 0; i < 50; i++) {
-      const inner = eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(f));
-      if (inner <= 0 || !isFinite(inner)) break;
-      const fn = Math.pow(-2 * Math.log10(inner), -2);
-      if (!isFinite(fn) || fn <= 0) break;
-      if (Math.abs(fn - f) < 1e-10) { f = fn; break; }
-      f = fn;
-    }
-  }
+  const f = dwFrictionFactor(Re, eps_m, Dm);
   if (!isFinite(f) || f <= 0) return { ok: false, error: 'Friction factor calculation failed — check pipe roughness.' };
 
   // K-factor total from fittings list
@@ -2843,10 +2851,48 @@ function calcPressureDrop(inputs) {
   if (Re < 4000 && Ktot > 0)
     warnings.push('Fittings equivalent length (Le) less reliable in laminar/transitional flow.');
 
+  // ── FIX NPSH-2: optional suction-line hydraulics for the NPSH check ────────
+  // Frontend sends suctionD (mm or in per unitMode) and suctionL (m or ft).
+  // Same flow rate Qs, same fluid (rho SI, mu_Pa), same total roughness eps_m
+  // as the main calculation. Velocity head AND suction friction head for
+  // NPSH_A are then based on the ACTUAL suction line, not the main run.
+  let npsh = null;
+  {
+    let sD = parseFloat(inputs.suctionD);
+    let sL = parseFloat(inputs.suctionL);
+    if (isFinite(sD) && sD > 0 && isFinite(sL) && sL > 0) {
+      if (unitMode === 'imperial') { sD *= 25.4; sL *= 0.3048; }  // in→mm, ft→m
+      const Dsm = sD / 1000;
+      const As  = Math.PI * Dsm * Dsm / 4;
+      const Vs  = Qs / As;
+      const Res = rho * Vs * Dsm / mu_Pa;
+      const fs  = Res >= 1 ? dwFrictionFactor(Res, eps_m, Dsm) : NaN;
+      if (isFinite(fs) && fs > 0 && isFinite(Vs)) {
+        const HfSuction = fs * (sL / Dsm) * Vs * Vs / (2 * 9.81);  // [m]
+        npsh = {
+          Vs:  parseFloat(Vs.toFixed(4)),          // suction velocity [m/s]
+          Res: Math.round(Res),                    // suction Reynolds number
+          fs:  parseFloat(fs.toFixed(6)),          // suction Darcy friction factor
+          HfSuction: parseFloat(HfSuction.toFixed(4)),  // suction friction head [m]
+          Ds_mm: parseFloat(sD.toFixed(2)),
+          Ls_m:  parseFloat(sL.toFixed(2)),
+        };
+        if (Vs > 1.5 && rho > 500)
+          warnings.push(`Suction line velocity ${Vs.toFixed(2)} m/s exceeds 1.5 m/s pump-suction guideline — increases friction loss and cavitation risk. Consider one size larger suction pipe.`);
+        if (Res < 4000)
+          warnings.push('Suction line in laminar/transitional regime — friction head uncertainty ±20–30%.');
+      }
+    }
+  }
+
   return {
     ok: true,
+    npsh,  // FIX NPSH-2: suction-line block (null when suction D/L not provided)
     dpDisp, dpPipeDisp, dpMinorDisp, dpElevDisp, dpUnit,
     velDisp, velUnit, headDisp, headUnit,
+    V,  // FIX NPSH-1: raw SI velocity [m/s] — always metric regardless of unitMode.
+        // Required by frontend calcNPSH() velocity-head term. Do NOT derive velocity
+        // from dpTotal (√(2ΔP/ρ) is dynamic-pressure inversion, not pipe velocity).
     Re, f, Ktot,
     regime, regimeClass,
     Leq, epsTotalMm: eps, foulingMm,
@@ -2961,6 +3007,9 @@ async function pressureDrop_handler(req, res) {
     const motorEff  = Math.max(0.01, Math.min(1, sanitizeNumber(body.motorEff, 0.92)));
     const unitMode  = body.unitMode === 'imperial' ? 'imperial' : 'metric';
     const isGasFluid = !!body.isGasFluid;
+    // FIX NPSH-2: optional suction line for NPSH check (null → feature unused)
+    const suctionD  = sanitizeNumber(body.suctionD, null);
+    const suctionL  = sanitizeNumber(body.suctionL, null);
 
     // Sanitize fittings array
     const rawFits = Array.isArray(body.fittings) ? body.fittings.slice(0, 200) : [];
@@ -2972,7 +3021,7 @@ async function pressureDrop_handler(req, res) {
     if ([D, L, Q, rho, mu].some(v => v === null))
       return err(res, 400, 'D, L, Q, rho, mu are required');
 
-    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode });
+    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode, suctionD, suctionL });
     if (!result.ok) return err(res, 422, result.error);
 
     if (isGasFluid)
