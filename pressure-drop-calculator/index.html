@@ -1165,7 +1165,26 @@ select{
             <div class="fsec">
               <div class="fsec-title">NPSH &amp; Cavitation Check (Optional)</div>
               <div style="font-size:.74rem;color:var(--text3);margin-bottom:9px;line-height:1.55;">
-                NPSH<sub>A</sub> = (P<sub>suct abs</sub> − P<sub>vapor</sub>) / (ρg) + Z<sub>s</sub> − ΔH<sub>fs</sub>. Must exceed NPSH<sub>R</sub> by ≥ 0.5 m.
+                NPSH<sub>A</sub> = (P<sub>suct abs</sub> − P<sub>vapor</sub>) / (ρg) + Z<sub>s</sub> − ΔH<sub>fs</sub> − V²/2g. Must exceed NPSH<sub>R</sub> by ≥ 0.5 m.
+                Enter the <strong>suction pipe ID &amp; length</strong> and both the velocity head and suction friction loss ΔH<sub>fs</sub> are computed automatically (Darcy-Weisbach, same fluid &amp; roughness as above). Leave blank to use the main-line velocity with manual losses.
+              </div>
+              <div class="row2">
+                <div class="fgroup">
+                  <label class="flabel">Suction Pipe ID</label>
+                  <div class="irow">
+                    <input type="number" id="npsh-Ds" placeholder="e.g. 150" step="0.1" min="0">
+                    <div class="iunit" id="npsh-DsUnit">mm</div>
+                  </div>
+                  <div style="font-size:.67rem;color:var(--text3);margin-top:2px;">Usually one size larger than the discharge line</div>
+                </div>
+                <div class="fgroup">
+                  <label class="flabel">Suction Line Length</label>
+                  <div class="irow">
+                    <input type="number" id="npsh-Ls" placeholder="e.g. 6" step="0.1" min="0">
+                    <div class="iunit" id="npsh-LsUnit">m</div>
+                  </div>
+                  <div style="font-size:.67rem;color:var(--text3);margin-top:2px;">Source nozzle to pump suction flange</div>
+                </div>
               </div>
               <div class="row2">
                 <div class="fgroup">
@@ -1193,11 +1212,12 @@ select{
                   </div>
                 </div>
                 <div class="fgroup">
-                  <label class="flabel">Suction Pipe Friction Loss</label>
+                  <label class="flabel">Additional Suction Losses</label>
                   <div class="irow">
                     <input type="number" id="npsh-Hfs" value="0" step="0.01" min="0">
                     <div class="iunit">m</div>
                   </div>
+                  <div style="font-size:.67rem;color:var(--text3);margin-top:2px;">Strainer, foot valve, fittings — added to computed pipe friction</div>
                 </div>
               </div>
               <div class="fgroup">
@@ -2006,7 +2026,7 @@ async function autoCalcProps() {
 /* ══════════════════════════════════════════════════════════
    FITTINGS SYSTEM — state stays in browser (no API needed)
 ══════════════════════════════════════════════════════════ */
-let fittingsList = [], rowCounter = 0, lastResults = null, lastFluidKey = '';
+let fittingsList = [], rowCounter = 0, lastResults = null, lastFluidKey = '', lastNPSH = null;
 let _fittingCatalogue = {};  // populated from API
 
 async function loadFittingsList() {
@@ -2150,6 +2170,8 @@ document.querySelectorAll('.upbtn').forEach(btn => {
     document.getElementById('elevUnit').textContent      = m ? 'm'     : 'ft';
     document.getElementById('flowrateUnit').textContent  = m ? 'm³/h'  : 'GPM';
     document.getElementById('densityUnit').textContent   = m ? 'kg/m³' : 'lb/ft³';
+    document.getElementById('npsh-DsUnit').textContent   = m ? 'mm'    : 'in';   // FIX NPSH-2
+    document.getElementById('npsh-LsUnit').textContent   = m ? 'm'     : 'ft';   // FIX NPSH-2
     if (lastResults) renderResults(lastResults);
   });
 });
@@ -2182,6 +2204,7 @@ document.getElementById('btnReset').addEventListener('click', () => {
   document.getElementById('placeholder').style.display = '';
   document.getElementById('results').style.display = 'none';
   lastResults = null;
+  lastNPSH = null;
   document.getElementById('custom-eps-row').style.display = 'none';
 });
 
@@ -2278,12 +2301,21 @@ async function calculate() {
 
     const fittingsPayload = fittingsList.map(f => ({ k: f.k, qty: f.qty }));
 
+    // FIX NPSH-2: optional suction line (D in mm/in, L in m/ft per unitMode).
+    // Sent to the API so suction velocity + friction head come from the SAME
+    // Darcy-Weisbach/Colebrook engine and fluid properties as the main run.
+    const suctionD = parseFloat(document.getElementById('npsh-Ds').value);
+    const suctionL = parseFloat(document.getElementById('npsh-Ls').value);
+    const suctionWanted = isFinite(suctionD) && suctionD > 0 && isFinite(suctionL) && suctionL > 0;
+
     const r = await apiCall({
       action: 'calculate',
       D, L, Q, rho, mu, dz, epsBase, foulingMm,
       pumpEff, motorEff, unitMode,
       isGasFluid,
       fittings: fittingsPayload,
+      suctionD: suctionWanted ? suctionD : null,
+      suctionL: suctionWanted ? suctionL : null,
     });
 
     if (!r.ok) { showAlert('err', r.error || 'Calculation failed.'); return; }
@@ -2311,7 +2343,18 @@ async function calculate() {
     }
 
     // Run NPSH if inputs provided
-    calcNPSH(rho, r.dpTotal);
+    // FIX NPSH-1: pass the TRUE pipe velocity (m/s), not dpTotal.
+    // Old code derived V = √(2·ΔP_total/ρ), which inverts total friction+fittings+
+    // elevation ΔP as if it were dynamic pressure — physically meaningless.
+    // Prefer raw SI velocity r.V from API; fall back to velDisp (convert if ft/s).
+    const V_ms = (typeof r.V === 'number' && isFinite(r.V)) ? r.V
+               : (r.velUnit === 'ft/s' ? r.velDisp * 0.3048 : r.velDisp);
+    // FIX NPSH-3: NPSH head terms need density in kg/m³. In imperial mode the
+    // raw input rho is lb/ft³ — previously passed unconverted, inflating the
+    // pressure-head term ~16× for US-unit users.
+    const rho_SI = unitMode === 'imperial' ? rho * 16.0185 : rho;
+    // FIX NPSH-2: r.npsh = server-computed suction-line block {Vs,Res,fs,HfSuction,...}
+    calcNPSH(rho_SI, V_ms, r.npsh || null, suctionWanted);
 
   } catch(e) {
     showAlert('err', '⚠ API error: ' + e.message);
@@ -2320,35 +2363,66 @@ async function calculate() {
   }
 }
 
-/* ══ NPSH / CAVITATION CHECK — pure client math, no secrets ══ */
-function calcNPSH(rho, dpSuction) {
+/* ══ NPSH / CAVITATION CHECK — display layer (hydraulics come from API) ══ */
+/* FIX NPSH-1: velocity head uses the TRUE pipe velocity (V = Q/A), never a
+   value back-derived from pressure drop (√(2·ΔP/ρ) inverts dynamic pressure
+   on the total line ΔP and is physically meaningless).
+   FIX NPSH-2: when the user enters suction pipe ID + length, the API returns
+   sx = {Vs, Res, fs, HfSuction} computed with the same Darcy-Weisbach/
+   Colebrook engine, fluid properties and roughness as the main run. Then:
+     V for V²/2g      = suction-line velocity Vs
+     H_fs             = computed suction friction + manual additional losses
+   With suction fields blank, falls back to main-line V + manual losses only.
+   FIX NPSH-3: rho argument must be SI kg/m³ (caller converts from lb/ft³). */
+function calcNPSH(rho, V_main_ms, sx, suctionWanted) {
   const PsuctBar = parseFloat(document.getElementById('npsh-Psuct').value);
   const PvapBar  = parseFloat(document.getElementById('npsh-Pvap').value);
   const Zs       = parseFloat(document.getElementById('npsh-Zs').value)     || 0;
-  const Hfs      = parseFloat(document.getElementById('npsh-Hfs').value)    || 0;
+  const HfsAdd   = parseFloat(document.getElementById('npsh-Hfs').value)    || 0;
   const NPSHr    = parseFloat(document.getElementById('npsh-NPSHr').value)  || 0;
   const el       = document.getElementById('npsh-result');
 
-  if ([PsuctBar, PvapBar].some(isNaN) || PsuctBar <= 0) { el.style.display = 'none'; return; }
+  if ([PsuctBar, PvapBar].some(isNaN) || PsuctBar <= 0) { el.style.display = 'none'; lastNPSH = null; return; }
 
   const g = 9.81;
   const Psuct_Pa = PsuctBar * 1e5;
   const Pvap_Pa  = PvapBar  * 1e5;
-  const V_suct   = dpSuction > 0 ? Math.sqrt(2 * dpSuction / rho) : 0;
+
+  const useSx = !!(sx && isFinite(sx.Vs) && sx.Vs > 0 && isFinite(sx.HfSuction));
+  const V_suct    = useSx ? sx.Vs
+                  : (isFinite(V_main_ms) && V_main_ms > 0 ? V_main_ms : 0);
+  const HfPipe    = useSx ? sx.HfSuction : 0;
+  const Hfs_total = HfPipe + HfsAdd;
   const velHead_s = V_suct * V_suct / (2 * g);
-  const NPSH_A = (Psuct_Pa - Pvap_Pa) / (rho * g) + Zs - Hfs - velHead_s;
+  const NPSH_A = (Psuct_Pa - Pvap_Pa) / (rho * g) + Zs - Hfs_total - velHead_s;
   const margin = NPSH_A - NPSHr;
   const safe = margin >= 0.5, warn = margin >= 0 && margin < 0.5;
+
+  // FIX PDF-2: expose NPSH outcome to the PDF report
+  lastNPSH = {
+    NPSH_A, NPSHr, margin, safe, warn,
+    V_suct, velHead_s, Hfs_total, HfPipe, HfsAdd, Zs,
+    PsuctBar, PvapBar, useSx,
+    Ds_mm: useSx ? sx.Ds_mm : null, Ls_m: useSx ? sx.Ls_m : null,
+    Res: useSx ? sx.Res : null, fs: useSx ? sx.fs : null,
+  };
+
+  const srcNote = useSx
+    ? `Suction line D=${sx.Ds_mm.toFixed(0)} mm × L=${sx.Ls_m.toFixed(1)} m → V<sub>s</sub>=${sx.Vs.toFixed(2)} m/s, Re=${Number(sx.Res).toLocaleString()}, f=${sx.fs.toFixed(5)}, H<sub>f,pipe</sub>=${sx.HfSuction.toFixed(3)} m + additional ${HfsAdd.toFixed(2)} m`
+    : suctionWanted
+      ? '⚠ Suction line data sent but the API returned no suction block — redeploy the updated API. Using main-line velocity + manual losses.'
+      : `V taken from main pipe (${V_suct.toFixed(2)} m/s) — enter suction pipe ID &amp; length above for a line-specific NPSH.`;
 
   el.style.display = 'block';
   const msg = safe ? 'NPSH adequate — cavitation risk low'
             : warn ? 'NPSH margin < 0.5 m — cavitation risk elevated'
-            : 'NPSH DEFICIT — cavitation likely! Reduce flow, increase suction head, or lower temperature.';
+            : 'NPSH DEFICIT — cavitation likely! Reduce flow, increase suction head, enlarge suction line, or lower temperature.';
   el.innerHTML = `<div style="background:${safe?'var(--green-pale)':warn?'var(--amber-pale)':'var(--red-pale)'};border:1px solid ${safe?'#a7f3d0':warn?'#fcd34d':'#fca5a5'};border-radius:8px;padding:11px 14px;">
     <div style="font-size:.7rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">NPSH Analysis</div>
     <div class="npsh-result ${safe?'npsh-ok':warn?'npsh-warn':'npsh-fail'}" style="margin-bottom:6px;">${safe?'✅':warn?'⚠':'❌'} NPSH<sub>A</sub> = ${NPSH_A.toFixed(2)} m  |  NPSH<sub>R</sub> = ${NPSHr.toFixed(1)} m  |  Margin = ${margin.toFixed(2)} m</div>
     <div style="font-size:.79rem;color:var(--text2);">${msg}</div>
-    <div style="font-size:.72rem;color:var(--text3);margin-top:5px;">NPSH<sub>A</sub> = (P<sub>suct</sub> − P<sub>vap</sub>)/(ρg) + Z<sub>s</sub> − H<sub>fs</sub> = (${(Psuct_Pa/1000).toFixed(0)} − ${(Pvap_Pa/1000).toFixed(0)} kPa)/(${rho.toFixed(0)}×9.81) + ${Zs} − ${Hfs} m</div>
+    <div style="font-size:.72rem;color:var(--text3);margin-top:5px;">NPSH<sub>A</sub> = (P<sub>suct</sub> − P<sub>vap</sub>)/(ρg) + Z<sub>s</sub> − H<sub>fs</sub> − V²/2g = (${(Psuct_Pa/1000).toFixed(1)} − ${(Pvap_Pa/1000).toFixed(1)} kPa)/(${rho.toFixed(0)}×9.81) + ${Zs} − ${Hfs_total.toFixed(3)} − ${velHead_s.toFixed(3)} m &nbsp;(V = ${V_suct.toFixed(2)} m/s)</div>
+    <div style="font-size:.7rem;color:var(--text3);margin-top:4px;">${srcNote}</div>
   </div>`;
 }
 
@@ -2639,6 +2713,30 @@ function generatePDF() {
   h += '</div>';
   h += '</div>'; // end two-col
 
+  // NPSH & CAVITATION (FIX PDF-2: included when the check was run)
+  if (lastNPSH) {
+    var np = lastNPSH;
+    var npBg = np.safe ? '#ecfdf5' : np.warn ? '#fffbeb' : '#fef2f2';
+    var npBd = np.safe ? '#a7f3d0' : np.warn ? '#fcd34d' : '#fca5a5';
+    var npCl = np.safe ? '#059669' : np.warn ? '#d97706' : '#dc2626';
+    var npIc = np.safe ? '&#9989;' : np.warn ? '&#9888;' : '&#10060;';
+    var npVerdict = np.safe ? 'NPSH ADEQUATE' : np.warn ? 'MARGIN &lt; 0.5 m — ELEVATED RISK' : 'NPSH DEFICIT — CAVITATION LIKELY';
+    h += '<div style="background:' + npBg + ';border:1px solid ' + npBd + ';border-radius:6px;padding:9px 12px;margin-bottom:10px;">';
+    h += '<div style="font-size:8px;font-weight:700;color:' + npCl + ';margin-bottom:6px;letter-spacing:.5px;">NPSH &amp; CAVITATION CHECK &nbsp;' + npIc + ' ' + npVerdict + '</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:9px;">';
+    h += '<div>NPSH<sub>A</sub>: <strong style="font-family:\'Courier New\',monospace;">' + np.NPSH_A.toFixed(2) + ' m</strong></div>';
+    h += '<div>NPSH<sub>R</sub>: <strong style="font-family:\'Courier New\',monospace;">' + np.NPSHr.toFixed(1) + ' m</strong></div>';
+    h += '<div>Margin: <strong style="font-family:\'Courier New\',monospace;color:' + npCl + ';">' + np.margin.toFixed(2) + ' m</strong></div>';
+    h += '<div>V<sub>suction</sub>: <strong style="font-family:\'Courier New\',monospace;">' + np.V_suct.toFixed(2) + ' m/s</strong></div>';
+    h += '</div>';
+    h += '<div style="font-size:8px;color:#6b7280;margin-top:5px;font-family:\'Courier New\',monospace;">';
+    h += 'NPSH_A = (' + (np.PsuctBar*100).toFixed(1) + ' &minus; ' + (np.PvapBar*100).toFixed(2) + ' kPa)/&rho;g + ' + np.Zs + ' &minus; ' + np.Hfs_total.toFixed(3) + ' &minus; ' + np.velHead_s.toFixed(3) + ' m';
+    if (np.useSx) h += ' &nbsp;|&nbsp; Suction line: D=' + np.Ds_mm.toFixed(0) + ' mm &times; L=' + np.Ls_m.toFixed(1) + ' m, Re=' + Number(np.Res).toLocaleString() + ', f=' + np.fs.toFixed(5) + ', H_f=' + np.HfPipe.toFixed(3) + ' m + ' + np.HfsAdd.toFixed(2) + ' m additional';
+    else h += ' &nbsp;|&nbsp; V from main line (no suction pipe data entered)';
+    h += '</div>';
+    h += '</div>';
+  }
+
   // FOOTER
   h += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:7.5px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:6px;margin-top:4px;">';
   h += '  <span><strong style="color:#4f46e5;">multicalci.com</strong> &mdash; Pressure Drop &bull; Control Valve &bull; Heat Exchanger &bull; Orifice &bull; Steam &bull; more</span>';
@@ -2647,26 +2745,39 @@ function generatePDF() {
   h += '</div>';
 
   const report = document.createElement('div');
-  report.style.cssText = 'width:794px;position:fixed;top:-9999px;left:-9999px;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111827;padding:28px 32px;box-sizing:border-box;line-height:1.45;';
+  // FIX PDF-1: html2canvas (bundled in html2pdf 0.10.1) computes its capture
+  // window from the element's bounding rect. With position:fixed;top:-9999px
+  // the crop falls entirely outside the painted area → blank PDF pages.
+  // Park the element off-screen HORIZONTALLY at top:0 instead, and pin
+  // scrollX/scrollY to 0 so the page's scroll position can't shift the crop.
+  report.style.cssText = 'width:794px;position:absolute;top:0;left:-10000px;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111827;padding:28px 32px;box-sizing:border-box;line-height:1.45;';
   report.innerHTML = h;
   document.body.appendChild(report);
+
+  // FIX PDF-1: capture with the window at scroll origin, restore afterwards
+  const prevScrollX = window.scrollX || window.pageXOffset || 0;
+  const prevScrollY = window.scrollY || window.pageYOffset || 0;
+  window.scrollTo(0, 0);
+  function pdfCleanup() {
+    if (report.parentNode) document.body.removeChild(report);
+    window.scrollTo(prevScrollX, prevScrollY);
+    if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+  }
 
   const opt = {
     margin: 0,
     filename: 'PressureDrop_multicalci_' + dateStr.replace(/ /g, '_') + '.pdf',
     image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794 },
+    html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794, scrollX: 0, scrollY: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
   html2pdf().set(opt).from(report).save()
     .then(function() {
-      document.body.removeChild(report);
-      if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+      pdfCleanup();
     })
     .catch(function(e) {
-      document.body.removeChild(report);
-      if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+      pdfCleanup();
       alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
     });
 }
