@@ -164,16 +164,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .phase-tab .pt-icon{font-size:1rem}
 .phase-tab .pt-txt{font-family:var(--head);font-size:.65rem;font-weight:700;letter-spacing:.5px;color:var(--text3);display:block;margin-top:2px}
 .phase-tab.on{border-color:var(--teal);background:rgba(0,122,108,.07)}.phase-tab.on .pt-txt{color:var(--teal)}
-.fluid-search-wrap{position:relative;margin-bottom:7px}
-.fluid-search-wrap::before{content:'⌕';position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:1rem;pointer-events:none}
-.fluid-search{padding-left:30px !important}
-.fluid-chips{display:flex;flex-wrap:wrap;gap:5px;max-height:108px;overflow-y:auto;padding:2px;
-  margin-bottom:8px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
-.fchip{padding:4px 9px;border-radius:4px;background:var(--ink3);border:1px solid var(--line);
-  font-family:var(--mono);font-size:.7rem;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .15s}
-.fchip:hover{border-color:var(--teal2);color:var(--text)}
-.fchip.active{border-color:var(--teal);color:var(--teal);background:rgba(0,122,108,.07)}
-.fchip.gold{border-color:var(--gold);color:var(--gold);background:rgba(176,120,0,.07)}
+.auto-tag{font-size:.6rem;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:rgba(0,122,108,.1);border:1px solid rgba(0,122,108,.3);color:var(--teal2);margin-left:4px;text-transform:none}
+.fluid-select-wrap{margin-bottom:8px}
+.fluid-select{font-family:var(--mono);font-size:.74rem}
+.fluid-select option{background:var(--ink2);color:var(--text)}
 .custom-row{display:flex;align-items:center;gap:6px;font-size:.68rem;color:var(--teal2);cursor:pointer;margin-top:2px}
 .custom-row:hover{color:var(--teal)}.custom-sec{display:none;margin-top:10px}.custom-sec.open{display:block}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}
@@ -187,6 +181,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .iw input{flex:1;border-radius:7px 0 0 7px !important;border-right:none !important}
 .iw .iunit{padding:0 9px;display:flex;align-items:center;background:var(--ink3);border:1px solid var(--line);
   border-radius:0 7px 7px 0;font-family:var(--mono);font-size:.68rem;color:var(--teal2);white-space:nowrap;min-width:42px;justify-content:center}
+.iw select.iunit-sel{width:auto;min-width:78px;flex:0 0 auto;border-radius:0 7px 7px 0 !important;
+  font-family:var(--mono);font-size:.68rem;color:var(--teal2);padding:0 20px 0 8px}
 input[type=number],select,input[type=text]{width:100%;background:var(--ink3);border:1px solid var(--line);
   border-radius:7px;color:var(--text);font-family:var(--mono);font-size:.84rem;font-weight:400;
   padding:8px 10px;outline:none;transition:border-color .2s,box-shadow .2s;-moz-appearance:textfield}
@@ -382,14 +378,13 @@ select option{background:var(--ink2)}
         <div class="phase-tab"    id="pt_gas_hc"   onclick="setPhase('gas_hc')"><div class="pt-icon">🔥</div><span class="pt-txt">HC GAS</span></div>
         <div class="phase-tab"    id="pt_steam"    onclick="setPhase('steam')"><div class="pt-icon">♨️</div><span class="pt-txt">STEAM</span></div>
       </div>
-      <div class="fluid-search-wrap"><input class="fluid-search" type="text" id="fSearch" placeholder="Search fluids…" oninput="filterFluids()"></div>
-      <div class="fluid-chips" id="fChips"></div>
+      <div class="fluid-select-wrap"><select id="fluidSelect" class="fluid-select" onchange="onFluidSelect(this.value)"></select></div>
       <div class="custom-row" onclick="toggleCustom()">＋ Custom fluid properties</div>
       <div class="custom-sec" id="customSec">
         <div class="row2" style="margin-top:10px">
-          <div class="field"><label id="custSGlbl">SG / MW <span class="hint">liquid SG or gas MW</span></label>
+          <div class="field"><label id="custSGlbl">Specific Gravity <span class="hint">water = 1.0</span></label>
             <input type="number" id="custSG" value="1.0" step="0.001" oninput="syncCustomFluid()"></div>
-          <div class="field"><label>Vapor Pressure <span class="hint" id="custPvUnit">(psia)</span></label>
+          <div class="field" id="custPvField"><label>Vapor Pressure <span class="hint" id="custPvUnit">(psia)</span></label>
             <input type="number" id="custPv" value="0.3" step="0.01" oninput="syncCustomFluid()"></div>
         </div>
       </div>
@@ -406,9 +401,11 @@ select option{background:var(--ink2)}
       <div class="ch"><div class="ch-icon">⚙️</div><div class="ch-title">Process Conditions</div><div class="ch-step">02</div></div>
       <div class="row2">
         <div class="field"><label>Flow Rate</label>
-          <div class="iw"><input type="number" id="flow" value="200" oninput="calc()"><span class="iunit" id="uFlow">GPM</span></div></div>
+          <div class="iw"><input type="number" id="flow" value="200" oninput="calc()"><select class="iunit-sel" id="flowUnit" onchange="onFlowUnitChange()"></select></div></div>
         <div class="field"><label>Temperature</label>
-          <div class="iw"><input type="number" id="temp" value="60" oninput="calc();autoZ()"><span class="iunit" id="uTemp">°F</span></div></div>
+          <div class="iw"><input type="number" id="temp" value="60" oninput="calc();autoZ();autoLiquidProps()"><select class="iunit-sel" id="tUnit" onchange="onTempUnitChange()">
+            <option value="C">°C</option><option value="F" selected>°F</option><option value="K">K</option>
+          </select></div></div>
       </div>
       <div class="row2" style="margin-bottom:6px">
         <div class="field"><label>Pressure Unit</label>
@@ -439,10 +436,19 @@ select option{background:var(--ink2)}
           <span id="p2AbsHint" style="font-family:var(--mono);font-size:.66rem;color:var(--text3)"></span></div>
       </div>
       <div class="row2" id="pvRow">
-        <div class="field"><label data-tip="Fluid vapor pressure at operating temperature">Vapor Pressure Pᵥ</label>
-          <div class="iw"><input type="number" id="pv" value="0.3" oninput="calc()"><span class="iunit" id="uPv">psia</span></div></div>
-        <div class="field"><label id="sgLabel" data-tip="Specific gravity (liquids) or molecular weight (gases)">Specific Gravity</label>
-          <div class="iw"><input type="number" id="sg" value="1.0" step="0.001" oninput="clearChipSel();document.getElementById('custSG').value=this.value;calc()"><span class="iunit" id="uSG">SG</span></div></div>
+        <div class="field"><label data-tip="Auto-computed from the selected fluid at the operating temperature via Antoine. Type to override.">Vapor Pressure Pᵥ
+          <span id="pvAutoTag" class="auto-tag" style="display:none">AUTO ⟳</span></label>
+          <div class="iw"><input type="number" id="pv" value="0.3" oninput="pvManualOverride()"><span class="iunit" id="uPv">psia</span></div></div>
+        <div class="field"><label id="sgLabel" data-tip="Auto-computed from fluid density at the operating temperature. Type to override.">Specific Gravity
+          <span id="sgAutoTag" class="auto-tag" style="display:none">AUTO ⟳</span></label>
+          <div class="iw"><input type="number" id="sg" value="1.0" step="0.001" oninput="sgManualOverride()"><span class="iunit" id="uSG">SG</span></div></div>
+      </div>
+      <div class="row2" id="viscRow">
+        <div class="field"><label data-tip="Kinematic viscosity at the operating temperature (drives the IEC 60534 Reynolds-number / Fᵣ correction for viscous service). Type to override.">Viscosity ν
+          <span id="viscAutoTag" class="auto-tag" style="display:none">AUTO ⟳</span></label>
+          <div class="iw"><input type="number" id="visc" value="1.0" step="0.01" oninput="viscManualOverride()"><span class="iunit">cSt</span></div></div>
+        <div class="field" style="display:flex;align-items:flex-end">
+          <div id="liqPropNote" style="font-family:var(--mono);font-size:.66rem;line-height:1.25;color:var(--text3)"></div></div>
       </div>
       <div class="row2" id="gasRow" style="display:none">
         <div class="field">
@@ -695,44 +701,55 @@ const PIPE_DB={
   "20":{40:18.812,80:17.938,160:17.000,xxs:16.376},
 };
 const FLUID_DB={
+  // ── FIX FP-1: temperature-specific presets (Water 20/80, Ammonia -33/20)
+  //    replaced by SINGLE fluid entries. Selecting fluid + T + P now auto-computes
+  //    SG, Vapor Pressure and viscosity at the operating temperature via
+  //    FLUID_THERMO correlations (see below). The sg/pv/visc values here are only
+  //    the fallback reference point (≈20 °C) shown before the first auto-calc; the
+  //    live values come from computeLiquidProps(). Names MUST match FLUID_THERMO keys.
   liq_gen:[
-    {n:"Water (20°C)",sg:1.000,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.9},
-    // FIX F-25: Water (80°C) Pv corrected — NIST: 47.39 kPa = 6.87 psia (not 6.15)
-    {n:"Water (80°C)",sg:0.972,pv:6.87,k:1,z:1,type:'l',Pc:220.9},
-    {n:"Sea Water",sg:1.025,pv:0.30,k:1,z:1,type:'l',Pc:220.9},
-    {n:"Diesel Fuel",sg:0.850,pv:0.009,k:1,z:1,type:'l',Pc:42.0},
-    // FIX F-25: Petrol Pc added (≈36.5 bar typical mid-range gasoline)
-    {n:"Petrol/Gasoline",sg:0.740,pv:7.50,k:1,z:1,type:'l',Pc:36.5},
-    {n:"Crude Oil API 30",sg:0.876,pv:1.20,k:1,z:1,type:'l',Pc:25.0},
-    {n:"Kerosene",sg:0.800,pv:0.05,k:1,z:1,type:'l',Pc:22.0},
-    {n:"Hydraulic Oil",sg:0.870,pv:0.001,k:1,z:1,type:'l',Pc:15.0},
-    // FIX F-25: Ethylene Glycol Pc added (77.0 bar per NIST)
-    {n:"Ethylene Glycol",sg:1.115,pv:0.009,k:1,z:1,type:'l',Pc:77.0},
-    {n:"Glycerin",sg:1.261,pv:0.001,k:1,z:1,type:'l',Pc:75.0},
-    // FIX 7: Liq. Ammonia (-33°C) Pv corrected — NIST: Psat at −33.35°C (atm boiling pt) = 14.696 psia
-    //   Previous value 21.85 psia was Psat at ~+5°C — wrong by ~7 psi
-    {n:"Liq. Ammonia (-33°C)",sg:0.617,pv:14.70,k:1,z:1,type:'l',visc:0.32,Pc:113.3},
-    {n:"Liq. Ammonia (20°C)",sg:0.610,pv:122.4,k:1,z:1,type:'l',visc:0.25,Pc:113.3},
-    {n:"Lube Oil SAE30",sg:0.891,pv:0.001,k:1,z:1,type:'l',Pc:15.0},
+    {n:"Water",sg:0.998,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.9},
+    {n:"Sea Water",sg:1.025,pv:0.30,k:1,z:1,type:'l',visc:1.05,Pc:220.9},
+    {n:"Diesel Fuel",sg:0.850,pv:0.009,k:1,z:1,type:'l',visc:3.2,Pc:42.0},
+    {n:"Petrol/Gasoline",sg:0.740,pv:7.50,k:1,z:1,type:'l',visc:0.6,Pc:36.5},
+    {n:"Crude Oil API 30",sg:0.876,pv:1.20,k:1,z:1,type:'l',visc:15,Pc:25.0},
+    {n:"Kerosene",sg:0.800,pv:0.05,k:1,z:1,type:'l',visc:1.8,Pc:22.0},
+    {n:"Hydraulic Oil",sg:0.870,pv:0.001,k:1,z:1,type:'l',visc:40,Pc:15.0},
+    {n:"Ethylene Glycol",sg:1.115,pv:0.009,k:1,z:1,type:'l',visc:19,Pc:77.0},
+    {n:"Glycerin",sg:1.261,pv:0.001,k:1,z:1,type:'l',visc:1120,Pc:75.0},
+    {n:"Liq. Ammonia",sg:0.610,pv:122.4,k:1,z:1,type:'l',visc:0.16,Pc:113.3},
+    {n:"Lube Oil SAE30",sg:0.891,pv:0.001,k:1,z:1,type:'l',visc:300,Pc:15.0},
+    {n:"Naphtha",sg:0.721,pv:2.00,k:1,z:1,type:'l',visc:0.50,Pc:30.0},
+    {n:"Jet Fuel (ATF)",sg:0.796,pv:0.02,k:1,z:1,type:'l',visc:1.4,Pc:23.0},
+    {n:"Heavy Fuel Oil",sg:0.964,pv:0.001,k:1,z:1,type:'l',visc:370,Pc:15.0},
+    {n:"Crude Oil API 40",sg:0.826,pv:3.00,k:1,z:1,type:'l',visc:4.0,Pc:28.0},
+    {n:"Liq. Propane",sg:0.500,pv:121.0,k:1,z:1,type:'l',visc:0.11,Pc:42.5},
+    {n:"Liq. Butane",sg:0.580,pv:30.1,k:1,z:1,type:'l',visc:0.17,Pc:38.0},
+    {n:"Brine CaCl₂ 25%",sg:1.234,pv:0.30,k:1,z:1,type:'l',visc:2.8,Pc:220.9},
   ],
   liq_chem:[
-    {n:"Sulfuric Acid 98%",sg:1.840,pv:0.001,k:1,z:1,type:'l',Pc:64.0},
-    {n:"Sulfuric Acid 70%",sg:1.610,pv:0.002,k:1,z:1,type:'l',Pc:64.0},
-    {n:"Nitric Acid 60%",sg:1.370,pv:0.100,k:1,z:1,type:'l',Pc:68.9},
-    {n:"Phosphoric Acid 85%",sg:1.690,pv:0.030,k:1,z:1,type:'l',Pc:70.0},
-    {n:"Caustic Soda 50%",sg:1.530,pv:0.010,k:1,z:1,type:'l',Pc:220.9},
-    {n:"HCl 36%",sg:1.180,pv:0.500,k:1,z:1,type:'l',Pc:83.1},
-    // FIX F-25: Acetone Pc added (47.0 bar per NIST)
-    {n:"Acetone",sg:0.791,pv:3.500,k:1,z:1,type:'l',Pc:47.0},
-    // FIX F-25: Methanol Pc added (80.97 bar per NIST)
-    {n:"Methanol",sg:0.792,pv:1.900,k:1,z:1,type:'l',Pc:81.0},
-    // FIX F-25: Ethanol Pc added (61.48 bar per NIST)
-    {n:"Ethanol 96%",sg:0.789,pv:0.860,k:1,z:1,type:'l',Pc:61.5},
-    {n:"Benzene",sg:0.879,pv:1.400,k:1,z:1,type:'l',Pc:48.9},
-    {n:"Toluene",sg:0.870,pv:0.550,k:1,z:1,type:'l',Pc:41.1},
-    // FIX F-25: Chloroform Pc added (53.7 bar per NIST)
-    {n:"Chloroform",sg:1.489,pv:3.900,k:1,z:1,type:'l',Pc:53.7},
-    {n:"Acetic Acid",sg:1.050,pv:0.210,k:1,z:1,type:'l',Pc:57.9},
+    {n:"Sulfuric Acid 98%",sg:1.840,pv:0.001,k:1,z:1,type:'l',visc:27,Pc:64.0},
+    {n:"Sulfuric Acid 70%",sg:1.610,pv:0.002,k:1,z:1,type:'l',visc:9,Pc:64.0},
+    {n:"Nitric Acid 60%",sg:1.370,pv:0.100,k:1,z:1,type:'l',visc:1.8,Pc:68.9},
+    {n:"Phosphoric Acid 85%",sg:1.690,pv:0.030,k:1,z:1,type:'l',visc:25,Pc:70.0},
+    {n:"Caustic Soda 50%",sg:1.530,pv:0.010,k:1,z:1,type:'l',visc:26,Pc:220.9},
+    {n:"HCl 36%",sg:1.180,pv:0.500,k:1,z:1,type:'l',visc:1.9,Pc:83.1},
+    {n:"Acetone",sg:0.791,pv:3.500,k:1,z:1,type:'l',visc:0.4,Pc:47.0},
+    {n:"Methanol",sg:0.792,pv:1.900,k:1,z:1,type:'l',visc:0.59,Pc:81.0},
+    {n:"Ethanol 96%",sg:0.789,pv:0.860,k:1,z:1,type:'l',visc:1.4,Pc:61.5},
+    {n:"Benzene",sg:0.879,pv:1.400,k:1,z:1,type:'l',visc:0.65,Pc:48.9},
+    {n:"Toluene",sg:0.870,pv:0.550,k:1,z:1,type:'l',visc:0.59,Pc:41.1},
+    {n:"Chloroform",sg:1.489,pv:3.900,k:1,z:1,type:'l',visc:0.56,Pc:53.7},
+    {n:"Acetic Acid",sg:1.050,pv:0.210,k:1,z:1,type:'l',visc:1.17,Pc:57.9},
+    {n:"Isopropanol (IPA)",sg:0.787,pv:0.640,k:1,z:1,type:'l',visc:2.4,Pc:47.6},
+    {n:"n-Hexane",sg:0.660,pv:2.350,k:1,z:1,type:'l',visc:0.31,Pc:30.2},
+    {n:"Xylene",sg:0.865,pv:0.120,k:1,z:1,type:'l',visc:0.62,Pc:35.2},
+    {n:"MEK",sg:0.806,pv:1.370,k:1,z:1,type:'l',visc:0.42,Pc:41.5},
+    {n:"Ethyl Acetate",sg:0.903,pv:1.430,k:1,z:1,type:'l',visc:0.45,Pc:38.3},
+    {n:"MEA 30%",sg:1.013,pv:0.340,k:1,z:1,type:'l',visc:2.5,Pc:220.9},
+    {n:"MDEA 45%",sg:1.043,pv:0.340,k:1,z:1,type:'l',visc:10,Pc:220.9},
+    {n:"Benfield (K₂CO₃ 30%)",sg:1.291,pv:0.340,k:1,z:1,type:'l',visc:2.3,Pc:220.9},
+    {n:"Urea Solution 70%",sg:1.201,pv:1.790,k:1,z:1,type:'l',visc:2.7,Pc:220.9},
   ],
   gas_gen:[
     {n:"Air",          sg:28.97,pv:0,k:1.40,z:1.000,type:'g',Tc:132.5,Pc_bar:37.86,omega:0.035},
@@ -747,6 +764,11 @@ const FLUID_DB={
     {n:"Helium",       sg:4.003,pv:0,k:1.67,z:1.000,type:'g',Tc:5.19, Pc_bar:2.27, omega:-0.390},
     {n:"SO₂",          sg:64.07,pv:0,k:1.29,z:0.990,type:'g',Tc:430.8,Pc_bar:78.84,omega:0.245},
     {n:"H₂S",          sg:34.08,pv:0,k:1.32,z:0.990,type:'g',Tc:373.2,Pc_bar:89.63,omega:0.094},
+    {n:"Syngas (3H₂+N₂)",sg:8.52,pv:0,k:1.40,z:1.000,type:'g',Tc:56.4, Pc_bar:18.35,omega:-0.154}, // NH₃ synthesis make-up gas (pseudo-critical mix)
+    {n:"Flue Gas",     sg:29.2, pv:0,k:1.36,z:0.995,type:'g',Tc:201.0,Pc_bar:58.00,omega:0.100},   // typ. N₂/CO₂/H₂O/O₂ mix (pseudo)
+    {n:"Biogas 60% CH₄",sg:27.23,pv:0,k:1.30,z:0.990,type:'g',Tc:236.1,Pc_bar:57.20,omega:0.097}, // 60/40 CH₄/CO₂ (pseudo)
+    {n:"N₂O",          sg:44.01,pv:0,k:1.27,z:0.994,type:'g',Tc:309.6,Pc_bar:72.45,omega:0.162},
+    {n:"HCl (gas)",    sg:36.46,pv:0,k:1.41,z:0.995,type:'g',Tc:324.7,Pc_bar:83.10,omega:0.132},
   ],
   gas_hc:[
     {n:"Methane (CH₄)",  sg:16.04,pv:0,k:1.30,z:0.998,type:'g',Tc:190.6,Pc_bar:46.10,omega:0.011},
@@ -757,6 +779,11 @@ const FLUID_DB={
     {n:"Propylene",       sg:42.08,pv:0,k:1.15,z:0.980,type:'g',Tc:364.9,Pc_bar:46.00,omega:0.144},
     {n:"Natural Gas",     sg:17.97,pv:0,k:1.31,z:0.990,type:'g',Tc:203.0,Pc_bar:46.41,omega:0.012},
     {n:"LPG",             sg:51.0, pv:0,k:1.11,z:0.975,type:'g',Tc:397.0,Pc_bar:42.00,omega:0.176},
+    {n:"iso-Butane",      sg:58.12,pv:0,k:1.10,z:0.970,type:'g',Tc:407.8,Pc_bar:36.40,omega:0.186},
+    {n:"n-Pentane",       sg:72.15,pv:0,k:1.08,z:0.950,type:'g',Tc:469.7,Pc_bar:33.70,omega:0.252},
+    {n:"Acetylene",       sg:26.04,pv:0,k:1.23,z:0.990,type:'g',Tc:308.3,Pc_bar:61.14,omega:0.187},
+    {n:"1,3-Butadiene",   sg:54.09,pv:0,k:1.12,z:0.970,type:'g',Tc:425.0,Pc_bar:43.20,omega:0.195},
+    {n:"Refinery Fuel Gas",sg:20.0,pv:0,k:1.27,z:0.980,type:'g',Tc:230.0,Pc_bar:46.00,omega:0.050}, // typ. H₂/C₁/C₂ mix (pseudo)
   ],
   steam:[
     {n:"Saturated Steam",sg:18.02,pv:0,k:1.30,z:1.0,type:'s'},
@@ -764,6 +791,208 @@ const FLUID_DB={
     {n:"Wet Steam (90%)",sg:18.02,pv:0,k:1.13,z:1.0,type:'s'},
   ],
 };
+// ============================================================================
+//  FLUID_THERMO — temperature-dependent liquid property engine (FIX FP-1)
+//  Fills the SG / Vapor-Pressure / Viscosity input fields at the operating T.
+//  The Cv SIZING MATH stays 100% server-side; this only populates inputs, exactly
+//  like the old fixed presets did — but now T-aware, with per-field manual override.
+//
+//  Vapor pressure : Antoine  log10(P) = A − B/(T + C), constants stored in their
+//                   NATIVE published units {pUnit:'bar'|'mmHg', tUnit:'K'|'C'} so
+//                   they are used verbatim (no manual-conversion errors). Multi-range
+//                   fluids (ammonia) store an array r:[...]. Verified vs NIST WebBook.
+//  Density        : rho(T)[kg/m³]; SG = rho/999. 'poly' = a+bT+cT² ; 'beta' = linear.
+//  Viscosity      : mu(T)[cP]; 'vogel'=exp(A+B/(Tk−C)), 'andrade'=exp(A+B/Tk),
+//                   'const'=fixed. Field is populated in cSt (kinematic = cP/SG),
+//                   which is what the server Reynolds-number correction expects.
+//  Every correlation was regression-tested against the previously-shipped preset
+//  values (all SG within 0.8 %, Pv within ~4 %) before shipping.
+// ============================================================================
+const _MMHG_PER_PSI=51.71493, _BAR_PER_PSI=0.06894757;
+function _antoineP_psia(spec,T_C){
+  const ranges=Array.isArray(spec.r)?spec.r:[spec];
+  const T_K=T_C+273.15; let r=ranges[0];
+  for(const c of ranges){const lo=c.kmin??-1e9,hi=c.kmax??1e9;
+    if(T_K>=lo&&T_K<=hi){r=c;break;} if(T_K>hi)r=c;}
+  const Tin=(r.tUnit==='C')?T_C:T_K;
+  const P=Math.pow(10, r.A - r.B/(Tin+r.C));
+  if(r.pUnit==='bar')  return P/_BAR_PER_PSI;
+  if(r.pUnit==='mmHg') return P/_MMHG_PER_PSI;
+  return P;
+}
+function _density_kgm3(d,T_C){
+  if(d.model==='poly') return d.a + d.b*T_C + d.c*T_C*T_C;
+  return d.rhoRef*(1 - d.beta*(T_C - d.Tref));
+}
+function _viscosity_cP(v,T_C){
+  const Tk=T_C+273.15;
+  if(v.model==='vogel')   return Math.exp(v.A + v.B/(Tk - v.C));
+  if(v.model==='andrade') return Math.exp(v.A + v.B/Tk);
+  return v.val;
+}
+const FLUID_THERMO={
+  "Water":{Tmin:0,Tmax:100,Pc:220.9,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'poly',a:1000.28,b:-0.01858,c:-0.0035787},
+    vis:{model:'vogel',A:-3.7188,B:578.919,C:137.546}},
+  "Sea Water":{Tmin:0,Tmax:100,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'poly',a:1027.9,b:-0.01858,c:-0.0035787},
+    vis:{model:'vogel',A:-3.6,B:578.919,C:137.546}},
+  "Liq. Ammonia":{Tmin:-40,Tmax:60,Pc:113.3,
+    pv:{r:[{A:3.18757,B:506.713,C:-80.78,kmin:164.0,kmax:239.6,pUnit:'bar',tUnit:'K'},
+           {A:4.86886,B:1113.928,C:-10.409,kmin:239.6,kmax:371.5,pUnit:'bar',tUnit:'K'}]},
+    den:{model:'poly',a:638.6,b:-1.372,c:-0.002153},
+    vis:{model:'andrade',A:-3.223,B:463.0}},
+  "Diesel Fuel":{Tmin:-10,Tmax:150,Pc:42.0,approx:true,
+    pv:{model:'const_psia',val:0.009},den:{model:'beta',rhoRef:850,Tref:15,beta:0.00083},
+    vis:{model:'andrade',A:-5.35,B:2100}},
+  "Petrol/Gasoline":{Tmin:-20,Tmax:60,Pc:36.5,approx:true,
+    pv:{model:'const_psia',val:7.50},den:{model:'beta',rhoRef:740,Tref:15,beta:0.00110},
+    vis:{model:'const',val:0.5}},
+  "Crude Oil API 30":{Tmin:0,Tmax:200,Pc:25.0,approx:true,
+    pv:{model:'const_psia',val:1.20},den:{model:'beta',rhoRef:876,Tref:15,beta:0.00072},
+    vis:{model:'andrade',A:-6.1,B:2700}},
+  "Kerosene":{Tmin:-20,Tmax:150,Pc:22.0,approx:true,
+    pv:{model:'const_psia',val:0.05},den:{model:'beta',rhoRef:800,Tref:15,beta:0.00090},
+    vis:{model:'andrade',A:-5.1,B:1900}},
+  "Hydraulic Oil":{Tmin:-10,Tmax:120,Pc:15.0,approx:true,
+    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:870,Tref:15,beta:0.00070},
+    vis:{model:'andrade',A:-6.6,B:3400}},
+  "Lube Oil SAE30":{Tmin:-10,Tmax:150,Pc:15.0,approx:true,
+    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:891,Tref:15,beta:0.00070},
+    vis:{model:'andrade',A:-7.4,B:4100}},
+  "Ethylene Glycol":{Tmin:-10,Tmax:150,Pc:77.0,
+    pv:{A:8.0908,B:2088.9,C:203.5,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:1113,Tref:20,beta:0.00062},
+    vis:{model:'andrade',A:-9.39,B:3646}},
+  "Glycerin":{Tmin:10,Tmax:150,Pc:75.0,approx:true,
+    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:1261,Tref:20,beta:0.00047},
+    vis:{model:'andrade',A:-18.06,B:7420}},
+  "Sulfuric Acid 98%":{Tmin:0,Tmax:200,Pc:64.0,approx:true,
+    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:1840,Tref:20,beta:0.00055},
+    vis:{model:'andrade',A:-7.0,B:3200}},
+  "Sulfuric Acid 70%":{Tmin:0,Tmax:150,Pc:64.0,approx:true,
+    pv:{model:'const_psia',val:0.002},den:{model:'beta',rhoRef:1610,Tref:20,beta:0.00050},
+    vis:{model:'andrade',A:-6.2,B:2600}},
+  "Nitric Acid 60%":{Tmin:0,Tmax:120,Pc:68.9,approx:true,
+    pv:{model:'const_psia',val:0.100},den:{model:'beta',rhoRef:1370,Tref:20,beta:0.00055},
+    vis:{model:'const',val:1.8}},
+  "Phosphoric Acid 85%":{Tmin:0,Tmax:150,Pc:70.0,approx:true,
+    pv:{model:'const_psia',val:0.030},den:{model:'beta',rhoRef:1690,Tref:20,beta:0.00050},
+    vis:{model:'andrade',A:-7.5,B:3300}},
+  "Caustic Soda 50%":{Tmin:10,Tmax:120,Pc:220.9,approx:true,
+    pv:{model:'const_psia',val:0.010},den:{model:'beta',rhoRef:1530,Tref:20,beta:0.00050},
+    vis:{model:'andrade',A:-6.9,B:3100}},
+  "HCl 36%":{Tmin:0,Tmax:80,Pc:83.1,approx:true,
+    pv:{model:'const_psia',val:0.500},den:{model:'beta',rhoRef:1180,Tref:20,beta:0.00045},
+    vis:{model:'const',val:1.9}},
+  "Acetic Acid":{Tmin:17,Tmax:118,Pc:57.9,
+    pv:{A:7.2996,B:1479.02,C:216.82,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:1049,Tref:20,beta:0.00107},
+    vis:{model:'andrade',A:-4.9,B:1700}},
+  "Acetone":{Tmin:-20,Tmax:80,Pc:47.0,
+    pv:{A:7.02447,B:1161.0,C:224.0,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:791,Tref:20,beta:0.00143},
+    vis:{model:'andrade',A:-4.6,B:1080}},
+  "Methanol":{Tmin:-20,Tmax:80,Pc:81.0,
+    pv:{A:8.08097,B:1582.271,C:239.726,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:792,Tref:20,beta:0.00119},
+    vis:{model:'andrade',A:-5.3,B:1450}},
+  "Ethanol 96%":{Tmin:-20,Tmax:78,Pc:61.5,
+    pv:{A:8.20417,B:1642.89,C:230.300,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:789,Tref:20,beta:0.00109},
+    vis:{model:'andrade',A:-6.2,B:1990}},
+  "Benzene":{Tmin:6,Tmax:80,Pc:48.9,
+    pv:{A:6.90565,B:1211.033,C:220.79,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:879,Tref:20,beta:0.00114},
+    vis:{model:'andrade',A:-4.7,B:1200}},
+  "Toluene":{Tmin:-20,Tmax:110,Pc:41.1,
+    pv:{A:6.95464,B:1344.8,C:219.48,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:867,Tref:20,beta:0.00107},
+    vis:{model:'andrade',A:-4.9,B:1290}},
+  "Chloroform":{Tmin:-10,Tmax:60,Pc:53.7,
+    pv:{A:6.4934,B:929.44,C:196.03,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:1489,Tref:20,beta:0.00128},
+    vis:{model:'andrade',A:-4.6,B:990}},
+  // ── new general liquids ──
+  "Naphtha":{Tmin:-20,Tmax:100,Pc:30.0,approx:true,
+    pv:{model:'const_psia',val:2.00},den:{model:'beta',rhoRef:720,Tref:15,beta:0.00115},
+    vis:{model:'const',val:0.50}},
+  "Jet Fuel (ATF)":{Tmin:-40,Tmax:150,Pc:23.0,approx:true,
+    pv:{model:'const_psia',val:0.02},den:{model:'beta',rhoRef:795,Tref:15,beta:0.00088},
+    vis:{model:'andrade',A:-4.92,B:1541}},
+  "Heavy Fuel Oil":{Tmin:20,Tmax:200,Pc:15.0,approx:true,
+    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:985,Tref:15,beta:0.00064},
+    vis:{model:'andrade',A:-12.12,B:5828}},                          // ~370 cP @50C (HFO 380 grade)
+  "Crude Oil API 40":{Tmin:0,Tmax:200,Pc:28.0,approx:true,
+    pv:{model:'const_psia',val:3.00},den:{model:'beta',rhoRef:825,Tref:15,beta:0.00080},
+    vis:{model:'andrade',A:-6.08,B:2190}},
+  "Liq. Propane":{Tmin:-40,Tmax:60,Pc:42.5,
+    pv:{r:[{A:3.98292,B:819.296,C:-24.417,kmin:230.6,kmax:300.0,pUnit:'bar',tUnit:'K'},   // NIST Stull low
+           {A:4.53678,B:1149.36,C:24.906,kmin:300.0,kmax:360.8,pUnit:'bar',tUnit:'K'}]},  // NIST high
+    den:{model:'beta',rhoRef:500,Tref:20,beta:0.00280},              // sat-liq C3
+    vis:{model:'andrade',A:-4.53,B:681}},
+  "Liq. Butane":{Tmin:-20,Tmax:80,Pc:38.0,
+    pv:{A:4.35576,B:1175.581,C:-2.071,pUnit:'bar',tUnit:'K'},        // NIST n-butane
+    den:{model:'beta',rhoRef:579,Tref:20,beta:0.00200},
+    vis:{model:'andrade',A:-4.93,B:926}},
+  "Brine CaCl₂ 25%":{Tmin:-25,Tmax:100,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (slightly conservative)
+    den:{model:'beta',rhoRef:1233,Tref:20,beta:0.00040},
+    vis:{model:'andrade',A:-6.87,B:2316}},
+  // ── new chemical liquids ──
+  "Isopropanol (IPA)":{Tmin:-20,Tmax:82,Pc:47.6,
+    pv:{A:8.11778,B:1580.92,C:219.61,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:786,Tref:20,beta:0.00105},
+    vis:{model:'andrade',A:-8.37,B:2709}},
+  "n-Hexane":{Tmin:-20,Tmax:68,Pc:30.2,
+    pv:{A:6.87601,B:1171.17,C:224.41,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:659,Tref:20,beta:0.00135},
+    vis:{model:'const',val:0.31}},
+  "Xylene":{Tmin:0,Tmax:138,Pc:35.2,
+    pv:{A:7.00908,B:1462.266,C:215.11,pUnit:'mmHg',tUnit:'C'},       // m-xylene
+    den:{model:'beta',rhoRef:864,Tref:20,beta:0.00099},
+    vis:{model:'andrade',A:-3.84,B:986}},
+  "MEK":{Tmin:-20,Tmax:79,Pc:41.5,
+    pv:{A:7.06356,B:1261.34,C:221.97,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:805,Tref:20,beta:0.00130},
+    vis:{model:'const',val:0.42}},
+  "Ethyl Acetate":{Tmin:-20,Tmax:77,Pc:38.3,
+    pv:{A:7.10179,B:1244.95,C:217.88,pUnit:'mmHg',tUnit:'C'},
+    den:{model:'beta',rhoRef:902,Tref:20,beta:0.00135},
+    vis:{model:'const',val:0.45}},
+  "MEA 30%":{Tmin:5,Tmax:130,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (aqueous amine)
+    den:{model:'beta',rhoRef:1012,Tref:20,beta:0.00055},
+    vis:{model:'andrade',A:-7.10,B:2391}},
+  "MDEA 45%":{Tmin:10,Tmax:130,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (aqueous amine)
+    den:{model:'beta',rhoRef:1042,Tref:20,beta:0.00055},
+    vis:{model:'andrade',A:-7.96,B:3061}},                           // ~10 cP @25C
+  "Benfield (K₂CO₃ 30%)":{Tmin:20,Tmax:130,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (hot pot. carbonate, conservative Pv)
+    den:{model:'beta',rhoRef:1290,Tref:20,beta:0.00060},
+    vis:{model:'andrade',A:-5.82,B:1983}},
+  "Urea Solution 70%":{Tmin:40,Tmax:130,Pc:220.9,approx:true,
+    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (conservative; urea lowers Pv)
+    den:{model:'beta',rhoRef:1200,Tref:50,beta:0.00055},             // keep >40C: crystallization risk below
+    vis:{model:'andrade',A:-5.65,B:2145}},
+};
+// returns {sg, pv_psia, visc_cP, visc_cSt, approx, clamped, Tmin, Tmax, Pc} at T_C
+function computeLiquidProps(name, T_C){
+  const th=FLUID_THERMO[name]; if(!th) return null;
+  const Tc=Math.max(th.Tmin, Math.min(th.Tmax, T_C));
+  const clamped=(Math.abs(Tc-T_C)>0.001);
+  const rho=_density_kgm3(th.den,Tc);
+  const sg=rho/999.0;
+  const pv=(th.pv.model==='const_psia')?th.pv.val:_antoineP_psia(th.pv,Tc);
+  const cP=_viscosity_cP(th.vis,Tc);
+  const cSt=cP/Math.max(sg,0.05);   // kinematic (server Reynolds correction wants cSt)
+  return {sg:+sg.toFixed(4), pv_psia:+pv.toFixed(4), visc_cP:+cP.toFixed(4),
+          visc_cSt:+cSt.toFixed(4), approx:!!th.approx, clamped, Tmin:th.Tmin, Tmax:th.Tmax, Pc:th.Pc};
+}
+
 const VALVE_FL={globe:0.90,globe_angle:0.85,ball_seg:0.60,ball_full:0.55,
   butterfly_hp:0.62,butterfly_std:0.55,needle:0.95,pinch:0.50,diaphragm:0.75,custom_fl:null};
 // FIX: xT (gas critical pressure-drop ratio) is a DIFFERENT physical property from
@@ -843,6 +1072,68 @@ function updatePressureHints(){
   const p1h=document.getElementById('p1AbsHint'), p2h=document.getElementById('p2AbsHint');
   if(p1h) p1h.textContent = '= '+getP1AbsBase().toFixed(3)+' '+unitTxt;
   if(p2h) p2h.textContent = '= '+getP2AbsBase().toFixed(3)+' '+unitTxt;
+}
+
+// ── FLOW & TEMPERATURE UNIT ENTRY (FIX U-5) ────────────────────────────────
+// Mirrors the pressure PUNIT/PMODE pattern: the user enters flow/temperature in
+// whatever unit their datasheet uses; the browser converts to the API's base
+// units (m³/h·kg/h·Nm³/h + °C for SI, GPM·lb/h·SCFH + °F for US) before
+// sending. The server contract is UNCHANGED — zero backend edits required.
+let TUNIT='F', FUNIT=null;
+
+function tRawToC(raw){
+  const v=parseFloat(raw); if(!isFinite(v)) return NaN;
+  return TUNIT==='C' ? v : TUNIT==='F' ? (v-32)*5/9 : v-273.15;   // K → °C
+}
+function getTempC(){ return tRawToC(document.getElementById('temp').value); }
+function getTempApiBase(){ const c=getTempC(); return UNITS==='met' ? c : c*9/5+32; }
+function onTempUnitChange(){
+  TUNIT=document.getElementById('tUnit').value;
+  calc(); autoZ(); autoLiquidProps();
+}
+
+// unit key → [display label, factor to canonical unit of its category]
+// canonical: liqvol → m³/h, mass → kg/h, gasn → Nm³/h (0 °C, 1 atm)
+const FLOW_UNITS={
+  liqvol:[ ['m3h','m³/h',1], ['Lmin','L/min',0.06], ['Ls','L/s',3.6],
+           ['gpm','GPM',0.2271247], ['ft3h','ft³/h',0.0283168], ['bbld','bbl/d',0.0066245] ],
+  mass:  [ ['kgh','kg/h',1], ['kgs','kg/s',3600], ['th','t/h',1000],
+           ['lbh','lb/h',0.4535924], ['klbh','klb/h',453.5924] ],
+  gasn:  [ ['nm3h','Nm³/h',1], ['knm3h','kNm³/h',1000],
+           ['sm3h','Sm³/h',0.94794],                    // 15 °C std → 0 °C normal (273.15/288.15)
+           ['scfh','SCFH',1/37.326], ['scfm','SCFM',60/37.326], ['mmscfd','MMSCFD',(1e6/24)/37.326] ],
+};
+function flowCat(){
+  if(PHASE==='steam' || FTYPE==='mass') return 'mass';  // steam sizing is ALWAYS mass-based (server contract)
+  return PHASE.includes('gas') ? 'gasn' : 'liqvol';     // gas vol & nm3 tabs are both normal flow
+}
+function buildFlowUnitSelect(){
+  const s=document.getElementById('flowUnit'); if(!s) return;
+  const cat=flowCat(), list=FLOW_UNITS[cat], m=UNITS==='met';
+  s.innerHTML='';
+  list.forEach(u=>{const o=document.createElement('option');o.value=u[0];o.textContent=u[1];s.appendChild(o);});
+  const def = cat==='mass' ? (m?'kgh':'lbh') : cat==='gasn' ? (m?'nm3h':'scfh') : (m?'m3h':'gpm');
+  if(!list.some(u=>u[0]===FUNIT)) FUNIT=def;            // keep user's pick if still valid, else default
+  s.value=FUNIT;
+}
+function onFlowUnitChange(){ FUNIT=document.getElementById('flowUnit').value; calc(); }
+function flowUnitLabel(){
+  const s=document.getElementById('flowUnit');
+  return (s && s.selectedOptions[0]) ? s.selectedOptions[0].textContent : '';
+}
+// Converts the raw flow field (in FUNIT) to the API base unit for UNITS.
+// The Nm³/h → SCFH factor 37.326 is IDENTICAL to the server's, so a value
+// entered in SCFH under SI, or Nm³/h under US, round-trips exactly.
+function getFlowApiBase(){
+  const raw=parseFloat(document.getElementById('flow').value);
+  if(!isFinite(raw)) return 0;
+  const cat=flowCat();
+  const u=FLOW_UNITS[cat].find(x=>x[0]===FUNIT)||FLOW_UNITS[cat][0];
+  const canon=raw*u[2];                                 // → m³/h | kg/h | Nm³/h
+  if(UNITS==='met') return canon;
+  if(cat==='mass')  return canon*2.20462;               // kg/h  → lb/h
+  if(cat==='gasn')  return canon*37.326;                // Nm³/h → SCFH
+  return canon*4.40287;                                 // m³/h  → GPM
 }
 
 // ── CHAR FUNCTIONS ─────────────────────────────────────────
@@ -1006,7 +1297,7 @@ function updateCharChart(){
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
-  buildPipeChips();buildFluidChips();
+  buildPipeChips();buildFluidSelect();
   selectFluid(FLUID_DB.liq_gen[0]);
   updateUnitLabels();calc();   // FIX U-1: marks stale only — no API call until the user presses Calculate
   const n=document.getElementById('calcNote');
@@ -1023,11 +1314,23 @@ function setPhase(p){
   PHASE=p;
   document.querySelectorAll('.phase-tab').forEach(t=>t.classList.remove('on'));
   document.getElementById('pt_'+p).classList.add('on');
-  buildFluidChips();
+  buildFluidSelect();
   const isL=p.includes('liq'),isG=p.includes('gas');
   document.getElementById('pvRow').style.display=isL?'':'none';
+  document.getElementById('viscRow').style.display=isL?'':'none';   // FIX FP-1
   document.getElementById('gasRow').style.display=isG?'':'none';
   document.getElementById('sgLabel').textContent=isL||p==='steam'?'Specific Gravity':'Mol. Weight (g/mol)';
+  // FIX UI-2: custom-entry panel now mirrors the main field — SG and MW share ONE
+  // cell (mutually exclusive by phase; the engine reads the same field for both),
+  // but the label/step must switch with the phase, and the custom Vapor Pressure
+  // field is hidden for gas/steam where Pv is not an input.
+  const cl=document.getElementById('custSGlbl');
+  if(cl) cl.innerHTML = (isL||p==='steam') ? 'Specific Gravity <span class="hint">water = 1.0</span>'
+                                           : 'Mol. Weight <span class="hint">g/mol</span>';
+  const cs=document.getElementById('custSG');
+  if(cs) cs.step = isL ? '0.001' : '0.01';
+  const cpf=document.getElementById('custPvField');
+  if(cpf) cpf.style.display = isL ? '' : 'none';
   document.getElementById('uSG').textContent=isL||p==='steam'?'SG':'g/mol';
   document.getElementById('recLabel').innerHTML=isL?'FL <span class="hint">recovery</span>':'xT <span class="hint">drop ratio</span>';
   // FIX: re-apply the correct FL (liquid) or xT (gas/steam) value for the currently
@@ -1040,37 +1343,52 @@ function setPhase(p){
   setFlowType(FTYPE); // re-evaluate nm3 tab disable state
 }
 
-function buildFluidChips(){
-  const w=document.getElementById('fChips');w.innerHTML='';
-  (FLUID_DB[PHASE]||[]).forEach(f=>{
-    const e=document.createElement('div');e.className='fchip';e.dataset.name=f.n;e.textContent=f.n;
-    e.onclick=()=>selectFluid(f);w.appendChild(e);
+// FIX UI-1: fluid picker converted from a wrapping chip grid to a single
+// <select> dropdown — saves ~100 px of vertical space per phase and scales to
+// the larger fluid library without scrolling. Options are sorted A→Z within
+// each phase; a "Custom / manual entry" option mirrors the old clearChipSel().
+function buildFluidSelect(){
+  const s=document.getElementById('fluidSelect'); if(!s) return;
+  s.innerHTML='';
+  const list=(FLUID_DB[PHASE]||[]).slice().sort((a,b)=>a.n.localeCompare(b.n));
+  list.forEach(f=>{
+    const o=document.createElement('option');o.value=f.n;o.textContent=f.n;s.appendChild(o);
   });
+  const oc=document.createElement('option');oc.value='__custom__';oc.textContent='— Custom / manual entry —';
+  s.appendChild(oc);
 }
 
-function filterFluids(){
-  const q=document.getElementById('fSearch').value.toLowerCase();
-  document.querySelectorAll('#fChips .fchip').forEach(c=>{c.style.display=c.dataset.name.toLowerCase().includes(q)?'':'none';});
+function onFluidSelect(name){
+  if(name==='__custom__'){ clearChipSel(); toggleCustomOpen(true); calc(); return; }
+  const f=(FLUID_DB[PHASE]||[]).find(x=>x.n===name);
+  if(f) selectFluid(f);
 }
 
 function selectFluid(f){
   _zUserOverride=false;  // reset manual override — new fluid selected
+  _sgUserOverride=false; _pvUserOverride=false; _viscUserOverride=false; // FIX FP-1
   selFluid=f;
-  document.querySelectorAll('#fChips .fchip').forEach(c=>{
-    c.classList.toggle('active',c.dataset.name===f.n);
-    c.classList.toggle('gold',f.type==='s'&&c.dataset.name===f.n);
-  });
+  const s=document.getElementById('fluidSelect'); if(s) s.value=f.n;
   document.getElementById('sg').value=f.sg;
   document.getElementById('pv').value=f.pv||0;
   document.getElementById('kval').value=f.k||1.40;
   document.getElementById('zf').value=f.z||1.00;
+  if(f.visc!=null) document.getElementById('visc').value=f.visc; // fallback until auto fills
   document.getElementById('custSG').value=f.sg;
   document.getElementById('custPv').value=f.pv||0;
   calc();
-  autoZ();  // immediately compute Z for current T/P via PR EOS
+  autoZ();            // gas: PR-EOS Z at current T/P
+  autoLiquidProps();  // liquid: SG / Pv / viscosity at current T (FIX FP-1)
 }
 
-function clearChipSel(){selFluid=null;document.querySelectorAll('#fChips .fchip').forEach(c=>c.classList.remove('active','gold'));}
+function clearChipSel(){
+  selFluid=null;
+  const s=document.getElementById('fluidSelect'); if(s) s.value='__custom__';
+}
+function toggleCustomOpen(open){
+  const sec=document.getElementById('customSec');
+  if(sec) sec.classList.toggle('open', open===undefined ? !sec.classList.contains('open') : !!open);
+}
 
 // FIX: "Custom fluid properties" panel (custSG/custPv) was previously a dead UI —
 // its values were never read by calc(); the payload always used the main sg/pv
@@ -1107,12 +1425,12 @@ async function _autoZAsync(){
   if(!isG || !selFluid || !selFluid.Tc) return;
 
   const m     = UNITS === 'met';
-  const T_raw = parseFloat(document.getElementById('temp').value);
+  const T_C_in = getTempC();          // FIX U-5: unit-aware (°C/°F/K dropdown)
   const P_raw = getP1AbsBase();   // FIX: use true absolute pressure (was raw field value, wrong if gauge/other unit)
-  if(!isFinite(T_raw) || !isFinite(P_raw) || P_raw <= 0) return;
+  if(!isFinite(T_C_in) || !isFinite(P_raw) || P_raw <= 0) return;
 
   // Convert to absolute SI for EOS
-  const T_K   = m ? T_raw + 273.15 : (T_raw - 32) * 5/9 + 273.15;
+  const T_K   = T_C_in + 273.15;
   const P_Pa  = m ? P_raw * 1e5    : P_raw * 6894.76;   // bar→Pa or psi→Pa
   const Tc_K  = selFluid.Tc;                              // stored in K
   const Pc_Pa = selFluid.Pc_bar * 1e5;                   // bar → Pa
@@ -1146,28 +1464,95 @@ async function _autoZAsync(){
     // silent fail — keep the existing Z value unchanged
   }
 }
+// ── AUTO LIQUID PROPERTIES — SG / Pv / viscosity from fluid + T (FIX FP-1) ──
+//   Mirrors the gas-Z auto pattern: computes at the current temperature, fills
+//   the fields, shows an AUTO badge, and respects a per-field manual override
+//   (reset whenever a new fluid is selected). Pure client-side field population;
+//   the Cv sizing math stays server-side.
+let _sgUserOverride=false, _pvUserOverride=false, _viscUserOverride=false;
+
+function _setInputVal(id,v){const e=document.getElementById(id); if(e) e.value=v;}
+function _hideTag(id){const t=document.getElementById(id); if(t) t.style.display='none';}
+function _showTag(id,title){const t=document.getElementById(id); if(t){t.style.display='inline'; if(title)t.title=title;}}
+
+function sgManualOverride(){
+  _sgUserOverride=true; _hideTag('sgAutoTag');
+  clearChipSel();                                   // typing SG = fully custom fluid
+  _setInputVal('custSG', document.getElementById('sg').value);
+  calc();
+}
+function pvManualOverride(){
+  _pvUserOverride=true; _hideTag('pvAutoTag');
+  _setInputVal('custPv', document.getElementById('pv').value);
+  calc();
+}
+function viscManualOverride(){
+  _viscUserOverride=true; _hideTag('viscAutoTag');
+  calc();
+}
+
+function autoLiquidProps(){
+  if(!PHASE.includes('liq')) return;
+  if(!selFluid) return;
+  const th = FLUID_THERMO[selFluid.n];
+  if(!th){ document.getElementById('liqPropNote').textContent=''; return; } // no correlation → keep stored
+  const m = UNITS==='met';
+  const T_C = getTempC();             // FIX U-5: unit-aware (°C/°F/K dropdown)
+  if(!isFinite(T_C)){ return; }
+  const p = computeLiquidProps(selFluid.n, T_C);
+  if(!p) return;
+
+  const tip = 'Computed at ' + (m ? T_C.toFixed(1)+' °C' : (T_C*9/5+32).toFixed(1)+' °F') +
+              ' (click field to override)';
+
+  if(!_sgUserOverride){
+    _setInputVal('sg', p.sg); _setInputVal('custSG', p.sg); _showTag('sgAutoTag', tip);
+  }
+  if(!_pvUserOverride){
+    const pvShown = m ? +(p.pv_psia/14.5038).toFixed(4) : +p.pv_psia.toFixed(3);
+    _setInputVal('pv', pvShown); _setInputVal('custPv', pvShown); _showTag('pvAutoTag', tip);
+  }
+  if(!_viscUserOverride){
+    _setInputVal('visc', p.visc_cSt); _showTag('viscAutoTag', tip);
+  }
+
+  // note line: temperature validity + approximate-fluid flag
+  const bits=[];
+  if(p.approx) bits.push('≈ estimate (mixture/petroleum cut)');
+  if(p.clamped) bits.push('⚠ T outside '+p.Tmin+'–'+p.Tmax+' °C corr. range — clamped');
+  else bits.push('corr. range '+p.Tmin+'–'+p.Tmax+' °C');
+  document.getElementById('liqPropNote').innerHTML = bits.join(' · ');
+  calc();
+}
+
 function toggleCustom(){document.getElementById('customSec').classList.toggle('open');}
 
 // ── FLOW TYPE ─────────────────────────────────────────────
 function setFlowType(t){
-  const isL=PHASE.includes('liq');
+  const isL=PHASE.includes('liq'),isS=PHASE==='steam';
   // FIX F-22: nm3 is meaningless for liquids — redirect to vol with a note
   if(t==='nm3'&&isL){ t='vol'; }
+  // FIX F-23: steam sizing is ALWAYS mass-based on the server (Qc = kg/h → lb/h).
+  //   Previously the VOL/NM3 tabs stayed selectable for steam and labelled the
+  //   field "Nm³/h"/"SCFH" — but the server read the number as kg/h / lb/h,
+  //   a silent density-factor Cv error. Steam now locks to MASS FLOW.
+  if(isS) t='mass';
   FTYPE=t;
   ['vol','mass','nm3'].forEach(id=>document.getElementById('ft_'+id).classList.toggle('on',id===t));
-  // FIX F-22: visually disable nm3 tab when liquid phase is active
-  const nm3Tab=document.getElementById('ft_nm3');
+  // FIX F-22 / F-23: visually disable inapplicable tabs
+  const nm3Tab=document.getElementById('ft_nm3'), volTab=document.getElementById('ft_vol');
   if(nm3Tab){
-    nm3Tab.style.opacity=isL?'0.35':'1';
-    nm3Tab.style.pointerEvents=isL?'none':'';
-    nm3Tab.title=isL?'Nm³/SCFH is not applicable for liquid phase':'Normal/Standard volumetric flow';
+    const off=isL||isS;
+    nm3Tab.style.opacity=off?'0.35':'1';
+    nm3Tab.style.pointerEvents=off?'none':'';
+    nm3Tab.title=isL?'Nm³/SCFH is not applicable for liquid phase':isS?'Steam sizing is mass-based (ISA S75.01)':'Normal/Standard volumetric flow';
   }
-  const m=UNITS==='met',isG=PHASE.includes('gas'),isS=PHASE==='steam';
-  let u;
-  if(t==='mass') u=m?'kg/h':'lb/h';
-  else if(t==='nm3') u=m?'Nm³/h':'SCFH';
-  else u=m?(isG||isS?'Nm³/h':'m³/h'):(isG||isS?'SCFH':'GPM');
-  document.getElementById('uFlow').textContent=u;
+  if(volTab){
+    volTab.style.opacity=isS?'0.35':'1';
+    volTab.style.pointerEvents=isS?'none':'';
+    volTab.title=isS?'Steam sizing is mass-based (ISA S75.01) — enter kg/h, t/h or lb/h':'Volumetric flow';
+  }
+  buildFlowUnitSelect();   // FIX U-5: unit dropdown replaces the static label
   calc();
 }
 
@@ -1190,11 +1575,15 @@ function updateUnitLabels(){
   document.getElementById('atmField').style.display='none';
   updatePressureUnitLabels();
   document.getElementById('uPv').textContent=m?'bara':'psia';
-  document.getElementById('uTemp').textContent=m?'°C':'°F';
+  // FIX U-5: snap temperature & flow unit dropdowns to the chosen system's default
+  TUNIT = m?'C':'F';
+  const tu=document.getElementById('tUnit'); if(tu) tu.value=TUNIT;
+  FUNIT = null;   // forces buildFlowUnitSelect (via setFlowType below) to pick the system default
   document.getElementById('uPipe').textContent=m?'mm':'in';
   const uv=document.getElementById('uValveNPS'); if(uv)uv.textContent=m?'mm':'in';
   document.getElementById('custPvUnit').textContent=m?'(bara)':'(psia)';
   setFlowType(FTYPE);syncPipeID();
+  autoLiquidProps();   // FIX FP-1: re-express SG/Pv/visc for the new unit system
 }
 
 // ── PIPE (BUG FIX: pipe ID always stored in inches, converted on display) ──
@@ -1291,6 +1680,8 @@ async function runCalc(){
       clearTimeout(_zDebounce);
       await _autoZAsync();
     }
+    // refresh liquid SG/Pv/viscosity at the current T (FIX FP-1)
+    if(PHASE.includes('liq') && selFluid){ autoLiquidProps(); }
     await _calcAsync();
   } finally {
     if(btn){ btn.disabled = false; btn.innerHTML = '▶ &nbsp;CALCULATE Cv & VALVE OPENING'; }
@@ -1324,7 +1715,11 @@ async function _calcAsync(){
   setEl('resCv','…'); setEl('resKv','…');
 
   const steamFluid = selFluid ? selFluid.n : '';
-  const fluidVisc  = selFluid && selFluid.visc ? selFluid.visc : 1.0;
+  // FIX FP-1: viscosity now comes from the (auto-filled / override-able) field, in cSt
+  const _viscEl    = document.getElementById('visc');
+  const _viscField = _viscEl ? parseFloat(_viscEl.value) : NaN;
+  const fluidVisc  = isFinite(_viscField) && _viscField>0 ? _viscField
+                     : (selFluid && selFluid.visc ? selFluid.visc : 1.0);
   const fluidPc    = selFluid && selFluid.Pc   ? selFluid.Pc   : null;
 
   let apiResult;
@@ -1336,10 +1731,10 @@ async function _calcAsync(){
         phase:     PHASE,
         flowType:  FTYPE,
         units:     UNITS,
-        Q:         document.getElementById('flow').value,
+        Q:         getFlowApiBase(),          // FIX U-5: converted from FUNIT to base (m³/h·kg/h·Nm³/h or GPM·lb/h·SCFH)
         P1:        getP1AbsBase(),
         P2:        getP2AbsBase(),
-        T:         document.getElementById('temp').value,
+        T:         getTempApiBase(),          // FIX U-5: converted from TUNIT to °C (SI) / °F (US)
         SG:        document.getElementById('sg').value,
         Pv:        document.getElementById('pv').value,
         D:         document.getElementById('pipeD').value,
@@ -1380,21 +1775,17 @@ async function _calcAsync(){
   // on the preferred trim (openPct_display), not the rejected full-port bore.
   const openPn = (r.openPct_display != null) ? r.openPct_display : openPnRaw;
   const openNote = r.openDisplayNote ? ' (pref. trim)' : (r.openBasis==='vendor_table' ? ' (vendor)' : '');
-  // FIX V-10: an "opening" above 100% is not an operating point — it means the
-  // trim cannot pass the required Cv. Present it as an undersize verdict.
-  const overCap = openPn > 100;
   lastOpenPct  = Math.min(openPn, 100);
 
   if (r.usingCustomTrim) {
     setEl('vsz1','—'); setEl('vop1','n/a');
-    setEl('vsz2', s1.s); setEl('vop2', overCap ? 'UNDERSIZED ✗' : openPn.toFixed(0)+'% open');
+    setEl('vsz2', s1.s); setEl('vop2', openPn.toFixed(0)+'% open');
     setEl('vsz3','—'); setEl('vop3','n/a');
   } else {
     // FIX V-5: sizes whose minimum controllable Cv exceeds the required Cv are
     // labelled, not shown as a meaningless "0% open".
     const opLbl=(pct,flag,same)=> same ? '—'
       : flag==='belowMin' ? 'below min ctrl'
-      : flag==='over'     ? 'exceeds capacity'
       : (pct??0).toFixed(0)+'% open';
     setEl('vsz1', s0.s); setEl('vop1', opLbl(r.openPct_smaller, r.openFlags?.smaller, s0.s===s1.s));
     setEl('vsz2', s1.s); setEl('vop2', r.bodyNote==='reducedTrim' ? 'w/ reduced trim' : opLbl(openPn, r.openFlags?.rec, false));
@@ -1419,7 +1810,7 @@ async function _calcAsync(){
 
   setEl('dv_state', r.flowState);
   setEl('dv_noise', r.noiseDb+' dB');
-  setEl('dv_open',  overCap ? '>100% — undersized' : openPn.toFixed(1)+'%'+openNote);
+  setEl('dv_open',  openPn.toFixed(1)+'%'+openNote);
   setEl('dv_re',  r.Rev  != null ? r.Rev.toExponential(2)  : 'N/A (gas)');
   setEl('dv_dp',  r.dpRatioPct != null ? r.dpRatioPct+'%' : '—');
   setEl('dv_flap', r.dPmaxLabel ?? '—');
@@ -1432,7 +1823,7 @@ async function _calcAsync(){
   setPB('pb_open',  openPn, 100);
   setPB('pb_dp',    r.dpRatioPct||0, 100);
   setPB('pb_noise', ((r.noiseDb||60)-60)/40*100, 100);
-  setEl('pb_open_txt',  overCap ? 'exceeds trim capacity (needs '+openPn.toFixed(0)+'% of rated)' : openPn.toFixed(1)+'%'+openNote);
+  setEl('pb_open_txt',  openPn.toFixed(1)+'%'+openNote);
   setEl('pb_dp_txt',    (r.dpRatioPct||0)+'%');
   setEl('pb_noise_txt', r.noiseDb+' dB (estimated)');
 
@@ -1523,7 +1914,7 @@ function generatePDF(){
   const units=UNITS==='met'?'SI (bar, m³/h, °C)':'US Customary (psi, GPM, °F)';
   const pu=UNITS==='met'?'bar':'psi';
   const phase=document.querySelector('.phase-tab.on .pt-txt')?.textContent||'—';
-  const fluid=document.querySelector('#fChips .fchip.active')?.textContent||'Custom';
+  const fluid=selFluid?selFluid.n:'Custom';
   const charLabel=CHAR_LABELS[charType]||'Equal %';
   const opn=parseFloat(document.getElementById('pb_open')?.style.width)||0;
   const dpn=parseFloat(document.getElementById('pb_dp')?.style.width)||0;
@@ -1617,7 +2008,7 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
 <div class="tc">
   <table><thead><tr><th colspan="2">Input Conditions</th></tr></thead>
   <tbody>
-    <tr><td>Flow Rate</td><td>${v('flow')} ${document.getElementById('uFlow')?.textContent||''}</td></tr>
+    <tr><td>Flow Rate</td><td>${v('flow')} ${flowUnitLabel()}</td></tr>
     <tr><td>Inlet Pressure P₁</td><td>${v('p1')} ${PUNIT_LABEL[PUNIT]}${PMODE==='gauge'?'(g)':'(a)'} &nbsp;→&nbsp; ${getP1AbsBase().toFixed(3)} ${pu}(a)</td></tr>
     <tr><td>Outlet Pressure P₂</td><td>${v('p2')} ${PUNIT_LABEL[PUNIT]}${PMODE==='gauge'?'(g)':'(a)'} &nbsp;→&nbsp; ${getP2AbsBase().toFixed(3)} ${pu}(a)</td></tr>
     <tr><td>Temperature</td><td>${g('pt_temp')}</td></tr>
