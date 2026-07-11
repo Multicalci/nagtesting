@@ -1126,13 +1126,15 @@ function computeY(beta, dp_Pa, P_Pa, k, tapType) {
   const tau = dp_Pa / P_Pa;
 
   if (['nozzle_isa','venturi_tube','venturi_nozzle'].includes(tapType)) {
-    const tau_r = 1 - tau;
+    // ISO 5167-3/-4 §5.8: ε = √[ (κτ^(2/κ)/(κ−1)) · ((1−β⁴)/(1−β⁴τ^(2/κ))) · ((1−τ^((κ−1)/κ))/(1−τ)) ]
+    // where τ = p2/p1 (downstream/upstream pressure ratio)
+    const tau_r = 1 - tau;                 // p2/p1
     if (tau_r <= 0 || tau_r >= 1) return 0.667;
     const b4   = Math.pow(beta, 4);
-    const tr2k = Math.pow(tau_r, 2/k);
-    const trk1 = Math.pow(tau_r, (k-1)/k);
-    const num  = k * tr2k * (1 - b4);
-    const den  = (k-1) * (1-trk1) * (1 - b4*tr2k);
+    const tr2k = Math.pow(tau_r, 2/k);     // τ^(2/κ)
+    const trk1 = Math.pow(tau_r, (k-1)/k); // τ^((κ−1)/κ)
+    const num  = k * tr2k * (1 - b4) * (1 - trk1);
+    const den  = (k - 1) * (1 - b4*tr2k) * (1 - tau_r);
     return (den > 0 && num > 0) ? Math.max(0.5, Math.min(1.0, Math.sqrt(num/den))) : 1;
   }
 
@@ -1142,15 +1144,17 @@ function computeY(beta, dp_Pa, P_Pa, k, tapType) {
   return Math.max(0.50, Math.min(1.0, 1 - (coefA + coefB * Math.pow(beta, 4)) * tau / k));
 }
 
-// ── PERMANENT PRESSURE LOSS ────────────────────────────────────────────
+// ── PERMANENT PRESSURE LOSS (returns loss as % of measured Δp) ────────
 function computePressureRecovery(beta, Cd, tapType) {
-  if (['nozzle_isa','venturi_nozzle'].includes(tapType)) {
-    return (1 - Math.pow(beta, 1.9) * Cd * Cd) * 100;
+  // Devices WITH a divergent recovery cone: classical venturi & venturi nozzle.
+  // ISO 5167-4 §5.9: relative pressure loss ξ = Δϖ/Δp is 5–20 %.
+  // Correlation for a 15° divergent section: ξ ≈ 0.436 − 0.86β + 0.59β²
+  if (['venturi_tube','venturi_nozzle'].includes(tapType)) {
+    const xi = 0.436 - 0.86*beta + 0.59*beta*beta;
+    return Math.max(5, Math.min(25, xi * 100));
   }
-  if (tapType === 'venturi_tube') {
-   return (1 - Math.pow(beta, 2) * Cd * Cd) * 100;
-  }
-  // Orifice ISO 5167-1 Eq.(22)
+  // Devices WITHOUT recovery cone: orifice plates & ISA nozzle.
+  // ISO 5167-1 general relation: Δϖ/Δp = [√(1−β⁴(1−C²)) − Cβ²] / [√(1−β⁴(1−C²)) + Cβ²]
   const b2  = beta * beta;
   const b4  = b2 * b2;
   const num = Math.sqrt(1 - b4*(1-Cd*Cd)) - Cd*b2;
@@ -1185,6 +1189,13 @@ function steamViscosity(T_K) {
   return Math.max(8e-6, Math.min(3e-5, 1e-6 * 100 * Math.sqrt(T_bar) / s));
 }
 
+// ── LIQUID WATER VISCOSITY (Vogel eq., 0–370 °C, ±2.5%) ─────────────
+// μ = 2.414e-5 · 10^(247.8/(T−140))  → 8.90e-4 @25°C, 2.79e-4 @100°C
+function waterLiquidViscosity(T_K) {
+  const mu = 2.414e-5 * Math.pow(10, 247.8 / Math.max(T_K - 140, 10));
+  return Math.max(5e-5, Math.min(2e-3, mu));
+}
+
 // ── SUTHERLAND VISCOSITY ──────────────────────────────────────────────
 function sutherlandViscosity(f, T_K) {
   if (!f?.mu_ref) return f?.mu ?? 1.82e-5;
@@ -1211,47 +1222,40 @@ function steamDensity(p_bar, t_c) {
   const T     = t_c + 273.15;
   const R     = 461.526;
 
+  // IAPWS-IF97 Region 4 backward equation Ts(p) — Eq. (31), valid 611 Pa–22.064 MPa
   function T_sat(p_MPa) {
     if (p_MPa <= 0) return 373.15;
-    const n1=-17.073846940092, n2=12020.82470247, n3=-3232555.0322333,
-          n4=14.91510861353,   n5=-4823.2657361591, n6=405113.40542057,
-          n7=-0.23855557567849, n8=650.17534844798;
-    const vv = p_MPa + n7 / (p_MPa - n8);
-    const AA = vv*vv + 1167.0521452767*vv - 724213.16703206;
-    const BB = n1*vv*vv + n2*vv + n3;
-    const CC = n4*vv*vv + n5*vv + n6;
-    const disc = BB*BB - 4*AA*CC;
+    if (p_MPa >= 22.064) return 647.096;
+    const n1 =  0.11670521452767e4, n2 = -0.72421316703206e6,
+          n3 = -0.17073846940092e2, n4 =  0.12020824702470e5,
+          n5 = -0.32325550322333e7, n6 =  0.14915108613530e2,
+          n7 = -0.48232657361591e4, n8 =  0.40511340542057e6,
+          n9 = -0.23855557567849,   n10=  0.65017534844798e3;
+    const b  = Math.pow(p_MPa, 0.25);
+    const E  = b*b + n3*b + n6;
+    const F  = n1*b*b + n4*b + n7;
+    const G  = n2*b*b + n5*b + n8;
+    const D  = 2*G / (-F - Math.sqrt(Math.max(F*F - 4*E*G, 0)));
+    const S  = n10 + D;
+    const disc = S*S - 4*(n9 + n10*D);
     if (disc < 0) return 647.1;
-    return 2*CC / (-BB + Math.sqrt(disc));
+    return (S - Math.sqrt(disc)) / 2;
   }
 
   const T_s = T_sat(P_MPa);
 
-  // Region 1 — liquid
+  // Region 1 — compressed liquid water
+  // Degree-6 IAPWS-IF97 saturated-liquid polynomial (±0.5% for 0–360 °C);
+  // pressure dependence of liquid density is negligible (<0.05%/10 bar) at metering conditions.
+  // NOTE: liquid viscosity from Vogel eq. — steamViscosity() is a vapor-phase
+  // correlation and under-predicts liquid μ by ~20× (1.2e-5 vs 2.8e-4 Pa·s at 100 °C).
   if (T < T_s - 0.5 || T <= 273.15) {
-    const tau1 = 1386 / T;
-    const pi1  = P_MPa / 16.53;
-    const I1 = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,3,3,4,4,4,5,8,8,21,23,29,30,31,32];
-    const J1 = [-2,-1,0,1,2,3,4,5,-9,-7,-1,0,-3,0,-3,1,-8,-6,-4,1,-3,-2,-4,-9,-7,-1,4,5];
-    const n1c = [
-      0.14632971213167,-0.84548187169114,-3.7563603672040,3.3855169168385,
-      -0.95791963387872,0.15772038513228,-0.016616417199501,0.00081214629983568,
-      -0.28319080123804e-3,-0.60706301565874e-3,-0.018990068218419,-0.032529748770505,
-      -0.21841717175414e-1,-0.52838357969930e-4,-0.47184321073267e-3,
-      -0.30001780793026e-3,0.47661393906987e-4,-0.44141845330846e-5,
-      -0.72694996297594e-15,-0.31679644845054e-4,-0.28270797985312e-5,
-      -0.85205128120103e-9,-0.22425281908000e-5,-0.65171222895601e-6,
-      -0.14341729937924e-12,-0.40516996860117e-6,-0.12734301741641e-8,
-      -0.17424871230634e-9
-    ];
-    let dphi_dpi = 0;
-    for (let i = 0; i < n1c.length; i++) {
-      dphi_dpi += -n1c[i] * (I1[i]||0) * Math.pow(7.1-pi1,(I1[i]||0)-1) * Math.pow(tau1-1.222, J1[i]||0);
-    }
-    const v_m3kg = (R * T / (P_MPa*1e6)) * pi1 * dphi_dpi;
-    if (v_m3kg > 0) return { rho: 1/v_m3kg, isSat: false, T_sat_C: T_s-273.15, mu: steamViscosity(T) };
-    const rho_liq = 1000*(1-3.17e-6*(T-277.13)**2 - 1.3e-8*(T-277.13)**3);
-    return { rho: Math.max(900,rho_liq), isSat: false, T_sat_C: T_s-273.15, mu: steamViscosity(T) };
+    const Tc6 = Math.max(0, Math.min(360, t_c));
+    const T2 = Tc6*Tc6, T3 = T2*Tc6, T4 = T3*Tc6, T5 = T4*Tc6, T6 = T5*Tc6;
+    let rho_liq = -3.430583e-12*T6 + 3.305509e-09*T5 - 1.216454e-06*T4
+                  + 2.120305e-04*T3 - 2.009065e-02*T2 + 4.039409e-01*Tc6 + 998.117618;
+    rho_liq = Math.max(500, Math.min(1005, rho_liq));
+    return { rho: rho_liq, isSat: false, T_sat_C: T_s-273.15, mu: waterLiquidViscosity(T) };
   }
 
   const isSat = Math.abs(T - T_s) < 2.0;
@@ -1553,13 +1557,18 @@ function calculate(params) {
   const perm_pct = computePressureRecovery(beta, Cd, tapType);
 
   let dp_Pa_ref = dp_Pa;
-  if (mode === 'beta' || dp_Pa_ref <= 0) {
+  if (dp_Pa_ref <= 0) {
+    // Fallback only when no valid Δp exists: back-calculate from mass flow.
+    // Two-pass so Y is evaluated at the recovered Δp, not an arbitrary seed.
     const A2_f = Math.PI/4 * d_final**2;
     const E_f  = 1/Math.sqrt(1 - beta**4);
-    const Y_f  = isLiq ? 1 : computeY(beta, 1000, P_Pa, k, tapType);
     const qm_s = mass_h / 3600;
-    if (qm_s > 0 && Cd > 0 && E_f > 0 && A2_f > 0 && Y_f > 0 && rho_op > 0) {
-      dp_Pa_ref = Math.pow(qm_s / (Cd * E_f * Y_f * A2_f), 2) / (2 * rho_op);
+    if (qm_s > 0 && Cd > 0 && E_f > 0 && A2_f > 0 && rho_op > 0) {
+      let Y_f = 1;
+      for (let p = 0; p < 2; p++) {
+        dp_Pa_ref = Math.pow(qm_s / (Cd * E_f * Y_f * A2_f), 2) / (2 * rho_op);
+        Y_f = isLiq ? 1 : computeY(beta, dp_Pa_ref, P_Pa, k, tapType);
+      }
     }
   }
   const perm_Pa = (perm_pct / 100) * dp_Pa_ref;
@@ -1776,8 +1785,8 @@ async function orificeFlow_handler(req, res) {
       P_bar, T_c,
       Z_input:   parseFloat(body.Z)   || 1,
       k:         parseFloat(body.k)   || 1.4,
-      mu_input:  parseFloat(body.mu)  || 1.82e-5,
-      sg:        parseFloat(body.sg)  || 0.65,
+      mu_input:  parseFloat(body.mu)  || (cat === 'liquid' ? 1e-3 : 1.82e-5),
+      sg:        parseFloat(body.sg)  || (cat === 'liquid' ? 1.0  : 0.65),
       MW_input:  parseFloat(body.MW)  || 28.964,
       fluidKey:  body.fluidKey || null,
       D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
