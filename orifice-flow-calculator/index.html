@@ -981,7 +981,7 @@ select option { background: #ffffff; color: var(--text); }
             <option value="m3hr">m³/hr</option>
             <option value="kghr">kg/hr</option>
             <option value="kgs">kg/s</option>
-            <option value="tonhr">t/hr</option>
+            <option value="tonhr">t/hr (metric)</option>
           </select>
         </div>
       </div>
@@ -1240,6 +1240,10 @@ const PIPE_SCHEDULES = [
 ];
 
 // ─── DIMENSION UNIT HELPERS (UI only, no calc) ────────────────────────
+function dimToMm(val, unit) {
+  const map = { mm: 1, cm: 10, m: 1000, in: 25.4 };
+  return val * (map[unit] ?? 1);
+}
 function onDimUnitChange(which) {
   const inp = document.getElementById(which === 'pid' ? 'p_id' : 'b_id');
   const sel = document.getElementById(which + '_unit_sel');
@@ -1571,7 +1575,7 @@ function onCatChange() {
     document.getElementById('visc').value   = '0.0000150';
     document.getElementById('f_lbl').textContent = 'Target Mass Flow';
     const fsel = document.getElementById('f_unit_sel');
-    fsel.innerHTML = '<option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr</option>';
+    fsel.innerHTML = '<option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr (metric)</option>';
     fsel.value = 'kghr';
   } else if (isLiq) {
     document.getElementById('isen_k').value  = '1.00';
@@ -1582,7 +1586,7 @@ function onCatChange() {
     document.getElementById('custom_mw_wrap').style.display = 'none';
     document.getElementById('f_lbl').textContent = 'Target Vol. Flow';
     const fsel = document.getElementById('f_unit_sel');
-    fsel.innerHTML = '<option value="m3hr">m³/hr</option><option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr</option>';
+    fsel.innerHTML = '<option value="m3hr">m³/hr</option><option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr (metric)</option>';
     fsel.value = 'm3hr';
   } else {
     document.getElementById('sg_lbl').textContent = 'Base SG (air=1.0)';
@@ -1591,7 +1595,7 @@ function onCatChange() {
     document.getElementById('custom_mw_wrap').style.display = '';
     document.getElementById('f_lbl').textContent = 'Target Flow';
     const fsel = document.getElementById('f_unit_sel');
-    fsel.innerHTML = '<option value="Nm3hr">Nm³/hr</option><option value="Nm3day">Nm³/day</option><option value="Sm3hr">Sm³/hr</option><option value="m3hr">m³/hr (actual)</option><option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr</option>';
+    fsel.innerHTML = '<option value="Nm3hr">Nm³/hr</option><option value="Nm3day">Nm³/day</option><option value="Sm3hr">Sm³/hr</option><option value="m3hr">m³/hr (actual)</option><option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr (metric)</option>';
     fsel.value = 'Nm3hr';
   }
   buildFluidChips();
