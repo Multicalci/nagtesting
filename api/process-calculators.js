@@ -1138,10 +1138,13 @@ function computeY(beta, dp_Pa, P_Pa, k, tapType) {
     return (den > 0 && num > 0) ? Math.max(0.5, Math.min(1.0, Math.sqrt(num/den))) : 1;
   }
 
-  // Orifice ISO 5167-2 §5.3.3
-  const coefA = tapType === 'd_d2_tap' ? 0.40 : 0.41;
-  const coefB = tapType === 'd_d2_tap' ? 0.33 : 0.35;
-  return Math.max(0.50, Math.min(1.0, 1 - (coefA + coefB * Math.pow(beta, 4)) * tau / k));
+  // Orifice — ISO 5167-2:2003/2022 §5.3.3.2 (all tap arrangements):
+  // ε = 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (p2/p1)^(1/κ)]
+  const tau_r_o = 1 - tau; // p2/p1
+  if (tau_r_o <= 0) return 0.667;
+  const b4o = Math.pow(beta, 4);
+  return Math.max(0.50, Math.min(1.0,
+    1 - (0.351 + 0.256*b4o + 0.93*b4o*b4o) * (1 - Math.pow(tau_r_o, 1/k))));
 }
 
 // ── PERMANENT PRESSURE LOSS (returns loss as % of measured Δp) ────────
@@ -1187,6 +1190,22 @@ function steamViscosity(T_K) {
   let s = 0;
   for (let i = 0; i < 4; i++) s += H[i] / Math.pow(T_bar, i);
   return Math.max(8e-6, Math.min(3e-5, 1e-6 * 100 * Math.sqrt(T_bar) / s));
+}
+
+// ── IAPWS-IF97 Region 4 Ps(T) — Eq. (30), 273.16–647 K ───────────────
+function waterPsat_Pa(T_K) {
+  const T = Math.max(273.16, Math.min(647.0, T_K));
+  const n1 =  0.11670521452767e4, n2 = -0.72421316703206e6,
+        n3 = -0.17073846940092e2, n4 =  0.12020824702470e5,
+        n5 = -0.32325550322333e7, n6 =  0.14915108613530e2,
+        n7 = -0.48232657361591e4, n8 =  0.40511340542057e6,
+        n9 = -0.23855557567849,   n10=  0.65017534844798e3;
+  const th = T + n9 / (T - n10);
+  const A  = th*th + n1*th + n2;
+  const B  = n3*th*th + n4*th + n5;
+  const C  = n6*th*th + n7*th + n8;
+  const x  = 2*C / (-B + Math.sqrt(Math.max(B*B - 4*A*C, 0)));
+  return Math.pow(x, 4) * 1e6; // Pa
 }
 
 // ── LIQUID WATER VISCOSITY (Vogel eq., 0–370 °C, ±2.5%) ─────────────
@@ -1327,25 +1346,41 @@ const FLUID_DB_orifice = {
   'Ethylene':       {t:'g',sg:0.968,M:28.054,k:1.240,mu:1.02e-5,Z:0.993,Tc:282.4,Pc:5.04, omega:0.089,mu_ref:9.450e-6,T_ref:273.15,S:225.0},
   'Acetylene':      {t:'g',sg:0.897,M:26.038,k:1.232,mu:1.03e-5,Z:0.990,Tc:308.3,Pc:6.14, omega:0.187,mu_ref:9.570e-6,T_ref:273.15,S:234.0},
   'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4},
+  'Syngas (3H₂:N₂)':{t:'g',sg:0.294,M:8.525, k:1.400,mu:1.37e-5,Z:1.000,Tc:56.5, Pc:1.82, omega:-0.150,mu_ref:1.300e-5,T_ref:273.15,S:100.0},
+  'Biogas (60% CH₄)':{t:'g',sg:0.940,M:27.230,k:1.300,mu:1.29e-5,Z:0.995,Tc:236.0,Pc:5.71, omega:0.100,mu_ref:1.210e-5,T_ref:273.15,S:190.0},
+  'LPG Vapor':      {t:'g',sg:1.716,M:49.708,k:1.110,mu:7.80e-6,Z:0.970,Tc:391.9,Pc:4.07, omega:0.170,mu_ref:7.280e-6,T_ref:273.15,S:298.0},
 // ── Liquids ── rho0=kg/m³ at T0°C, beta_T=thermal expansion coefficient /°C
-  // ρ(T) = rho0 / (1 + beta_T*(T - T0))
+  // ρ(T) = rho0 / (1 + beta_T*(T - T0));  Tb_C = normal boiling point (mixtures: IBP, conservative)
   'Water':             {t:'l', rhoModel:'poly_water'},
-  'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4},
-  'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4},
-  'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4},
-  'Kerosene':          {t:'l', rho0:800.0,  T0:15, beta_T:8.0e-4},
-  'Gasoline':          {t:'l', rho0:720.0,  T0:15, beta_T:9.5e-4},
-  'Methanol':          {t:'l', rho0:791.0,  T0:20, beta_T:1.19e-3},
-  'Ethanol':           {t:'l', rho0:789.0,  T0:20, beta_T:1.08e-3},
-  'Toluene':           {t:'l', rho0:867.0,  T0:20, beta_T:1.07e-3},
-  'Benzene':           {t:'l', rho0:879.0,  T0:20, beta_T:1.21e-3},
-  'Acetone':           {t:'l', rho0:791.0,  T0:20, beta_T:1.46e-3},
-  'Sulfuric Acid 98%': {t:'l', rho0:1836.0, T0:20, beta_T:5.5e-4},
-  'HCl 32%':           {t:'l', rho0:1157.0, T0:20, beta_T:4.5e-4},
-  'NaOH 50%':          {t:'l', rho0:1525.0, T0:20, beta_T:5.0e-4},
-  'MEA':               {t:'l', rho0:1018.0, T0:20, beta_T:8.0e-4},
-  'Glycerol':          {t:'l', rho0:1261.0, T0:20, beta_T:5.0e-4},
-  'Ethylene Glycol':   {t:'l', rho0:1113.0, T0:20, beta_T:6.0e-4},
+  'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4,  Tb_C:100.6},
+  'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4,  Tb_C:35},
+  'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4,  Tb_C:180},
+  'Kerosene':          {t:'l', rho0:800.0,  T0:15, beta_T:8.0e-4,  Tb_C:150},
+  'Gasoline':          {t:'l', rho0:720.0,  T0:15, beta_T:9.5e-4,  Tb_C:35},
+  'Methanol':          {t:'l', rho0:791.0,  T0:20, beta_T:1.19e-3, Tb_C:64.7},
+  'Ethanol':           {t:'l', rho0:789.0,  T0:20, beta_T:1.08e-3, Tb_C:78.4},
+  'Toluene':           {t:'l', rho0:867.0,  T0:20, beta_T:1.07e-3, Tb_C:110.6},
+  'Benzene':           {t:'l', rho0:879.0,  T0:20, beta_T:1.21e-3, Tb_C:80.1},
+  'Acetone':           {t:'l', rho0:791.0,  T0:20, beta_T:1.46e-3, Tb_C:56.1},
+  'Sulfuric Acid 98%': {t:'l', rho0:1836.0, T0:20, beta_T:5.5e-4,  Tb_C:310},
+  'HCl 32%':           {t:'l', rho0:1157.0, T0:20, beta_T:4.5e-4,  Tb_C:84},
+  'NaOH 50%':          {t:'l', rho0:1525.0, T0:20, beta_T:5.0e-4,  Tb_C:145},
+  'MEA':               {t:'l', rho0:1018.0, T0:20, beta_T:8.0e-4,  Tb_C:170},
+  'Glycerol':          {t:'l', rho0:1261.0, T0:20, beta_T:5.0e-4,  Tb_C:290},
+  'Ethylene Glycol':   {t:'l', rho0:1113.0, T0:20, beta_T:6.0e-4,  Tb_C:197.3},
+  // Liquefied gases: ant=[A,B,C] Antoine (log10 P_mmHg, T °C) — used for Pv since T ≫ Tb
+  'Ammonia (liquid)':  {t:'l', rho0:610.0,  T0:20, beta_T:2.4e-3,  Tb_C:-33.3, ant:[7.36050, 926.132, 240.17]},
+  'Propane (liquid)':  {t:'l', rho0:500.0,  T0:20, beta_T:3.0e-3,  Tb_C:-42.1, ant:[6.80338, 803.810, 246.99]},
+  'Butane (liquid)':   {t:'l', rho0:579.0,  T0:20, beta_T:2.0e-3,  Tb_C:-0.5,  ant:[6.80896, 935.860, 238.73]},
+  'Naphtha':           {t:'l', rho0:700.0,  T0:15, beta_T:1.0e-3,  Tb_C:35},
+  'Condensate (HC)':   {t:'l', rho0:750.0,  T0:15, beta_T:9.0e-4,  Tb_C:30},
+  'Fuel Oil (HFO)':    {t:'l', rho0:985.0,  T0:15, beta_T:6.4e-4,  Tb_C:250},
+  'Lube Oil (VG46)':   {t:'l', rho0:870.0,  T0:15, beta_T:7.0e-4,  Tb_C:300},
+  'Aqua Ammonia 25%':  {t:'l', rho0:907.0,  T0:20, beta_T:6.0e-4,  Tb_C:38},
+  'Urea Solution 32.5%':{t:'l',rho0:1090.0, T0:20, beta_T:4.0e-4,  Tb_C:104},
+  'MDEA 50%':          {t:'l', rho0:1040.0, T0:20, beta_T:6.0e-4,  Tb_C:110},
+  'Hot Pot. Carbonate 30%':{t:'l',rho0:1270.0,T0:20,beta_T:4.5e-4, Tb_C:105},
+  'Nitric Acid 60%':   {t:'l', rho0:1367.0, T0:20, beta_T:6.0e-4,  Tb_C:120},
 };
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1592,9 +1627,56 @@ function calculate(params) {
   if (beta > 0.70 && beta <= 0.75)   infos.push(`β=${beta.toFixed(4)} in high-beta range — verify corner tap validity`);
   if (!isLiq && dp_Pa > 0 && (dp_Pa/P_Pa) > 0.25) warns.push('⚡ ΔP/P > 0.25: Exceeds ISO 5167-2 expansibility factor validity limit');
   if (v_orifice > 100) warns.push(`Orifice velocity ${v_orifice.toFixed(1)} m/s very high — verify sizing`);
-  if (isLiq && T_c > 80 && T_c < 120 && P_bar < 2.0) warns.push('⚠ Liquid near boiling point at low pressure — flashing possible');
+  // ── FLASHING / CAVITATION CHECK (ISO 5167 valid for single-phase only) ──
+  // Flashing: downstream tap pressure p2 = P1 − Δp falls below vapor pressure Pv.
+  // Cavitation: vena contracta pressure p_vc ≈ P1 − Δp/(1−β⁴) dips below Pv
+  // (transient bubble collapse: signal noise, plate edge damage) even if p2 > Pv.
+  const isCompressedWater = isSteam && steamSatT != null && T_c < steamSatT - 0.5;
+  let pv_bar_out = null, throat_superheat_C = null;
+  if ((isLiq || isCompressedWater) && dp_Pa > 0) {
+    let Pv_Pa = null, pvEst = false;
+    const fdbL = FLUID_DB_orifice[fluidKey] || null;
+    if (isCompressedWater || fdbL?.rhoModel === 'poly_water') {
+      Pv_Pa = waterPsat_Pa(T_K);                       // exact IF97 Region 4
+    } else if (fdbL?.ant) {
+      // Antoine: log10(P_mmHg) = A − B/(C + T°C) — for liquefied gases (T ≫ Tb)
+      Pv_Pa = 133.322 * Math.pow(10, fdbL.ant[0] - fdbL.ant[1] / (fdbL.ant[2] + T_c));
+    } else if (fdbL?.Tb_C != null) {
+      // Clausius–Clapeyron + Trouton's rule (ΔSvap ≈ 88 J/mol·K) from normal boiling point.
+      // Conservative (over-predicts Pv below Tb for polar liquids) — appropriate for a warning.
+      Pv_Pa = 101325 * Math.exp(10.585 * (1 - (fdbL.Tb_C + 273.15) / T_K));
+      pvEst = true;
+    }
+    if (Pv_Pa != null) {
+      pv_bar_out = Pv_Pa / 1e5;
+      const p2_Pa  = P_Pa - dp_Pa;
+      const pvc_Pa = P_Pa - dp_Pa / Math.max(1 - Math.pow(beta, 4), 1e-6);
+      const tag = pvEst ? ', estimated' : '';
+      if (p2_Pa <= Pv_Pa)
+        warns.push(`⚡ FLASHING: downstream pressure ${(p2_Pa/1e5).toFixed(3)} bara ≤ vapor pressure ${(Pv_Pa/1e5).toFixed(3)} bara${tag} — two-phase flow across the element; ISO 5167 correlation invalid, reading unreliable`);
+      else if (pvc_Pa <= Pv_Pa)
+        warns.push(`⚠ CAVITATION RISK: vena contracta pressure ≈ ${(pvc_Pa/1e5).toFixed(3)} bara ≤ vapor pressure ${(Pv_Pa/1e5).toFixed(3)} bara${tag} — bubble formation/collapse likely: signal noise, plate edge erosion`);
+    } else if (isLiq && T_c > 80 && T_c < 120 && P_bar < 2.0) {
+      // Fallback for custom liquids with no vapor-pressure data
+      warns.push('⚠ Liquid near boiling point at low pressure — flashing possible (no vapor-pressure data for this fluid)');
+    }
+  }
   if (P_bar < 0.5) warns.push('⚠ Upstream pressure < 0.5 bara — verify ABSOLUTE pressure (bara/psia), not gauge');
   if (isSteam && steamSatWarning) infos.push(`Temperature near saturation (T_sat ≈ ${steamSatT?.toFixed(1)}°C) — verify steam quality`);
+  // ── STEAM CONDENSATION-AT-THROAT CHECK ─────────────────────────────
+  // Acceleration through the element cools the vapor ≈ isentropically:
+  // T_th = T1·(p_th/p1)^((κ−1)/κ). If T_th ≤ T_sat(p_th), droplets nucleate
+  // at the throat (locally wet flow) even when inlet steam is superheated.
+  if (isSteam && !isCompressedWater && dp_Pa > 0 && (P_Pa - dp_Pa) > 1000) {
+    const pth_Pa  = P_Pa - dp_Pa;
+    const T_th_K  = T_K * Math.pow(pth_Pa / P_Pa, (k - 1) / k);
+    const Tsat_th = steamDensity(pth_Pa / 1e5, T_c).T_sat_C + 273.15;
+    throat_superheat_C = T_th_K - Tsat_th;
+    if (throat_superheat_C <= 0)
+      warns.push(`⚡ CONDENSATION AT THROAT: isentropic throat temperature ${(T_th_K - 273.15).toFixed(1)}°C ≤ local saturation ${(Tsat_th - 273.15).toFixed(1)}°C at ${(pth_Pa / 1e5).toFixed(2)} bara — locally wet two-phase flow; increase superheat or reduce ΔP`);
+    else if (throat_superheat_C < 5)
+      infos.push(`Throat superheat margin only ${throat_superheat_C.toFixed(1)}°C above local saturation — condensation risk on ΔP excursions`);
+  }
   if (isSteam) infos.push('⚠ Wet steam (quality x<1) not modelled — ensure steam is dry/superheated at operating conditions');
   if (Re_pipe > 5000 && beta >= 0.20 && beta <= 0.75)
     infos.push('ISO 5167 requires ≥10–30 D upstream + ≥5 D downstream straight run');
@@ -1628,6 +1710,9 @@ function calculate(params) {
     bore_mm:        d_calc_mm,
     bore_in:        d_calc_mm / 25.4,
     beta,
+    // Phase-integrity diagnostics (null when not applicable)
+    pv_bar:             pv_bar_out,          // liquid vapor pressure at T (bara)
+    throat_superheat_C: throat_superheat_C,  // steam: T_throat − T_sat(p_throat)
     // Fluid
     rho_op,
     mu_used:        mu,
