@@ -823,10 +823,7 @@ select option { background: #ffffff; color: var(--text); }
     <!-- Fluid database -->
     <div class="fluid-db-wrap">
       <div style="font-family:var(--head); font-size:0.62rem; letter-spacing:1.5px; color:var(--text2); font-weight:800; margin-bottom:8px;">▸ FLUID DATABASE — QUICK SELECT</div>
-      <div class="fluid-search-row">
-        <input type="text" id="fluid_search" placeholder="Search fluids…" oninput="filterFluidChips()" style="font-size:0.78rem; padding:7px 10px;">
-      </div>
-      <div class="fluid-chips" id="fluid_chips"></div>
+      <select id="fluid_select" onchange="onFluidSelect()" style="width:100%; font-size:0.82rem; padding:8px 10px; margin-bottom:4px;"></select>
       <div class="custom-fluid-toggle" onclick="toggleCustomFluid()">＋ Enter custom fluid properties</div>
       <div class="custom-fluid-section" id="custom_fluid_sec">
         <div class="frow" style="margin-bottom:0;">
@@ -1205,6 +1202,9 @@ const FLUID_DB = {
   'Ethylene':       {t:'g',sg:0.968,M:28.054,k:1.240,mu:1.02e-5,Z:0.993,Tc:282.4,Pc:5.04, omega:0.089, mu_ref:9.450e-6,T_ref:273.15,S:225.0},
   'Acetylene':      {t:'g',sg:0.897,M:26.038,k:1.232,mu:1.03e-5,Z:0.990,Tc:308.3,Pc:6.14, omega:0.187, mu_ref:9.570e-6,T_ref:273.15,S:234.0},
   'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035, mu_ref:1.716e-5,T_ref:273.15,S:110.4},
+  'Syngas (3H₂:N₂)':{t:'g',sg:0.294,M:8.525, k:1.400,mu:1.37e-5,Z:1.000,Tc:56.5, Pc:1.82, omega:-0.150,mu_ref:1.300e-5,T_ref:273.15,S:100.0},
+  'Biogas (60% CH₄)':{t:'g',sg:0.940,M:27.230,k:1.300,mu:1.29e-5,Z:0.995,Tc:236.0,Pc:5.71, omega:0.100, mu_ref:1.210e-5,T_ref:273.15,S:190.0},
+  'LPG Vapor':      {t:'g',sg:1.716,M:49.708,k:1.110,mu:7.80e-6,Z:0.970,Tc:391.9,Pc:4.07, omega:0.170, mu_ref:7.280e-6,T_ref:273.15,S:298.0},
   // ── Liquids ── (T-corrected density handled by API)
   'Water':             {t:'l',sg:1.000,mu:1.00e-3, Pv:0.023},
   'Seawater':          {t:'l',sg:1.025,mu:1.07e-3, Pv:0.022},
@@ -1223,6 +1223,18 @@ const FLUID_DB = {
   'MEA':               {t:'l',sg:1.018,mu:2.41e-2, Pv:0.0005},
   'Glycerol':          {t:'l',sg:1.261,mu:1.412,   Pv:0.0001},
   'Ethylene Glycol':   {t:'l',sg:1.113,mu:2.10e-2, Pv:0.0001},
+  'Ammonia (liquid)':  {t:'l',sg:0.610,mu:1.31e-4, Pv:8.57},
+  'Propane (liquid)':  {t:'l',sg:0.500,mu:1.00e-4, Pv:8.36},
+  'Butane (liquid)':   {t:'l',sg:0.579,mu:1.66e-4, Pv:2.08},
+  'Naphtha':           {t:'l',sg:0.700,mu:4.5e-4,  Pv:0.34},
+  'Condensate (HC)':   {t:'l',sg:0.750,mu:5.0e-4,  Pv:0.50},
+  'Fuel Oil (HFO)':    {t:'l',sg:0.985,mu:3.5e-1,  Pv:0.0},
+  'Lube Oil (VG46)':   {t:'l',sg:0.870,mu:4.0e-2,  Pv:0.0},
+  'Aqua Ammonia 25%':  {t:'l',sg:0.907,mu:1.1e-3,  Pv:0.40},
+  'Urea Solution 32.5%':{t:'l',sg:1.090,mu:1.4e-3, Pv:0.02},
+  'MDEA 50%':          {t:'l',sg:1.040,mu:1.0e-2,  Pv:0.016},
+  'Hot Pot. Carbonate 30%':{t:'l',sg:1.270,mu:2.5e-3,Pv:0.02},
+  'Nitric Acid 60%':   {t:'l',sg:1.367,mu:1.9e-3,  Pv:0.01},
   // ── Steam ──
   'Steam':          {t:'s',sg:0.498,mu:1.3e-5,Pv:0,k:1.135},
 };
@@ -1611,37 +1623,28 @@ function updateExtraTableVisibility(cat) {
   });
 }
 
-// ─── FLUID CHIPS ──────────────────────────────────────────────────────
-function buildFluidChips() {
-  const wrap = document.getElementById('fluid_chips');
-  wrap.innerHTML = '';
+// ─── FLUID DROPDOWN ───────────────────────────────────────────────────
+function buildFluidChips() { // name kept for legacy call sites — now populates the dropdown
+  const sel = document.getElementById('fluid_select');
   const cat = document.getElementById('f_cat').value;
+  const tWant = cat === 'gas' ? 'g' : cat === 'liquid' ? 'l' : 's';
+  let html = '<option value="">— Select fluid (optional) —</option>';
   Object.entries(FLUID_DB).forEach(([name, data]) => {
-    if ((cat==='gas'&&data.t==='g')||(cat==='liquid'&&data.t==='l')||(cat==='steam'&&data.t==='s')) {
-      const el = document.createElement('div');
-      el.className = 'fchip';
-      el.dataset.name = name;
-      el.textContent = name;
-      el.onclick = () => selectFluid(name);
-      wrap.appendChild(el);
-    }
+    if (data.t === tWant) html += `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`;
   });
-  selectedFluidKey = null;
+  sel.innerHTML = html;
+  if (cat === 'steam') { sel.value = 'Steam'; selectFluid('Steam'); }
+  else selectedFluidKey = null;
 }
 
-function filterFluidChips() {
-  const q = document.getElementById('fluid_search').value.toLowerCase();
-  document.querySelectorAll('#fluid_chips .fchip').forEach(c => {
-    c.style.display = c.dataset.name.toLowerCase().includes(q) ? '' : 'none';
-  });
+function onFluidSelect() {
+  const name = document.getElementById('fluid_select').value;
+  if (!name) { clearChipSel(); updateFluidProps(); return; }
+  selectFluid(name);
 }
 
 function selectFluid(name) {
   selectedFluidKey = name;
-  document.querySelectorAll('#fluid_chips .fchip').forEach(c => {
-    c.classList.remove('sel','sel-steam');
-    if (c.dataset.name===name) c.classList.add(FLUID_DB[name]?.t==='s'?'sel-steam':'sel');
-  });
   const f = FLUID_DB[name];
   if (!f) return;
   // Pre-fill input fields for user reference — API will compute actual values
@@ -1655,13 +1658,17 @@ function selectFluid(name) {
   } else if (f.t==='l') {
     document.getElementById('d_val').value = f.sg.toFixed(4);
     document.getElementById('visc').value  = f.mu.toExponential(4);
+  } else if (f.t==='s') {
+    if (f.k) document.getElementById('isen_k').value = f.k.toFixed(3);
+    document.getElementById('visc').value = f.mu.toExponential(4);
   }
   updateFluidProps(); // immediately preview density + μ + Z for current T/P
 }
 
 function clearChipSel() {
   selectedFluidKey = null;
-  document.querySelectorAll('#fluid_chips .fchip').forEach(c=>c.classList.remove('sel','sel-steam'));
+  const sel = document.getElementById('fluid_select');
+  if (sel && document.getElementById('f_cat').value !== 'steam') sel.value = '';
   document.getElementById('mu_auto_badge').style.display = 'none';
   document.getElementById('z_auto_badge').style.display  = 'none';
 }
