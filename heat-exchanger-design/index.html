@@ -3387,11 +3387,69 @@ function renderSTResults(r, warns=[]) {
   const modeLabel = r.shellMode==='condensing' ? '🌡️ Condensing (Nusselt film)' : r.shellMode==='evaporating' ? '♨️ Evaporating (Chen)' : '💧 Single Phase';
   const modeBadge = r.shellMode && r.shellMode!=='single-phase'
     ? `<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--gold-lt);color:var(--gold);border:1px solid rgba(192,120,0,.3);margin-left:6px">${modeLabel}</span>` : '';
+
+  /* ── UPGRADE 2026-07: zone-by-zone table for phase-change services ── */
+  let zoneHtml = '';
+  if (r.zoneModel && r.zoneModel.zones && r.zoneModel.zones.length) {
+    const zm = r.zoneModel;
+    zoneHtml = `
+    <div class="note" style="margin-top:14px">
+      <div class="note-title">🧮 Zone-Wise Thermal Design (${zm.mode === 'condensing' ? 'Condenser' : 'Evaporator'} — incremental method)</div>
+      <div class="note-body">
+        <div style="font-size:.75rem;color:var(--t3);margin-bottom:8px">
+          Area computed zone-by-zone (A = Σ Qᵢ / (Uᵢ·ΔTᵢ)) instead of a single-point U·LMTD.
+          Duty-consistent effective U = <b>${convU(r.U_effective).toFixed(0)} ${uU()}</b>
+          (condensing/boiling film U alone: ${convU(r.U).toFixed(0)} ${uU()}).
+          ${zm.mode==='evaporating' && zm.x_exit!=null ? `Exit quality x = <b>${zm.x_exit.toFixed(2)}</b>.` : ''}
+        </div>
+        <div style="overflow-x:auto"><table class="cmp-table" style="font-size:.75rem">
+          <thead><tr><th>Zone</th><th>Q (kW)</th><th>Local U (W/m²K)</th><th>Zone LMTD (°C)</th><th>Area (m²)</th><th>% of Area</th><th>Mechanism / Regime</th></tr></thead>
+          <tbody>${zm.zones.map(z=>`<tr><td>${z.zone}</td><td>${z.Q_kW}</td><td>${z.U}</td><td>${z.LMTD}</td><td>${z.A_m2}</td><td>${z.A_pct}%</td><td style="font-size:.68rem;color:var(--t3)">${z.regime||'—'}</td></tr>`).join('')}
+          <tr style="font-weight:700;border-top:2px solid var(--bdr)"><td>TOTAL</td><td>${zm.Qtot.toFixed(1)}</td><td>—</td><td>—</td><td>${zm.A_total.toFixed(2)}</td><td>100%</td><td>—</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>`;
+  }
+
+  /* ── UPGRADE 2026-07: flow-induced vibration screen panel (span-by-span) ── */
+  let vibHtml = '';
+  if (r.vibration && r.vibration.f_n != null) {
+    const v = r.vibration;
+    const vibColor = v.status==='err' ? 'var(--err)' : v.status==='warn' ? 'var(--warn)' : 'var(--ok)';
+    const vibLabel = v.status==='err' ? '✗ INSTABILITY PREDICTED' : v.status==='warn' ? '⚠ MARGINAL — REVIEW' : '✓ SCREEN PASSED';
+    const spanRows = (v.spans||[]).map(s=>{
+      const c = s.feiRatio>1?'var(--err)':s.feiRatio>0.8?'var(--warn)':'var(--ok)';
+      const hl = s.name===v.worstSpan?'font-weight:700;':'';
+      return `<tr style="${hl}"><td>${s.name}${s.name===v.worstSpan?' ◀ worst':''}</td><td>${(s.L*1000).toFixed(0)} mm</td><td>${s.f_n} Hz</td><td>${s.V_crit} m/s</td><td style="color:${c};font-weight:700">${s.feiRatio}</td></tr>`;
+    }).join('');
+    vibHtml = `
+    <div class="note" style="margin-top:14px;border-left:4px solid ${vibColor}">
+      <div class="note-title">🎸 Flow-Induced Vibration Screen — Span-by-Span <span style="color:${vibColor};margin-left:8px">${vibLabel}</span></div>
+      <div class="note-body">
+        <div style="overflow-x:auto;margin-bottom:10px"><table class="cmp-table" style="font-size:.75rem">
+          <thead><tr><th>Span</th><th>Length</th><th>f<sub>n</sub></th><th>V<sub>crit</sub> (Connors)</th><th>V/V<sub>crit</sub> (limit 0.8)</th></tr></thead>
+          <tbody>${spanRows}</tbody></table></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:.78rem">
+          <div><span style="color:var(--t3)">Crossflow velocity</span><br><b>${v.V_cross} m/s</b></div>
+          <div><span style="color:var(--t3)">TEMA max unsupported span</span><br><b style="color:${v.temaSpanOK?'var(--ok)':'var(--warn)'}">${(v.temaSpanLimit_m*1000).toFixed(0)} mm ${v.temaSpanOK?'✓':'✗ exceeded'}</b></div>
+          <div><span style="color:var(--t3)">Vortex shedding f<sub>vs</sub></span><br><b>${v.f_vs} Hz</b></div>
+          <div><span style="color:var(--t3)">Turbulent buffeting f<sub>tb</sub></span><br><b>${v.f_tb} Hz</b></div>
+          ${v.f_ac ? `<div><span style="color:var(--t3)">Acoustic mode f<sub>ac</sub></span><br><b>${v.f_ac} Hz</b></div>` : ''}
+          <div><span style="color:var(--t3)">Inlet ρv² (nozzle est. ${v.d_noz_est_mm} mm)</span><br><b style="color:${v.impingementNeeded?'var(--warn)':'var(--ok)'}">${v.rhoV2} kg/(m·s²)</b></div>
+          <div><span style="color:var(--t3)">Effective mass m<sub>L</sub></span><br><b>${v.m_L} kg/m</b> <span style="font-size:.68rem;color:var(--t3)">(Cm=${v.Cm})</span></div>
+        </div>
+        ${v.checks && v.checks.length ? `<ul style="margin-top:8px;font-size:.76rem;color:${vibColor}">${v.checks.map(c=>`<li>${c}</li>`).join('')}</ul>` : ''}
+        <div style="font-size:.68rem;color:var(--t3);margin-top:8px">Screening per TEMA-V-style criteria (Connors K=3.0, δ=${v.logDec}, St=0.2, Owen buffeting, Blevins added mass, TEMA RCB-4.52 span, RCB-4.6 impingement). Window tubes are supported at every other baffle (span = 2×spacing) — the usual FEI failure origin. A pass does <b>not</b> replace detailed analysis for final designs.</div>
+      </div>
+    </div>`;
+  }
+  const propBadge = r.propSource
+    ? `<span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:10px;background:${r.propSource.startsWith('CoolProp')?'rgba(29,158,117,.12)':'rgba(120,120,120,.12)'};color:${r.propSource.startsWith('CoolProp')?'var(--ok)':'var(--t3)'};border:1px solid var(--bdr);margin-left:6px" title="Thermophysical property engine used for this run">⚗ ${r.propSource}</span>` : '';
   return `
   <div class="res-hd">
     <div class="res-hd-left">
       <h3>Shell &amp; Tube — Design Results${modeBadge}</h3>
-      <div class="res-meta">TEMA Class ${r.tema} | ${unitSys==='metric'?'SI':'Imperial'} | ${r.nPasses} pass(es) / ${r.nShells} shell(s) | ${r.pitchLayout||'triangular'} pitch</div>
+      <div class="res-meta">TEMA Class ${r.tema} | ${unitSys==='metric'?'SI':'Imperial'} | ${r.nPasses} pass(es) / ${r.nShells} shell(s) | ${r.pitchLayout||'triangular'} pitch ${propBadge}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
       <span class="badge badge-${r.st}">${r.stTxt}</span>
@@ -3417,6 +3475,8 @@ function renderSTResults(r, warns=[]) {
       <div class="kpi-val">${r.overSurf!=null?r.overSurf.toFixed(1):'+0.0'}<span class="kpi-unit">%</span></div>
     </div>
   </div>
+  ${zoneHtml}
+  ${vibHtml}
 
   <div class="sec-hd blue">📋 Heat Balance Summary</div>
   <div class="tbl-wrap">
@@ -5176,13 +5236,21 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
     const hFlKey=g('st_hFl').value, cFlKey=g('st_cFl').value;
     const hTi=getTempVal('st_hTi'), hTo=getTempVal('st_hTo'), cTi=getTempVal('st_cTi');
     const hPop=getPresVal('st_hPop'), cPop=getPresVal('st_cPop');
-    const hFraw = parseFloat(g('st_hF').value)||0;
+    let hFraw = parseFloat(g('st_hF').value)||0;
     const hFunit=(g('st_hFunit')||{value:'kgh'}).value;
+    /* FIX (audit 2026-07): hot flow previously received NO imperial conversion
+       at all (cold side did) — lb/h was sent to the API as kg/h. Convert when
+       the selector is a mass-flow unit; volumetric Nm³/Sm³ pass through. */
+    if(unitSys==='imperial' && hFunit==='kgh') hFraw=hFraw/2.20462;
 
+    /* FIX (audit 2026-07): st_cFunit was never sent, so Nm³/h and Sm³/h
+       selections on the COLD flow were silently treated as kg/h. Also,
+       the imperial lb/h→kg/h division must only apply to mass-flow units. */
+    const cFunit=(g('st_cFunit')||{value:'kgh'}).value;
     let cFraw=0, cToVal=0;
     if(coldMode==='flow'){
       cFraw=parseFloat(g('st_cF').value)||0;
-      if(unitSys==='imperial') cFraw=cFraw/2.20462;
+      if(unitSys==='imperial' && cFunit==='kgh') cFraw=cFraw/2.20462;
     } else {
       cToVal=getTempVal('st_cTo');
     }
@@ -5191,7 +5259,7 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
       calcType:'shellTube', unitSys:'metric',
       hFlKey, cFlKey, hPop, cPop,
       hTi, hTo, cTi, hF: hFraw, hFunit,
-      coldMode, cF: cFraw, cTo: cToVal,
+      coldMode, cF: cFraw, cFunit, cTo: cToVal,
       OD: getDimMm('st_od'), tw: getDimMm('st_tw'), L: getLenM('st_len'),
       pitch: v('st_pitch'),
       Rfo: parseFloat(g('st_foulS').value)||0.0002,
@@ -5234,14 +5302,21 @@ document.getElementById('plForm').addEventListener('submit', async function(e){
     const hFlKey=g('pl_hFl').value, cFlKey=g('pl_cFl').value;
     const hTi=getTempVal('pl_hTi'), hTo=getTempVal('pl_hTo'), cTi=getTempVal('pl_cTi');
     const hPop=getPresVal('pl_hPop'), cPop=getPresVal('pl_cPop');
-    const hF=parseFloat(g('pl_hF').value)||0;
+    /* FIX (audit 2026-07): pl_hFunit / pl_cFunit selectors existed in the UI
+       but were never sent — Nm³/h and Sm³/h flows were silently treated as
+       kg/h by the API. Now sent; the backend converts via gas density.
+       Imperial lb/h→kg/h division applies to mass-flow units only. */
+    const plHFunit=(g('pl_hFunit')||{value:'kgh'}).value;
+    const plCFunit=(g('pl_cFunit')||{value:'kgh'}).value;
+    let hF=parseFloat(g('pl_hF').value)||0;
+    if(unitSys==='imperial' && plHFunit==='kgh') hF/=2.20462;
     const plColdMode=g('pl_coldMode').value;
     let cToVal=0, cFval=0;
     if(plColdMode==='temp') cToVal=getTempVal('pl_cTo');
-    else { cFval=parseFloat(g('pl_cF').value)||0; if(unitSys==='imperial') cFval/=2.20462; }
+    else { cFval=parseFloat(g('pl_cF').value)||0; if(unitSys==='imperial' && plCFunit==='kgh') cFval/=2.20462; }
     const payload = {
       calcType:'plate', unitSys:'metric', hFlKey, cFlKey, hPop, cPop,
-      hTi, hTo, cTi, hF, coldMode:plColdMode, cTo:cToVal, cF:cFval,
+      hTi, hTo, cTi, hF, hFunit:plHFunit, coldMode:plColdMode, cTo:cToVal, cF:cFval, cFunit:plCFunit,
       th: v('pl_th'), angle: v('pl_angle'), gap: v('pl_gap'),
       pw: v('pl_width'), plen: v('pl_plen'), phi: parseFloat((g('pl_phi')||{value:'1.17'}).value)||1.17,
       mat: g('pl_mat').value,
@@ -5300,14 +5375,21 @@ document.getElementById('dpForm').addEventListener('submit', async function(e){
     const hFlKey=g('dp_hFl').value, cFlKey=g('dp_cFl').value;
     const hTi=getTempVal('dp_hTi'), hTo=getTempVal('dp_hTo'), cTi=getTempVal('dp_cTi');
     const hPop=getPresVal('dp_hPop'), cPop=getPresVal('dp_cPop');
-    const hF=parseFloat(g('dp_hF').value)||0;
+    /* FIX (audit 2026-07): dp_hFunit / dp_cFunit selectors existed in the UI
+       but were never sent — Nm³/h and Sm³/h flows were silently treated as
+       kg/h by the API. Now sent; backend converts. Imperial lb/h division
+       applies to mass-flow units only. */
+    const dpHFunit=(g('dp_hFunit')||{value:'kgh'}).value;
+    const dpCFunit=(g('dp_cFunit')||{value:'kgh'}).value;
+    let hF=parseFloat(g('dp_hF').value)||0;
+    if(unitSys==='imperial' && dpHFunit==='kgh') hF/=2.20462;
     const dpColdMode=g('dp_coldMode').value;
     let cFval=0, cToVal=0;
-    if(dpColdMode==='flow'){cFval=parseFloat(g('dp_cF').value)||0;if(unitSys==='imperial')cFval/=2.20462;}
+    if(dpColdMode==='flow'){cFval=parseFloat(g('dp_cF').value)||0;if(unitSys==='imperial' && dpCFunit==='kgh')cFval/=2.20462;}
     else cToVal=getTempVal('dp_cTo');
     const payload = {
       calcType:'doublePipe', unitSys:'metric', hFlKey, cFlKey, hPop, cPop,
-      hTi, hTo, cTi, hF, coldMode:dpColdMode, cF:cFval, cTo:cToVal,
+      hTi, hTo, cTi, hF, hFunit:dpHFunit, coldMode:dpColdMode, cF:cFval, cFunit:dpCFunit, cTo:cToVal,
       iOD: getDimMm('dp_iOD'), iTW: getDimMm('dp_iW'), oID: v('dp_oID'),
       L: getLenM('dp_hplen'), nHairpins: 1,
       arr: g('dp_arr').value, mat: g('dp_mat').value,
@@ -5335,9 +5417,9 @@ document.getElementById('ffForm').addEventListener('submit', async function(e){
       tFoul: parseFloat(g('ff_tFoul').value)||2.9e-4,
       tPdAllow: getPresVal('ff_tPdAllow'),
       htSF: parseFloat(g('ff_htSF').value)||1.0,
-      aTamb, aTout, aPop: parseFloat(g('ff_aPop').value)||1.01325,
+      aTamb, aTout, aPop: getPresVal('ff_aPop')||1.01325, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
       aFoul: parseFloat(g('ff_aFoul').value)||1.8e-4,
-      tPop: parseFloat(g('ff_tPop').value)||4.0,
+      tPop: getPresVal('ff_tPop')||4.0, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
       tubeOD: v('ff_tubeOD'), tubeID: v('ff_tubeID'), tubeLen: v('ff_tubeLen'),
       pitchT: v('ff_pitchT'), pitchL: v('ff_pitchL'),
       nRows: v('ff_nRows'), nPasses: v('ff_nPasses'), nTubes: v('ff_nTubes'),
