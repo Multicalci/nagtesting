@@ -92,7 +92,7 @@ const HEATXPERT_ALLOWED_ORIGINS = new Set([
   // 'https://multicalci-git-main-yourteam.vercel.app',
 ]);
 
-function heatxpert_handler(req, res) {
+async function heatxpert_handler(req, res) {
   // CORS
   const origin = req.headers.origin || '';
   const allowed = HEATXPERT_ALLOWED_ORIGINS.has(origin);
@@ -114,6 +114,11 @@ function heatxpert_handler(req, res) {
     const { calcType } = body;
     if (!calcType) return res.status(400).json({ error: 'calcType required' });
 
+    // ── UPGRADE (2026-07): property engine init (lazy, cached across warm calls)
+    await initCoolProp();
+    const _stamp = r => (r && typeof r === 'object'
+      ? { ...r, propSource: CPI ? 'CoolProp 6.6 (Helmholtz EOS, NIST-grade)' : 'built-in DB (interpolated)' } : r);
+
    // ── Normalise units before dispatch ──────────────────────────────────
     const us = body.unitSys || 'metric';
     if (us === 'imperial') {
@@ -123,6 +128,14 @@ function heatxpert_handler(req, res) {
       ['hF','cF','F','tF_kgh'].forEach(k => {
         if (body[k] != null) body[k] = toSI_flow(body[k], 'imperial');
       });
+      // FIX (audit 2026-07): pressures were never converted in imperial mode.
+      // psi → bar. Affects gas density / Z-factor / Nm³-Sm³ conversion.
+      // (The bundled frontend always converts client-side and sends unitSys:'metric',
+      //  so this only matters for direct API callers using unitSys:'imperial'.)
+      ['hPop','cPop','Pop','tPop','aPop','P','pdAllowShell','pdAllowTube',
+       'pdAllowH','pdAllowC','pdAllow','pdAllowInner','pdAllowAnn','tPdAllow'].forEach(k => {
+        if (body[k] != null && isFinite(parseFloat(body[k]))) body[k] = parseFloat(body[k]) * 0.0689476;
+      });
     }
     if (body.hFunit && body.hFunit !== 'kgh')
       body.hF = toSI_flowWithUnit(body.hF, body.hFunit, body.hFlKey, body.hTi, body.hPop);
@@ -130,22 +143,108 @@ function heatxpert_handler(req, res) {
       body.cF = toSI_flowWithUnit(body.cF, body.cFunit, body.cFlKey, body.cTi, body.cPop);
 
     switch (calcType) {
-      case 'shellTube':   return res.json(calcShellTube(body));
-      case 'plate':       return res.json(calcPlate(body));
-      case 'airCooled':   return res.json(calcAirCooled(body));
-      case 'finFan':      return res.json(calcFinFan(body));
-      case 'doublePipe':  return res.json(calcDoublePipe(body));
-      case 'lmtdNtu':     return res.json(calcLmtdNtu(body));
-      case 'wallThick':   return res.json(calcWallThickness(body));
-      case 'fouling':     return res.json(calcFouling(body));
-      case 'selector':    return res.json(calcSelector(body));
-      case 'geoOptimizer': return res.json(calcGeometryOptimizer(body));
+      case 'shellTube':   return res.json(_stamp(calcShellTube(body)));
+      case 'plate':       return res.json(_stamp(calcPlate(body)));
+      case 'airCooled':   return res.json(_stamp(calcAirCooled(body)));
+      case 'finFan':      return res.json(_stamp(calcFinFan(body)));
+      case 'doublePipe':  return res.json(_stamp(calcDoublePipe(body)));
+      case 'lmtdNtu':     return res.json(_stamp(calcLmtdNtu(body)));
+      case 'wallThick':   return res.json(_stamp(calcWallThickness(body)));
+      case 'fouling':     return res.json(_stamp(calcFouling(body)));
+      case 'selector':    return res.json(_stamp(calcSelector(body)));
+      case 'geoOptimizer': return res.json(_stamp(calcGeometryOptimizer(body)));
       default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
     }
   } catch (err) {
     console.error('HeatXpert API error:', err);
     return res.status(500).json({ error: 'Calculation error: ' + (err.message || 'unknown') });
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COOLPROP PROPERTY ENGINE (upgrade 2026-07, "route to 7")
+//
+// NIST-REFPROP-grade Helmholtz-EOS properties via the coolprop-wasm npm
+// package (6.8 MB, MIT licence). Loaded LAZILY on first request and cached;
+// if the package is not installed (or WASM init fails) every calculator
+// falls back transparently to the built-in property database, and the
+// response reports which source was used (`propSource`).
+//
+// Deploy: add to repo root package.json →  "dependencies": {"coolprop-wasm":"^6.6.0"}
+// ═══════════════════════════════════════════════════════════════════════════
+let CPI = null;              // CoolProp instance (module-level, survives warm invocations)
+let _cpTried = false;
+async function initCoolProp() {
+  if (CPI || _cpTried) return CPI;
+  _cpTried = true;
+  try {
+    const mod = await import('coolprop-wasm');
+    CPI = await mod.default();
+    console.log('[HeatXpert] CoolProp 6.6 WASM initialised — NIST-grade properties active');
+  } catch (e) {
+    CPI = null;
+    console.warn('[HeatXpert] CoolProp unavailable (' + (e.message||e) + ') — using built-in property DB');
+  }
+  return CPI;
+}
+
+// Built-in key → CoolProp fluid name. Keys absent here (oils, brines, food
+// fluids, molten salt…) always use the built-in DB — CoolProp has no model
+// for them and pretending otherwise would be worse than interpolation.
+const COOLPROP_NAME = {
+  'water':'Water', 'steam':'Water',
+  'air':'Air', 'nitrogen':'Nitrogen', 'oxygen':'Oxygen', 'hydrogen':'Hydrogen',
+  'methane':'Methane', 'co2':'CarbonDioxide',
+  'ammonia-gas':'Ammonia', 'ammonia-liquid':'Ammonia', 'r717':'Ammonia',
+  'ethanol':'Ethanol', 'methanol':'Methanol', 'acetone':'Acetone',
+  'benzene':'Benzene', 'toluene':'Toluene', 'xylene':'o-Xylene',
+  'r134a':'R134a', 'r410a':'R410A',
+  'ethylene-glycol-30':'INCOMP::MEG[0.30]', 'ethylene-glycol-50':'INCOMP::MEG[0.50]',
+  'propylene-glycol-30':'INCOMP::MPG[0.30]', 'propylene-glycol-50':'INCOMP::MPG[0.50]',
+  // natural-gas deliberately NOT mapped: real NG is a mixture; the built-in
+  // pseudo-fluid (MW 17, Tc 200 K) is the more honest model at this fidelity.
+};
+const _cpMemo = new Map();   // (key|T0.1K|P0.01bar) → props; bounds warm-instance growth
+function cpProps(fluidKey, T_degC, P_bar_abs) {
+  if (!CPI) return null;
+  const name = COOLPROP_NAME[(fluidKey||'').toLowerCase().trim()];
+  if (!name) return null;
+  const T_K = T_degC + 273.15, Pa = Math.max(P_bar_abs||P_REF_DB, 0.001)*1e5;
+  const mk = name+'|'+(Math.round(T_K*10)/10)+'|'+(Math.round(Pa/1000));
+  if (_cpMemo.has(mk)) return _cpMemo.get(mk);
+  const S = (o,n1,v1,n2,v2)=>CPI.PropsSI(o,n1,v1,n2,v2,name);
+  let out = null;
+  try {
+    const isIncomp = name.startsWith('INCOMP');
+    // Saturation frame for pure fluids (incompressibles have no dome)
+    let Tsat = null, hvap = null, Pc = null, Tc = null, MW = null, omega = null;
+    if (!isIncomp) {
+      try { Tsat = S('T','P',Pa,'Q',1) - 273.15; } catch {}
+      try { hvap = Tsat!=null ? (S('H','P',Pa,'Q',1)-S('H','P',Pa,'Q',0))/1000 : null; } catch {}
+      try { Pc = S('PCRIT','',0,'',0)/1e5; Tc = S('TCRIT','',0,'',0); MW = S('M','',0,'',0)*1000; omega = S('ACENTRIC','',0,'',0); } catch {}
+    }
+    // Intent-aware state point: '-liquid'/'r717' keys want liquid; 'steam'/'-gas'
+    // want vapour. If the requested (T,P) sits on the wrong side of the dome
+    // (common when users enter approximate temps), evaluate at saturation.
+    const wantLiquid = /(-liquid|^water$|^r717$|glycol)/.test(fluidKey);
+    const wantVapour = /(^steam$|-gas$)/.test(fluidKey);
+    let args = ['T', T_K, 'P', Pa];
+    if (!isIncomp && Tsat != null) {
+      if (wantVapour && T_degC < Tsat + 0.05) args = ['P', Pa, 'Q', 1];
+      if (wantLiquid && T_degC > Tsat - 0.05) args = ['P', Pa, 'Q', 0];
+    }
+    const g = o => S(o, args[0], args[1], args[2], args[3]);
+    out = {
+      rho: g('D'), mu: g('V')*1000 /* Pa·s→mPa·s */, cp: g('C')/1000, k: g('L'),
+      Z: isIncomp ? 1.0 : (()=>{ try { return g('Z'); } catch { return 1.0; } })(),
+      Tsat, hvap, Pc, Tc, MW, omega,
+      _src: 'coolprop', zMethod: isIncomp ? 'incompressible' : 'Helmholtz EOS (CoolProp)'
+    };
+    if (!isFinite(out.rho) || !isFinite(out.mu) || !isFinite(out.cp) || !isFinite(out.k)) out = null;
+  } catch { out = null; }
+  if (_cpMemo.size > 5000) _cpMemo.clear();
+  _cpMemo.set(mk, out);
+  return out;
 }
 
 // ─── FLUID DATABASE ───────────────────────────────────────────────────────────
@@ -214,8 +313,8 @@ const FP = {
     name:'Steam'
   },
 
-  'ammonia-gas':        {rho:0.730,mu:0.0101,cp:2.190,k:0.0246,name:'Ammonia Gas',    MW:17.03,Tc:405.6,Pc:113.5,omega:0.253},
-  'ammonia-liquid':     {rho:610, mu:0.25,  cp:4.70,  k:0.500, hvap:1370, Tsat:-33, name:'Ammonia (Liquid)'},
+  'ammonia-gas':        {rho:0.730,mu:0.0101,cp:2.190,k:0.0246,name:'Ammonia Gas',    MW:17.03,Tc:405.6,Pc:113.5,omega:0.253, hvap:1370, Tsat:-33.3},
+  'ammonia-liquid':     {rho:610, mu:0.25,  cp:4.70,  k:0.500, hvap:1370, Tsat:-33.3, MW:17.03, Tc:405.6, Pc:113.5, name:'Ammonia (Liquid)'},
   'ethanol':            {rho:790, mu:1.20,  cp:2.46,  k:0.170, name:'Ethanol'},
   'methanol':           {rho:792, mu:0.60,  cp:2.53,  k:0.210, name:'Methanol'},
   'acetone':            {rho:790, mu:0.32,  cp:2.15,  k:0.160, name:'Acetone'},
@@ -226,9 +325,9 @@ const FP = {
   'naoh-50':            {rho:1530,mu:15,    cp:2.80,  k:0.450, name:'NaOH 50%'},
   'naoh-25':            {rho:1280,mu:3.0,   cp:3.40,  k:0.500, name:'NaOH 25%'},
   'acetic-acid':        {rho:1050,mu:1.2,   cp:2.10,  k:0.190, name:'Acetic Acid'},
-  'r134a':              {rho:1200,mu:0.20,  cp:1.43,  k:0.080, hvap:198,  Tsat:-26, name:'R-134a'},
+  'r134a':              {rho:1200,mu:0.20,  cp:1.43,  k:0.080, hvap:198,  Tsat:-26.1, MW:102.03, Tc:374.2, Pc:40.6, name:'R-134a'},
   'r410a':              {rho:1060,mu:0.15,  cp:1.77,  k:0.080, name:'R-410A'},
-  'r717':               {rho:610, mu:0.25,  cp:4.70,  k:0.500, hvap:1370, Tsat:-33, name:'R-717 (Ammonia)'},
+  'r717':               {rho:610, mu:0.25,  cp:4.70,  k:0.500, hvap:1370, Tsat:-33.3, MW:17.03, Tc:405.6, Pc:113.5, name:'R-717 (Ammonia)'},
   'milk':               {rho:1030,mu:2.0,   cp:3.90,  k:0.550, name:'Milk'},
   'juice':              {rho:1050,mu:3.0,   cp:3.80,  k:0.540, name:'Fruit Juice'},
   'beer':               {rho:1010,mu:1.5,   cp:4.00,  k:0.580, name:'Beer'},
@@ -240,6 +339,76 @@ const FP = {
 };
 
 const KMAT = {cs:50, ss304:16, ss316:14, copper:385, titanium:21, inconel:10, nickel:12};
+// ── Tube mechanical properties for vibration screening (audit upgrade 2026-07) ──
+const EMAT   = {cs:200e9, ss304:193e9, ss316:193e9, copper:117e9, titanium:105e9, inconel:207e9, nickel:204e9}; // Pa
+const RHOMAT = {cs:7850,  ss304:8000,  ss316:8000,  copper:8960,  titanium:4510,  inconel:8440,  nickel:8890};  // kg/m³
+// Vapour ↔ liquid phase-pair mapping for two-phase services
+const VAPOUR_OF = {'water':'steam','ammonia-liquid':'ammonia-gas','r717':'ammonia-gas'};
+const LIQUID_OF = {'steam':'water','ammonia-gas':'ammonia-liquid'};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SATURATION PROPERTY LAYER (upgrade v7, 2026-07)
+//
+// The database Tsat/hvap are single reference values at ~1 atm. Real services
+// condense/boil at operating pressure — steam at 2.7 bar condenses at 130°C,
+// not 100°C. This layer provides Tsat(P) and hvap(T):
+//
+//   WATER/STEAM  — Antoine equation, two published ranges:
+//                    1–100°C : log10(P_mmHg) = 8.07131 − 1730.63/(233.426+T)
+//                    99–374°C: log10(P_mmHg) = 8.14019 − 1810.94/(244.485+T)
+//                  Verified vs steam tables: 2.7 bar → 130.2°C (table 130.0),
+//                  10 bar → 180.1°C (table 179.9).
+//   OTHER FLUIDS — Clausius-Clapeyron integrated from the database anchor
+//                  (Tsat_ref at 1.01325 bar, hvap_ref, MW):
+//                    1/T = 1/T_ref − (R_s/L)·ln(P/P_ref),  R_s = 8314/MW
+//                  One Watson refinement of L at the mean temperature.
+//                  NH₃ check: 4 bar → −1.4°C (R717 table −1.9), 10 bar →
+//                  25.0°C (table 24.9). Thermodynamically grounded — no
+//                  fitted constants beyond the DB anchor itself.
+//   LATENT HEAT  — Watson relation: L(T) = L_ref·[(Tc−T)/(Tc−T_ref)]^0.38.
+//                  NH₃ at 25°C → 1162 kJ/kg (table ≈1166).
+// ═══════════════════════════════════════════════════════════════════════════
+function satTemperature(fluidKey, P_bar_abs) {
+  const key = (fluidKey || '').toLowerCase().trim();
+  const P = Math.max(parseFloat(P_bar_abs) || 1.01325, 0.01);
+  if (key === 'water' || key === 'steam') {
+    const P_mmHg = P * 750.062;
+    const lgP = Math.log10(P_mmHg);
+    // low range first; switch to high range above its ~100°C validity edge
+    let T = 1730.63 / (8.07131 - lgP) - 233.426;
+    if (T > 99) T = 1810.94 / (8.14019 - lgP) - 244.485;
+    return T;
+  }
+  const f = FP[key];
+  if (!f || !f.Tsat || !f.hvap || !f.MW) return f?.Tsat ?? null;
+  const R_s = 8314 / f.MW;                       // J/kgK
+  const Tref = f.Tsat + 273.15;
+  let L = f.hvap * 1000;                          // J/kg at Tref
+  let T_K = Tref;
+  for (let i = 0; i < 2; i++) {                   // one Watson refinement pass
+    const invT = 1 / Tref - (R_s / L) * Math.log(P / 1.01325);
+    T_K = 1 / Math.max(invT, 1e-6);
+    if (f.Tc) {
+      const Tc_K = f.Tc;                          // DB stores Tc in Kelvin
+      const Tm = (T_K + Tref) / 2;
+      if (Tc_K > Tm && Tc_K > Tref)
+        L = f.hvap * 1000 * Math.pow((Tc_K - Tm) / (Tc_K - Tref), 0.38);
+    }
+  }
+  // never extrapolate beyond ~0.9·Tc (Clausius-Clapeyron breaks near critical)
+  if (f.Tc && T_K > 0.9 * f.Tc) T_K = 0.9 * f.Tc;
+  return T_K - 273.15;
+}
+
+function hvapAtT(fluidKey, T_degC) {
+  const key = (fluidKey || '').toLowerCase().trim();
+  const f = FP[key] || FP[LIQUID_OF[key]] || FP[VAPOUR_OF[key]];
+  if (!f || !f.hvap) return 2257;                 // steam default, kJ/kg
+  if (!f.Tc || f.Tsat == null) return f.hvap;
+  const Tc = f.Tc, T_K = T_degC + 273.15, Tref = f.Tsat + 273.15;
+  if (T_K >= 0.95 * Tc || Tref >= Tc) return f.hvap;
+  return f.hvap * Math.pow(Math.max(Tc - T_K, 1) / (Tc - Tref), 0.38);
+}
 
 // Normalize fluid key lookup (case-insensitive)
 function getFluid(key) { return FP[(key||"").toLowerCase().trim()] || FP.water; }
@@ -283,25 +452,32 @@ function calcZ(fluid, T_K, P_bar) {
 }
 
 function calcZ_PR(fluid, T_K, P_bar) {
-  if (!fluid.Tc || !fluid.Pc || !fluid.MW) return 1.0;
+  // FIX (validation suite 2026-07, Tier-2 check 2.7): the previous version
+  // used a = 0.45724·α·Pc²/Tc² — dimensionally wrong (PR requires
+  // a = 0.45724·R²Tc²·α/Pc) — and a mangled A definition, so Z clamped near
+  // 1.0-1.1 even for dense-phase gas (CO₂ at 100 bar returned Z=1.10; the
+  // correct PR root is ≈0.40). Rewritten in the standard REDUCED form:
+  //   A = 0.45724·α·Pr/Tr²,   B = 0.07780·Pr/Tr
+  //   Z³ − (1−B)Z² + (A − 3B² − 2B)Z − (AB − B² − B³) = 0
+  // Newton from Z=1 converges to the vapour/supercritical root.
+  if (!fluid.Tc || !fluid.Pc) return 1.0;
   const omega = fluid.omega||0, Tr = T_K/fluid.Tc, Pr = P_bar/fluid.Pc;
+  if (Tr <= 0 || Pr <= 0) return 1.0;
   const kappa = 0.37464 + 1.54226*omega - 0.26992*omega*omega;
-  const alpha  = Math.pow(1 + kappa*(1 - Math.sqrt(Tr)), 2);
-  const a = 0.45724*alpha*Math.pow(fluid.Pc,2)/Math.pow(fluid.Tc,2);
-  const R_bar = 0.083145;
-  const A_pr = a*Pr/(Math.pow(fluid.Pc,2)*Tr*Tr);
-  const b_val = 0.07780*R_bar*fluid.Tc/fluid.Pc;
-  const B_pr = b_val*P_bar/(R_bar*T_K);
+  const alpha = Math.pow(1 + kappa*(1 - Math.sqrt(Tr)), 2);
+  const A_pr = 0.45724 * alpha * Pr / (Tr*Tr);
+  const B_pr = 0.07780 * Pr / Tr;
   const c2 = -(1-B_pr), c1 = A_pr-3*B_pr*B_pr-2*B_pr, c0 = -(A_pr*B_pr-B_pr*B_pr-B_pr*B_pr*B_pr);
-  let Z = Math.max(B_pr+1e-6, 1.0);
-  for (let i=0; i<50; i++) {
+  let Z = 1.0;
+  for (let i=0; i<80; i++) {
     const fZ = Z*Z*Z+c2*Z*Z+c1*Z+c0;
     const dfZ = 3*Z*Z+2*c2*Z+c1;
     if (Math.abs(dfZ)<1e-12) break;
     const dZ = fZ/dfZ; Z -= dZ;
-    if (Math.abs(dZ)<1e-9) break;
+    if (Z <= B_pr) Z = B_pr + 1e-4;   // Z must exceed B (physical constraint)
+    if (Math.abs(dZ)<1e-10) break;
   }
-  return Math.max(0.1, Math.min(Z, 2.5));
+  return Math.max(0.05, Math.min(Z, 2.5));
 }
 
 function fluidRhoActual(fluid, T_degC, P_bar_abs) {
@@ -327,6 +503,17 @@ function fluidKActual(fluid, T_degC) {
 
 function fluidAtConditions(fluidKey, T_mean_degC, P_bar_abs) {
   const normalizedKey = (fluidKey || '').toLowerCase().trim();
+  // ── UPGRADE (2026-07): CoolProp first, built-in DB as fallback ──────────
+  const cp = cpProps(normalizedKey, T_mean_degC, P_bar_abs);
+  if (cp) {
+    const dbf = FP[normalizedKey] || {};
+    return { rho:cp.rho, mu:cp.mu, cp:cp.cp, k:cp.k,
+      name:(dbf.name || normalizedKey), Z:cp.Z, zMethod:cp.zMethod,
+      _isGas: cp.rho < GAS_RHO_THRESHOLD, _src:'coolprop',
+      hvap: cp.hvap ?? dbf.hvap, Tsat: cp.Tsat ?? dbf.Tsat,
+      MW: cp.MW ?? dbf.MW, Tc: cp.Tc ?? dbf.Tc, Pc: cp.Pc ?? dbf.Pc,
+      omega: cp.omega ?? dbf.omega };
+  }
   const f = FP[normalizedKey];
   if (!f) {
     console.warn(`[HeatXpert] Unknown fluid key: "${fluidKey}" — falling back to water`);
@@ -342,9 +529,12 @@ function fluidAtConditions(fluidKey, T_mean_degC, P_bar_abs) {
   }
 const tProps = getFluidAtT(normalizedKey, T_mean_degC);
   const rhoFinal = isGas ? fluidRhoActual(fluid,T_mean_degC,P_bar_abs) : tProps.rho;
+  // FIX (audit 2026-07): MW/Tc/Pc/omega were being stripped here, so downstream
+  // consumers (Chen/Cooper boiling) could never access the real critical props.
   return { rho:rhoFinal, mu:tProps.mu, cp:tProps.cp, k:tProps.k,
-    name:fluid.name, Z:Z_val, zMethod:method, _isGas:isGas,
-    hvap:fluid.hvap, Tsat:fluid.Tsat };
+    name:fluid.name, Z:Z_val, zMethod:method, _isGas:isGas, _src:'builtin-db',
+    hvap:fluid.hvap, Tsat:fluid.Tsat,
+    MW:fluid.MW, Tc:fluid.Tc, Pc:fluid.Pc, omega:fluid.omega };
 
 }
 
@@ -366,11 +556,38 @@ function calcF_1_2(R, P) {
 }
 
 function calcF_crossflow(R, P) {
-  if (P <= 0 || R < 0) return {F:1.0,valid:false};
-  const NTU = -Math.log(1 - P*(1+Math.min(R,1))) / (1+Math.min(R,1));
-  if (!isFinite(NTU)) return {F:0.9,valid:false};
-  const F = Math.max(0.7, Math.min(1.0, 0.88 + 0.12*Math.exp(-0.15*NTU)));
-  return {F,valid:true};
+  // FIX (audit 2026-07): previous version used an arbitrary fitted expression
+  // F = 0.88 + 0.12·exp(-0.15·NTU) with no basis in published charts.
+  // Now computed RIGOROUSLY from the definition of F:
+  //   F = NTU_counterflow(P,R) / NTU_crossflow(P,R)
+  // where NTU_crossflow is found by inverting the standard single-pass
+  // crossflow (both fluids unmixed) effectiveness relation
+  //   ε = 1 − exp[ NTU^0.22 · (exp(−Cr·NTU^0.78) − 1) / Cr ]
+  // (ESDU / Kays & London approximation) via bisection.
+  if (P <= 0 || R < 0) return {F:1.0, valid:false};
+  if (P >= 1 || R*P >= 0.999) return {F:0.75, valid:false};
+  // Map to the Cmin-based domain: if R > 1 the HOT stream is Cmin;
+  // by stream symmetry use Pe = P·R (hot-stream effectiveness), Re = 1/R.
+  let Pe = P, Rc = R;
+  if (R > 1) { Pe = P * R; Rc = 1 / R; }
+  if (Pe >= 0.999) return {F:0.75, valid:false};
+  const crossEff = (ntu, cr) => {
+    if (cr < 1e-6) return 1 - Math.exp(-ntu);                       // evaporator/condenser limit
+    return 1 - Math.exp((Math.exp(-cr * Math.pow(ntu, 0.78)) - 1) * Math.pow(ntu, 0.22) / cr);
+  };
+  // Bisection for NTU_crossflow
+  let lo = 1e-4, hi = 200;
+  if (crossEff(hi, Rc) < Pe) return {F:0.75, valid:false};          // effectiveness unattainable
+  for (let i = 0; i < 60; i++) {
+    const mid = 0.5 * (lo + hi);
+    if (crossEff(mid, Rc) < Pe) lo = mid; else hi = mid;
+  }
+  const NTU_cross = 0.5 * (lo + hi);
+  const NTU_cf = Math.abs(Rc - 1) < 1e-3
+    ? Pe / Math.max(1 - Pe, 1e-9)
+    : Math.log((1 - Rc * Pe) / Math.max(1 - Pe, 1e-9)) / (1 - Rc);
+  const F = Math.max(0.5, Math.min(1.0, NTU_cf / Math.max(NTU_cross, 1e-9)));
+  return {F, valid:true};
 }
 
 function calcLMTD(hTi, hTo, cTi, cTo, arr) {
@@ -459,7 +676,7 @@ function calcHcondense(fluid, Twall_degC, OD_m, L_m, orientation) {
 }
 
 // ─── CHEN CORRELATION — FLOW BOILING / EVAPORATING ──────────────────────────
-function calcHboiling(fluid, tubeRes_h, tubeRes_Re, quality, fluidVapour) {
+function calcHboiling(fluid, tubeRes_h, tubeRes_Re, quality, fluidVapour, P_op_bar, q_flux) {
   // Chen (1966) two-phase forced-convection boiling correlation
   // h_tp = F × h_L + S × h_nb
   //
@@ -483,10 +700,15 @@ function calcHboiling(fluid, tubeRes_h, tubeRes_Re, quality, fluidVapour) {
   const Xtt    = Math.pow((1-x)/x, 0.9) * Math.pow(rho_g/rho_l, 0.5) * Math.pow(mu_l/mu_g, 0.1);
 
   // ── Enhancement factor F(Xtt) ─────────────────────────────────────────────
-  // Chen (1966) Table 1 / Collier & Thome (1994) Eq 10.20
+  // Chen (1966) / Collier & Thome (1994) Eq 10.20:
+  //   F = 1                                for 1/Xtt ≤ 0.1  (nearly pure LIQUID)
+  //   F = 2.35·(1/Xtt + 0.213)^0.736       for 1/Xtt > 0.1
+  // FIX (validation suite 2026-07, Tier-2 check 2.4): the branch was inverted —
+  // it returned F=1 for Xtt ≤ 0.1 (HIGH quality), exactly where enhancement is
+  // strongest, making h_tp DECREASE with quality. Correct condition is Xtt ≥ 10.
   let F;
-  if (Xtt <= 0.1) {
-    F = 1.0;                                             // pure vapour limit
+  if (Xtt >= 10) {
+    F = 1.0;                                             // nearly pure liquid limit
   } else {
     F = 2.35 * Math.pow(1/Xtt + 0.213, 0.736);
     F = Math.max(1.0, F);
@@ -524,21 +746,189 @@ function calcHboiling(fluid, tubeRes_h, tubeRes_Re, quality, fluidVapour) {
   // q_flux_ref ≈ 20,000 W/m² (typical for water/steam at moderate conditions)
   const hvap_J  = (fluid.hvap || 2257) * 1000;   // J/kg
   const Tsat_K  = (fluid.Tsat || 100) + 273.15;  // K
-  const Pcrit   = 220.6;   // bar (steam critical pressure)
-  const Pred    = 1.01325 / Pcrit;  // reduced pressure at ~1 bar
-  const M_water = 18.02;
-  const q_ref   = 20000;  // W/m² reference heat flux
-  const h_nb    = 55 * Math.pow(Math.max(Pred,0.001),0.12) *
-                  Math.pow(-Math.log10(Math.max(Pred,0.001)), -0.55) *
-                  Math.pow(M_water, -0.5) *
+  // FIX (audit 2026-07): previously hard-coded to steam (Pcrit=220.6 bar,
+  // M=18.02, Pred at 1.013 bar) for ALL fluids. Now uses the actual fluid's
+  // critical pressure, molecular weight and the actual operating pressure.
+  // For ammonia at 4 bar: Pred = 4/113.5 = 0.035 (was 0.0046) → h_nb ≈ 1.9×
+  // the old value; for refrigerants the correction is larger still.
+  const Pcrit   = fluid.Pc || fluidVapour?.Pc || 220.6;   // bar
+  const M_fluid = fluid.MW || fluidVapour?.MW || 18.02;
+  const Pred    = Math.max(0.001, Math.min(0.9, (parseFloat(P_op_bar) || 1.01325) / Pcrit));
+  // UPGRADE (2026-07): q_ref is now the LOCAL heat flux when supplied by the
+  // zone-marching model (q = U·ΔT computed per increment and iterated),
+  // replacing the fixed 20 kW/m² single-point assumption.
+  const q_ref   = Math.max(parseFloat(q_flux) || 20000, 1000);  // W/m²
+  const h_nb    = 55 * Math.pow(Pred, 0.12) *
+                  Math.pow(-Math.log10(Pred), -0.55) *
+                  Math.pow(M_fluid, -0.5) *
                   Math.pow(q_ref, 0.67);
 
   const h_tp = F * h_L + S * h_nb;
   return Math.max(h_tp, h_L);   // two-phase h always ≥ liquid-phase h
 }
 
+// ─── COOPER (1984) NUCLEATE POOL BOILING — standalone ───────────────────────
+// Exposed separately so the validation suite can check it against the
+// literature equation directly, and so Gungor-Winterton can reuse it.
+function calcCooperNB(Pred, MW, q_flux) {
+  const Pr = Math.max(0.001, Math.min(0.9, Pred));
+  const q  = Math.max(q_flux || 20000, 1000);
+  return 55 * Math.pow(Pr, 0.12) * Math.pow(-Math.log10(Pr), -0.55) *
+         Math.pow(MW || 18.02, -0.5) * Math.pow(q, 0.67);
+}
+
+// ─── GUNGOR-WINTERTON (1986) FLOW BOILING (upgrade 2026-07, "route to 7") ───
+// h_tp = E·h_l + S·h_pool           [Gungor & Winterton, IJHMT 29 (1986) 351]
+//   E   = 1 + 24000·Bo^1.16 + 1.37·(1/Xtt)^0.86
+//   S   = 1 / (1 + 1.15×10⁻⁶·E²·Re_l^1.17)
+//   h_l = Dittus-Boelter on the LIQUID FRACTION:  Re_l = G(1−x)·D/μ_l
+//   Bo  = q / (G·h_fg)   (boiling number — couples h to local heat flux)
+//   h_pool = Cooper(1984) at local q and reduced pressure
+// Horizontal-tube stratification correction when Fr_l < 0.05 (G-W 1986):
+//   E ×= Fr^(0.1−2Fr),  S ×= √Fr
+// Post-dryout: G-W is not valid beyond dryout. For x > 0.85 we blend linearly
+// to vapour-only Dittus-Boelter at x = 1 and FLAG it — a mist-flow model
+// (Groeneveld) is out of scope at this fidelity.
+// Validated (original paper) against 3693 data points, mean dev ~21%.
+function calcHboilingGW(liq, vap, x, G, D, q_flux, P_op_bar, orientation = 'horizontal') {
+  const x_ = Math.max(0.01, Math.min(0.99, x));
+  const mu_l = liq.mu * 1e-3, mu_g = (vap?.mu || 0.012) * 1e-3;
+  const rho_l = liq.rho, rho_g = vap?.rho || 0.6;
+  const k_l = liq.k, cp_l = liq.cp * 1000;
+  const hfg = (liq.hvap || vap?.hvap || 2257) * 1000;                 // J/kg
+  const Pr_l = Math.max(mu_l * cp_l / k_l, 0.5);
+  const Re_l = Math.max(G * (1 - x_) * D / mu_l, 100);
+  const h_l  = 0.023 * Math.pow(Re_l, 0.8) * Math.pow(Pr_l, 0.4) * k_l / D;
+  const Xtt  = Math.pow((1 - x_) / x_, 0.9) * Math.pow(rho_g / rho_l, 0.5) * Math.pow(mu_l / mu_g, 0.1);
+  const Bo   = Math.max(q_flux || 20000, 1000) / (G * hfg);
+  let E = 1 + 24000 * Math.pow(Bo, 1.16) + 1.37 * Math.pow(1 / Xtt, 0.86);
+  const Pcrit = liq.Pc || vap?.Pc || 220.6;
+  const h_pool = calcCooperNB((P_op_bar || 1.01325) / Pcrit, liq.MW || vap?.MW, q_flux);
+  let S = 1 / (1 + 1.15e-6 * E * E * Math.pow(Re_l, 1.17));
+  let frCorrected = false;
+  if (orientation === 'horizontal') {
+    const Fr_l = G * G / (rho_l * rho_l * 9.81 * D);
+    if (Fr_l < 0.05) { E *= Math.pow(Fr_l, 0.1 - 2 * Fr_l); S *= Math.sqrt(Fr_l); frCorrected = true; }
+  }
+  let h_tp = E * h_l + S * h_pool;
+  // Post-dryout blend (flagged by caller via .dryoutBlend)
+  let dryoutBlend = false;
+  if (x_ > 0.85) {
+    const Re_g = Math.max(G * D / mu_g, 100);
+    const Pr_g = Math.max(mu_g * (vap?.cp || 2) * 1000 / (vap?.k || 0.03), 0.5);
+    const h_vap = 0.023 * Math.pow(Re_g, 0.8) * Math.pow(Pr_g, 0.4) * (vap?.k || 0.03) / D;
+    const w = (x_ - 0.85) / 0.15;
+    h_tp = (1 - w) * h_tp + w * h_vap;
+    dryoutBlend = true;
+  }
+  return { h: Math.max(h_tp, h_l * 0.5), E: +E.toFixed(2), S: +S.toFixed(4), Bo, Xtt,
+           h_l: +h_l.toFixed(0), h_pool: +h_pool.toFixed(0), Re_l, frCorrected, dryoutBlend };
+}
+
+// ─── SHELL-SIDE BUNDLE CONDENSATION (upgrade 2026-07, "route to 7") ─────────
+// Single-tube Nusselt over-predicts a BUNDLE: condensate from upper rows
+// drains onto lower rows (inundation). And at high vapour velocity the film
+// is shear-thinned, RAISING h. Both effects now modelled:
+//   Gravity term:  h_grav = h_Nusselt(1 tube) × N_r^(−1/6)     [Kern 1958]
+//   Shear term:    h_sh   = 1.26·(1/Xtt)^0.78 · h_l(crossflow) [McNaught 1982]
+//   Combined:      h = (h_grav² + h_sh²)^½
+// Regime labelled with the Breber dimensionless vapour velocity:
+//   Jg* = x·G / √(g·D·ρ_g·(ρ_l−ρ_g));  Jg*>1.5 shear / <0.5 gravity / else mixed
+function calcHcondenseBundle(liq, vap, x, G_shell, OD, Nrows, h_l_crossflow, Twall, L_m) {
+  const rho_l = liq.rho, rho_g = Math.max(vap?.rho || 0.6, 1e-3);
+  const mu_l = liq.mu * 1e-3, mu_g = (vap?.mu || 0.012) * 1e-3;
+  const h_1tube = calcHcondense(liq, Twall, OD, L_m, 'horizontal');
+  const h_grav  = h_1tube * Math.pow(Math.max(Nrows, 1), -1/6);
+  const x_ = Math.max(0.02, Math.min(0.98, x));
+  const Xtt = Math.pow((1 - x_) / x_, 0.9) * Math.pow(rho_g / rho_l, 0.5) * Math.pow(mu_l / mu_g, 0.1);
+  const h_sh = 1.26 * Math.pow(1 / Xtt, 0.78) * Math.max(h_l_crossflow, 1);
+  const Jg = x_ * G_shell / Math.sqrt(9.81 * OD * rho_g * Math.max(rho_l - rho_g, 1));
+  const regime = Jg > 1.5 ? 'shear' : Jg < 0.5 ? 'gravity' : 'mixed';
+  return { h: Math.sqrt(h_grav * h_grav + h_sh * h_sh), h_grav: +h_grav.toFixed(0),
+           h_sh: +h_sh.toFixed(0), Jg: +Jg.toFixed(3), regime, Nrows };
+}
+
+
+// ─── GUNGOR-WINTERTON FLOW BOILING (upgrade v7, 2026-07) ────────────────────
+// Gungor & Winterton (1987, simplified form) — validated against ~3700 data
+// points in the original paper; generally tighter than Chen for in-tube
+// saturated flow boiling:
+//     h_tp = E · h_L
+//     E    = 1 + 3000·Bo^0.86 + 1.12·(x/(1−x))^0.75·(ρ_l/ρ_g)^0.41
+//     h_L  = 0.023·Re_L^0.8·Pr_l^0.4·(k_l/D),  Re_L = G(1−x)·D/μ_l
+//     Bo   = q / (G·h_fg)          [boiling number — needs LOCAL heat flux]
+// DRYOUT: the correlation is for wetted-wall boiling. Above x_do = 0.8 the
+// wall progressively dries; h is blended linearly to vapour-only
+// Dittus-Boelter at x = 0.95. This is a screening treatment of the
+// post-dryout region, clearly flagged — not a mist-flow model.
+function calcHboilGW(liq, vap, G_kgm2s, D_m, x, q_Wm2, hvap_kJkg) {
+  const x_c = Math.max(0.01, Math.min(x, 0.99));
+  const mu_l = liq.mu * 1e-3, k_l = liq.k, cp_l = liq.cp * 1000;
+  const Pr_l = Math.max(mu_l * cp_l / k_l, 0.5);
+  const hfg  = Math.max(hvap_kJkg, 1) * 1000;                 // J/kg
+  const hOf = (xq) => {                                        // wetted-wall h at quality xq
+    const Re_L = Math.max(G_kgm2s * (1 - xq) * D_m / mu_l, 100);
+    const h_L  = 0.023 * Math.pow(Re_L, 0.8) * Math.pow(Pr_l, 0.4) * k_l / D_m;
+    const Bo   = Math.max(q_Wm2, 500) / (G_kgm2s * hfg);
+    const E    = 1 + 3000 * Math.pow(Bo, 0.86)
+                   + 1.12 * Math.pow(xq / (1 - xq), 0.75)
+                   * Math.pow(liq.rho / Math.max(vap.rho, 1e-3), 0.41);
+    return E * h_L;
+  };
+  const X_DO = 0.80, X_DRY = 0.95;
+  if (x_c <= X_DO) return { h: hOf(x_c), regime: 'wet-wall (G-W)' };
+  // vapour-only Dittus-Boelter
+  const mu_g = vap.mu * 1e-3, Pr_g = Math.max(mu_g * vap.cp * 1000 / vap.k, 0.5);
+  const Re_g = Math.max(G_kgm2s * D_m / mu_g, 100);
+  const h_v  = 0.023 * Math.pow(Re_g, 0.8) * Math.pow(Pr_g, 0.4) * vap.k / D_m;
+  if (x_c >= X_DRY) return { h: h_v, regime: 'post-dryout (vapour DB)' };
+  const w = (x_c - X_DO) / (X_DRY - X_DO);
+  return { h: (1 - w) * hOf(X_DO) + w * h_v, regime: `dryout blend (x=${x_c.toFixed(2)})` };
+}
 
 // ─── BELL-DELAWARE SHELL-SIDE ────────────────────────────────────────────────
+// ── LEAKAGE / BYPASS GEOMETRY (upgrade 2026-07) ─────────────────────────────
+// Computes the actual leakage and bypass stream areas from TEMA diametral
+// clearances instead of the previous per-class constants. Shared by the HTC
+// (Jl, Jb) and pressure-drop (Rl, Rb) functions so both use identical geometry.
+//
+//   δ_tb  tube-to-baffle-hole diametral clearance — TEMA RCB-4.2:
+//         0.4 mm (1/64") for OD ≤ 31.75 mm and unsupported span ≤ 914 mm,
+//         else 0.8 mm (1/32").
+//   δ_sb  shell-to-baffle diametral clearance — linear fit of the TEMA
+//         RCB-4.3 table: δ_sb ≈ 1.6 + 0.004·Ds  [mm]  (HEDH / Taborek).
+//   L_bb  bundle-to-shell diametral gap (bypass lane), by rear-head type
+//         (Taborek HEDH chart fits):
+//           fixed tubesheet / U-tube : 12 + 0.005·Ds  [mm]
+//           split-ring floating head : 35 + 0.005·Ds  [mm]
+//           pull-through floating    : 95 + 0.005·Ds  [mm]
+function bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, headType='fixed') {
+  const Ds_mm = shellID_m * 1000;
+  const PT    = pitch_ratio * OD_m;
+  const bsp   = bsp_ratio * shellID_m;
+  const Sm    = bsp_ratio * shellID_m * (PT - OD_m) / PT;          // crossflow area m²
+  // Clearances
+  const d_tb  = (OD_m <= 0.03175 && bsp <= 0.914) ? 0.0004 : 0.0008;  // m diametral
+  const d_sb  = (1.6 + 0.004 * Ds_mm) / 1000;                          // m diametral
+  const L_bb  = ((headType === 'pull-through' ? 95 : headType === 'split-ring' ? 35 : 12)
+                 + 0.005 * Ds_mm) / 1000;                              // m diametral
+  // Window geometry
+  const theta_ds = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - 2 * bcut_frac))); // baffle window angle
+  const F_w      = (theta_ds - Math.sin(theta_ds)) / (2 * Math.PI);   // fraction of tubes in one window
+  // Leakage areas (Bell-Delaware / HEDH definitions)
+  const S_tb = Math.PI * OD_m * (d_tb / 2) * nTubes * (1 - F_w);      // tube-baffle leakage
+  const S_sb = Math.PI * shellID_m * (d_sb / 2) * (1 - theta_ds / (2 * Math.PI)); // shell-baffle leakage
+  const r_s  = S_sb / Math.max(S_sb + S_tb, 1e-9);
+  const r_lm = Math.min((S_sb + S_tb) / Math.max(Sm, 1e-9), 0.8);
+  // Bypass stream
+  const S_b   = bsp * L_bb;                                            // bypass lane area
+  const F_sbp = Math.min(S_b / Math.max(Sm, 1e-9), 0.7);
+  // Tube rows crossed per baffle (needed for sealing-strip ratio)
+  const Nc   = Math.max(1, shellID_m * (1 - 2 * bcut_frac) / PT);
+  return { Sm, S_tb, S_sb, r_s, r_lm, S_b, F_sbp, Nc, F_w, theta_ds, d_tb, d_sb, L_bb };
+}
+
+
 function calcBellDelaware(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, L_m, nTubes, tema='C', pitchLayout='triangular') {
   const {rho, mu:mu_mPas, cp, k} = fluid;
   const mu = mu_mPas*1e-3;
@@ -570,35 +960,40 @@ function calcBellDelaware(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut
   const jh = a*Math.pow(Math.max(Re_s,1), b-1);
   const Nu_s = jh*Re_s*Math.pow(Pr_s,0.333);
   const h_ideal = Nu_s*k/OD_m;
-  // Baffle cut correction (unchanged — Jc formula is correct per Bell-Delaware)
-  const Jc = Math.max(0.52, Math.min(1.15, 0.55 + 0.72*(bcut_frac - 0.15)));
-  // ── FIX 4: Improved Jl and Jb using Sm-based area ratios (Taborek method) ─
-  // Previous code used a simplified ratio that gave ±10–15% error on shell HTC.
-  // Now Jl uses the ratio of leakage area to crossflow area Sm,
-  // and Jb uses the bypass lane area fraction — both per HEDH methodology.
-  const clearance_stb = 0.0004 + {R:0.0000,C:0.0002,B:0.0004}[tema] || 0.0002; // shell-tube clearance m
-  const clearance_bsh = {R:0.0003,C:0.0005,B:0.0007}[tema] || 0.0005;          // baffle-shell clearance m
-  // Area of leakage streams (tube-baffle + shell-baffle) relative to Sm
-  const A_stb = nTubes * Math.PI * OD_m * clearance_stb;   // tube-baffle leakage area
-  const A_bsh = Math.PI * shellID_m * clearance_bsh;        // baffle-shell leakage area
-  const r_lm  = Math.min((A_stb + A_bsh) / Math.max(Sm, 1e-6), 0.8);
-  const Jl = Math.max(0.60, 1 - 0.44 * r_lm - 2.2 * r_lm * r_lm);
-  // Bypass correction Jb: fraction of Sm bypassed via bundle-shell gap
-  // The bypass lane width = (shellID - bundle_OD) / 2
-  // bundle_OD ≈ shellID × 0.90 for typical clearances (TEMA C ~5% radial gap each side)
-  // A_bypass = bypass_lane_width × bsp
-  // Jb = max(0.52, exp(-1.35 × A_bypass/Sm))  per Taborek (1979) HEDH
-  const bundle_clearance_r = {R:0.005, C:0.01, B:0.015}[tema] || 0.01; // radial gap m (one side)
-  const A_bypass = 2 * bundle_clearance_r * bsp;  // both sides of bundle
-  const Fb = Math.min(A_bypass / Math.max(Sm, 1e-6), 0.8);
-  const Jb = Math.max(0.52, Math.exp(-1.35 * Fb));
+  // ── Jc FIX (upgrade 2026-07): the published correlation is
+  //      Jc = 0.55 + 0.72·Fc,   Fc = fraction of tubes in pure crossflow = 1 − 2·F_w
+  // The previous code fed the BAFFLE-CUT fraction (0.25) where Fc (≈0.61 at a
+  // 25% cut) belongs, giving Jc = 0.62 instead of ≈0.99 — under-predicting the
+  // shell HTC by ~35-40% across the board.
+  const headType = arguments.length > 11 && arguments[11] ? arguments[11] : 'fixed';
+  const Nss      = 0;  // sealing strip pairs (0 = conservative; expose later if needed)
+  const gLeak = bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, headType);
+  const Fc = Math.max(0, Math.min(1, 1 - 2 * gLeak.F_w));
+  const Jc = Math.max(0.52, Math.min(1.15, 0.55 + 0.72 * Fc));
+  // ── UPGRADE (2026-07): published Bell-Delaware Jl and Jb from ACTUAL
+  // TEMA diametral clearances (see bdLeakGeometry) — replaces the previous
+  // per-class constants which gave only a coarse ±10-15% approximation.
+  // (gLeak/headType/Nss declared above with the Jc fix.)
+  // Jl — Taborek/HEDH:  Jl = 0.44(1−r_s) + [1 − 0.44(1−r_s)]·exp(−2.2·r_lm)
+  const Jl = Math.max(0.40, 0.44*(1 - gLeak.r_s) + (1 - 0.44*(1 - gLeak.r_s)) * Math.exp(-2.2 * gLeak.r_lm));
+  // Jb — Taborek/HEDH:  Jb = exp(−C_j·F_sbp·(1 − (2·r_ss)^⅓)),  Jb = 1 if r_ss ≥ ½
+  const r_ss = Nss / Math.max(gLeak.Nc, 1);
+  const C_j  = Re_s < 100 ? 1.35 : 1.25;
+  const Jb   = r_ss >= 0.5 ? 1.0
+             : Math.max(0.40, Math.exp(-C_j * gLeak.F_sbp * (1 - Math.cbrt(Math.max(2 * r_ss, 0)))));
   const Jr = Re_s<100 ? Math.max(0.4, 0.8-0.003*Re_s) : 1.0;
   const Js = 1.0;
+  // NOTE (audit 2026-07): the viscosity-gradient correction Jμ = (μ_b/μ_w)^0.14
+  // is deliberately NOT applied here. calcShellTube's U-convergence loop already
+  // multiplies hShell by phi_h = (μ_bulk/μ_wall)^0.14 using the wall-temperature
+  // viscosity from fluidAtConditions. Adding Jμ inside this function as well
+  // would DOUBLE-apply the correction. Do not "fix" this.
   const Jtotal = Math.max(0.30, Jc*Jl*Jb*Jr*Js);
   const hShell = h_ideal*Jtotal;
   const nBaffles = Math.max(1, Math.round(L_m/Math.max(bsp,0.001)-1));
   const shellVel = G_s/rho;
-  return {hShell, hTube:0, Jc, Jl, Jb, Jr, Js, Jtotal, jh, shellVel, shellRe:Re_s, nBaffles};
+  return {hShell, hTube:0, Jc, Jl, Jb, Jr, Js, Jtotal, jh, shellVel, shellRe:Re_s, nBaffles,
+          leakGeom:gLeak, r_ss};
 }
 
 // ─── PRESSURE DROP TUBE ───────────────────────────────────────────────────────
@@ -674,8 +1069,20 @@ function calcBellDelawareDP(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bc
   const dP_win_one = (2 + 0.6 * Nw) * G_w * G_w / (2 * rho);
 
   // ── Bypass and leakage corrections ───────────────────────────────────────
-  const Rb = Math.max(0.60, 1 - 0.3 * (1 - bsp_ratio));
-  const Rl = Math.max(0.40, 1 - 0.5 * (1 - bsp_ratio) * bcut_frac);
+  // UPGRADE (2026-07): published Bell-Delaware forms using the same
+  // clearance-based geometry as the HTC function (bdLeakGeometry):
+  //   Rl = exp[−1.33·(1 + r_s)·r_lm^p],  p = 0.8 − 0.15·(1 + r_s)
+  //   Rb = exp[−C_bp·F_sbp·(1 − (2·r_ss)^⅓)],  C_bp = 4.5 (Re<100) / 3.7
+  // Previous version used ad-hoc functions of bsp_ratio only.
+  // Always recompute from the shellID actually passed — the gas auto-resize
+  // path calls this with a LARGER shell than bdHtcResult was built for.
+  const gLeak = bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, 'fixed');
+  const r_ss_dp = bdHtcResult?.r_ss || 0;
+  const p_exp = 0.8 - 0.15 * (1 + gLeak.r_s);
+  const Rl = Math.max(0.10, Math.exp(-1.33 * (1 + gLeak.r_s) * Math.pow(gLeak.r_lm, p_exp)));
+  const C_bp = Re_s < 100 ? 4.5 : 3.7;
+  const Rb = r_ss_dp >= 0.5 ? 1.0
+           : Math.max(0.30, Math.exp(-C_bp * gLeak.F_sbp * (1 - Math.cbrt(Math.max(2 * r_ss_dp, 0)))));
 
   // ── End-zone factor from actual inlet/outlet baffle spacing ratio ─────────
   // When end baffle spacing equals central spacing, Rze = 1.0 and the end-zone
@@ -715,7 +1122,11 @@ function toSI_flow(val, unitSys) {
 function toSI_flowWithUnit(val, flowUnit, fluidKey, T_degC, P_bar) {
   if (!flowUnit || flowUnit === 'kgh') return val;
   const fluid = getFluid(fluidKey);
-const rho_n = (fluid.MW || 29) * P_REF_DB * 1e5 / (8314 * T_REF_DB);
+// FIX (audit 2026-07): Normal conditions (Nm³) are defined at 0°C = 273.15 K
+// (DIN 1343 / ISO norm reference), NOT 20°C. Previous code used T_REF_DB=293.15 K,
+// under-estimating rho_n (and hence mass flow) by ~6.8%.
+// Standard conditions (Sm³) remain 15°C = 288.15 K (ISO 13443).
+const rho_n = (fluid.MW || 29) * P_REF_DB * 1e5 / (8314 * 273.15);
 const rho_s = (fluid.MW || 29) * P_REF_DB * 1e5 / (8314 * 288.15);
   if (flowUnit === 'nm3h') return val * rho_n;
   if (flowUnit === 'sm3h') return val * rho_s;
@@ -771,6 +1182,311 @@ function calcLMTD_twophase(hTi, hTo, cTi, cTo, shellMode, arr) {
   return { lmtd, F: 1.0, dT1, dT2, twophase: true };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ZONE-WISE MARCHING MODEL FOR PHASE-CHANGE SERVICES (upgrade 2026-07)
+//
+// Replaces the single-point U·A·LMTD sizing for condensers and evaporators
+// with an incremental model (HTRI-style zone analysis, simplified):
+//   • The exchanger is split into thermodynamic zones (desuperheat /
+//     condensation / subcool, or preheat / boiling) and the isothermal
+//     phase-change zone is further split into quality increments.
+//   • In each zone: local fluid properties, local film coefficients, local
+//     U and local LMTD → local area A_i = Q_i / (U_i·ΔT_i).  A_req = ΣA_i.
+//   • Boiling uses Chen at the LOCAL quality with the LOCAL heat flux
+//     (q = U·ΔT iterated per increment) instead of x=0.5 / q=20 kW/m² fixed.
+//   • Counter-current temperature mapping: cold-side temperature at each
+//     zone boundary derived from cumulative duty.
+// Limitations (stated deliberately): film condensation h from Nusselt theory
+// (no shear-enhancement), straight quality-linear condensing path, single
+// cp linearisation for the coolant boundary mapping. This is a preliminary-
+// design zone model, not an HTRI incremental rating.
+// ═══════════════════════════════════════════════════════════════════════════
+const N_PHASE_INCREMENTS = 8;
+
+function zoneLMTD(Th1, Th2, Tc1, Tc2) {
+  // Terminal ΔTs of one zone (counter-current orientation already applied)
+  const dT1 = Th1 - Tc1, dT2 = Th2 - Tc2;
+  if (dT1 <= 0 || dT2 <= 0) return null;
+  return Math.abs(dT1 - dT2) < 1e-3 ? dT1 : (dT1 - dT2) / Math.log(dT1 / dT2);
+}
+
+function marchCondensingZones(p) {
+  // p: {hFlKey,hPop,massH,Tsat,hTi,hTo,hvap_kJkg, cFlKey,cPop,massC,cTi,cTo,
+  //     OD,Di,L_eff,nTubesPerPass,shellID,pitch,bcut,bsp,nTubes,tema,pitchLayout,
+  //     Rfo,Rfi,Rwall,Ao_Ai}
+  const liqKey = LIQUID_OF[p.hFlKey] || p.hFlKey;
+  const cpC = fluidAtConditions(p.cFlKey, (p.cTi + p.cTo) / 2, p.cPop).cp; // linearised coolant cp
+  const zones = [];
+  // Build hot-side zone boundaries from hTi → hTo
+  if (p.hTi > p.Tsat + 0.1) {
+    const Qd = p.massH * fluidAtConditions(p.hFlKey, (p.hTi + p.Tsat) / 2, p.hPop).cp * (p.hTi - p.Tsat);
+    zones.push({ name: 'Desuperheat', kind: 'vap', Th1: p.hTi, Th2: p.Tsat, Q: Qd });
+  }
+  const Qlat = p.massH * p.hvap_kJkg;
+  for (let i = 0; i < N_PHASE_INCREMENTS; i++) {
+    zones.push({ name: `Condense x=${(1 - i / N_PHASE_INCREMENTS).toFixed(2)}→${(1 - (i + 1) / N_PHASE_INCREMENTS).toFixed(2)}`,
+                 kind: 'cond', Th1: p.Tsat, Th2: p.Tsat, Q: Qlat / N_PHASE_INCREMENTS,
+                 xm: 1 - (i + 0.5) / N_PHASE_INCREMENTS });
+  }
+  if (p.hTo < p.Tsat - 0.1) {
+    const Qs = p.massH * fluidAtConditions(liqKey, (p.Tsat + p.hTo) / 2, p.hPop).cp * (p.Tsat - p.hTo);
+    zones.push({ name: 'Subcool', kind: 'liq', Th1: p.Tsat, Th2: p.hTo, Q: Qs });
+  }
+  const Qtot = zones.reduce((s, z) => s + z.Q, 0);
+  // Counter-current coolant mapping: at the hot-inlet end the coolant is at cTo.
+  let Qcum = 0, A_total = 0;
+  const out = [];
+  for (const z of zones) {
+    const Tc1 = p.cTo - Qcum / (p.massC * cpC);
+    const Tc2 = p.cTo - (Qcum + z.Q) / (p.massC * cpC);
+    const dTm = zoneLMTD(z.Th1, z.Th2, Tc1, Tc2);
+    if (!dTm) { Qcum += z.Q; continue; }   // pinched zone — skip, flagged by caller via area deficit
+    const TcM = (Tc1 + Tc2) / 2, ThM = (z.Th1 + z.Th2) / 2;
+    // Tube-side (coolant) local h
+    const cLoc = fluidAtConditions(p.cFlKey, TcM, p.cPop);
+    const hT = calcHtube(cLoc, p.massC / p.nTubesPerPass, p.Di, p.L_eff).h;
+    // Shell-side local h by zone kind
+    let hS, regime = '';
+    if (z.kind === 'cond') {
+      const liq = fluidAtConditions(liqKey, p.Tsat, p.hPop);
+      const liqProps = { rho: liq.rho, mu: liq.mu, k: liq.k, hvap: p.hvap_kJkg, Tsat: p.Tsat };
+      // UPGRADE v7 (2026-07): Kern condensate-inundation correction for tube
+      // BANKS — h_bank = h_Nusselt(single tube) · N_vert^(−1/6), where N_vert
+      // is the tube count in a vertical column (≈0.7·Ds/PT for staggered
+      // layouts). Condensate raining from upper rows thickens the film on
+      // lower rows; the single-tube value over-predicts by 20-40% on real
+      // bundles. Also flags the shear-controlled regime (dimensionless vapour
+      // velocity J*g > 1) where gravity-film correlations under-predict —
+      // conservative, but noted per zone.
+      const N_vert = Math.max(1, Math.round(0.7 * p.shellID / (p.pitch * p.OD)));
+      // UPGRADE v7b (2026-07): shear term now MODELLED, not just flagged.
+      // calcHcondenseBundle combines Kern gravity-film (×N^−1/6 inundation)
+      // with the McNaught (1982) shear term h_sh = 1.26·(1/Xtt)^0.78·h_l,
+      // h = √(h_grav² + h_sh²); Breber J*g labels the governing regime.
+      const vapB = fluidAtConditions(VAPOUR_OF[liqKey] || p.hFlKey, p.Tsat, p.hPop);
+      const gLkC = bdLeakGeometry(p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.nTubes, 'fixed');
+      const G_shC = p.massH / Math.max(gLkC.Sm, 1e-6);
+      const h_l_cf = calcBellDelaware(liq, Math.max(p.massH * (1 - (z.xm ?? 0.5)), 0.02 * p.massH),
+                     p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+      let Twall = (p.Tsat + TcM) / 2, U_i = 800, bres = null;
+      for (let it = 0; it < 3; it++) {
+        bres = calcHcondenseBundle(liqProps, vapB, z.xm ?? 0.5, G_shC, p.OD, N_vert, h_l_cf, Twall, p.L_eff);
+        hS = bres.h;
+        U_i = 1 / (1 / hS + p.Rfo + p.Ao_Ai / hT + p.Ao_Ai * p.Rfi + p.Rwall);
+        Twall = p.Tsat - (p.Tsat - TcM) * (U_i / hS);
+      }
+      regime = `${bres.regime} (J*g=${bres.Jg}; grav ${bres.h_grav}×N${N_vert}⁻¹ᐟ⁶ ⊕ shear ${bres.h_sh})`;
+    } else {
+      const key = z.kind === 'vap' ? p.hFlKey : liqKey;
+      const sLoc = fluidAtConditions(key, ThM, p.hPop);
+      hS = calcBellDelaware(sLoc, p.massH, p.shellID, p.OD, p.pitch, p.bcut, p.bsp,
+                            p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+      regime = z.kind === 'vap' ? 'single-phase vapour crossflow' : 'single-phase liquid crossflow';
+    }
+    const U_i = 1 / (1 / hS + p.Rfo + p.Ao_Ai / hT + p.Ao_Ai * p.Rfi + p.Rwall);
+    const A_i = z.Q * 1000 / (U_i * dTm);
+    A_total += A_i;
+    out.push({ zone: z.name, Q_kW: +z.Q.toFixed(1), U: +U_i.toFixed(0), LMTD: +dTm.toFixed(2), A_m2: +A_i.toFixed(2), regime });
+    Qcum += z.Q;
+  }
+  out.forEach(z => z.A_pct = +(z.A_m2 / A_total * 100).toFixed(1));
+  return { A_total, zones: out, Qtot, mode: 'condensing' };
+}
+
+function marchEvaporatingZones(p) {
+  // p adds: hvap_kJkg (cold fluid), Tsat (cold), hFluid props via hFlKey/hPop
+  const vapKeyRaw = VAPOUR_OF[p.cFlKey] || p.cFlKey.replace('-liquid', '-gas');
+  const vapKey = FP[vapKeyRaw] ? vapKeyRaw : 'steam';
+  const cpH = fluidAtConditions(p.hFlKey, (p.hTi + p.hTo) / 2, p.hPop).cp;
+  const cLiq = fluidAtConditions(p.cFlKey, p.Tsat, p.cPop);
+  const Q_preheat = p.cTi < p.Tsat - 0.1 ? p.massC * cLiq.cp * (p.Tsat - p.cTi) : 0;
+  const Q_boil = Math.max(p.Qhot - Q_preheat, 0);
+  const x_exit = Math.min(Q_boil / Math.max(p.massC * p.hvap_kJkg, 1e-6), 1.0);
+  const dryout = Q_boil > p.massC * p.hvap_kJkg * 0.999;
+  const zones = [];
+  // Order along the HOT path (hot inlet first). Counter-current: boiling exit
+  // (highest quality) sits at the hot-inlet end, preheat at the hot-outlet end.
+  for (let i = 0; i < N_PHASE_INCREMENTS; i++) {
+    const x1 = x_exit * (1 - i / N_PHASE_INCREMENTS);
+    const x2 = x_exit * (1 - (i + 1) / N_PHASE_INCREMENTS);
+    zones.push({ name: `Boil x=${x2.toFixed(2)}→${x1.toFixed(2)}`, kind: 'boil',
+                 Q: Q_boil / N_PHASE_INCREMENTS, xm: (x1 + x2) / 2 });
+  }
+  if (Q_preheat > 0) zones.push({ name: 'Preheat (subcooled)', kind: 'preheat', Q: Q_preheat });
+  let Qcum = 0, A_total = 0;
+  const out = [];
+  const cVap = fluidAtConditions(vapKey, p.Tsat, p.cPop);
+  for (const z of zones) {
+    const Th1 = p.hTi - Qcum / (p.massH * cpH);
+    const Th2 = p.hTi - (Qcum + z.Q) / (p.massH * cpH);
+    let Tc1, Tc2;
+    if (z.kind === 'boil') { Tc1 = p.Tsat; Tc2 = p.Tsat; }
+    else { Tc1 = p.Tsat; Tc2 = p.cTi; }   // preheat zone, counter-current
+    const dTm = zoneLMTD(Th1, Th2, Tc1, Tc2);
+    if (!dTm) { Qcum += z.Q; continue; }
+    const ThM = (Th1 + Th2) / 2;
+    // Shell-side hot local h
+    const sLoc = fluidAtConditions(p.hFlKey, ThM, p.hPop);
+    const hS = calcBellDelaware(sLoc, p.massH, p.shellID, p.OD, p.pitch, p.bcut, p.bsp,
+                                p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+    // Tube-side cold local h
+    const cLoc = fluidAtConditions(p.cFlKey, z.kind === 'boil' ? p.Tsat : (p.cTi + p.Tsat) / 2, p.cPop);
+    const tubeRes = calcHtube(cLoc, p.massC / p.nTubesPerPass, p.Di, p.L_eff);
+    let hT = tubeRes.h, U_i = 800, regime = '';
+    if (z.kind === 'boil') {
+      // UPGRADE v7 (2026-07): Gungor-Winterton (1987) at LOCAL quality and
+      // LOCAL heat flux (q = U·ΔT iterated), with dryout blending above
+      // x=0.8. Chen remains available via boilCorr:'chen'.
+      const G_tube = (p.massC / p.nTubesPerPass) / (Math.PI * p.Di * p.Di / 4);
+      let q = 20000;
+      for (let it = 0; it < 4; it++) {
+        if (p.boilCorr === 'chen') {
+          hT = calcHboiling(cLoc, tubeRes.h, tubeRes.Re, Math.max(z.xm, 0.02), cVap, p.cPop, q);
+          regime = 'Chen';
+        } else {
+          const gw = calcHboilingGW(cLoc, cVap, Math.max(z.xm, 0.02), G_tube, p.Di, q, p.cPop, 'horizontal');
+          hT = gw.h;
+          regime = `Gungor-Winterton (E=${gw.E}, S=${gw.S})`
+                 + (gw.frCorrected ? ' +Fr-strat' : '')
+                 + (gw.dryoutBlend ? ' ⚠ post-dryout blend' : '');
+        }
+        U_i = 1 / (1 / hS + p.Rfo + p.Ao_Ai / hT + p.Ao_Ai * p.Rfi + p.Rwall);
+        q = Math.max(U_i * dTm, 1000);
+      }
+    } else {
+      U_i = 1 / (1 / hS + p.Rfo + p.Ao_Ai / hT + p.Ao_Ai * p.Rfi + p.Rwall);
+      regime = 'single-phase liquid';
+    }
+    const A_i = z.Q * 1000 / (U_i * dTm);
+    A_total += A_i;
+    out.push({ zone: z.name, Q_kW: +z.Q.toFixed(1), U: +U_i.toFixed(0), LMTD: +dTm.toFixed(2), A_m2: +A_i.toFixed(2), regime });
+    Qcum += z.Q;
+  }
+  out.forEach(z => z.A_pct = +(z.A_m2 / A_total * 100).toFixed(1));
+  return { A_total, zones: out, Qtot: p.Qhot, x_exit, Q_preheat, dryout, mode: 'evaporating' };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FLOW-INDUCED VIBRATION SCREEN (upgrade 2026-07)
+//
+// Basic TEMA-V-style screening — the checks HTRI performs in full detail:
+//   1. Tube fundamental natural frequency (pinned-pinned central span,
+//      conservative vs clamped) including tube metal, tube-side fluid, and
+//      confined added mass of the shell-side fluid (Blevins).
+//   2. Fluidelastic instability — Connors/Pettigrew-Taylor:
+//        V_crit = K·f_n·d·√(δ·m_L / (ρ_shell·d²)),  K = 3.0,
+//        log decrement δ = 0.10 (liquid) / 0.03 (gas)  [screening values].
+//   3. Vortex shedding (St = 0.2) resonance band vs f_n.
+//   4. Turbulent buffeting dominant frequency (Owen 1965) vs f_n.
+//   5. Acoustic resonance (gas shells only): first transverse mode vs
+//      shedding/buffeting frequencies.
+// This is a SCREEN — it flags risk for detailed analysis, it does not clear
+// a design the way a full HTRI vibration run does.
+// ═══════════════════════════════════════════════════════════════════════════
+function calcVibrationScreen(p) {
+  // p: {matKey, OD, Di, span_m, span_end_m?, shellID, pitch_ratio, massH_kgs,
+  //     rhoShell, muShell_mPas, rhoTubeFluid, isGas, T_K, MW}
+  const E   = EMAT[p.matKey]   || 200e9;
+  const rhoT= RHOMAT[p.matKey] || 7850;
+  const I   = Math.PI / 64 * (Math.pow(p.OD, 4) - Math.pow(p.Di, 4));   // m⁴
+  // Mass per length: tube metal + tube-side fluid + shell-side added mass
+  const m_tube  = rhoT * Math.PI / 4 * (p.OD * p.OD - p.Di * p.Di);
+  const m_in    = p.rhoTubeFluid * Math.PI / 4 * p.Di * p.Di;
+  const DeOverD = (0.96 + 0.5 * p.pitch_ratio) * p.pitch_ratio;
+  const Cm      = (DeOverD * DeOverD + 1) / Math.max(DeOverD * DeOverD - 1, 0.2);
+  const m_add   = Cm * p.rhoShell * Math.PI / 4 * p.OD * p.OD;
+  const m_L     = m_tube + m_in + m_add;                                 // kg/m
+  const logDec  = p.isGas ? 0.03 : 0.10;
+
+  // Crossflow velocity at bundle centreline (central baffle spacing)
+  const PT = p.pitch_ratio * p.OD;
+  const Sm = p.span_m * p.shellID * (PT - p.OD) / PT;
+  const V  = p.massH_kgs / Math.max(Sm * p.rhoShell, 1e-9);              // m/s
+
+  // ── UPGRADE v7 (2026-07): SPAN-BY-SPAN evaluation ─────────────────────────
+  // HTRI checks every span; the previous screen checked only the central one.
+  //   central — span = baffle spacing, supported at every baffle
+  //   end     — inlet/outlet spacing (often larger to clear nozzles)
+  //   window  — tubes in the baffle window are supported only at EVERY OTHER
+  //             baffle → span = 2×central → f_n ÷ 4. This is where real FEI
+  //             failures start, and single-span screens miss it entirely.
+  const spanEnd = Math.max(p.span_end_m || p.span_m, p.span_m);
+  const spanDefs = [
+    { name: 'central',      L: p.span_m },
+    { name: 'end zone',     L: spanEnd },
+    { name: 'window tubes', L: 2 * p.span_m },
+  ];
+  const spans = spanDefs.map(s => {
+    const f_n = (Math.PI / 2) * Math.sqrt(E * I / m_L) / (s.L * s.L);    // pinned-pinned
+    const V_crit = 3.0 * f_n * p.OD * Math.sqrt(logDec * m_L / (p.rhoShell * p.OD * p.OD));
+    return { ...s, f_n: +f_n.toFixed(1), V_crit: +V_crit.toFixed(2),
+             feiRatio: +(V / Math.max(V_crit, 1e-6)).toFixed(3) };
+  });
+  const worst = spans.reduce((a, b) => (b.feiRatio > a.feiRatio ? b : a), spans[0]);
+  const central = spans[0];
+
+  // ── TEMA maximum unsupported span (RCB-4.52, steel class anchors:
+  //    OD 19.05 mm → 1524 mm, OD 25.4 mm → 1880 mm; linear interpolation,
+  //    ×0.87 for low-modulus tube materials). Approximate — verify against
+  //    the actual TEMA table for final designs.
+  const matFac = (p.matKey === 'copper' || p.matKey === 'aluminum' || p.matKey === 'titanium') ? 0.87 : 1.0;
+  const L_tema = (56.06 * (p.OD * 1000) + 455.9) / 1000 * matFac;        // m
+  const maxSpanUsed = Math.max(...spanDefs.map(s => s.L));
+  const temaSpanOK = maxSpanUsed <= L_tema;
+
+  // Excitation frequencies (central-span velocity basis)
+  const f_vs = 0.2 * V / p.OD;
+  const xT = p.pitch_ratio;
+  const f_tb = (V / (xT * xT * p.OD)) * (3.05 * Math.pow(1 - 1 / xT, 2) + 0.28);
+
+  // Acoustic resonance (gas only)
+  let f_ac = null, acRisk = false;
+  if (p.isGas && p.MW) {
+    const c = Math.sqrt(1.3 * 8314 * p.T_K / p.MW);
+    f_ac = c / (2 * p.shellID);
+    acRisk = (f_vs > 0.8 * f_ac && f_vs < 1.2 * f_ac) || (f_tb > 0.8 * f_ac && f_tb < 1.2 * f_ac);
+  }
+
+  // ── UPGRADE v7 (2026-07): shell-inlet ρv² impingement check (TEMA RCB-4.6).
+  // Nozzle ID estimated at Ds/3 (typ.) capped 50-600 mm — an ESTIMATE, flagged
+  // as such; supply the real nozzle for a firm check.
+  const d_noz = Math.min(Math.max(p.shellID / 3, 0.05), 0.6);
+  const v_noz = p.massH_kgs / (p.rhoShell * Math.PI * d_noz * d_noz / 4);
+  const rhoV2 = p.rhoShell * v_noz * v_noz;                              // kg/(m·s²)
+  const impingementNeeded = p.isGas ? true : rhoV2 > 2232;               // vapours: always per TEMA
+  const impingementNote = p.isGas
+    ? 'vapour/gas service — TEMA requires impingement protection'
+    : rhoV2 > 2232 ? `ρv² = ${rhoV2.toFixed(0)} > 2232 kg/(m·s²) — impingement plate required (TEMA RCB-4.6)`
+    : rhoV2 > 744  ? `ρv² = ${rhoV2.toFixed(0)} — impingement required if fluid is corrosive/abrasive or near bubble point (limit 744)`
+    : `ρv² = ${rhoV2.toFixed(0)} — below all TEMA impingement thresholds`;
+
+  const checks = [];
+  let status = 'ok';
+  if (worst.feiRatio > 1.0)      { status = 'err';  checks.push(`FLUIDELASTIC INSTABILITY on ${worst.name} span (L=${(worst.L*1000).toFixed(0)} mm): V/V_crit = ${worst.feiRatio} > 1.0 — redesign required`); }
+  else if (worst.feiRatio > 0.8) { status = 'warn'; checks.push(`Fluidelastic margin low on ${worst.name} span: V/V_crit = ${worst.feiRatio} (screen limit 0.8)`); }
+  if (!temaSpanOK) { if (status==='ok') status='warn';
+    checks.push(`Unsupported span ${(maxSpanUsed*1000).toFixed(0)} mm exceeds TEMA maximum ≈${(L_tema*1000).toFixed(0)} mm for ${(p.OD*1000).toFixed(1)} mm OD — add intermediate supports`); }
+  const vsRatio = f_vs / Math.max(worst.f_n, 1e-6);
+  if (!p.isGas && vsRatio > 0.5 && vsRatio < 2.0) { if (status==='ok') status='warn';
+    checks.push(`Vortex shedding f_vs=${f_vs.toFixed(1)} Hz within resonance band of ${worst.name} f_n=${worst.f_n} Hz`); }
+  const tbRatio = f_tb / Math.max(worst.f_n, 1e-6);
+  if (tbRatio > 0.5 && tbRatio < 2.0) { if (status==='ok') status='warn';
+    checks.push(`Turbulent buffeting f_tb=${f_tb.toFixed(1)} Hz near ${worst.name} f_n=${worst.f_n} Hz`); }
+  if (acRisk) { if (status==='ok') status='warn';
+    checks.push(`Acoustic resonance risk: shell transverse mode f_ac=${f_ac.toFixed(0)} Hz coincides with excitation — consider detuning baffles`); }
+  if (impingementNeeded && !p.isGas) { if (status==='ok') status='warn'; }
+  checks.push(`Inlet impingement (nozzle est. ${(d_noz*1000).toFixed(0)} mm): ${impingementNote}`);
+
+  return { f_n: central.f_n, V_cross:+V.toFixed(2), V_crit: central.V_crit,
+           feiRatio: central.feiRatio, spans, worstSpan: worst.name,
+           worstFeiRatio: worst.feiRatio, temaSpanLimit_m:+L_tema.toFixed(3), temaSpanOK,
+           f_vs:+f_vs.toFixed(1), f_tb:+f_tb.toFixed(1),
+           f_ac: f_ac ? +f_ac.toFixed(0) : null, m_L:+m_L.toFixed(2), Cm:+Cm.toFixed(2),
+           span_m:+p.span_m.toFixed(3), logDec,
+           rhoV2:+rhoV2.toFixed(0), d_noz_est_mm:+(d_noz*1000).toFixed(0), impingementNeeded,
+           status, checks };
+}
+
 // ─── SHELL & TUBE — WITH U CONVERGENCE ITERATION & TEMP-DEPENDENT PROPS ─────
 function calcShellTube(b) {
   const hFlKey=b.hFlKey||'water', cFlKey=b.cFlKey||'water';
@@ -816,8 +1532,18 @@ function calcShellTube(b) {
   let phaseZones = null;  // populated if three-zone model is used
   if (shellMode === 'condensing') {
     // Hot side is condensing. Q includes latent heat.
-    const hvap_kJkg = hFluidInit.hvap || 2257;  // kJ/kg, default to steam
-    const Tsat_h    = hFluidInit.Tsat  || 100;   // °C saturation temperature
+    // UPGRADE v7 (2026-07): saturation temperature and latent heat are now
+    // PRESSURE-DEPENDENT. Steam at 2.7 bar condenses at ≈130°C with
+    // hvap ≈ 2174 kJ/kg — the previous fixed 100°C / 2257 kJ/kg mis-stated
+    // both the driving force and the duty at any pressure other than 1 atm.
+    // Priority (upgrade v7b): CoolProp pressure-true saturation frame first,
+    // then Antoine/Watson estimates, then database constants as last resort.
+    const Tsat_h    = (hFluidInit._src === 'coolprop' && hFluidInit.Tsat != null)
+                      ? hFluidInit.Tsat
+                      : (satTemperature(hFlKey, hPop) ?? (hFluidInit.Tsat || 100));
+    const hvap_kJkg = (hFluidInit._src === 'coolprop' && hFluidInit.hvap != null)
+                      ? hFluidInit.hvap
+                      : (hvapAtT(hFlKey, Tsat_h) || hFluidInit.hvap || 2257);
     const massH_kgs = hF / 3600;
     if (hTi > Tsat_h + 0.1) {
       // Superheated inlet → three zones
@@ -839,8 +1565,15 @@ function calcShellTube(b) {
     }
   } else if (shellMode === 'evaporating') {
     // Cold side is evaporating (boiling). Q = hot-side sensible heat.
-    const hvap_kJkg = cFluidInit.hvap || 2257;
-    const Tsat_c    = cFluidInit.Tsat  || 100;
+    // UPGRADE v7 (2026-07): pressure-dependent boiling point — ammonia at
+    // 4 bar boils at ≈ −1.5°C, not −33°C. Latent heat via Watson at Tsat.
+    // Priority (upgrade v7b): CoolProp exact → Antoine/Watson → DB constant
+    const Tsat_c    = (cFluidInit._src === 'coolprop' && cFluidInit.Tsat != null)
+                      ? cFluidInit.Tsat
+                      : (satTemperature(cFlKey, cPop) ?? (cFluidInit.Tsat || 100));
+    const hvap_kJkg = (cFluidInit._src === 'coolprop' && cFluidInit.hvap != null)
+                      ? cFluidInit.hvap
+                      : (hvapAtT(cFlKey, Tsat_c) || cFluidInit.hvap || 2257);
     const massH_kgs = hF / 3600;
     Qhot = massH_kgs * hFluidInit.cp * (hTi - hTo);
     // Boiling is isothermal at Tsat — cold outlet = Tsat regardless of flow rate
@@ -1038,8 +1771,20 @@ function calcShellTube(b) {
       // Vapour density (~0.6 kg/m³) gives h~40 W/m²K; liquid (~960 kg/m³) gives ~5000-15000.
       const Tsat_h   = phaseZones?.Tsat ?? 100;
       const Twall_h  = (cTmean + Tsat_h) / 2;
-      const hSatLiq  = {
-        rho:  960,    // liquid water at ~100°C
+      // UPGRADE v7 (2026-07): condensate film properties now come from the
+      // actual liquid phase of the condensing fluid at Tsat(P) — previously
+      // hard-coded to water at 100°C regardless of fluid or pressure.
+      const liqKeyC = LIQUID_OF[hFlKey] || hFlKey;
+      const liqAtTsat = FP[liqKeyC] ? fluidAtConditions(liqKeyC, Tsat_h, hPop) : null;
+      const hSatLiq  = liqAtTsat && liqAtTsat.rho > GAS_RHO_THRESHOLD ? {
+        rho:  liqAtTsat.rho,
+        mu:   liqAtTsat.mu,
+        k:    liqAtTsat.k,
+        hvap: (hFluid._src === 'coolprop' && hFluid.hvap != null) ? hFluid.hvap
+              : (hvapAtT(hFlKey, Tsat_h) || hFluid.hvap || 2257),
+        Tsat: Tsat_h
+      } : {
+        rho:  960,    // fallback: liquid water at ~100°C
         mu:   0.282,  // mPa·s  (liquid)
         k:    0.680,  // W/mK   (liquid)
         hvap: hFluid.hvap ?? 2257,
@@ -1064,8 +1809,17 @@ function calcShellTube(b) {
     } else if (shellMode === 'evaporating') {
       // Cold tube side is boiling — Chen (1966) correlation with correct Xtt
       // Pass the vapour-phase fluid for Xtt calculation (quality = 0.5 average)
-      const cFluidVap = fluidAtConditions(cFlKey.replace('-liquid',''), cTmean, cPop);
-      hTube_base = calcHboiling(cFluid, tubeRes_iter.h, tubeRes_iter.Re, 0.5, cFluidVap);
+      // FIX (audit 2026-07): '-liquid' → '' produced keys not in the fluid DB
+      // (e.g. 'ammonia-liquid' → 'ammonia', which silently fell back to WATER,
+      // so Xtt used liquid-water density as the "vapour" density). Now mapped
+      // to the correct vapour-phase key, defaulting to steam if none exists.
+      const VAPOUR_KEY = { 'water':'steam', 'ammonia-liquid':'ammonia-gas', 'r717':'ammonia-gas' };
+      let vapKey = VAPOUR_KEY[cFlKey] || cFlKey.replace('-liquid','-gas');
+      if (!FP[vapKey]) vapKey = 'steam';
+      const cFluidVap = fluidAtConditions(vapKey, cTmean, cPop);
+      // FIX (audit 2026-07): pass cPop so the nucleate term uses the real
+      // reduced pressure instead of hard-coded steam at 1 atm.
+      hTube_base = calcHboiling(cFluid, tubeRes_iter.h, tubeRes_iter.Re, 0.5, cFluidVap, cPop);
     } else {
       hTube_base = tubeRes_iter.h;   // phi_c already applied inside calcHtube
     }
@@ -1093,7 +1847,12 @@ function calcShellTube(b) {
   const Ao_Ai  = OD / Di;
 
   // ── Recalculate cTo with converged fluid properties ──
-  if (coldMode === 'flow' && shellMode !== 'evaporating') {
+  // FIX (validation suite 2026-07, Tier-1 check 1.7): this recompute is
+  // SENSIBLE-heat only (hFluid.cp·ΔT_hot). It previously ran for condensing
+  // mode too, overwriting the latent-based cTo from the convergence loop and
+  // collapsing Qc (and hence Q=(Qh+Qc)/2) to the ~4% desuperheat fraction.
+  // It must run for single-phase ONLY.
+  if (coldMode === 'flow' && shellMode === 'single-phase') {
     cTo = cTi + (hFluid.cp * massH * (hTi - hTo)) / (cFluid.cp * massC);
     cTmean = (cTi + cTo) / 2;
     cFluid = fluidAtConditions(cFlKey, cTmean, cPop);
@@ -1133,8 +1892,36 @@ function calcShellTube(b) {
     balErr = Math.abs(Qh - Qc) / Math.max(Qh, Qc, 0.001) * 100;
   }
 
-  // Required area from converged U and LMTD
-  const area = Q * 1000 / (U * FLMTD);
+  // ── UPGRADE (2026-07): ZONE-WISE AREA for phase-change services ───────────
+  // Condensers/evaporators no longer sized with one U and one LMTD.
+  // The zone marcher computes local U·ΔT per thermodynamic zone and quality
+  // increment; A_req = Σ A_i. Single-phase services keep the converged
+  // single-point method (already iterating properties and wall viscosity).
+  let zoneModel = null;
+  const zoneParams = {
+    hFlKey, hPop, massH, cFlKey, cPop, massC, cTi, cTo,
+    OD, Di, L_eff, nTubesPerPass: nTubesPerPass_geo, shellID: shellID_geo,
+    pitch, bcut: bcut_frac, bsp: bsp_ratio, nTubes: numTubes_geo, tema, pitchLayout,
+    Rfo, Rfi, Rwall, Ao_Ai, boilCorr: b.boilCorr || 'gungor-winterton'
+  };
+  let dryoutWarn = null;
+  if (shellMode === 'condensing' && phaseZones) {
+    zoneModel = marchCondensingZones({ ...zoneParams,
+      Tsat: phaseZones.Tsat, hTi, hTo, hvap_kJkg: phaseZones.hvap_kJkg });
+  } else if (shellMode === 'evaporating' && phaseZones) {
+    zoneModel = marchEvaporatingZones({ ...zoneParams,
+      Tsat: phaseZones.Tsat, hTi, hTo, Qhot, hvap_kJkg: phaseZones.hvap_kJkg });
+    if (zoneModel.dryout) dryoutWarn =
+      '⚠ DRYOUT — hot-side duty exceeds the cold flow\'s latent capacity (exit quality reaches 1.0). ' +
+      'Vapour superheating beyond dryout is NOT modelled; increase cold flow or reduce hot duty.';
+  }
+
+  // Required area: zone-summed for phase change, converged single-point otherwise
+  const area = (zoneModel && zoneModel.A_total > 0)
+    ? zoneModel.A_total
+    : Q * 1000 / (U * FLMTD);
+  // Duty-weighted effective U consistent with the reported overall FLMTD
+  const U_effective = zoneModel ? Q * 1000 / (area * FLMTD) : U;
 
   // ── DUAL-OBJECTIVE TUBE COUNT SOLVER ─────────────────────────────────────
   // Engineering principle (your correct observation):
@@ -1262,6 +2049,7 @@ function calcShellTube(b) {
   const tubeDp = calcPressDropTube(cFluid, massC / nTubesPerPass_final, Di, L_eff, nPasses);
 
   const warns = [];
+  if (dryoutWarn) warns.push(dryoutWarn);
   if (area_enforcement_note) warns.push('⚠ ' + area_enforcement_note);
   if (!converged) warns.push(`U convergence not fully achieved after ${iterCount} iterations — final deviation ${U_deviation_pct.toFixed(2)}%`);
 
@@ -1351,7 +2139,33 @@ function calcShellTube(b) {
   if (shellMode === 'condensing'  && !cFluidDB.hvap) warns.push('Condensing mode: no hvap data for this fluid — using Nusselt film correlation only');
   if (shellMode === 'evaporating' && !hFluidDB.hvap) warns.push('Evaporating mode: no hvap data — Chen correlation using approximate Xtt=0.9');
 
-  const st = overSurf < -5 ? 'err' : overSurf < 5 ? 'warn' : 'ok';
+  // ── UPGRADE (2026-07): flow-induced vibration screening ───────────────────
+  // Runs on every S&T design using the final geometry. For condensing shells
+  // the crossflow is vapour at inlet — screen with vapour density (worst case
+  // for velocity, conservative for FEI given the low added mass).
+  let vibration = null;
+  try {
+    const vibShellFluid = (shellMode === 'condensing')
+      ? fluidAtConditions(hFlKey, phaseZones?.Tsat ?? hTmean, hPop)
+      : hFluid;
+    vibration = calcVibrationScreen({
+      matKey: b.mat || 'cs',
+      OD, Di,
+      span_m: bsp_ratio * (shellID_gas || shellID_final),
+      shellID: shellID_gas || shellID_final,
+      pitch_ratio: pitch,
+      massH_kgs: massH,
+      rhoShell: vibShellFluid.rho,
+      muShell_mPas: vibShellFluid.mu,
+      rhoTubeFluid: cFluid.rho,
+      isGas: isHotGas,
+      T_K: hTmean + 273.15,
+      MW: hFluidDB.MW
+    });
+    vibration.checks.forEach(c => warns.push((vibration.status === 'err' ? '✗ VIBRATION — ' : '⚠ VIBRATION — ') + c));
+  } catch (e) { vibration = { status: 'na', checks: ['Vibration screen unavailable: ' + e.message] }; }
+
+  const st = overSurf < -5 ? 'err' : overSurf < 5 ? 'warn' : (vibration && vibration.status === 'err') ? 'err' : 'ok';
   const resistanceBreakdown = calcResistanceBreakdown(hShell, hTube, Rfo, Rfi, Rwall, OD / Di);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1546,6 +2360,9 @@ function calcShellTube(b) {
 
   return {
     hF, cF, Q, Qh, Qc, U, U_clean, area, area_provided, overSurf,
+    U_effective,                 // duty-consistent U (differs from film U for zone-marched services)
+    zoneModel,                   // zone-by-zone {zone, Q_kW, U, LMTD, A_m2, A_pct} for phase change
+    vibration,                   // TEMA-style flow-induced vibration screen
     lmtd, F, FLMTD, dT1, dT2, lmtdArr, shellMode,
     numTubes: numTubes_final, nTubesPerPass: nTubesPerPass_final,
     numTubes_velocity: numTubes_geo,
@@ -1605,23 +2422,35 @@ function calcPlate(b) {
   
   let cF = parseFloat(b.cF) || 0, cTo = parseFloat(b.cTo) || 0;
   const coldMode = b.coldMode || 'flow';
-  
+
+  // FIX (audit 2026-07 — CONFIRMED Meta AI Bug #1): the cold-side energy
+  // balance previously used hFluid.cp (the HOT fluid's specific heat) for
+  // the COLD stream. For water (4.18) hot vs thermal-oil (2.3) cold, the
+  // required cold flow came out ~45% low, cTo was wrong, and the energy
+  // balance error was artificially zero (both sides used the same cp).
+  // Now uses the cold fluid's own temperature-corrected cp, with a short
+  // fixed-point iteration because cp depends on cTmean which depends on cTo.
+  let cFluid;
   if (coldMode === 'temp') {
     if (cTo <= cTi) throw new Error('Cold outlet must be > cold inlet');
     if (cTo >= hTi) throw new Error('Cold outlet cannot exceed hot inlet');
-    cF = (Qhot / (hFluid.cp * (cTo - cTi))) * 3600;
+    cFluid = fluidAtConditions(cFlKey, (cTi + cTo) / 2, cPop);
+    cF = (Qhot / (cFluid.cp * (cTo - cTi))) * 3600;
   } else {
     if (cF <= 0) throw new Error('Cold flow must be positive');
-    cTo = cTi + Qhot / ((cF / 3600) * hFluid.cp);
-    if (cTo >= hTi) throw new Error('Cold outlet exceeds hot inlet — check flow/temps');
+    cFluid = fluidAtConditions(cFlKey, cTi, cPop);      // initial guess at inlet T
+    for (let it = 0; it < 3; it++) {                    // converges in 2-3 passes
+      cTo = cTi + Qhot / ((cF / 3600) * cFluid.cp);
+      if (cTo >= hTi) throw new Error('Cold outlet exceeds hot inlet — check flow/temps');
+      cFluid = fluidAtConditions(cFlKey, (cTi + cTo) / 2, cPop);
+    }
   }
-  
-  const Qcold = (cF / 3600) * hFluid.cp * (cTo - cTi);
+
+  const Qcold = (cF / 3600) * cFluid.cp * (cTo - cTi);
   const balErr = Math.abs(Qhot - Qcold) / Math.max(Qhot, Qcold, 0.001) * 100;
   const Q = (Qhot + Qcold) / 2;
-  
+
   const cTmean = (cTi + cTo) / 2;
-  const cFluid = fluidAtConditions(cFlKey, cTmean, cPop);
   
   // --- Geometry ---
   const th = requireFinite(b.th, 'th') / 1000, angle = parseFloat(b.angle) || 45;
@@ -1636,7 +2465,15 @@ function calcPlate(b) {
   
   const Dh = 2 * gap / phi;
   const Ac = pw * gap;
-  const A_plate = pw * plen;
+  // FIX (audit 2026-07 — Meta AI Bug #6 resolved properly): the old code used
+  // PROJECTED plate area (pw·plen) but multiplied Nu by phi to compensate —
+  // a mixed basis that made the Rwall and fouling terms inconsistent (they
+  // were per developed area, over-weighted by ~phi). Now everything is on the
+  // standard DEVELOPED (effective) area basis, matching vendor datasheet
+  // convention: A_plate = phi·pw·plen, and Nu is used as-correlated (no ×phi).
+  // Plate-count results are essentially unchanged; reported areas are now
+  // true effective heat-transfer areas.
+  const A_plate = phi * pw * plen;
   
   // --- HTC: Martin (1996) Nusselt correlation ---
   function htcPlate(fluid, mKgs_total, nChannels) {
@@ -1650,7 +2487,8 @@ function calcPlate(b) {
     else if (ang <= 45) { C_Nu = 0.350; m_Nu = 0.68; }
     else if (ang <= 60) { C_Nu = 0.479; m_Nu = 0.70; }
     else { C_Nu = 0.560; m_Nu = 0.72; }
-    const Nu = C_Nu * Math.pow(Math.max(Re, 10), m_Nu) * Math.pow(Pr, 0.333) * phi;
+    // ×phi removed (see A_plate comment above — developed-area basis)
+    const Nu = C_Nu * Math.pow(Math.max(Re, 10), m_Nu) * Math.pow(Pr, 0.333);
     return { h: Nu * fluid.k / Dh, Re, G, vel: mKgs / Math.max(fluid.rho * Ac, 1e-8) };
   }
   
@@ -1689,7 +2527,15 @@ function calcPlate(b) {
       const v_port = mKgs_total / Math.max(fluid.rho * A_port, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     } else {
-      const A_port_est = Math.max(nChannels * Ac, 1e-6);
+      // FIX (audit 2026-07 — CONFIRMED Meta AI Bug #7): the fallback used
+      // A_port_est = nChannels×Ac (the TOTAL channel flow area), making the
+      // "port velocity" equal the channel velocity and the port ΔP negligible.
+      // Real ports are far smaller. Estimate D_port ≈ 0.30 × plate width
+      // (typical gasketed-PHE proportion) → realistic port velocity.
+      // NOTE: the frontend currently never sends portDia, so this fallback
+      // is ALWAYS the active path.
+      const D_port_est = 0.30 * pw;
+      const A_port_est = Math.max(Math.PI * D_port_est * D_port_est / 4, 1e-6);
       const v_port = mKgs_total / Math.max(fluid.rho * A_port_est, 1e-8);
       dP_port = 1.4 * fluid.rho * v_port * v_port / 2;
     }
@@ -1785,8 +2631,10 @@ function calcPlate(b) {
   const dpC = pdPlate(cFluid, cF / 3600, nChanC, portDia_m);
   
   // --- Performance metrics ---
-  const NTU = A_req * U / Math.max(Math.min((hF / 3600) * hFluidDB.cp, (cF / 3600) * cFluidDB.cp) * 1000, 0.001);
-  const Cmin = Math.min((hF / 3600) * hFluidDB.cp, (cF / 3600) * cFluidDB.cp);
+  // FIX (audit 2026-07): NTU/Cmin now use temperature-corrected cp
+  // (hFluid/cFluid at mean temps), not the 20°C database reference values.
+  const NTU = A_req * U / Math.max(Math.min((hF / 3600) * hFluid.cp, (cF / 3600) * cFluid.cp) * 1000, 0.001);
+  const Cmin = Math.min((hF / 3600) * hFluid.cp, (cF / 3600) * cFluid.cp);
   const eff = Cmin > 0 ? Q / (Cmin * (hTi - cTi)) : 0;
   
   // --- Status and warnings ---
@@ -1845,7 +2693,11 @@ function calcAirCooled(b) {
   if (Tamb >= To) throw new Error('Ambient must be below process outlet');
 
   // Heat duty kW
-  const Q = (F_kgh / 3600) * fluid.cp * (Ti - To);
+  // FIX (audit 2026-07 — own finding): was using the 20°C database cp.
+  // Now uses cp at the process mean temperature (tubeFluid, also reused
+  // below for the tube-side HTC).
+  const tubeFluid = fluidAtConditions(flKey, (Ti + To) / 2, parseFloat(b.Pop) || P_REF_DB);
+  const Q = (F_kgh / 3600) * tubeFluid.cp * (Ti - To);
   const TairOut = Tamb + dTa;
 
   // Extended surface geometry
@@ -1881,8 +2733,7 @@ function calcAirCooled(b) {
   const eta_0    = 1 - phi_fin * (1 - eta_fin);           // overall surface efficiency
   const h_eff    = eta_0 * h_air_bare;
 
-  // Tube-side HTC (Dittus-Boelter)
-  const tubeFluid = fluidAtConditions(flKey, (Ti+To)/2, parseFloat(b.Pop)||P_REF_DB);
+  // Tube-side HTC (Dittus-Boelter) — tubeFluid declared above with Q
   const tubeRes   = calcHtube(tubeFluid, F_kgh/3600/nTubes, tubeID, tubeLen);
 
   // Overall U on extended-surface basis
@@ -1934,16 +2785,25 @@ function calcDoublePipe(b) {
   const Qhot=(hF/3600)*hFluid.cp*(hTi-hTo);
   let cF=parseFloat(b.cF)||0, cTo=parseFloat(b.cTo)||0;
   const coldMode=b.coldMode||'flow';
+  // FIX (audit 2026-07 — CONFIRMED Meta AI Bug #2): cold-side balance used
+  // cFluidDB.cp (20°C database reference) while Qcold used the temperature-
+  // corrected cp — producing a fake balance error and a biased cTo/cF.
+  // Now iterated with the cold fluid's cp at its actual mean temperature.
+  let cFluid;
   if (coldMode==='flow') {
     if (cF<=0) throw new Error('Cold flow must be positive');
-    cTo=cTi+Qhot/((cF/3600)*cFluidDB.cp);
+    cFluid=fluidAtConditions(cFlKey,cTi,cPop);            // initial guess at inlet T
+    for (let it=0; it<3; it++) {                          // converges in 2-3 passes
+      cTo=cTi+Qhot/((cF/3600)*cFluid.cp);
+      cFluid=fluidAtConditions(cFlKey,(cTi+cTo)/2,cPop);
+    }
   } else {
     if (cTo<=cTi) throw new Error('Cold outlet must be > cold inlet');
-    cF=(Qhot/(cFluidDB.cp*(cTo-cTi)))*3600;
+    cFluid=fluidAtConditions(cFlKey,(cTi+cTo)/2,cPop);
+    cF=(Qhot/(cFluid.cp*(cTo-cTi)))*3600;
   }
   if (cTo>=hTi) throw new Error('Cold outlet exceeds hot inlet');
   const cTmean=(cTi+cTo)/2;
-  const cFluid=fluidAtConditions(cFlKey,cTmean,cPop);
   const Qcold=(cF/3600)*cFluid.cp*(cTo-cTi);
   const Q=(Qhot+Qcold)/2;
   const balErr=Math.abs(Qhot-Qcold)/Math.max(Qhot,Qcold,0.001)*100;
@@ -1999,8 +2859,9 @@ function calcDoublePipe(b) {
   const dpInner=calcPressDropTube(hFluid,hF/3600,iID,L_total,1);
   const f_ann=Re_ann<2300?64/Math.max(Re_ann,1):Math.pow(0.790*Math.log(Math.max(Re_ann,10))-1.64,-2);
   const dpAnn=(f_ann*(L_total/Dh_ann)+2.0)*cFluid.rho*velAnn*velAnn/2/1e5;
-  const NTU=A_req*U/Math.max(Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp)*1000,0.001);
-  const Cmin=Math.min((hF/3600)*hFluidDB.cp,(cF/3600)*cFluidDB.cp);
+  // FIX (audit 2026-07): NTU/Cmin use temperature-corrected cp, not DB reference
+  const NTU=A_req*U/Math.max(Math.min((hF/3600)*hFluid.cp,(cF/3600)*cFluid.cp)*1000,0.001);
+  const Cmin=Math.min((hF/3600)*hFluid.cp,(cF/3600)*cFluid.cp);
   const eff=Cmin>0?Q/(Cmin*(hTi-cTi)):0;
   const st=overDesign<0?'err':overDesign<5?'warn':'ok';
   const warns=[];
@@ -2055,7 +2916,10 @@ function calcFinFan(b) {
   const tF_kgs=tF_kgh/3600;
   const aTmean=(aTamb+aTout)/2;
   const aFluid=fluidAtConditions('air',aTmean,aPop);
-  const Qhot=tF_kgs*tFlDB.cp*(tTi-tTo);
+  // FIX (audit 2026-07 — own finding): duty previously used tFlDB.cp (20°C
+  // database reference). Now uses cp at the tubeside mean temperature —
+  // for hot oils (cp rises ~10-15% from 20°C to 100°C+) this matters.
+  const Qhot=tF_kgs*tFluid.cp*(tTi-tTo);
   const nTubeTotal=nTubes*nBays*nBundlesPBay;
   const finSpacing=1.0/finDensity;
   const finsPerTube=finDensity*tubeLen;
@@ -2107,8 +2971,11 @@ function calcFinFan(b) {
   const j_factor  = tubeLayout === 'staggered'
     ? 0.1378 * Math.pow(Re_safe, -0.2178) * Math.pow(s_over_D, -0.1285)
     : 0.0724 * Math.pow(Re_safe, -0.2115) * Math.pow(s_over_D, -0.1472);
-  let h_air = j_factor * G_max * cp_air_J / Math.pow(Pr_air, 2/3);
-  for (let i = 0; i < 5; i++) { finEff(h_air); h_air = j_factor * G_max * cp_air_J / Math.pow(Pr_air, 2/3); }
+  // FIX (audit 2026-07 — Meta AI Bug #8): removed a dead loop that called
+  // finEff() five times, discarded the result, and recomputed h_air to the
+  // identical value each pass. It never affected results (the line below
+  // already computes eta correctly) — pure wasted work, now deleted.
+  const h_air = j_factor * G_max * cp_air_J / Math.pow(Pr_air, 2/3);
   const {eta_fin, eta_surf} = finEff(h_air);
   const h_air_eff = eta_surf * h_air;
   const nTubesPerPass=Math.max(1,Math.round(nTubes/nPasses));
@@ -2228,6 +3095,10 @@ function calcWallThickness(b) {
   let S_MPa=parseFloat(b.S)||138;
   const CA_mm=parseFloat(b.CA)||3, MT_mm=parseFloat(b.MT)||0.6;
   const E=parseFloat(b.E)||1.0, alpha=parseFloat(b.alpha)||30;
+  // NOTE (audit 2026-07): the frontend's wt_mat dropdown sends NUMERIC strings
+  // ("138","118","130","103","96","115") or "custom", never names like 'ss316'.
+  // parseFloat therefore works; 'custom' correctly falls back to the wt_S input.
+  // Do NOT add a name→stress map here without also changing the frontend options.
   if(b.mat&&b.mat!=='custom') S_MPa=parseFloat(b.mat)||S_MPa;
   const P_MPa=P_barg*0.1, R_i=D_mm/2;
   if(P_MPa<=0||D_mm<=0||S_MPa<=0) throw new Error('Enter valid pressure, diameter, and stress');
