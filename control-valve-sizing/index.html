@@ -480,12 +480,15 @@ select option{background:var(--ink2)}
   background:var(--panel);color:#DCE7E4;border:1px solid var(--panelLine);border-radius:8px;padding:8px 14px;cursor:pointer}
 #cvReport .cv-toolbar button:hover{background:var(--panel2)}
 @media print{
-  body *{visibility:hidden !important;}
-  #cvReport, #cvReport *{visibility:visible !important;}
-  #cvReport{position:absolute;left:0;top:0;width:100%;margin:0;padding:10px;
+  /* Print ONLY the report: remove every other top-level block from the flow
+     (display:none, not visibility:hidden — the latter left blank pages). */
+  body > *:not(#cvReport){display:none !important;}
+  #cvReport{display:block !important;position:static !important;margin:0 !important;
+    padding:0 !important;border-radius:0 !important;max-width:none !important;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #cvReport .wrap,#cvReport .panel,#cvReport .rails,#cvReport .charts,#cvReport .matrix,#cvReport .notes{max-width:none !important;}
   #cvReport .cv-noprint{display:none !important;}
-  #cvReport .chartcard,#cvReport .matrix,#cvReport .rail,#cvReport .notes{break-inside:avoid;}
+  #cvReport .chartcard,#cvReport .matrix,#cvReport .rail,#cvReport .notes,#cvReport .panel{break-inside:avoid;}
   @page{margin:12mm;}
 }
 </style>
@@ -3517,34 +3520,41 @@ function renderReport(d){
     </div>`).join('');
 
   // ── rails ── each rail: value fn + caution/critical thresholds ──
+  const vLim = (cases[0] && cases[0].velLim_ms) ? cases[0].velLim_ms : 30;
   const railDefs=[
-    {name:'Valve opening', unit:'% travel', z1:20, z2:85, max:100,
+    // BAND rail: both extremes are bad, the middle band is the sweet spot.
+    {name:'Valve opening', type:'band', cl:10, lo:20, hi:80, ch:90, max:100,
       val:c=>c.openPct, fmt:c=>c.openPct+'%',
-      note:'target 20–80% at design'},
-    {name:'Aero. noise', unit:'dB(A) @1m', z1:80, z2:90, max:110,
+      note:'best 20–80% · under 20% = poor control'},
+    {name:'Aero. noise', type:'mono', z1:80, z2:90, max:110,
       val:c=>c.LpAe??0, fmt:c=>(c.LpAe??'—')+' dB',
       note:'85 dB(A) OSHA action level'},
-    {name:'Pipe velocity', unit:'of limit', z1:70, z2:100, max:130,
-      val:c=>(c.vel_disp/c.velLim*100), fmt:c=>c.vel_disp+' '+c.velUnit,
-      note:'limit '+ (cases[0]?cases[0].velLim:'—') +' '+(cases[0]?cases[0].velUnit:'')},
-    {name:'Choke margin', unit:'x / x_choke', z1:80, z2:100, max:120,
+    {name:'Pipe velocity', type:'mono', z1:70, z2:100, max:130,
+      val:c=>(c.u2P!=null?c.u2P:0)/vLim*100, fmt:c=>(c.u2P!=null?c.u2P:'—')+' m/s',
+      note:'limit '+vLim+' m/s'},
+    {name:'Choke margin', type:'mono', z1:80, z2:100, max:120,
       val:c=>Math.min(c.x_ratio*100,120), fmt:c=>(c.x_ratio*100).toFixed(0)+'%',
       note:'100% = onset of choked flow'},
   ];
+  const G={ok:'var(--ok-bg)',c:'var(--caution-bg)',r:'var(--crit-bg)'};
   document.getElementById('rails').innerHTML=railDefs.map(r=>{
-    const z1pct=r.z1/r.max*100, z2pct=r.z2/r.max*100;
-    // stack markers that are close together
-    const marks=cases.map((c,i)=>{
-      let v=r.val(c); v=Math.max(0,Math.min(v,r.max));
-      const pos=v/r.max*100;
-      return {pos, label:c.label, txt:r.fmt(c), i};
-    }).sort((a,b)=>a.pos-b.pos);
+    let grad, zlines;
+    if(r.type==='band'){
+      const cl=r.cl/r.max*100, lo=r.lo/r.max*100, hi=r.hi/r.max*100, ch=r.ch/r.max*100;
+      grad=`linear-gradient(90deg,${G.r} 0,${G.r} ${cl}%,${G.c} ${cl}%,${G.c} ${lo}%,${G.ok} ${lo}%,${G.ok} ${hi}%,${G.c} ${hi}%,${G.c} ${ch}%,${G.r} ${ch}%,${G.r} 100%)`;
+      zlines=[cl,lo,hi,ch];
+    } else {
+      const z1=r.z1/r.max*100, z2=r.z2/r.max*100;
+      grad=`linear-gradient(90deg,${G.ok} 0,${G.ok} ${z1}%,${G.c} ${z1}%,${G.c} ${z2}%,${G.r} ${z2}%,${G.r} 100%)`;
+      zlines=[z1,z2];
+    }
+    const marks=cases.map(c=>{ let v=r.val(c); v=Math.max(0,Math.min(v,r.max));
+      return {pos:v/r.max*100, label:c.label, txt:r.fmt(c)}; }).sort((a,b)=>a.pos-b.pos);
     marks.forEach((mk,idx)=>{ let s=1; for(let j=0;j<idx;j++){ if(Math.abs(mk.pos-marks[j].pos)<10) s++; } mk.stack=Math.min(s,3); });
     return `<div class="rail">
       <div class="rail-head"><span class="name">${r.name}</span><span class="lim">${r.note}</span></div>
-      <div class="track" style="--z1:${z1pct}%;--z2:${z2pct}%">
-        <div class="zline" style="left:${z1pct}%"></div>
-        <div class="zline" style="left:${z2pct}%"></div>
+      <div class="track" style="background:${grad}">
+        ${zlines.map(z=>`<div class="zline" style="left:${z}%"></div>`).join('')}
         ${marks.map(mk=>`<div class="mark stack${mk.stack}" style="left:${mk.pos}%">
             <div class="bub">${mk.label} · ${mk.txt}</div><div class="pin"></div></div>`).join('')}
       </div>
@@ -3628,6 +3638,7 @@ function chartSVG(cfg){
 function buildCharts(d){
   const cases=d.cases||[], R=d.valve.R_trim||50, type=d.valve.charType, Cv100=d.valve.Cv100;
   const qmax=Math.max(...cases.map(c=>c.inputs?c.inputs.Q:0))||1;
+  const vLim=(cases[0]&&cases[0].velLim_ms)?cases[0].velLim_ms:30;
   const load=c=>(c.inputs?c.inputs.Q:0)/qmax*100;
   const N=60, curve=[]; for(let i=0;i<=N;i++){const h=i/N;curve.push({x:h*100,y:charFn(type,h,R)*100});}
   // gain curve (numerical derivative, normalised to its own max)
@@ -3667,7 +3678,7 @@ function buildCharts(d){
         hlines:[{y:100,color:'#D45B4E',label:'limit'}],
         curves:[
           {pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),cls:'cx-curve'},
-          {pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.vel_disp/c.velLim*100,120)})),cls:'cx-curve2'} ],
+          {pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min((c.u2P!=null?c.u2P:0)/vLim*100,120)})),cls:'cx-curve2'} ],
         markers:cases.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]})) }),
       legend:[['var(--signal)','x / x_choke'],['var(--steel)','velocity / limit']] },
   ];
