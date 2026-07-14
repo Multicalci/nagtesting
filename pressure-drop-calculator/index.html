@@ -652,8 +652,24 @@ select{
 }
 .fluid-badge-change:hover { background:var(--primary); color:#fff; }
 </style>
-<!-- html2pdf library — loaded early, two CDN fallbacks -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- html2pdf library — loaded early, with a real fallback CDN in case the primary is blocked -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" onerror="this.dataset.failed=1"></script>
+<script>
+(function () {
+  var primary = document.currentScript.previousElementSibling;
+  function loadFallback() {
+    if (typeof html2pdf !== 'undefined') return;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
+    document.head.appendChild(s);
+  }
+  // If the primary tag already errored (blocked domain), or hasn't defined
+  // html2pdf shortly after load (e.g. blocked by an ad/script blocker that
+  // lets the request "succeed" with an empty response), load the fallback.
+  if (primary && primary.dataset.failed) { loadFallback(); }
+  else { setTimeout(loadFallback, 2500); }
+})();
+</script>
 </head>
 <body>
 <!-- ══ TOP NAV ══ -->
@@ -2570,6 +2586,7 @@ function generatePDF() {
   const origTxt = btn ? btn.innerHTML : '';
   if (btn) { btn.innerHTML = '⏳ Generating…'; btn.disabled = true; }
 
+  try {
   // Build fittings rows
   let fitRows = '';
   if (r.fittingsSnapshot && r.fittingsSnapshot.length) {
@@ -2780,6 +2797,14 @@ function generatePDF() {
       pdfCleanup();
       alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
     });
+  } catch (e) {
+    // Report-HTML build failed BEFORE html2pdf was ever invoked (e.g. a
+    // missing/renamed field on lastResults). Previously this threw silently
+    // and left the button stuck on "Generating…" with no PDF and no message.
+    if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
+    console.error('PDF report build failed:', e);
+    alert('PDF report could not be built: ' + e.message + '. Please screenshot this message and report it — this points to the exact field that failed.');
+  }
 }
 
 </script>
