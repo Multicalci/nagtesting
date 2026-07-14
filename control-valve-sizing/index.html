@@ -346,6 +346,149 @@ select option{background:var(--ink2)}
 .home-btn:hover{background:var(--teal);color:#fff;border-color:var(--teal);
   box-shadow:0 2px 12px rgba(0,122,108,.28);}
 </style>
+
+<!-- multi-case report fonts + scoped styles (added) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style id="cvReportStyles">
+#cvReport{background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.5;font-size:15px;padding:26px 20px 40px;border-radius:16px;margin:8px auto 0;max-width:1100px;-webkit-font-smoothing:antialiased}
+#cvReport[hidden]{display:none}
+#cvReport{
+    --panel:#0E1A1F; --panel2:#132A31; --panelLine:#22424B;
+    --paper:#E7ECEA; --card:#FFFFFF; --ink:#0E1A1F; --muted:#5C6B70;
+    --line:#D3DBD9; --steel:#3E5C76;
+    --signal:#E8B23A;                       /* instrument amber readout        */
+    --ok:#2F9E7B; --caution:#DDA138; --crit:#D45B4E;
+    --ok-bg:#E7F4EF; --caution-bg:#FBF1DE; --crit-bg:#FaE7E4;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+#cvReport *{box-sizing:border-box;margin:0;padding:0}
+#cvReport html{-webkit-text-size-adjust:100%}
+#cvReport body{background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.5;
+    padding:28px 20px 60px;font-size:15px;-webkit-font-smoothing:antialiased}
+#cvReport .wrap{max-width:1080px;margin:0 auto}
+#cvReport /* ── MASTHEAD (instrument panel) ─────────────────────────────── */
+  .panel{background:var(--panel);color:#DCE7E4;border-radius:14px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -24px rgba(14,26,31,.6)}
+#cvReport .mast{padding:22px 26px 20px;border-bottom:1px solid var(--panelLine);
+    display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+#cvReport .mast .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--signal);font-weight:500}
+#cvReport .mast h1{font-family:var(--disp);font-weight:600;font-size:26px;letter-spacing:-.01em;margin-top:6px;color:#F1F7F5}
+#cvReport .mast .sub{color:#7E9299;font-size:13px;margin-top:3px}
+#cvReport .idchips{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end}
+#cvReport .chip{background:var(--panel2);border:1px solid var(--panelLine);border-radius:8px;padding:8px 12px;text-align:right}
+#cvReport .chip .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#6E858C}
+#cvReport .chip .v{font-family:var(--mono);font-size:16px;font-weight:600;color:#F1F7F5;margin-top:2px}
+#cvReport /* ── CHANNEL READOUT (Max/Mean/Min) ──────────────────────────── */
+  .channels{display:grid;grid-template-columns:repeat(3,1fr)}
+#cvReport .ch{padding:18px 22px 20px;border-right:1px solid var(--panelLine);position:relative}
+#cvReport .ch:last-child{border-right:none}
+#cvReport .ch .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8AA0A6}
+#cvReport .ch .cvline{display:flex;align-items:baseline;gap:7px;margin-top:8px}
+#cvReport .ch .cv{font-family:var(--mono);font-size:34px;font-weight:600;color:#F4FAF8;line-height:1}
+#cvReport .ch .cvu{font-family:var(--mono);font-size:12px;color:#7E9299}
+#cvReport .ch .row2{display:flex;justify-content:space-between;margin-top:14px;gap:12px}
+#cvReport .ch .metric .mk{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#6E858C}
+#cvReport .ch .metric .mv{font-family:var(--mono);font-size:15px;font-weight:500;color:#D7E4E1;margin-top:2px}
+#cvReport .sevdot{position:absolute;top:18px;right:22px;display:flex;align-items:center;gap:7px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+#cvReport .dot{width:9px;height:9px;border-radius:50%}
+#cvReport .dot.ok{background:var(--ok);box-shadow:0 0 0 4px rgba(47,158,123,.18)}
+#cvReport .dot.caution{background:var(--caution);box-shadow:0 0 0 4px rgba(221,161,56,.18)}
+#cvReport .dot.critical{background:var(--crit);box-shadow:0 0 0 4px rgba(212,91,78,.2);animation:cvPulse 1.6s ease-in-out infinite}
+@keyframes cvPulse{0%,100%{box-shadow:0 0 0 4px rgba(212,91,78,.2)}50%{box-shadow:0 0 0 8px rgba(212,91,78,0)}}
+#cvReport /* ── SIGNATURE: operating-envelope rails ─────────────────────── */
+  .rails{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px 12px}
+#cvReport .rails h2,#cvReport .matrix h2,#cvReport .notes h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.01em;
+    margin-bottom:3px}
+#cvReport .rails .hint,#cvReport .matrix .hint{color:var(--muted);font-size:12.5px;margin-bottom:20px}
+#cvReport .rail{margin-bottom:22px}
+#cvReport .rail-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+#cvReport .rail-head .name{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+#cvReport .rail-head .lim{font-family:var(--mono);font-size:11px;color:var(--muted)}
+#cvReport .track{position:relative;height:26px;border-radius:6px;overflow:visible;
+    background:linear-gradient(90deg,var(--ok-bg) 0%,var(--ok-bg) var(--z1),var(--caution-bg) var(--z1),var(--caution-bg) var(--z2),var(--crit-bg) var(--z2),var(--crit-bg) 100%);
+    border:1px solid var(--line)}
+#cvReport .zline{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+#cvReport .mark{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;
+    transition:left .7s cubic-bezier(.22,.61,.36,1)}
+#cvReport .mark .pin{width:2px;height:26px;background:var(--ink);position:absolute;top:-13px}
+#cvReport .mark .bub{background:var(--ink);color:#fff;font-family:var(--mono);font-size:10px;font-weight:600;
+    padding:3px 7px;border-radius:5px;white-space:nowrap;position:relative;top:-24px}
+#cvReport .mark .bub::after{content:'';position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);
+    border:4px solid transparent;border-top-color:var(--ink);border-bottom:0}
+#cvReport .mark.stack1 .bub{top:-24px}
+#cvReport .mark.stack2 .bub{top:-42px}
+#cvReport .mark.stack2 .pin{height:44px;top:-31px}
+#cvReport .mark.stack3 .bub{top:-60px}
+#cvReport .mark.stack3 .pin{height:62px;top:-49px}
+#cvReport .zonekey{display:flex;gap:18px;margin-top:6px;flex-wrap:wrap}
+#cvReport .zonekey span{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+#cvReport .zonekey i{width:10px;height:10px;border-radius:3px;display:inline-block}
+#cvReport /* ── CHARTS ──────────────────────────────────────────────────── */
+  .charts{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px 22px}
+#cvReport .chartgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px}
+#cvReport .chartcard{border:1px solid var(--line);border-radius:11px;padding:16px 16px 10px;background:#FbFCFC}
+#cvReport .chartcard .ct{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+#cvReport .chartcard .cs{font-family:var(--body);font-size:11.5px;color:var(--muted);margin-top:2px;margin-bottom:6px}
+#cvReport .chartcard svg{display:block;width:100%;height:auto;overflow:visible}
+#cvReport .cx-grid{stroke:var(--line);stroke-width:1}
+#cvReport .cx-axis{stroke:var(--steel);stroke-width:1.4}
+#cvReport .cx-tick{font-family:var(--mono);font-size:9px;fill:var(--muted)}
+#cvReport .cx-alab{font-family:var(--mono);font-size:9.5px;fill:var(--steel);font-weight:500}
+#cvReport .cx-curve{fill:none;stroke:var(--signal);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+#cvReport .cx-curve2{fill:none;stroke:var(--steel);stroke-width:2;stroke-dasharray:5 4;stroke-linejoin:round}
+#cvReport .cx-drop{stroke:#B7C2C0;stroke-width:1;stroke-dasharray:3 3}
+#cvReport .cx-mlab{font-family:var(--mono);font-size:9.5px;font-weight:600}
+#cvReport .clegend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+#cvReport .clegend span{font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;align-items:center;gap:5px}
+#cvReport .clegend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+#cvReport /* ── MATRIX ──────────────────────────────────────────────────── */
+  .matrix{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px 20px}
+#cvReport table{width:100%;border-collapse:collapse;margin-top:4px}
+#cvReport th,#cvReport td{text-align:right;padding:11px 10px;font-family:var(--mono);font-size:13.5px;border-bottom:1px solid var(--line)}
+#cvReport th:first-child,#cvReport td:first-child{text-align:left;font-family:var(--body);color:var(--muted);font-size:13px;font-weight:500}
+#cvReport thead th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel);
+    border-bottom:2px solid var(--steel);padding-bottom:9px}
+#cvReport thead th:first-child{color:var(--ink);font-family:var(--disp);font-weight:600;letter-spacing:0;text-transform:none;font-size:13px}
+#cvReport tbody tr:hover{background:#F5F8F7}
+#cvReport td .u{color:var(--muted);font-size:11px;margin-left:3px}
+#cvReport .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
+#cvReport .badge.ok{background:var(--ok-bg);color:var(--ok)}
+#cvReport .badge.caution{background:var(--caution-bg);color:#A9750F}
+#cvReport .badge.critical{background:var(--crit-bg);color:var(--crit)}
+#cvReport tr.spacer td{border-bottom:none;padding:4px}
+#cvReport /* ── NOTES ───────────────────────────────────────────────────── */
+  .notes{margin-top:22px;background:var(--panel);color:#B9CBC7;border-radius:14px;padding:22px 26px}
+#cvReport .notes h2{color:#F1F7F5}
+#cvReport .notes ul{list-style:none;margin-top:10px;display:grid;gap:9px}
+#cvReport .notes li{font-size:13px;padding-left:20px;position:relative;line-height:1.55}
+#cvReport .notes li::before{content:'';position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:2px;background:var(--signal)}
+#cvReport .notes code{font-family:var(--mono);font-size:12px;background:var(--panel2);padding:1px 6px;border-radius:4px;color:#D7E4E1}
+#cvReport .foot{margin-top:18px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+@media (max-width:760px){#cvReport .channels{grid-template-columns:1fr}#cvReport .ch{border-right:none;border-bottom:1px solid var(--panelLine)}#cvReport .ch:last-child{border-bottom:none}#cvReport .mast{flex-direction:column}#cvReport .idchips{justify-content:flex-start}#cvReport body{padding:14px 12px 40px}#cvReport thead th:not(:first-child),#cvReport td:not(:first-child){padding:9px 6px;font-size:12px}#cvReport .chartgrid{grid-template-columns:1fr}
+  }
+@media (prefers-reduced-motion:reduce){#cvReport *{animation:none!important;transition:none!important}}
+
+/* multi-case report — toolbar + print isolation (added) */
+#cvReport .cv-toolbar{max-width:1080px;margin:0 auto 10px;display:flex;justify-content:flex-end}
+#cvReport .cv-toolbar button{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em;
+  background:var(--panel);color:#DCE7E4;border:1px solid var(--panelLine);border-radius:8px;padding:8px 14px;cursor:pointer}
+#cvReport .cv-toolbar button:hover{background:var(--panel2)}
+@media print{
+  body *{visibility:hidden !important;}
+  #cvReport, #cvReport *{visibility:visible !important;}
+  #cvReport{position:absolute;left:0;top:0;width:100%;margin:0;padding:10px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #cvReport .cv-noprint{display:none !important;}
+  #cvReport .chartcard,#cvReport .matrix,#cvReport .rail,#cvReport .notes{break-inside:avoid;}
+  @page{margin:12mm;}
+}
+</style>
 </head>
 <body>
 
@@ -681,6 +824,116 @@ select option{background:var(--ink2)}
     </div>
 
   </div><!-- /results -->
+</div>
+
+
+<!-- ═══════════════ MULTI-CASE LOAD ANALYSIS (added) ═══════════════ -->
+<div class="wrap" style="margin-top:18px">
+  <div class="card" id="mcCard">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="ch-title" style="font-size:1rem">⊞ Multi-Case Load Analysis</div>
+      <span class="hint" style="font-weight:400;text-transform:none">Max / Mean / Min in one report — Cv, opening, IEC 60534-8 noise, velocity, power &amp; severity</span>
+    </div>
+    <p class="hint" style="font-weight:400;text-transform:none;margin:8px 0 4px">
+      Uses the fluid &amp; valve settings from the calculator above (phase, characteristic, rangeability, rated Cv, pipe, SG/k/Z, F<sub>L</sub>).
+      Enter each load case in the same units as the form above — P₁/P₂ follow your <b id="mcUnitNote">absolute</b> pressure toggle.</p>
+
+    <div style="overflow-x:auto;margin-top:10px">
+      <table id="mcTable" style="width:100%;border-collapse:collapse;font-size:.82rem">
+        <thead>
+          <tr style="text-align:left;color:var(--text3)">
+            <th style="padding:6px 8px">Case</th>
+            <th style="padding:6px 8px">Flow <span id="mcU_Q" class="iunit"></span></th>
+            <th style="padding:6px 8px">P₁ <span id="mcU_P1" class="iunit"></span></th>
+            <th style="padding:6px 8px">P₂ <span id="mcU_P2" class="iunit"></span></th>
+            <th style="padding:6px 8px">Temp <span id="mcU_T" class="iunit"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:4px 8px;font-weight:600">Max</td>
+            <td><input type="number" id="mcQ0" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP10" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP20" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcT0" step="any" style="width:100%"></td></tr>
+          <tr><td style="padding:4px 8px;font-weight:600">Mean</td>
+            <td><input type="number" id="mcQ1" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP11" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP21" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcT1" step="any" style="width:100%"></td></tr>
+          <tr><td style="padding:4px 8px;font-weight:600">Min</td>
+            <td><input type="number" id="mcQ2" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP12" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcP22" step="any" style="width:100%"></td>
+            <td><input type="number" id="mcT2" step="any" style="width:100%"></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px">
+      <div class="field"><label data-tip="Valve style modifier Fd (IEC 60534). Globe/contoured plug ≈ 0.46; ball/segment ≈ 0.98.">Fd (valve style)
+        <div class="iw"><input type="number" id="mcFd" value="0.46" step="0.01" min="0.1" max="1.5"><span class="iunit">—</span></div></label></div>
+      <div class="field"><label data-tip="Downstream pipe wall thickness — sets acoustic transmission loss for the noise model.">Pipe wall t<sub>p</sub>
+        <div class="iw"><input type="number" id="mcTp" value="0.237" step="0.001" min="0"><span class="iunit" id="mcU_tp">in</span></div></label></div>
+      <div class="field"><label data-tip="ASME B16.34 body/flange pressure class — sets the p_max rating.">Pressure class
+        <select id="mcPClass">
+          <option value="150">150</option><option value="300" selected>300</option>
+          <option value="600">600</option><option value="900">900</option>
+          <option value="1500">1500</option><option value="2500">2500</option>
+        </select></label></div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn-calc" style="flex:1;min-width:200px" id="mcRun" onclick="runLoadAnalysis()">▶ &nbsp;RUN LOAD ANALYSIS</button>
+      <button class="btn btn-secondary" onclick="mcPrefill()" style="white-space:nowrap">↧ Fill Max row from inputs above</button>
+    </div>
+  </div>
+</div>
+
+<div id="cvReport" hidden>
+  <div class="cv-toolbar cv-noprint"><button type="button" onclick="cvPrintReport()">🖨 Print / PDF</button></div>
+<div class="wrap">
+  <div class="panel">
+    <div class="mast">
+      <div>
+        <div class="eyebrow">Control Valve · Load Analysis</div>
+        <h1 id="title">Straight Globe · Equal %</h1>
+        <div class="sub" id="subtitle">IEC 60534 sizing · 60534-8 noise · multi-case severity</div>
+      </div>
+      <div class="idchips" id="idchips"></div>
+    </div>
+    <div class="channels" id="channels"></div>
+  </div>
+
+  <div class="rails">
+    <h2>Operating envelope</h2>
+    <div class="hint">Where each operating case falls against its safe / caution / critical band. Markers left of the first divider are comfortable; markers in the red zone need attention.</div>
+    <div id="rails"></div>
+    <div class="zonekey">
+      <span><i style="background:var(--ok-bg)"></i>Comfortable</span>
+      <span><i style="background:var(--caution-bg)"></i>Caution — verify</span>
+      <span><i style="background:var(--crit-bg)"></i>Critical — redesign</span>
+      <span style="margin-left:auto">▎ pin = operating case</span>
+    </div>
+  </div>
+
+  <div class="charts">
+    <h2>Valve characteristics</h2>
+    <div class="hint">The selected trim's behaviour across its full travel and load range, with your three operating cases pinned on each curve.</div>
+    <div class="chartgrid" id="chartgrid"></div>
+  </div>
+
+  <div class="matrix">
+    <h2>Case matrix</h2>
+    <div class="hint">Every computed parameter, per operating case. Numbers in engineering mono for quick column scanning.</div>
+    <table id="matrix"></table>
+  </div>
+
+  <div class="notes">
+    <h2>Method &amp; traceability</h2>
+    <ul id="notes"></ul>
+  </div>
+  <div class="foot" id="foot">multicalci.com · generated —</div>
+</div>
 </div>
 
 <div id="copyToast">✓ Link copied to clipboard!</div>
@@ -3231,6 +3484,288 @@ function shrFallback(txt) {
 })();
 </script>
 
+
+<script>
+(function(){
+// Replace this object with your live API response: renderReport(await res.json())
+const CHAR={linear:'Linear',equal_pct:'Equal %',quick_open:'Quick open',modified_parabolic:'Mod. parabolic'};
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function renderReport(d){
+  const cases=d.cases||[];
+  // masthead
+  document.getElementById('title').textContent=(CHAR[d.valve.charType]||d.valve.charType);
+  const chips=[
+    ['Body',d.valve.size],['Cv₁₀₀',d.valve.Cv100],['Class',d.valve.pClass],
+    ['Rangeability',d.valve.R_trim+':1'],['Turndown',(d.turndown??'—')+':1'],
+    ['p max',(d.rating.pmax??'—')+' '+(d.rating.unit||'')],
+  ];
+  document.getElementById('idchips').innerHTML=chips.map(([k,v])=>
+    `<div class="chip"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join('');
+
+  // channel readout
+  document.getElementById('channels').innerHTML=cases.map(c=>`
+    <div class="ch">
+      <div class="sevdot"><span>${c.sevBand}</span><span class="dot ${c.sevBand}"></span></div>
+      <div class="lbl">${esc(c.label)} flow</div>
+      <div class="cvline"><span class="cv">${c.Cv}</span><span class="cvu">Cv</span></div>
+      <div class="row2">
+        <div class="metric"><div class="mk">Opening</div><div class="mv">${c.openPct}%</div></div>
+        <div class="metric"><div class="mk">Noise</div><div class="mv">${c.LpAe??'—'} dB(A)</div></div>
+        <div class="metric"><div class="mk">Flow</div><div class="mv">${c.flowType==='Critical'?'Choked':'OK'}</div></div>
+      </div>
+    </div>`).join('');
+
+  // ── rails ── each rail: value fn + caution/critical thresholds ──
+  const railDefs=[
+    {name:'Valve opening', unit:'% travel', z1:20, z2:85, max:100,
+      val:c=>c.openPct, fmt:c=>c.openPct+'%',
+      note:'target 20–80% at design'},
+    {name:'Aero. noise', unit:'dB(A) @1m', z1:80, z2:90, max:110,
+      val:c=>c.LpAe??0, fmt:c=>(c.LpAe??'—')+' dB',
+      note:'85 dB(A) OSHA action level'},
+    {name:'Pipe velocity', unit:'of limit', z1:70, z2:100, max:130,
+      val:c=>(c.vel_disp/c.velLim*100), fmt:c=>c.vel_disp+' '+c.velUnit,
+      note:'limit '+ (cases[0]?cases[0].velLim:'—') +' '+(cases[0]?cases[0].velUnit:'')},
+    {name:'Choke margin', unit:'x / x_choke', z1:80, z2:100, max:120,
+      val:c=>Math.min(c.x_ratio*100,120), fmt:c=>(c.x_ratio*100).toFixed(0)+'%',
+      note:'100% = onset of choked flow'},
+  ];
+  document.getElementById('rails').innerHTML=railDefs.map(r=>{
+    const z1pct=r.z1/r.max*100, z2pct=r.z2/r.max*100;
+    // stack markers that are close together
+    const marks=cases.map((c,i)=>{
+      let v=r.val(c); v=Math.max(0,Math.min(v,r.max));
+      const pos=v/r.max*100;
+      return {pos, label:c.label, txt:r.fmt(c), i};
+    }).sort((a,b)=>a.pos-b.pos);
+    marks.forEach((mk,idx)=>{ let s=1; for(let j=0;j<idx;j++){ if(Math.abs(mk.pos-marks[j].pos)<10) s++; } mk.stack=Math.min(s,3); });
+    return `<div class="rail">
+      <div class="rail-head"><span class="name">${r.name}</span><span class="lim">${r.note}</span></div>
+      <div class="track" style="--z1:${z1pct}%;--z2:${z2pct}%">
+        <div class="zline" style="left:${z1pct}%"></div>
+        <div class="zline" style="left:${z2pct}%"></div>
+        ${marks.map(mk=>`<div class="mark stack${mk.stack}" style="left:${mk.pos}%">
+            <div class="bub">${mk.label} · ${mk.txt}</div><div class="pin"></div></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  // animate: start markers at 0 then set — done via transition on left; force reflow
+  requestAnimationFrame(()=>{ document.querySelectorAll('.mark').forEach(m=>{const l=m.style.left;m.style.left='0%';requestAnimationFrame(()=>m.style.left=l);});});
+
+  // ── matrix ──
+  const rows=[
+    ['Flow coefficient Cv',c=>c.Cv],
+    ['Flow coefficient Kv',c=>c.Kv],
+    ['Valve opening',c=>c.openPct+'<span class="u">%</span>'],
+    ['Outlet / pipe velocity',c=>c.u2P+'<span class="u">m/s</span>'],
+    ['Mach at outlet',c=>c.Ma??'—'],
+    ['Dissipated power',c=>c.powerLoss_kW+'<span class="u">kW</span>'],
+    ['Aerodynamic noise',c=>(c.LpAe??'—')+'<span class="u">dB(A)</span>'],
+    ['Compressibility Z₁ / Z₂',c=>c.Z1+' / '+c.Z2],
+    ['x / x_choke',c=>(c.x_ratio*100).toFixed(1)+'<span class="u">%</span>'],
+    ['Flow regime',c=>c.flowType],
+  ];
+  let html=`<thead><tr><th>Parameter</th>${cases.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>`;
+  html+=rows.map(([lbl,fn])=>`<tr><td>${lbl}</td>${cases.map(c=>`<td>${fn(c)}</td>`).join('')}</tr>`).join('');
+  html+=`<tr class="spacer"><td colspan="${cases.length+1}"></td></tr>`;
+  html+=`<tr><td>Service severity</td>${cases.map(c=>`<td><span class="badge ${c.sevBand}">${c.severity} · ${c.sevBand}</span></td>`).join('')}</tr>`;
+  html+='</tbody>';
+  document.getElementById('matrix').innerHTML=html;
+
+  // notes
+  const notes=[
+    `Sizing per <strong>IEC 60534-2-1</strong> — liquid/gas/steam Cv with F<sub>P</sub> piping-geometry and F<sub>R</sub> Reynolds corrections.`,
+    `Aerodynamic noise per <strong>IEC 60534-8-3</strong> (acoustic power → pipe-wall transmission loss → external A-weighted SPL at 1 m). Hydrodynamic (liquid) noise per <strong>8-4</strong>.`,
+    `Valve opening from the inherent <code>${CHAR[d.valve.charType]||d.valve.charType}</code> characteristic at rated Cv₁₀₀ = ${d.valve.Cv100}.`,
+    `Body/flange rating <code>p_max</code> from <strong>ASME B16.34</strong> class ${d.rating.class} at ${d.rating.tempF}°F metal temperature. Value shown is for the selected material group — confirm against the specified body material.`,
+    `Service severity is a transparent 0–100 blend of choke proximity (45%), velocity margin (25%) and noise (30%) — every term traces to a computed IEC quantity above, not a black-box index.`,
+  ];
+  document.getElementById('notes').innerHTML=notes.map(n=>`<li>${n}</li>`).join('');
+  document.getElementById('foot').textContent='multicalci.com · Control Valve Analysis · generated '+new Date(d.generatedAt||Date.now()).toISOString().slice(0,10);
+  buildCharts(d);
+}
+// ═══ SVG CHARTS ═════════════════════════════════════════════════════════════
+const SEV={ok:'#2F9E7B',caution:'#DDA138',critical:'#D45B4E'};
+function charFn(type,h,R){
+  h=Math.max(0,Math.min(1,h));
+  if(type==='linear')return h;
+  if(type==='quick_open')return Math.sqrt(h);
+  if(type==='modified_parabolic')return h<0.25?0.5*Math.sqrt(h):0.25+0.75*Math.pow((h-0.25)/0.75,1.6);
+  return Math.pow(R,h-1);                    // equal_pct default
+}
+function chartSVG(cfg){
+  const W=cfg.W||440,H=cfg.H||240,P={l:40,r:14,t:12,b:28};
+  const px=x=>P.l+(x-cfg.xmin)/(cfg.xmax-cfg.xmin)*(W-P.l-P.r);
+  const py=y=>H-P.b-(y-cfg.ymin)/(cfg.ymax-cfg.ymin)*(H-P.t-P.b);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${cfg.aria||''}">`;
+  // grid + y ticks
+  (cfg.yticks||[]).forEach(t=>{ s+=`<line class="cx-grid" x1="${P.l}" y1="${py(t)}" x2="${W-P.r}" y2="${py(t)}"/>`;
+    s+=`<text class="cx-tick" x="${P.l-6}" y="${py(t)+3}" text-anchor="end">${t}</text>`; });
+  // x ticks
+  (cfg.xticks||[]).forEach(t=>{ s+=`<text class="cx-tick" x="${px(t)}" y="${H-P.b+13}" text-anchor="middle">${t}</text>`; });
+  // threshold hlines
+  (cfg.hlines||[]).forEach(h=>{ s+=`<line x1="${P.l}" y1="${py(h.y)}" x2="${W-P.r}" y2="${py(h.y)}" stroke="${h.color}" stroke-width="1.2" stroke-dasharray="6 4"/>`;
+    if(h.label)s+=`<text class="cx-tick" x="${W-P.r}" y="${py(h.y)-4}" text-anchor="end" fill="${h.color}">${h.label}</text>`; });
+  // axes
+  s+=`<line class="cx-axis" x1="${P.l}" y1="${P.t}" x2="${P.l}" y2="${H-P.b}"/>`;
+  s+=`<line class="cx-axis" x1="${P.l}" y1="${H-P.b}" x2="${W-P.r}" y2="${H-P.b}"/>`;
+  // axis labels
+  s+=`<text class="cx-alab" x="${P.l+(W-P.l-P.r)/2}" y="${H-2}" text-anchor="middle">${cfg.xlab}</text>`;
+  s+=`<text class="cx-alab" transform="translate(11,${P.t+(H-P.t-P.b)/2}) rotate(-90)" text-anchor="middle">${cfg.ylab}</text>`;
+  // curves
+  (cfg.curves||[]).forEach(c=>{ const d=c.pts.map((p,i)=>`${i?'L':'M'}${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ');
+    s+=`<path class="${c.cls}" d="${d}"/>`; });
+  // markers (with drop line to x-axis)
+  (cfg.markers||[]).forEach(mk=>{ const X=px(mk.x),Y=py(mk.y);
+    s+=`<line class="cx-drop" x1="${X}" y1="${Y}" x2="${X}" y2="${H-P.b}"/>`;
+    s+=`<circle cx="${X}" cy="${Y}" r="4.5" fill="${mk.color}" stroke="#fff" stroke-width="1.5"/>`;
+    const anc=mk.x>cfg.xmax*0.8?'end':'start', dx=mk.x>cfg.xmax*0.8?-7:7;
+    s+=`<text class="cx-mlab" x="${X+dx}" y="${Y-6}" text-anchor="${anc}" fill="${mk.color}">${mk.label}</text>`; });
+  s+='</svg>';
+  return s;
+}
+function buildCharts(d){
+  const cases=d.cases||[], R=d.valve.R_trim||50, type=d.valve.charType, Cv100=d.valve.Cv100;
+  const qmax=Math.max(...cases.map(c=>c.inputs?c.inputs.Q:0))||1;
+  const load=c=>(c.inputs?c.inputs.Q:0)/qmax*100;
+  const N=60, curve=[]; for(let i=0;i<=N;i++){const h=i/N;curve.push({x:h*100,y:charFn(type,h,R)*100});}
+  // gain curve (numerical derivative, normalised to its own max)
+  const graw=[]; for(let i=0;i<=N;i++){const h=i/N,dh=0.005;
+    graw.push({h, g:(charFn(type,Math.min(h+dh,1),R)-charFn(type,Math.max(h-dh,0),R))/(2*dh)});}
+  const gmax=Math.max(...graw.map(p=>p.g))||1; const gain=graw.map(p=>({x:p.h*100,y:p.g/gmax}));
+  const gAt=h=>{const dh=0.005;return (charFn(type,Math.min(h+dh,1),R)-charFn(type,Math.max(h-dh,0),R))/(2*dh)/gmax;};
+
+  const lpMax=Math.max(60,...cases.map(c=>c.LpAe||0))+8;
+  const charts=[
+    { title:'Inherent characteristic', sub:'Cv delivered vs valve travel — cases pinned on the curve',
+      svg:chartSVG({ xmin:0,xmax:100,ymin:0,ymax:100, xlab:'TRAVEL  %', ylab:'Cv / Cv₁₀₀  %',
+        xticks:[0,25,50,75,100], yticks:[0,25,50,75,100],
+        curves:[{pts:curve,cls:'cx-curve'}],
+        markers:cases.map(c=>({x:c.openPct,y:charFn(type,c.openPct/100,R)*100,label:c.label,color:SEV[c.sevBand]})) }),
+      legend:[['var(--signal)',(CHAR[type]||type)+' curve']] },
+
+    { title:'Inherent gain', sub:'Sensitivity dCv/d(travel), relative — flat is easiest to control',
+      svg:chartSVG({ xmin:0,xmax:100,ymin:0,ymax:1.25, xlab:'TRAVEL  %', ylab:'REL. GAIN',
+        xticks:[0,25,50,75,100], yticks:[0,0.5,1.0],
+        hlines:[{y:0.3,color:'#DDA138',label:'low resolution'}],
+        curves:[{pts:gain,cls:'cx-curve'}],
+        markers:cases.map(c=>({x:c.openPct,y:gAt(c.openPct/100),label:c.label,color:SEV[c.sevBand]})) }),
+      legend:[['var(--signal)','installed gain']] },
+
+    { title:'Aerodynamic noise vs load', sub:'External A-weighted SPL at 1 m across the flow range',
+      svg:chartSVG({ xmin:0,xmax:105,ymin:0,ymax:lpMax, xlab:'FLOW  q / q₁₀₀  %', ylab:'LpAe  dB(A)',
+        xticks:[0,25,50,75,100], yticks:[0,20,40,60,80].filter(t=>t<=lpMax),
+        hlines:[{y:85,color:'#D45B4E',label:'85 dB(A) action'}],
+        curves:[{pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:c.LpAe||0})),cls:'cx-curve'}],
+        markers:cases.map(c=>({x:load(c),y:c.LpAe||0,label:c.label,color:SEV[c.sevBand]})) }),
+      legend:[['var(--signal)','LpAe']] },
+
+    { title:'Choke & velocity margin', sub:'How close each case runs to sonic and to the pipe-velocity limit',
+      svg:chartSVG({ xmin:0,xmax:105,ymin:0,ymax:120, xlab:'FLOW  q / q₁₀₀  %', ylab:'% OF LIMIT',
+        xticks:[0,25,50,75,100], yticks:[0,50,100],
+        hlines:[{y:100,color:'#D45B4E',label:'limit'}],
+        curves:[
+          {pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),cls:'cx-curve'},
+          {pts:[...cases].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.vel_disp/c.velLim*100,120)})),cls:'cx-curve2'} ],
+        markers:cases.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]})) }),
+      legend:[['var(--signal)','x / x_choke'],['var(--steel)','velocity / limit']] },
+  ];
+  document.getElementById('chartgrid').innerHTML=charts.map(c=>`
+    <div class="chartcard">
+      <div class="ct">${c.title}</div><div class="cs">${c.sub}</div>
+      ${c.svg}
+      <div class="clegend">${c.legend.map(([col,lab])=>`<span><i style="background:${col}"></i>${lab}</span>`).join('')}
+        <span style="margin-left:auto">● Max ● Mean ● Min</span></div>
+    </div>`).join('');
+}
+window.cvRenderReport = renderReport;
+})();
+</script>
+<script>
+// ── Multi-case load analysis wiring (added) ──────────────────────────────────
+// Cases are entered in the SAME display units as the main form: pressures follow
+// the PUNIT/PMODE gauge–abs toggle, temperature follows TUNIT, flow follows FUNIT.
+function mcUpdateUnits(){
+  const pLbl = ((typeof PUNIT_LABEL!=='undefined'&&typeof PUNIT!=='undefined')?PUNIT_LABEL[PUNIT]:'')
+             + ((typeof PMODE!=='undefined'&&PMODE==='gauge')?'(g)':'(a)');
+  const tLbl = (typeof TUNIT!=='undefined')?(TUNIT==='C'?'°C':TUNIT==='F'?'°F':'K'):'';
+  const qLbl = (typeof flowUnitLabel==='function')?flowUnitLabel():'';
+  const set=(id,t)=>{const e=document.getElementById(id); if(e) e.textContent=t?('['+t+']'):'';};
+  set('mcU_Q',qLbl); set('mcU_P1',pLbl); set('mcU_P2',pLbl); set('mcU_T',tLbl);
+  const tp=document.getElementById('mcU_tp'); if(tp) tp.textContent = (typeof UNITS!=='undefined'&&UNITS==='met')?'mm':'in';
+  const n=document.getElementById('mcUnitNote');
+  if(n) n.textContent = (typeof PMODE!=='undefined'&&PMODE==='gauge')?'gauge (same toggle as the form above)':'absolute';
+}
+// Prefill the Max row by copying the raw values straight from the main form
+// (identical display units — no conversion needed here).
+function mcPrefill(){
+  const cp=(from,to)=>{const a=document.getElementById(from),b=document.getElementById(to); if(a&&b) b.value=a.value;};
+  cp('flow','mcQ0'); cp('p1','mcP10'); cp('p2','mcP20'); cp('temp','mcT0');
+  mcUpdateUnits();
+}
+// Convert one raw flow value (in FUNIT) to the API base unit — mirrors getFlowApiBase().
+function mcFlowRawToBase(raw){
+  const v=parseFloat(raw); if(!isFinite(v)) return NaN;
+  if(typeof flowCat!=='function'||typeof FLOW_UNITS==='undefined') return v; // graceful fallback
+  const cat=flowCat(); const u=FLOW_UNITS[cat].find(x=>x[0]===FUNIT)||FLOW_UNITS[cat][0];
+  const canon=v*u[2];
+  if(UNITS==='met') return canon;
+  if(cat==='mass')  return canon*2.20462;
+  if(cat==='gasn')  return canon*37.326;
+  return canon*4.40287;
+}
+function mcPBase(raw){ // raw pressure (PUNIT/PMODE) → API base absolute
+  if(typeof pRawToAbsBar==='function'&&typeof absBarToApiBase==='function')
+    return absBarToApiBase(pRawToAbsBar(raw));
+  return parseFloat(raw);
+}
+function mcTBase(raw){ // raw temp (TUNIT) → API base (°C SI / °F US)
+  const v=parseFloat(raw); if(!isFinite(v)) return undefined;
+  if(typeof tRawToC==='function'){ const c=tRawToC(raw); return (typeof UNITS!=='undefined'&&UNITS==='met')?c:c*9/5+32; }
+  return v;
+}
+async function runLoadAnalysis(){
+  const btn=document.getElementById('mcRun');
+  const val=id=>{const e=document.getElementById(id); return e?e.value:undefined;};
+  const cases=[];
+  [['Max',0],['Mean',1],['Min',2]].forEach(([label,i])=>{
+    const rQ=val('mcQ'+i), rP1=val('mcP1'+i), rP2=val('mcP2'+i), rT=val('mcT'+i);
+    if(rQ===''||rP1===''||rP2===''||rQ==null||rP1==null||rP2==null) return;
+    const Q=mcFlowRawToBase(rQ), P1=mcPBase(rP1), P2=mcPBase(rP2), T=mcTBase(rT);
+    if(isFinite(Q)&&isFinite(P1)&&isFinite(P2)) cases.push({label,Q,P1,P2,T});
+  });
+  if(!cases.length){ alert('Enter at least one case with Flow, P₁ and P₂.'); return; }
+  const body={
+    units:(typeof UNITS!=='undefined')?UNITS:'imp',
+    phase:(typeof PHASE!=='undefined')?PHASE:'liq_gen',
+    flowType:(typeof FTYPE!=='undefined')?FTYPE:'vol',
+    SG:val('sg'), k:val('kval'), Z:val('zf'), FL:val('rec'), D:val('pipeD'),
+    charType:val('valveChar'), R_trim:val('rangeR'),
+    Cv_rated_custom:(val('cvRatedCustom')||null),
+    Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'),
+    cases,
+  };
+  if(btn){ btn.disabled=true; btn.textContent='⏳ ANALYSING…'; }
+  try{
+    const resp=await fetch('/api/control-valve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const json=await resp.json();
+    if(!json.ok){ throw new Error(json.error||'analysis failed'); }
+    window._cvLastData=json;
+    const box=document.getElementById('cvReport');
+    box.hidden=false;
+    window.cvRenderReport(json);
+    box.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(err){ alert('Load analysis error: '+err.message); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='▶ &nbsp;RUN LOAD ANALYSIS'; } }
+}
+// Print / PDF — @media print isolates #cvReport; just trigger the dialog.
+function cvPrintReport(){
+  if(!window._cvLastData){ alert('Run the load analysis first.'); return; }
+  window.print();
+}
+window.addEventListener('DOMContentLoaded',()=>{ setTimeout(mcUpdateUnits,60); });
+</script>
 
 </body>
 </html>
