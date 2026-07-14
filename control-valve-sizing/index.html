@@ -3391,15 +3391,26 @@ function chartSVG(cfg){
   const W=cfg.W||430,H=cfg.H||230,P={l:40,r:14,t:12,b:28};
   const px=x=>P.l+(x-cfg.xmin)/(cfg.xmax-cfg.xmin)*(W-P.l-P.r);
   const py=y=>H-P.b-(y-cfg.ymin)/(cfg.ymax-cfg.ymin)*(H-P.t-P.b);
-  let s=`<svg viewBox="0 0 ${W} ${H}">`;
-  (cfg.yticks||[]).forEach(t=>{s+=`<line class="cx-grid" x1="${P.l}" y1="${py(t)}" x2="${W-P.r}" y2="${py(t)}"/><text class="cx-tick" x="${P.l-6}" y="${py(t)+3}" text-anchor="end">${t}</text>`;});
-  (cfg.xticks||[]).forEach(t=>{s+=`<text class="cx-tick" x="${px(t)}" y="${H-P.b+13}" text-anchor="middle">${t}</text>`;});
-  (cfg.hlines||[]).forEach(h=>{s+=`<line x1="${P.l}" y1="${py(h.y)}" x2="${W-P.r}" y2="${py(h.y)}" stroke="${h.color}" stroke-width="1.2" stroke-dasharray="6 4"/><text class="cx-tick" x="${W-P.r}" y="${py(h.y)-4}" text-anchor="end" fill="${h.color}">${h.label}</text>`;});
-  s+=`<line class="cx-axis" x1="${P.l}" y1="${P.t}" x2="${P.l}" y2="${H-P.b}"/><line class="cx-axis" x1="${P.l}" y1="${H-P.b}" x2="${W-P.r}" y2="${H-P.b}"/>`;
-  s+=`<text class="cx-alab" x="${P.l+(W-P.l-P.r)/2}" y="${H-2}" text-anchor="middle">${cfg.xlab}</text>`;
-  s+=`<text class="cx-alab" transform="translate(11,${P.t+(H-P.t-P.b)/2}) rotate(-90)" text-anchor="middle">${cfg.ylab}</text>`;
-  (cfg.curves||[]).forEach(c=>{const d=c.pts.map((p,i)=>`${i?'L':'M'}${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ');s+=`<path class="${c.cls}" d="${d}"/>`;});
-  (cfg.markers||[]).forEach(mk=>{const X=px(mk.x),Y=py(mk.y);s+=`<line class="cx-drop" x1="${X}" y1="${Y}" x2="${X}" y2="${H-P.b}"/><circle cx="${X}" cy="${Y}" r="4" fill="${mk.color}" stroke="#fff" stroke-width="1.5"/>`;const anc=mk.x>cfg.xmax*0.8?'end':'start',dx=mk.x>cfg.xmax*0.8?-7:7;s+=`<text class="cx-mlab" x="${X+dx}" y="${Y-6}" text-anchor="${anc}" fill="${mk.color}">${mk.label}</text>`;});
+  const GRID='#e0e6f0',AX='#b8c2d4',TICK='#5a6f8a',ALAB='#3a4f6e',MONO="'JetBrains Mono',monospace";
+  // explicit width/height attrs + inline style => reliable sizing in print
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">`;
+  s+=`<rect x="${P.l}" y="${P.t}" width="${W-P.l-P.r}" height="${H-P.t-P.b}" fill="#ffffff"/>`;
+  (cfg.yticks||[]).forEach(t=>{ s+=`<line x1="${P.l}" y1="${py(t)}" x2="${W-P.r}" y2="${py(t)}" stroke="${GRID}" stroke-width="1"/>`;
+    s+=`<text x="${P.l-6}" y="${py(t)+3}" text-anchor="end" font-family="${MONO}" font-size="8.5" fill="${TICK}">${t}</text>`; });
+  (cfg.xticks||[]).forEach(t=>{ s+=`<text x="${px(t)}" y="${H-P.b+13}" text-anchor="middle" font-family="${MONO}" font-size="8.5" fill="${TICK}">${t}</text>`; });
+  (cfg.hlines||[]).forEach(h=>{ s+=`<line x1="${P.l}" y1="${py(h.y)}" x2="${W-P.r}" y2="${py(h.y)}" stroke="${h.color}" stroke-width="1.2" stroke-dasharray="6 4"/>`;
+    s+=`<text x="${W-P.r}" y="${py(h.y)-4}" text-anchor="end" font-family="${MONO}" font-size="8.5" fill="${h.color}">${h.label}</text>`; });
+  s+=`<line x1="${P.l}" y1="${P.t}" x2="${P.l}" y2="${H-P.b}" stroke="${AX}" stroke-width="1.2"/>`;
+  s+=`<line x1="${P.l}" y1="${H-P.b}" x2="${W-P.r}" y2="${H-P.b}" stroke="${AX}" stroke-width="1.2"/>`;
+  s+=`<text x="${P.l+(W-P.l-P.r)/2}" y="${H-2}" text-anchor="middle" font-family="${MONO}" font-size="9" font-weight="600" fill="${ALAB}">${cfg.xlab}</text>`;
+  s+=`<text transform="translate(11,${P.t+(H-P.t-P.b)/2}) rotate(-90)" text-anchor="middle" font-family="${MONO}" font-size="9" font-weight="600" fill="${ALAB}">${cfg.ylab}</text>`;
+  (cfg.curves||[]).forEach(c=>{ const d=c.pts.map((p,i)=>`${i?'L':'M'}${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ');
+    s+=`<path d="${d}" fill="none" stroke="${c.color}" stroke-width="${c.w||2.4}" ${c.dash?`stroke-dasharray="${c.dash}"`:''} stroke-linejoin="round" stroke-linecap="round"/>`; });
+  (cfg.markers||[]).forEach(mk=>{ const X=px(mk.x),Y=py(mk.y);
+    s+=`<line x1="${X}" y1="${Y}" x2="${X}" y2="${H-P.b}" stroke="#c2ccdc" stroke-width="1" stroke-dasharray="3 3"/>`;
+    s+=`<circle cx="${X}" cy="${Y}" r="4" fill="${mk.color}" stroke="#ffffff" stroke-width="1.5"/>`;
+    const anc=mk.x>cfg.xmax*0.8?'end':'start', dx=mk.x>cfg.xmax*0.8?-7:7;
+    s+=`<text x="${X+dx}" y="${Y-6}" text-anchor="${anc}" font-family="${MONO}" font-size="9" font-weight="700" fill="${mk.color}">${mk.label}</text>`; });
   return s+'</svg>';
 }
 function renderReport(d){
@@ -3455,10 +3466,10 @@ function renderReport(d){
   const gAt=h=>{const dh=0.005;return (charFn(type,Math.min(h+dh,1),R)-charFn(type,Math.max(h-dh,0),R))/(2*dh)/gmax;};
   const lpMax=Math.max(60,...cs.map(c=>c.LpAe||0))+8;
   const charts=[
-    {t:'Inherent characteristic',s:'Cv delivered vs valve travel',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:100,xlab:'TRAVEL %',ylab:'Cv / Cv₁₀₀ %',xticks:[0,25,50,75,100],yticks:[0,25,50,75,100],curves:[{pts:curve,cls:'cx-curve'}],markers:cs.map(c=>({x:c.openPct,y:charFn(type,c.openPct/100,R)*100,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)',(CHAR[type]||type)+' curve']]},
-    {t:'Inherent gain',s:'Sensitivity dCv/d(travel), relative',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:1.25,xlab:'TRAVEL %',ylab:'REL. GAIN',xticks:[0,25,50,75,100],yticks:[0,0.5,1.0],hlines:[{y:0.3,color:'#b07800',label:'low res.'}],curves:[{pts:gain,cls:'cx-curve'}],markers:cs.map(c=>({x:c.openPct,y:gAt(c.openPct/100),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','installed gain']]},
-    {t:'Aerodynamic noise vs load',s:'External A-weighted SPL at 1 m',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:lpMax,xlab:'FLOW q/q₁₀₀ %',ylab:'LpAe dB(A)',xticks:[0,25,50,75,100],yticks:[0,20,40,60,80].filter(t=>t<=lpMax),hlines:[{y:85,color:'#cc1a2a',label:'85 dB(A)'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:c.LpAe||0})),cls:'cx-curve'}],markers:cs.map(c=>({x:load(c),y:c.LpAe||0,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','LpAe']]},
-    {t:'Choke & velocity margin',s:'Proximity to sonic & velocity limit',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:120,xlab:'FLOW q/q₁₀₀ %',ylab:'% OF LIMIT',xticks:[0,25,50,75,100],yticks:[0,50,100],hlines:[{y:100,color:'#cc1a2a',label:'limit'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),cls:'cx-curve'},{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min((c.u2P!=null?c.u2P:0)/vLim*100,120)})),cls:'cx-curve2'}],markers:cs.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','x / x_choke'],['var(--amber)','velocity / limit']]},
+    {t:'Inherent characteristic',s:'Cv delivered vs valve travel',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:100,xlab:'TRAVEL %',ylab:'Cv / Cv₁₀₀ %',xticks:[0,25,50,75,100],yticks:[0,25,50,75,100],curves:[{pts:curve,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:charFn(type,c.openPct/100,R)*100,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)',(CHAR[type]||type)+' curve']]},
+    {t:'Inherent gain',s:'Sensitivity dCv/d(travel), relative',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:1.25,xlab:'TRAVEL %',ylab:'REL. GAIN',xticks:[0,25,50,75,100],yticks:[0,0.5,1.0],hlines:[{y:0.3,color:'#b07800',label:'low res.'}],curves:[{pts:gain,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:gAt(c.openPct/100),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','installed gain']]},
+    {t:'Aerodynamic noise vs load',s:'External A-weighted SPL at 1 m',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:lpMax,xlab:'FLOW q/q₁₀₀ %',ylab:'LpAe dB(A)',xticks:[0,25,50,75,100],yticks:[0,20,40,60,80].filter(t=>t<=lpMax),hlines:[{y:85,color:'#cc1a2a',label:'85 dB(A)'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:c.LpAe||0})),color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:load(c),y:c.LpAe||0,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','LpAe']]},
+    {t:'Choke & velocity margin',s:'Proximity to sonic & velocity limit',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:120,xlab:'FLOW q/q₁₀₀ %',ylab:'% OF LIMIT',xticks:[0,25,50,75,100],yticks:[0,50,100],hlines:[{y:100,color:'#cc1a2a',label:'limit'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),color:'#007a6c',w:2.4},{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min((c.u2P!=null?c.u2P:0)/vLim*100,120)})),color:'#b07800',w:2,dash:'5 4'}],markers:cs.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','x / x_choke'],['var(--amber)','velocity / limit']]},
   ];
   H+=`<div class="cv-sec">Valve Characteristics</div><div class="cv-charts">`;
   H+=charts.map(c=>`<div class="cv-cc"><div class="t">${c.t}</div><div class="s">${c.s}</div>${c.svg}<div class="lg">${c.lg.map(([col,l])=>`<span><i style="background:${col}"></i>${l}</span>`).join('')}<span style="margin-left:auto">● Max ● Mean ● Min</span></div></div>`).join('');
