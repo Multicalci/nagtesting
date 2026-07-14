@@ -2762,12 +2762,16 @@ function generatePDF() {
   h += '</div>';
 
   const report = document.createElement('div');
-  // FIX PDF-1: html2canvas (bundled in html2pdf 0.10.1) computes its capture
-  // window from the element's bounding rect. With position:fixed;top:-9999px
-  // the crop falls entirely outside the painted area → blank PDF pages.
-  // Park the element off-screen HORIZONTALLY at top:0 instead, and pin
-  // scrollX/scrollY to 0 so the page's scroll position can't shift the crop.
-  report.style.cssText = 'width:794px;position:absolute;top:0;left:-10000px;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111827;padding:28px 32px;box-sizing:border-box;line-height:1.45;';
+  // FIX PDF-2: html2canvas (bundled in html2pdf 0.10.1) only paints the
+  // window defined by windowWidth/windowHeight (794px wide here), starting
+  // at x=0,y=0. Any element positioned OUTSIDE that 0..794 box — including
+  // the old left:-10000px offscreen trick — falls entirely outside the
+  // painted region, so the captured canvas (and the resulting PDF) is blank.
+  // Fix: keep the element INSIDE the capture window (top:0;left:0) and hide
+  // it from the user visually with z-index instead of a negative offset.
+  // The normal page UI (default stacking context) paints on top of it, so
+  // nothing is visibly disturbed, but html2canvas still renders it correctly.
+  report.style.cssText = 'width:794px;position:fixed;top:0;left:0;z-index:-9999;background:#fff;font-family:Arial,sans-serif;font-size:11px;color:#111827;padding:28px 32px;box-sizing:border-box;line-height:1.45;';
   report.innerHTML = h;
   document.body.appendChild(report);
 
