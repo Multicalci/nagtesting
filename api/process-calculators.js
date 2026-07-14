@@ -2332,11 +2332,11 @@ const FLUID_DB_pdrop = [
 
   {id:'deg',         name:'Diethylene Glycol (DEG)',    cat:'Glycols & Coolants',  isGas:false,
    rhoModel:'linear', rho0:1118, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-2.60, B:2300.0, vapFixed:0.0003},
+   viscModel:'andrade', A:-6.40, B:2924.7, vapFixed:0.0003},
 
   {id:'teg',         name:'Triethylene Glycol (TEG)',   cat:'Glycols & Coolants',  isGas:false,
    rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:-2.00, B:2600.0, vapFixed:0.00001},
+   viscModel:'andrade', A:-9.64, B:3954.1, vapFixed:0.00001},
 
   {id:'mea30',       name:'MEA 30% (Monoethanolamine)', cat:'Glycols & Coolants',  isGas:false,
    rhoModel:'linear', rho0:1013, Tref:25, k_rho:-0.50,
@@ -2482,13 +2482,13 @@ const FLUID_DB_pdrop = [
 
   {id:'ipa',         name:'Isopropanol (IPA)',           cat:'Alcohols',            isGas:false,
    rhoModel:'linear', rho0:786, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-3.80, B:1600.0,
+   viscModel:'andrade', A:-7.32, B:2393.4,
    Pv_A:8.1178, Pv_B:1580.92, Pv_C:219.61,
    vp:[[0,1.33],[20,4.38],[40,13.2],[82.3,101.3]]},
 
   {id:'nbutanol',    name:'n-Butanol',                   cat:'Alcohols',            isGas:false,
    rhoModel:'linear', rho0:810, Tref:20, k_rho:-0.82,
-   viscModel:'andrade', A:-3.20, B:1850.0,
+  viscModel:'andrade', A:-7.78, B:2598.0,
    Pv_A:7.8366, Pv_B:1558.19, Pv_C:196.88,
    vp:[[0,0.58],[20,0.59],[40,4.35],[50,6.9],[80,22.4],[117.7,101.3]]},
 
@@ -2499,7 +2499,7 @@ const FLUID_DB_pdrop = [
 
   {id:'glycerol50',  name:'Glycerol 50% in Water',      cat:'Alcohols',            isGas:false,
    rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-0.50, B:2200.0,
+   viscModel:'andrade', A:-8.43, B:3011.6,
    vp:[[20,0.1],[40,0.35],[80,3.5],[100,10]]},
 
   // ── AROMATICS ─────────────────────────────────────────────────────────────
@@ -2625,12 +2625,12 @@ const FLUID_DB_pdrop = [
   // ── ACIDS & BASES ─────────────────────────────────────────────────────────
   {id:'h2so4_98',    name:'Sulfuric Acid 98%',           cat:'Acids & Bases',       isGas:false,
    rhoModel:'linear', rho0:1840, Tref:25, k_rho:-0.70,
-   viscModel:'andrade', A:2.20, B:3700.0,
+   viscModel:'andrade', A:-6.90, B:2955.5,
    vp:[[20,3e-05],[100,0.01],[200,0.5]]},
 
   {id:'h2so4_50',    name:'Sulfuric Acid 50%',           cat:'Acids & Bases',       isGas:false,
    rhoModel:'linear', rho0:1395, Tref:25, k_rho:-0.80,
-   viscModel:'andrade', A:-2.00, B:1800.0, vapFixed:0.020},
+   viscModel:'andrade', A:-4.97, B:1845.6, vapFixed:0.020},
 
   {id:'h2so4_10',    name:'Sulfuric Acid 10%',           cat:'Acids & Bases',       isGas:false,
    rhoModel:'linear', rho0:1066, Tref:25, k_rho:-0.45,
@@ -2666,7 +2666,7 @@ const FLUID_DB_pdrop = [
 
   {id:'naoh50',      name:'NaOH (Caustic) 50%',          cat:'Acids & Bases',       isGas:false,
    rhoModel:'linear', rho0:1525, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-1.20, B:2000.0,
+   viscModel:'andrade', A:-11.58, B:4692.1,
    vp:[[20,0.5],[50,4.0],[80,25],[100,70]]},
 
   {id:'koh30',       name:'KOH Solution 30%',            cat:'Acids & Bases',       isGas:false,
@@ -2839,7 +2839,7 @@ const FLUID_DB_pdrop = [
 
   {id:'dmso',        name:'DMSO (Dimethyl Sulfoxide)',     cat:'Chemical Process',    isGas:false,
    rhoModel:'linear', rho0:1101, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.50, B:1700.0, vapFixed:0.001},
+   viscModel:'andrade', A:-5.15, B:1739.6, vapFixed:0.001},
 
   {id:'thf',         name:'THF (Tetrahydrofuran)',          cat:'Chemical Process',    isGas:false,
    rhoModel:'linear', rho0:889, Tref:20, k_rho:-1.10,
