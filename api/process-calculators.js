@@ -338,9 +338,12 @@ function computeCase(d, shared){
   }
 
   // ── NEW: Service Severity Index (0–100, transparent, IEC-traceable) ─────────
-  //   Blends choke proximity, cavitation/near-sonic, pipe velocity, and noise.
+  //   Blends choke proximity, pipe velocity (real, outlet basis), and noise.
+  //   Velocity uses u2P (m/s, real-gas, matches the report) against an SI limit.
+  const velLim_ms = isL ? 5 : 30;                                   // m/s pipe guidance
+  const u2P_ms    = u2P!=null ? u2P : 0;
   const sev_choke = Math.min(x_ratio,1.2)/1.2;                       // 0..1
-  const sev_vel   = Math.min(vel_disp/velLim,1.5)/1.5;
+  const sev_vel   = Math.min(u2P_ms/velLim_ms,1.5)/1.5;
   const sev_noise = LpAe!=null? Math.min(Math.max(LpAe-60,0)/45,1):0; // >60 dB(A) starts to bite
   const severity  = Math.round(100*(0.45*sev_choke+0.25*sev_vel+0.30*sev_noise));
   const sevBand   = severity<25?'ok':severity<55?'caution':'critical';
@@ -351,6 +354,7 @@ function computeCase(d, shared){
     flowState, flowType:flowType_str, x_ratio:+x_ratio.toFixed(3),
     dP, dPmax, dPeff,
     vel_disp:+vel_disp.toFixed(3), velLim, velOk:vel_disp<velLim, velUnit:m?'m/s':'ft/s',
+    velLim_ms,
     u2P:u2P!=null?+u2P.toFixed(4):null, u2:u2!=null?+u2.toFixed(4):null, u2Unit:'m/s',
     Ma:Ma!=null?+Ma.toExponential(4):null,
     powerLoss_kW:powerLoss_kW!=null?+powerLoss_kW.toFixed(4):null,
@@ -1107,6 +1111,7 @@ function controlValve_handler(req,res){
   if(Array.isArray(b.cases)&&b.cases.length) return multiCaseAnalysis(req,res);
   return controlValve_single(req,res);
 }
+
 
 // ── End of Section 02: Control Valve ──────────────────────────────────────────
 
