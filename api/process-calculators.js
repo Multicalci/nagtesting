@@ -743,6 +743,31 @@ function controlValve_single(req, res) {
       noiseDb = Math.round(65 + 10*Math.log10(Math.max(Cv,1)) + 15*(x_ratio>1?1:x_ratio));
     }
 
+    // ── UNIFIED IEC NOISE ────────────────────────────────────────────────────
+    //   Use the SAME IEC 60534-8-3 (gas/steam) / 8-4 (liquid) model as the
+    //   multi-case Load Analysis report, so BOTH reports show the same external
+    //   A-weighted SPL at 1 m. Replaces the legacy simple noiseDb correlations,
+    //   which omitted pipe-wall transmission loss and read ~15 dB high.
+    {
+      const Di_m2  = D_in * 0.0254;
+      const tp_in2 = parseFloat(d.tp) || 0;
+      const tp_m2  = tp_in2 > 0 ? (m ? tp_in2/1000 : tp_in2*0.0254) : 0.237*0.0254; // Sch-40 default
+      const P1_Pa2 = P1a*6894.76, P2_Pa2 = P2a*6894.76, T1_2 = (T_F-32)*5/9+273.15;
+      let LpAe2 = null;
+      if (isG) {
+        const Rgas2 = 8314/Math.max(SG,1e-6);                 // SG holds MW (g/mol) for gas
+        const mdot2 = (Qc*SG/379.5)/3600/2.20462;             // SCFH→lb/h→kg/s (matches multi-case)
+        LpAe2 = aeroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,mdot:mdot2,T1:T1_2,Rgas:Rgas2,gamma:k,Z,Z2:Z,xT:FL,Fd,Di:Di_m2,tp:tp_m2}).LpAe;
+      } else if (isS) {
+        const mdot2 = Qc/3600/2.20462;                        // steam Qc is lb/h → kg/s
+        LpAe2 = aeroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,mdot:mdot2,T1:T1_2,Rgas:8314/18.02,gamma:1.3,Z:1,Z2:1,xT:FL,Fd,Di:Di_m2,tp:tp_m2}).LpAe;
+      } else {
+        const rhoL2 = SG*999.0, Q_m3s2 = (Qc*0.002228)*0.0283168, mdot2 = Q_m3s2*rhoL2;
+        LpAe2 = hydroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,Pv:Pva*6894.76,mdot:mdot2,rhoL:rhoL2,Di:Di_m2,tp:tp_m2,FL}).LpAe;
+      }
+      if (LpAe2 != null && isFinite(LpAe2)) noiseDb = Math.round(LpAe2);
+    }
+
     const Kv = Cv / 1.1561;
 
     // ── VELOCITY DISPLAY (convert to metric if needed) ────────────────────────
