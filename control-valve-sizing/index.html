@@ -424,11 +424,28 @@ select option{background:var(--ink2)}
 
 /* print — isolate the report, no blank pages */
 @media print{
+  html,body{height:auto !important;}
   body > *:not(#cvReport){display:none !important;}
-  #cvReport{display:block !important;position:static !important;margin:0 !important;padding:0 !important;border:none !important;border-radius:0 !important;max-width:none !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* scale the whole report to ~one page; width compensates so it still fills the sheet */
+  #cvReport{display:block !important;position:static !important;margin:0 !important;padding:0 !important;border:none !important;border-radius:0 !important;
+    transform:scale(0.82);transform-origin:top left;width:121.9% !important;max-width:none !important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
   #cvReport .cv-noprint{display:none !important;}
   #cvReport .cv-cc,#cvReport table,#cvReport .cv-case,#cvReport .cv-notes{break-inside:avoid;}
-  @page{size:A4 portrait;margin:12mm;}
+  #cvReport .cv-charts{break-inside:avoid;}   /* keep all four charts together */
+  /* light spacing compaction (fonts kept legible; scale does the fitting) */
+  #cvReport .cv-brand{padding:0 0 4px !important;}
+  #cvReport .cv-hdr{padding-bottom:7px !important;margin-bottom:5px !important;}
+  #cvReport .cv-sec{margin:9px 0 6px !important;}
+  #cvReport .cv-box{padding:7px 9px !important;}
+  #cvReport .cv-case{padding:9px 11px !important;}
+  #cvReport table td,#cvReport table th{padding:3px 7px !important;}
+  #cvReport .cv-charts{gap:9px !important;}
+  #cvReport .cv-cc{padding:9px 9px 4px !important;}
+  #cvReport .cv-svgbox{padding-bottom:46% !important;}   /* slightly shorter charts */
+  #cvReport .cv-notes{line-height:1.45 !important;}
+  #cvReport .cv-notes p{margin:4px 0 !important;}
+  @page{size:A4 portrait;margin:8mm;}
 }
 </style>
 </head>
@@ -1708,6 +1725,16 @@ function setFlowType(t){
 
 // ── UNITS (BUG FIX: no reliance on event.target) ──────────
 function setUnits(u){
+  // Keep the multi-case wall-thickness value physically correct across systems:
+  // its Sch-40 default (0.237 in ≡ 6.02 mm) must convert, not just get relabelled.
+  // (Without this the API read 0.237 as mm in SI → ~14 dB too little pipe-wall TL.)
+  const _tp=document.getElementById('mcTp');
+  if(_tp){ const _v=parseFloat(_tp.value);
+    if(isFinite(_v)){
+      if(u==='met' && UNITS==='imp') _tp.value = +(_v*25.4).toFixed(2);   // in → mm
+      else if(u==='imp' && UNITS==='met') _tp.value = +(_v/25.4).toFixed(3); // mm → in
+    }
+  }
   UNITS=u;
   document.getElementById('btn_imp').classList.toggle('on',u==='imp');
   document.getElementById('btn_met').classList.toggle('on',u==='met');
