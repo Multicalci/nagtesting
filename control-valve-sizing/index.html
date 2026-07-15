@@ -1392,8 +1392,8 @@ function updateInstalledChart(){
   const R=parseFloat(document.getElementById('instR').value)||50;
   const inh=buildCharData(type,R);
   const inst=inh.map(p=>{const fi=p.y/100;
-    // BUG #15 FIX: fi_inst = fi * sqrt(alpha / (alpha + (1-alpha)*fi^2))
-      const fi_inst=fi*Math.sqrt(alpha/Math.max(alpha+(1-alpha)*fi*fi,0.0001));
+    // INSTALLED CHAR (normalized to 100% at full open): fi_inst = fi / sqrt(alpha + (1-alpha)*fi^2)
+      const fi_inst=fi/Math.sqrt(Math.max(alpha+(1-alpha)*fi*fi,0.0001));
       return{x:p.x,y:Math.min(fi_inst*100,100)};});
   instChartObj=new Chart(ctx,{type:'line',data:{datasets:[
     {label:'Inherent ('+CHAR_LABELS[type]+')',data:inh,borderColor:CHAR_COLORS[type],
