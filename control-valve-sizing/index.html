@@ -757,13 +757,15 @@ select option{background:var(--ink2)}
         <tr><td>Recovery Factor FL / xT</td><td id="pt_fl">—</td></tr>
         <tr><td>Pipe ID</td><td id="pt_pipe">—</td></tr>
         <tr><td>Y Expansion Factor (gas)</td><td id="pt_y">—</td></tr>
+        <tr><td>Inherent Valve Gain @ opening</td><td id="pt_gain">—</td></tr>
+        <tr><td>Cavitation σ / Kc (liquid)</td><td id="pt_cav">—</td></tr>
         <tr><td>Cv / Kv Conversion Factor</td><td>1.1561 (IEC exact)</td></tr>
       </table>
       <div class="formula-toggle" onclick="toggleFormula()">▸ Show IEC 60534 formula reference</div>
       <div class="formula-box" id="formulaBox">
         <span class="hl">LIQUID (IEC 60534-2-1 §5.1):</span> Cv = Q·√(SG/ΔP_eff) | <span class="hla">ΔP_eff = min(ΔP, FL²·(P₁−FF·Pᵥ))</span><br>
         <span class="hla">FF = 0.96−0.28·√(Pᵥ/Pc)</span> — critical pressure ratio factor (not fixed at 0.96) | Reynolds correction: FR applied when Rev &lt; 10,000<br>
-        <span class="hl">GAS (IEC 60534-2-1 §5.2):</span> Cv = Q·√(M·Tᵣ·Z) / (1360·P₁·Y·√(x_eff))<br>
+        <span class="hl">GAS (IEC 60534-2-1 §5.2):</span> Cv = Q·√(M·Tᵣ·Z) / (1360·P₁·Y·√(x_eff))  <span style="opacity:.65">[Q: SCFH · T: °R · P: psia — SI auto-converted]</span><br>
         Y = max(1−x/(3·Fk·xT), 0.667) | x_eff = min(x, Fk·xT) | Fk = k/1.4 | M = mol. weight g/mol<br>
         <span class="hl">STEAM (ISA S75.01):</span> Cv = W·Fs/(2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat] | x_crit=Fγ·xT (Fγ=k/1.4, xT=FL)<br>
         <span class="hl">Kv = Cv/1.1561 (IEC exact) | Equal%: f(h)=R^(h−1) | Installed: fi·√(1/(α+(1−α)fi²))</span>
@@ -2010,6 +2012,8 @@ async function _calcAsync(){
   setEl('pt_vel',   r.velLabel ?? '—');
   setEl('pt_sg',    r.sgLabel || '—');
   setEl('pt_temp',  r.tempLabel || '—');
+  setEl('pt_gain',  r.valveGain != null ? r.valveGain.toFixed(2)+' (linear≈1.0)' : '—');
+  setEl('pt_cav',   r.sigma != null ? ('σ='+r.sigma.toFixed(2)+(r.Kc!=null?', Kc='+r.Kc.toFixed(3):'')) : 'n/a (gas/steam)');
   setEl('pt_fl',    r.flLabel  || '—');
   setEl('pt_pipe',  r.pipeLabel|| '—');
 
@@ -2203,6 +2207,8 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
     <tr><td>ΔP/P₁ Ratio</td><td>${g('dv_dp')}</td></tr>
     <tr><td>Reynolds No.</td><td>${g('dv_re')}</td></tr>
     <tr><td>Valve Opening</td><td>${g('dv_open')}</td></tr>
+    <tr><td>Inherent valve gain</td><td>${g('pt_gain')}</td></tr>
+    <tr><td>Cavitation σ / Kc</td><td>${g('pt_cav')}</td></tr>
     <tr><td>Cv/Kv Factor</td><td>1.1561 (IEC exact)</td></tr>
   </tbody></table>
 </div>
@@ -2245,7 +2251,8 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
   <span class="fh">LIQUID:</span> Cv = Q·√(SG/ΔP_eff) &nbsp;| <span class="fa">ΔP_eff = min(ΔP, FL²·(P₁−FF·Pᵥ)) where FF = 0.96−0.28·√(Pᵥ/Pc)</span><br>
   <span class="fh">GAS:</span> Cv = Q·√(MW·TR·Z) / (1360·P₁·Y·√(x_eff)) &nbsp;| Y=1−x_eff/(3·Fk·xT) | Fk=k/1.4 | x_eff=min(x, Fk·xT)<br>
   <span class="fh">STEAM:</span> Cv = W·Fs / (2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat only] | x_crit=Fγ·xT (Fγ=k/1.4, xT=FL)<br>
-  <span class="fh">Kv = Cv/1.1561 &nbsp;&nbsp; Cv = Kv×1.1561 &nbsp;&nbsp; (IEC 60534 exact)</span>
+  <span class="fh">Kv = Cv/1.1561 &nbsp;&nbsp; Cv = Kv×1.1561 &nbsp;&nbsp; (IEC 60534 exact)</span><br>
+  <span class="fa">Units (1360 / 2.1 US basis): Q in SCFH (gas) · GPM (liquid) · lb·h⁻¹ (steam); T in °R; P in psia. SI inputs (Nm³/h, bar, °C, kg·h⁻¹) are auto-converted before sizing.</span>
 </div>
 
 <div class="foot">
@@ -3482,6 +3489,7 @@ function renderReport(d){
     ['Mach at outlet',c=>c.Ma??'—'],['Dissipated power',c=>(c.powerLoss_kW??'—')+'<span class="u">kW</span>'],
     ['Aerodynamic noise',c=>(c.LpAe??'—')+'<span class="u">dB(A)</span>'],['Compressibility Z₁ / Z₂',c=>c.Z1+' / '+c.Z2],
     ['x / x_choke',c=>(c.x_ratio*100).toFixed(1)+'<span class="u">%</span>'],['Flow regime',c=>c.flowType]];
+  if(cs.some(c=>c.sigma!=null)) rows.push(['Cavitation σ = (P₁−Pᵥ)/ΔP',c=>c.sigma??'—']);
   H+=`<div class="cv-sec">Load Case Results</div><table><thead><tr><th>Parameter</th>${cs.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>`;
   H+=rows.map(([l,fn])=>`<tr><td>${l}</td>${cs.map(c=>`<td>${fn(c)}</td>`).join('')}</tr>`).join('');
   H+=`<tr><td>Service severity</td>${cs.map(c=>`<td><span class="tbadge ${c.sevBand}">${c.severity} · ${c.sevBand}</span></td>`).join('')}</tr>`;
