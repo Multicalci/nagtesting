@@ -128,11 +128,11 @@ function b16_34_rating_psig(cls, T_F){
 //   then external A-weighted SPL at 1 m. All inputs SI.
 // ──────────────────────────────────────────────────────────────────────────────
 function aeroNoise_LpAe(p){
-  const { P1, P2, mdot, T1, Rgas, gamma, Z, xT, Fd,
+  const { P1, P2, mdot, T1, Rgas, gamma, Z, Z2=Z, xT, Fd,
           Di, tp, cpipe=5180, rhopipe=7850 } = p;
   if (!(mdot>0) || !(P1>P2) || !(Di>0)) return { LpAe:null, fp:null, Uvc:null };
   const dP   = P1 - P2;
-  const rho2 = P2/(Z*Rgas*T1);
+  const rho2 = P2/(Z2*Rgas*T1);   // FIX: outlet density uses outlet Z2 (was inlet Z)
   const c1   = Math.sqrt(gamma*Z*Rgas*T1);
   const c2   = c1;
   const cpG  = gamma*Rgas/(gamma-1);
@@ -239,6 +239,7 @@ function computeCase(d, shared){
   const dP=Math.max(P1a-P2a,0.0001), TR=T_F+459.67, A_in2=Math.PI/4*D_in*D_in;
   const Pc_default=phase==='liq_gen'?600:phase==='liq_chem'?900:3208;
   const Pc_psia=fluidPc?fluidPc*14.5038:Pc_default;
+  if (isL && !fluidPc && Pva > 0) warns.push({ cls:'warn-amber', txt:`⚠ Critical pressure Pc not supplied — using default ${Pc_default} psia for the FF cavitation factor. Enter the fluid's actual Pc for reliable choked/cavitation results.` });
 
   // flow → canonical (GPM / SCFH / lb-h)
   let Qc=Q;
@@ -255,7 +256,7 @@ function computeCase(d, shared){
     Cv=Qc*Math.sqrt(SG/Math.max(dPeff,0.0001));
     FR=1; let Ci=Cv;
     for(let it=0;it<3;it++){
-      Rev=17300*Qc/(fluidVisc*Math.pow(FL,1.5)*Math.sqrt(Math.max(Ci,0.001)));
+      Rev=17300*Fd*Qc/(fluidVisc*Math.pow(FL,1.5)*Math.sqrt(Math.max(Ci,0.001)));
       let f=1;
       if(Rev<10000){ if(Rev<10)f=0.026*Math.pow(Rev,0.33);else if(Rev<100)f=0.12*Math.pow(Rev,0.2);
         else if(Rev<1000)f=0.34*Math.pow(Rev,0.1);else f=0.70*Math.pow(Rev/10000,0.04); f=Math.min(Math.max(f,0.1),1);}
@@ -294,7 +295,9 @@ function computeCase(d, shared){
     const lbh=Qc*MW/379.5; SI.mdot=lbh/3600/2.20462;
     SI.Q1=SI.mdot/rho1; SI.Q2=SI.mdot/rho2;
   } else {
-    const W=Qc,xs=dP/Math.max(P1a,0.0001),xcs=0.42; dPmax=xcs*P1a; x_ratio=xs/xcs;
+    const W=Qc,xs=dP/Math.max(P1a,0.0001);
+    const Fk_s=1.3/1.4, xT_s=FL, xcs=Math.min(Math.max(Fk_s*xT_s,0.10),0.90);  // FIX #3: choke = Fγ·xT (γ≈1.30, xT=FL) — was hardcoded 0.42
+    dPmax=xcs*P1a; x_ratio=xs/xcs;
     const de=Math.min(dP,dPmax), isSup=steamFluid==='Superheated Steam', isWet=steamFluid==='Wet Steam (90%)';
     if(isSup){const Ts=getTsatF(P1a),Fs=1+0.00065*Math.max(T_F-Ts,0);Cv=W*Fs/(2.1*Math.sqrt(Math.max(de*(P1a+P2a),0.0001)));}
     else if(isWet){Cv=(W/(2.1*Math.sqrt(Math.max(de*(P1a+P2a),0.0001))))*Math.sqrt(0.9);}
@@ -306,7 +309,7 @@ function computeCase(d, shared){
     // SI (treat as vapour for noise)
     const Rgas=8314/18.02,T1=(T_F-32)*5/9+273.15,P1_Pa=P1a*6894.76,P2_Pa=P2a*6894.76;
     const rho1=1/(vspec*0.0624280); // ft³/lb → m³/kg approx
-    SI.Rgas=Rgas;SI.gamma=1.3;SI.T1=T1;SI.Z=1;SI.Z2=1;SI.xT=0.7;SI.Fd=Fd;
+    SI.Rgas=Rgas;SI.gamma=1.3;SI.T1=T1;SI.Z=1;SI.Z2=1;SI.xT=xT_s;SI.Fd=Fd;  // FIX #3: xT from FL, not fixed 0.7
     SI.rho1=rho1;SI.rho2=rho1*(P2_Pa/P1_Pa);SI.P1_Pa=P1_Pa;SI.P2_Pa=P2_Pa;
     SI.mdot=(m?Q*2.20462:Q)/3600/2.20462; SI.Q1=SI.mdot/SI.rho1; SI.Q2=SI.mdot/SI.rho2;
   }
@@ -329,7 +332,7 @@ function computeCase(d, shared){
   let LpAe=null, noiseDetail=null;
   if(isG||isS){
     const r=aeroNoise_LpAe({P1:SI.P1_Pa,P2:SI.P2_Pa,mdot:SI.mdot,T1:SI.T1,Rgas:SI.Rgas,
-      gamma:SI.gamma,Z:SI.Z,xT:SI.xT,Fd:SI.Fd,Di:Di_m,tp:tp_m});
+      gamma:SI.gamma,Z:SI.Z,Z2:SI.Z2,xT:SI.xT,Fd:SI.Fd,Di:Di_m,tp:tp_m});
     LpAe=r.LpAe; noiseDetail=r;
   } else {
     const r=hydroNoise_LpAe({P1:SI.P1_Pa??P1a*6894.76,P2:SI.P2_Pa??P2a*6894.76,Pv:Pva*6894.76,
@@ -361,6 +364,8 @@ function computeCase(d, shared){
     Z1:+Z.toFixed(4), Z2:+Z2.toFixed(4),
     LpAe:LpAe!=null?+LpAe.toFixed(1):null, noiseDetail,
     severity, sevBand,
+    sigma: isL ? +((P1a-Pva)/Math.max(dP,0.0001)).toFixed(2) : null,   // cavitation index σ
+    Kc: +(FL*FL).toFixed(3),                                            // cavitation coefficient Kc ≈ FL²
     warns,
   };
 }
@@ -405,6 +410,7 @@ function controlValve_single(req, res) {
     const k  = parseFloat(d.k)  || 1.4;
     const Z  = parseFloat(d.Z)  || 1.0;
     const fluidVisc  = parseFloat(d.fluidVisc) || 1.0;
+    const Fd         = parseFloat(d.Fd) || 0.46;   // valve-style modifier Fd (IEC 60534-2-3) — needed for Rev
     const fluidPc    = d.fluidPc ? parseFloat(d.fluidPc) : null;
     const steamFluid = d.steamFluid || '';
     // FIX V-3: validate charType against the whitelist. The UI chart tabs
@@ -413,7 +419,8 @@ function controlValve_single(req, res) {
     //   while the user believed another curve was active.
     const _charValid = ['linear','equal_pct','quick_open','modified_parabolic','hyperbolic','camflex'];
     const charType   = _charValid.includes(d.charType) ? d.charType : 'equal_pct'; // valve characteristic for open% calc
-    const R_trim     = Math.max(10, Math.min(200, parseFloat(d.R_trim) || 50)); // rangeability
+    const R_default  = charType === 'linear' ? 30 : charType === 'quick_open' ? 20 : 50; // typical R by characteristic
+    const R_trim     = Math.max(10, Math.min(200, parseFloat(d.R_trim) || R_default)); // rangeability (user value wins)
       // Valve NPS for Fp piping geometry factor (IEC 60534-2-1 §4.1)
     // If not supplied → Fp = 1.0 (no correction)
     const d_valve_raw = d.d_valve ? parseFloat(d.d_valve) : null;
@@ -492,6 +499,7 @@ function controlValve_single(req, res) {
     const A_in2 = Math.PI / 4 * D_in * D_in;
      const Pc_default = phase==='liq_gen'?600:phase==='liq_chem'?900:3208;
     const Pc_psia = fluidPc ? fluidPc * 14.5038 : Pc_default;
+    if (isL && !fluidPc && Pva > 0) warns.push({ cls:'warn-amber', txt:`⚠ Critical pressure Pc not supplied — using default ${Pc_default} psia for the FF cavitation factor. Enter the fluid's actual Pc for reliable choked/cavitation results.` });
 
     // ── FLOW CONVERSION to canonical units ────────────────────────────────────
     // Target: Qc in GPM (liquid) or SCFH at 14.696 psia, 60°F (gas) or lb/h (steam)
@@ -586,7 +594,7 @@ function controlValve_single(req, res) {
         //   m³/h-per-GPM = 17,262). Using 76,000 with GPM overstated Rev by
         //   4.4×, so the laminar/transitional FR correction under-fired —
         //   viscous services (lube oil, glycerin) were sized ~5-40% small.
-        Rev = 17300 * Qc / (fluidVisc * Math.pow(FL, 1.5) * Math.sqrt(Math.max(Cv_iter, 0.001)));
+        Rev = 17300 * Fd * Qc / (fluidVisc * Math.pow(FL, 1.5) * Math.sqrt(Math.max(Cv_iter, 0.001)));
         let FR_iter = 1.0;
         if (Rev < 10000) {
           if      (Rev < 10)    FR_iter = 0.026 * Math.pow(Rev, 0.33);
@@ -609,7 +617,7 @@ function controlValve_single(req, res) {
         const K1    = 0.5 * Math.pow(1 - beta2, 2);
         const K2    = 1.0 * Math.pow(1 - beta2, 2);
         const sumK  = K1 + K2;
-        Fp = 1.0 / Math.sqrt(1.0 + (sumK * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));
+        Fp = 1.0 / Math.sqrt(1.0 + (sumK * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));   // 890 = US N₂; d_valve_in MUST be inches
         Fp = Math.min(1.0, Math.max(0.5, Fp));
         Cv = Cv / Fp;
         if (Fp < 0.99) warns.push({ cls:'warn-amber',
@@ -662,7 +670,7 @@ function controlValve_single(req, res) {
         const beta_g  = d_valve_in / D_in;
         const beta2_g = beta_g * beta_g;
         const sumK_g  = 0.5*Math.pow(1-beta2_g,2) + 1.0*Math.pow(1-beta2_g,2);
-        Fp_g = 1.0 / Math.sqrt(1.0 + (sumK_g * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));
+        Fp_g = 1.0 / Math.sqrt(1.0 + (sumK_g * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));   // 890 = US N₂; d_valve_in MUST be inches
         Fp_g = Math.min(1.0, Math.max(0.5, Fp_g));
         Cv   = Cv / Fp_g;
         if (Fp_g < 0.99) warns.push({ cls:'warn-amber',
@@ -688,7 +696,9 @@ function controlValve_single(req, res) {
       // STEAM — ISA S75.01
       const W          = Qc;
       const x_s        = dP / Math.max(P1a, 0.0001);
-      const x_crit_s   = 0.42;
+      const Fk_s       = 1.3 / 1.4;                                     // steam isentropic factor Fγ = γ/1.4 (γ≈1.30)
+      const xT_s       = FL;                                            // valve xT (same FL/xT input field as gas)
+      const x_crit_s   = Math.min(Math.max(Fk_s * xT_s, 0.10), 0.90);  // FIX #3: IEC-style choke Fγ·xT — was hardcoded 0.42
       dPmax            = x_crit_s * P1a;
       x_ratio          = x_s / x_crit_s;
       const dPeff_s    = Math.min(dP, dPmax);
@@ -729,7 +739,7 @@ function controlValve_single(req, res) {
       vel = W * v_spec / (3600.0 * A_in2 / 144.0);
 
       flowState = x_ratio >= 1 ? '🔴 Choked Steam' : '🟢 Steam Flow OK';
-      if (x_ratio >= 1) warns.push({ cls:'warn-red', txt:`⚠️ Choked steam: ΔP/P₁=${(x_s*100).toFixed(1)}% > 42%. Verify flash piping downstream.` });
+      if (x_ratio >= 1) warns.push({ cls:'warn-red', txt:`⚠️ Choked steam: ΔP/P₁=${(x_s*100).toFixed(1)}% ≥ Fγ·xT=${(x_crit_s*100).toFixed(1)}%. Verify flash piping downstream.` });
       noiseDb = Math.round(65 + 10*Math.log10(Math.max(Cv,1)) + 15*(x_ratio>1?1:x_ratio));
     }
 
@@ -921,6 +931,22 @@ function controlValve_single(req, res) {
         : `Select: ${sizes.larger.s}.`;
       warns.push({ cls:'warn-red', txt:`⚠️ IMPOSSIBLE OPERATING POINT — required Cv ${fmtN(Cv)} exceeds the rated Cv of ${sizes.rec.s} (${sizes.rec.Cv_rated}): the valve cannot pass this flow at any opening. ${suggestion}` });
     }
+// ── VALVE GAIN / HUNTING SCREEN (inherent gain at operating opening) ──────
+    //   Inherent gain = d(Cv/Cv_rated)/d(travel). Linear ≈ 1.0; equal-% rises
+    //   toward ln(R) (~3.9 at R=50) near full open. High gain at the operating
+    //   point makes the loop hard to tune and prone to hunting. NOTE: true
+    //   INSTALLED gain additionally depends on the system ΔP curve (α), which
+    //   this sizing view does not know — so this is an inherent-gain screen.
+    let valveGain = null;
+    if (openPct_rec > 0 && openPct_rec <= 100) {
+      const hOp = Math.min(Math.max(openPct_rec / 100, 0.005), 0.995);
+      const g   = (charFunc_srv(charType, Math.min(hOp + 0.01, 1), R_trim)
+                 - charFunc_srv(charType, Math.max(hOp - 0.01, 0), R_trim)) / 0.02;
+      valveGain = +g.toFixed(2);
+      if (valveGain > 2.5)
+        warns.push({ cls:'warn-amber', txt:`⚠ High inherent valve gain (${valveGain}) at the ${openPct_rec.toFixed(0)}% operating point — the loop may be hard to tune and prone to hunting. Consider linear trim, a smaller rated Cv (operate lower on the curve), or reduced controller gain. (Installed gain also depends on the system ΔP curve.)` });
+    }
+
 // ── TURNDOWN / Q_MIN CHECK ───────────────────────────────────────────────
     let Cv_min = null, turndown = null, turndownOk = null;
     if (Q_min_raw && Q_min_raw > 0 && Q_min_raw < Q) {
@@ -1038,6 +1064,9 @@ Fp:              Fp < 1.0 ? +Fp.toFixed(4) : Fp_g < 1.0 ? +Fp_g.toFixed(4) : 1.0
       Cv_min:          Cv_min!=null ? fmtN(Cv_min) : null,
       turndown:        turndown!=null ? +turndown.toFixed(1) : null,
       turndownOk,
+      sigma:           isL ? +((P1a - Pva) / Math.max(dP, 0.0001)).toFixed(2) : null, // cavitation index σ = (P1−Pv)/ΔP
+      Kc:              +(FL * FL).toFixed(3),                                           // cavitation coefficient Kc ≈ FL²
+      valveGain,                                                                        // inherent gain at operating opening
        });
   } catch (err) {
     return res.status(500).json({ error: err.message });
