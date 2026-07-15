@@ -401,7 +401,7 @@ select option{background:var(--ink2)}
 #cvReport .cv-cc{border:1.5px solid var(--line);border-radius:7px;padding:12px 12px 6px;background:var(--soft)}
 #cvReport .cv-cc .t{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--teal)}
 #cvReport .cv-cc .s{font-size:10px;color:var(--muted);margin:1px 0 4px}
-#cvReport .cv-cc svg{display:block;width:100%;height:auto}
+#cvReport .cv-cc svg{display:block;width:100%;height:auto;aspect-ratio:430 / 230}
 #cvReport .cv-cc .lg{display:flex;gap:12px;flex-wrap:wrap;margin-top:5px}
 #cvReport .cv-cc .lg span{font-family:var(--mono);font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px}
 #cvReport .cv-cc .lg i{width:12px;height:3px;border-radius:2px;display:inline-block}
@@ -747,7 +747,7 @@ select option{background:var(--ink2)}
         <span class="hla">FF = 0.96−0.28·√(Pᵥ/Pc)</span> — critical pressure ratio factor (not fixed at 0.96) | Reynolds correction: FR applied when Rev &lt; 10,000<br>
         <span class="hl">GAS (IEC 60534-2-1 §5.2):</span> Cv = Q·√(M·Tᵣ·Z) / (1360·P₁·Y·√(x_eff))<br>
         Y = max(1−x/(3·Fk·xT), 0.667) | x_eff = min(x, Fk·xT) | Fk = k/1.4 | M = mol. weight g/mol<br>
-        <span class="hl">STEAM (ISA S75.01):</span> Cv = W·Fs/(2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat] | x_crit=0.42<br>
+        <span class="hl">STEAM (ISA S75.01):</span> Cv = W·Fs/(2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat] | x_crit=Fγ·xT (Fγ=k/1.4, xT=FL)<br>
         <span class="hl">Kv = Cv/1.1561 (IEC exact) | Equal%: f(h)=R^(h−1) | Installed: fi·√(1/(α+(1−α)fi²))</span>
       </div>
       <div class="actions">
@@ -815,7 +815,7 @@ select option{background:var(--ink2)}
         <div class="iw"><input type="number" id="mcFd" value="0.46" step="0.01" min="0.1" max="1.5"><span class="iunit">—</span></div></label></div>
       <div class="field"><label data-tip="Downstream pipe wall thickness — sets acoustic transmission loss for the noise model.">Pipe wall t<sub>p</sub>
         <div class="iw"><input type="number" id="mcTp" value="0.237" step="0.001" min="0"><span class="iunit" id="mcU_tp">in</span></div></label></div>
-      <div class="field"><label data-tip="ASME B16.34 body/flange pressure class — sets the p_max rating.">Pressure class
+      <div class="field"><label data-tip="ASME B16.34 body/flange pressure class — sets the p_max rating (Group 1.1 WCB/A105 carbon steel basis; derate for stainless/alloy).">Pressure class
         <select id="mcPClass">
           <option value="150">150</option><option value="300" selected>300</option>
           <option value="600">600</option><option value="900">900</option>
@@ -2216,7 +2216,7 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
 <div class="fr">
   <span class="fh">LIQUID:</span> Cv = Q·√(SG/ΔP_eff) &nbsp;| <span class="fa">ΔP_eff = min(ΔP, FL²·(P₁−FF·Pᵥ)) where FF = 0.96−0.28·√(Pᵥ/Pc)</span><br>
   <span class="fh">GAS:</span> Cv = Q·√(MW·TR·Z) / (1360·P₁·Y·√(x_eff)) &nbsp;| Y=1−x_eff/(3·Fk·xT) | Fk=k/1.4 | x_eff=min(x, Fk·xT)<br>
-  <span class="fh">STEAM:</span> Cv = W·Fs / (2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat only] | x_crit=0.42<br>
+  <span class="fh">STEAM:</span> Cv = W·Fs / (2.1·√(ΔP_eff·(P₁+P₂))) | Fs=1+0.00065·(T−Tsat) [superheat only] | x_crit=Fγ·xT (Fγ=k/1.4, xT=FL)<br>
   <span class="fh">Kv = Cv/1.1561 &nbsp;&nbsp; Cv = Kv×1.1561 &nbsp;&nbsp; (IEC 60534 exact)</span>
 </div>
 
@@ -3284,10 +3284,10 @@ Cv_required = Cv_turbulent / FR</div>
     </div>
   </div>
 </div>
+<script>
 document.querySelectorAll('.edu-pane').forEach(function(p){
   if(!p.classList.contains('on')) p.style.display='none';
 });
-<script>
 /* ── TAB SWITCHING ──────────────────────────────────────── */
 function cvTab(id, btn) {
   document.querySelectorAll('.edu-pane').forEach(p => p.classList.remove('on'));
@@ -3479,7 +3479,7 @@ function renderReport(d){
     <p>Sizing per <b>IEC 60534-2-1</b> — Cv with F<sub>P</sub> piping-geometry and F<sub>R</sub> Reynolds corrections.</p>
     <p>Aerodynamic noise per <b>IEC 60534-8-3</b> (acoustic power → pipe-wall transmission loss → external A-weighted SPL at 1 m); liquid per <b>8-4</b>.</p>
     <p>Valve opening from the inherent <code>${CHAR[type]||type}</code> characteristic at rated Cv₁₀₀ = ${Cv100}.</p>
-    <p>Body/flange <code>p_max</code> from <b>ASME B16.34</b> class ${d.rating.class} at ${d.rating.tempF}°F — confirm against the specified body material group.</p>
+    <p>Body/flange <code>p_max</code> from <b>ASME B16.34</b> class ${d.rating.class} at ${d.rating.tempF}°F, <b>Group 1.1 (WCB / A105 carbon steel) basis</b> — verify against the actual body material; stainless (CF8M) and alloy grades derate ~10–25% at temperature.</p>
     <p>Service severity = 0.45·choke + 0.25·velocity + 0.30·noise, each term traceable to a computed value above.</p></div>`;
   H+=`<div class="cv-foot"><span>VALVEPRO — Control Valve Load Analysis</span><b>multicalci.com</b><span>Generated ${dstr} at ${tstr}</span></div>`;
   document.getElementById('cvReport').innerHTML=H;
