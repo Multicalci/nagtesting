@@ -1,0 +1,24 @@
+# .github/workflows/valve-validation.yml
+# Runs the control-valve validation/regression suite after every Vercel deploy,
+# against the exact deployment that was just built (preview OR production).
+# No secrets needed — the deployment URL comes from the GitHub event payload.
+
+name: Valve sizing validation
+
+on:
+  deployment_status:
+
+jobs:
+  validate:
+    # only run once Vercel reports the deploy succeeded and is reachable
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run control-valve validation suite
+        run: node tests/validate.mjs "${{ github.event.deployment_status.target_url }}"
