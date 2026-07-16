@@ -101,15 +101,38 @@ const getVgSteam = P => _logInterp(VG_TABLE, P);
 //   Group 1.1 carbon steel (WCB / A105) — representative ratings, psig.
 //   Interpolated linearly on temperature; extrapolation clamps to the table.
 const B16_34 = {
-  150:[[100,285],[200,260],[300,230],[400,200],[500,170],[600,140],[700,110],[800,80],[900,50]],
-  300:[[100,740],[200,680],[300,655],[400,635],[500,605],[600,570],[700,530],[800,410],[900,240]],
-  600:[[100,1480],[200,1360],[300,1310],[400,1265],[500,1205],[600,1135],[700,1060],[800,825],[900,485]],
-  900:[[100,2220],[200,2035],[300,1965],[400,1900],[500,1810],[600,1705],[700,1590],[800,1235],[900,725]],
-  1500:[[100,3705],[200,3395],[300,3270],[400,3170],[500,3015],[600,2840],[700,2655],[800,2055],[900,1210]],
-  2500:[[100,6170],[200,5655],[300,5450],[400,5280],[500,5025],[600,4730],[700,4425],[800,3430],[900,2015]],
+  // Group 1.1 — carbon steel A216 WCB / A105 (validated: Class 300 @100°F = 740 psi)
+  '1.1':{
+    150:[[100,285],[200,260],[300,230],[400,200],[500,170],[600,140],[700,110],[800,80],[900,50],[1000,20]],
+    300:[[100,740],[200,680],[300,655],[400,635],[500,605],[600,570],[700,530],[800,410],[900,240],[1000,50]],
+    600:[[100,1480],[200,1360],[300,1310],[400,1265],[500,1205],[600,1135],[700,1060],[800,825],[900,485],[1000,105]],
+    900:[[100,2220],[200,2035],[300,1965],[400,1900],[500,1810],[600,1705],[700,1590],[800,1235],[900,725],[1000,155]],
+    1500:[[100,3705],[200,3395],[300,3270],[400,3170],[500,3015],[600,2840],[700,2655],[800,2055],[900,1210],[1000,260]],
+    2500:[[100,6170],[200,5655],[300,5450],[400,5280],[500,5025],[600,4730],[700,4425],[800,3430],[900,2015],[1000,430]],
+  },
+  // Group 2.1 — 18Cr-8Ni austenitic SS: A182 F304 / A351 CF8
+  '2.1':{
+    150:[[100,275],[200,230],[300,205],[400,190],[500,170],[600,140],[700,110],[800,80],[900,50],[1000,20]],
+    300:[[100,720],[200,600],[300,540],[400,495],[500,465],[600,435],[700,425],[800,405],[900,390],[1000,320]],
+    600:[[100,1440],[200,1200],[300,1080],[400,995],[500,930],[600,875],[700,850],[800,805],[900,780],[1000,640]],
+    900:[[100,2160],[200,1800],[300,1620],[400,1490],[500,1395],[600,1310],[700,1275],[800,1210],[900,1165],[1000,965]],
+    1500:[[100,3600],[200,3000],[300,2700],[400,2485],[500,2330],[600,2185],[700,2125],[800,2015],[900,1945],[1000,1605]],
+    2500:[[100,6000],[200,5000],[300,4500],[400,4140],[500,3880],[600,3640],[700,3540],[800,3360],[900,3240],[1000,2675]],
+  },
+  // Group 2.2 — 16Cr-12Ni-2Mo austenitic SS: A182 F316 / A351 CF8M
+  '2.2':{
+    150:[[100,275],[200,235],[300,215],[400,195],[500,170],[600,140],[700,110],[800,80],[900,50],[1000,20]],
+    300:[[100,720],[200,620],[300,560],[400,515],[500,480],[600,450],[700,430],[800,420],[900,415],[1000,350]],
+    600:[[100,1440],[200,1240],[300,1120],[400,1025],[500,955],[600,900],[700,870],[800,845],[900,830],[1000,700]],
+    900:[[100,2160],[200,1860],[300,1680],[400,1540],[500,1435],[600,1355],[700,1305],[800,1265],[900,1245],[1000,1050]],
+    1500:[[100,3600],[200,3095],[300,2795],[400,2570],[500,2390],[600,2255],[700,2170],[800,2110],[900,2075],[1000,1750]],
+    2500:[[100,6000],[200,5160],[300,4660],[400,4280],[500,3980],[600,3760],[700,3620],[800,3520],[900,3460],[1000,2915]],
+  },
 };
-function b16_34_rating_psig(cls, T_F){
-  const tbl = B16_34[cls]; if (!tbl) return null;
+const B16_34_MAT = { '1.1':'Carbon steel (WCB / A105)', '2.1':'304 SS (CF8 / F304)', '2.2':'316 SS (CF8M / F316)' };
+function b16_34_rating_psig(cls, T_F, group){
+  const grp = B16_34[group] || B16_34['1.1'];
+  const tbl = grp[cls]; if (!tbl) return null;
   if (T_F<=tbl[0][0]) return tbl[0][1];
   if (T_F>=tbl[tbl.length-1][0]) return tbl[tbl.length-1][1];
   for (let i=0;i<tbl.length-1;i++){
@@ -1119,11 +1142,18 @@ function multiCaseAnalysis(req,res){
     });
 
     const pClass=parseInt(b.pClass)||300;
+    const matGroup=B16_34[b.matGroup]?b.matGroup:'1.1';
     const tmaxC=Math.max(...cases.map(c=>parseFloat(c.T ?? b.T)||0));
     const tmaxF=m?tmaxC*9/5+32:(parseFloat(b.T)||100);
-    const pmax_psig=b16_34_rating_psig(pClass,tmaxF);
+    const pmax_psig=b16_34_rating_psig(pClass,tmaxF,matGroup);
     const pmax_disp=pmax_psig!=null?(m?+(pmax_psig/14.2233).toFixed(2):+pmax_psig.toFixed(0)):null;
     const pmaxUnit=m?'kgf/cm²(g)':'psig';
+    // worst-case inlet pressure vs the rating (both gauge, psi)
+    const p1maxAbs=Math.max(...cases.map(c=>parseFloat(c.P1 ?? b.P1)||0));
+    const p1max_psig=(m?p1maxAbs*14.5038:p1maxAbs)-14.696;
+    const p1max_disp=m?+(p1max_psig/14.2233).toFixed(2):+p1max_psig.toFixed(0);
+    const marginPct=(pmax_psig!=null&&pmax_psig>0)?+(((pmax_psig-p1max_psig)/pmax_psig)*100).toFixed(1):null;
+    const ratingOK=pmax_psig!=null?(p1max_psig<=pmax_psig):null;
 
     const cvVals=results.map(r=>parseFloat(r.Cv)||0);
     const CvMax=Math.max(...cvVals), CvMin=Math.min(...cvVals.filter(v=>v>0));
@@ -1144,7 +1174,9 @@ function multiCaseAnalysis(req,res){
     return res.status(200).json({
       ok:true, units:b.units||'imp',
       valve:{ size:stdCv[ri].s, Cv100:+Cv100.toFixed(1), charType, R_trim, pClass, pmax:pmax_disp, pmaxUnit },
-      rating:{ pmax:pmax_disp, unit:pmaxUnit, class:pClass, tempF:+tmaxF.toFixed(0) },
+      rating:{ pmax:pmax_disp, unit:pmaxUnit, class:pClass, tempF:+tmaxF.toFixed(0),
+               material:B16_34_MAT[matGroup], group:matGroup,
+               p1max:p1max_disp, marginPct, ok:ratingOK },
       turndown, cases:results, generatedAt:new Date().toISOString(),
     });
   }catch(err){ return res.status(500).json({error:err.message}); }
