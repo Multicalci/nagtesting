@@ -298,6 +298,11 @@ function computeCase(d, shared){
     const Q_m3s=(Qc*0.002228)*0.0283168;                   // GPM→ft³/s→m³/s
     SI.rhoL=rhoL; SI.mdot=Q_m3s*rhoL; SI.Q1=Q_m3s; SI.Q2=Q_m3s;
   } else if (isG){
+    // Phase guard: above the fluid's critical pressure, or a very low Z, means the
+    // fluid is dense/liquid-like — the ideal-gas sizing equation may not apply.
+    const _Pcf=fluidPc?fluidPc*14.5038:null;
+    if(_Pcf && P1a>_Pcf) warns.push({cls:'warn-amber',txt:`⚠ Inlet ${(P1a/14.5038).toFixed(1)} bar exceeds the fluid's critical pressure (${(+fluidPc).toFixed(1)} bar) — the fluid is dense/supercritical, not an ideal gas. Below its critical temperature it is a compressed liquid: size with the LIQUID equation. Gas sizing here (Z=${Z.toFixed(3)}) is approximate at best.`});
+    else if(Z>0 && Z<0.30) warns.push({cls:'warn-amber',txt:`⚠ Very low compressibility (Z=${Z.toFixed(3)}) indicates a dense / liquid-like phase — verify the phase; a compressed liquid should be sized with the LIQUID equation, not gas sizing.`});
     const MW=SG,xT=FL,x=dP/Math.max(P1a,0.0001),Fk=k/1.4,xc=Fk*xT,xl=Math.min(x,xc);
     x_ratio=x/Math.max(xc,0.0001); Y=Math.max(1-xl/(3*Fk*xT),0.667); dPmax=xc*P1a;
     const Gg=MW/28.97;
@@ -569,6 +574,11 @@ function controlValve_single(req, res) {
         Qc = m ? Q * 4.40287 : Q;
       }
     } else if (isG) {
+      // Phase guard: above the fluid's critical pressure, or a very low Z, means the
+      // fluid is dense/liquid-like — the ideal-gas sizing equation may not apply.
+      const _Pcf=fluidPc?fluidPc*14.5038:null;
+      if(_Pcf && P1a>_Pcf) warns.push({cls:'warn-amber',txt:`⚠ Inlet ${(P1a/14.5038).toFixed(1)} bar exceeds the fluid's critical pressure (${(+fluidPc).toFixed(1)} bar) — the fluid is dense/supercritical, not an ideal gas. Below its critical temperature it is a compressed liquid: size with the LIQUID equation. Gas sizing here (Z=${Z.toFixed(3)}) is approximate at best.`});
+      else if(Z>0 && Z<0.30) warns.push({cls:'warn-amber',txt:`⚠ Very low compressibility (Z=${Z.toFixed(3)}) indicates a dense / liquid-like phase — verify the phase; a compressed liquid should be sized with the LIQUID equation, not gas sizing.`});
       if (flowType === 'vol') {
         // Vol flow: US → SCFH already; SI → Nm³/h → SCFH
         // FIX F-04: correct Nm³/h (0°C,1 atm) → SCFH (60°F,14.696 psia) factor
