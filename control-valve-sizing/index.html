@@ -665,6 +665,7 @@ select option{background:var(--ink2)}
         <div class="vs-chip lrg"><span class="vsc-size" id="vsz3">—</span><span class="vsc-pct" id="vop3">—</span></div>
       </div>
       <div class="trim-rec" id="trimRec" style="display:none"></div>
+      <a id="actuatorLink" onclick="openActuatorSizing(event)" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:11px 14px;border-radius:9px;background:var(--teal,#007a6c);color:#fff;font-weight:600;font-size:.82rem;text-decoration:none;cursor:pointer">🔧 Size the actuator for this valve →</a>
     </div>
 
     <div class="diag-card">
@@ -703,8 +704,8 @@ select option{background:var(--ink2)}
 
       <div class="section-panel on" id="panel_inherent">
         <div class="char-tabs">
-          <div class="char-tab on" onclick="setCharType('linear',this)">Linear</div>
-          <div class="char-tab"    onclick="setCharType('equal_pct',this)">Equal %</div>
+          <div class="char-tab"    onclick="setCharType('linear',this)">Linear</div>
+          <div class="char-tab on" onclick="setCharType('equal_pct',this)">Equal %</div>
           <div class="char-tab"    onclick="setCharType('quick_open',this)">Quick Open</div>
           <div class="char-tab"    onclick="setCharType('modified_parabolic',this)">Mod. Parabolic</div>
           <div class="char-tab"    onclick="setCharType('hyperbolic',this)">Hyperbolic</div>
@@ -840,6 +841,12 @@ select option{background:var(--ink2)}
           <option value="150">150</option><option value="300" selected>300</option>
           <option value="600">600</option><option value="900">900</option>
           <option value="1500">1500</option><option value="2500">2500</option>
+        </select></label></div>
+      <div class="field"><label data-tip="ASME B16.34 body material group — sets the p_max pressure–temperature rating. 304/316 derate faster than carbon steel above ~200°C.">Body material
+        <select id="mcMaterial">
+          <option value="1.1" selected>Carbon steel — WCB / A105 (Grp 1.1)</option>
+          <option value="2.1">304 SS — CF8 / F304 (Grp 2.1)</option>
+          <option value="2.2">316 SS — CF8M / F316 (Grp 2.2)</option>
         </select></label></div>
     </div>
 
@@ -1726,6 +1733,22 @@ function setFlowType(t){
 }
 
 // ── UNITS (BUG FIX: no reliance on event.target) ──────────
+// ── linked actuator sizing: carry ΔP / port / class across (all editable there) ──
+const ACTUATOR_URL='/control-valve-actuator-sizing';   // ← set to wherever the actuator page is deployed
+function openActuatorSizing(ev){
+  if(ev) ev.preventDefault();
+  const u=(typeof UNITS!=='undefined'&&UNITS==='met')?'si':'us';
+  const atm=u==='si'?1.01325:14.696;                    // shutoff ΔP defaults to inlet gauge (worst case)
+  let p1=0; try{ p1=getP1AbsBase(); }catch(e){}
+  const dpShut=Math.max(p1-atm,0);
+  const port=parseFloat(document.getElementById('pipeD').value)||0;
+  const clsEl=document.getElementById('mcPClass');
+  const q=new URLSearchParams({u,dp:dpShut.toFixed(3)});
+  if(port>0) q.set('port',String(port));
+  if(clsEl&&clsEl.value) q.set('class',clsEl.value);
+  window.open(ACTUATOR_URL+'?'+q.toString(),'_blank','noopener');
+}
+
 function setUnits(u){
   // Keep the multi-case wall-thickness value physically correct across systems:
   // its Sch-40 default (0.237 in ≡ 6.02 mm) must convert, not just get relabelled.
@@ -3471,7 +3494,7 @@ function renderReport(d){
     <div class="cv-box"><div class="l">Press. Class</div><div class="v">${d.valve.pClass}</div></div>
     <div class="cv-box"><div class="l">Rangeability</div><div class="v">${d.valve.R_trim}:1</div></div>
     <div class="cv-box"><div class="l">Turndown</div><div class="v">${d.turndown??'—'}:1</div></div>
-    <div class="cv-box"><div class="l">p_max B16.34</div><div class="v" style="font-size:13px">${d.rating.pmax??'—'} <span class="u">${esc(d.rating.unit||'')}</span></div></div>
+    <div class="cv-box"><div class="l">p_max B16.34</div><div class="v" style="font-size:13px">${d.rating.pmax??'—'} <span class="u">${esc(d.rating.unit||'')}</span></div><div class="l" style="margin-top:3px;font-size:8px;text-transform:none;letter-spacing:0">${esc(d.rating.material||'')}${d.rating.marginPct!=null?(d.rating.ok?' · '+d.rating.marginPct+'% margin':' · ⚠ OVER'):''}</div></div>
   </div>`;
   // per-case summary
   H+=`<div class="cv-sec">Load Case Summary</div><div class="cv-cases">`;
@@ -3515,7 +3538,7 @@ function renderReport(d){
     <p>Sizing per <b>IEC 60534-2-1</b> — Cv with F<sub>P</sub> piping-geometry and F<sub>R</sub> Reynolds corrections.</p>
     <p>Aerodynamic noise per <b>IEC 60534-8-3</b> (acoustic power → pipe-wall transmission loss → external A-weighted SPL at 1 m); liquid per <b>8-4</b>.</p>
     <p>Valve opening from the inherent <code>${CHAR[type]||type}</code> characteristic at rated Cv₁₀₀ = ${Cv100}.</p>
-    <p>Body/flange <code>p_max</code> from <b>ASME B16.34</b> class ${d.rating.class} at ${d.rating.tempF}°F, <b>Group 1.1 (WCB / A105 carbon steel) basis</b> — verify against the actual body material; stainless (CF8M) and alloy grades derate ~10–25% at temperature.</p>
+    <p>Body/flange <code>p_max</code> from <b>ASME B16.34</b> class ${d.rating.class}, <b>${esc(d.rating.material||'Carbon steel')}</b> (Group ${esc(d.rating.group||'1.1')}) at ${d.rating.tempF}°F${d.rating.marginPct!=null?(d.rating.ok?` — worst-case inlet is ${d.rating.marginPct}% below the rating ✓`:` — <b style="color:#b3241f">worst-case inlet exceeds the rating by ${Math.abs(d.rating.marginPct)}%; raise the class or change material</b>`):''}. Ratings are representative — verify against the governing B16.34 edition and the certified body material.</p>
     <p>Service severity = 0.45·choke + 0.25·velocity + 0.30·noise, each term traceable to a computed value above.</p></div>`;
   H+=`<div class="cv-foot"><span>VALVEPRO — Control Valve Load Analysis</span><b>multicalci.com</b><span>Generated ${dstr} at ${tstr}</span></div>`;
   document.getElementById('cvReport').innerHTML=H;
@@ -3584,7 +3607,7 @@ async function runLoadAnalysis(){
     SG:val('sg'), k:val('kval'), Z:val('zf'), FL:val('rec'), D:val('pipeD'),
     charType:val('valveChar'), R_trim:val('rangeR'),
     Cv_rated_custom:(val('cvRatedCustom')||null),
-    Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'),
+    Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'), matGroup:val('mcMaterial'),
     cases,
   };
   if(btn){ btn.disabled=true; btn.textContent='⏳ ANALYSING…'; }
