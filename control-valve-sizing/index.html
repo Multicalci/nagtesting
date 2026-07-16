@@ -1922,7 +1922,7 @@ async function _calcAsync(){
   const _viscField = _viscEl ? parseFloat(_viscEl.value) : NaN;
   const fluidVisc  = isFinite(_viscField) && _viscField>0 ? _viscField
                      : (selFluid && selFluid.visc ? selFluid.visc : 1.0);
-  const fluidPc    = selFluid && selFluid.Pc   ? selFluid.Pc   : null;
+  const fluidPc    = selFluid ? (selFluid.Pc ?? selFluid.Pc_bar ?? null) : null;
 
   let apiResult;
   try {
@@ -3608,6 +3608,7 @@ async function runLoadAnalysis(){
     charType:val('valveChar'), R_trim:val('rangeR'),
     Cv_rated_custom:(val('cvRatedCustom')||null),
     Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'), matGroup:val('mcMaterial'),
+    fluidPc:(typeof selFluid!=='undefined'&&selFluid)?(selFluid.Pc??selFluid.Pc_bar??null):null,
     cases,
   };
   if(btn){ btn.disabled=true; btn.textContent='⏳ ANALYSING…'; }
