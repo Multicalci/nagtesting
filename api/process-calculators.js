@@ -327,6 +327,7 @@ function computeCase(d, shared){
     const Fk_s=1.3/1.4, xT_s=FL, xcs=Math.min(Math.max(Fk_s*xT_s,0.10),0.90);  // FIX #3: choke = Fγ·xT (γ≈1.30, xT=FL) — was hardcoded 0.42
     dPmax=xcs*P1a; x_ratio=xs/xcs;
     const de=Math.min(dP,dPmax), isSup=steamFluid==='Superheated Steam', isWet=steamFluid==='Wet Steam (90%)';
+    if(!isSup && !isWet){const _Ts=getTsatF(P1a), _sh=(T_F-_Ts)*5/9; if(_sh>15) warns.push({cls:'warn-amber',txt:`⚠ Temperature is ${_sh.toFixed(0)}°C above saturation (Tsat≈${((_Ts-32)*5/9).toFixed(0)}°C at ${(P1a/14.5038).toFixed(1)} bar) but "Saturated Steam" is selected — the steam is superheated. Select "Superheated Steam"; the saturated basis under-sizes Cv.`});}
     if(isSup){const Ts=getTsatF(P1a),Fs=1+0.00065*Math.max(T_F-Ts,0);Cv=W*Fs/(2.1*Math.sqrt(Math.max(de*(P1a+P2a),0.0001)));}
     else if(isWet){Cv=(W/(2.1*Math.sqrt(Math.max(de*(P1a+P2a),0.0001))))*Math.sqrt(0.9);}
     else Cv=W/(2.1*Math.sqrt(Math.max(de*(P1a+P2a),0.0001)));
@@ -737,6 +738,10 @@ function controlValve_single(req, res) {
       const dPeff_s    = Math.min(dP, dPmax);
       const isSup      = steamFluid === 'Superheated Steam';
       const isWet      = steamFluid === 'Wet Steam (90%)';
+      if (!isSup && !isWet) {
+        const _Ts = getTsatF(P1a), _sh = (T_F - _Ts) * 5/9;
+        if (_sh > 15) warns.push({ cls:'warn-amber', txt:`⚠ Temperature is ${_sh.toFixed(0)}°C above saturation (Tsat≈${((_Ts-32)*5/9).toFixed(0)}°C at ${(P1a/14.5038).toFixed(1)} bar) but "Saturated Steam" is selected — the steam is superheated. Select "Superheated Steam"; the saturated basis under-sizes Cv.` });
+      }
 
       if (isSup) {
         // Superheated steam: ISA S75.01 with superheat correction factor Fs
