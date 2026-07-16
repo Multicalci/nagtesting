@@ -31,10 +31,15 @@ const CASES = [
     p: { phase:'steam', flowType:'mass', units:'imp', Q:'1000', P1:'100', P2:'50', T:'328', SG:'1', Pv:'0', D:'2.067', FL:'0.9', k:'1.3' } },
 ];
 
+const BYPASS_SECRET = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+
 async function runCase(c) {
   const resp = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(BYPASS_SECRET ? { 'x-vercel-protection-bypass': BYPASS_SECRET } : {}),
+    },
     body: JSON.stringify({ ...BASE, ...c.p }),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
