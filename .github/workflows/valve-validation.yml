@@ -1,7 +1,8 @@
 # .github/workflows/valve-validation.yml
 # Runs the control-valve validation/regression suite after every Vercel deploy,
 # against the exact deployment that was just built (preview OR production).
-# No secrets needed — the deployment URL comes from the GitHub event payload.
+# Uses a Vercel "Protection Bypass for Automation" secret to get past
+# Deployment Protection on preview URLs.
 
 name: Valve sizing validation
 
@@ -21,4 +22,6 @@ jobs:
           node-version: '20'
 
       - name: Run control-valve validation suite
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node .github/tests/validate.mjs "${{ github.event.deployment_status.target_url }}"
