@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Valve Actuator Sizing — Thrust & Closure Check | multicalci.com</title>
+<meta name="description" content="Sliding-stem control valve actuator sizing: required seating thrust (static unbalance, packing friction, seat load per FCI 70-2) vs available actuator thrust, with margin check. Free, browser-based, per Fisher/ISA methodology.">
+<link rel="canonical" href="https://www.multicalci.com/control-valve-actuator-sizing">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#007a6c; --teal2:#00a88f; --teal-soft:rgba(0,122,108,.08);
+  --ink:#0f1e22; --mid:#4a5b60; --muted:#7d8f93; --line:#e2e8e7; --soft:#f4f7f6;
+  --paper:#ffffff; --petrol:#0c2226; --petrol2:#123037; --petrol-line:rgba(255,255,255,.09);
+  --amber:#b07800; --amber-bg:#fdf6e6; --red:#b3241f; --red-bg:#fbecec; --green:#1c7c44; --green-bg:#ecf6ef;
+  --shadow:0 1px 2px rgba(15,30,34,.05),0 8px 28px rgba(15,30,34,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Instrument Sans',system-ui,sans-serif;background:var(--soft);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* ── header ── */
+.brand{background:var(--petrol);color:#eef5f4;padding:18px 22px}
+.brand-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand a{color:#8fded1;text-decoration:none}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem;letter-spacing:.2px}
+.logo .glyph{width:26px;height:26px;border:2px solid var(--teal2);border-radius:50%;display:grid;place-items:center;color:var(--teal2);font-size:.8rem}
+.logo .sub{font-size:.62rem;letter-spacing:.22em;color:#7fb8ae;font-weight:600;text-transform:uppercase;margin-top:2px}
+.brand .tool{text-align:right}
+.brand .tool .t{font-weight:700;font-size:1.02rem}
+.brand .tool .s{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#7fb8ae;margin-top:3px;font-weight:600}
+
+/* ── hero strip ── */
+.hero{background:linear-gradient(180deg,var(--petrol2),var(--petrol));color:#dfeeeb;border-top:1px solid var(--petrol-line)}
+.hero-in{max-width:1080px;margin:0 auto;padding:26px 22px 30px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.hero h1{font-size:1.7rem;font-weight:700;letter-spacing:-.01em;line-height:1.15;max-width:32ch}
+.hero p{color:#9dc4bd;font-size:.9rem;margin-top:8px;max-width:56ch}
+.std-badge{font-size:.66rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bfe6dd;border:1px solid var(--petrol-line);border-radius:6px;padding:7px 11px;white-space:nowrap}
+
+/* ── layout ── */
+.wrap{max-width:1080px;margin:0 auto;padding:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:840px){.grid{grid-template-columns:1fr}}
+
+/* ── unit toggle ── */
+.utrow{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.utrow .lbl{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ut{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper)}
+.ut button{border:0;background:transparent;font:inherit;font-weight:600;font-size:.82rem;padding:7px 16px;cursor:pointer;color:var(--mid)}
+.ut button.on{background:var(--teal);color:#fff}
+
+/* ── cards ── */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.card + .card{margin-top:18px}
+.card-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,var(--soft))}
+.card-h .n{width:24px;height:24px;border-radius:6px;background:var(--teal-soft);color:var(--teal);display:grid;place-items:center;font-weight:700;font-size:.78rem}
+.card-h h2{font-size:.82rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
+.card-b{padding:16px 18px}
+.f{margin-bottom:13px}
+.f:last-child{margin-bottom:0}
+.f label{display:block;font-size:.8rem;font-weight:600;color:var(--mid);margin-bottom:5px}
+.f label .h{font-weight:400;color:var(--muted);font-size:.74rem}
+.iw{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;transition:border-color .15s}
+.iw:focus-within{border-color:var(--teal)}
+.iw input{flex:1;border:0;font:inherit;font-size:.95rem;padding:9px 11px;outline:none;background:transparent;min-width:0}
+.iw .u{display:grid;place-items:center;padding:0 11px;background:var(--soft);color:var(--muted);font-size:.78rem;font-weight:600;border-left:1px solid var(--line);white-space:nowrap}
+select{width:100%;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:.9rem;padding:9px 11px;background:var(--paper);color:var(--ink);cursor:pointer;outline:none}
+select:focus{border-color:var(--teal)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:88px;border:1px solid var(--line);background:var(--paper);border-radius:8px;font:inherit;font-size:.8rem;font-weight:600;color:var(--mid);padding:8px 6px;cursor:pointer;transition:.12s}
+.seg button.on{border-color:var(--teal);background:var(--teal-soft);color:var(--teal)}
+.hint{font-size:.72rem;color:var(--muted);margin-top:6px;line-height:1.4}
+
+/* ── results (petrol instrument panel) ── */
+.panel{background:var(--petrol);color:#dfeeeb;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;position:sticky;top:18px}
+.panel-h{padding:14px 18px;border-bottom:1px solid var(--petrol-line);display:flex;align-items:center;gap:9px}
+.panel-h .dot{width:8px;height:8px;border-radius:50%;background:var(--teal2);box-shadow:0 0 0 3px rgba(0,168,143,.2)}
+.panel-h h2{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#bfe6dd}
+.verdict{padding:20px 18px;text-align:center;border-bottom:1px solid var(--petrol-line)}
+.verdict .m{font-family:'JetBrains Mono',monospace;font-size:2.8rem;font-weight:700;line-height:1;letter-spacing:-.02em}
+.verdict .mlab{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:#8fb4ad;margin-top:8px;font-weight:600}
+.verdict .tag{display:inline-block;margin-top:12px;font-size:.74rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 13px;border-radius:20px}
+.tag.ok{background:rgba(46,204,113,.15);color:#7ee6a6;border:1px solid rgba(46,204,113,.35)}
+.tag.warn{background:rgba(220,160,20,.15);color:#f0cd7a;border:1px solid rgba(220,160,20,.4)}
+.tag.bad{background:rgba(230,70,70,.15);color:#f4a0a0;border:1px solid rgba(230,70,70,.4)}
+.panel-rows{padding:6px 18px 14px}
+.pr{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--petrol-line)}
+.pr:last-child{border-bottom:0}
+.pr .k{font-size:.82rem;color:#a9cbc4}
+.pr .k small{color:#6f938c;font-size:.72rem}
+.pr .v{font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:500;color:#f2fbf9}
+.pr.big .v{font-size:1.15rem;font-weight:700;color:#fff}
+.pr.sub .k{padding-left:14px;color:#8fb4ad;font-size:.78rem}
+.pr.sub .v{color:#cfe6e1;font-size:.86rem}
+/* breakdown bar */
+.bd{padding:14px 18px 4px}
+.bd-lab{font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#8fb4ad;font-weight:600;margin-bottom:8px}
+.bar{height:22px;border-radius:6px;overflow:hidden;display:flex;background:rgba(255,255,255,.06)}
+.bar span{height:100%}
+.bar .s1{background:#00a88f}.bar .s2{background:#f0cd7a}.bar .s3{background:#6fb1d8}
+.leg{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:.72rem;color:#a9cbc4}
+.leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+.note{background:var(--amber-bg);border:1px solid #ecd9a8;border-radius:10px;padding:12px 14px;font-size:.8rem;color:#6b5210;margin-top:18px;line-height:1.5}
+.note b{color:#4d3a08}
+
+/* ── method footer ── */
+.method{margin-top:22px;padding:18px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.method h3{font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:12px}
+.method ul{list-style:none;display:grid;gap:9px}
+.method li{font-size:.82rem;color:var(--mid);padding-left:16px;position:relative;line-height:1.5}
+.method li::before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--teal)}
+.method code{font-family:'JetBrains Mono',monospace;font-size:.78rem;background:var(--soft);padding:1px 5px;border-radius:4px;color:var(--ink)}
+.foot{max-width:1080px;margin:0 auto;padding:20px 22px 40px;color:var(--muted);font-size:.78rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.foot a{color:var(--teal)}
+.btns{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:9px;font:inherit;font-weight:600;font-size:.86rem;color:var(--mid);padding:11px;cursor:pointer;transition:.12s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:var(--teal2)}
+@media print{.utrow,.btns,.brand a{display:none}.panel{position:static}body{background:#fff}}
+</style>
+</head>
+<body>
+
+<div class="brand"><div class="brand-in">
+  <div><div class="logo"><span class="glyph">⊕</span><div>multicalci<div class="sub">Engineering Calculators</div></div></div></div>
+  <div class="tool"><div class="t">⊕ VALVEPRO</div><div class="s">Actuator · Thrust & Closure</div></div>
+</div></div>
+
+<div class="hero"><div class="hero-in">
+  <div>
+    <h1>Control valve actuator sizing &amp; closure check</h1>
+    <p>Required seating thrust for a sliding-stem valve — static unbalance, packing friction and seat load — checked against the thrust your actuator can deliver.</p>
+  </div>
+  <div class="std-badge">Sliding-stem · Fisher / ISA method</div>
+</div></div>
+
+<div class="wrap">
+  <div id="prefillBanner" style="display:none;align-items:flex-start;gap:10px;background:var(--teal-soft);border:1px solid rgba(0,122,108,.25);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.82rem;color:var(--teal);line-height:1.5">
+    <span style="font-size:1.05rem;line-height:1">↳</span>
+    <div><b>Pre-filled from your control valve sizing.</b> Shutoff ΔP is set to the inlet gauge pressure (worst case for closure) and port Ø to the pipe bore — set both to the actual seat/trim and shutoff differential if they differ. Every field is editable.
+    <button onclick="this.closest('#prefillBanner').style.display='none'" style="margin-left:6px;border:0;background:transparent;color:var(--teal);font-weight:700;cursor:pointer;text-decoration:underline;font-size:.82rem">dismiss</button></div>
+  </div>
+
+  <div class="utrow">
+    <span class="lbl">Units</span>
+    <div class="ut"><button id="u_us" class="on" onclick="setU('us')">US (in · psi · lbf)</button><button id="u_si" onclick="setU('si')">SI (mm · bar · N)</button></div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: inputs -->
+    <div>
+      <div class="card">
+        <div class="card-h"><span class="n">1</span><h2>Valve &amp; shutoff</h2></div>
+        <div class="card-b">
+          <div class="row2">
+            <div class="f"><label>Seat / port diameter</label>
+              <div class="iw"><input type="number" id="dPort" value="2.9" step="0.01" oninput="calc()"><span class="u" id="uLen">in</span></div></div>
+            <div class="f"><label>Stem diameter</label>
+              <div class="iw"><input type="number" id="dStem" value="0.5" step="0.01" oninput="calc()"><span class="u" id="uLen2">in</span></div></div>
+          </div>
+          <div class="f"><label>Shutoff ΔP <span class="h">max differential at seat</span></label>
+            <div class="iw"><input type="number" id="dp" value="290" step="1" oninput="calc()"><span class="u" id="uP">psi</span></div></div>
+          <div class="f"><label>Trim balance</label>
+            <div class="seg" id="segBal">
+              <button class="on" data-v="unbalanced" onclick="pick('segBal',this);calc()">Unbalanced</button>
+              <button data-v="balanced" onclick="pick('segBal',this);calc()">Balanced</button>
+            </div>
+            <div class="hint" id="balHint">Unbalanced: full port area sees ΔP. Balanced: ~10% residual unbalance.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="n">2</span><h2>Trim, packing &amp; shutoff class</h2></div>
+        <div class="card-b">
+          <div class="row2">
+            <div class="f"><label>Packing type</label>
+              <select id="packing" onchange="calc()">
+                <option value="ptfe">PTFE V-ring (low friction)</option>
+                <option value="graphite">Graphite (high-temp)</option>
+              </select></div>
+            <div class="f"><label>Pressure class</label>
+              <select id="pClass" onchange="calc()">
+                <option value="150">ASME 150</option>
+                <option value="300" selected>ASME 300</option>
+                <option value="600">ASME 600</option>
+                <option value="900">ASME 900</option>
+                <option value="1500">ASME 1500</option>
+              </select></div>
+          </div>
+          <div class="f"><label>Shutoff / leakage class <span class="h">FCI 70-2 · seat load</span></label>
+            <select id="seatClass" onchange="calc()">
+              <option value="c6">Class VI — soft seat (tight)</option>
+              <option value="c4" selected>Class IV — metal seat</option>
+              <option value="c5">Class V — metal seat (tight)</option>
+              <option value="c23">Class II / III — metal (coarse)</option>
+            </select></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="n">3</span><h2>Actuator (available thrust)</h2></div>
+        <div class="card-b">
+          <div class="f"><label>Actuator type</label>
+            <select id="actType" onchange="calc()">
+              <option value="atc">Spring-diaphragm, air-to-close (air seats)</option>
+              <option value="ato">Spring-diaphragm, air-to-open (spring seats)</option>
+              <option value="piston">Double-acting piston</option>
+            </select></div>
+          <div class="row2">
+            <div class="f"><label>Effective area</label>
+              <div class="iw"><input type="number" id="aEff" value="100" step="1" oninput="calc()"><span class="u" id="uA">in²</span></div></div>
+            <div class="f" id="fSup"><label>Supply pressure</label>
+              <div class="iw"><input type="number" id="pSup" value="30" step="1" oninput="calc()"><span class="u" id="uP2">psi</span></div></div>
+          </div>
+          <div class="f" id="fSpring"><label>Spring force at seat <span class="h">bench-set thrust</span></label>
+            <div class="iw"><input type="number" id="fspr" value="500" step="10" oninput="calc()"><span class="u" id="uF">lbf</span></div></div>
+          <div class="hint" id="actHint"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div>
+      <div class="panel">
+        <div class="panel-h"><span class="dot"></span><h2>Closure check</h2></div>
+        <div class="verdict">
+          <div class="m mono" id="v_margin">—</div>
+          <div class="mlab">Thrust margin (available ÷ required)</div>
+          <div class="tag" id="v_tag">—</div>
+        </div>
+        <div class="bd">
+          <div class="bd-lab">Required thrust breakdown</div>
+          <div class="bar"><span class="s1" id="bar1"></span><span class="s2" id="bar2"></span><span class="s3" id="bar3"></span></div>
+          <div class="leg">
+            <span><i style="background:#00a88f"></i>Unbalance</span>
+            <span><i style="background:#f0cd7a"></i>Packing</span>
+            <span><i style="background:#6fb1d8"></i>Seat load</span>
+          </div>
+        </div>
+        <div class="panel-rows">
+          <div class="pr sub"><span class="k">Static unbalance</span><span class="v mono" id="r_unbal">—</span></div>
+          <div class="pr sub"><span class="k">Packing friction</span><span class="v mono" id="r_pack">—</span></div>
+          <div class="pr sub"><span class="k">Seat load (shutoff)</span><span class="v mono" id="r_seat">—</span></div>
+          <div class="pr big"><span class="k">Required to seat</span><span class="v mono" id="r_req">—</span></div>
+          <div class="pr big"><span class="k">Available from actuator</span><span class="v mono" id="r_avail">—</span></div>
+          <div class="pr"><span class="k">Recommended min. margin</span><span class="v mono">1.25×</span></div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn pri" onclick="window.print()">Print data sheet</button>
+        <button class="btn" onclick="copyJSON(this)">Copy JSON</button>
+      </div>
+      <div class="note" id="verdictNote"></div>
+    </div>
+  </div>
+
+  <div class="method">
+    <h3>Method &amp; traceability</h3>
+    <ul>
+      <li>Required seating thrust <code>F = F_unbalance + F_packing + F_seat</code>, the standard sliding-stem actuator-sizing decomposition (Fisher Control Valve Handbook; ISA/ANSI practice).</li>
+      <li>Static unbalance <code>F_unbalance = A_unbal · ΔP</code>. Unbalanced trim: <code>A_unbal = A_port − A_stem</code>; balanced trim: <code>≈ 0.10 · A_port</code> residual.</li>
+      <li>Packing friction scales with stem diameter, packing type and pressure class — a typical engineering estimate, not a vendor-guaranteed value. Confirm against the packing manufacturer's data.</li>
+      <li>Seat load <code>F_seat = seat-load · π · d_port</code>, seat-load per lineal inch of port circumference set by the FCI 70-2 leakage class (soft &lt; metal IV &lt; metal V).</li>
+      <li>Available thrust: double-acting <code>P·A</code>; air-to-close <code>P·A − F_spring</code>; air-to-open uses the spring bench-set to seat. Sign convention is worst-case for closure.</li>
+      <li>Scope: sliding-stem (globe/angle) valves. Rotary valves (ball/butterfly) require a <b>torque</b> check — a separate calculation not covered here.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="foot">
+  <span>VALVEPRO — Actuator Thrust &amp; Closure Check · <a href="https://www.multicalci.com">multicalci.com</a></span>
+  <span>Screening estimate — verify against valve &amp; actuator vendor data before purchase.</span>
+</div>
+
+<script>
+let U='us';
+const C={inLen:25.4, barPsi:14.5038, cm2in2:6.4516, lbfN:4.44822};
+
+function applyUnitLabels(u){
+  U=u;
+  const el=id=>document.getElementById(id);
+  if(u==='si'){ setTxt(['uLen','uLen2'],'mm'); setTxt(['uP','uP2'],'bar'); el('uA').textContent='cm²'; el('uF').textContent='N'; }
+  else { setTxt(['uLen','uLen2'],'in'); setTxt(['uP','uP2'],'psi'); el('uA').textContent='in²'; el('uF').textContent='lbf'; }
+  document.getElementById('u_us').classList.toggle('on',u==='us');
+  document.getElementById('u_si').classList.toggle('on',u==='si');
+}
+function setU(u){
+  if(u===U) return;
+  const conv=(id,f)=>{const e=document.getElementById(id);const v=parseFloat(e.value);if(isFinite(v))e.value=+(f(v)).toFixed(3);};
+  if(u==='si'){ // US -> SI
+    conv('dPort',v=>v*C.inLen); conv('dStem',v=>v*C.inLen); conv('dp',v=>v/C.barPsi);
+    conv('aEff',v=>v*C.cm2in2); conv('pSup',v=>v/C.barPsi); conv('fspr',v=>v*C.lbfN);
+  } else { // SI -> US
+    conv('dPort',v=>v/C.inLen); conv('dStem',v=>v/C.inLen); conv('dp',v=>v*C.barPsi);
+    conv('aEff',v=>v/C.cm2in2); conv('pSup',v=>v*C.barPsi); conv('fspr',v=>v/C.lbfN);
+  }
+  applyUnitLabels(u);
+  calc();
+}
+function setTxt(ids,t){ids.forEach(i=>document.getElementById(i).textContent=t);}
+function pick(seg,btn){document.querySelectorAll('#'+seg+' button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+function segVal(seg){const b=document.querySelector('#'+seg+' button.on');return b?b.dataset.v:'';}
+
+// force display: internal lbf -> display unit
+function fmtF(lbf){ const v = U==='si'? lbf*C.lbfN : lbf; return v.toLocaleString(undefined,{maximumFractionDigits:0})+' '+(U==='si'?'N':'lbf'); }
+
+let LAST={};
+function calc(){
+  const num=id=>parseFloat(document.getElementById(id).value)||0;
+  // read + normalise to US internal (in, psi, lbf, in²)
+  let dPort=num('dPort'), dStem=num('dStem'), dp=num('dp'), aEff=num('aEff'), pSup=num('pSup'), fspr=num('fspr');
+  if(U==='si'){ dPort/=C.inLen; dStem/=C.inLen; dp*=C.barPsi; aEff/=C.cm2in2; pSup*=C.barPsi; fspr/=C.lbfN; }
+  const balance=segVal('segBal'), packing=document.getElementById('packing').value,
+        pClass=parseFloat(document.getElementById('pClass').value), seatClass=document.getElementById('seatClass').value,
+        actType=document.getElementById('actType').value;
+
+  const A=d=>Math.PI/4*d*d, Aport=A(dPort), Astem=A(dStem);
+  const Aunbal = balance==='balanced'? 0.10*Aport : Math.max(Aport-Astem,0);
+  const Funbal = Aunbal*dp;
+  const kPack = packing==='graphite'?360:180;          // lbf per in stem-dia @ class 300
+  const Fpack = kPack*dStem*(pClass/300);
+  const seatLoad = ({c23:50,c4:100,c5:300,c6:40})[seatClass];
+  const Fseat = seatLoad*Math.PI*dPort;
+  const Freq = Funbal+Fpack+Fseat;
+
+  let Favail=null;
+  if(actType==='piston') Favail=pSup*aEff;
+  else if(actType==='ato') Favail=fspr;
+  else Favail=pSup*aEff-fspr;
+
+  const margin = (Favail!=null && Freq>0)? Favail/Freq : null;
+
+  // ── render ──
+  const set=(id,t)=>document.getElementById(id).textContent=t;
+  set('r_unbal',fmtF(Funbal)); set('r_pack',fmtF(Fpack)); set('r_seat',fmtF(Fseat));
+  set('r_req',fmtF(Freq)); set('r_avail',Favail!=null?fmtF(Favail):'—');
+
+  // breakdown bar
+  const tot=Freq||1;
+  document.getElementById('bar1').style.width=(Funbal/tot*100)+'%';
+  document.getElementById('bar2').style.width=(Fpack/tot*100)+'%';
+  document.getElementById('bar3').style.width=(Fseat/tot*100)+'%';
+
+  // verdict
+  const vm=document.getElementById('v_margin'), tag=document.getElementById('v_tag'), note=document.getElementById('verdictNote');
+  if(margin==null || !isFinite(margin)){ vm.textContent='—'; tag.textContent='—'; tag.className='tag'; note.textContent=''; }
+  else{
+    vm.textContent=margin.toFixed(2)+'×';
+    let cls,label,msg;
+    if(margin>=1.5){cls='ok';label='Comfortable';msg='The actuator delivers ample thrust to seat and hold against the shutoff ΔP with margin for packing wear and supply-pressure droop.';}
+    else if(margin>=1.25){cls='ok';label='Adequate';msg='Above the recommended 1.25× margin. Confirm the spring bench-set and minimum supply pressure at site.';}
+    else if(margin>=1.0){cls='warn';label='Marginal';msg='The actuator can just seat the valve but sits below the 1.25× margin — vulnerable to packing wear, friction rise, or low instrument-air pressure. Size up or reduce shutoff ΔP.';}
+    else {cls='bad';label='Insufficient';msg='Available thrust is below what is required to seat the valve against ΔP. The valve will not achieve tight shutoff. Select a larger actuator, higher supply pressure, or balanced trim.';}
+    tag.textContent=label; tag.className='tag '+cls;
+    note.innerHTML='<b>'+label+' — margin '+margin.toFixed(2)+'×.</b> '+msg;
+  }
+
+  // actuator field visibility + hints
+  const showSpring = actType!=='piston';
+  document.getElementById('fSpring').style.display = showSpring?'':'none';
+  document.getElementById('fSup').style.display = actType==='ato'?'none':'';
+  const ah={atc:'Air pressure drives the plug onto the seat; the spring opposes closure, so it is subtracted.',
+            ato:'The spring drives the plug onto the seat on air failure; seating thrust equals the spring bench-set.',
+            piston:'Double-acting: supply pressure acts on the full piston area in the closing direction.'}[actType];
+  document.getElementById('actHint').textContent=ah;
+  document.getElementById('balHint').textContent = balance==='balanced'
+    ? 'Balanced trim: balance holes equalise plug pressure, leaving ~10% residual unbalance area.'
+    : 'Unbalanced single-seat: the full port area (less stem) sees the shutoff ΔP.';
+
+  LAST={units:U,inputs:{dPort_in:+dPort.toFixed(3),dStem_in:+dStem.toFixed(3),dP_psi:+dp.toFixed(1),balance,packing,pClass,seatClass,actType},
+        forces_lbf:{unbalance:Math.round(Funbal),packing:Math.round(Fpack),seat:Math.round(Fseat),required:Math.round(Freq),available:Favail!=null?Math.round(Favail):null},
+        margin:margin!=null?+margin.toFixed(2):null};
+}
+function copyJSON(btn){
+  navigator.clipboard.writeText(JSON.stringify({tool:'multicalci.com / actuator-sizing',standard:'Fisher/ISA sliding-stem',...LAST},null,2))
+    .then(()=>{const t=btn.textContent;btn.textContent='Copied ✓';setTimeout(()=>btn.textContent=t,1400);});
+}
+function applyPrefill(){
+  const q=new URLSearchParams(location.search);
+  if(!q.has('dp') && !q.has('port') && !q.has('class')){ calc(); return; }
+  applyUnitLabels(q.get('u')==='si'?'si':'us');
+  const setv=(id,key)=>{const v=parseFloat(q.get(key)); if(isFinite(v)) document.getElementById(id).value=v;};
+  setv('dp','dp'); setv('dPort','port');
+  const cls=q.get('class');
+  if(cls && document.querySelector('#pClass option[value="'+cls+'"]')) document.getElementById('pClass').value=cls;
+  const b=document.getElementById('prefillBanner'); if(b) b.style.display='flex';
+  calc();
+}
+applyPrefill();
+</script>
+</body>
+</html>
