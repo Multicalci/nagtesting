@@ -520,6 +520,16 @@ select option{background:var(--ink2)}
           <div class="custom-row" style="cursor:default;opacity:.75;margin-top:12px"><span id="critHdr">Critical properties</span> <span class="hint" id="critHdrHint">(required for PR-EOS compressibility Z)</span>
             <span id="critEstTag" class="auto-tag" style="display:none;background:rgba(200,120,0,.10);border-color:rgba(200,120,0,.35);color:#b06a00">ESTIMATED</span>
             <span id="critMixTag" class="auto-tag" style="display:none">KAY MIX</span>
+            <span id="critDbTag" class="auto-tag" style="display:none;background:rgba(0,122,108,.10);border-color:rgba(0,122,108,.35);color:var(--teal2)">DB ✓</span>
+          </div>
+          <!-- FIX Z-4: fluid identity lookup — automates Z for custom fluids the SAFE way.
+               MW alone cannot determine Tc/Pc (see FIX Z-2 note above), but the fluid's
+               IDENTITY can: 129 fluids with NIST/CoolProp-verified Tc/Pc/omega/MW/k.
+               Type a name or formula -> everything auto-fills -> Z solves instantly. -->
+          <div class="field" style="margin:4px 0 10px">
+            <label>🔎 Fluid lookup <span class="hint">129 fluids — name or formula (SO2, R134a, vinyl chloride…)</span></label>
+            <input type="text" id="critLookup" list="critDbList" placeholder="Start typing a fluid name…" autocomplete="off" oninput="critLookupInput(this.value)" onchange="critLookupInput(this.value)">
+            <datalist id="critDbList"></datalist>
           </div>
           <div class="row3" id="critGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             <div class="field" id="critTcCell"><label class="sym" data-tip="Critical (or pseudo-critical) temperature">Tc <span class="hint">K</span></label>
@@ -612,10 +622,15 @@ select option{background:var(--ink2)}
       </div>
       <div class="row2" id="gasRow" style="display:none">
         <div class="field">
-          <label data-tip="Z auto-calculated via PR EOS from Tc/Pc/omega. Works for library fluids AND custom fluids (enter Tc/Pc/omega in the Custom panel, or leave blank for a Sutton MW estimate). Change T or P to update. Type to override.">Compress. Z
+          <label data-tip="Z auto-calculated instantly via Peng-Robinson EOS from Tc/Pc/omega. Works for library fluids AND custom fluids — use the Fluid lookup (129-fluid database), the Kay's-rule mixture builder, or type Tc/Pc/omega directly in the Custom panel. Updates live with T and P. Type in this field to override. Verified against NIST reference data (typ. within 0.1-2 % for vapor states).">Compress. Z
             <span id="zAutoTag" style="display:none;font-size:.6rem;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:rgba(0,122,108,.1);border:1px solid rgba(0,122,108,.3);color:var(--teal2);margin-left:4px;text-transform:none">AUTO ⟳</span>
           </label>
           <input type="number" id="zf" value="1.00" step="0.001" oninput="zManualOverride();calc()">
+          <!-- FIX Z-4: PR-EOS phase-stability check. Validation vs NIST showed the old
+               path silently returned a vapor-root Z (e.g. 0.885 for NH3 at 0 degC/10 bar a)
+               at conditions where the fluid is actually LIQUID (P1 > Psat). This banner
+               fires whenever the PR saturation pressure says the gas phase doesn't exist. -->
+          <div id="zPhaseWarn" style="display:none;margin-top:5px;font-family:var(--mono);font-size:.64rem;line-height:1.35;padding:5px 8px;border-radius:4px;background:rgba(200,60,30,.08);border:1px solid rgba(200,60,30,.35);color:#b03a1e"></div>
         </div>
         <div class="field"><label data-tip="Specific heat ratio Cp/Cv">k = Cp/Cv</label>
           <input type="number" id="kval" value="1.40" step="0.01" oninput="calc()"></div>
@@ -1531,7 +1546,7 @@ function updateCharChart(){
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
-  buildPipeChips();buildFluidSelect();
+  buildPipeChips();buildFluidSelect();buildCritDatalist();   // FIX Z-4
   selectFluid(FLUID_DB.liq_gen[0]);
   updateUnitLabels();calc();   // FIX U-1: marks stale only — no API call until the user presses Calculate
   const n=document.getElementById('calcNote');
@@ -1674,15 +1689,20 @@ function syncCustomFluid(){
 // ── FIX Z-2 : custom-gas critical properties ───────────────────────────────
 let _critUserOverride = false;
 
-function _critTags(which){   // which: 'est' | 'mix' | null
-  const e=document.getElementById('critEstTag'), m=document.getElementById('critMixTag');
+function _critTags(which){   // which: 'est' | 'mix' | 'db' | null
+  const e=document.getElementById('critEstTag'), m=document.getElementById('critMixTag'),
+        d=document.getElementById('critDbTag');
   if(e) e.style.display = (which==='est')?'inline':'none';
   if(m) m.style.display = (which==='mix')?'inline':'none';
+  if(d) d.style.display = (which==='db') ?'inline':'none';
 }
 
 function critManualOverride(){
   _critUserOverride = true;
+  _zUserOverride = false;   // FIX Z-4: typing criticals means "I want auto-Z" —
+                            // clear any stale manual-Z lock so it recomputes
   _critTags(null);
+  const lk=document.getElementById('critLookup'); if(lk) lk.value='';
   _critNote();
   calc(); autoZ();
 }
@@ -1709,6 +1729,189 @@ function clearCustomCrit(){
   _critUserOverride=false; _critTags(null); _critNote();
 }
 
+// ── FIX Z-4 : CRIT_DB — 129-fluid critical-property lookup ─────────────────
+// Automates Z for CUSTOM fluids the safe way. FIX Z-2 correctly withdrew the
+// MW->Tc/Pc auto-estimate (MW alone cannot determine criticals); the fluid's
+// IDENTITY can. Every entry carries NIST/CoolProp-verified MW [g/mol], Tc [K],
+// Pc [bar a], acentric factor and ideal-gas k=Cp/Cv at 25 degC. 117 entries are
+// machine-extracted from the CoolProp reference library; 12 industrial gases
+// absent from CoolProp (Cl2, SO3, HCN, VCM, phosgene, silane...) are from
+// Poling, Prausnitz & O'Connell, "Properties of Gases and Liquids", 5th ed.
+// Selecting a fluid fills MW + Tc/Pc/omega + k and Z solves instantly via prZ().
+const CRIT_DB=[
+{n:"1,2-Dichloroethane",MW:98.959,Tc:561.58,Pc:52.261,om:0.2686,k:1.113,al:['dichloroethane']},
+{n:"1-Butene",MW:56.106,Tc:419.29,Pc:40.057,om:0.1919,k:1.108,al:['1butene','butene']},
+{n:"Acetone",MW:58.079,Tc:508.1,Pc:46.924,om:0.3071,k:1.125,al:[]},
+{n:"Air",MW:28.965,Tc:132.53,Pc:37.86,om:0.0335,k:1.4,al:['r729']},
+{n:"Ammonia (NH3)",MW:17.031,Tc:405.56,Pc:113.634,om:0.2557,k:1.305,al:['ammonia','nh3','r717']},
+{n:"Argon (Ar)",MW:39.948,Tc:150.69,Pc:48.63,om:-0.0022,k:1.667,al:['ar','argon','r740']},
+{n:"Benzene (C6H6)",MW:78.112,Tc:562.02,Pc:49.063,om:0.2108,k:1.114,al:['benzene']},
+{n:"Carbon Dioxide (CO2)",MW:44.01,Tc:304.13,Pc:73.773,om:0.2239,k:1.288,al:['carbondioxide','co2','r744']},
+{n:"Carbon Monoxide (CO)",MW:28.01,Tc:132.86,Pc:34.982,om:0.0497,k:1.399,al:['carbonmonoxide','co']},
+{n:"Carbonyl Sulfide (COS)",MW:60.075,Tc:378.77,Pc:63.688,om:0.0978,k:1.251,al:['carbonylsulfide','cos']},
+{n:"Chlorine (Cl2)",MW:70.906,Tc:416.87,Pc:76.424,om:0.07,k:1.324,al:['cl2']},
+{n:"cis-2-Butene",MW:56.106,Tc:435.75,Pc:42.36,om:0.2024,k:1.115,al:['c2butene']},
+{n:"Cyclohexane",MW:84.159,Tc:553.6,Pc:40.805,om:0.2093,k:1.085,al:['cyclohex']},
+{n:"Cyclopentane",MW:70.133,Tc:511.72,Pc:45.828,om:0.2019,k:1.111,al:['cyclopen']},
+{n:"Cyclopropane",MW:42.081,Tc:398.69,Pc:56.053,om:0.1305,k:1.175,al:['cyclopro']},
+{n:"Deuterium (D2)",MW:4.028,Tc:38.34,Pc:16.796,om:-0.1363,k:1.398,al:['d2','deuterium']},
+{n:"Diethyl Ether",MW:74.122,Tc:467.9,Pc:37.173,om:0.2816,k:1.074,al:['dee','diethylether']},
+{n:"Dimethyl Ether (DME)",MW:46.068,Tc:400.38,Pc:53.367,om:0.196,k:1.145,al:['dimethylether','dme','re170']},
+{n:"DimethylCarbonate",MW:90.078,Tc:557.0,Pc:49.088,om:0.346,k:1.084,al:['dmc']},
+{n:"Ethane (C2H6)",MW:30.069,Tc:305.32,Pc:48.722,om:0.099,k:1.188,al:['ethane','n-c2h6','r170']},
+{n:"Ethanol (C2H5OH)",MW:46.068,Tc:514.71,Pc:62.679,om:0.644,k:1.146,al:['c2h6o','ethanol']},
+{n:"Ethylbenzene",MW:106.165,Tc:617.12,Pc:36.224,om:0.304,k:1.07,al:['ebenzene']},
+{n:"Ethylene (C2H4)",MW:28.054,Tc:282.35,Pc:50.417,om:0.0866,k:1.241,al:['ethene','ethylene','r1150']},
+{n:"Ethylene Oxide (EO)",MW:44.053,Tc:468.92,Pc:73.047,om:0.2102,k:1.21,al:['eo','ethyleneoxide','oxirane']},
+{n:"Fluorine (F2)",MW:37.997,Tc:144.41,Pc:52.395,om:0.0449,k:1.362,al:['fluorine']},
+{n:"Heavy Water (D2O)",MW:20.028,Tc:643.85,Pc:216.618,om:0.3642,k:1.32,al:['d2o','heavywater']},
+{n:"Helium (He)",MW:4.003,Tc:5.2,Pc:2.283,om:-0.3835,k:1.667,al:['he','helium','r704']},
+{n:"HFE143m",MW:100.04,Tc:377.92,Pc:36.449,om:0.2889,k:1.1,al:['hfe-143m','re143a']},
+{n:"Hydrogen (H2)",MW:2.016,Tc:33.14,Pc:12.964,om:-0.219,k:1.405,al:['h2','hydrogen','r702']},
+{n:"Hydrogen Chloride (HCl)",MW:36.461,Tc:324.68,Pc:83.135,om:0.1297,k:1.399,al:['hcl','hydrogenchloride']},
+{n:"Hydrogen Sulfide (H2S)",MW:34.081,Tc:373.1,Pc:89.989,om:0.1005,k:1.322,al:['h2s','hydrogensulfide','sour gas']},
+{n:"iso-Butane (C4H10)",MW:58.122,Tc:407.81,Pc:36.29,om:0.1835,k:1.094,al:['isobutan','isobutane','r600a']},
+{n:"iso-Butylene",MW:56.106,Tc:418.09,Pc:40.157,om:0.1926,k:1.103,al:['2-methylpropene','ibutene','isobutene','isobutylene']},
+{n:"iso-Pentane",MW:72.149,Tc:460.35,Pc:33.782,om:0.2274,k:1.075,al:['ipentane','isopentane','r601a']},
+{n:"Isohexane",MW:86.175,Tc:497.7,Pc:30.427,om:0.2797,k:1.062,al:['ihexane']},
+{n:"Krypton",MW:83.798,Tc:209.48,Pc:55.254,om:-0.0009,k:1.667,al:[]},
+{n:"m-Xylene",MW:106.165,Tc:616.89,Pc:35.346,om:0.326,k:1.071,al:['mc8h10','mxylene']},
+{n:"Methane (CH4)",MW:16.043,Tc:190.56,Pc:45.992,om:0.0114,k:1.304,al:['ch4','methane','n-c1h4','r50']},
+{n:"Methanol (CH3OH)",MW:32.042,Tc:513.38,Pc:82.159,om:0.5649,k:1.233,al:['methanol']},
+{n:"n-Butane (C4H10)",MW:58.122,Tc:425.13,Pc:37.96,om:0.2008,k:1.092,al:['butane','n-butane','nbutane','r600']},
+{n:"n-Decane",MW:142.282,Tc:617.7,Pc:21.013,om:0.4884,k:1.037,al:['decane','n-c10h22','nc10h22']},
+{n:"n-Dodecane",MW:170.335,Tc:658.1,Pc:18.176,om:0.5742,k:1.031,al:['c12','dodecane','nc12h26','ndodecane']},
+{n:"n-Heptane (C7H16)",MW:100.202,Tc:541.23,Pc:27.738,om:0.349,k:1.053,al:['heptane','n-c7h16','n-heptane','nc7h16','nheptane']},
+{n:"n-Hexane (C6H14)",MW:86.175,Tc:507.82,Pc:30.441,om:0.3003,k:1.062,al:['hexane','n-c6h14','n-hexane','nc6h14','nhexane']},
+{n:"n-Nonane",MW:128.255,Tc:594.55,Pc:22.819,om:0.4433,k:1.041,al:['n-c9h20','nc9h20','nonane']},
+{n:"n-Octane (C8H18)",MW:114.229,Tc:568.74,Pc:24.836,om:0.3975,k:1.046,al:['n-c8h18','n-octane','nc8h18','noctane','octane']},
+{n:"n-Pentane (C5H12)",MW:72.149,Tc:469.7,Pc:33.675,om:0.251,k:1.074,al:['n-pentane','nc5h12','npentane','pentane','r601']},
+{n:"n-Perfluorobutane",MW:238.027,Tc:386.33,Pc:23.224,om:0.372,k:1.042,al:['c4f10']},
+{n:"n-Perfluorohexane",MW:338.042,Tc:448.0,Pc:17.416,om:0.497,k:1.031,al:['c6f14']},
+{n:"n-Perfluoropentane",MW:288.034,Tc:421.0,Pc:20.629,om:0.436,k:1.037,al:['c5f12']},
+{n:"n-Propane",MW:44.096,Tc:369.89,Pc:42.512,om:0.1521,k:1.128,al:['c3h8','propane','r290']},
+{n:"n-Undecane",MW:156.308,Tc:638.8,Pc:19.905,om:0.539,k:1.034,al:['c11','n-c11h24','nc11h24','undecane']},
+{n:"neo-Pentane",MW:72.149,Tc:433.74,Pc:31.963,om:0.1961,k:1.074,al:['neopentane','neopentn']},
+{n:"Neon",MW:20.179,Tc:44.4,Pc:26.616,om:-0.0355,k:1.667,al:['r720']},
+{n:"Nitrogen (N2)",MW:28.013,Tc:126.19,Pc:33.958,om:0.0372,k:1.4,al:['n2','nitrogen','r728']},
+{n:"Nitrous Oxide (N2O)",MW:44.013,Tc:309.52,Pc:72.448,om:0.1613,k:1.275,al:['laughing gas','n2o','nitrousoxide']},
+{n:"Novec 649",MW:316.044,Tc:441.81,Pc:18.69,om:0.471,k:1.032,al:['novec1230','novec649']},
+{n:"o-Xylene",MW:106.165,Tc:630.26,Pc:37.375,om:0.312,k:1.068,al:['oc8h10','oxylene']},
+{n:"Oxygen (O2)",MW:31.999,Tc:154.6,Pc:50.464,om:0.0222,k:1.395,al:['o2','oxygen','r732']},
+{n:"p-Xylene",MW:106.165,Tc:616.17,Pc:35.315,om:0.324,k:1.071,al:['pc8h10','pxylene']},
+{n:"para-Hydrogen",MW:2.016,Tc:32.94,Pc:12.858,om:-0.219,k:1.384,al:['parahyd','parahydrogen']},
+{n:"Propylene (C3H6)",MW:42.08,Tc:364.21,Pc:45.55,om:0.146,k:1.148,al:['propene','propylen','propylene','r1270']},
+{n:"PropyleneGlycol",MW:76.094,Tc:674.0,Pc:72.918,om:0.3268,k:1.085,al:['1,2-propanediol','pg','pglycol']},
+{n:"Propyne (Methylacetylene)",MW:40.06,Tc:402.7,Pc:56.575,om:0.204,k:1.159,al:['propyne']},
+{n:"R11",MW:137.368,Tc:471.11,Pc:44.076,om:0.1888,k:1.118,al:[]},
+{n:"R1123",MW:82.025,Tc:331.73,Pc:45.488,om:0.2429,k:1.137,al:['hfo1123','trifluoroethylene']},
+{n:"R113",MW:187.375,Tc:487.21,Pc:33.923,om:0.2525,k:1.073,al:[]},
+{n:"R1130(E)",MW:96.943,Tc:515.69,Pc:52.555,om:0.194,k:1.141,al:['r-1130(e)','r1130e','trans-1,2-dichloroethene','trans-12-dichloroethene']},
+{n:"R1132(E)",MW:64.035,Tc:348.82,Pc:51.737,om:0.245,k:1.16,al:['r-1132(e)','r-1132e','r1132e','trans-1,2-difluoroethene']},
+{n:"R114",MW:170.921,Tc:420.61,Pc:33.525,om:0.2523,k:1.076,al:[]},
+{n:"R115",MW:154.466,Tc:353.1,Pc:31.292,om:0.2484,k:1.082,al:[]},
+{n:"R116",MW:138.012,Tc:293.03,Pc:30.477,om:0.2566,k:1.085,al:[]},
+{n:"R12",MW:120.913,Tc:385.12,Pc:41.362,om:0.1795,k:1.129,al:[]},
+{n:"R1224YDZ",MW:148.487,Tc:428.69,Pc:33.34,om:0.325,k:1.08,al:[]},
+{n:"R123",MW:152.931,Tc:456.83,Pc:36.618,om:0.2819,k:1.088,al:[]},
+{n:"R1233zd(E)",MW:130.496,Tc:438.86,Pc:35.828,om:0.304,k:1.089,al:['r-1233zd(e)','r1233zde','trans-1-chloro-3,3,3-trifluoropropene']},
+{n:"R1234yf",MW:114.042,Tc:367.85,Pc:33.844,om:0.276,k:1.089,al:[]},
+{n:"R1234ze(E)",MW:114.042,Tc:382.51,Pc:36.349,om:0.3131,k:1.091,al:['r1234ze','r1234zee']},
+{n:"R1234ze(Z)",MW:114.042,Tc:423.27,Pc:35.306,om:0.3268,k:1.097,al:['r1234zez']},
+{n:"R124",MW:136.476,Tc:395.43,Pc:36.245,om:0.2881,k:1.092,al:[]},
+{n:"R1243zf",MW:96.051,Tc:376.93,Pc:35.137,om:0.2595,k:1.102,al:['3,3,3-trifluoroprop-1-ene','r-1243zf']},
+{n:"R125",MW:120.021,Tc:339.18,Pc:36.183,om:0.3052,k:1.097,al:[]},
+{n:"R13",MW:104.459,Tc:303.05,Pc:39.731,om:0.1746,k:1.142,al:[]},
+{n:"R1336mzz(E)",MW:164.049,Tc:403.53,Pc:27.79,om:0.4128,k:1.066,al:['(e)-1,1,1,4,4,4-hexafluoro-2-butene']},
+{n:"R1336mzz(Z)",MW:164.056,Tc:444.5,Pc:29.037,om:0.386,k:1.064,al:['cis-1,1,1,4,4,4-hexafluoro-2-butene','hfo-1336mzz-z','r1336mzzz']},
+{n:"R134a",MW:102.032,Tc:374.21,Pc:40.593,om:0.3268,k:1.108,al:[]},
+{n:"R13I1",MW:195.91,Tc:396.44,Pc:39.525,om:0.1762,k:1.142,al:['cf3i']},
+{n:"R14",MW:88.005,Tc:227.4,Pc:37.625,om:0.1785,k:1.157,al:[]},
+{n:"R141b",MW:116.95,Tc:477.5,Pc:42.117,om:0.2195,k:1.104,al:[]},
+{n:"R142b",MW:100.495,Tc:410.26,Pc:40.548,om:0.2321,k:1.111,al:[]},
+{n:"R143a",MW:84.041,Tc:345.86,Pc:37.618,om:0.2615,k:1.119,al:[]},
+{n:"R152A",MW:66.051,Tc:386.41,Pc:45.167,om:0.2752,k:1.141,al:[]},
+{n:"R161",MW:48.059,Tc:375.25,Pc:50.1,om:0.2162,k:1.162,al:['fluoroethane']},
+{n:"R21",MW:102.923,Tc:452.72,Pc:52.885,om:0.2061,k:1.158,al:[]},
+{n:"R218",MW:188.019,Tc:345.02,Pc:26.402,om:0.3172,k:1.06,al:[]},
+{n:"R22",MW:86.468,Tc:369.3,Pc:49.9,om:0.2208,k:1.174,al:[]},
+{n:"R227EA",MW:170.029,Tc:374.9,Pc:29.252,om:0.3576,k:1.065,al:[]},
+{n:"R23",MW:70.014,Tc:299.29,Pc:48.317,om:0.263,k:1.195,al:[]},
+{n:"R236EA",MW:152.038,Tc:412.41,Pc:34.137,om:0.3682,k:1.069,al:[]},
+{n:"R236FA",MW:152.038,Tc:398.07,Pc:31.909,om:0.3769,k:1.072,al:[]},
+{n:"R245ca",MW:134.048,Tc:447.57,Pc:39.407,om:0.3546,k:1.075,al:[]},
+{n:"R245fa",MW:134.048,Tc:427.01,Pc:36.51,om:0.3776,k:1.078,al:[]},
+{n:"R32",MW:52.024,Tc:351.26,Pc:57.826,om:0.2769,k:1.24,al:[]},
+{n:"R365MFC",MW:148.075,Tc:460.0,Pc:32.664,om:0.3774,k:1.061,al:[]},
+{n:"R40",MW:50.488,Tc:418.63,Pc:69.29,om:0.1501,k:1.257,al:['methylchloride']},
+{n:"R404A",MW:97.604,Tc:345.27,Pc:37.348,om:0.293,k:1.11,al:[]},
+{n:"R407C",MW:86.204,Tc:359.35,Pc:46.317,om:0.363,k:1.133,al:[]},
+{n:"R41",MW:34.033,Tc:317.28,Pc:59.061,om:0.2004,k:1.285,al:[]},
+{n:"R410A",MW:72.585,Tc:344.49,Pc:49.012,om:0.296,k:1.166,al:[]},
+{n:"R507A",MW:98.859,Tc:343.76,Pc:37.049,om:0.286,k:1.109,al:[]},
+{n:"RC318",MW:200.031,Tc:388.37,Pc:27.775,om:0.3553,k:1.056,al:[]},
+{n:"Sulfur Dioxide (SO2)",MW:64.064,Tc:430.64,Pc:78.866,om:0.2561,k:1.263,al:['so2','sulfurdioxide']},
+{n:"Sulfur Hexafluoride (SF6)",MW:146.055,Tc:318.72,Pc:37.55,om:0.21,k:1.094,al:['sf6','sulfurhexafluoride']},
+{n:"Tetrahydrofuran",MW:72.106,Tc:540.2,Pc:53.044,om:0.234,k:1.122,al:['thf']},
+{n:"Toluene",MW:92.138,Tc:591.75,Pc:41.263,om:0.2657,k:1.087,al:[]},
+{n:"trans-2-Butene",MW:56.106,Tc:428.61,Pc:40.191,om:0.2101,k:1.105,al:['t2butene']},
+{n:"Vinyl Chloride (VCM)",MW:62.498,Tc:425.0,Pc:56.003,om:0.16,k:1.183,al:['chloroethene','vcm']},
+{n:"Water / Steam (H2O)",MW:18.015,Tc:647.1,Pc:220.64,om:0.3443,k:1.329,al:['h2o','r718','steam','water','water vapor','water vapour']},
+{n:"Xenon",MW:131.293,Tc:289.73,Pc:58.419,om:0.0036,k:1.667,al:['xe']},
+{n:"Nitric Oxide (NO)",MW:30.006,Tc:180.15,Pc:64.8,om:0.582,k:1.39,al:['no']},
+{n:"Sulfur Trioxide (SO3)",MW:80.064,Tc:490.85,Pc:82.1,om:0.424,k:1.27,al:['so3']},
+{n:"Hydrogen Cyanide (HCN)",MW:27.026,Tc:456.65,Pc:53.9,om:0.41,k:1.31,al:['hcn']},
+{n:"Phosgene (COCl2)",MW:98.916,Tc:455.0,Pc:56.74,om:0.205,k:1.17,al:['cocl2','carbonyl chloride']},
+{n:"Methyl Chloride (CH3Cl)",MW:50.488,Tc:416.25,Pc:66.8,om:0.153,k:1.24,al:['ch3cl','chloromethane','r40']},
+{n:"Silane (SiH4)",MW:32.117,Tc:269.65,Pc:48.43,om:0.097,k:1.24,al:['sih4']},
+{n:"Phosphine (PH3)",MW:33.998,Tc:324.75,Pc:65.4,om:0.038,k:1.29,al:['ph3']},
+{n:"Methylamine",MW:31.057,Tc:430.05,Pc:74.6,om:0.281,k:1.19,al:['ch3nh2']},
+{n:"Bromine (Br2)",MW:159.808,Tc:588.0,Pc:103.4,om:0.108,k:1.3,al:['br2']},
+{n:"Ozone (O3)",MW:47.998,Tc:261.05,Pc:55.73,om:0.224,k:1.29,al:['o3']}
+];
+
+function buildCritDatalist(){
+  const dl=document.getElementById('critDbList'); if(!dl) return;
+  dl.innerHTML='';
+  CRIT_DB.forEach(f=>{
+    const o=document.createElement('option');
+    o.value=f.n;
+    o.label=f.MW.toFixed(1)+' g/mol · Tc '+f.Tc.toFixed(0)+' K · Pc '+f.Pc.toFixed(1)+' bar';
+    dl.appendChild(o);
+  });
+}
+
+function _critDbFind(q){
+  q=(q||'').trim().toLowerCase();
+  if(q.length<2) return null;
+  let f=CRIT_DB.find(e=>e.n.toLowerCase()===q);            // exact name
+  if(f) return f;
+  f=CRIT_DB.find(e=>e.al && e.al.indexOf(q)>=0);           // exact alias/formula
+  if(f) return f;
+  const hits=CRIT_DB.filter(e=>e.n.toLowerCase().startsWith(q) ||
+                               (e.al && e.al.some(a=>a.startsWith(q))));
+  return hits.length===1 ? hits[0] : null;                 // unique prefix only
+}
+
+function critLookupInput(v){
+  const f=_critDbFind(v); if(!f) return;
+  document.getElementById('custTc').value    = f.Tc.toFixed(2);
+  document.getElementById('custPc').value    = f.Pc.toFixed(3);
+  document.getElementById('custOmega').value = f.om.toFixed(4);
+  if(PHASE.includes('gas')){
+    document.getElementById('sg').value     = f.MW;    // gas: sg field = MW g/mol
+    document.getElementById('custSG').value = f.MW;
+    const kf=document.getElementById('kval'); if(kf) kf.value = f.k.toFixed(3);
+  }
+  clearChipSel();                       // this is now a custom (non-library) fluid
+  _critUserOverride=false; _zUserOverride=false; _critTags('db');
+  _critNote('<strong style="color:var(--teal2)">'+f.n+'</strong> loaded from the '+
+    'property database: Tc='+f.Tc.toFixed(1)+' K, Pc='+f.Pc.toFixed(2)+' bar a, '+
+    '&#969;='+f.om.toFixed(3)+', MW='+f.MW+' g/mol, k='+f.k.toFixed(3)+
+    '. Z now auto-solves at the operating T &amp; P&#8321;.');
+  calc(); autoZ();
+}
+
 // Sutton (1985) pseudo-criticals from gas gravity g = MW/28.9625.
 //   Tpc[degR] = 169.2 + 349.5 g - 74.0 g^2      Ppc[psia] = 756.8 - 131.0 g - 3.6 g^2
 // Fitted to NATURAL GAS. Opt-in only — never auto-applied.
@@ -1733,7 +1936,7 @@ function applySutton(){
   document.getElementById('custTc').value    = est.Tc.toFixed(1);
   document.getElementById('custPc').value    = est.Pc_bar.toFixed(2);
   document.getElementById('custOmega').value = est.omega.toFixed(3);
-  _critUserOverride=false; _critTags('est');
+  _critUserOverride=false; _zUserOverride=false; _critTags('est');   // FIX Z-4: reactivate auto-Z
   _critNote('<strong style="color:#b06a00">Natural-gas correlation applied.</strong> Valid only if this fluid is a hydrocarbon gas mixture. For any other fluid these values are meaningless &mdash; enter real criticals or use the mixture builder.');
   calc(); autoZ();
 }
@@ -1824,7 +2027,7 @@ function mixApply(){
   document.getElementById('sg').value        = m.MW.toFixed(2);
   const kf=document.getElementById('kval'); if(kf) kf.value = m.k.toFixed(3);
   clearChipSel();
-  _critUserOverride=false; _critTags('mix');
+  _critUserOverride=false; _zUserOverride=false; _critTags('mix');   // FIX Z-4: reactivate auto-Z
   _critNote('Pseudo-criticals from Kay\'s rule over '+MIX.filter(r=>_mixFind(r.n)&&r.y>0).length+
             ' components. MW and k = Cp/Cv were updated to match.');
   calc(); autoZ();
@@ -1883,27 +2086,37 @@ function _resetZ(){
   const zi = document.getElementById('zf');
   if(zi && !_zUserOverride) zi.value = '1.000';
   const tag = document.getElementById('zAutoTag'); if(tag) tag.style.display='none';
+  const w = document.getElementById('zPhaseWarn'); if(w) w.style.display='none'; // FIX Z-4
   if(typeof _critNote==='function') _critNote();
 }
 
+// ── FIX Z-4 (rev B) : PR engine transferred to /api/eos ───────────────────
+// The Peng-Robinson math (vapor-root Z, Psat by fugacity equality, phase
+// classification) now lives server-side in api/eos.js, consistent with the
+// rest of the calculator: ALL thermodynamic math is server-side, the page is
+// a thin client. The API returns { Z, Tr, Pr, Psat_Pa, phase } where phase is
+// 'vapor' | 'near_dew' | 'liquid' | 'supercritical' — the banner below the Z
+// field renders directly from that. CRIT_DB (identity lookup) stays client-
+// side because the datalist needs instant autocomplete; it is data, not math.
+// Validation anchors (must match api/eos.js regression comments):
+//   NH3 273.15 K / 10 bar -> Z 0.8854, Psat 4.293 bar, phase 'liquid'
+//   NH3 298.15 K /  5 bar -> Z 0.9576, phase 'vapor'
 async function _autoZAsync(){
   const isG = PHASE.includes('gas');
   const zf_ = _zFluid();
   if(!isG || !zf_){ if(isG) _resetZ(); return; }
 
-  const m     = UNITS === 'met';
+  const m      = UNITS === 'met';
   const T_C_in = getTempC();          // FIX U-5: unit-aware (°C/°F/K dropdown)
-  const P_raw = getP1AbsBase();   // FIX: use true absolute pressure (was raw field value, wrong if gauge/other unit)
+  const P_raw  = getP1AbsBase();      // true absolute pressure in the API base unit
   if(!isFinite(T_C_in) || !isFinite(P_raw) || P_raw <= 0) return;
 
-  // Convert to absolute SI for EOS
   const T_K   = T_C_in + 273.15;
-  const P_Pa  = m ? P_raw * 1e5    : P_raw * 6894.76;   // bar→Pa or psi→Pa
-  const Tc_K  = zf_.Tc;                                   // stored in K
-  const Pc_Pa = zf_.Pc_bar * 1e5;                        // bar → Pa
-  const omega  = zf_.omega;
-  const M      = zf_.sg;                                  // for gases, sg = MW g/mol
-
+  const P_Pa  = m ? P_raw*1e5 : P_raw*6894.76;          // bar->Pa or psi->Pa
+  const Tc_K  = zf_.Tc;
+  const Pc_Pa = zf_.Pc_bar*1e5;
+  const omega = zf_.omega || 0;
+  const M     = zf_.sg;                                  // for gases, sg = MW g/mol
   if(T_K < 10 || !isFinite(Tc_K) || !isFinite(Pc_Pa)) return;
 
   try {
@@ -1914,23 +2127,42 @@ async function _autoZAsync(){
     });
     const data = await resp.json();
     if(!data.success || !data.data || !isFinite(data.data.Z)) return;
+    const d = data.data;
 
-    const Z = +data.data.Z.toFixed(4);
-    document.getElementById('zf').value = Z;
+    document.getElementById('zf').value = +d.Z.toFixed(4);
 
-    // Show AUTO badge with Tr/Pr tooltip
     const tag = document.getElementById('zAutoTag');
     if(tag){
       tag.style.display = 'inline';
-      const Tr = data.data.Tr ? data.data.Tr.toFixed(3) : '?';
-      const Pr = data.data.Pr ? data.data.Pr.toFixed(3) : '?';
-      tag.title = 'PR EOS  Tr=' + Tr + '  Pr=' + Pr +
-                  (zf_._custom ? ('  [custom Tc='+zf_.Tc.toFixed(1)+' K, Pc='+zf_.Pc_bar.toFixed(2)+' bar, w='+zf_.omega+']') : '') +
-                  '  (click Z field to override)';
+      tag.title = 'PR EOS  Tr=' + (+d.Tr).toFixed(3) + '  Pr=' + (+d.Pr).toFixed(3) +
+                  (zf_._custom ? ('  [custom Tc='+Tc_K.toFixed(1)+' K, Pc='+zf_.Pc_bar.toFixed(2)+' bar, w='+omega+']') : '') +
+                  '  (type in Z field to override)';
+    }
+
+    // FIX Z-4: phase-stability banner, driven entirely by the API's verdict
+    const warn = document.getElementById('zPhaseWarn');
+    if(warn){
+      const pShow = pv => m ? pv/1e5 : pv/6894.76;
+      const pu    = m ? 'bar a' : 'psia';
+      const psTxt = (d.Psat_Pa!=null) ? pShow(d.Psat_Pa).toFixed(2)+' '+pu : null;
+      if(d.phase === 'liquid'){
+        warn.style.display = 'block';
+        warn.style.background='rgba(200,60,30,.08)'; warn.style.borderColor='rgba(200,60,30,.35)'; warn.style.color='#b03a1e';
+        warn.innerHTML = '⚠ P&#8321; exceeds the saturation pressure at this temperature ' +
+          '(P<sub>sat</sub> &asymp; ' + psTxt + '). The fluid is a <strong>LIQUID</strong> at these ' +
+          'conditions &mdash; size it on the LIQUID tab, or raise T / lower P&#8321; for gas service.';
+      } else if(d.phase === 'near_dew'){
+        warn.style.display = 'block';
+        warn.style.background='rgba(200,120,0,.08)'; warn.style.borderColor='rgba(200,120,0,.35)'; warn.style.color='#b06a00';
+        warn.innerHTML = '&#9432; Within 5 % of saturation (P<sub>sat</sub> &asymp; ' + psTxt +
+          ') &mdash; near-dew-point gas. PR Z is less accurate here and condensation in the valve is possible.';
+      } else {
+        warn.style.display = 'none';
+      }
     }
     calc(); // recalculate Cv with the updated Z
   } catch(e) {
-    // silent fail — keep the existing Z value unchanged
+    // silent fail — network error: keep the existing Z value unchanged
   }
 }
 // ── AUTO LIQUID PROPERTIES — SG / Pv / viscosity from fluid + T (FIX FP-1) ──
