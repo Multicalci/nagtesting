@@ -277,6 +277,10 @@ select option{background:var(--ink2)}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,229,200,.35)}
 .btn-secondary{background:var(--slate);border:1px solid var(--line2);color:var(--text2)}
 .btn-secondary:hover{color:var(--text);border-color:var(--teal2)}
+/* FIX G-2: PRINT/PDF was .btn-secondary — near-white (#e8ecf4) on a white card,
+   invisible while scrolling. Now a solid deep slate-blue with white text. */
+.btn-print{background:linear-gradient(135deg,#3a4f6e,#2a3b55);color:#fff;border:1px solid #2a3b55;box-shadow:0 3px 12px rgba(42,59,85,.25)}
+.btn-print:hover{transform:translateY(-2px);box-shadow:0 7px 20px rgba(42,59,85,.38);color:#fff}
 .share-row{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}
 .share-btn{padding:10px 6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--ink);
   font-family:var(--head);font-size:.62rem;font-weight:700;letter-spacing:.5px;color:var(--text2);
@@ -433,6 +437,23 @@ select option{background:var(--ink2)}
 #cvReport .cx-curve2{fill:none;stroke:var(--amber);stroke-width:2;stroke-dasharray:5 4;stroke-linejoin:round}
 #cvReport .cx-drop{stroke:#c2ccdc;stroke-width:1;stroke-dasharray:3 3}
 #cvReport .cx-mlab{font-family:var(--mono);font-size:9px;font-weight:700}
+/* FIX G-1: chart interpretation popovers — "how to read this graph".
+   Desktop: emerges on hover of a chart card, changes as the mouse moves to
+   another card (pure CSS :hover, survives every innerHTML re-render).
+   Touch: tap pins it (.interp-on via delegated handler), tap another card
+   switches, tap again dismisses. Hidden in print. */
+#cvReport .cv-cc{position:relative}
+#cvReport .cv-cc .qhint{position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:8.5px;font-weight:600;letter-spacing:.4px;color:var(--muted);background:var(--hl);border:1px solid var(--line);border-radius:9px;padding:1px 7px;pointer-events:none}
+/* FIX G-2: panel now docks BELOW the chart (in normal flow) so the curve
+   stays fully visible while reading. Collapsed via max-height, expands on
+   hover / tap-pin; the card simply grows downward. */
+#cvReport .cv-interp{max-height:0;overflow:hidden;opacity:0;margin-top:0;background:#fff;border:1.5px solid transparent;border-left-width:5px;border-radius:7px;padding:0 11px;font-size:10.5px;line-height:1.55;color:var(--mid);transition:max-height .24s ease,opacity .18s ease,margin-top .24s ease,padding .24s ease,border-color .18s}
+#cvReport .cv-interp b{color:var(--teal);font-family:var(--mono);font-size:9px;letter-spacing:.7px;display:block;margin-bottom:3px}
+#cvReport .cv-interp .gd{color:var(--teal);font-weight:700}
+#cvReport .cv-interp .wn{color:var(--amber);font-weight:700}
+#cvReport .cv-interp .bd{color:var(--red);font-weight:700}
+#cvReport .cv-cc:hover .cv-interp,#cvReport .cv-cc.interp-on .cv-interp{max-height:280px;opacity:1;margin-top:8px;padding:9px 11px 10px;border-color:var(--teal)}
+#cvReport .cv-cc:hover .qhint{opacity:0}
 #cvReport .cv-notes{font-size:10.5px;color:var(--mid);line-height:1.6}
 #cvReport .cv-notes p{margin:5px 0;padding-left:16px;position:relative}
 #cvReport .cv-notes p::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:2px;background:var(--teal)}
@@ -450,6 +471,7 @@ select option{background:var(--ink2)}
     transform:scale(0.82);transform-origin:top left;width:121.9% !important;max-width:none !important;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
   #cvReport .cv-noprint{display:none !important;}
+  #cvReport .cv-interp,#cvReport .qhint{display:none !important;}   /* FIX G-1: screen-only */
   #cvReport .cv-cc,#cvReport table,#cvReport .cv-case,#cvReport .cv-notes{break-inside:avoid;}
   #cvReport .cv-charts{break-inside:avoid;}   /* keep all four charts together */
   /* light spacing compaction (fonts kept legible; scale does the fitting) */
@@ -845,7 +867,7 @@ select option{background:var(--ink2)}
         <span class="hl">Kv = Cv/1.1561 (IEC exact) | Equal%: f(h)=R^(h−1) | Installed: fi·√(1/(α+(1−α)fi²))</span>
       </div>
       <div class="actions">
-        <button class="btn btn-secondary" onclick="generatePDF()">🖨 PRINT / PDF</button>
+        <button class="btn btn-print" onclick="generatePDF()">🖨 PRINT / PDF</button>
       </div>
       <div style="margin-top:12px">
         <div style="font-family:var(--head);font-size:.7rem;font-weight:700;letter-spacing:1px;color:var(--text3);margin-bottom:7px;text-transform:uppercase">📤 Share Results</div>
@@ -4054,13 +4076,13 @@ function renderReport(d){
   const gAt=h=>{const dh=0.005;return (charFn(type,Math.min(h+dh,1),R)-charFn(type,Math.max(h-dh,0),R))/(2*dh)/gmax;};
   const lpMax=Math.max(60,...cs.map(c=>c.LpAe||0))+8;
   const charts=[
-    {t:'Inherent characteristic',s:'Cv delivered vs valve travel',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:100,xlab:'TRAVEL %',ylab:'Cv / Cv₁₀₀ %',xticks:[0,25,50,75,100],yticks:[0,25,50,75,100],curves:[{pts:curve,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:charFn(type,c.openPct/100,R)*100,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)',(CHAR[type]||type)+' curve']]},
-    {t:'Inherent gain',s:'Sensitivity dCv/d(travel), relative',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:1.25,xlab:'TRAVEL %',ylab:'REL. GAIN',xticks:[0,25,50,75,100],yticks:[0,0.5,1.0],hlines:[{y:0.3,color:'#b07800',label:'low res.'}],curves:[{pts:gain,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:gAt(c.openPct/100),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','installed gain']]},
-    {t:'Aerodynamic noise vs load',s:'External A-weighted SPL at 1 m',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:lpMax,xlab:'FLOW q/q₁₀₀ %',ylab:'LpAe dB(A)',xticks:[0,25,50,75,100],yticks:[0,20,40,60,80].filter(t=>t<=lpMax),hlines:[{y:85,color:'#cc1a2a',label:'85 dB(A)'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:c.LpAe||0})),color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:load(c),y:c.LpAe||0,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','LpAe']]},
-    {t:'Choke & velocity margin',s:'Proximity to sonic & velocity limit',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:120,xlab:'FLOW q/q₁₀₀ %',ylab:'% OF LIMIT',xticks:[0,25,50,75,100],yticks:[0,50,100],hlines:[{y:100,color:'#cc1a2a',label:'limit'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),color:'#007a6c',w:2.4},{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min((c.u2P!=null?c.u2P:0)/vLim*100,120)})),color:'#b07800',w:2,dash:'5 4'}],markers:cs.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','x / x_choke'],['var(--amber)','velocity / limit']]},
+    {t:'Inherent characteristic',s:'Cv delivered vs valve travel',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:100,xlab:'TRAVEL %',ylab:'Cv / Cv₁₀₀ %',xticks:[0,25,50,75,100],yticks:[0,25,50,75,100],curves:[{pts:curve,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:charFn(type,c.openPct/100,R)*100,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)',(CHAR[type]||type)+' curve']] ,interp:'<b>HOW TO READ</b>The teal curve is the trim&rsquo;s inherent Cv vs travel; the dots are your Max / Mean / Min operating points (dot colour = severity). <span class=\'gd\'>Healthy sizing</span>: all three dots between ~20&nbsp;% and 80&nbsp;% travel, on the controllable part of the curve. Dots below ~15&nbsp;% &rarr; <span class=\'wn\'>oversized</span> &mdash; coarse resolution and seat-throttling wear near shutoff. Dots above ~85&nbsp;% &rarr; <span class=\'bd\'>undersized</span> &mdash; no reserve for upsets. A wide dot spread means a large load range: equal-percentage trim absorbs this better than linear.'},
+    {t:'Inherent gain',s:'Sensitivity dCv/d(travel), relative',svg:chartSVG({xmin:0,xmax:100,ymin:0,ymax:1.25,xlab:'TRAVEL %',ylab:'REL. GAIN',xticks:[0,25,50,75,100],yticks:[0,0.5,1.0],hlines:[{y:0.3,color:'#b07800',label:'low res.'}],curves:[{pts:gain,color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:c.openPct,y:gAt(c.openPct/100),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','installed gain']] ,interp:'<b>HOW TO READ</b>Gain is the valve&rsquo;s sensitivity &mdash; how much flow changes per 1&nbsp;% of travel (slope of the characteristic, normalised to its peak). Keep the operating dots <span class=\'gd\'>above the amber &lsquo;low res.&rsquo; line (0.3)</span>: below it the loop needs big strokes for small flow corrections &mdash; sluggish, oscillation-prone control. Very steep regions instead amplify positioner noise. Aim for all three load cases in a moderate band with gain varying less than ~2:1 from Max to Min, so a single PID tuning works across the range.'},
+    {t:'Aerodynamic noise vs load',s:'External A-weighted SPL at 1 m',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:lpMax,xlab:'FLOW q/q₁₀₀ %',ylab:'LpAe dB(A)',xticks:[0,25,50,75,100],yticks:[0,20,40,60,80].filter(t=>t<=lpMax),hlines:[{y:85,color:'#cc1a2a',label:'85 dB(A)'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:c.LpAe||0})),color:'#007a6c',w:2.4}],markers:cs.map(c=>({x:load(c),y:c.LpAe||0,label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','LpAe']] ,interp:'<b>HOW TO READ</b>Predicted A-weighted sound level 1&nbsp;m from the pipe (IEC 60534-8-3) as flow rises to 100&nbsp;% load. The red line is <span class=\'bd\'>85&nbsp;dB(A)</span> &mdash; the common 8-hour occupational exposure limit. Points above it need mitigation: low-noise / multi-stage trim, heavier downstream pipe schedule, or acoustic insulation. A steep climb toward full load means the valve is nearing choked flow, where noise peaks &mdash; cross-check the choke &amp; velocity chart.'},
+    {t:'Choke & velocity margin',s:'Proximity to sonic & velocity limit',svg:chartSVG({xmin:0,xmax:105,ymin:0,ymax:120,xlab:'FLOW q/q₁₀₀ %',ylab:'% OF LIMIT',xticks:[0,25,50,75,100],yticks:[0,50,100],hlines:[{y:100,color:'#cc1a2a',label:'limit'}],curves:[{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120)})),color:'#007a6c',w:2.4},{pts:[...cs].sort((a,b)=>load(a)-load(b)).map(c=>({x:load(c),y:Math.min((c.u2P!=null?c.u2P:0)/vLim*100,120)})),color:'#b07800',w:2,dash:'5 4'}],markers:cs.map(c=>({x:load(c),y:Math.min(c.x_ratio*100,120),label:c.label,color:SEV[c.sevBand]}))}),lg:[['var(--teal)','x / x_choke'],['var(--amber)','velocity / limit']] ,interp:'<b>HOW TO READ</b>Both curves are &lsquo;percent of the limit&rsquo;; the red 100&nbsp;% line is the limit itself. <span class=\'gd\'>Teal = x&nbsp;/&nbsp;x_choke</span> (proximity to sonic flow): at 100&nbsp;% extra &Delta;P gives no extra flow and noise is at its worst. <span class=\'wn\'>Amber dashed = outlet velocity</span> vs the erosion / vibration limit. Keep the Max case below ~80&nbsp;% on both for comfortable margin. Crossing 100&nbsp;% on velocity &rarr; larger body or downstream expansion; crossing it on choke &rarr; the valve, not the process, is setting your flow.'},
   ];
   H+=`<div class="cv-sec">Valve Characteristics</div><div class="cv-charts">`;
-  H+=charts.map(c=>`<div class="cv-cc"><div class="t">${c.t}</div><div class="s">${c.s}</div><div class="cv-svgbox">${c.svg}</div><div class="lg">${c.lg.map(([col,l])=>`<span><i style="background:${col}"></i>${l}</span>`).join('')}<span style="margin-left:auto">● Max ● Mean ● Min</span></div></div>`).join('');
+  H+=charts.map(c=>`<div class="cv-cc"><div class="t">${c.t}</div><div class="s">${c.s}</div><span class="qhint">ⓘ how to read</span><div class="cv-svgbox">${c.svg}</div><div class="lg">${c.lg.map(([col,l])=>`<span><i style="background:${col}"></i>${l}</span>`).join('')}<span style="margin-left:auto">● Max ● Mean ● Min</span></div><div class="cv-interp">${c.interp}</div></div>`).join('');
   H+=`</div>`;
   // notes + foot
   H+=`<div class="cv-sec">Method &amp; Traceability</div><div class="cv-notes">
@@ -4073,6 +4095,22 @@ function renderReport(d){
   document.getElementById('cvReport').innerHTML=H;
 }
 window.cvRenderReport=renderReport;
+// FIX G-1: touch support for the chart interpretation popovers. Hover does the
+// job on desktop (pure CSS); on touch there is no hover, so a tap on a chart
+// card pins its message (.interp-on), tapping another card switches to that
+// card's message, and tapping the same card again dismisses it. Bound ONCE by
+// delegation on the static #cvReport container, so it survives every
+// innerHTML re-render of the report.
+document.addEventListener('DOMContentLoaded',()=>{
+  const rep=document.getElementById('cvReport'); if(!rep) return;
+  rep.addEventListener('click',e=>{
+    const cc=e.target.closest('.cv-cc');
+    if(!cc){ rep.querySelectorAll('.cv-cc.interp-on').forEach(x=>x.classList.remove('interp-on')); return; }
+    const wasOn=cc.classList.contains('interp-on');
+    rep.querySelectorAll('.cv-cc.interp-on').forEach(x=>x.classList.remove('interp-on'));
+    if(!wasOn) cc.classList.add('interp-on');
+  });
+});
 })();
 </script>
 <script>
