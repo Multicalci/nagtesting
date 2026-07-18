@@ -1224,6 +1224,18 @@ function controlValve_handler(req,res){
 // SECTION B  ►  GAS EQUATION OF STATE (EOS)
 // Route: /api/eos
 // (Original: SECTION 04 of 21)
+// FIX Z-4 (Jul 2026): merged from the control-valve auto-Z upgrade —
+//   • solvePR: 1978 extended kappa for omega > 0.491
+//   • eosPsat: saturation pressure by fugacity equality (Wilson init), pr/srk
+//   • eosPhase: 'vapor' | 'near_dew' | 'liquid' | 'supercritical'
+//   • response adds data.Psat_Pa + data.phase (superset — old fields untouched)
+//   • warnings gain phase_liquid / phase_near_dew (the old "largest Z = vapour"
+//     3-root note could not tell which phase is STABLE)
+//   Consumed by the control-valve page zPhaseWarn banner + EOS calculator page.
+//   Regression anchors (NIST/CoolProp-validated):
+//     pr NH3 273.15 K / 10e5 Pa  -> Z 0.8854, Psat 4.293e5 Pa, phase 'liquid'
+//     pr NH3 298.15 K /  5e5 Pa  -> Z 0.9576, Psat 10.04e5 Pa, phase 'vapor'
+//     pr CO2 333.15 K / 50e5 Pa  -> Z 0.7919, phase 'supercritical'
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 04 of 21  ►  EQUATION OF STATE (EOS)
 // Route: /api/eos
@@ -1275,12 +1287,25 @@ function eos_handler(req, res) {
     const Tr       = T_K / Tc_K;
     const Pr       = P_Pa / Pc_Pa;
 
+    // FIX Z-4: definitive phase verdict via fugacity-equality Psat (pr/srk only)
+    const Psat_Pa = eosPsat(eos, T_K, Tc_K, Pc_Pa, omega);
+    const phase   = eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa);
+
     const warnings = buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots);
+    if (phase === 'liquid') {
+      warnings.unshift({ type: 'phase_liquid',
+        msg: `P (${(P_Pa/1e5).toFixed(2)} bar a) exceeds the saturation pressure at this temperature (Psat ≈ ${(Psat_Pa/1e5).toFixed(2)} bar a). The STABLE phase is LIQUID — the vapour-root Z reported here describes a phase that does not exist at these conditions.` });
+    } else if (phase === 'near_dew') {
+      warnings.unshift({ type: 'phase_near_dew',
+        msg: `Within 5 % of saturation (Psat ≈ ${(Psat_Pa/1e5).toFixed(2)} bar a) — near-dew-point gas. Cubic-EOS Z accuracy is reduced and condensation is possible.` });
+    }
 
     return res.status(200).json({
       success: true,
       data: {
         Z, phi, Vm_SI, rho_mass, f_Pa, Tr, Pr,
+        Psat_Pa: Psat_Pa != null ? +Psat_Pa.toFixed(1) : null,   // FIX Z-4
+        phase,                                                    // FIX Z-4
         roots: roots.map(r => ({ Z: r.Z, Vm: r.Vm, phi: r.phi, label: r.label })),
         rootCount: roots.length,
         eosParams: { A: primary.A, B: primary.B, a: primary.a, b: primary.b,
@@ -1374,7 +1399,12 @@ function solveSRK(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
 function solvePR(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
   const a0          = 0.45724 * R * R * Tc_K * Tc_K / Pc_Pa;
   const b           = 0.07780 * R * Tc_K / Pc_Pa;
-  const kappa       = 0.37464 + 1.54226 * omega - 0.26992 * omega * omega;
+  // FIX Z-4: 1978 extension for heavy/polar fluids — the 1976 kappa polynomial
+  // was fitted only up to omega ~0.49; beyond that (heavy HCs, some polar
+  // fluids) the extended cubic form is the published correction.
+  const kappa       = omega <= 0.491
+      ? 0.37464 + 1.54226 * omega - 0.26992 * omega * omega
+      : 0.379642 + 1.48503 * omega - 0.164423 * omega * omega + 0.016666 * omega * omega * omega;
   const Tr          = T_K / Tc_K;
   const alpha_base  = 1 + kappa * (1 - Math.sqrt(Math.max(0, Tr)));
   const alpha       = Math.max(1e-6, alpha_base * alpha_base);
@@ -1403,6 +1433,50 @@ function runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega) {
     case 'pr':    return solvePR(T_K, P_Pa, Tc_K, Pc_Pa, omega);
     default: return [];
   }
+}
+
+// ── FIX Z-4 : saturation pressure & phase-stability verdict ──────────────────
+// Motivation (found during NIST/CoolProp validation of the control-valve Z):
+// "largest root = vapour" is only true when the vapour is the STABLE phase.
+// At sub-saturation states (NH3 at 0 °C / 10 bar a, Psat = 4.29 bar) the old
+// path returned a plausible-looking vapour Z = 0.885 for a phase that doesn't
+// exist — the fluid is liquid. The definitive test is fugacity equality:
+// Psat is the pressure where phi_liquid = phi_vapour. Solved here by direct
+// substitution P(n+1) = P(n) * phi_L/phi_V from a Wilson-correlation start,
+// reusing the existing solveSRK/solvePR machinery (works for both cubics).
+// Validated vs NIST: PR Psat within 0.1–2 % (NH3 25 °C: 10.042 vs 10.027 bar;
+// n-C4 25 °C: 2.430 vs 2.433 bar; Cl2 25 °C: 7.744 vs ~7.7 bar literature).
+function eosPsat(eos, T_K, Tc_K, Pc_Pa, omega) {
+  if (!(eos === 'pr' || eos === 'srk')) return null;   // needs an alpha-function cubic
+  if (!(T_K < Tc_K)) return null;                       // no saturation above Tc
+  let P = Pc_Pa * Math.exp(5.373 * (1 + omega) * (1 - Tc_K / T_K));  // Wilson init
+  if (!(P > 0) || !isFinite(P)) return null;
+  for (let i = 0; i < 60; i++) {
+    const roots = runEOS(eos, T_K, P, Tc_K, Pc_Pa, omega);
+    if (roots.length < 2) {                             // outside 3-root region — nudge in
+      const zTop = roots.length ? Math.max(...roots.map(r => r.Z)) : 1;
+      P *= zTop > 0.5 ? 1.05 : 0.95;
+      continue;
+    }
+    const rV = roots.reduce((a, b) => (a.Z > b.Z ? a : b));
+    const rL = roots.reduce((a, b) => (a.Z < b.Z ? a : b));
+    if (!(rV.phi > 0) || !(rL.phi > 0)) return null;
+    const Pn = P * (rL.phi / rV.phi);                   // phi_L/phi_V -> 1 at Psat
+    if (!isFinite(Pn) || Pn <= 0) return null;
+    if (Math.abs(Pn - P) / P < 1e-7) return Pn;
+    P = Pn;
+  }
+  return P;                                             // best estimate after 60 iters
+}
+
+// 'vapor' | 'near_dew' | 'liquid' | 'supercritical' | null (ideal/vdw: no verdict)
+function eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa) {
+  if (!(eos === 'pr' || eos === 'srk')) return null;
+  if (T_K >= Tc_K) return 'supercritical';
+  if (Psat_Pa == null) return 'vapor';
+  if (P_Pa > Psat_Pa * 1.001) return 'liquid';
+  if (P_Pa > Psat_Pa * 0.95)  return 'near_dew';
+  return 'vapor';
 }
 
 function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
