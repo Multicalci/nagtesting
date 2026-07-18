@@ -177,6 +177,25 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:.74rem;font-weight:600;letter-spacing:.5px;color:var(--text2);text-transform:uppercase}
 .field label .hint{font-weight:400;color:var(--text3);text-transform:none;font-size:.66rem}
+/* FIX Z-2: symbol labels (Tc, Pc, omega) must not be uppercased — the global
+   uppercase rule was rendering "Tc"->"TC" and lowercase omega -> capital Omega. */
+.field label.sym{text-transform:none;letter-spacing:.3px}
+.crit-btns{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 2px}
+.crit-btn{font-family:var(--head);font-size:.66rem;font-weight:700;letter-spacing:.5px;padding:6px 11px;
+  border-radius:5px;border:1px solid rgba(0,122,108,.35);background:rgba(0,122,108,.06);color:var(--teal2);
+  cursor:pointer;transition:.15s}
+.crit-btn:hover{background:rgba(0,122,108,.14)}
+.crit-btn.warn{border-color:rgba(200,120,0,.4);background:rgba(200,120,0,.07);color:#b06a00}
+.crit-btn.warn:hover{background:rgba(200,120,0,.15)}
+.mix-panel{display:none;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:7px;background:rgba(0,122,108,.025)}
+.mix-panel.open{display:block}
+.mix-row{display:grid;grid-template-columns:1fr 88px 30px;gap:7px;align-items:center;margin-bottom:6px}
+.mix-row select,.mix-row input{width:100%;padding:6px 8px;font-size:.76rem;border:1px solid var(--line);border-radius:5px;background:#fff;font-family:var(--mono)}
+.mix-del{border:none;background:rgba(190,60,60,.09);color:#b34;border-radius:5px;cursor:pointer;font-size:.85rem;padding:5px 0}
+.mix-sum{font-family:var(--mono);font-size:.7rem;color:var(--text2);margin-top:8px;line-height:1.55;
+  padding:8px 10px;background:rgba(0,122,108,.05);border-radius:5px;border-left:2px solid var(--teal2)}
+.mix-sum .bad{color:#b34;font-weight:700}
+.crit-note{font-size:.66rem;color:var(--text3);line-height:1.5;margin-top:7px}
 .iw{position:relative;display:flex}
 .iw input{flex:1;border-radius:7px 0 0 7px !important;border-right:none !important}
 .iw .iunit{padding:0 9px;display:flex;align-items:center;background:var(--ink3);border:1px solid var(--line);
@@ -489,22 +508,43 @@ select option{background:var(--ink2)}
           <div class="field" id="custPvField"><label>Vapor Pressure <span class="hint" id="custPvUnit">(psia)</span></label>
             <input type="number" id="custPv" value="0.3" step="0.01" oninput="syncCustomFluid()"></div>
         </div>
-        <!-- FIX Z-1: custom GAS fluids previously had no critical properties, so the
-             PR-EOS auto-Z engine bailed out (`!selFluid.Tc`) and the Z field kept a
-             STALE value from the last named fluid. These three inputs feed the same
-             /api/eos path used by the library fluids. Left blank -> estimated from
-             MW via the Sutton (1985) pseudo-critical correlation. -->
+        <!-- FIX Z-2 : custom GAS critical properties.
+             History: v1 auto-filled these from MW via the Sutton (1985) correlation.
+             That was withdrawn — MW alone CANNOT determine Tc/Pc. At MW 22 a light
+             hydrocarbon mix gives Tc~218 K while an NH3/CO2 mix gives Tc~380 K, i.e.
+             Z = 0.97 vs 0.66 from identical input. An auto-estimate is therefore a
+             plausible-looking wrong answer. Fields now start BLANK, Z holds at 1.000,
+             and the user supplies criticals — assisted by a Kay's-rule mixture
+             builder, or by Sutton as an explicit opt-in for natural gas only. -->
         <div id="custCritRow" style="display:none">
-          <div class="custom-row" style="cursor:default;opacity:.75;margin-top:12px">Critical properties <span class="hint">(for PR-EOS compressibility Z)</span>
-            <span id="critEstTag" style="display:none;font-size:.6rem;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:rgba(200,120,0,.10);border:1px solid rgba(200,120,0,.35);color:#b06a00;margin-left:6px;text-transform:none">ESTIMATED</span>
+          <div class="custom-row" style="cursor:default;opacity:.75;margin-top:12px"><span id="critHdr">Critical properties</span> <span class="hint" id="critHdrHint">(required for PR-EOS compressibility Z)</span>
+            <span id="critEstTag" class="auto-tag" style="display:none;background:rgba(200,120,0,.10);border-color:rgba(200,120,0,.35);color:#b06a00">ESTIMATED</span>
+            <span id="critMixTag" class="auto-tag" style="display:none">KAY MIX</span>
           </div>
-          <div class="row3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-            <div class="field"><label data-tip="Critical (or pseudo-critical) temperature">Tc <span class="hint">K</span></label>
-              <input type="number" id="custTc" value="" step="0.1" placeholder="auto" oninput="critManualOverride()"></div>
-            <div class="field"><label data-tip="Critical (or pseudo-critical) pressure, absolute">Pc <span class="hint">bar a</span></label>
-              <input type="number" id="custPc" value="" step="0.01" placeholder="auto" oninput="critManualOverride()"></div>
-            <div class="field"><label data-tip="Pitzer acentric factor">&omega; <span class="hint">acentric</span></label>
-              <input type="number" id="custOmega" value="" step="0.001" placeholder="auto" oninput="critManualOverride()"></div>
+          <div class="row3" id="critGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div class="field" id="critTcCell"><label class="sym" data-tip="Critical (or pseudo-critical) temperature">Tc <span class="hint">K</span></label>
+              <input type="number" id="custTc" value="" step="0.1" placeholder="required" oninput="critManualOverride()"></div>
+            <div class="field" id="critPcCell"><label class="sym" id="critPcLbl" data-tip="Critical (or pseudo-critical) pressure, absolute">Pc <span class="hint">bar a</span></label>
+              <input type="number" id="custPc" value="" step="0.01" placeholder="required" oninput="critManualOverride()"></div>
+            <div class="field" id="critOmCell"><label class="sym" data-tip="Pitzer acentric factor">&#969; <span class="hint">acentric</span></label>
+              <input type="number" id="custOmega" value="" step="0.001" placeholder="0" oninput="critManualOverride()"></div>
+          </div>
+          <div class="crit-btns" id="critBtns">
+            <button type="button" class="crit-btn" onclick="toggleMixPanel()">&#129514; Build from mixture (Kay's rule)</button>
+            <button type="button" class="crit-btn warn" onclick="applySutton()" data-tip="Sutton (1985) pseudo-critical correlation. Fitted to natural gas / hydrocarbon mixtures ONLY.">&#8776; Estimate from MW <span style="font-weight:400">(nat. gas only)</span></button>
+          </div>
+          <div class="crit-note" id="critNote">Leave blank and Z stays at 1.000 (ideal gas &mdash; no real-gas correction applied).</div>
+
+          <div class="mix-panel" id="mixPanel">
+            <div style="font-family:var(--head);font-size:.68rem;font-weight:700;letter-spacing:.8px;color:var(--teal);margin-bottom:9px">MIXTURE COMPOSITION <span class="hint" style="font-weight:400;letter-spacing:0">&mdash; mole % of each component</span></div>
+            <div id="mixRows"></div>
+            <div class="crit-btns">
+              <button type="button" class="crit-btn" onclick="mixAddRow()">+ Add component</button>
+              <button type="button" class="crit-btn" onclick="mixNormalize()">Normalise to 100%</button>
+              <button type="button" class="crit-btn" onclick="mixApply()">&#10003; Apply to Tc / Pc / &#969;</button>
+            </div>
+            <div class="mix-sum" id="mixSum">Add components to compute pseudo-critical properties.</div>
+            <div class="crit-note">Kay's rule: Tpc = &Sigma;y&#7522;Tc&#7522;, Ppc = &Sigma;y&#7522;Pc&#7522;, &#969; = &Sigma;y&#7522;&#969;&#7522;, MW = &Sigma;y&#7522;MW&#7522;. Simple and adequate for gases of similar type; accuracy degrades for mixtures with widely differing molecular size or strong polarity (e.g. H&#8322; with heavy hydrocarbons, or aqueous/polar blends). Entries already marked as blends are themselves pseudo-components &mdash; prefer pure components where possible.</div>
           </div>
         </div>
       </div>
@@ -1525,8 +1565,26 @@ function setPhase(p){
   if(cs) cs.step = isL ? '0.001' : '0.01';
   const cpf=document.getElementById('custPvField');
   if(cpf) cpf.style.display = isL ? '' : 'none';
-  const ccr=document.getElementById('custCritRow');           // FIX Z-1
-  if(ccr) ccr.style.display = isG ? '' : 'none';
+  // FIX Z-3: the critical-property row is no longer gas-only. Liquids need Pc for
+  // the IEC 60534 liquid critical pressure ratio factor FF = 0.96 - 0.28*sqrt(Pv/Pc),
+  // which drives choked-flow / flashing / cavitation. Previously fluidPc was built as
+  // `selFluid ? ... : null`, so a CUSTOM liquid silently sent no Pc at all — the same
+  // library-fluid gating that caused the stale-Z bug.
+  const ccr=document.getElementById('custCritRow');
+  if(ccr) ccr.style.display = (isG||isL) ? '' : 'none';
+  const _sh=(id,on)=>{const e=document.getElementById(id); if(e) e.style.display = on?'':'none';};
+  _sh('critTcCell',isG); _sh('critOmCell',isG); _sh('critBtns',isG);
+  const _mp=document.getElementById('mixPanel'); if(_mp && !isG) _mp.classList.remove('open');
+  const _cg=document.getElementById('critGrid');
+  if(_cg) _cg.style.gridTemplateColumns = isG ? '1fr 1fr 1fr' : '1fr';
+  const _ch=document.getElementById('critHdr'), _chh=document.getElementById('critHdrHint');
+  if(_ch)  _ch.textContent = isG ? 'Critical properties' : 'Critical pressure';
+  if(_chh) _chh.innerHTML  = isG ? '(required for PR-EOS compressibility Z)'
+                                 : '(for choked flow / flashing &mdash; F<sub>F</sub>)';
+  const _cpl=document.getElementById('critPcLbl');
+  if(_cpl) _cpl.setAttribute('data-tip', isG
+      ? 'Critical (or pseudo-critical) pressure, absolute'
+      : 'Critical pressure, absolute. Used for FF = 0.96 - 0.28*sqrt(Pv/Pc) in the IEC 60534 choked-liquid check.');
   document.getElementById('uSG').textContent=isL||p==='steam'?'SG':'g/mol';
   document.getElementById('recLabel').innerHTML=isL?'FL <span class="hint">recovery</span>':'xT <span class="hint">drop ratio</span>';
   // FIX: re-apply the correct FL (liquid) or xT (gas/steam) value for the currently
@@ -1563,11 +1621,17 @@ function onFluidSelect(name){
 function selectFluid(f){
   _zUserOverride=false;  // reset manual override — new fluid selected
   _sgUserOverride=false; _pvUserOverride=false; _viscUserOverride=false; // FIX FP-1
-  _critUserOverride=false;                                                // FIX Z-1
-  const _cet=document.getElementById('critEstTag'); if(_cet)_cet.style.display='none';
-  if(f && isFinite(f.Tc)){                                                // FIX Z-1: mirror into custom fields
+  _critUserOverride=false;                                                // FIX Z-2
+  _critTags(null);
+  {                                                                       // FIX Z-2/Z-3: mirror into custom fields
     const _t=document.getElementById('custTc'), _p=document.getElementById('custPc'), _o=document.getElementById('custOmega');
-    if(_t)_t.value=f.Tc; if(_p)_p.value=f.Pc_bar; if(_o)_o.value=(f.omega!=null?f.omega:0);
+    if(f && isFinite(f.Tc)){                                              // gas: full set
+      if(_t)_t.value=f.Tc; if(_p)_p.value=f.Pc_bar; if(_o)_o.value=(f.omega!=null?f.omega:0);
+    } else {                                                              // liquid: Pc only
+      if(_t)_t.value=''; if(_o)_o.value='';
+      const _pc = f ? (f.Pc ?? f.Pc_bar ?? null) : null;
+      if(_p)_p.value = (isFinite(_pc)&&_pc>0) ? _pc : '';
+    }
   }
   selFluid=f;
   const s=document.getElementById('fluidSelect'); if(s) s.value=f.n;
@@ -1600,53 +1664,183 @@ function syncCustomFluid(){
   clearChipSel();
   document.getElementById('sg').value = document.getElementById('custSG').value;
   document.getElementById('pv').value = document.getElementById('custPv').value;
-  if(PHASE.includes('gas')) estimateCustomCrit();   // FIX Z-1: refresh Tc/Pc/w from MW
+  // FIX Z-2: NO auto-estimate. MW does not determine Tc/Pc. If the MW was edited
+  // by hand the inherited criticals no longer describe this fluid, so drop them.
+  if((PHASE.includes('gas')||PHASE.includes('liq')) && !_critUserOverride && !_mixApplied()) clearCustomCrit();
   calc();
-  autoZ();                                          // FIX Z-1: custom gas now gets a real Z
+  autoZ();                                          // resolves to Z=1.000 if criticals absent
 }
 
-// ── FIX Z-1 ────────────────────────────────────────────────────────────────
-// Sutton (1985) pseudo-critical correlation for a hydrocarbon-type gas mixture,
-// keyed on gas specific gravity g = MW / 28.9625 (air basis). Valid roughly
-// 0.57 < g < 1.68. Used only when the user has NOT typed explicit Tc/Pc/omega.
-//   Tpc[degR] = 169.2 + 349.5 g - 74.0 g^2
-//   Ppc[psia] = 756.8 - 131.0 g -  3.6 g^2
-// omega is estimated by a light MW correlation (crude but bounded); for anything
-// non-hydrocarbon the user should type the real values into the three fields.
+// ── FIX Z-2 : custom-gas critical properties ───────────────────────────────
 let _critUserOverride = false;
+
+function _critTags(which){   // which: 'est' | 'mix' | null
+  const e=document.getElementById('critEstTag'), m=document.getElementById('critMixTag');
+  if(e) e.style.display = (which==='est')?'inline':'none';
+  if(m) m.style.display = (which==='mix')?'inline':'none';
+}
 
 function critManualOverride(){
   _critUserOverride = true;
-  const t=document.getElementById('critEstTag'); if(t) t.style.display='none';
+  _critTags(null);
+  _critNote();
   calc(); autoZ();
 }
 
-function suttonCrit(MW){
-  if(!isFinite(MW) || MW<=0) return null;
-  const g = MW / 28.9625;
-  const TpcR = 169.2 + 349.5*g - 74.0*g*g;          // degR
-  const PpcP = 756.8 - 131.0*g -  3.6*g*g;          // psia
-  const Tc_K   = TpcR * 5/9;
-  const Pc_bar = PpcP / 14.503774;
-  let omega = 0.0125*MW - 0.155;                     // rough MW fit (C1..C5 band)
-  omega = Math.max(-0.05, Math.min(0.35, omega));
-  if(!(Tc_K>0) || !(Pc_bar>0)) return null;
-  return { Tc:Tc_K, Pc_bar:Pc_bar, omega:omega };
+function _critNote(msg){
+  const el=document.getElementById('critNote'); if(!el) return;
+  if(msg){ el.innerHTML=msg; return; }
+  if(PHASE.includes('liq')){                                              // FIX Z-3
+    el.innerHTML = _fluidPcVal()
+      ? 'F<sub>F</sub> = 0.96 &minus; 0.28&radic;(P<sub>v</sub>/P<sub>c</sub>) will be applied in the choked-flow / flashing check.'
+      : 'Leave blank and the choked-liquid check falls back to F<sub>F</sub> &asymp; 0.96 (valid only when P<sub>v</sub> &lt;&lt; P<sub>c</sub>).';
+    return;
+  }
+  const ok = !!_zFluid();
+  el.innerHTML = ok ? 'Z is solved from these values via Peng-Robinson at the current T and P&#8321;.'
+                    : 'Leave blank and Z stays at 1.000 (ideal gas &mdash; no real-gas correction applied).';
 }
 
-function estimateCustomCrit(){
-  if(_critUserOverride) return;
-  const MW = parseFloat(document.getElementById('custSG')?.value);
+// Clear criticals whenever the fluid identity changes — they belonged to the
+// previous fluid and silently reusing them is exactly the stale-value class of
+// bug this whole fix exists to remove.
+function clearCustomCrit(){
+  ['custTc','custPc','custOmega'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});
+  _critUserOverride=false; _critTags(null); _critNote();
+}
+
+// Sutton (1985) pseudo-criticals from gas gravity g = MW/28.9625.
+//   Tpc[degR] = 169.2 + 349.5 g - 74.0 g^2      Ppc[psia] = 756.8 - 131.0 g - 3.6 g^2
+// Fitted to NATURAL GAS. Opt-in only — never auto-applied.
+function suttonCrit(MW){
+  if(!isFinite(MW) || MW<=0) return null;
+  const g = MW/28.9625;
+  const Tc_K = (169.2+349.5*g-74.0*g*g)*5/9;
+  const Pc_bar = (756.8-131.0*g-3.6*g*g)/14.503774;
+  let omega = Math.max(-0.05, Math.min(0.35, 0.0125*MW-0.155));
+  if(!(Tc_K>0)||!(Pc_bar>0)) return null;
+  return {Tc:Tc_K, Pc_bar:Pc_bar, omega:omega, g:g};
+}
+
+function applySutton(){
+  const MW = parseFloat(document.getElementById('sg')?.value);
   const est = suttonCrit(MW);
-  const tag = document.getElementById('critEstTag');
-  if(!est){ if(tag) tag.style.display='none'; return; }
-  const tc=document.getElementById('custTc'), pc=document.getElementById('custPc'), om=document.getElementById('custOmega');
-  if(tc) tc.value = est.Tc.toFixed(1);
-  if(pc) pc.value = est.Pc_bar.toFixed(2);
-  if(om) om.value = est.omega.toFixed(3);
-  if(tag){ tag.style.display='inline';
-    tag.title = 'Sutton (1985) pseudo-critical estimate from MW='+MW+' g/mol. '+
-                'Type real Tc / Pc / omega to override.'; }
+  if(!est){ alert('Enter a valid molecular weight first.'); return; }
+  if(est.g<0.554 || est.g>1.9){
+    if(!confirm('MW '+MW+' g/mol gives a gas gravity of '+est.g.toFixed(3)+
+      ', outside the range Sutton was fitted over (~0.55-1.9).\n\nApply anyway?')) return;
+  }
+  document.getElementById('custTc').value    = est.Tc.toFixed(1);
+  document.getElementById('custPc').value    = est.Pc_bar.toFixed(2);
+  document.getElementById('custOmega').value = est.omega.toFixed(3);
+  _critUserOverride=false; _critTags('est');
+  _critNote('<strong style="color:#b06a00">Natural-gas correlation applied.</strong> Valid only if this fluid is a hydrocarbon gas mixture. For any other fluid these values are meaningless &mdash; enter real criticals or use the mixture builder.');
+  calc(); autoZ();
+}
+
+// ── Kay's rule mixture builder ─────────────────────────────────────────────
+let MIX = [];   // [{n:fluidName, y:molePercent}]
+
+function _mixComponents(){
+  const out=[];
+  ['gas_gen','gas_hc'].forEach(k=>(FLUID_DB[k]||[]).forEach(f=>{ if(isFinite(f.Tc)&&isFinite(f.Pc_bar)) out.push(f); }));
+  return out.sort((a,b)=>a.n.localeCompare(b.n));
+}
+function _mixFind(name){ return _mixComponents().find(f=>f.n===name)||null; }
+
+function toggleMixPanel(){
+  const p=document.getElementById('mixPanel'); if(!p) return;
+  const open=!p.classList.contains('open');
+  p.classList.toggle('open',open);
+  if(open && MIX.length===0){ mixAddRow(); mixAddRow(); }
+}
+
+function mixAddRow(){ MIX.push({n:'',y:0}); mixRender(); }
+function mixDelRow(i){ MIX.splice(i,1); mixRender(); }
+function mixSetName(i,v){ MIX[i].n=v; mixRender(); }
+function mixSetY(i,v){ MIX[i].y=parseFloat(v); mixRender(); }
+
+function mixRender(){
+  const host=document.getElementById('mixRows'); if(!host) return;
+  const comps=_mixComponents();
+  host.innerHTML = MIX.map((r,i)=>{
+    const opts = ['<option value="">— select component —</option>'].concat(
+      comps.map(f=>'<option value="'+f.n+'"'+(f.n===r.n?' selected':'')+'>'+f.n+'</option>')).join('');
+    return '<div class="mix-row">'+
+      '<select onchange="mixSetName('+i+',this.value)">'+opts+'</select>'+
+      '<input type="number" step="0.01" min="0" placeholder="mol %" value="'+(isFinite(r.y)?r.y:'')+'" oninput="mixSetY('+i+',this.value)">'+
+      '<button type="button" class="mix-del" onclick="mixDelRow('+i+')" title="Remove">&times;</button>'+
+    '</div>';
+  }).join('');
+  mixSummary();
+}
+
+// Returns {MW,Tc,Pc_bar,omega,k,total} or null
+function mixCompute(){
+  const R=8.314462618;
+  let tot=0, MW=0, Tc=0, Pc=0, om=0, Cp=0, ok=false;
+  for(const r of MIX){
+    const f=_mixFind(r.n); const y=parseFloat(r.y);
+    if(!f || !isFinite(y) || y<=0) continue;
+    tot+=y; ok=true;
+  }
+  if(!ok || tot<=0) return null;
+  for(const r of MIX){
+    const f=_mixFind(r.n); const y=parseFloat(r.y);
+    if(!f || !isFinite(y) || y<=0) continue;
+    const x=y/tot;                                  // normalised mole fraction
+    MW += x*f.sg; Tc += x*f.Tc; Pc += x*f.Pc_bar; om += x*(f.omega||0);
+    const ki=f.k||1.4;
+    Cp += x*(ki*R/(ki-1));                          // ideal-gas molar Cp from k
+  }
+  const k = Cp/(Cp-R);
+  return {MW:MW, Tc:Tc, Pc_bar:Pc, omega:om, k:k, total:tot};
+}
+
+function mixSummary(){
+  const el=document.getElementById('mixSum'); if(!el) return;
+  const m=mixCompute();
+  if(!m){ el.innerHTML='Add components to compute pseudo-critical properties.'; return; }
+  const off = Math.abs(m.total-100)>0.05;
+  el.innerHTML =
+    'Total: <strong'+(off?' class="bad"':'')+'>'+m.total.toFixed(2)+' %</strong>'+
+      (off?' &mdash; will be normalised on apply':'')+'<br>'+
+    'MW = '+m.MW.toFixed(2)+' g/mol &nbsp;|&nbsp; Tpc = '+m.Tc.toFixed(1)+' K &nbsp;|&nbsp; Ppc = '+m.Pc_bar.toFixed(2)+' bar a<br>'+
+    '&#969; = '+m.omega.toFixed(4)+' &nbsp;|&nbsp; k = Cp/Cv = '+m.k.toFixed(3);
+}
+
+function mixNormalize(){
+  const m=mixCompute(); if(!m){ alert('Add at least one component with a mole % first.'); return; }
+  MIX.forEach(r=>{ const y=parseFloat(r.y); if(isFinite(y)&&y>0) r.y=+(y/m.total*100).toFixed(4); });
+  mixRender();
+}
+
+function mixApply(){
+  const m=mixCompute(); if(!m){ alert('Add at least one component with a mole % first.'); return; }
+  document.getElementById('custTc').value    = m.Tc.toFixed(1);
+  document.getElementById('custPc').value    = m.Pc_bar.toFixed(2);
+  document.getElementById('custOmega').value = m.omega.toFixed(4);
+  document.getElementById('custSG').value    = m.MW.toFixed(2);
+  document.getElementById('sg').value        = m.MW.toFixed(2);
+  const kf=document.getElementById('kval'); if(kf) kf.value = m.k.toFixed(3);
+  clearChipSel();
+  _critUserOverride=false; _critTags('mix');
+  _critNote('Pseudo-criticals from Kay\'s rule over '+MIX.filter(r=>_mixFind(r.n)&&r.y>0).length+
+            ' components. MW and k = Cp/Cv were updated to match.');
+  calc(); autoZ();
+}
+
+// FIX Z-3: critical pressure in bar absolute, from the library fluid if one is
+// selected, else from the custom Pc field. Liquid entries store it as `Pc`,
+// gas entries as `Pc_bar`; both are bar a. Returns null when genuinely unknown
+// so the server can fall back rather than silently assume a value.
+function _fluidPcVal(){
+  if(selFluid){
+    const v = selFluid.Pc ?? selFluid.Pc_bar ?? null;
+    if(isFinite(v) && v>0) return v;
+  }
+  const c = parseFloat(document.getElementById('custPc')?.value);
+  return (isFinite(c) && c>0) ? c : null;
 }
 
 // Returns the property set the PR-EOS should use: a library fluid if one is
@@ -1689,6 +1883,7 @@ function _resetZ(){
   const zi = document.getElementById('zf');
   if(zi && !_zUserOverride) zi.value = '1.000';
   const tag = document.getElementById('zAutoTag'); if(tag) tag.style.display='none';
+  if(typeof _critNote==='function') _critNote();
 }
 
 async function _autoZAsync(){
@@ -1753,10 +1948,12 @@ function sgManualOverride(){
   _sgUserOverride=true; _hideTag('sgAutoTag');
   clearChipSel();                                   // typing SG = fully custom fluid
   _setInputVal('custSG', document.getElementById('sg').value);
-  if(PHASE.includes('gas')) estimateCustomCrit();   // FIX Z-1
+  if((PHASE.includes('gas')||PHASE.includes('liq')) && !_critUserOverride && !_mixApplied()) clearCustomCrit(); // FIX Z-2/Z-3
   calc();
-  autoZ();                                          // FIX Z-1
+  autoZ();
 }
+// true when the Kay-mixture result is currently loaded into the fields
+function _mixApplied(){ const t=document.getElementById('critMixTag'); return !!t && t.style.display==='inline'; }
 function pvManualOverride(){
   _pvUserOverride=true; _hideTag('pvAutoTag');
   _setInputVal('custPv', document.getElementById('pv').value);
@@ -2022,7 +2219,7 @@ async function _calcAsync(){
   const _viscField = _viscEl ? parseFloat(_viscEl.value) : NaN;
   const fluidVisc  = isFinite(_viscField) && _viscField>0 ? _viscField
                      : (selFluid && selFluid.visc ? selFluid.visc : 1.0);
-  const fluidPc    = selFluid ? (selFluid.Pc ?? selFluid.Pc_bar ?? null) : null;
+  const fluidPc    = _fluidPcVal();   // FIX Z-3: falls back to the custom Pc field
 
   let apiResult;
   try {
@@ -3708,7 +3905,7 @@ async function runLoadAnalysis(){
     charType:val('valveChar'), R_trim:val('rangeR'),
     Cv_rated_custom:(val('cvRatedCustom')||null),
     Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'), matGroup:val('mcMaterial'),
-    fluidPc:(typeof selFluid!=='undefined'&&selFluid)?(selFluid.Pc??selFluid.Pc_bar??null):null,
+    fluidPc:(typeof _fluidPcVal==='function')?_fluidPcVal():null,   // FIX Z-3
     cases,
   };
   if(btn){ btn.disabled=true; btn.textContent='⏳ ANALYSING…'; }
