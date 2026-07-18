@@ -489,6 +489,24 @@ select option{background:var(--ink2)}
           <div class="field" id="custPvField"><label>Vapor Pressure <span class="hint" id="custPvUnit">(psia)</span></label>
             <input type="number" id="custPv" value="0.3" step="0.01" oninput="syncCustomFluid()"></div>
         </div>
+        <!-- FIX Z-1: custom GAS fluids previously had no critical properties, so the
+             PR-EOS auto-Z engine bailed out (`!selFluid.Tc`) and the Z field kept a
+             STALE value from the last named fluid. These three inputs feed the same
+             /api/eos path used by the library fluids. Left blank -> estimated from
+             MW via the Sutton (1985) pseudo-critical correlation. -->
+        <div id="custCritRow" style="display:none">
+          <div class="custom-row" style="cursor:default;opacity:.75;margin-top:12px">Critical properties <span class="hint">(for PR-EOS compressibility Z)</span>
+            <span id="critEstTag" style="display:none;font-size:.6rem;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:rgba(200,120,0,.10);border:1px solid rgba(200,120,0,.35);color:#b06a00;margin-left:6px;text-transform:none">ESTIMATED</span>
+          </div>
+          <div class="row3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div class="field"><label data-tip="Critical (or pseudo-critical) temperature">Tc <span class="hint">K</span></label>
+              <input type="number" id="custTc" value="" step="0.1" placeholder="auto" oninput="critManualOverride()"></div>
+            <div class="field"><label data-tip="Critical (or pseudo-critical) pressure, absolute">Pc <span class="hint">bar a</span></label>
+              <input type="number" id="custPc" value="" step="0.01" placeholder="auto" oninput="critManualOverride()"></div>
+            <div class="field"><label data-tip="Pitzer acentric factor">&omega; <span class="hint">acentric</span></label>
+              <input type="number" id="custOmega" value="" step="0.001" placeholder="auto" oninput="critManualOverride()"></div>
+          </div>
+        </div>
       </div>
       <hr class="sep">
       <div class="ch" style="border:none;margin-bottom:9px;padding-bottom:0"><div class="ch-icon">📐</div><div class="ch-title">Flow Basis</div></div>
@@ -554,7 +572,7 @@ select option{background:var(--ink2)}
       </div>
       <div class="row2" id="gasRow" style="display:none">
         <div class="field">
-          <label data-tip="Z auto-calculated via PR EOS when a named gas fluid is selected. Change T or P to update. Type to override.">Compress. Z
+          <label data-tip="Z auto-calculated via PR EOS from Tc/Pc/omega. Works for library fluids AND custom fluids (enter Tc/Pc/omega in the Custom panel, or leave blank for a Sutton MW estimate). Change T or P to update. Type to override.">Compress. Z
             <span id="zAutoTag" style="display:none;font-size:.6rem;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:rgba(0,122,108,.1);border:1px solid rgba(0,122,108,.3);color:var(--teal2);margin-left:4px;text-transform:none">AUTO ⟳</span>
           </label>
           <input type="number" id="zf" value="1.00" step="0.001" oninput="zManualOverride();calc()">
@@ -1507,6 +1525,8 @@ function setPhase(p){
   if(cs) cs.step = isL ? '0.001' : '0.01';
   const cpf=document.getElementById('custPvField');
   if(cpf) cpf.style.display = isL ? '' : 'none';
+  const ccr=document.getElementById('custCritRow');           // FIX Z-1
+  if(ccr) ccr.style.display = isG ? '' : 'none';
   document.getElementById('uSG').textContent=isL||p==='steam'?'SG':'g/mol';
   document.getElementById('recLabel').innerHTML=isL?'FL <span class="hint">recovery</span>':'xT <span class="hint">drop ratio</span>';
   // FIX: re-apply the correct FL (liquid) or xT (gas/steam) value for the currently
@@ -1543,6 +1563,12 @@ function onFluidSelect(name){
 function selectFluid(f){
   _zUserOverride=false;  // reset manual override — new fluid selected
   _sgUserOverride=false; _pvUserOverride=false; _viscUserOverride=false; // FIX FP-1
+  _critUserOverride=false;                                                // FIX Z-1
+  const _cet=document.getElementById('critEstTag'); if(_cet)_cet.style.display='none';
+  if(f && isFinite(f.Tc)){                                                // FIX Z-1: mirror into custom fields
+    const _t=document.getElementById('custTc'), _p=document.getElementById('custPc'), _o=document.getElementById('custOmega');
+    if(_t)_t.value=f.Tc; if(_p)_p.value=f.Pc_bar; if(_o)_o.value=(f.omega!=null?f.omega:0);
+  }
   selFluid=f;
   const s=document.getElementById('fluidSelect'); if(s) s.value=f.n;
   document.getElementById('sg').value=f.sg;
@@ -1574,7 +1600,66 @@ function syncCustomFluid(){
   clearChipSel();
   document.getElementById('sg').value = document.getElementById('custSG').value;
   document.getElementById('pv').value = document.getElementById('custPv').value;
+  if(PHASE.includes('gas')) estimateCustomCrit();   // FIX Z-1: refresh Tc/Pc/w from MW
   calc();
+  autoZ();                                          // FIX Z-1: custom gas now gets a real Z
+}
+
+// ── FIX Z-1 ────────────────────────────────────────────────────────────────
+// Sutton (1985) pseudo-critical correlation for a hydrocarbon-type gas mixture,
+// keyed on gas specific gravity g = MW / 28.9625 (air basis). Valid roughly
+// 0.57 < g < 1.68. Used only when the user has NOT typed explicit Tc/Pc/omega.
+//   Tpc[degR] = 169.2 + 349.5 g - 74.0 g^2
+//   Ppc[psia] = 756.8 - 131.0 g -  3.6 g^2
+// omega is estimated by a light MW correlation (crude but bounded); for anything
+// non-hydrocarbon the user should type the real values into the three fields.
+let _critUserOverride = false;
+
+function critManualOverride(){
+  _critUserOverride = true;
+  const t=document.getElementById('critEstTag'); if(t) t.style.display='none';
+  calc(); autoZ();
+}
+
+function suttonCrit(MW){
+  if(!isFinite(MW) || MW<=0) return null;
+  const g = MW / 28.9625;
+  const TpcR = 169.2 + 349.5*g - 74.0*g*g;          // degR
+  const PpcP = 756.8 - 131.0*g -  3.6*g*g;          // psia
+  const Tc_K   = TpcR * 5/9;
+  const Pc_bar = PpcP / 14.503774;
+  let omega = 0.0125*MW - 0.155;                     // rough MW fit (C1..C5 band)
+  omega = Math.max(-0.05, Math.min(0.35, omega));
+  if(!(Tc_K>0) || !(Pc_bar>0)) return null;
+  return { Tc:Tc_K, Pc_bar:Pc_bar, omega:omega };
+}
+
+function estimateCustomCrit(){
+  if(_critUserOverride) return;
+  const MW = parseFloat(document.getElementById('custSG')?.value);
+  const est = suttonCrit(MW);
+  const tag = document.getElementById('critEstTag');
+  if(!est){ if(tag) tag.style.display='none'; return; }
+  const tc=document.getElementById('custTc'), pc=document.getElementById('custPc'), om=document.getElementById('custOmega');
+  if(tc) tc.value = est.Tc.toFixed(1);
+  if(pc) pc.value = est.Pc_bar.toFixed(2);
+  if(om) om.value = est.omega.toFixed(3);
+  if(tag){ tag.style.display='inline';
+    tag.title = 'Sutton (1985) pseudo-critical estimate from MW='+MW+' g/mol. '+
+                'Type real Tc / Pc / omega to override.'; }
+}
+
+// Returns the property set the PR-EOS should use: a library fluid if one is
+// selected, otherwise the custom Tc/Pc/omega fields. Null if Z cannot be solved.
+function _zFluid(){
+  if(selFluid && isFinite(selFluid.Tc) && isFinite(selFluid.Pc_bar)) return selFluid;
+  const Tc = parseFloat(document.getElementById('custTc')?.value);
+  const Pc = parseFloat(document.getElementById('custPc')?.value);
+  let   om = parseFloat(document.getElementById('custOmega')?.value);
+  const MW = parseFloat(document.getElementById('sg')?.value);
+  if(!isFinite(om)) om = 0;
+  if(!isFinite(Tc) || !isFinite(Pc) || Tc<=0 || Pc<=0 || !isFinite(MW) || MW<=0) return null;
+  return { n:'Custom', sg:MW, Tc:Tc, Pc_bar:Pc, omega:om, _custom:true };
 }
 
 // ── AUTO Z — PR EOS via /api/eos when gas phase + named fluid selected ────
@@ -1590,15 +1675,26 @@ function zManualOverride(){
 
 function autoZ(){
   const isG = PHASE.includes('gas');
-  if(!isG || !selFluid || !selFluid.Tc) return;  // only gas with known critical props
+  if(!isG) return;
   if(_zUserOverride) return;                       // user manually set Z — respect it
+  // FIX Z-1: was `!selFluid || !selFluid.Tc` — custom fluids fell through here and
+  // the Z input kept whatever the previously selected library fluid had left behind.
+  if(!_zFluid()){ _resetZ(); return; }
   clearTimeout(_zDebounce);
   _zDebounce = setTimeout(_autoZAsync, 280);       // debounce 280 ms
 }
 
+// FIX Z-1: never leave a stale Z on screen when it cannot be computed
+function _resetZ(){
+  const zi = document.getElementById('zf');
+  if(zi && !_zUserOverride) zi.value = '1.000';
+  const tag = document.getElementById('zAutoTag'); if(tag) tag.style.display='none';
+}
+
 async function _autoZAsync(){
   const isG = PHASE.includes('gas');
-  if(!isG || !selFluid || !selFluid.Tc) return;
+  const zf_ = _zFluid();
+  if(!isG || !zf_){ if(isG) _resetZ(); return; }
 
   const m     = UNITS === 'met';
   const T_C_in = getTempC();          // FIX U-5: unit-aware (°C/°F/K dropdown)
@@ -1608,10 +1704,10 @@ async function _autoZAsync(){
   // Convert to absolute SI for EOS
   const T_K   = T_C_in + 273.15;
   const P_Pa  = m ? P_raw * 1e5    : P_raw * 6894.76;   // bar→Pa or psi→Pa
-  const Tc_K  = selFluid.Tc;                              // stored in K
-  const Pc_Pa = selFluid.Pc_bar * 1e5;                   // bar → Pa
-  const omega  = selFluid.omega;
-  const M      = selFluid.sg;                             // for gases, sg = MW g/mol
+  const Tc_K  = zf_.Tc;                                   // stored in K
+  const Pc_Pa = zf_.Pc_bar * 1e5;                        // bar → Pa
+  const omega  = zf_.omega;
+  const M      = zf_.sg;                                  // for gases, sg = MW g/mol
 
   if(T_K < 10 || !isFinite(Tc_K) || !isFinite(Pc_Pa)) return;
 
@@ -1633,7 +1729,9 @@ async function _autoZAsync(){
       tag.style.display = 'inline';
       const Tr = data.data.Tr ? data.data.Tr.toFixed(3) : '?';
       const Pr = data.data.Pr ? data.data.Pr.toFixed(3) : '?';
-      tag.title = 'PR EOS  Tr=' + Tr + '  Pr=' + Pr + '  (click Z field to override)';
+      tag.title = 'PR EOS  Tr=' + Tr + '  Pr=' + Pr +
+                  (zf_._custom ? ('  [custom Tc='+zf_.Tc.toFixed(1)+' K, Pc='+zf_.Pc_bar.toFixed(2)+' bar, w='+zf_.omega+']') : '') +
+                  '  (click Z field to override)';
     }
     calc(); // recalculate Cv with the updated Z
   } catch(e) {
@@ -1655,7 +1753,9 @@ function sgManualOverride(){
   _sgUserOverride=true; _hideTag('sgAutoTag');
   clearChipSel();                                   // typing SG = fully custom fluid
   _setInputVal('custSG', document.getElementById('sg').value);
+  if(PHASE.includes('gas')) estimateCustomCrit();   // FIX Z-1
   calc();
+  autoZ();                                          // FIX Z-1
 }
 function pvManualOverride(){
   _pvUserOverride=true; _hideTag('pvAutoTag');
@@ -1878,7 +1978,7 @@ async function runCalc(){
   if(btn){ btn.disabled = true; btn.textContent = '⏳ CALCULATING…'; }
   try{
     // refresh Z at the current T/P first (gas + named fluid, unless overridden)
-    if(PHASE.includes('gas') && selFluid && selFluid.Tc && !_zUserOverride){
+    if(PHASE.includes('gas') && !_zUserOverride && _zFluid()){   // FIX Z-1
       clearTimeout(_zDebounce);
       await _autoZAsync();
     }
