@@ -122,6 +122,16 @@ select.field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,53,96
 .btn-ghost{padding:.55rem .9rem;background:transparent;border:1px solid var(--line);border-radius:6px;
   color:var(--accent);font:600 .78rem 'IBM Plex Mono',monospace;cursor:pointer;transition:all .15s}
 .btn-ghost:hover{border-color:var(--accent);background:var(--accent-light)}
+.guide-box{margin-top:1rem;border:1px dashed var(--line);border-radius:8px;background:rgba(10,53,96,.03)}
+.guide-box summary{padding:.7rem .9rem;cursor:pointer;font:600 .82rem 'IBM Plex Mono',monospace;color:var(--accent);list-style:none;user-select:none}
+.guide-box summary::-webkit-details-marker{display:none}
+.guide-box summary::before{content:'▸ ';transition:transform .15s}
+.guide-box[open] summary::before{content:'▾ '}
+.gb-body{padding:.2rem 1rem 1rem;font-size:.82rem;line-height:1.55;color:var(--ink,#22303f)}
+.gb-body p{margin:.4rem 0 .7rem}
+.gb-item{margin:.45rem 0;padding-left:.9rem;border-left:2px solid var(--accent-light,#dce8f5)}
+.gb-item b{color:var(--accent)}
+.gb-t{display:inline-block;background:var(--accent-light,#e8f0fa);border-radius:4px;padding:0 .4rem;font:600 .72rem 'IBM Plex Mono',monospace;color:var(--accent);margin-left:.3rem}
 .pdf-btn{padding:.65rem 1rem;background:var(--orange);border:none;border-radius:6px;
   color:#fff;font-family:var(--mono);font-size:.8rem;font-weight:700;cursor:pointer;
   text-transform:uppercase;letter-spacing:.04em;transition:background .14s;white-space:nowrap}
@@ -358,6 +368,20 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Sizing Result — API 520 Gas/Vapor</span><span class="rbadge bp" id="g-badge">PASS</span></div>
         <div class="rbody" id="g-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 New to PSV sizing? Plain-language guide to every field</summary><div class="gb-body">
+        <p>A pressure safety valve (PSV) is the last line of defence: if pressure in your vessel rises too high, it pops open and lets gas escape until things are safe again. This tab answers one question: <b>how big must the valve opening be</b> to let enough gas out fast enough?</p>
+        <div class="gb-item"><b>Set Pressure</b> — the pressure at which the valve starts to open. Almost always equal to the vessel's <i>design pressure</i> (stamped on its nameplate). Not the normal operating pressure.<span class="gb-t">from vessel nameplate / U-1 datasheet</span></div>
+        <div class="gb-item"><b>Relief Rate W</b> — how much gas the valve must release, in kg/h. This comes from your worst credible upset: e.g. if the outlet is blocked, W = everything the compressor or upstream plant can push in. Not sure? Build it in the <b>Scenarios</b> tab, which can estimate loads for you.</div>
+        <div class="gb-item"><b>Relieving Temperature</b> — gas temperature <i>at the moment the valve is open</i>, which is usually hotter than normal operation (pressure went up, and often temperature with it). If unsure, use the highest credible temperature — it gives a safely larger valve.</div>
+        <div class="gb-item"><b>Fluid / M / k / Z</b> — just pick your gas from the list; molecular weight (M), heat-capacity ratio (k) and compressibility (Z) fill in automatically. Z is computed by a real equation of state at relieving conditions — this matters because guessing Z wrong is the classic sizing mistake. Only touch these numbers for a gas not in the list.</div>
+        <div class="gb-item"><b>Overpressure / Scenario</b> — how far above set pressure the vessel is allowed to climb while the valve is blowing. Code allows 10% for a normal (process) case, 21% for fire. Leave the default unless your datasheet says otherwise.</div>
+        <div class="gb-item"><b>Valve Style</b> — <i>Conventional</i>: simple spring valve, fine when the discharge pipe is short and open to air. <i>Balanced bellows</i>: has an internal bellows that shields the spring from discharge-pipe pressure — needed when back pressure is significant. <i>Pilot-operated</i>: a small pilot valve controls a big main valve — for high back pressure or when operating close to set.</div>
+        <div class="gb-item"><b>Back Pressure</b> — the pressure sitting in the pipe <i>downstream</i> of the valve, pushing back against it. Discharging straight to atmosphere through a short pipe? Enter 0. Discharging into a flare header that runs at, say, 2 barg? Enter 2. High back pressure squeezes valve capacity — the tool applies the correction (Kb) automatically. Not sure of the number? The <b>Inlet/Outlet Lines</b> tab calculates it from your pipe dimensions.</div>
+        <div class="gb-item"><b>Kd — Discharge Coefficient</b> — an efficiency factor for the valve nozzle. Leave the default 0.975 for preliminary sizing; the vendor's certified value replaces it at purchase time.</div>
+        <div class="gb-item"><b>Rupture Disc</b> — select "yes" only if a bursting disc is installed <i>underneath</i> the valve inlet (done for corrosive or dirty service). It costs 10% capacity (Kc = 0.9).</div>
+        <p><b>Reading the result:</b> the tool computes the required orifice area, then picks the next standard API 526 orifice letter (D = smallest … T = largest). "Q orifice, 78% used" means: buy a Q-orifice valve, and your load uses 78% of what it can pass — the spare margin is normal and healthy.</p>
+      </div></details>
     </div>
   </div>
 </div></div>
@@ -420,6 +444,15 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Sizing Result — API 520 Steam</span><span class="rbadge bp" id="s-badge">PASS</span></div>
         <div class="rbody" id="s-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 Plain-language guide — steam relief</summary><div class="gb-body">
+        <p>Sizing a safety valve for a steam boiler, steam drum, or steam line. Same idea as the gas tab, but steam gets its own dedicated formula (with two extra correction factors handled automatically).</p>
+        <div class="gb-item"><b>Set Pressure</b> — the boiler/vessel design pressure from the nameplate, where the valve must start opening.</div>
+        <div class="gb-item"><b>Relief Rate W</b> — the steam flow the valve must dump. For a fired boiler this is the <i>maximum continuous rating</i> (peak steam generation) — the valve must handle everything the burners can make with the outlet blocked.<span class="gb-t">from boiler datasheet MCR</span></div>
+        <div class="gb-item"><b>Saturated vs Superheated</b> — saturated steam is at its boiling temperature for the pressure (fresh from a drum, still "wet-capable"). Superheated steam has been heated further in a superheater and is hotter than boiling. If your steam comes straight off a drum: saturated. If it passed a superheater: superheated — enter its actual temperature, and the tool applies the superheat correction (Ksh) from the full API table. Superheated steam is less dense, so the valve must be a little bigger.</div>
+        <div class="gb-item"><b>Kn — Napier correction</b> — only kicks in above about 103 barg (1,500 psia); the tool applies it automatically. You'll see it in the results at very high pressure.</div>
+        <div class="gb-item"><b>Back Pressure / Valve Style / Kd / Rupture Disc</b> — same meaning as on the Gas tab (tap its guide). Steam valves usually discharge to open air through a short vent: back pressure 0, conventional style.</div>
+      </div></details>
     </div>
   </div>
 </div></div>
@@ -483,6 +516,17 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Sizing Result — API 520 Liquid</span><span class="rbadge bp" id="l-badge">PASS</span></div>
         <div class="rbody" id="l-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 Plain-language guide — liquid relief</summary><div class="gb-body">
+        <p>For valves protecting liquid-full systems: pump discharge lines, blocked-in liquid piping, thermal-relief on pipelines. Liquid valves work differently from gas valves (liquid doesn't expand), so they use their own certified formula.</p>
+        <div class="gb-item"><b>Flow Q</b> — the liquid flow the valve must pass. Classic case: pump keeps running against a blocked outlet → Q = the pump's flow at relieving pressure, read from its curve (deadhead region).<span class="gb-t">from pump curve</span></div>
+        <div class="gb-item"><b>Specific Gravity G</b> — how heavy the liquid is vs water. Water = 1.0, ammonia ≈ 0.62, diesel ≈ 0.84, brine &gt; 1.<span class="gb-t">from fluid datasheet</span></div>
+        <div class="gb-item"><b>Viscosity</b> — how "thick" the liquid is, in cP. Water = 1, light oils 5–50, heavy oils hundreds. Thick liquids squeeze through the valve less easily, so the tool automatically iterates a viscosity correction (Kv) and enlarges the valve if needed. For water-like liquids the correction is negligible.</div>
+        <div class="gb-item"><b>Overpressure</b> — liquid valves are certified at 10% overpressure; the tool defaults correctly. (Older 25% sizing is obsolete.)</div>
+        <div class="gb-item"><b>Kd</b> — liquid valves use 0.65 (not the gas value 0.975). Already the default here.</div>
+        <div class="gb-item"><b>Back Pressure & Kw</b> — if you chose a bellows valve and there's back pressure, capacity drops; the tool applies the liquid bellows correction (Kw) automatically.</div>
+        <p><b>Tip:</b> thermal expansion of blocked-in liquid (sun or heat tracing warming a full pipe) produces tiny flows — usually a ¾"×1" valve. The Scenarios tab can calculate that load for you.</p>
+      </div></details>
     </div>
   </div>
 </div></div>
@@ -645,6 +689,17 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Sizing Result — API 521 Fire</span><span class="rbadge bp" id="f-badge">PASS</span></div>
         <div class="rbody" id="f-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 Plain-language guide — fire case</summary><div class="gb-body">
+        <p>If a pool fire burns under your vessel, the flames boil the liquid inside and the vapor must escape through the PSV. This tab first works out <b>how much heat the fire puts in</b>, converts that to a vapor flow, then sizes the valve. It's often the governing case for storage vessels.</p>
+        <div class="gb-item"><b>Wetted vs Unwetted</b> — <i>Wetted</i>: the vessel contains liquid; fire boils it; the valve relieves the vapor. This is the normal case. <i>Unwetted</i>: the vessel holds only gas; there is no liquid to boil, the wall just heats up and the gas expands. Careful — a PSV often <b>cannot</b> save a gas-filled vessel (the wall weakens before enough pressure builds); the tool will tell you when that happens and point to depressuring instead.</div>
+        <div class="gb-item"><b>Wetted Area A<sub>w</sub></b> — the outside surface of the vessel that has liquid behind it, up to 7.6 m above the fire (flames don't effectively heat higher). Easiest: pick your vessel shape and enter diameter, length and liquid level — the tool does the geometry. Already have the number from a datasheet? Use direct entry.</div>
+        <div class="gb-item"><b>Environment Factor F</b> — credit for fireproof insulation. Bare vessel = 1.0. Good insulation can cut the heat to 0.3, 0.15 or 0.075 — but only if the insulation and its jacketing survive a fire and fire-hose impact. When in doubt, use 1.0 (safe side).</div>
+        <div class="gb-item"><b>Drainage & Firefighting</b> — if the area under the vessel slopes away so burning liquid drains off, and firefighting exists, the fire is less severe (C = 21,000). No drainage → C = 34,500 and a bigger valve. Ask your fire-protection team which applies.</div>
+        <div class="gb-item"><b>Latent Heat λ</b> — the energy needed to boil 1 kg of your liquid. Water ≈ 2,257 kJ/kg, ammonia ≈ 1,050 near ambient. The relief load is simply fire heat ÷ λ.<span class="gb-t">from fluid property tables at relieving pressure</span> Warning: λ shrinks near the critical point — if your relieving pressure is close to critical, this simple method understates the load; get specialist input.</div>
+        <div class="gb-item"><b>Fluid / T / M / k</b> — properties of the <i>vapor being relieved</i>, used for the final valve sizing at 21% overpressure (the code allows more accumulation in fire).</div>
+        <div class="gb-item"><b>Unwetted inputs</b> — exposed area, normal operating P & T, and maximum wall temperature (default 593 °C = carbon steel limit). The tool heats the trapped gas at constant volume and checks whether the valve can even help.</div>
+      </div></details>
   </div></div>
 </div></div>
 
@@ -727,6 +782,17 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Sizing Result — Two-Phase Omega</span><span class="rbadge bw" id="t-badge">WARN</span></div>
         <div class="rbody" id="t-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 Plain-language guide — two-phase relief</summary><div class="gb-body">
+        <p>Sometimes what comes out of the valve isn't clean gas or clean liquid but a froth of both — like opening a shaken soda bottle. Classic causes: a vessel of hot liquid that flashes to vapor as pressure drops, or gas bubbling through liquid. Standard gas/liquid formulas <b>undersize badly</b> here; this tab uses the industry-standard omega (ω) method instead.</p>
+        <div class="gb-item"><b>When do I need this tab?</b> — flashing liquids (liquid stored above its atmospheric boiling point: LPG, ammonia, hot condensate), reboiler blowthrough, foamy/reactive systems. If the phase check on the Gas tab warned "stable phase is LIQUID", you likely belong here or on the Liquid tab.</div>
+        <div class="gb-item"><b>Direct v₀/v₉ mode</b> — the rigorous route: your process simulator flashes the mixture from relieving pressure P₀ down to 90% of P₀, and you type in the mixture specific volume at both points. Most accurate; use it when you have simulation access.</div>
+        <div class="gb-item"><b>Frozen mode</b> — for a gas + liquid mixture where <i>no new vapor forms</i> as pressure drops (e.g. nitrogen-padded oil, air + water). You enter the vapor fraction x₀ and liquid density; the tool computes the vapor behaviour itself. No simulator needed.</div>
+        <div class="gb-item"><b>Flashing mode (Leung)</b> — for a <i>boiling</i> liquid at its saturation point (the soda-bottle case). Enter vapor fraction (0 for pure saturated liquid), liquid Cp and latent heat — the tool builds ω with the published Leung correlation. No simulator needed.</div>
+        <div class="gb-item"><b>Kd</b> — two-phase flow uses 0.85 by convention (between the gas 0.975 and liquid 0.65). Already the default.</div>
+        <div class="gb-item"><b>ω, η꜀, G in the results</b> — internals of the method: ω describes how much the froth expands, η꜀ is the choking pressure ratio, G is the mass flow per unit area. You don't need to act on them — they're shown so a reviewer can check the work.</div>
+        <p><b>Honest limit:</b> this is a screening method. Reactive (runaway) systems and severely foamy fluids need a DIERS-type dynamic analysis by a specialist.</p>
+      </div></details>
     </div>
   </div>
 </div></div>
@@ -844,6 +910,16 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
     <div class="result-head"><span class="rtitle">BACK PRESSURE EVALUATION</span><span class="rbadge bp" id="b-badge">PASS</span></div>
     <div class="rbody" id="b-rbody"></div>
   </div>
+
+  <details class="guide-box"><summary>📖 Plain-language guide — why pipes around the valve matter</summary><div class="gb-body">
+    <p>A perfectly sized valve can still fail in service if the pipes around it are wrong. Two silent killers: a too-small <b>inlet</b> pipe makes the valve slam open and shut rapidly ("chatter" — destroys the valve in minutes), and a too-small <b>outlet</b> pipe builds pressure behind the valve and chokes its capacity. This tab checks both from simple pipe dimensions.</p>
+    <div class="gb-item"><b>Back pressure — the concept</b> — pressure in the discharge pipe pushing against the back of the valve. Two parts: <i>superimposed</i> (already there before the valve opens — e.g. the flare header runs at 2 barg) and <i>built-up</i> (created by the valve's own flow rushing through the pipe). The tool computes built-up from your pipe size and length.</div>
+    <div class="gb-item"><b>The rules of thumb it checks</b> — total back pressure ≤ 10% of set pressure → an ordinary (conventional) valve is fine. 10–50% → you need a balanced-bellows valve (and it loses some capacity, shown as Kb). Above 50% → pilot-operated territory or, better, a bigger discharge pipe.</div>
+    <div class="gb-item"><b>Outlet inputs</b> — tail-pipe inside diameter, its length, fittings (each elbow ≈ K 0.3–0.5, pipe exit = 1.0 — add them up into ΣK), and where it discharges: open atmosphere or a flare header (enter header pressure).</div>
+    <div class="gb-item"><b>Inlet 3% rule</b> — pressure lost in the short pipe between vessel and valve inlet must stay below 3% of set pressure, measured at the valve's <i>rated</i> (not required) flow. Break it and the valve chatters. Inputs: inlet pipe ID, length, fittings, and rated flow (≈ the selected orifice's full capacity — the sizing tabs show it).</div>
+    <div class="gb-item"><b>Choked exit</b> — if flow reaches the speed of sound at the pipe exit, the pipe itself becomes the bottleneck no matter what's downstream. The tool flags it; the fix is a bigger tail pipe.</div>
+    <div class="gb-item"><b>Reaction force</b> — when the valve fires, the escaping jet kicks the pipework like a rocket nozzle. The result (in kN) goes to your piping/civil engineer for support design — multiply by up to 2 for the opening shock.</div>
+  </div></details>
 </div></div>
 
 <!-- ══════════════ SLIDE 6 — SCENARIO MANAGER ══════════════ -->
@@ -892,6 +968,15 @@ footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
         <div class="rph"><span>Governing-Case Comparison</span><span class="rbadge bw" id="sc-badge">WARN</span></div>
         <div class="rbody" id="sc-rbody"></div>
       </div>
+
+      <details class="guide-box"><summary>📖 Plain-language guide — scenarios & the governing case</summary><div class="gb-body">
+        <p>Real relief design never asks "how big a valve for <i>this</i> flow?" — it asks "<b>what's the worst thing that can credibly happen</b>, and is the valve big enough for that?" This tab is that workflow: list every credible upset, size each one, and buy the valve for the biggest (the <b>governing case</b>).</p>
+        <div class="gb-item"><b>What's a scenario?</b> — a specific credible failure: outlet valve accidentally closed (blocked outlet), a control valve fails wide open and high-pressure gas floods in (CV blowby / gas blowby), fire under the vessel, an exchanger tube bursts and the high-pressure side blows into the low-pressure side, sun heating a blocked-in liquid line (thermal expansion). API 521 lists them; add every one that can physically happen to your vessel.</div>
+        <div class="gb-item"><b>Load Basis — the tool can compute loads for you</b> — for CV blowby, enter the failed valve's Cv (from its datasheet) and upstream pressure: the tool calculates the blowby flow. For tube rupture: tube bore and shell-side pressure. For thermal: heat input in kW. For blocked outlet, enter the flow manually — it equals whatever your upstream pump/compressor can deliver (read from its curve; only you know that machine).</div>
+        <div class="gb-item"><b>Why each row shows a different accumulation</b> — code allows the vessel to climb 10% above set during a process upset but 21% during fire, so the fire row legitimately relieves at higher pressure. Handled automatically per row.</div>
+        <div class="gb-item"><b>Reading the table</b> — the ★ row is the governing case; the orifice is chosen for it. The % column shows how small every other case is by comparison — useful sanity check (thermal expansion at 0.1% of governing is normal; fire at 99% of a blocked-outlet governing case deserves a second look).</div>
+        <div class="gb-item"><b>One valve, every case</b> — the selected valve must also work (not just be big enough) for the small cases: a huge valve relieving a tiny thermal load may chatter. That's why tiny loads usually get their own small ¾"×1" valve instead.</div>
+      </div></details>
     </div>
   </div>
 </div></div>
