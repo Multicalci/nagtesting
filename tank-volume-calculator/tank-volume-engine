@@ -1,0 +1,229 @@
+// =============================================================================
+// multicalci.com — Tank Volume Engine v1.0
+// Horizontal & vertical cylindrical tanks with dished heads, partial fill.
+//
+// Head types: flat | hemispherical | ellipsoidal_2_1 | torispherical_asme | conical
+// Method notes:
+//  - Horizontal shell partial fill: exact circular-segment integration.
+//  - Dished head pairs (horizontal): exact spheroidal formula
+//      V(h) = (π·a·h²/(3R))·(3R − h)   [a = head inside depth]
+//    Exact for hemispherical (a=R) and 2:1 ellipsoidal (a=R/2).
+//  - Torispherical (ASME F&D, crown 1.0D / knuckle 0.06D): full head volume
+//    per exact crown+knuckle geometry; partial fill via spheroid of equal
+//    depth & volume (equivalent-a method, typical deviation < 1%).
+//  - Vertical tanks: bottom/top dome partial fill exact for spheroidal heads;
+//    conical bottom exact.
+// All dimensions in mm input → results in m³ / litres. ID basis (inside dia).
+// =============================================================================
+
+const PI = Math.PI;
+
+/** Full volume of one torispherical head (ASME F&D: crown Rc=1.0·D, knuckle rk=0.06·D)
+ *  plus its inside depth. Exact crown-cap + knuckle-torus integration. */
+function torisphericalHead(D) {
+  const Rc = 1.0 * D;        // crown (dish) radius
+  const rk = 0.06 * D;       // knuckle radius
+  const R = D / 2;
+  // Geometry: knuckle centre at radius c = R − rk from axis.
+  const c = R - rk; // knuckle tube-centre circle radius
+  // Crown-knuckle tangency: angle α from axis with sinα = c/(Rc − rk)
+  const sinA = c / (Rc - rk);
+  const cosA = Math.sqrt(1 - sinA * sinA);
+  // Head inside depth (apex to base plane):
+  const depth = Rc - Math.sqrt((Rc - rk) * (Rc - rk) - c * c); // = Rc − (Rc−rk)cosα
+  // Crown spherical cap: height from apex to tangency plane
+  const hCap = Rc * (1 - cosA);
+  const vCap = (PI / 3) * hCap * hCap * (3 * Rc - hCap);
+  // Knuckle (torus segment): axial span x ∈ [0, rk·cosα] measured from base
+  // plane; radius profile r(x) = c + √(rk² − x²). Numerical integration.
+  const hK = rk * cosA; // equals depth − hCap
+  let vK = 0;
+  const N = 4000;
+  for (let i = 0; i < N; i++) {
+    const x = (i + 0.5) * (hK / N);
+    const r = c + Math.sqrt(Math.max(rk * rk - x * x, 0));
+    vK += PI * r * r * (hK / N);
+  }
+  return { volume: vCap + vK, depth };
+}
+
+/** Circular segment area for horizontal shell, liquid height h, radius R */
+function segArea(R, h) {
+  h = Math.min(Math.max(h, 0), 2 * R);
+  return R * R * Math.acos((R - h) / R) - (R - h) * Math.sqrt(Math.max(2 * R * h - h * h, 0));
+}
+
+/** Partial volume of a PAIR of spheroidal heads (horizontal tank), depth a each */
+function spheroidPairPartial(R, a, h) {
+  h = Math.min(Math.max(h, 0), 2 * R);
+  // V_pair(h) = (π·a·h²·(3R − h)) / (3R); full at h=2R → (4/3)π·a·R²
+  return (PI * a * h * h * (3 * R - h)) / (3 * R);
+}
+
+/** Resolve head depth a and full pair volume for a head type (horizontal) */
+function headParams(type, D) {
+  const R = D / 2;
+  switch (type) {
+    case "flat":            return { a: 0, pairFull: 0, equivalentA: 0 };
+    case "hemispherical":   return { a: R, pairFull: (4 / 3) * PI * R ** 3 / 2 * 2, equivalentA: R };
+    case "ellipsoidal_2_1": return { a: R / 2, pairFull: (4 / 3) * PI * R * R * (R / 2), equivalentA: R / 2 };
+    case "torispherical_asme": {
+      const th = torisphericalHead(D);
+      // equivalent spheroid depth aEq chosen so spheroid pair volume = 2×head volume,
+      // keeping partial-fill shape realistic: pairFull = (4/3)πR²·aEq
+      const aEq = (2 * th.volume) / ((4 / 3) * PI * R * R);
+      return { a: th.depth, pairFull: 2 * th.volume, equivalentA: aEq };
+    }
+    default: throw new Error("Unsupported head type for horizontal tank: " + type);
+  }
+}
+
+/** HORIZONTAL tank: inside diameter D_mm, tan-tan length L_mm, liquid level_mm from bottom */
+export function horizontalTank({ D_mm, L_mm, head_type = "ellipsoidal_2_1", level_mm = null }) {
+  const D = D_mm / 1000, L = L_mm / 1000, R = D / 2;
+  const hp = headParams(head_type, D);
+  const shellFull = PI * R * R * L;
+  const totalFull = shellFull + hp.pairFull;
+
+  const out = {
+    geometry: {
+      inside_diameter_mm: D_mm,
+      tan_tan_length_mm: L_mm,
+      head_type,
+      head_depth_mm: Math.round(hp.a * 1000 * 10) / 10,
+      overall_length_mm: Math.round((L + 2 * hp.a) * 1000),
+    },
+    total_capacity_m3: r3(totalFull),
+    total_capacity_litres: Math.round(totalFull * 1000),
+    shell_capacity_m3: r3(shellFull),
+    heads_capacity_m3: r3(hp.pairFull),
+  };
+
+  if (level_mm !== null) {
+    const h = level_mm / 1000;
+    if (h < 0 || h > D) throw new Error("Level must be between 0 and tank diameter.");
+    const vShell = segArea(R, h) * L;
+    const vHeads = spheroidPairPartial(R, hp.equivalentA, h);
+    const v = vShell + vHeads;
+    out.at_level = {
+      level_mm,
+      liquid_volume_m3: r3(v),
+      liquid_volume_litres: Math.round(v * 1000),
+      percent_full: r1((v / totalFull) * 100),
+      vapour_space_m3: r3(totalFull - v),
+    };
+  }
+
+  // 10-point level-volume table (useful for gauge charts)
+  out.level_volume_table = [];
+  for (let i = 0; i <= 10; i++) {
+    const h = (i / 10) * D;
+    const v = segArea(R, h) * L + spheroidPairPartial(R, hp.equivalentA, h);
+    out.level_volume_table.push({
+      level_mm: Math.round(h * 1000),
+      volume_m3: r3(v),
+      percent: r1((v / totalFull) * 100),
+    });
+  }
+  return out;
+}
+
+/** Vertical dome partial fill from its base plane: spheroid half, depth a, filled hDome from bottom of dome */
+function vertDomeFromBase(R, a, hDome) {
+  // Bottom half-spheroid (dome pointing down), filled to height hDome (0..a):
+  // V = π R² h² (3a − h) / (3a²) measured from apex… careful: filling starts at apex.
+  const h = Math.min(Math.max(hDome, 0), a);
+  return (PI * R * R * h * h * (3 * a - h)) / (3 * a * a);
+}
+
+/** VERTICAL tank: inside diameter, cylindrical shell height, bottom & top heads,
+ *  liquid level measured from the lowest point of the tank. */
+export function verticalTank({
+  D_mm, shell_height_mm,
+  bottom_head = "flat", top_head = "flat",
+  cone_height_mm = 0,
+  level_mm = null,
+}) {
+  const D = D_mm / 1000, R = D / 2, Hs = shell_height_mm / 1000;
+
+  function domeInfo(type) {
+    if (type === "flat") return { a: 0, full: 0 };
+    if (type === "hemispherical") return { a: R, full: (2 / 3) * PI * R ** 3 };
+    if (type === "ellipsoidal_2_1") return { a: R / 2, full: (2 / 3) * PI * R * R * (R / 2) };
+    if (type === "torispherical_asme") {
+      const th = torisphericalHead(D);
+      const aEq = th.volume / ((2 / 3) * PI * R * R);
+      return { a: th.depth, aEq, full: th.volume };
+    }
+    if (type === "conical") {
+      const Hc = cone_height_mm / 1000;
+      if (Hc <= 0) throw new Error("cone_height_mm required for conical head.");
+      return { a: Hc, full: (PI / 3) * R * R * Hc, conical: true };
+    }
+    throw new Error("Unsupported head type: " + type);
+  }
+
+  const bot = domeInfo(bottom_head);
+  const top = domeInfo(top_head);
+  const shellFull = PI * R * R * Hs;
+  const totalFull = shellFull + bot.full + top.full;
+
+  const out = {
+    geometry: {
+      inside_diameter_mm: D_mm,
+      shell_height_mm,
+      bottom_head, top_head,
+      total_height_mm: Math.round((bot.a + Hs + top.a) * 1000),
+    },
+    total_capacity_m3: r3(totalFull),
+    total_capacity_litres: Math.round(totalFull * 1000),
+    shell_capacity_m3: r3(shellFull),
+    bottom_head_m3: r3(bot.full),
+    top_head_m3: r3(top.full),
+  };
+
+  if (level_mm !== null) {
+    let h = level_mm / 1000;
+    const Htot = bot.a + Hs + top.a;
+    if (h < -0.001 || h > Htot + 0.001)
+      throw new Error("Level must be 0 to total tank height.");
+    h = Math.min(Math.max(h, 0), Htot);
+    let v = 0;
+    // bottom head zone
+    const hb = Math.min(h, bot.a);
+    if (bot.a > 0) {
+      if (bot.conical) v += (PI / 3) * (R * hb / bot.a) ** 2 * hb;
+      else v += vertDomeFromBase(R, bot.aEq ?? bot.a, hb) * (bot.full / ((2/3)*PI*R*R*(bot.aEq ?? bot.a)));
+    }
+    // shell zone
+    if (h > bot.a) v += PI * R * R * Math.min(h - bot.a, Hs);
+    // top head zone
+    if (h > bot.a + Hs && top.a > 0) {
+      const ht = h - bot.a - Hs;
+      if (top.conical) {
+        const full = top.full;
+        const empty = (PI / 3) * (R * (top.a - ht) / top.a) ** 2 * (top.a - ht);
+        v += full - empty;
+      } else {
+        const aT = top.aEq ?? top.a;
+        v += top.full - vertDomeFromBase(R, aT, top.a - ht) * (top.full / ((2/3)*PI*R*R*aT));
+      }
+    }
+    out.at_level = {
+      level_mm,
+      liquid_volume_m3: r3(v),
+      liquid_volume_litres: Math.round(v * 1000),
+      percent_full: r1((v / totalFull) * 100),
+      vapour_space_m3: r3(totalFull - v),
+    };
+  }
+  return out;
+}
+
+function r3(x) { return Math.round(x * 1000) / 1000; }
+function r1(x) { return Math.round(x * 10) / 10; }
+
+// Browser-global attachment for multicalci frontend pattern
+if (typeof window !== "undefined") {
+  window.MulticalciTank = { horizontalTank, verticalTank };
+}
