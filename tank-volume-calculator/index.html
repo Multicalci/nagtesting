@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tank Volume Calculator — Horizontal & Vertical Tanks with Dished Heads | MultiCalci</title>
+<meta name="description" content="Free tank volume calculator for horizontal and vertical cylindrical tanks with flat, hemispherical, 2:1 ellipsoidal, torispherical (ASME F&D) and conical heads. Partial fill volume at any level, dip chart table, litres, m³, US gallons and barrels.">
+<link rel="canonical" href="https://www.multicalci.com/tank-volume-calculator/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Tank Volume Calculator",
+  "applicationCategory": "EngineeringApplication",
+  "operatingSystem": "Web",
+  "url": "https://www.multicalci.com/tank-volume-calculator/",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Calculates total and partially-filled volume of horizontal and vertical cylindrical tanks with dished heads (hemispherical, 2:1 ellipsoidal, torispherical ASME F&D, conical), including level–volume dip chart."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How is the volume of a partially filled horizontal tank calculated?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The cylindrical shell uses the exact circular segment formula V = L·[R²·acos((R−h)/R) − (R−h)·√(2Rh−h²)]. Dished head pairs use the spheroidal relation V = π·a·h²·(3R−h)/(3R), exact for hemispherical and 2:1 ellipsoidal heads, with an equivalent-depth method for torispherical heads (deviation typically under 1%)." }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the volume of a torispherical (ASME F&D) head?",
+      "acceptedAnswer": { "@type": "Answer", "text": "For a standard ASME flanged & dished head with crown radius 1.0·D and knuckle radius 0.06·D, the head volume is approximately 0.0809·D³ and the inside depth is about 0.169·D. This calculator computes it from exact crown-and-knuckle geometry." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I generate a dip chart (level to volume table)?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The calculator produces a level–volume table across the full tank height for the chosen geometry and lets you download it as CSV for calibration or inventory use." }
+    }
+  ]
+}
+</script>
+<style>
+:root{
+  --petrol-950:#081518;
+  --petrol-900:#0C1D21;
+  --petrol-800:#10262B;
+  --petrol-700:#173238;
+  --line:#1F3D44;
+  --line-bright:#2C525B;
+  --text:#D8E6E4;
+  --text-dim:#8FAAA7;
+  --phosphor:#5FD4C4;
+  --phosphor-dim:#2E8B8B;
+  --brass:#E3A445;
+  --alert:#E36C4A;
+  --liquid-hi:#4CC7B5;
+  --liquid-lo:#1F6E6B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--petrol-950);
+  color:var(--text);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+}
+a{color:var(--phosphor);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- header ---------- */
+header{
+  border-bottom:1px solid var(--line);
+  background:var(--petrol-900);
+}
+.hwrap{max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:1.05rem;letter-spacing:.06em;color:var(--text)}
+.brand span{color:var(--brass)}
+.crumb{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--text-dim);letter-spacing:.08em}
+
+.pagehead{max-width:1200px;margin:0 auto;padding:26px 20px 6px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.22em;color:var(--brass);text-transform:uppercase}
+h1{
+  font-family:'Chakra Petch',sans-serif;font-weight:600;
+  font-size:clamp(1.5rem,3.4vw,2.2rem);letter-spacing:.01em;margin-top:6px;
+}
+.sub{color:var(--text-dim);max-width:760px;margin-top:8px;font-size:.92rem}
+
+/* ---------- layout ---------- */
+main{max-width:1200px;margin:0 auto;padding:22px 20px 60px;display:grid;grid-template-columns:390px 1fr;gap:22px}
+@media(max-width:920px){main{grid-template-columns:1fr}}
+
+.panel{
+  background:var(--petrol-800);
+  border:1px solid var(--line);
+  border-radius:10px;
+}
+.panel-title{
+  font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:.82rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);
+  padding:12px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;
+}
+.panel-title::before{content:"";width:8px;height:8px;border-radius:50%;
+  background:var(--phosphor);box-shadow:0 0 8px var(--phosphor)}
+.panel-body{padding:18px}
+
+/* ---------- inputs ---------- */
+fieldset{border:1px solid var(--line);border-radius:8px;padding:14px 14px 12px;margin-bottom:16px;background:var(--petrol-900)}
+legend{font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.16em;color:var(--brass);padding:0 8px;text-transform:uppercase}
+label{display:block;font-size:.78rem;color:var(--text-dim);margin:10px 0 4px}
+label:first-of-type{margin-top:0}
+.inrow{display:flex;gap:8px}
+input[type=number],select{
+  width:100%;background:var(--petrol-950);border:1px solid var(--line-bright);
+  color:var(--phosphor);font-family:'IBM Plex Mono',monospace;font-size:.95rem;
+  padding:9px 10px;border-radius:6px;outline:none;
+}
+input[type=number]:focus,select:focus{border-color:var(--phosphor);box-shadow:0 0 0 2px rgba(95,212,196,.18)}
+select{color:var(--text)}
+.unitsel{max-width:88px;flex:none}
+
+.segmented{display:flex;border:1px solid var(--line-bright);border-radius:6px;overflow:hidden}
+.segmented button{
+  flex:1;background:var(--petrol-950);border:0;color:var(--text-dim);
+  font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:.82rem;
+  letter-spacing:.06em;padding:10px 6px;cursor:pointer;
+}
+.segmented button.on{background:var(--phosphor-dim);color:#03211E}
+.segmented button:focus-visible{outline:2px solid var(--phosphor);outline-offset:-2px}
+
+input[type=range]{width:100%;accent-color:var(--brass);margin-top:6px}
+.lvl-read{font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--brass)}
+.hint{font-size:.72rem;color:var(--text-dim);margin-top:4px}
+.hidden{display:none !important}
+
+/* ---------- readouts ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.tile{
+  background:var(--petrol-900);border:1px solid var(--line);border-radius:8px;
+  padding:12px 14px;
+}
+.tile .k{font-family:'IBM Plex Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+.tile .v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:1.25rem;color:var(--phosphor);margin-top:3px}
+.tile .u{font-size:.7rem;color:var(--text-dim)}
+.tile.accent .v{color:var(--brass)}
+
+.diagram-wrap{background:var(--petrol-900);border:1px solid var(--line);border-radius:8px;padding:10px 8px 4px;margin-bottom:18px}
+svg text{font-family:'IBM Plex Mono',monospace}
+
+table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:.8rem}
+th{
+  text-align:right;color:var(--brass);font-weight:500;font-size:.66rem;
+  letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid var(--line-bright);
+  padding:8px 10px;
+}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--text);text-align:right}
+tr:hover td{background:rgba(95,212,196,.05)}
+
+.btn{
+  display:inline-block;background:transparent;border:1px solid var(--brass);
+  color:var(--brass);font-family:'Chakra Petch',sans-serif;font-weight:600;
+  font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:9px 16px;border-radius:6px;cursor:pointer;margin-top:14px;
+}
+.btn:hover{background:rgba(227,164,69,.12)}
+.btn:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.note{
+  margin-top:20px;font-size:.74rem;color:var(--text-dim);
+  border-left:2px solid var(--line-bright);padding-left:12px;
+}
+.methods{max-width:1200px;margin:0 auto;padding:0 20px 70px}
+.methods h2{font-family:'Chakra Petch',sans-serif;font-weight:600;font-size:1.1rem;margin-bottom:10px;letter-spacing:.03em}
+.methods p{color:var(--text-dim);font-size:.88rem;max-width:860px;margin-bottom:10px}
+.methods code{font-family:'IBM Plex Mono',monospace;color:var(--phosphor);font-size:.82rem}
+footer{border-top:1px solid var(--line);padding:18px 20px;text-align:center;font-size:.75rem;color:var(--text-dim)}
+@media (prefers-reduced-motion: no-preference){
+  #liquidH,#liquidV{transition:all .35s ease}
+  .tile .v{transition:color .2s}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="brand">MULTI<span>CALCI</span></div>
+    <div class="crumb">PROCESS TOOLS / TK-101 / TANK VOLUME</div>
+  </div>
+</header>
+
+<div class="pagehead">
+  <div class="eyebrow">Vessel Inventory · Dished Heads · Dip Chart</div>
+  <h1>Tank Volume Calculator</h1>
+  <p class="sub">Total and partially-filled volume for horizontal and vertical cylindrical
+  tanks with flat, hemispherical, 2:1 ellipsoidal, torispherical (ASME F&amp;D) or conical
+  heads — with a level–volume dip chart you can download.</p>
+</div>
+
+<main>
+  <!-- ================= INPUT PANEL ================= -->
+  <section class="panel" aria-label="Tank inputs">
+    <div class="panel-title">Tank Definition</div>
+    <div class="panel-body">
+
+      <fieldset>
+        <legend>Orientation</legend>
+        <div class="segmented" role="group" aria-label="Tank orientation">
+          <button type="button" id="btnH" class="on">Horizontal</button>
+          <button type="button" id="btnV">Vertical</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Geometry (inside dimensions)</legend>
+        <label for="dia">Inside diameter</label>
+        <div class="inrow">
+          <input type="number" id="dia" value="2000" min="1" step="any">
+          <select id="unit" class="unitsel" aria-label="Dimension unit">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <label for="len" id="lenLabel">Tan-tan length</label>
+        <input type="number" id="len" value="5000" min="1" step="any">
+      </fieldset>
+
+      <fieldset id="fsHeadsH">
+        <legend>Heads</legend>
+        <label for="headH">Head type (both ends)</label>
+        <select id="headH">
+          <option value="ellipsoidal_2_1" selected>2:1 Ellipsoidal</option>
+          <option value="torispherical_asme">Torispherical (ASME F&amp;D)</option>
+          <option value="hemispherical">Hemispherical</option>
+          <option value="flat">Flat</option>
+        </select>
+      </fieldset>
+
+      <fieldset id="fsHeadsV" class="hidden">
+        <legend>Heads</legend>
+        <label for="headTop">Top head</label>
+        <select id="headTop">
+          <option value="ellipsoidal_2_1" selected>2:1 Ellipsoidal</option>
+          <option value="torispherical_asme">Torispherical (ASME F&amp;D)</option>
+          <option value="hemispherical">Hemispherical</option>
+          <option value="flat">Flat</option>
+        </select>
+        <label for="headBot">Bottom head</label>
+        <select id="headBot">
+          <option value="ellipsoidal_2_1" selected>2:1 Ellipsoidal</option>
+          <option value="torispherical_asme">Torispherical (ASME F&amp;D)</option>
+          <option value="hemispherical">Hemispherical</option>
+          <option value="conical">Conical</option>
+          <option value="flat">Flat</option>
+        </select>
+        <div id="coneRow" class="hidden">
+          <label for="coneH">Cone height</label>
+          <input type="number" id="coneH" value="800" min="1" step="any">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Liquid</legend>
+        <label for="lvlN">Level from lowest point <span class="lvl-read" id="lvlPct"></span></label>
+        <div class="inrow">
+          <input type="number" id="lvlN" value="1000" min="0" step="any">
+          <span class="unitsel" style="align-self:center;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text-dim)" id="lvlUnit">mm</span>
+        </div>
+        <input type="range" id="lvlR" min="0" max="2000" value="1000" step="1" aria-label="Liquid level slider">
+        <label for="dens">Density (optional, for liquid mass)</label>
+        <div class="inrow">
+          <input type="number" id="dens" placeholder="e.g. 998" min="0" step="any">
+          <span class="unitsel" style="align-self:center;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--text-dim)">kg/m³</span>
+        </div>
+      </fieldset>
+
+      <p class="hint">All inputs are inside dimensions. Results update live.</p>
+    </div>
+  </section>
+
+  <!-- ================= RESULTS PANEL ================= -->
+  <section class="panel" aria-label="Results">
+    <div class="panel-title">Inventory Readout</div>
+    <div class="panel-body">
+
+      <div class="tiles">
+        <div class="tile accent"><div class="k">Volume at level</div><div class="v" id="oLvlV">–</div><div class="u">m³</div></div>
+        <div class="tile accent"><div class="k">Percent full</div><div class="v" id="oPct">–</div><div class="u">%</div></div>
+        <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTot">–</div><div class="u">m³</div></div>
+        <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTotL">–</div><div class="u">litres</div></div>
+        <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTotG">–</div><div class="u">US gal</div></div>
+        <div class="tile"><div class="k">Vapour space</div><div class="v" id="oVap">–</div><div class="u">m³</div></div>
+        <div class="tile"><div class="k">Liquid mass</div><div class="v" id="oMass">–</div><div class="u">tonnes</div></div>
+        <div class="tile"><div class="k">Head depth</div><div class="v" id="oHd">–</div><div class="u">mm</div></div>
+      </div>
+
+      <div class="diagram-wrap" id="diagramWrap">
+        <svg id="tkSvg" viewBox="0 0 640 300" width="100%" role="img" aria-label="Tank cross-section with liquid level"></svg>
+      </div>
+
+      <div class="panel-title" style="border-top:1px solid var(--line);margin:0 -18px;padding-left:18px">Dip Chart — Level vs Volume</div>
+      <div style="overflow-x:auto;margin-top:12px">
+        <table id="dipTable" aria-label="Level to volume table">
+          <thead><tr><th>Level</th><th>Volume m³</th><th>Litres</th><th>US gal</th><th>% Full</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button class="btn" id="csvBtn" type="button">Download dip chart (CSV)</button>
+
+      <p class="note">Head partial-fill uses the exact spheroidal relation for hemispherical
+      and 2:1 ellipsoidal heads; torispherical (ASME F&amp;D, crown 1.0·D, knuckle 0.06·D)
+      uses exact full-head geometry with an equivalent-depth fill profile (typical deviation
+      &lt; 1%). Preliminary engineering use only — verify against calibration data or
+      applicable codes before custody-transfer or safety-related use.</p>
+    </div>
+  </section>
+</main>
+
+<section class="methods">
+  <h2>Method</h2>
+  <p>Horizontal shell partial volume uses the circular segment:
+  <code>V = L·[R²·acos((R−h)/R) − (R−h)·√(2Rh−h²)]</code>.
+  Dished head pairs follow <code>V = π·a·h²·(3R−h)/(3R)</code>, where <code>a</code> is the
+  head inside depth — exact for hemispherical (<code>a = R</code>) and 2:1 ellipsoidal
+  (<code>a = R/2</code>) heads. Torispherical head capacity is computed from crown-cap plus
+  knuckle-torus integration, matching the handbook value <code>0.0809·D³</code> per head.
+  Vertical tanks treat bottom dome, shell and top dome zones separately; conical bottoms are exact.</p>
+  <p>Related tools on MultiCalci: control valve sizing (IEC 60534), pipe pressure drop,
+  orifice flow (ISO 5167), heat exchanger rating and more at
+  <a href="https://www.multicalci.com">multicalci.com</a>.</p>
+</section>
+
+<footer>© MultiCalci — free process engineering calculators · multicalci.com</footer>
+
+<script>
+/* ============================================================
+   Tank Volume Engine v1.0 (tested — see repo test suite)
+   ============================================================ */
+const PI = Math.PI;
+
+function torisphericalHead(D){
+  const Rc = 1.0*D, rk = 0.06*D, R = D/2;
+  const c = R - rk;
+  const sinA = c/(Rc-rk);
+  const cosA = Math.sqrt(1 - sinA*sinA);
+  const depth = Rc - Math.sqrt((Rc-rk)*(Rc-rk) - c*c);
+  const hCap = Rc*(1-cosA);
+  const vCap = (PI/3)*hCap*hCap*(3*Rc - hCap);
+  const hK = rk*cosA;
+  let vK = 0; const N = 4000;
+  for(let i=0;i<N;i++){
+    const x = (i+0.5)*(hK/N);
+    const r = c + Math.sqrt(Math.max(rk*rk - x*x,0));
+    vK += PI*r*r*(hK/N);
+  }
+  return {volume:vCap+vK, depth};
+}
+function segArea(R,h){
+  h = Math.min(Math.max(h,0),2*R);
+  return R*R*Math.acos((R-h)/R) - (R-h)*Math.sqrt(Math.max(2*R*h-h*h,0));
+}
+function spheroidPairPartial(R,a,h){
+  h = Math.min(Math.max(h,0),2*R);
+  return (PI*a*h*h*(3*R-h))/(3*R);
+}
+function headParams(type,D){
+  const R = D/2;
+  switch(type){
+    case "flat": return {a:0,pairFull:0,equivalentA:0};
+    case "hemispherical": return {a:R,pairFull:(4/3)*PI*R**3,equivalentA:R};
+    case "ellipsoidal_2_1": return {a:R/2,pairFull:(4/3)*PI*R*R*(R/2),equivalentA:R/2};
+    case "torispherical_asme":{
+      const th = torisphericalHead(D);
+      const aEq = (2*th.volume)/((4/3)*PI*R*R);
+      return {a:th.depth,pairFull:2*th.volume,equivalentA:aEq};
+    }
+    default: throw new Error("Unsupported head type: "+type);
+  }
+}
+function horizontalTank({D_mm,L_mm,head_type="ellipsoidal_2_1",level_mm=null}){
+  const D=D_mm/1000, L=L_mm/1000, R=D/2;
+  const hp = headParams(head_type,D);
+  const shellFull = PI*R*R*L;
+  const totalFull = shellFull + hp.pairFull;
+  const out = {
+    geometry:{head_depth_mm:Math.round(hp.a*10000)/10,
+              overall_length_mm:Math.round((L+2*hp.a)*1000)},
+    total_capacity_m3:totalFull, shell_capacity_m3:shellFull, heads_capacity_m3:hp.pairFull
+  };
+  if(level_mm!==null){
+    const h = Math.min(Math.max(level_mm/1000,0),D);
+    const v = segArea(R,h)*L + spheroidPairPartial(R,hp.equivalentA,h);
+    out.at_level = {liquid_volume_m3:v, percent_full:(v/totalFull)*100, vapour_space_m3:totalFull-v};
+  }
+  out.level_volume_table = [];
+  for(let i=0;i<=10;i++){
+    const h = (i/10)*D;
+    const v = segArea(R,h)*L + spheroidPairPartial(R,hp.equivalentA,h);
+    out.level_volume_table.push({level_mm:Math.round(h*1000),volume_m3:v,percent:(v/totalFull)*100});
+  }
+  return out;
+}
+function vertDomeFromBase(R,a,hDome){
+  const h = Math.min(Math.max(hDome,0),a);
+  return (PI*R*R*h*h*(3*a-h))/(3*a*a);
+}
+function verticalTank({D_mm,shell_height_mm,bottom_head="flat",top_head="flat",cone_height_mm=0,level_mm=null}){
+  const D=D_mm/1000, R=D/2, Hs=shell_height_mm/1000;
+  function domeInfo(type){
+    if(type==="flat") return {a:0,full:0};
+    if(type==="hemispherical") return {a:R,full:(2/3)*PI*R**3};
+    if(type==="ellipsoidal_2_1") return {a:R/2,full:(2/3)*PI*R*R*(R/2)};
+    if(type==="torispherical_asme"){
+      const th = torisphericalHead(D);
+      return {a:th.depth,aEq:th.volume/((2/3)*PI*R*R),full:th.volume};
+    }
+    if(type==="conical"){
+      const Hc = cone_height_mm/1000;
+      if(Hc<=0) throw new Error("Cone height required for conical head.");
+      return {a:Hc,full:(PI/3)*R*R*Hc,conical:true};
+    }
+    throw new Error("Unsupported head type: "+type);
+  }
+  const bot = domeInfo(bottom_head), top = domeInfo(top_head);
+  const shellFull = PI*R*R*Hs;
+  const totalFull = shellFull + bot.full + top.full;
+  const out = {
+    geometry:{total_height_mm:Math.round((bot.a+Hs+top.a)*1000),
+              bottom_depth_mm:Math.round(bot.a*1000),top_depth_mm:Math.round(top.a*1000)},
+    total_capacity_m3:totalFull, shell_capacity_m3:shellFull,
+    bottom_head_m3:bot.full, top_head_m3:top.full
+  };
+  const Htot = bot.a+Hs+top.a;
+  function volAt(hRaw){
+    let h = Math.min(Math.max(hRaw,0),Htot);
+    let v = 0;
+    const hb = Math.min(h,bot.a);
+    if(bot.a>0){
+      if(bot.conical) v += (PI/3)*Math.pow(R*hb/bot.a,2)*hb;
+      else v += vertDomeFromBase(R, bot.aEq ?? bot.a, hb)*(bot.full/((2/3)*PI*R*R*(bot.aEq ?? bot.a)));
+    }
+    if(h>bot.a) v += PI*R*R*Math.min(h-bot.a,Hs);
+    if(h>bot.a+Hs && top.a>0){
+      const ht = h-bot.a-Hs;
+      if(top.conical){
+        const empty = (PI/3)*Math.pow(R*(top.a-ht)/top.a,2)*(top.a-ht);
+        v += top.full-empty;
+      } else {
+        const aT = top.aEq ?? top.a;
+        v += top.full - vertDomeFromBase(R,aT,top.a-ht)*(top.full/((2/3)*PI*R*R*aT));
+      }
+    }
+    return v;
+  }
+  if(level_mm!==null){
+    const v = volAt(level_mm/1000);
+    out.at_level = {liquid_volume_m3:v, percent_full:(v/totalFull)*100, vapour_space_m3:totalFull-v};
+  }
+  out.level_volume_table = [];
+  for(let i=0;i<=10;i++){
+    const h = (i/10)*Htot;
+    const v = volAt(h);
+    out.level_volume_table.push({level_mm:Math.round(h*1000),volume_m3:v,percent:(v/totalFull)*100});
+  }
+  return out;
+}
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const M3_TO_GAL = 264.172, M3_TO_BBL = 6.28981;
+let orientation = "H";
+let lastResult = null;
+
+function mmFactor(){ return $("unit").value === "in" ? 25.4 : 1; }
+function toMM(v){ return v * mmFactor(); }
+
+function currentInputs(){
+  const D_mm = toMM(parseFloat($("dia").value)||0);
+  const L_mm = toMM(parseFloat($("len").value)||0);
+  const level_mm = toMM(parseFloat($("lvlN").value)||0);
+  return {D_mm,L_mm,level_mm};
+}
+
+function maxLevelMM(){
+  const {D_mm,L_mm} = currentInputs();
+  if(orientation==="H") return D_mm;
+  // vertical: compute total height via engine geometry
+  try{
+    const r = verticalTank({D_mm,shell_height_mm:L_mm,
+      bottom_head:$("headBot").value, top_head:$("headTop").value,
+      cone_height_mm: toMM(parseFloat($("coneH").value)||0)});
+    return r.geometry.total_height_mm;
+  }catch(e){ return L_mm; }
+}
+
+function fmt(x,d=3){ return isFinite(x) ? x.toLocaleString("en-IN",{maximumFractionDigits:d,minimumFractionDigits:0}) : "–"; }
+
+function recalc(){
+  const {D_mm,L_mm,level_mm} = currentInputs();
+  if(!(D_mm>0) || !(L_mm>0)){ return; }
+  let r;
+  try{
+    if(orientation==="H"){
+      r = horizontalTank({D_mm,L_mm,head_type:$("headH").value,level_mm});
+    } else {
+      r = verticalTank({D_mm,shell_height_mm:L_mm,
+        bottom_head:$("headBot").value, top_head:$("headTop").value,
+        cone_height_mm: toMM(parseFloat($("coneH").value)||0), level_mm});
+    }
+  }catch(err){ return; }
+  lastResult = r;
+
+  $("oTot").textContent  = fmt(r.total_capacity_m3,3);
+  $("oTotL").textContent = fmt(Math.round(r.total_capacity_m3*1000),0);
+  $("oTotG").textContent = fmt(Math.round(r.total_capacity_m3*M3_TO_GAL),0);
+  const hd = orientation==="H" ? r.geometry.head_depth_mm :
+             Math.max(r.geometry.bottom_depth_mm, r.geometry.top_depth_mm);
+  $("oHd").textContent = fmt(hd,1);
+
+  if(r.at_level){
+    $("oLvlV").textContent = fmt(r.at_level.liquid_volume_m3,3);
+    $("oPct").textContent  = fmt(r.at_level.percent_full,1);
+    $("oVap").textContent  = fmt(r.at_level.vapour_space_m3,3);
+    $("lvlPct").textContent = "· "+fmt(r.at_level.percent_full,1)+"% full";
+    const dens = parseFloat($("dens").value);
+    $("oMass").textContent = dens>0 ? fmt(r.at_level.liquid_volume_m3*dens/1000,2) : "–";
+  }
+
+  renderDipTable(r);
+  drawTank(level_mm, D_mm, L_mm, r);
+}
+
+function renderDipTable(r){
+  const tb = $("dipTable").querySelector("tbody");
+  const inUnit = $("unit").value;
+  tb.innerHTML = r.level_volume_table.map(row=>{
+    const lv = inUnit==="in" ? (row.level_mm/25.4).toFixed(1)+" in" : row.level_mm+" mm";
+    return `<tr><td>${lv}</td><td>${row.volume_m3.toFixed(3)}</td>`+
+      `<td>${Math.round(row.volume_m3*1000).toLocaleString("en-IN")}</td>`+
+      `<td>${Math.round(row.volume_m3*M3_TO_GAL).toLocaleString("en-IN")}</td>`+
+      `<td>${row.percent.toFixed(1)}</td></tr>`;
+  }).join("");
+}
+
+/* ---------------- SVG diagram ---------------- */
+function drawTank(level_mm, D_mm, L_mm, r){
+  const svg = $("tkSvg");
+  const W=640,H=300;
+  let s = "";
+  const liqGrad = `<defs>
+    <linearGradient id="liq" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="var(--liquid-hi)" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="var(--liquid-lo)" stop-opacity="0.9"/>
+    </linearGradient>
+    <clipPath id="tankClip">${orientation==="H"?hClipPath(D_mm,L_mm):vClipPath(D_mm,L_mm)}</clipPath>
+  </defs>`;
+
+  if(orientation==="H"){
+    const pad=70, availW=W-2*pad, availH=H-90;
+    const hp = headParams($("headH").value, D_mm/1000);
+    const aPx = sc => hp.a*1000*sc;
+    const sc = Math.min(availW/(L_mm+2*hp.a*1000), availH/D_mm);
+    const tankW = L_mm*sc, dPx = D_mm*sc, ap = aPx(sc);
+    const x0 = (W - (tankW+2*ap))/2 + ap, y0 = 40 + (availH-dPx)/2;
+    const lvlFrac = Math.min(Math.max(level_mm/D_mm,0),1);
+    const liqY = y0 + dPx*(1-lvlFrac), liqH = dPx*lvlFrac;
+
+    // liquid (clipped to tank outline)
+    s += `<g clip-path="url(#tankClip)"><rect id="liquidH" x="${x0-ap-2}" y="${liqY}" width="${tankW+2*ap+4}" height="${liqH+2}" fill="url(#liq)"/></g>`;
+    // shell
+    s += `<rect x="${x0}" y="${y0}" width="${tankW}" height="${dPx}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+    // heads as ellipse arcs
+    if(ap>0.5){
+      s += `<path d="M ${x0} ${y0} A ${ap} ${dPx/2} 0 0 0 ${x0} ${y0+dPx}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+      s += `<path d="M ${x0+tankW} ${y0} A ${ap} ${dPx/2} 0 0 1 ${x0+tankW} ${y0+dPx}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+    } else {
+      s += `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0+dPx}" stroke="var(--line-bright)" stroke-width="2"/>`;
+      s += `<line x1="${x0+tankW}" y1="${y0}" x2="${x0+tankW}" y2="${y0+dPx}" stroke="var(--line-bright)" stroke-width="2"/>`;
+    }
+    // level line + label
+    s += `<line x1="${x0-ap-14}" y1="${liqY}" x2="${x0+tankW+ap+14}" y2="${liqY}" stroke="var(--brass)" stroke-width="1" stroke-dasharray="5 4"/>`;
+    s += `<text x="${x0+tankW+ap+18}" y="${liqY+4}" fill="var(--brass)" font-size="11">▽ ${Math.round(level_mm)} mm</text>`;
+    // dimension: tan-tan
+    const dy = y0+dPx+26;
+    s += dimLine(x0, dy, x0+tankW, dy, `T/T ${Math.round(L_mm)} mm`);
+    // dimension: diameter
+    s += dimLineV(x0-ap-26, y0, y0+dPx, `Ø ${Math.round(D_mm)}`);
+  } else {
+    const pad=60, availW=W-260, availH=H-70;
+    const bot = $("headBot").value;
+    // geometry from engine result
+    const g = r.geometry;
+    const Htot = g.total_height_mm;
+    const sc = Math.min(availH/Htot, availW/D_mm);
+    const dPx = D_mm*sc, x0 = 170 + (availW-dPx)/2, yTop = 35;
+    const shellH = L_mm*sc, topA = g.top_depth_mm*sc, botAp = g.bottom_depth_mm*sc;
+    const yShell0 = yTop+topA, yShell1 = yShell0+shellH, yBotTip = yShell1+botAp;
+    const lvlFrac = Math.min(Math.max(level_mm/Htot,0),1);
+    const liqY = yTop + (Htot*sc)*(1-lvlFrac);
+
+    s += `<g clip-path="url(#tankClip)"><rect id="liquidV" x="${x0-2}" y="${liqY}" width="${dPx+4}" height="${yBotTip-liqY+2}" fill="url(#liq)"/></g>`;
+    s += `<rect x="${x0}" y="${yShell0}" width="${dPx}" height="${shellH}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+    if(topA>0.5)
+      s += `<path d="M ${x0} ${yShell0} A ${dPx/2} ${topA} 0 0 1 ${x0+dPx} ${yShell0}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+    if(botAp>0.5){
+      if(bot==="conical")
+        s += `<path d="M ${x0} ${yShell1} L ${x0+dPx/2} ${yBotTip} L ${x0+dPx} ${yShell1}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+      else
+        s += `<path d="M ${x0} ${yShell1} A ${dPx/2} ${botAp} 0 0 0 ${x0+dPx} ${yShell1}" fill="none" stroke="var(--line-bright)" stroke-width="2"/>`;
+    }
+    s += `<line x1="${x0-16}" y1="${liqY}" x2="${x0+dPx+16}" y2="${liqY}" stroke="var(--brass)" stroke-width="1" stroke-dasharray="5 4"/>`;
+    s += `<text x="${x0+dPx+20}" y="${liqY+4}" fill="var(--brass)" font-size="11">▽ ${Math.round(level_mm)} mm</text>`;
+    s += dimLineV(x0-30, yTop, yBotTip, `H ${Htot} mm`);
+    s += dimLine(x0, yBotTip+18, x0+dPx, yBotTip+18, `Ø ${Math.round(D_mm)}`);
+  }
+  svg.innerHTML = liqGrad + s;
+}
+function hClipPath(D_mm,L_mm){
+  // rough clip: shell rect + head ellipses, recomputed to same coords as drawTank
+  const W=640,H=300,pad=70,availW=W-2*pad,availH=H-90;
+  const hp = headParams($("headH").value, D_mm/1000);
+  const sc = Math.min(availW/(L_mm+2*hp.a*1000), availH/D_mm);
+  const tankW=L_mm*sc, dPx=D_mm*sc, ap=hp.a*1000*sc;
+  const x0=(W-(tankW+2*ap))/2+ap, y0=40+(availH-dPx)/2;
+  return `<path d="M ${x0} ${y0} H ${x0+tankW} A ${Math.max(ap,0.01)} ${dPx/2} 0 0 1 ${x0+tankW} ${y0+dPx} H ${x0} A ${Math.max(ap,0.01)} ${dPx/2} 0 0 1 ${x0} ${y0}"/>`;
+}
+function vClipPath(D_mm,L_mm){
+  const W=640,H=300,availW=W-260,availH=H-70;
+  // geometry from last engine run
+  const g = lastResult ? lastResult.geometry : {total_height_mm:L_mm,top_depth_mm:0,bottom_depth_mm:0};
+  const Htot=g.total_height_mm;
+  const sc=Math.min(availH/Htot, availW/D_mm);
+  const dPx=D_mm*sc, x0=170+(availW-dPx)/2, yTop=35;
+  const shellH=L_mm*sc, topA=g.top_depth_mm*sc, botAp=g.bottom_depth_mm*sc;
+  const yShell0=yTop+topA, yShell1=yShell0+shellH, yBotTip=yShell1+botAp;
+  const bot=$("headBot").value;
+  const botPath = bot==="conical"
+    ? `L ${x0+dPx/2} ${yBotTip} L ${x0} ${yShell1}`
+    : `A ${dPx/2} ${Math.max(botAp,0.01)} 0 0 0 ${x0} ${yShell1}`;
+  return `<path d="M ${x0} ${yShell0} A ${dPx/2} ${Math.max(topA,0.01)} 0 0 1 ${x0+dPx} ${yShell0} V ${yShell1} ${botPath} Z"/>`;
+}
+function dimLine(x1,y,x2,_y2,label){
+  return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--text-dim)" stroke-width="1"/>`+
+    `<line x1="${x1}" y1="${y-5}" x2="${x1}" y2="${y+5}" stroke="var(--text-dim)"/>`+
+    `<line x1="${x2}" y1="${y-5}" x2="${x2}" y2="${y+5}" stroke="var(--text-dim)"/>`+
+    `<text x="${(x1+x2)/2}" y="${y-6}" fill="var(--text-dim)" font-size="11" text-anchor="middle">${label}</text>`;
+}
+function dimLineV(x,y1,y2,label){
+  return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="var(--text-dim)" stroke-width="1"/>`+
+    `<line x1="${x-5}" y1="${y1}" x2="${x+5}" y2="${y1}" stroke="var(--text-dim)"/>`+
+    `<line x1="${x-5}" y1="${y2}" x2="${x+5}" y2="${y2}" stroke="var(--text-dim)"/>`+
+    `<text x="${x-8}" y="${(y1+y2)/2}" fill="var(--text-dim)" font-size="11" text-anchor="middle" transform="rotate(-90 ${x-8} ${(y1+y2)/2})">${label}</text>`;
+}
+
+/* ---------------- events ---------------- */
+function setOrientation(o){
+  orientation = o;
+  $("btnH").classList.toggle("on", o==="H");
+  $("btnV").classList.toggle("on", o==="V");
+  $("lenLabel").textContent = o==="H" ? "Tan-tan length" : "Cylindrical shell height";
+  $("fsHeadsH").classList.toggle("hidden", o!=="H");
+  $("fsHeadsV").classList.toggle("hidden", o!=="V");
+  syncLevelBounds(); recalc();
+}
+function syncLevelBounds(){
+  const max = maxLevelMM()/mmFactor();
+  $("lvlR").max = Math.max(max,1);
+  $("lvlR").step = Math.max(max/400,0.5);
+  if(parseFloat($("lvlN").value) > max) $("lvlN").value = (max/2).toFixed(0);
+  $("lvlR").value = parseFloat($("lvlN").value)||0;
+  $("lvlUnit").textContent = $("unit").value;
+}
+$("btnH").addEventListener("click",()=>setOrientation("H"));
+$("btnV").addEventListener("click",()=>setOrientation("V"));
+$("lvlR").addEventListener("input",()=>{ $("lvlN").value = $("lvlR").value; recalc(); });
+$("lvlN").addEventListener("input",()=>{ $("lvlR").value = $("lvlN").value; recalc(); });
+$("headBot").addEventListener("change",()=>{
+  $("coneRow").classList.toggle("hidden", $("headBot").value!=="conical");
+  syncLevelBounds(); recalc();
+});
+["dia","len","unit","headH","headTop","coneH","dens"].forEach(id=>{
+  $(id).addEventListener("input",()=>{ syncLevelBounds(); recalc(); });
+  $(id).addEventListener("change",()=>{ syncLevelBounds(); recalc(); });
+});
+$("csvBtn").addEventListener("click",()=>{
+  if(!lastResult) return;
+  const rows = [["Level_mm","Volume_m3","Litres","US_gal","Percent_full"]];
+  lastResult.level_volume_table.forEach(r=>{
+    rows.push([r.level_mm, r.volume_m3.toFixed(4), Math.round(r.volume_m3*1000),
+               Math.round(r.volume_m3*M3_TO_GAL), r.percent.toFixed(2)]);
+  });
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "multicalci_tank_dip_chart.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+syncLevelBounds();
+recalc();
+</script>
+</body>
+</html>
