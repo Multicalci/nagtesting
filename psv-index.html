@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pressure Relief Valve (PSV) Sizing Calculator — API 520 / 521 / 526 | multicalci.com</title>
+<meta name="description" content="Free PSV / relief valve sizing calculator per API 520, API 521 and API 526. Gas, steam, liquid, fire case (wetted &amp; unwetted) and two-phase omega method with automatic orifice selection D–T.">
+<link rel="canonical" href="https://multicalci.com/pressure-relief-valve-sizing/">
+<meta property="og:title" content="PSV Sizing Calculator — API 520/521/526 | multicalci.com">
+<meta property="og:description" content="Free pressure relief valve sizing per API 520/521/526: gas, steam, liquid, fire case &amp; two-phase omega method with API 526 orifice selection.">
+<meta property="og:url" content="https://multicalci.com/pressure-relief-valve-sizing/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PSV Sizing Calculator — API 520/521/526 | multicalci.com">
+<meta name="twitter:image" content="https://multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<meta name="author" content="multicalci.com">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Pressure Relief Valve (PSV) Sizing Calculator","description":"Free PSV and safety relief valve sizing calculator per API 520 Part I, API 521 and API 526 — gas/vapor, steam, liquid, fire case and two-phase omega sizing with automatic letter-orifice selection.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://multicalci.com/pressure-relief-valve-sizing/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How is a PSV sized for gas or vapor service per API 520?","acceptedAnswer":{"@type":"Answer","text":"For critical (choked) flow, the required orifice area is A = W·√(TZ/M)/(C·Kd·P1·Kb·Kc), where W is relief rate in lb/h, T relieving temperature in °R, Z compressibility, M molecular weight, C the coefficient from the isentropic exponent k, Kd the discharge coefficient (0.975 preliminary), P1 the relieving pressure in psia, Kb the backpressure correction and Kc the rupture-disc factor. The area is then matched to the next larger API 526 letter orifice (D through T)."}},{"@type":"Question","name":"What accumulation is allowed for the fire case?","acceptedAnswer":{"@type":"Answer","text":"Per ASME Section VIII, accumulation is limited to 10% for a single valve (non-fire), 16% for multiple valves, and 21% for the external fire case regardless of the number of valves."}},{"@type":"Question","name":"When is a balanced bellows or pilot-operated valve required?","acceptedAnswer":{"@type":"Answer","text":"A conventional spring valve is generally acceptable up to about 10% built-up back pressure. Between 10% and 50% of set pressure, a balanced bellows valve with the Kb (gas) or Kw (liquid) correction applies. Above 50% back pressure, a pilot-operated valve is required."}}]}</script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg:#f0f3f8; --white:#fff; --border:#c5d0e0; --border-strong:#7a96b8;
+  --accent:#0a3560; --accent2:#0f5e30; --accent-light:#d8eaf8; --accent2-light:#d4f0e0;
+  --orange:#b84800; --orange-bg:#fff0e0; --green:#0b4a28; --green-bg:#e0f4ea;
+  --red:#8a0018; --red-bg:#ffebee; --fire:#9a2800;
+  --text:#0a1420; --muted:#384e66; --label:#1a2c42;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+  --shadow:0 2px 12px rgba(0,0,0,.09); --r:8px;
+  --notice-high:#fff5e0; --notice-high-border:#e09820; --notice-high-text:#6a2e00;
+  --notice-imp:#e8f2fc; --notice-imp-border:#5a96d8; --notice-imp-text:#0a2d5e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,#0a3560 0%,#0d5499 60%,#1668c8 100%);
+  padding:1rem 2rem;display:flex;align-items:center;gap:1.2rem;
+  box-shadow:0 3px 18px rgba(10,53,96,.4);position:sticky;top:0;z-index:100}
+.header-text{flex:1}
+header h1{font-size:1.15rem;font-weight:700;color:#fff;letter-spacing:.02em}
+header p{font-size:.8rem;color:rgba(255,255,255,.75);font-family:var(--mono);margin-top:2px}
+.header-badge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+  color:rgba(255,255,255,.9);font-family:var(--mono);font-size:.72rem;
+  padding:4px 10px;border-radius:12px;letter-spacing:.08em;white-space:nowrap}
+@media(max-width:820px){ .share-label-txt{ display:none } }
+
+/* ── NAV ── */
+.tool-nav{background:var(--white);border-bottom:2px solid var(--border);padding:0 1.2rem;
+  display:flex;align-items:stretch;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;position:sticky;top:68px;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.tool-nav::-webkit-scrollbar{display:none}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:.7rem 1.1rem;
+  border:none;background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--sans);font-size:.74rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;border-bottom:3px solid transparent;transition:all .16s;
+  white-space:nowrap;margin-bottom:-2px}
+.nav-btn .ni{font-size:1.2rem}
+.nav-btn:hover{color:var(--accent);background:var(--accent-light)}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-light)}
+
+/* ── SLIDES ── */
+.slides-wrapper{position:relative;overflow:hidden}
+.slides-track{display:flex;transition:transform .36s cubic-bezier(.4,0,.2,1);will-change:transform}
+.slide{flex:0 0 100%;width:100%;padding:1.6rem 1.5rem 2.5rem;min-height:calc(100vh - 128px);box-sizing:border-box}
+.slide-inner{max-width:900px;margin:0 auto;width:100%}
+.slide-title{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:1rem;margin-bottom:1.4rem;padding-bottom:.9rem;border-bottom:2px solid var(--border);flex-wrap:wrap}
+.stl{display:flex;align-items:center;gap:.8rem}
+.tool-icon{width:40px;height:40px;background:var(--accent);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;color:#fff}
+.tool-icon.g{background:var(--accent2)}
+.tool-icon.f{background:var(--fire)}
+.slide-title h2{font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text)}
+.slide-title p{font-size:.78rem;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
+/* ── SECTION BOX ── */
+.section-box{background:var(--white);border:1px solid var(--border);
+  border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:1.1rem;overflow:hidden;width:100%;box-sizing:border-box}
+.section-head{background:linear-gradient(135deg,#edf3fb,#f2f6fb);
+  padding:.6rem 1rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:.5rem}
+.shd{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.section-head span{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.section-body{padding:.85rem;display:flex;flex-direction:column;gap:.8rem;box-sizing:border-box;width:100%}
+
+/* ── FORM ── */
+.fg{display:flex;flex-direction:column;gap:.28rem}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem}
+.fr4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}
+label{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--label);font-weight:700}
+.iw{display:flex;border:1.5px solid var(--border);border-radius:5px;
+  overflow:hidden;background:#fff;transition:border-color .14s;min-width:0;width:100%}
+.iw:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,53,96,.1)}
+.iw input{flex:1;background:transparent;border:none;padding:.5rem .65rem;
+  color:#0a1420;font-family:var(--mono);font-size:.95rem;font-weight:600;outline:none;min-width:0;width:0}
+.iw input::placeholder{color:#7a92aa;font-weight:400}
+.iw select{border-left:1px solid var(--border);color:#1a2c42;font-size:.75rem;
+  background:#eaf0f8;cursor:pointer;font-weight:700;flex:0 0 auto;
+  min-width:52px;max-width:105px;width:auto;
+  padding:0 .25rem;border:none;outline:none;font-family:var(--mono);
+  border-left:1px solid var(--border);overflow:hidden;text-overflow:ellipsis}
+select.field{width:100%;background:#fff;border:1.5px solid var(--border);
+  border-radius:5px;padding:.5rem .65rem;color:#0a1420;
+  font-family:var(--mono);font-size:.9rem;font-weight:600;outline:none;cursor:pointer;transition:border-color .14s}
+select.field:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,53,96,.1)}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:.6rem;margin-top:.4rem;flex-wrap:wrap}
+.calc-btn{flex:1;min-width:150px;padding:.65rem;background:var(--accent);border:none;
+  border-radius:6px;color:#fff;font-family:var(--mono);font-size:.88rem;font-weight:700;
+  letter-spacing:.05em;cursor:pointer;text-transform:uppercase;
+  transition:background .14s,transform .1s,box-shadow .14s;
+  box-shadow:0 2px 8px rgba(10,53,96,.25)}
+.calc-btn:hover{background:#083050;transform:translateY(-1px);box-shadow:0 4px 14px rgba(10,53,96,.35)}
+.calc-btn:active{transform:translateY(0)}
+.btn-ghost{padding:.55rem .9rem;background:transparent;border:1px solid var(--line);border-radius:6px;
+  color:var(--accent);font:600 .78rem 'IBM Plex Mono',monospace;cursor:pointer;transition:all .15s}
+.btn-ghost:hover{border-color:var(--accent);background:var(--accent-light)}
+.pdf-btn{padding:.65rem 1rem;background:var(--orange);border:none;border-radius:6px;
+  color:#fff;font-family:var(--mono);font-size:.8rem;font-weight:700;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.04em;transition:background .14s;white-space:nowrap}
+.pdf-btn:hover{background:#9a3c00}
+.reset-btn{padding:.65rem .85rem;background:transparent;border:1.5px solid var(--border);
+  border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:.78rem;font-weight:600;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:all .14s}
+.reset-btn:hover{border-color:var(--border-strong);color:var(--text);background:#f2f5fa}
+
+/* ── RESULTS ── */
+.result-panel{display:none;background:var(--green-bg);border:1.5px solid #80c8a0;
+  border-radius:7px;overflow:hidden;animation:fadeIn .25s ease}
+.result-panel.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.rph{background:linear-gradient(135deg,#cceedd,#e0f6ea);padding:.6rem 1rem;
+  border-bottom:1px solid #80c8a0;display:flex;align-items:center;justify-content:space-between}
+.rph span{font-size:.76rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--green);font-family:var(--mono)}
+.rbadge{font-size:.72rem;font-family:var(--mono);font-weight:700;
+  padding:3px 10px;border-radius:10px;letter-spacing:.06em}
+.bp{background:#1a7040;color:#fff} .bw{background:#c05000;color:#fff} .bf{background:#a0001a;color:#fff}
+.rbody{padding:1rem}
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.7rem}
+.rg2{grid-template-columns:repeat(2,1fr)!important}
+.rg4{grid-template-columns:repeat(4,1fr)!important}
+.ri{background:#fff;border:1px solid #90cca8;border-radius:5px;padding:.7rem .85rem}
+.rl{font-size:.7rem;color:#283d52;text-transform:uppercase;letter-spacing:.09em;
+  margin-bottom:4px;font-family:var(--sans);font-weight:700}
+.rv{font-size:1rem;color:#0a4020;font-weight:700;font-family:var(--mono)}
+.rv.w{color:#884000} .rv.f{color:#880018} .rv.s{font-size:.84rem}
+.rsub{font-size:.75rem;color:#283d52;margin-top:.5rem;font-family:var(--mono);
+  line-height:1.7;padding:.45rem .65rem;background:rgba(255,255,255,.7);
+  border-radius:4px;border:1px solid #b8d8c8}
+
+/* ── ORIFICE HERO CARD (signature of this tool) ── */
+.orifice-hero{display:flex;align-items:center;gap:1rem;background:#fff;
+  border:2px solid var(--accent);border-radius:7px;padding:.85rem 1rem;margin-bottom:.7rem;flex-wrap:wrap}
+.orifice-letter{width:64px;height:64px;border-radius:8px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:2rem;font-weight:700;flex-shrink:0;
+  box-shadow:0 3px 10px rgba(10,53,96,.35)}
+.orifice-meta{flex:1;min-width:180px}
+.orifice-meta .om1{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--muted);font-weight:700}
+.orifice-meta .om2{font-family:var(--mono);font-size:1.02rem;font-weight:700;color:var(--accent);margin-top:2px}
+.orifice-meta .om3{font-family:var(--mono);font-size:.76rem;color:var(--muted);margin-top:3px}
+.cap-bar{height:9px;background:#e2eaf4;border-radius:5px;overflow:hidden;margin-top:6px;max-width:280px}
+.cap-fill{height:100%;background:linear-gradient(90deg,#0f5e30,#1a9050);border-radius:5px}
+.cap-fill.hi{background:linear-gradient(90deg,#b84800,#e06010)}
+
+/* ── WARN / ERR ── */
+.warn-box{display:none;padding:.75rem 1rem;background:#fff4de;
+  border:1.5px solid #e09820;border-radius:6px;
+  font-size:.84rem;color:#5a2800;font-family:var(--mono);line-height:1.65;font-weight:600}
+.warn-box.show{display:block}
+.err-box{display:none;padding:.75rem 1rem;background:#ffecec;
+  border:1.5px solid #cc3030;border-radius:6px;
+  font-size:.84rem;color:#640000;font-family:var(--mono);font-weight:600;line-height:1.65}
+.err-box.show{display:block}
+
+.help-text{font-size:.8rem;color:#283d52;font-family:var(--mono);line-height:1.65;
+  padding:.5rem .8rem;background:#ecf2f8;border-left:3px solid #6888b0;
+  border-radius:0 4px 4px 0;font-weight:500}
+.formula-box{background:#e6eeff;border:1px solid #9ab4ee;border-radius:5px;
+  padding:.7rem 1rem;font-family:var(--mono);font-size:.82rem;color:#082a5a;line-height:1.8;font-weight:500}
+
+/* ── REF TABLES ── */
+.ref-table{width:100%;border-collapse:collapse;font-size:.86rem}
+.ref-table th{padding:.55rem .8rem;text-align:left;color:#1a2c42;font-weight:700;
+  font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;
+  border-bottom:2px solid var(--border);background:#d8e8f5}
+.ref-table td{padding:.44rem .72rem;border-bottom:1px solid var(--border);
+  color:#0a1420;font-family:var(--mono);font-weight:500}
+.tbl-scroll{overflow-x:auto}
+
+/* ── MODE PILLS (wetted / unwetted etc.) ── */
+.mode-pills{display:flex;gap:.4rem;flex-wrap:wrap}
+.mode-pill{padding:.45rem .9rem;border-radius:16px;border:1.5px solid var(--border);
+  background:#fff;color:var(--muted);font-family:var(--mono);font-size:.76rem;
+  font-weight:700;cursor:pointer;letter-spacing:.04em;transition:all .14s;text-transform:uppercase}
+.mode-pill.active{background:var(--accent);border-color:var(--accent);color:#fff;
+  box-shadow:0 2px 8px rgba(10,53,96,.3)}
+.mode-pill.fire.active{background:var(--fire);border-color:var(--fire)}
+
+footer{text-align:center;padding:1.4rem;font-size:.78rem;color:var(--muted);
+  border-top:1px solid var(--border);font-family:var(--mono);line-height:1.8}
+@media(max-width:640px){
+  header{padding:.8rem 1rem;gap:.6rem}
+  .slide{padding:1.1rem .8rem 2rem}
+  .fr3,.fr4{grid-template-columns:1fr 1fr}
+  .rg,.rg4{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion: reduce){
+  .slides-track{transition:none}
+  .result-panel{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+<a href="https://multicalci.com/" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:inherit;flex-shrink:0;" title="multicalci.com Home">
+  <div style="line-height:1.2;">
+    <div style="font-size:0.78rem;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.85);text-transform:uppercase;font-family:var(--mono);">multicalci.com</div>
+  </div>
+</a>
+  <div class="header-text">
+    <h1>Pressure Relief Valve (PSV) Sizing Calculator</h1>
+    <p>API 520 Part I | API 521 Fire | API 526 Orifices | Metric + Imperial | v1.0</p>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+    <div class="header-badge">API 520·521·526</div>
+    <button onclick="shareTwitter()" title="Share on X"
+      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.28);border-radius:7px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.259 5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      <span class="share-label-txt">Share</span>
+    </button>
+    <button onclick="shareLinkedIn()" title="Share on LinkedIn"
+      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.28);border-radius:7px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      <span class="share-label-txt">LinkedIn</span>
+    </button>
+    <button onclick="shareWhatsApp()" title="Share on WhatsApp"
+      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.28);border-radius:7px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <span class="share-label-txt">WhatsApp</span>
+    </button>
+    <button onclick="copyLink()" title="Copy link"
+      style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.28);border-radius:7px;color:#fff;cursor:pointer;font-family:var(--mono);font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+      <span class="share-label-txt">Copy Link</span>
+    </button>
+    <a href="https://multicalci.com/" style="display:inline-flex;align-items:center;gap:5px;padding:6px 13px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);border-radius:7px;color:#fff;font-size:0.75rem;font-weight:700;text-decoration:none;white-space:nowrap;" title="All Calculators">🏠 Home</a>
+  </div>
+</header>
+
+<nav class="tool-nav" id="toolNav">
+  <button class="nav-btn active" onclick="goTo(0)" id="navBtn0"><span class="ni">💨</span>Gas / Vapor</button>
+  <button class="nav-btn" onclick="goTo(1)" id="navBtn1"><span class="ni">♨</span>Steam</button>
+  <button class="nav-btn" onclick="goTo(2)" id="navBtn2"><span class="ni">💧</span>Liquid</button>
+  <button class="nav-btn" onclick="goTo(3)" id="navBtn3"><span class="ni">🔥</span>Fire — API 521</button>
+  <button class="nav-btn" onclick="goTo(4)" id="navBtn4"><span class="ni">🌫</span>Two-Phase Ω</button>
+  <button class="nav-btn" onclick="goTo(5)" id="navBtn5"><span class="ni">🔁</span>Back Pressure</button>
+  <button class="nav-btn" onclick="goTo(6)" id="navBtn6"><span class="ni">⚖️</span>Scenarios</button>
+  <button class="nav-btn" onclick="goTo(7)" id="navBtn7"><span class="ni">📋</span>Reference</button>
+</nav>
+
+<div class="slides-wrapper">
+<div class="slides-track" id="slidesTrack">
+
+<!-- ══════════════ SLIDE 0 — GAS / VAPOR ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon">💨</div>
+      <div><h2>Gas / Vapor Relief — API 520 §5.6</h2>
+      <p>Critical &amp; subcritical flow | C(k) | Kb | F₂ | orifice D–T</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Protected System</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="g-setP" placeholder="10" step="any">
+          <select id="g-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option><option value="kgcm2g">kg/cm²g</option><option value="MPag">MPag</option></select></div></div>
+        <div class="fg"><label>Scenario</label>
+          <select class="field" id="g-scenario"><option value="process">Process (blocked outlet etc.)</option><option value="fire">External fire (21%)</option></select></div>
+        <div class="fg"><label>Overpressure</label>
+          <select class="field" id="g-op"><option value="">Auto (ASME 10 / 16 / 21%)</option><option value="10">10%</option><option value="16">16% (multiple valves)</option><option value="21">21% (fire)</option></select></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Relief Rate W</label>
+          <div class="iw"><input type="number" id="g-W" placeholder="50000" step="any">
+          <select id="g-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="tonhr">t/h</option><option value="kgs">kg/s</option></select></div></div>
+        <div class="fg"><label>Relieving Temperature</label>
+          <div class="iw"><input type="number" id="g-T" placeholder="120" step="any">
+          <select id="g-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option><option value="R">°R</option></select></div></div>
+        <div class="fg"><label>No. of Valves</label>
+          <div class="iw"><input type="number" id="g-nv" placeholder="1" value="1" step="1" min="1"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Fluid Properties at Relief</span></div>
+    <div class="section-body">
+      <div class="fr2">
+        <div class="fg"><label>Fluid</label>
+          <select class="field" id="g-fluid" onchange="onFluid('g')"></select></div>
+        <div class="fg"><label>Z Source</label>
+          <select class="field" id="g-Zsrc" onchange="onZsrc('g')">
+            <option value="no">Manual Z</option>
+            <option value="yes">Auto — PR EOS at P₁, T₁</option>
+          </select></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Molecular Weight M</label>
+          <div class="iw"><input type="number" id="g-M" placeholder="17.03" step="any"></div></div>
+        <div class="fg"><label>Isentropic Exponent k = Cp/Cv</label>
+          <div class="iw"><input type="number" id="g-k" placeholder="1.31" step="any"></div></div>
+        <div class="fg"><label>Compressibility Z</label>
+          <div class="iw"><input type="number" id="g-Z" placeholder="1.0" value="1.0" step="any"></div></div>
+      </div>
+      <div class="help-text">Use properties at the RELIEVING condition (P₁, T₁), not normal operating. Pick a library fluid to auto-fill M &amp; k and enable <b>Auto-Z</b>: the server computes Z with the Peng-Robinson EOS at relieving pressure &amp; temperature (same engine as the EOS &amp; control-valve calculators) and runs a phase-stability check — it warns if the "vapor" is actually liquid or near its dew point. If k unknown, k = 1.0 gives C = 315 (conservative).</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Valve &amp; Installation</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="g-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+        <div class="fg"><label>Back Pressure (total)</label>
+          <div class="iw"><input type="number" id="g-Pb" placeholder="0" value="0" step="any">
+          <select id="g-Pb-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Kd (discharge coeff.)</label>
+          <div class="iw"><input type="number" id="g-Kd" placeholder="0.975" value="0.975" step="any"></div></div>
+        <div class="fg"><label>Rupture Disc Upstream</label>
+          <select class="field" id="g-rd"><option value="no">No (Kc = 1.0)</option><option value="yes">Yes (Kc = 0.9)</option></select></div>
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="runGas(this)">Size PSV — Gas/Vapor</button>
+        <button class="pdf-btn" onclick="exportPDF('gas')">⭳ PDF</button>
+        <button class="reset-btn" onclick="resetTab('g')">Reset</button>
+      </div>
+      <div class="err-box" id="g-err"></div>
+      <div class="warn-box" id="g-warn"></div>
+      <div class="result-panel" id="g-result">
+        <div class="rph"><span>Sizing Result — API 520 Gas/Vapor</span><span class="rbadge bp" id="g-badge">PASS</span></div>
+        <div class="rbody" id="g-rbody"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 1 — STEAM ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon">♨</div>
+      <div><h2>Steam Relief — API 520 §5.8</h2>
+      <p>Napier equation | Kn high-pressure | Ksh superheat</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Steam Conditions</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="s-setP" placeholder="40" step="any">
+          <select id="s-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option><option value="kgcm2g">kg/cm²g</option></select></div></div>
+        <div class="fg"><label>Relief Rate W</label>
+          <div class="iw"><input type="number" id="s-W" placeholder="25000" step="any">
+          <select id="s-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="tonhr">t/h</option></select></div></div>
+        <div class="fg"><label>Steam State</label>
+          <select class="field" id="s-state" onchange="document.getElementById('s-Twrap').style.display=this.value==='superheated'?'flex':'none'"><option value="saturated">Saturated (Ksh = 1)</option><option value="superheated">Superheated</option></select></div>
+      </div>
+      <div class="fr3">
+        <div class="fg" id="s-Twrap" style="display:none"><label>Total Steam Temperature</label>
+          <div class="iw"><input type="number" id="s-T" placeholder="400" step="any">
+          <select id="s-T-u"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+        <div class="fg"><label>Overpressure</label>
+          <select class="field" id="s-op"><option value="">Auto (10%)</option><option value="10">10%</option><option value="16">16%</option><option value="21">21% (fire)</option></select></div>
+        <div class="fg"><label>No. of Valves</label>
+          <div class="iw"><input type="number" id="s-nv" placeholder="1" value="1" step="1" min="1"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Valve &amp; Installation</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="s-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+        <div class="fg"><label>Back Pressure (total)</label>
+          <div class="iw"><input type="number" id="s-Pb" placeholder="0" value="0" step="any">
+          <select id="s-Pb-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Kd</label>
+          <div class="iw"><input type="number" id="s-Kd" placeholder="0.975" value="0.975" step="any"></div></div>
+        <div class="fg"><label>Rupture Disc Upstream</label>
+          <select class="field" id="s-rd"><option value="no">No (Kc = 1.0)</option><option value="yes">Yes (Kc = 0.9)</option></select></div>
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="runSteam(this)">Size PSV — Steam</button>
+        <button class="pdf-btn" onclick="exportPDF('steam')">⭳ PDF</button>
+        <button class="reset-btn" onclick="resetTab('s')">Reset</button>
+      </div>
+      <div class="err-box" id="s-err"></div>
+      <div class="warn-box" id="s-warn"></div>
+      <div class="result-panel" id="s-result">
+        <div class="rph"><span>Sizing Result — API 520 Steam</span><span class="rbadge bp" id="s-badge">PASS</span></div>
+        <div class="rbody" id="s-rbody"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 2 — LIQUID ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon g">💧</div>
+      <div><h2>Liquid Relief — API 520 §5.10</h2>
+      <p>Certified valves (Kd = 0.65) | Kw bellows | Kv viscosity iteration</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Liquid Conditions</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="l-setP" placeholder="16" step="any">
+          <select id="l-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option><option value="kgcm2g">kg/cm²g</option></select></div></div>
+        <div class="fg"><label>Relief Flow Q</label>
+          <div class="iw"><input type="number" id="l-Q" placeholder="200" step="any">
+          <select id="l-Q-u"><option value="m3hr">m³/h</option><option value="gpm">US gpm</option><option value="lpm">L/min</option><option value="lps">L/s</option></select></div></div>
+        <div class="fg"><label>Specific Gravity G</label>
+          <div class="iw"><input type="number" id="l-G" placeholder="1.0" step="any"></div></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Viscosity at Relief T</label>
+          <div class="iw"><input type="number" id="l-mu" placeholder="1" value="1" step="any">
+          <select disabled><option>cP</option></select></div></div>
+        <div class="fg"><label>Overpressure</label>
+          <select class="field" id="l-op"><option value="">Auto (10%)</option><option value="10">10%</option><option value="16">16%</option><option value="25">25% (thermal relief practice)</option></select></div>
+        <div class="fg"><label>No. of Valves</label>
+          <div class="iw"><input type="number" id="l-nv" placeholder="1" value="1" step="1" min="1"></div></div>
+      </div>
+      <div class="help-text">Kv viscosity correction is iterated against the NEXT standard orifice per API 520 practice (Re = Q·2800·G / (μ·√A)). Valid for Re ≥ 20.</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Valve &amp; Installation</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="l-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows (Kw)</option><option value="pilot">Pilot-operated</option></select></div>
+        <div class="fg"><label>Back Pressure (total)</label>
+          <div class="iw"><input type="number" id="l-Pb" placeholder="0" value="0" step="any">
+          <select id="l-Pb-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Kd</label>
+          <div class="iw"><input type="number" id="l-Kd" placeholder="0.65" value="0.65" step="any"></div></div>
+        <div class="fg"><label>Rupture Disc Upstream</label>
+          <select class="field" id="l-rd"><option value="no">No (Kc = 1.0)</option><option value="yes">Yes (Kc = 0.9)</option></select></div>
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="runLiquid(this)">Size PSV — Liquid</button>
+        <button class="pdf-btn" onclick="exportPDF('liquid')">⭳ PDF</button>
+        <button class="reset-btn" onclick="resetTab('l')">Reset</button>
+      </div>
+      <div class="err-box" id="l-err"></div>
+      <div class="warn-box" id="l-warn"></div>
+      <div class="result-panel" id="l-result">
+        <div class="rph"><span>Sizing Result — API 520 Liquid</span><span class="rbadge bp" id="l-badge">PASS</span></div>
+        <div class="rbody" id="l-rbody"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 3 — FIRE CASE API 521 ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon f">🔥</div>
+      <div><h2>Fire Case — API 521</h2>
+      <p>Wetted: Q = C·F·Aw⁰·⁸² → W = Q/λ | Unwetted: A = F′·A′/√P₁</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd" style="background:var(--fire)"></div><span style="color:var(--fire)">Vessel Exposure Mode</span></div>
+    <div class="section-body">
+      <div class="mode-pills">
+        <button class="mode-pill fire active" id="fm-wet" onclick="setFireMode('wetted')">Wetted (liquid-containing)</button>
+        <button class="mode-pill fire" id="fm-dry" onclick="setFireMode('unwetted')">Unwetted (gas-filled)</button>
+      </div>
+      <div class="help-text" id="f-mode-help">Wetted vessel: pool fire boils the liquid inventory — relief load W = Q/λ, then sized as vapor at 21% accumulation. Wetted area limited to 7.6 m (25 ft) above the fire source.</div>
+    </div>
+  </div>
+
+  <!-- WETTED INPUTS -->
+  <div id="f-wetted-panel">
+  <div class="section-box">
+    <div class="section-head"><div class="shd" style="background:var(--fire)"></div><span style="color:var(--fire)">Wetted Area</span></div>
+    <div class="section-body">
+      <div class="mode-pills">
+        <button class="mode-pill active" id="fa-geom" onclick="setAwMode('geom')">From vessel geometry</button>
+        <button class="mode-pill" id="fa-direct" onclick="setAwMode('direct')">Direct area input</button>
+      </div>
+      <div id="f-geom-panel">
+        <div class="fr4">
+          <div class="fg"><label>Vessel Shape</label>
+            <select class="field" id="f-shape"><option value="horizontal">Horizontal drum</option><option value="vertical">Vertical vessel</option><option value="sphere">Sphere</option></select></div>
+          <div class="fg"><label>Diameter D</label>
+            <div class="iw"><input type="number" id="f-D" placeholder="2.4" step="any">
+            <select id="f-D-u"><option value="m">m</option><option value="ft">ft</option><option value="mm">mm</option></select></div></div>
+          <div class="fg"><label>T/T Length / Height L</label>
+            <div class="iw"><input type="number" id="f-L" placeholder="8" step="any">
+            <select id="f-L-u"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+          <div class="fg"><label>Liquid Depth (from bottom)</label>
+            <div class="iw"><input type="number" id="f-liq" placeholder="1.2" step="any">
+            <select id="f-liq-u"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+        </div>
+        <div class="fr4" style="margin-top:.6rem">
+          <div class="fg"><label>Bottom Elevation Above Grade</label>
+            <div class="iw"><input type="number" id="f-elev" placeholder="0" value="0" step="any">
+            <select id="f-elev-u"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+        </div>
+      </div>
+      <div id="f-direct-panel" style="display:none">
+        <div class="fr2">
+          <div class="fg"><label>Wetted Area Aw</label>
+            <div class="iw"><input type="number" id="f-Aw" placeholder="55" step="any">
+            <select id="f-Aw-u"><option value="m2">m²</option><option value="ft2">ft²</option></select></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd" style="background:var(--fire)"></div><span style="color:var(--fire)">Fire Environment &amp; Fluid</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Environment Factor F</label>
+          <select class="field" id="f-F">
+            <option value="1.0">1.0 — Bare vessel</option>
+            <option value="0.3">0.3 — Insulated, U = 22.7 W/m²K (4 BTU)</option>
+            <option value="0.15">0.15 — Insulated, U = 11.4 (2 BTU)</option>
+            <option value="0.075">0.075 — Insulated, U = 5.7 (1 BTU)</option>
+            <option value="0.03">0.03 — Earth-covered above grade</option>
+          </select></div>
+        <div class="fg"><label>Drainage &amp; Firefighting</label>
+          <select class="field" id="f-drain"><option value="yes">Adequate (C = 21,000)</option><option value="no">Inadequate (C = 34,500)</option></select></div>
+        <div class="fg"><label>Latent Heat λ at Relief P</label>
+          <div class="iw"><input type="number" id="f-lam" placeholder="1050" step="any">
+          <select id="f-lam-u"><option value="kJkg">kJ/kg</option><option value="btulb">BTU/lb</option><option value="kcalkg">kcal/kg</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="f-setP" placeholder="16" step="any">
+          <select id="f-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option><option value="kgcm2g">kg/cm²g</option></select></div></div>
+        <div class="fg"><label>Vapor Temp at Relief</label>
+          <div class="iw"><input type="number" id="f-T" placeholder="45" step="any">
+          <select id="f-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option></select></div></div>
+        <div class="fg"><label>Vapor Fluid</label>
+          <select class="field" id="f-fluid" onchange="onFluid('f')"></select></div>
+        <div class="fg"><label>Z Source</label>
+          <select class="field" id="f-Zsrc" onchange="onZsrc('f')">
+            <option value="no">Manual Z</option>
+            <option value="yes">Auto — PR EOS at P₁, T₁</option>
+          </select></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Vapor Mol. Weight M</label>
+          <div class="iw"><input type="number" id="f-M" placeholder="17.03" step="any"></div></div>
+        <div class="fg"><label>k = Cp/Cv</label>
+          <div class="iw"><input type="number" id="f-k" placeholder="1.31" step="any"></div></div>
+        <div class="fg"><label>Compressibility Z</label>
+          <div class="iw"><input type="number" id="f-Z" placeholder="1.0" value="1.0" step="any"></div></div>
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="f-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+        <div class="fg"><label>Back Pressure</label>
+          <div class="iw"><input type="number" id="f-Pb" placeholder="0" value="0" step="any">
+          <select id="f-Pb-u"><option value="barg">barg</option><option value="psig">psig</option></select></div></div>
+        <div class="fg"><label>Rupture Disc Upstream</label>
+          <select class="field" id="f-rd"><option value="no">No</option><option value="yes">Yes (Kc = 0.9)</option></select></div>
+      </div>
+      <div class="help-text">λ near the critical point → W = Q/λ diverges. For NH₃ storage relief use λ at relieving pressure, e.g. ≈ 1,050 kJ/kg near atmospheric. Water spray gives NO credit for F per API 521.</div>
+    </div>
+  </div>
+  </div>
+
+  <!-- UNWETTED INPUTS -->
+  <div id="f-unwetted-panel" style="display:none">
+  <div class="section-box">
+    <div class="section-head"><div class="shd" style="background:var(--fire)"></div><span style="color:var(--fire)">Gas-Filled Vessel — A = F′·A′/√P₁</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Exposed Surface Area A′</label>
+          <div class="iw"><input type="number" id="u-Aexp" placeholder="40" step="any">
+          <select id="u-Aexp-u"><option value="m2">m²</option><option value="ft2">ft²</option></select></div></div>
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="u-setP" placeholder="16" step="any">
+          <select id="u-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Normal Operating Pressure Pn</label>
+          <div class="iw"><input type="number" id="u-Pn" placeholder="12" step="any">
+          <select id="u-Pn-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Normal Operating Temp Tn</label>
+          <div class="iw"><input type="number" id="u-T" placeholder="40" step="any">
+          <select id="u-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option></select></div></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Max Wall Temp Tw</label>
+          <div class="iw"><input type="number" id="u-Tw" placeholder="593" value="593" step="any">
+          <select id="u-Tw-u"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+        <div class="fg"><label>k = Cp/Cv</label>
+          <div class="iw"><input type="number" id="u-k" placeholder="1.4" value="1.4" step="any"></div></div>
+        <div class="fg"><label>Kd</label>
+          <div class="iw"><input type="number" id="u-Kd" placeholder="0.975" value="0.975" step="any"></div></div>
+        <div class="fg"><label>Mol. Weight M (optional, for W)</label>
+          <div class="iw"><input type="number" id="u-M" placeholder="28" step="any"></div></div>
+      </div>
+      <div class="help-text">T₁ = Tn·(P₁/Pn) — isochoric heat-up. Tw = 593 °C (1100 °F) for carbon steel. If T₁ ≥ Tw the wall fails before the PSV lifts — depressuring per API 521 §4.6 governs, and the tool will tell you so.</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="section-box"><div class="section-body">
+      <div class="btn-row">
+        <button class="calc-btn" style="background:var(--fire)" onclick="runFire(this)">Size PSV — Fire Case</button>
+        <button class="pdf-btn" onclick="exportPDF('fire')">⭳ PDF</button>
+        <button class="reset-btn" onclick="resetTab('f');resetTab('u')">Reset</button>
+      </div>
+      <div class="err-box" id="f-err"></div>
+      <div class="warn-box" id="f-warn"></div>
+      <div class="result-panel" id="f-result">
+        <div class="rph"><span>Sizing Result — API 521 Fire</span><span class="rbadge bp" id="f-badge">PASS</span></div>
+        <div class="rbody" id="f-rbody"></div>
+      </div>
+  </div></div>
+</div></div>
+
+<!-- ══════════════ SLIDE 4 — TWO-PHASE OMEGA ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon">🌫</div>
+      <div><h2>Two-Phase Relief — API 520 Annex C (Omega)</h2>
+      <p>Leung ω-method | ω = 9·(v₉/v₀ − 1) | critical ratio η꜀ | mass flux G</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Two-Phase Mixture</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="t-setP" placeholder="10" step="any">
+          <select id="t-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option></select></div></div>
+        <div class="fg"><label>Total Mass Rate W</label>
+          <div class="iw"><input type="number" id="t-W" placeholder="50000" step="any">
+          <select id="t-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="tonhr">t/h</option></select></div></div>
+        <div class="fg"><label>Scenario</label>
+          <select class="field" id="t-scenario"><option value="process">Process</option><option value="fire">Fire (21%)</option></select></div>
+      </div>
+      <div class="mode-pills" style="margin:.6rem 0">
+        <button class="mode-pill active" id="tm-direct" onclick="setOmegaMode('direct')">Direct v₀ / v₉</button>
+        <button class="mode-pill" id="tm-frozen" onclick="setOmegaMode('frozen')">Frozen (non-flashing)</button>
+        <button class="mode-pill" id="tm-flash" onclick="setOmegaMode('flashing')">Flashing (Leung)</button>
+      </div>
+      <div id="t-direct-panel">
+      <div class="fr2">
+        <div class="fg"><label>v₀ — Mixture Specific Volume at P₀ (m³/kg)</label>
+          <div class="iw"><input type="number" id="t-v0" placeholder="0.010" step="any"></div></div>
+        <div class="fg"><label>v₉ — Specific Volume at 0.9·P₀ (m³/kg)</label>
+          <div class="iw"><input type="number" id="t-v9" placeholder="0.013" step="any"></div></div>
+      </div>
+      <div class="help-text">Flash the inlet mixture isentropically (or isenthalpically) from P₀ (relieving pressure, absolute) to 0.9·P₀ and read both mixture specific volumes from your process simulator or steam/fluid tables. ω = 9·(v₉/v₀ − 1).</div>
+      </div>
+      <div id="t-est-panel" style="display:none">
+      <div class="fr3">
+        <div class="fg"><label>Inlet Quality x₀ (vapor mass fraction)</label>
+          <div class="iw"><input type="number" id="t-x0" placeholder="0.05" step="any" min="0" max="1"></div></div>
+        <div class="fg"><label>Liquid Spec. Volume v_l (m³/kg)</label>
+          <div class="iw"><input type="number" id="t-vl" placeholder="0.001" step="any"></div></div>
+        <div class="fg"><label>Relieving Temperature</label>
+          <div class="iw"><input type="number" id="t-T" placeholder="150" step="any">
+          <select id="t-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option></select></div></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label>Vapor-Phase Fluid (PR EOS for v_g)</label>
+          <select class="field" id="t-fluid" onchange="onFluidT()"></select></div>
+        <div class="fg"><label>Vapor Molecular Weight M</label>
+          <div class="iw"><input type="number" id="t-M" placeholder="18.015" step="any"></div></div>
+      </div>
+      <div class="fr2" id="t-flash-wrap" style="display:none">
+        <div class="fg"><label>Liquid Cp at T₀ (kJ/kg·K)</label>
+          <div class="iw"><input type="number" id="t-Cp" placeholder="4.45" step="any"></div></div>
+        <div class="fg"><label>Latent Heat h_fg at P₀ (kJ/kg)</label>
+          <div class="iw"><input type="number" id="t-hfg" placeholder="1986" step="any"></div></div>
+      </div>
+      <div class="help-text" id="t-est-help"></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label>Kd (two-phase)</label>
+          <div class="iw"><input type="number" id="t-Kd" placeholder="0.85" value="0.85" step="any"></div></div>
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="t-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+        <div class="fg"><label>Back Pressure</label>
+          <div class="iw"><input type="number" id="t-Pb" placeholder="0" value="0" step="any">
+          <select id="t-Pb-u"><option value="barg">barg</option><option value="psig">psig</option></select></div></div>
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="runTwoPhase(this)">Size PSV — Two-Phase Ω</button>
+        <button class="pdf-btn" onclick="exportPDF('twophase')">⭳ PDF</button>
+        <button class="reset-btn" onclick="resetTab('t')">Reset</button>
+      </div>
+      <div class="err-box" id="t-err"></div>
+      <div class="warn-box" id="t-warn"></div>
+      <div class="result-panel" id="t-result">
+        <div class="rph"><span>Sizing Result — Two-Phase Omega</span><span class="rbadge bw" id="t-badge">WARN</span></div>
+        <div class="rbody" id="t-rbody"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 5 — BUILT-UP BACK PRESSURE ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon g">🔁</div>
+      <div><h2>Built-up Back Pressure &amp; Inlet 3% Check</h2>
+      <p>Isothermal compressible tailpipe hydraulics per API 521 §5.5 / API 520 Pt II</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Valve &amp; Relief Flow</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Set Pressure</label>
+          <div class="iw"><input type="number" id="b-setP" placeholder="16" step="any">
+          <select id="b-setP-u"><option value="barg">barg</option><option value="kpag">kPag</option><option value="psig">psig</option><option value="kgcm2g">kg/cm²g</option></select></div></div>
+        <div class="fg"><label>Relief Rate W</label>
+          <div class="iw"><input type="number" id="b-W" placeholder="50000" step="any">
+          <select id="b-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="kgs">kg/s</option></select></div></div>
+        <div class="fg"><label>Relieving Temp T₁</label>
+          <div class="iw"><input type="number" id="b-T" placeholder="45" step="any">
+          <select id="b-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option></select></div></div>
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="b-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Fluid Properties</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Fluid</label>
+          <select class="field" id="b-fluid" onchange="onFluid('b')"></select></div>
+        <div class="fg"><label>Mol. Weight M</label>
+          <div class="iw"><input type="number" id="b-M" placeholder="17.03" step="any"></div></div>
+        <div class="fg"><label>k = Cp/Cv</label>
+          <div class="iw"><input type="number" id="b-k" placeholder="1.31" step="any"></div></div>
+        <div class="fg"><label>Z Source</label>
+          <select class="field" id="b-Zsrc" onchange="onZsrc('b')">
+            <option value="no">Manual Z</option>
+            <option value="yes">Auto — PR EOS</option>
+          </select></div>
+      </div>
+      <div class="fr4">
+        <div class="fg"><label>Compressibility Z</label>
+          <div class="iw"><input type="number" id="b-Z" placeholder="1.0" value="1.0" step="any"></div></div>
+        <div class="fg"><label>Gas Viscosity μ (Pa·s)</label>
+          <div class="iw"><input type="number" id="b-mu" placeholder="1.8e-5" value="0.000018" step="any"></div></div>
+      </div>
+      <div class="help-text">Tailpipe flow is low-pressure so Z ≈ 1 is usually fine; Auto-Z evaluates PR EOS at the destination state.</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Tailpipe (Valve Outlet → Destination)</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Internal Diameter</label>
+          <div class="iw"><input type="number" id="b-D" placeholder="154.1" step="any">
+          <select id="b-D-u"><option value="mm">mm</option><option value="in">in</option></select></div></div>
+        <div class="fg"><label>Equivalent Length L</label>
+          <div class="iw"><input type="number" id="b-L" placeholder="30" step="any">
+          <select id="b-L-u"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+        <div class="fg"><label>Fittings ΣK</label>
+          <div class="iw"><input type="number" id="b-K" placeholder="1.5" value="1.5" step="any"></div></div>
+        <div class="fg"><label>Roughness ε (mm)</label>
+          <div class="iw"><input type="number" id="b-rough" placeholder="0.046" value="0.046" step="any"></div></div>
+      </div>
+      <div class="fr2">
+        <div class="fg"><label>Discharge Destination</label>
+          <select class="field" id="b-dest" onchange="setDest()">
+            <option value="atm">Atmosphere</option>
+            <option value="header">Flare / relief header</option>
+          </select></div>
+        <div class="fg" id="b-Pdest-wrap" style="display:none"><label>Header Pressure (superimposed)</label>
+          <div class="iw"><input type="number" id="b-Pdest" placeholder="0.5" step="any">
+          <select id="b-Pdest-u"><option value="barg">barg</option><option value="kpag">kPag</option><option value="psig">psig</option></select></div></div>
+      </div>
+      <div class="help-text">ΣK: include exit loss (K = 1.0) + elbows (~0.3–0.5 each) + tees. Typical schedule-40 IDs: 3″ = 77.9 mm, 4″ = 102.3 mm, 6″ = 154.1 mm, 8″ = 202.7 mm, 10″ = 254.5 mm.</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Inlet Line — 3% Rule Check (optional)</span></div>
+    <div class="section-body">
+      <div class="fr4">
+        <div class="fg"><label>Inlet ID (blank = skip)</label>
+          <div class="iw"><input type="number" id="b-Din" placeholder="202.7" step="any">
+          <select id="b-Din-u"><option value="mm">mm</option><option value="in">in</option></select></div></div>
+        <div class="fg"><label>Inlet Equiv. Length</label>
+          <div class="iw"><input type="number" id="b-Lin" placeholder="1.5" step="any">
+          <select id="b-Lin-u"><option value="m">m</option><option value="ft">ft</option></select></div></div>
+        <div class="fg"><label>Inlet Fittings ΣK</label>
+          <div class="iw"><input type="number" id="b-Kin" placeholder="0.5" step="any"></div></div>
+        <div class="fg"><label>Rated Capacity (kg/h)</label>
+          <div class="iw"><input type="number" id="b-Wrated" placeholder="rated, not required" step="any"></div></div>
+      </div>
+      <div class="help-text">API 520 Pt II: non-recoverable inlet loss at <b>rated</b> valve capacity must not exceed 3% of set pressure — otherwise chatter/rapid-cycling risk. Leave inlet ID blank to skip.</div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-calc" onclick="runBackPressure(this)">⚡ Evaluate Back Pressure</button>
+    <button class="btn-ghost" onclick="exportPDF('backpressure')">⬇ PDF Report</button>
+    <button class="btn-ghost" onclick="resetTab('b')">↺ Reset</button>
+  </div>
+  <div class="err-box" id="b-err"></div>
+  <div class="warn-box" id="b-warn"></div>
+
+  <div class="result-panel" id="b-result">
+    <div class="result-head"><span class="rtitle">BACK PRESSURE EVALUATION</span><span class="rbadge bp" id="b-badge">PASS</span></div>
+    <div class="rbody" id="b-rbody"></div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 6 — SCENARIO MANAGER ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon">⚖️</div>
+      <div><h2>Overpressure Scenario Manager — Governing Case</h2>
+      <p>PSV-datasheet workflow: compare all credible scenarios, size on the governing area</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Common Valve Data</span></div>
+    <div class="section-body">
+      <div class="fr3">
+        <div class="fg"><label>Set Pressure (gauge)</label>
+          <div class="iw"><input type="number" id="sc-setP" placeholder="16" step="any">
+          <select id="sc-setP-u"><option value="barg">barg</option><option value="psig">psig</option><option value="kPag">kPag</option><option value="kgcm2g">kg/cm²g</option></select></div></div>
+        <div class="fg"><label>Back Pressure</label>
+          <div class="iw"><input type="number" id="sc-Pb" placeholder="0" value="0" step="any">
+          <select id="sc-Pb-u"><option value="barg">barg</option><option value="psig">psig</option></select></div></div>
+        <div class="fg"><label>Valve Style</label>
+          <select class="field" id="sc-style"><option value="conventional">Conventional</option><option value="bellows">Balanced bellows</option><option value="pilot">Pilot-operated</option></select></div>
+      </div>
+      <div class="help-text">Each scenario is evaluated at this set pressure with its own ASME accumulation — 10% process (single valve), 21% fire — then the orifice is selected on the largest required area (the governing case). Typical credible scenarios per API 521 §4.4: blocked outlet, control-valve failure, external fire, tube rupture, thermal expansion, utility failure, abnormal heat input.</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Scenarios (2–8)</span></div>
+    <div class="section-body">
+      <div id="sc-rows"></div>
+      <div class="btn-row" style="margin-top:.6rem">
+        <button class="btn-ghost" onclick="scnAdd('gas')">+ Gas/Vapor</button>
+        <button class="btn-ghost" onclick="scnAdd('steam')">+ Steam</button>
+        <button class="btn-ghost" onclick="scnAdd('liquid')">+ Liquid</button>
+        <button class="btn-ghost" onclick="scnAdd('fire')">+ Fire (wetted)</button>
+      </div>
+      <div class="btn-row">
+        <button class="calc-btn" onclick="runScenarios(this)">Compare Scenarios — Find Governing Case</button>
+        <button class="pdf-btn" onclick="exportPDF('scenarios')">⭳ PDF</button>
+        <button class="reset-btn" onclick="scnReset()">Reset</button>
+      </div>
+      <div class="err-box" id="sc-err"></div>
+      <div class="warn-box" id="sc-warn"></div>
+      <div class="result-panel" id="sc-result">
+        <div class="rph"><span>Governing-Case Comparison</span><span class="rbadge bw" id="sc-badge">WARN</span></div>
+        <div class="rbody" id="sc-rbody"></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ══════════════ SLIDE 7 — REFERENCE ══════════════ -->
+<div class="slide"><div class="slide-inner">
+  <div class="slide-title">
+    <div class="stl"><div class="tool-icon g">📋</div>
+      <div><h2>Reference — API 526 Orifices &amp; Rules</h2>
+      <p>Letter orifices D–T | ASME accumulation | Kd guide | formulas</p></div></div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>API 526 Standard Letter Orifices</span></div>
+    <div class="section-body"><div class="tbl-scroll">
+      <table class="ref-table">
+        <thead><tr><th>Orifice</th><th>Area (in²)</th><th>Area (mm²)</th><th>Typical Inlet × Outlet</th></tr></thead>
+        <tbody>
+          <tr><td><b>D</b></td><td>0.110</td><td>71</td><td>1"×2", 1½"×2", 1½"×2½"</td></tr>
+          <tr><td><b>E</b></td><td>0.196</td><td>126</td><td>1"×2", 1½"×2", 1½"×2½"</td></tr>
+          <tr><td><b>F</b></td><td>0.307</td><td>198</td><td>1½"×2", 1½"×2½", 2"×3"</td></tr>
+          <tr><td><b>G</b></td><td>0.503</td><td>325</td><td>1½"×2½", 1½"×3", 2"×3"</td></tr>
+          <tr><td><b>H</b></td><td>0.785</td><td>506</td><td>1½"×3", 2"×3"</td></tr>
+          <tr><td><b>J</b></td><td>1.287</td><td>830</td><td>2"×3", 2½"×4", 3"×4"</td></tr>
+          <tr><td><b>K</b></td><td>1.838</td><td>1186</td><td>3"×4"</td></tr>
+          <tr><td><b>L</b></td><td>2.853</td><td>1841</td><td>3"×4", 4"×6"</td></tr>
+          <tr><td><b>M</b></td><td>3.60</td><td>2323</td><td>4"×6"</td></tr>
+          <tr><td><b>N</b></td><td>4.34</td><td>2800</td><td>4"×6"</td></tr>
+          <tr><td><b>P</b></td><td>6.38</td><td>4116</td><td>4"×6"</td></tr>
+          <tr><td><b>Q</b></td><td>11.05</td><td>7129</td><td>6"×8"</td></tr>
+          <tr><td><b>R</b></td><td>16.0</td><td>10323</td><td>6"×8", 6"×10"</td></tr>
+          <tr><td><b>T</b></td><td>26.0</td><td>16774</td><td>8"×10"</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>ASME VIII Accumulation Limits</span></div>
+    <div class="section-body"><div class="tbl-scroll">
+      <table class="ref-table">
+        <thead><tr><th>Case</th><th>Max Accumulation</th><th>Max Set Pressure</th></tr></thead>
+        <tbody>
+          <tr><td>Single valve, non-fire</td><td>10% (min 3 psi)</td><td>100% MAWP</td></tr>
+          <tr><td>Multiple valves, non-fire</td><td>16%</td><td>First: 100%, supplemental: 105% MAWP</td></tr>
+          <tr><td>External fire (any number)</td><td>21%</td><td>≤ 110% MAWP</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Discharge Coefficient Guide</span></div>
+    <div class="section-body"><div class="tbl-scroll">
+      <table class="ref-table">
+        <thead><tr><th>Service</th><th>Preliminary Kd</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>Gas / vapor / steam</td><td>0.975</td><td>Use certified Kd from vendor for final sizing</td></tr>
+          <tr><td>Liquid (certified valve)</td><td>0.65</td><td>API 520 §5.10 certified liquid trim</td></tr>
+          <tr><td>Two-phase</td><td>0.85</td><td>API 520 Annex C recommendation</td></tr>
+          <tr><td>PSV + upstream rupture disc</td><td>Kc = 0.9</td><td>Combination capacity factor (unless certified)</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <div class="section-head"><div class="shd"></div><span>Governing Equations</span></div>
+    <div class="section-body">
+      <div class="formula-box">
+GAS (critical):&nbsp;&nbsp;A = W·√(T·Z/M) / (C·Kd·P₁·Kb·Kc)&nbsp;&nbsp;&nbsp;C = 520·√(k·(2/(k+1))^((k+1)/(k−1)))<br>
+GAS (subcritical):&nbsp;&nbsp;A = W·√(T·Z/M) / (735·F₂·Kd·Kc·√(P₁·(P₁−P₂)))<br>
+STEAM:&nbsp;&nbsp;A = W / (51.5·P₁·Kd·Kb·Kc·Kn·Ksh)&nbsp;&nbsp;&nbsp;Kn = (0.1906·P₁−1000)/(0.2292·P₁−1061) for P₁ &gt; 1500 psia<br>
+LIQUID:&nbsp;&nbsp;A = Q/(38·Kd·Kw·Kc·Kv) · √(G/(P₁−P₂))&nbsp;&nbsp;&nbsp;Kv = f(Re),&nbsp;Re = Q·2800·G/(μ·√A)<br>
+FIRE wetted:&nbsp;&nbsp;Q = C·F·Aw⁰·⁸²&nbsp;(C = 21000 / 34500),&nbsp;&nbsp;W = Q/λ<br>
+FIRE unwetted:&nbsp;&nbsp;A = F′·A′/√P₁,&nbsp;&nbsp;F′ = 0.1406/(C·Kd)·[(Tw−T₁)¹·²⁵/T₁⁰·⁶⁵⁰⁶],&nbsp;&nbsp;T₁ = Tn·P₁/Pn<br>
+TWO-PHASE:&nbsp;&nbsp;ω = 9·(v₉/v₀−1),&nbsp;&nbsp;G꜀ = η꜀·√(P₀/(v₀·ω)),&nbsp;&nbsp;A = W/(Kd·Kb·Kc·G)
+      </div>
+      <div class="help-text">US customary internal basis: W lb/h, T °R, P psia, A in², Q gpm, μ cP. All conversions handled server-side. Areas reported are EFFECTIVE areas for API 526 preliminary selection — final selection uses the vendor's certified actual area &amp; Kd (ASME "K") per API 520 §5.2.</div>
+    </div>
+  </div>
+</div></div>
+
+</div><!-- /slides-track -->
+</div><!-- /slides-wrapper -->
+
+<footer>
+  PSV Sizing Calculator v1.0 &nbsp;|&nbsp; API 520 Part I / API 521 / API 526 / ASME VIII &nbsp;|&nbsp; <b>ALL RESULTS ARE PRELIMINARY SIZING ONLY</b> — final relief device selection requires certified vendor data, full scenario analysis (API 521), and review by a qualified process safety engineer.
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════
+const TOTAL = 8;
+let cur = 0;
+function goTo(i) {
+  if (i < 0 || i >= TOTAL) return;
+  cur = i;
+  document.getElementById('slidesTrack').style.transform = `translateX(-${i*100}%)`;
+  document.querySelectorAll('.nav-btn').forEach((b,j) => b.classList.toggle('active', j===i));
+  const btn = document.getElementById('navBtn'+i);
+  if (btn) btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+let tx = 0;
+document.querySelector('.slides-wrapper').addEventListener('touchstart', e=>{tx=e.touches[0].clientX;},{passive:true});
+document.querySelector('.slides-wrapper').addEventListener('touchend', e=>{
+  const d=e.changedTouches[0].clientX-tx; if(Math.abs(d)>50) goTo(cur+(d<0?1:-1));},{passive:true});
+document.addEventListener('keydown', e=>{
+  if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') goTo(cur+1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') goTo(cur-1);
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════
+const API_URL = '/api/psv-sizing';
+
+// Mirrors backend PSV_GAS_DB (M, k autofill only — Z, Tc/Pc/ω live server-side)
+const GAS_DB = {
+  custom:{n:'— Custom fluid —'},
+  nh3:{n:'Ammonia (NH₃)',M:17.031,k:1.31}, air:{n:'Air',M:28.964,k:1.40},
+  n2:{n:'Nitrogen (N₂)',M:28.014,k:1.40}, o2:{n:'Oxygen (O₂)',M:32.0,k:1.395},
+  h2:{n:'Hydrogen (H₂)',M:2.016,k:1.405}, co2:{n:'CO₂',M:44.01,k:1.289},
+  co:{n:'CO',M:28.01,k:1.40}, ch4:{n:'Methane (CH₄)',M:16.043,k:1.304},
+  c2h6:{n:'Ethane (C₂H₆)',M:30.069,k:1.20}, c2h4:{n:'Ethylene',M:28.054,k:1.24},
+  c3h8:{n:'Propane (C₃H₈)',M:44.097,k:1.13}, c4h10:{n:'Butane (C₄H₁₀)',M:58.124,k:1.10},
+  natgas:{n:'Natural Gas',M:17.967,k:1.31}, syngas:{n:'Syngas (3H₂:N₂)',M:8.525,k:1.40},
+  cl2:{n:'Chlorine',M:70.906,k:1.34}, so2:{n:'SO₂',M:64.065,k:1.29},
+  h2s:{n:'H₂S',M:34.081,k:1.32}, c2h2:{n:'Acetylene',M:26.038,k:1.232},
+  ar:{n:'Argon',M:39.948,k:1.667}, he:{n:'Helium',M:4.003,k:1.667},
+  biogas:{n:'Biogas (60% CH₄)',M:27.23,k:1.30}, lpg:{n:'LPG Vapor',M:49.708,k:1.11},
+  fluegas:{n:'Flue Gas',M:28.964,k:1.35},
+};
+function fillFluidSelects(){
+  ['g','f','b','t'].forEach(pfx=>{
+    const sel = document.getElementById(pfx+'-fluid'); if(!sel) return;
+    sel.innerHTML = Object.entries(GAS_DB).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+  });
+}
+function onFluid(pfx){
+  const key = gs(pfx+'-fluid'), f = GAS_DB[key];
+  const zsrc = document.getElementById(pfx+'-Zsrc');
+  if (key !== 'custom' && f){
+    document.getElementById(pfx+'-M').value = f.M;
+    document.getElementById(pfx+'-k').value = f.k;
+    if (zsrc && zsrc.value !== 'yes'){ zsrc.value = 'yes'; }   // sensible default for library fluids
+  } else if (zsrc) {
+    zsrc.value = 'no';   // custom → manual Z (no Tc/Pc/ω on file)
+  }
+  onZsrc(pfx);
+}
+function onZsrc(pfx){
+  const auto = gs(pfx+'-Zsrc') === 'yes';
+  const custom = gs(pfx+'-fluid') === 'custom';
+  const zsrc = document.getElementById(pfx+'-Zsrc');
+  if (auto && custom){ zsrc.value = 'no'; alert('Auto-Z needs a library fluid (Tc, Pc, ω on file). Custom fluids use manual Z.'); return onZsrc(pfx); }
+  const zEl = document.getElementById(pfx+'-Z');
+  zEl.disabled = auto;
+  zEl.style.opacity = auto ? 0.45 : 1;
+  zEl.title = auto ? 'Computed server-side by PR EOS at relieving conditions' : '';
+}
+function setDest(){
+  document.getElementById('b-Pdest-wrap').style.display = gs('b-dest')==='header' ? 'block' : 'none';
+}
+let omegaMode = 'direct';
+function setOmegaMode(m){
+  omegaMode = m;
+  document.getElementById('tm-direct').classList.toggle('active', m==='direct');
+  document.getElementById('tm-frozen').classList.toggle('active', m==='frozen');
+  document.getElementById('tm-flash').classList.toggle('active', m==='flashing');
+  document.getElementById('t-direct-panel').style.display = m==='direct' ? 'block' : 'none';
+  document.getElementById('t-est-panel').style.display = m==='direct' ? 'none' : 'block';
+  document.getElementById('t-flash-wrap').style.display = m==='flashing' ? 'grid' : 'none';
+  document.getElementById('t-est-help').textContent = m==='frozen'
+    ? 'Frozen (non-flashing) flow: a gas + inert-liquid mixture where NO vapor is generated as pressure falls (e.g. N₂-padded liquid, air/water). The server computes vapor specific volume with the PR EOS at P₀ and 0.9·P₀; ω = 9(v₉/v₀ − 1) with the liquid treated as incompressible. Requires x₀ > 0.'
+    : m==='flashing'
+    ? 'Flashing flow per Leung: ω = x₀·v_fg/v₀ + Cp·T₀·P₀/v₀·(v_fg/h_fg)². For a SATURATED two-phase or saturated-liquid (x₀ = 0) inlet in thermal equilibrium. v_g comes from the PR EOS at relieving conditions; supply the liquid Cp and latent heat at relieving T, P. Not for subcooled inlets or near-critical states — use Direct with rigorous flash data there.'
+    : '';
+}
+function onFluidT(){
+  const key = gs('t-fluid'), f = GAS_DB[key];
+  if (key !== 'custom' && f) document.getElementById('t-M').value = f.M;
+}
+document.addEventListener('DOMContentLoaded', fillFluidSelects);
+const gv = id => parseFloat(document.getElementById(id)?.value);
+const gs = id => document.getElementById(id)?.value;
+function showErr(id, msg){ const e=document.getElementById(id); if(e){e.innerHTML='⛔ '+msg; e.classList.add('show');} }
+function hideErr(id){ document.getElementById(id)?.classList.remove('show'); }
+function showWarn(id, arr){
+  const e=document.getElementById(id);
+  if(e && arr && arr.length){ e.innerHTML = arr.map(w=>'⚠ '+w).join('<br>'); e.classList.add('show'); }
+}
+function hideWarn(id){ document.getElementById(id)?.classList.remove('show'); }
+function resetTab(prefix){
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el=>{
+    if(el.tagName==='INPUT') el.value = el.defaultValue || '';
+    if(el.tagName==='SELECT') el.selectedIndex = 0;
+  });
+  hideErr(prefix+'-err'); hideWarn(prefix+'-warn');
+  document.getElementById(prefix+'-result')?.classList.remove('show');
+  if(prefix==='s') document.getElementById('s-Twrap').style.display='none';
+}
+const lastResult = {};   // per-calc storage for PDF export
+
+async function callAPI(calc, params, ids, btnEl) {
+  const origText = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Calculating…'; }
+  hideErr(ids.err); hideWarn(ids.warn);
+  document.getElementById(ids.result)?.classList.remove('show');
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ calc, params })
+    });
+    const data = await resp.json().catch(()=>({error:'Server error '+resp.status}));
+    if (!resp.ok || data.error) { showErr(ids.err, data.error || 'Server error '+resp.status); return; }
+    lastResult[calc.startsWith('fire')?'fire':calc] = { data, params, when: new Date() };
+    renderResult(data, ids);
+  } catch(e) {
+    showErr(ids.err, 'Network error: ' + e.message);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = origText; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════════════════════════
+function ri(label, value){ return `<div class="ri"><div class="rl">${label}</div><div class="rv s">${value}</div></div>`; }
+
+function orificeHero(d){
+  if (!d.orifice) return '';
+  const pct = d.pct_capacity || 0;
+  const hi = pct > 90;
+  const letter = d.n_valves > 1 ? 'T' : d.orifice;
+  return `<div class="orifice-hero">
+    <div class="orifice-letter">${letter}</div>
+    <div class="orifice-meta">
+      <div class="om1">API 526 selection</div>
+      <div class="om2">${d.n_valves>1 ? d.n_valves+' × T orifice (parallel)' : 'Orifice “'+d.orifice+'” — '+d.orifice_area_in2+' in² ('+d.orifice_total_mm2+' mm²)'}</div>
+      <div class="om3">Typical valve: ${d.valve_sizes || '—'} &nbsp;·&nbsp; ${pct}% of installed area used</div>
+      <div class="cap-bar"><div class="cap-fill${hi?' hi':''}" style="width:${Math.min(pct,100)}%"></div></div>
+    </div>
+    <div style="text-align:right">
+      <div class="rl">Required Area</div>
+      <div class="rv" style="font-size:1.15rem">${d.A_req_in2} in²</div>
+      <div class="om3">${d.A_req_mm2} mm²</div>
+    </div>
+  </div>`;
+}
+
+function renderResult(d, ids){
+  const badge = document.getElementById(ids.badge);
+  if (badge) {
+    badge.textContent = d.status || 'PASS';
+    badge.className = 'rbadge ' + (d.status==='PASS' ? 'bp' : d.status==='WARN' ? 'bw' : 'bf');
+  }
+  let h = orificeHero(d);
+  let grid = '';
+  if (d.calc === 'gas') {
+    grid = ri('Relieving P₁', d.P1_barg+' barg ('+d.P1_psia+' psia)')
+         + ri('Accumulation', d.accum_pct+'%')
+         + ri('Flow Regime', d.flow_regime)
+         + ri('C coefficient', d.C_coeff)
+         + ri('Critical Flow P', d.Pcf_barg+' barg')
+         + ri('Kb', d.Kb + (d.F2 ? ' | F₂ = '+d.F2 : ''))
+         + ri('Z used', (d.Z_used!==undefined?d.Z_used:'—') + (d.Z_source && d.Z_source!=='manual' ? ' ('+d.Z_source+')' : ''))
+         + (d.phase ? ri('PR Phase Verdict', d.phase.toUpperCase() + (d.Psat_barg!==null&&d.Psat_barg!==undefined ? ' | Psat '+d.Psat_barg+' barg' : '')) : '')
+         + ri('Back Pressure', d.bp_pct_of_set+'% of set')
+         + ri('Valve Type', d.valve_type);
+  } else if (d.calc === 'steam') {
+    grid = ri('Relieving P₁', d.P1_barg+' barg ('+d.P1_psia+' psia)')
+         + ri('Accumulation', d.accum_pct+'%')
+         + ri('Kn (Napier)', d.Kn)
+         + ri('Ksh (superheat)', d.Ksh + (d.T_F!==null ? ' @ '+d.T_F+'°F' : ''))
+         + ri('Kb', d.Kb)
+         + ri('Steam State', d.steam_state)
+         + ri('Back Pressure', d.bp_pct_of_set+'% of set')
+         + ri('Valve Type', d.valve_type);
+  } else if (d.calc === 'liquid') {
+    grid = ri('Relieving P₁', d.P1_barg+' barg')
+         + ri('ΔP sizing', d.dP_bar+' bar ('+d.dP_psi+' psi)')
+         + ri('Accumulation', d.accum_pct+'%')
+         + ri('Kw (bellows)', d.Kw)
+         + ri('Kv (viscosity)', d.Kv + (d.Re ? ' | Re = '+d.Re : ''))
+         + ri('Flow', d.Q_gpm+' gpm')
+         + ri('Back Pressure', d.bp_pct_of_set+'% of set')
+         + ri('Valve Type', d.valve_type);
+  } else if (d.calc === 'fire-wetted') {
+    grid = ri('Wetted Area Aw', d.Aw_m2+' m² ('+d.Aw_ft2+' ft²)')
+         + ri('Fire Heat Q', d.Q_fire_kW+' kW ('+Number(d.Q_fire_BTUhr).toLocaleString()+' BTU/h)')
+         + ri('C / F / drainage', d.fire_C+' / '+d.fire_F+' / '+d.drainage)
+         + ri('Latent Heat λ', d.lambda_BTUlb+' BTU/lb')
+         + ri('Relief Load W', Number(d.W_relief_kghr).toLocaleString()+' kg/h')
+         + ri('Relieving P₁', d.P1_barg+' barg')
+         + ri('Accumulation', d.accum_pct+'% (fire)')
+         + ri('Flow Regime', d.flow_regime)
+         + ri('Z used', (d.Z_used!==undefined?d.Z_used:'—') + (d.Z_source && d.Z_source!=='manual' ? ' ('+d.Z_source+')' : ''))
+         + (d.phase ? ri('PR Phase Verdict', d.phase.toUpperCase()) : '');
+  } else if (d.calc === 'fire-unwetted') {
+    grid = ri('Relieving P₁', d.P1_barg+' barg')
+         + ri('T₁ (relieving)', d.T1_relieving_C+' °C')
+         + ri('Tw (wall)', d.Tw_C+' °C')
+         + ri('F′ factor', d.Fprime)
+         + ri('Exposed Area A′', d.Aexp_ft2+' ft²')
+         + (d.W_relief_kghr!==null ? ri('Gas Expansion W', Number(d.W_relief_kghr).toLocaleString()+' kg/h') : '');
+  } else if (d.calc === 'backpressure') {
+    const pct = d.pct_total_of_set;
+    const cls = pct <= 10 ? '' : pct <= 50 ? ' hi' : ' hi';
+    h = `<div class="orifice-hero">
+      <div class="orifice-letter" style="font-size:1.35rem">${pct}%</div>
+      <div class="orifice-meta">
+        <div class="om1">Total back pressure vs set</div>
+        <div class="om2">${d.verdict}</div>
+        <div class="om3">Superimposed ${d.superimposed_barg} barg · Built-up ${d.builtup_bar} bar · Kb = ${d.Kb_capacity_factor}</div>
+        <div class="cap-bar"><div class="cap-fill${cls}" style="width:${Math.min(pct,100)}%"></div></div>
+      </div>
+      <div style="text-align:right">
+        <div class="rl">Valve Outlet</div>
+        <div class="rv" style="font-size:1.15rem">${d.P_valve_outlet_bara} bar a</div>
+        <div class="om3">${d.choked_exit ? 'CHOKED exit' : 'unchoked'}</div>
+      </div>
+    </div>`;
+    grid = ri('Total BP', d.total_bp_barg+' barg ('+d.pct_total_of_set+'% of set)')
+         + ri('Built-up BP', d.builtup_bar+' bar ('+d.pct_builtup_of_set+'% of set)')
+         + ri('Exit Pressure', d.exit_P_bara+' bar a'+(d.choked_exit?' (sonic)':''))
+         + ri('Exit Velocity', d.exit_velocity_ms+' m/s | Ma '+d.exit_Mach)
+         + ri('ρv² momentum', d.rhoV2_kPa+' kPa')
+         + ri('Friction f | Re', d.friction_f+' | '+Number(d.Re).toLocaleString())
+         + ri('Mass Flux G', d.G_kgm2s+' kg/m²·s')
+         + ri('Reaction Force', d.reaction_force_kN+' kN ('+Number(d.reaction_force_kgf).toLocaleString()+' kgf) — API 520 Pt II, ×DLF≤2 for design')
+         + ri('Z used', d.Z_used + (d.Z_source!=='manual' ? ' ('+d.Z_source+')' : ''));
+    if (d.inlet) {
+      grid += ri('Inlet ΔP', d.inlet.dP_kPa+' kPa = '+d.inlet.dP_pct_of_set+'% of set')
+            + ri('Inlet 3% Rule', (d.inlet.pass ? '✔ PASS' : '✘ FAIL')+' @ '+Number(d.inlet.basis_kghr).toLocaleString()+' kg/h, '+d.inlet.v_ms+' m/s');
+    }
+  } else if (d.calc === 'twophase') {
+    grid = ri('Relieving P₁', d.P1_barg+' barg')
+         + ri('ω (omega)', d.omega + (d.omega_basis ? '' : ''))
+         + (d.omega_basis ? ri('ω basis', d.omega_basis) : '')
+         + (d.v0_m3kg !== undefined ? ri('v₀ mixture', d.v0_m3kg+' m³/kg'+(d.vg0_m3kg!==undefined?' | v_g '+d.vg0_m3kg:'')) : '')
+         + ri('η꜀ critical ratio', d.eta_crit)
+         + ri('η back-pressure', d.eta_back)
+         + ri('Flow Regime', d.flow_regime)
+         + ri('Mass Flux G', Number(d.G_mass_flux_kgm2s).toLocaleString()+' kg/m²·s')
+         + ri('Kd / Kb', d.Kd+' / '+d.Kb);
+  }
+  if (d.calc === 'scenarios') {
+    const gRow = d.rows.find(r=>r.governing);
+    h = `<div class="orifice-hero">
+      <div class="orifice-letter">${d.n_valves>1?'T':d.orifice}</div>
+      <div class="orifice-meta">
+        <div class="om1">Governing case: ${d.governing_name} (${d.governing_type}, ${d.governing_accum_pct}% accum.)</div>
+        <div class="om2">${d.n_valves>1 ? d.n_valves+' × T orifice (parallel)' : 'Orifice “'+d.orifice+'” — '+d.orifice_area_in2+' in² ('+d.orifice_total_mm2+' mm²)'}</div>
+        <div class="om3">Typical valve: ${d.valve_sizes || '—'} · ${d.pct_capacity}% of installed area used</div>
+        <div class="cap-bar"><div class="cap-fill${d.pct_capacity>90?' hi':''}" style="width:${Math.min(d.pct_capacity,100)}%"></div></div>
+      </div>
+      <div style="text-align:right">
+        <div class="rl">Governing Area</div>
+        <div class="rv" style="font-size:1.15rem">${d.A_req_in2} in²</div>
+        <div class="om3">${d.A_req_mm2} mm²</div>
+      </div>
+    </div>`;
+    h += `<div style="overflow-x:auto;margin-top:.7rem"><table class="ref-table" style="width:100%">
+      <tr><th>Scenario</th><th>Type</th><th>Load</th><th>P₁ (barg)</th><th>Accum.</th><th>A req (in²)</th><th>% of governing</th><th></th></tr>`
+      + d.rows.map(r => r.ok
+        ? `<tr${r.governing?' style="background:var(--accent-light);font-weight:600"':''}>
+            <td>${r.name}</td><td>${r.type}</td><td>${r.load}</td><td>${r.P1_barg}</td><td>${r.accum_pct}%</td>
+            <td>${r.A_req_in2}</td>
+            <td><div class="cap-bar" style="min-width:70px"><div class="cap-fill${r.governing?' hi':''}" style="width:${r.pct_of_governing}%"></div></div>${r.pct_of_governing}%</td>
+            <td>${r.governing?'★ GOVERNING':''}</td></tr>`
+        : `<tr style="opacity:.65"><td>${r.name}</td><td>${r.type}</td><td colspan="6">⛔ ${r.note}</td></tr>`
+      ).join('') + `</table></div>`;
+    document.getElementById(ids.rbody).innerHTML = h;
+    document.getElementById(ids.result).classList.add('show');
+    showWarn(ids.warn, d.warnings);
+    return;
+  }
+  h += `<div class="rg">${grid}</div>`;
+  if (d.geom_note) h += `<div class="rsub">${d.geom_note}</div>`;
+  document.getElementById(ids.rbody).innerHTML = h;
+  document.getElementById(ids.result).classList.add('show');
+  showWarn(ids.warn, d.warnings);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TAB RUNNERS
+// ══════════════════════════════════════════════════════════════════════
+function runGas(btn){
+  callAPI('gas', {
+    setP: gv('g-setP'), setP_u: gs('g-setP-u'),
+    scenario: gs('g-scenario'), overpressure: gv('g-op'),
+    W: gv('g-W'), W_u: gs('g-W-u'),
+    T: gv('g-T'), T_u: gs('g-T-u'),
+    nValves: gv('g-nv'),
+    fluid: gs('g-fluid'), autoZ: gs('g-Zsrc'),
+    M: gv('g-M'), k: gv('g-k'), Z: gv('g-Z'),
+    valveStyle: gs('g-style'),
+    Pb: gv('g-Pb'), Pb_u: gs('g-Pb-u'),
+    Kd: gv('g-Kd'), ruptureDisc: gs('g-rd'),
+  }, {err:'g-err',warn:'g-warn',result:'g-result',badge:'g-badge',rbody:'g-rbody'}, btn);
+}
+function runSteam(btn){
+  callAPI('steam', {
+    setP: gv('s-setP'), setP_u: gs('s-setP-u'),
+    W: gv('s-W'), W_u: gs('s-W-u'),
+    steamState: gs('s-state'), T: gv('s-T'), T_u: gs('s-T-u'),
+    overpressure: gv('s-op'), nValves: gv('s-nv'),
+    valveStyle: gs('s-style'),
+    Pb: gv('s-Pb'), Pb_u: gs('s-Pb-u'),
+    Kd: gv('s-Kd'), ruptureDisc: gs('s-rd'),
+  }, {err:'s-err',warn:'s-warn',result:'s-result',badge:'s-badge',rbody:'s-rbody'}, btn);
+}
+function runLiquid(btn){
+  callAPI('liquid', {
+    setP: gv('l-setP'), setP_u: gs('l-setP-u'),
+    Q: gv('l-Q'), Q_u: gs('l-Q-u'),
+    G: gv('l-G'), mu: gv('l-mu'),
+    overpressure: gv('l-op'), nValves: gv('l-nv'),
+    valveStyle: gs('l-style'),
+    Pb: gv('l-Pb'), Pb_u: gs('l-Pb-u'),
+    Kd: gv('l-Kd'), ruptureDisc: gs('l-rd'),
+  }, {err:'l-err',warn:'l-warn',result:'l-result',badge:'l-badge',rbody:'l-rbody'}, btn);
+}
+
+let fireMode = 'wetted', awMode = 'geom';
+function setFireMode(m){
+  fireMode = m;
+  document.getElementById('fm-wet').classList.toggle('active', m==='wetted');
+  document.getElementById('fm-dry').classList.toggle('active', m==='unwetted');
+  document.getElementById('f-wetted-panel').style.display = m==='wetted' ? 'block' : 'none';
+  document.getElementById('f-unwetted-panel').style.display = m==='unwetted' ? 'block' : 'none';
+  document.getElementById('f-mode-help').textContent = m==='wetted'
+    ? 'Wetted vessel: pool fire boils the liquid inventory — relief load W = Q/λ, then sized as vapor at 21% accumulation. Wetted area limited to 7.6 m (25 ft) above the fire source.'
+    : 'Unwetted (gas-filled) vessel: sized for gas expansion only, A = F′·A′/√P₁. A PSV rarely protects such a vessel — check wall temperature; depressuring may govern.';
+}
+function setAwMode(m){
+  awMode = m;
+  document.getElementById('fa-geom').classList.toggle('active', m==='geom');
+  document.getElementById('fa-direct').classList.toggle('active', m==='direct');
+  document.getElementById('f-geom-panel').style.display = m==='geom' ? 'block' : 'none';
+  document.getElementById('f-direct-panel').style.display = m==='direct' ? 'block' : 'none';
+}
+function runFire(btn){
+  const ids = {err:'f-err',warn:'f-warn',result:'f-result',badge:'f-badge',rbody:'f-rbody'};
+  if (fireMode === 'wetted') {
+    const p = {
+      fireMode: 'wetted',
+      setP: gv('f-setP'), setP_u: gs('f-setP-u'),
+      envF: gv('f-F') || parseFloat(gs('f-F')), drainage: gs('f-drain'),
+      latentHeat: gv('f-lam'), latent_u: gs('f-lam-u'),
+      T: gv('f-T'), T_u: gs('f-T-u'),
+      fluid: gs('f-fluid'), autoZ: gs('f-Zsrc'),
+      M: gv('f-M'), k: gv('f-k'), Z: gv('f-Z'),
+      valveStyle: gs('f-style'),
+      Pb: gv('f-Pb'), Pb_u: gs('f-Pb-u'),
+      ruptureDisc: gs('f-rd'),
+    };
+    if (awMode === 'direct') {
+      p.AwDirect = true; p.Aw = gv('f-Aw'); p.Aw_u = gs('f-Aw-u');
+    } else {
+      p.shape = gs('f-shape');
+      p.D = gv('f-D'); p.D_u = gs('f-D-u');
+      p.L = gv('f-L'); p.L_u = gs('f-L-u');
+      p.liqLevel = gv('f-liq'); p.liq_u = gs('f-liq-u');
+      p.elev = gv('f-elev'); p.elev_u = gs('f-elev-u');
+    }
+    callAPI('fire', p, ids, btn);
+  } else {
+    callAPI('fire', {
+      fireMode: 'unwetted',
+      setP: gv('u-setP'), setP_u: gs('u-setP-u'),
+      Aexp: gv('u-Aexp'), Aexp_u: gs('u-Aexp-u'),
+      Pn: gv('u-Pn'), Pn_u: gs('u-Pn-u'),
+      T: gv('u-T'), T_u: gs('u-T-u'),
+      Tw: gv('u-Tw'), Tw_u: gs('u-Tw-u'),
+      k: gv('u-k'), Kd: gv('u-Kd'), M: gv('u-M'),
+    }, ids, btn);
+  }
+}
+function runTwoPhase(btn){
+  const p = {
+    setP: gv('t-setP'), setP_u: gs('t-setP-u'),
+    W: gv('t-W'), W_u: gs('t-W-u'),
+    scenario: gs('t-scenario'),
+    omegaMode,
+    Kd: gv('t-Kd'), valveStyle: gs('t-style'),
+    Pb: gv('t-Pb'), Pb_u: gs('t-Pb-u'),
+  };
+  if (omegaMode === 'direct'){
+    p.v0 = gv('t-v0'); p.v9 = gv('t-v9');
+  } else {
+    p.x0 = gv('t-x0'); p.vl = gv('t-vl');
+    p.T = gv('t-T'); p.T_u = gs('t-T-u');
+    p.fluid = gs('t-fluid'); p.M = gv('t-M');
+    if (omegaMode === 'flashing'){ p.Cp = gv('t-Cp'); p.hfg = gv('t-hfg'); }
+  }
+  callAPI('twophase', p, {err:'t-err',warn:'t-warn',result:'t-result',badge:'t-badge',rbody:'t-rbody'}, btn);
+}
+
+// ── SCENARIO MANAGER ──────────────────────────────────────────────────
+let scnN = 0;
+const SCN_DEFAULTS = { gas:'Blocked outlet', steam:'Steam CV failure', liquid:'Thermal / blocked-in', fire:'External fire' };
+function scnFluidOpts(){ return Object.entries(GAS_DB).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join(''); }
+function scnAdd(type){
+  if (document.querySelectorAll('#sc-rows .scn-card').length >= 8){ alert('Maximum 8 scenarios.'); return; }
+  const id = ++scnN;
+  let fields = '';
+  if (type === 'gas') fields = `
+    <div class="fr3">
+      <div class="fg"><label>Load Basis</label><select class="field" id="scn${id}-basis" onchange="scnBasis(${id},'gas')">
+        <option value="manual">Manual W</option>
+        <option value="cvblowby">Estimate: CV blowby (wide-open)</option>
+        <option value="tuberupture">Estimate: HX tube rupture</option></select></div>
+      <div class="fg" id="scn${id}-Wwrap"><label>Relief Rate W</label><div class="iw"><input type="number" id="scn${id}-W" placeholder="50000" step="any"><select id="scn${id}-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="tonhr">t/h</option></select></div></div>
+      <div class="fg"><label>Relieving T</label><div class="iw"><input type="number" id="scn${id}-T" placeholder="120" step="any"><select id="scn${id}-T-u"><option value="C">°C</option><option value="F">°F</option><option value="K">K</option></select></div></div>
+      <div class="fg"><label>Fluid (auto M, k, Z)</label><select class="field" id="scn${id}-fluid" onchange="scnFluid(${id})">${scnFluidOpts()}</select></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label>M</label><div class="iw"><input type="number" id="scn${id}-M" step="any"></div></div>
+      <div class="fg"><label>k</label><div class="iw"><input type="number" id="scn${id}-k" step="any"></div></div>
+      <div class="fg"><label>Z (manual if custom)</label><div class="iw"><input type="number" id="scn${id}-Z" placeholder="1.0" step="any"></div></div>
+    </div>
+    <div class="fr3" id="scn${id}-cvwrap" style="display:none">
+      <div class="fg"><label>Valve Cv (rated, 100% open)</label><div class="iw"><input type="number" id="scn${id}-Cv" placeholder="50" step="any"></div></div>
+      <div class="fg"><label>xT (choked ΔP ratio)</label><div class="iw"><input type="number" id="scn${id}-xT" placeholder="0.75" value="0.75" step="any"></div></div>
+      <div class="fg"><label>Upstream Pressure</label><div class="iw"><input type="number" id="scn${id}-Pu" placeholder="30" step="any"><select id="scn${id}-Pu-u"><option value="barg">barg</option><option value="psig">psig</option><option value="bara">bar a</option></select></div></div>
+    </div>
+    <div class="fr2" id="scn${id}-tubewrap" style="display:none">
+      <div class="fg"><label>Tube Inside Ø (mm)</label><div class="iw"><input type="number" id="scn${id}-tubeID" placeholder="19" step="any"></div></div>
+      <div class="fg"><label>HP-Side Pressure</label><div class="iw"><input type="number" id="scn${id}-Pu2" placeholder="60" step="any"><select id="scn${id}-Pu2-u"><option value="barg">barg</option><option value="psig">psig</option><option value="bara">bar a</option></select></div></div>
+    </div>`;
+  else if (type === 'steam') fields = `
+    <div class="fr3">
+      <div class="fg"><label>Relief Rate W</label><div class="iw"><input type="number" id="scn${id}-W" placeholder="25000" step="any"><select id="scn${id}-W-u"><option value="kghr">kg/h</option><option value="lbhr">lb/h</option><option value="tonhr">t/h</option></select></div></div>
+      <div class="fg"><label>Steam State</label><select class="field" id="scn${id}-state" onchange="document.getElementById('scn${id}-Twrap').style.display=this.value==='superheated'?'block':'none'"><option value="saturated">Saturated</option><option value="superheated">Superheated</option></select></div>
+      <div class="fg" id="scn${id}-Twrap" style="display:none"><label>Steam T</label><div class="iw"><input type="number" id="scn${id}-T" placeholder="400" step="any"><select id="scn${id}-T-u"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+    </div>`;
+  else if (type === 'liquid') fields = `
+    <div class="fr3">
+      <div class="fg"><label>Load Basis</label><select class="field" id="scn${id}-basis" onchange="scnBasis(${id},'liquid')">
+        <option value="manual">Manual Q</option>
+        <option value="thermal">Estimate: Thermal expansion (API 521)</option>
+        <option value="cvblowby">Estimate: CV blowby (wide-open)</option>
+        <option value="tuberupture">Estimate: HX tube rupture</option></select></div>
+      <div class="fg" id="scn${id}-Qwrap"><label>Flow Q</label><div class="iw"><input type="number" id="scn${id}-Q" placeholder="50" step="any"><select id="scn${id}-Q-u"><option value="m3hr">m³/h</option><option value="gpm">gpm</option></select></div></div>
+      <div class="fg"><label>Specific Gravity</label><div class="iw"><input type="number" id="scn${id}-G" placeholder="0.9" step="any"></div></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label>Viscosity (cP)</label><div class="iw"><input type="number" id="scn${id}-mu" placeholder="1" step="any"></div></div>
+      <div class="fg" id="scn${id}-thwrap1" style="display:none"><label>Heat Input H (kW)</label><div class="iw"><input type="number" id="scn${id}-HkW" placeholder="25" step="any"></div></div>
+      <div class="fg" id="scn${id}-thwrap2" style="display:none"><label>β Expansion (1/°C)</label><div class="iw"><input type="number" id="scn${id}-beta" placeholder="0.0009" value="0.0009" step="any"></div></div>
+    </div>
+    <div class="fr3">
+      <div class="fg" id="scn${id}-thwrap3" style="display:none"><label>Liquid Cp (kJ/kg·K)</label><div class="iw"><input type="number" id="scn${id}-cp" placeholder="2.1" value="2.1" step="any"></div></div>
+      <div class="fg" id="scn${id}-lcv1" style="display:none"><label>Valve Cv (100% open)</label><div class="iw"><input type="number" id="scn${id}-Cv" placeholder="30" step="any"></div></div>
+      <div class="fg" id="scn${id}-lcv2" style="display:none"><label>Upstream Pressure</label><div class="iw"><input type="number" id="scn${id}-Pu" placeholder="25" step="any"><select id="scn${id}-Pu-u"><option value="barg">barg</option><option value="psig">psig</option><option value="bara">bar a</option></select></div></div>
+    </div>
+    <div class="fr2" id="scn${id}-ltube" style="display:none">
+      <div class="fg"><label>Tube Inside Ø (mm)</label><div class="iw"><input type="number" id="scn${id}-tubeID" placeholder="25" step="any"></div></div>
+      <div class="fg"><label>HP-Side Pressure</label><div class="iw"><input type="number" id="scn${id}-Pu2" placeholder="40" step="any"><select id="scn${id}-Pu2-u"><option value="barg">barg</option><option value="psig">psig</option><option value="bara">bar a</option></select></div></div>
+    </div>`;
+  else fields = `
+    <div class="fr3">
+      <div class="fg"><label>Wetted Area Aw (m²)</label><div class="iw"><input type="number" id="scn${id}-Aw" placeholder="60" step="any"></div></div>
+      <div class="fg"><label>Environment F</label><select class="field" id="scn${id}-F"><option value="1">1.0 — Bare vessel</option><option value="0.3">0.3 — Insulated (22 W/m²K)</option><option value="0.15">0.15 — Insulated (11 W/m²K)</option><option value="0.075">0.075 — Insulated (5.7 W/m²K)</option></select></div>
+      <div class="fg"><label>Drainage &amp; Firefighting</label><select class="field" id="scn${id}-drain"><option value="yes">Yes — C = 21000</option><option value="no">No — C = 34500</option></select></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label>Latent Heat λ (kJ/kg)</label><div class="iw"><input type="number" id="scn${id}-lam" placeholder="1050" step="any"></div></div>
+      <div class="fg"><label>Relieving T</label><div class="iw"><input type="number" id="scn${id}-T" placeholder="45" step="any"><select id="scn${id}-T-u"><option value="C">°C</option><option value="F">°F</option></select></div></div>
+      <div class="fg"><label>Vapor Fluid</label><select class="field" id="scn${id}-fluid" onchange="scnFluid(${id})">${scnFluidOpts()}</select></div>
+    </div>
+    <div class="fr3">
+      <div class="fg"><label>M</label><div class="iw"><input type="number" id="scn${id}-M" step="any"></div></div>
+      <div class="fg"><label>k</label><div class="iw"><input type="number" id="scn${id}-k" step="any"></div></div>
+      <div class="fg"><label>Z (manual if custom)</label><div class="iw"><input type="number" id="scn${id}-Z" placeholder="1.0" step="any"></div></div>
+    </div>`;
+  const card = document.createElement('div');
+  card.className = 'section-box scn-card';
+  card.dataset.type = type; card.dataset.id = id;
+  card.style.marginBottom = '.7rem';
+  card.innerHTML = `
+    <div class="section-head"><div class="shd"></div>
+      <input type="text" id="scn${id}-name" value="${SCN_DEFAULTS[type]}" style="background:transparent;border:none;border-bottom:1px dashed var(--line);color:inherit;font:inherit;font-weight:600;width:55%">
+      <span style="margin-left:auto;font-size:.72rem;opacity:.7">${type.toUpperCase()}</span>
+      <button class="btn-ghost" style="margin-left:.6rem;padding:.2rem .55rem" onclick="this.closest('.scn-card').remove()">✕</button>
+    </div>
+    <div class="section-body">${fields}</div>`;
+  document.getElementById('sc-rows').appendChild(card);
+  const fsel = document.getElementById(`scn${id}-fluid`);
+  if (fsel){ fsel.value = 'nh3'; scnFluid(id); }
+}
+function scnBasis(id, phase){
+  const b = gs(`scn${id}-basis`);
+  const show = (el, on) => { const e = document.getElementById(`scn${id}-${el}`); if(e) e.style.display = on ? '' : 'none'; };
+  if (phase === 'gas'){
+    show('Wwrap', b === 'manual');
+    show('cvwrap', b === 'cvblowby');
+    show('tubewrap', b === 'tuberupture');
+  } else {
+    show('Qwrap', b === 'manual');
+    ['thwrap1','thwrap2','thwrap3'].forEach(x=>show(x, b === 'thermal'));
+    ['lcv1','lcv2'].forEach(x=>show(x, b === 'cvblowby'));
+    show('ltube', b === 'tuberupture');
+  }
+}
+function scnFluid(id){
+  const key = gs(`scn${id}-fluid`), f = GAS_DB[key];
+  if (key !== 'custom' && f){
+    document.getElementById(`scn${id}-M`).value = f.M;
+    document.getElementById(`scn${id}-k`).value = f.k;
+  }
+}
+function scnReset(){
+  document.getElementById('sc-rows').innerHTML = '';
+  hideErr('sc-err'); hideWarn('sc-warn');
+  document.getElementById('sc-result').classList.remove('show');
+}
+function runScenarios(btn){
+  const cards = [...document.querySelectorAll('#sc-rows .scn-card')];
+  const scenarios = cards.map(c=>{
+    const id = c.dataset.id, type = c.dataset.type;
+    const base = { name: gs(`scn${id}-name`), type };
+    if (type === 'gas'){
+      const basis = gs(`scn${id}-basis`) || 'manual';
+      const o = { ...base, loadBasis: basis, W: gv(`scn${id}-W`), W_u: gs(`scn${id}-W-u`), T: gv(`scn${id}-T`), T_u: gs(`scn${id}-T-u`),
+        fluid: gs(`scn${id}-fluid`), autoZ: gs(`scn${id}-fluid`)!=='custom' ? 'yes' : 'no',
+        M: gv(`scn${id}-M`), k: gv(`scn${id}-k`), Z: gv(`scn${id}-Z`) };
+      if (basis === 'cvblowby'){ o.Cv = gv(`scn${id}-Cv`); o.xT = gv(`scn${id}-xT`); o.Pu = gv(`scn${id}-Pu`); o.Pu_u = gs(`scn${id}-Pu-u`); }
+      if (basis === 'tuberupture'){ o.tubeID = gv(`scn${id}-tubeID`); o.Pu = gv(`scn${id}-Pu2`); o.Pu_u = gs(`scn${id}-Pu2-u`); }
+      return o;
+    }
+    if (type === 'steam') return { ...base, W: gv(`scn${id}-W`), W_u: gs(`scn${id}-W-u`), steamState: gs(`scn${id}-state`), T: gv(`scn${id}-T`), T_u: gs(`scn${id}-T-u`) };
+    if (type === 'liquid'){
+      const basis = gs(`scn${id}-basis`) || 'manual';
+      const o = { ...base, loadBasis: basis, Q: gv(`scn${id}-Q`), Q_u: gs(`scn${id}-Q-u`), G: gv(`scn${id}-G`), mu: gv(`scn${id}-mu`) };
+      if (basis === 'thermal'){ o.H_kW = gv(`scn${id}-HkW`); o.betaC = gv(`scn${id}-beta`); o.cp_kJ = gv(`scn${id}-cp`); }
+      if (basis === 'cvblowby'){ o.Cv = gv(`scn${id}-Cv`); o.Pu = gv(`scn${id}-Pu`); o.Pu_u = gs(`scn${id}-Pu-u`); }
+      if (basis === 'tuberupture'){ o.tubeID = gv(`scn${id}-tubeID`); o.Pu = gv(`scn${id}-Pu2`); o.Pu_u = gs(`scn${id}-Pu2-u`); }
+      return o;
+    }
+    return { ...base, Aw: gv(`scn${id}-Aw`), Aw_u:'m2', envF: parseFloat(gs(`scn${id}-F`)), drainage: gs(`scn${id}-drain`),
+      latentHeat: gv(`scn${id}-lam`), latent_u:'kJkg', T: gv(`scn${id}-T`), T_u: gs(`scn${id}-T-u`),
+      fluid: gs(`scn${id}-fluid`), autoZ: gs(`scn${id}-fluid`)!=='custom' ? 'yes' : 'no',
+      M: gv(`scn${id}-M`), k: gv(`scn${id}-k`), Z: gv(`scn${id}-Z`) };
+  });
+  callAPI('scenarios', {
+    setP: gv('sc-setP'), setP_u: gs('sc-setP-u'),
+    Pb: gv('sc-Pb'), Pb_u: gs('sc-Pb-u'),
+    valveStyle: gs('sc-style'), ruptureDisc: 'no', nValves: 1,
+    scenarios,
+  }, {err:'sc-err',warn:'sc-warn',result:'sc-result',badge:'sc-badge',rbody:'sc-rbody'}, btn);
+}
+
+function runBackPressure(btn){
+  const p = {
+    setP: gv('b-setP'), setP_u: gs('b-setP-u'),
+    W: gv('b-W'), W_u: gs('b-W-u'),
+    T: gv('b-T'), T_u: gs('b-T-u'),
+    valveStyle: gs('b-style'),
+    fluid: gs('b-fluid'), autoZ: gs('b-Zsrc'),
+    M: gv('b-M'), k: gv('b-k'), Z: gv('b-Z'), mu: gv('b-mu'),
+    D_out: gv('b-D'), D_out_u: gs('b-D-u'),
+    L_out: gv('b-L'), L_out_u: gs('b-L-u'),
+    K_out: gv('b-K'), rough: gv('b-rough'),
+    dest: gs('b-dest'), Pdest: gv('b-Pdest'), Pdest_u: gs('b-Pdest-u'),
+  };
+  if (gv('b-Din') > 0){
+    p.D_in = gv('b-Din'); p.D_in_u = gs('b-Din-u');
+    p.L_in = gv('b-Lin'); p.L_in_u = gs('b-Lin-u');
+    p.K_in = gv('b-Kin'); p.Wrated = gv('b-Wrated');
+  }
+  callAPI('backpressure', p, {err:'b-err',warn:'b-warn',result:'b-result',badge:'b-badge',rbody:'b-rbody'}, btn);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ══════════════════════════════════════════════════════════════════════
+function exportPDF(calc){
+  const store = lastResult[calc];
+  if (!store) { alert('Run the calculation first, then export.'); return; }
+  const { data } = store;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const M = 14; let y = 18;
+  const line = (txt, opts={}) => {
+    if (y > 278) { doc.addPage(); y = 18; }
+    doc.setFont('courier', opts.bold ? 'bold' : 'normal');
+    doc.setFontSize(opts.size || 9);
+    if (opts.color) doc.setTextColor(...opts.color); else doc.setTextColor(20,20,30);
+    doc.text(String(txt), M, y); y += opts.gap || 5;
+  };
+  doc.setFillColor(10,53,96); doc.rect(0,0,210,12,'F');
+  doc.setTextColor(255,255,255); doc.setFont('courier','bold'); doc.setFontSize(10);
+  doc.text('multicalci.com — PSV SIZING REPORT (API 520/521/526)', M, 8);
+  y = 20;
+  line('Generated: ' + new Date().toLocaleString(), {size:8, color:[90,100,120]});
+  line('Calculation: ' + (data.calc||calc).toUpperCase(), {bold:true, size:11, gap:7});
+  line('─'.repeat(80), {color:[150,160,175]});
+  const skip = new Set(['warnings','status','inputsEcho','geom_note','rows','inlet']);
+  Object.entries(data).forEach(([k,v])=>{
+    if (skip.has(k) || v === null || v === undefined) return;
+    line(k.padEnd(26,' ') + ': ' + v);
+  });
+  if (data.inlet){
+    line('─'.repeat(80), {color:[150,160,175]});
+    line('INLET LINE (API 520 Pt II, 3% rule):', {bold:true});
+    Object.entries(data.inlet).forEach(([k,v])=>line('  '+k.padEnd(24,' ')+': '+v));
+  }
+  if (data.rows){
+    line('─'.repeat(80), {color:[150,160,175]});
+    line('SCENARIO COMPARISON:', {bold:true});
+    data.rows.forEach(r=>{
+      if (r.ok) line(`  ${(r.governing?'★ ':'  ')}${r.name.padEnd(24,' ').slice(0,24)} ${r.type.padEnd(7)} P1=${String(r.P1_barg).padEnd(8)} ${String(r.accum_pct).padEnd(3)}% A=${String(r.A_req_in2).padEnd(9)} ${r.pct_of_governing}%`);
+      else line(`  ✗ ${r.name.slice(0,24)}: ${r.note.slice(0,60)}`, {color:[130,60,0]});
+    });
+  }
+  if (data.warnings && data.warnings.length){
+    line('─'.repeat(80), {color:[150,160,175]});
+    line('WARNINGS:', {bold:true, color:[160,70,0]});
+    data.warnings.forEach(w=>{
+      const chunks = doc.splitTextToSize('! ' + w, 180);
+      chunks.forEach(c=>line(c, {color:[130,60,0]}));
+    });
+  }
+  line('─'.repeat(80), {color:[150,160,175]});
+  line('PRELIMINARY SIZING ONLY — verify with certified vendor data and a', {size:8, color:[120,30,30]});
+  line('qualified process safety engineer. API 520 Pt I / API 521 / API 526.', {size:8, color:[120,30,30]});
+  doc.save('psv-sizing-' + calc + '.pdf');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SHARE
+// ══════════════════════════════════════════════════════════════════════
+const PAGE_URL = 'https://multicalci.com/pressure-relief-valve-sizing/';
+const SHARE_TXT = 'Free PSV sizing calculator per API 520/521/526 — gas, steam, liquid, fire & two-phase with orifice selection:';
+function shareTwitter(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(SHARE_TXT)+'&url='+encodeURIComponent(PAGE_URL),'_blank'); }
+function shareLinkedIn(){ window.open('https://www.linkedin.com/sharing/share-offsite/?url='+encodeURIComponent(PAGE_URL),'_blank'); }
+function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent(SHARE_TXT+' '+PAGE_URL),'_blank'); }
+function copyLink(){ navigator.clipboard.writeText(PAGE_URL).then(()=>alert('Link copied!')); }
+</script>
+</body>
+</html>
