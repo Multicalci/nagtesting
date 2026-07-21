@@ -38,10 +38,10 @@
 
 'use strict';
 
-const fluids = require('./fluids.js');
-const mbData = require('./mb-data.js');
-const if97 = require('./if97.js');
-const eos = require('./eos.js');
+import fluids from './fluids.js';
+import mbData from './mb-data.js';
+import if97 from './if97.js';
+import eos from './eos.js';
 
 const ENGINE_VERSION = 'mb-engine 0.6.0 (parts 1+2 — thermo core + six core modules)';
 
@@ -1941,7 +1941,7 @@ function selfTest() {
 // ---------------------------------------------------------------------------
 // EXPORTS
 // ---------------------------------------------------------------------------
-module.exports = {
+export default {
   ENGINE_VERSION,
   MODULES,          // module registry — mixer, splitter, flash,
                     // heat-exchanger, rotating, reactor (Part 2)
