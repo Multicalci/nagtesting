@@ -1,9 +1,10 @@
 {
   "meta": {
-    "version": "mb-vectors 1.0 — thermo core, vectors MB-001..MB-025",
-    "target": "api/_lib/mb-engine.js (mb-engine 0.5.x, part 1 — thermo core)",
+    "repo_path": "tests/mb-vectors.json",
+    "version": "mb-vectors 1.1 — thermo core + six core modules, vectors MB-001..MB-040",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.6.x, parts 1+2 — thermo core + module solvers)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output."
   },
   "vectors": [
     {
@@ -563,6 +564,718 @@
         "default": 0
       },
       "source": "self-consistency on the multi-component Shomate gas branch (crosses both N2 ranges at 500 K)"
+    },
+    {
+      "id": "MB-026",
+      "desc": "mixer: adiabatic 50/50 hot/cold water — T_out within 0.1 K of hand calc",
+      "call": "runModule",
+      "args": [
+        "mixer",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 363.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 293.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 328.19,
+        "converged": true,
+        "mass_balance.closure_pct": 0,
+        "energy_balance.W_kW": 0
+      },
+      "tol": {
+        "streams_out.0.T_K": 0.15,
+        "mass_balance.closure_pct": 1e-09,
+        "energy_balance.W_kW": 1e-09,
+        "default": 1e-06
+      },
+      "source": "Steam-table hand calc: hf(90 °C)=376.97, hf(20 °C)=83.92 kJ/kg → mixed h=230.44 → T=55.04 °C=328.19 K (constant-cp hand check 328.15 K)"
+    },
+    {
+      "id": "MB-027",
+      "desc": "mixer (Felder-style worked example): quench 100 kg/h saturated steam with 900 kg/h water at 20 °C",
+      "call": "runModule",
+      "args": [
+        "mixer",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 373.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1,
+                  "phase": "gas"
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 900,
+              "T_K": 293.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 355.1,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 0.4,
+        "default": 1e-06
+      },
+      "source": "Felder & Rousseau-class steam-table energy balance (ch. 8 style): hg(1 atm)=2676.0, hf(20 °C)=83.92 kJ/kg → h_mix=343.13 kJ/kg → T≈81.95 °C=355.10 K"
+    },
+    {
+      "id": "MB-028",
+      "desc": "splitter: 60/40 split — identical T/composition, exact closure, zero duty",
+      "call": "runModule",
+      "args": [
+        "splitter",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 300.0,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5
+                },
+                {
+                  "key": "EtOH",
+                  "mass_fraction": 0.5
+                }
+              ]
+            }
+          ],
+          "params": {
+            "fractions": [
+              0.6,
+              0.4
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.mass_flow_kg_h": 60,
+        "streams_out.1.mass_flow_kg_h": 40,
+        "streams_out.0.T_K": 300.0,
+        "mass_balance.closure_pct": 0,
+        "energy_balance.Q_kW": 0,
+        "converged": true,
+        "iterations": 0
+      },
+      "tol": {
+        "energy_balance.Q_kW": 1e-06,
+        "default": 1e-09
+      },
+      "source": "Definition of a splitter: mass split with unchanged intensive state — exact by construction"
+    },
+    {
+      "id": "MB-029",
+      "desc": "flash: equimolar benzene/toluene at 95 °C, 1 atm — Rachford-Rice V/F and vapor composition",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 85.1275,
+              "T_K": 368.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.458805908784
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.541194091216
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 368.15,
+            "P_bar": 1.01325
+          }
+        }
+      ],
+      "expect": {
+        "details.psi_VF": 0.4305,
+        "details.y.0.y": 0.6263,
+        "details.regime": "two_phase",
+        "converged": true
+      },
+      "tol": {
+        "details.psi_VF": 0.006,
+        "details.y.0.y": 0.005,
+        "default": 1e-06
+      },
+      "source": "Raoult/Rachford-Rice hand calc with published Antoine constants (Lange class): Psat(95 °C) benzene 1.569 bar, toluene 0.636 bar → K=1.548/0.627 → ψ=0.4305, y_benzene=0.6263"
+    },
+    {
+      "id": "MB-030",
+      "desc": "flash: equimolar benzene/toluene at 110 °C, 1 atm — above dew point, all-vapor detection",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 85.1275,
+              "T_K": 383.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.458805908784
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.541194091216
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 383.15,
+            "P_bar": 1.01325
+          }
+        }
+      ],
+      "expect": {
+        "details.regime": "all_vapor",
+        "details.psi_VF": 1,
+        "streams_out.1.mass_flow_kg_h": 0
+      },
+      "tol": {
+        "default": 1e-09
+      },
+      "source": "Antoine hand calc: K(110 °C)=2.31 (benzene) / 0.98 (toluene) → Σz(K−1)/K=+0.27>0 — feed is superheated vapor (dew point ≈ 98.8 °C at 1 atm)"
+    },
+    {
+      "id": "MB-031",
+      "desc": "flash: water/NaCl (z=0.9/0.1 mol) at 120 °C, 1 bar — nonvolatile salt stays in the liquid, salt-free vapor",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 22.0578,
+              "T_K": 298.15,
+              "P_bar": 1.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.735046106139
+                },
+                {
+                  "key": "NaCl",
+                  "mass_fraction": 0.264953893861
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 393.15,
+            "P_bar": 1.0
+          }
+        }
+      ],
+      "expect": {
+        "details.psi_VF": 0.7985,
+        "details.y.1.y": 0,
+        "details.regime": "two_phase",
+        "converged": true
+      },
+      "tol": {
+        "details.psi_VF": 0.012,
+        "details.y.1.y": 1e-12,
+        "default": 1e-06
+      },
+      "source": "Rachford-Rice hand calc with steam-table Psat(120 °C)=1.9854 bar → K_w=1.985, K_NaCl=0 → ψ=0.7985; nonvolatile → y_NaCl=0 exactly"
+    },
+    {
+      "id": "MB-032",
+      "desc": "heat-exchanger both_T: water/water 80→60 °C vs 20→40 °C, counter-current — duty and LMTD=40 K",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 353.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 293.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "both_T",
+            "T_hot_out_K": 333.15,
+            "T_cold_out_K": 313.15
+          }
+        }
+      ],
+      "expect": {
+        "details.duty_hot_kW": 23.27,
+        "details.lmtd_K": 40.0,
+        "converged": true
+      },
+      "tol": {
+        "details.duty_hot_kW": 0.12,
+        "details.lmtd_K": 0.02,
+        "default": 1e-06
+      },
+      "source": "Steam tables: hf(80)−hf(60)=334.95−251.18=83.77 kJ/kg → 23.27 kW at 1000 kg/h; equal 40 K approaches at both ends → LMTD=40 K exactly"
+    },
+    {
+      "id": "MB-033",
+      "desc": "heat-exchanger solve_cold: hot water 90→50 °C (1000 kg/h) heats 2000 kg/h from 20 °C — cold outlet T",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 363.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 2000,
+              "T_K": 293.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "solve_cold",
+            "T_hot_out_K": 323.15
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.1.T_K": 313.2,
+        "converged": true,
+        "energy_balance.Q_kW": 0
+      },
+      "tol": {
+        "streams_out.1.T_K": 0.25,
+        "energy_balance.Q_kW": 0.05,
+        "default": 1e-06
+      },
+      "source": "Steam tables: duty=hf(90)−hf(50)=376.97−209.34=167.63 kJ/kg → 46.56 kW; cold h_out=83.92+83.82=167.74 kJ/kg → 40.05 °C=313.20 K"
+    },
+    {
+      "id": "MB-034",
+      "desc": "heat-exchanger both_T: 100→60 °C vs 30→50 °C counter-current — classic unequal-end LMTD",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 373.15,
+              "P_bar": 3.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 2008,
+              "T_K": 303.15,
+              "P_bar": 3.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "both_T",
+            "T_hot_out_K": 333.15,
+            "T_cold_out_K": 323.15,
+            "U_W_m2K": 800
+          }
+        }
+      ],
+      "expect": {
+        "details.lmtd_K": 39.152,
+        "details.duty_hot_kW": 46.64
+      },
+      "tol": {
+        "details.lmtd_K": 0.05,
+        "details.duty_hot_kW": 0.25,
+        "default": 1e-06
+      },
+      "source": "LMTD hand calc: ΔT1=100−50=50 K, ΔT2=60−30=30 K → (50−30)/ln(50/30)=39.152 K; duty=hf(100)−hf(60)=419.04−251.18≈167.9 kJ/kg → 46.6 kW"
+    },
+    {
+      "id": "MB-035",
+      "desc": "rotating/pump: 10 000 kg/h water, ΔP=5 bar, η=0.7 — hydraulic + shaft power and friction T rise",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 10000,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "pump",
+            "dP_bar": 5,
+            "eta": 0.7
+          }
+        }
+      ],
+      "expect": {
+        "details.W_hydraulic_kW": 1.392,
+        "details.W_shaft_kW": 1.988,
+        "streams_out.0.T_K": 298.2,
+        "energy_balance.W_kW": 1.988
+      },
+      "tol": {
+        "details.W_hydraulic_kW": 0.015,
+        "details.W_shaft_kW": 0.02,
+        "streams_out.0.T_K": 0.02,
+        "energy_balance.W_kW": 0.02
+      },
+      "source": "Hand calc: W_hyd=ṁΔP/ρ=(2.778 kg/s·5·10⁵ Pa)/998=1.392 kW; shaft=1.988 kW; ΔT=ΔP(1/η−1)/(ρcp)=0.051 K"
+    },
+    {
+      "id": "MB-036",
+      "desc": "rotating/compressor: 100 kg/h argon 1→10 bar from 25 °C, η=1 — exact monatomic isentropic relation",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 298.15,
+              "P_bar": 1.0,
+              "components": [
+                {
+                  "key": "Ar",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "compressor",
+            "P_out_bar": 10,
+            "eta": 1.0
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 748.92,
+        "energy_balance.W_kW": 6.515,
+        "details.gamma_mean": 1.6667,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 1.5,
+        "energy_balance.W_kW": 0.05,
+        "details.gamma_mean": 0.001,
+        "default": 1e-06
+      },
+      "source": "Ideal-gas hand calc, γ=5/3 (monatomic, NIST cp=20.786 J/mol·K): T2s=298.15·10^0.4=748.9 K; W=cpΔT·n=20.786·450.8·2.503 kmol/h=6.515 kW"
+    },
+    {
+      "id": "MB-037",
+      "desc": "rotating/turbine: 100 kg/h argon 10→1 bar from 800 K, η=0.8 — isentropic then efficiency, W negative",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 800.0,
+              "P_bar": 10.0,
+              "components": [
+                {
+                  "key": "Ar",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "turbine",
+            "P_out_bar": 1.0,
+            "eta": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 414.79,
+        "energy_balance.W_kW": -5.568,
+        "details.T2s_K": 318.49,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 1.5,
+        "energy_balance.W_kW": 0.05,
+        "details.T2s_K": 1.0,
+        "default": 1e-06
+      },
+      "source": "Ideal-gas hand calc, γ=5/3: T2s=800·0.1^0.4=318.5 K; Δh=0.8·cp·(T2s−800)=−8.007 kJ/mol → T2=414.8 K, W=−5.568 kW at 2.503 kmol/h"
+    },
+    {
+      "id": "MB-038",
+      "desc": "reactor (Felder worked example): C3H8+5O2→3CO2+4H2O, X=1, isothermal 25 °C — dHr298 equals the tabulated heat of combustion (HHV) and Q follows from formation-basis enthalpies",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 204.097,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "C3H8",
+                  "mass_fraction": 0.216059030755
+                },
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.783940969245
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "reactions": [
+              {
+                "stoich": {
+                  "C3H8": -1,
+                  "O2": -5,
+                  "CO2": 3,
+                  "H2O": 4
+                },
+                "conversion": 1.0,
+                "limiting": "C3H8"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "details.reactions.0.dHr298_kJmol": -2219.2,
+        "energy_balance.Q_kW": -616.44,
+        "converged": true
+      },
+      "tol": {
+        "details.reactions.0.dHr298_kJmol": 2.5,
+        "energy_balance.Q_kW": 1.0,
+        "default": 1e-06
+      },
+      "source": "Felder & Rousseau Table B.1: ΔH°c C3H8(g) with H2O(l) = −2220.0 kJ/mol (NIST Hf: 3·(−393.52)+4·(−285.83)−(−104.7)=−2219.2); Q=−2219.2·1 kmol/h=−616.4 kW"
+    },
+    {
+      "id": "MB-039",
+      "desc": "reactor adiabatic: CH4 + theoretical air (O2:N2 = 2:7.52), X=1 — adiabatic flame temperature, no dissociation",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 290.70828,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.055185906642
+                },
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.220151968152
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.724662125207
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "adiabatic",
+            "reactions": [
+              {
+                "stoich": {
+                  "CH4": -1,
+                  "O2": -2,
+                  "CO2": 1,
+                  "H2O": 2
+                },
+                "conversion": 1.0,
+                "limiting": "CH4"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 2330,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 60,
+        "default": 1e-06
+      },
+      "source": "Çengel & Boles (Thermodynamics) worked example class: theoretical adiabatic flame temperature of CH4 with stoichiometric air, complete combustion, no dissociation ≈ 2330 K (variable ideal-gas cp)"
+    },
+    {
+      "id": "MB-040",
+      "desc": "reactor sequential: SMR (X_CH4=0.8) then WGS (X_CO=0.5) at 800 °C — hand-tracked mole table and near-exact mass closure",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 1073.15,
+              "P_bar": 20.0,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146,
+                  "phase": "gas"
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "reactions": [
+              {
+                "stoich": {
+                  "CH4": -1,
+                  "H2O": -1,
+                  "CO": 1,
+                  "H2": 3
+                },
+                "conversion": 0.8,
+                "limiting": "CH4"
+              },
+              {
+                "stoich": {
+                  "CO": -1,
+                  "H2O": -1,
+                  "CO2": 1,
+                  "H2": 1
+                },
+                "conversion": 0.5,
+                "limiting": "CO"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "details.outlet_mole_flows.0.n_kmol_h": 0.2,
+        "details.outlet_mole_flows.1.n_kmol_h": 1.8,
+        "details.outlet_mole_flows.2.n_kmol_h": 0.4,
+        "details.outlet_mole_flows.3.n_kmol_h": 2.8,
+        "details.outlet_mole_flows.4.n_kmol_h": 0.4,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "mass_balance.closure_pct": 0.02,
+        "default": 1e-06
+      },
+      "source": "Hand mole table, basis 1 kmol/h CH4 + 3 H2O: ξ1=0.8 → CH4 0.2, H2O 2.2, CO 0.8, H2 2.4; ξ2=0.5·0.8=0.4 → CO 0.4, H2O 1.8, CO2 0.4, H2 2.8; atomic MWs make closure exact to <0.001%"
     }
   ]
 }
