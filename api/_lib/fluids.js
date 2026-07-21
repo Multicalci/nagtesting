@@ -662,7 +662,7 @@ function psat_bar(key, T_K) {
 /** @returns {number} total fluid count */
 function count() { return Object.keys(FLUIDS).length; }
 
-module.exports = { FLUIDS, list, get, psat_bar, count };
+export default { FLUIDS, list, get, psat_bar, count };
 
 /* ===========================================================================
    MERGE AUDIT — [O] FLUID_DB_orifice + [P] FLUID_DB_pdrop → this file
