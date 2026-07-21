@@ -1,10 +1,10 @@
 {
   "meta": {
     "repo_path": "tests/mb-vectors.json",
-    "version": "mb-vectors 1.3 — thermo core + core modules + reaction-engineering + reformer modules, vectors MB-001..MB-062",
-    "target": "api/_lib/mb-engine.js (mb-engine 0.8.x, parts 1+2+3+4 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr)",
+    "version": "mb-vectors 1.4 — thermo core + core modules + reaction-engineering + reformer + shift/methanator modules, vectors MB-001..MB-070",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.9.x, parts 1+2+3+4+5 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K."
   },
   "vectors": [
     {
@@ -2531,6 +2531,409 @@
         "details.s_c.ratio": 0.001
       },
       "source": "Hand calculation (independent Python solve): CnH2n+2 + n H2O → n CO + (2n+1) H2 applied fully to C2H6/C3H8/nC4H10 (Rostrup-Nielsen: higher hydrocarbons crack irreversibly to C1 species over the reformer inlet), then Twigg/Moe equilibrium at 1073.15 K (R1) / 1083.15 K (R2, default +10 K ATE), 25 bar."
+    },
+    {
+      "id": "MB-063",
+      "desc": "shift isothermal, HTS preset: 10% CO wet syngas at 350 °C, T_out 400 °C, ATE 10 K (T_eq 683.15 K) — extent, CO slip, duty",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.07526,
+              "T_K": 623.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.2142213615637471
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5235612905594229
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.06938294152468097
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1682949325673065
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539473784842517
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "preset": "hts",
+            "T_out_K": 673.15
+          }
+        }
+      ],
+      "expect": {
+        "details.preset": "hts",
+        "details.ate_K": 10,
+        "details.T_eq_K": 683.15,
+        "details.extent_kmol_h": 0.079419,
+        "details.co_slip_dry_pct": 2.9426,
+        "details.Q_kW": -0.3715,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.extent_kmol_h": 0.001,
+        "details.co_slip_dry_pct": 0.15,
+        "details.T_eq_K": 1e-06,
+        "details.Q_kW": 0.1
+      },
+      "source": "Hand equilibrium calculation (independent Python solve, not engine output) from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions per Twigg, Catalyst Handbook 2nd ed. (HTS window 350–450 °C, exit CO typically 2–4 % dry): computed slip 2.94 % dry. Duty from a Shomate enthalpy balance; the engine's IF97 water route differs by <0.05 kW — covered by the tolerance."
+    },
+    {
+      "id": "MB-064",
+      "desc": "shift adiabatic, HTS preset: same feed at 350 °C inlet — outlet T by bisection, CO slip, adiabatic rise",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.07526,
+              "T_K": 623.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.2142213615637471
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5235612905594229
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.06938294152468097
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1682949325673065
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539473784842517
+                }
+              ]
+            }
+          ],
+          "params": {
+            "preset": "hts"
+          }
+        }
+      ],
+      "expect": {
+        "details.mode": "adiabatic",
+        "details.T_out_K": 705.76,
+        "details.delta_T_K": 82.61,
+        "details.extent_kmol_h": 0.074216,
+        "details.co_slip_dry_pct": 3.7141,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 8,
+        "details.delta_T_K": 8,
+        "details.extent_kmol_h": 0.005,
+        "details.co_slip_dry_pct": 0.3
+      },
+      "source": "Hand calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Adiabatic T from an independent NIST-Shomate enthalpy balance (ideal-gas H2O); the engine's IF97 water route differs by a few K — covered by the tolerance. Outlet lands inside the Twigg HTS window (350–450 °C) with exit CO ≈ 3.7 % dry — consistent with published HTS practice."
+    },
+    {
+      "id": "MB-065",
+      "desc": "shift adiabatic, LTS preset: HTS exit gas cooled to 200 °C, ATE 5 K — exit CO in the published 0.2–0.4 % dry band",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.075334,
+              "T_K": 473.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.05523452235096582
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.4213046235758262
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.0808254258393482
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.4180960937358268
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539334498032993
+                }
+              ]
+            }
+          ],
+          "params": {
+            "preset": "lts"
+          }
+        }
+      ],
+      "expect": {
+        "details.preset": "lts",
+        "details.ate_K": 5,
+        "details.T_out_K": 500.81,
+        "details.delta_T_K": 27.66,
+        "details.co_slip_dry_pct": 0.3753,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 8,
+        "details.delta_T_K": 8,
+        "details.co_slip_dry_pct": 0.1
+      },
+      "source": "Hand calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962), feed = the MB-064 hand-calc outlet rounded to 6 dp. Adiabatic T from an independent NIST-Shomate enthalpy balance (ideal-gas H2O); the engine's IF97 water route differs by a few K — covered by the tolerance. Exit CO 0.375 % dry sits in the 0.1–0.4 % band quoted for LTS converters (Twigg, Catalyst Handbook; Appl, Ullmann's 'Ammonia'). Sub-Tsat(P_total) water is handled as vapor via the saturated-vapor-at-T branch."
+    },
+    {
+      "id": "MB-066",
+      "desc": "shift reverse direction: CO2/H2 = 1/3 at 700 °C isothermal, ATE 0 — negative extent (reverse WGS), CO make",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 12.5145,
+              "T_K": 973.15,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.8791801510248112
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.12081984897518878
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "T_out_K": 973.15
+          }
+        }
+      ],
+      "expect": {
+        "details.extent_kmol_h": -0.16954,
+        "details.composition_dry.0.key": "CO",
+        "details.composition_dry.0.mole_fraction": 0.204152,
+        "details.composition_dry.1.key": "CO2",
+        "details.composition_dry.1.mole_fraction": 0.096886,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.extent_kmol_h": 0.001,
+        "details.composition_dry.0.mole_fraction": 0.002,
+        "details.composition_dry.1.mole_fraction": 0.002
+      },
+      "source": "Hand equilibrium calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962) run in the reverse (CO2 + H2 → CO + H2O) direction; K2(973.15 K) < 1 so the reverse extent is large. Confirms the solver is direction-agnostic."
+    },
+    {
+      "id": "MB-067",
+      "desc": "shift error path: feed with no shift-reactive pair (H2 + N2 only) → MB_SHIFT_FEED",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 4.6158,
+              "T_K": 600,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.39308462238398545
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.6069153776160146
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "error.code": "MB_SHIFT_FEED"
+      },
+      "tol": 1e-09,
+      "source": "Input-contract check: WGS needs CO + H2O (forward) and/or CO2 + H2 (reverse)."
+    },
+    {
+      "id": "MB-068",
+      "desc": "methanator isothermal at 320 °C, 25 bar: H2/N2 make-up gas with 0.3 % CO + 0.1 % CO2 — equilibrium residuals far below the 10 ppm spec",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8.661755,
+              "T_K": 593.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.1722329943527611
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.7923832987656659
+                },
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.009701267237413205
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.005080956457438475
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.018521650635465906
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.0020798325512554907
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "T_out_K": 593.15
+          }
+        }
+      ],
+      "expect": {
+        "details.T_eq_K": 593.15,
+        "details.co_ppm_dry": 0,
+        "details.co2_ppm_dry": 0,
+        "details.co_co2_ppm_dry": 0,
+        "details.ch4_dry_pct": 1.4199,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.co_ppm_dry": 10,
+        "details.co2_ppm_dry": 10,
+        "details.co_co2_ppm_dry": 10,
+        "details.ch4_dry_pct": 0.01,
+        "details.T_eq_K": 1e-06
+      },
+      "source": "Hand calculation (independent nested-bisection solve of the Twigg/Moe equilibria in the methanation direction). Methanator duty specs guarantee < 5–10 ppm CO+CO2 (Appl, Ullmann's 'Ammonia'; Twigg): the EQUILIBRIUM residual at 320 °C / 25 bar is orders of magnitude lower still (~1e-7 ppm) — the vector asserts the < 10 ppm bound."
+    },
+    {
+      "id": "MB-069",
+      "desc": "methanator adiabatic: 1 % CO in H2 at 300 °C, 25 bar — the classic ≈74 °C-per-1%-CO adiabatic rise emerges from the enthalpy balance",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2.27594,
+              "T_K": 573.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.12307002820812499
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.8769299717918749
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "details.T_out_K": 647.87,
+        "details.delta_T_K": 74.72,
+        "details.co_ppm_dry": 0,
+        "details.ch4_dry_pct": 1.0309,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 5,
+        "details.delta_T_K": 5,
+        "details.co_ppm_dry": 1,
+        "details.ch4_dry_pct": 0.05
+      },
+      "source": "Hand adiabatic balance on NIST Shomate enthalpies with the Twigg/Moe equilibria: ΔT = 74.7 K, matching the published rule of ~74 °C temperature rise per 1 % CO methanated (Twigg, Catalyst Handbook; Appl, Ullmann's 'Ammonia'). The rule is emergent — nothing in the engine encodes it."
+    },
+    {
+      "id": "MB-070",
+      "desc": "methanator adiabatic: 1 % CO2 in H2 at 300 °C, 25 bar — the ≈60 °C-per-1%-CO2 rise",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2.43594,
+              "T_K": 573.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1806694746176014
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.8193305253823986
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "details.T_out_K": 634.27,
+        "details.delta_T_K": 61.12,
+        "details.co2_ppm_dry": 0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 5,
+        "details.delta_T_K": 5,
+        "details.co2_ppm_dry": 1
+      },
+      "source": "Hand adiabatic balance as MB-069: ΔT = 61.1 K vs the published ~60 °C per 1 % CO2 (Twigg; Appl). CO2 methanation consumes 4 H2 but releases less heat per mole than CO — the ratio of the two rises is itself a cross-check."
     }
   ]
 }
