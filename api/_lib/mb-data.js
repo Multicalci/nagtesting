@@ -534,4 +534,4 @@ function pickerFallback() {
   }));
 }
 
-module.exports = { DATA, get, keys, count, pickerFallback };
+export default { DATA, get, keys, count, pickerFallback };
