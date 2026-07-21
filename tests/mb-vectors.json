@@ -1,10 +1,10 @@
 {
   "meta": {
     "repo_path": "tests/mb-vectors.json",
-    "version": "mb-vectors 1.2 — thermo core + core modules + reaction-engineering modules, vectors MB-001..MB-052",
-    "target": "api/_lib/mb-engine.js (mb-engine 0.7.x, parts 1+2+3 — thermo core + module solvers + cstr/pfr/pfr-recycle)",
+    "version": "mb-vectors 1.3 — thermo core + core modules + reaction-engineering + reformer modules, vectors MB-001..MB-062",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.8.x, parts 1+2+3+4 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route."
   },
   "vectors": [
     {
@@ -1905,6 +1905,632 @@
         "default": 1e-06
       },
       "source": "Adiabatic recycle envelope identity on the formation basis: mixing point and reactor both adiabatic → fresh-in / product-out duty must return ≈ 0 at the converged tear. Exercises the Wegstein tear including its temperature variable; iterations expected ≤ 30."
+    },
+    {
+      "id": "MB-053",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 800 °C, ATE 0/0 — simultaneous reformer + shift equilibrium, dry composition, H2/CO, CH4 slip, extents",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.07626,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11408,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.71618,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.09348,
+        "details.h2_co_ratio": 6.2776,
+        "details.ch4_slip_dry_pct": 7.6257,
+        "details.extents.smr_kmol_h": 0.731322,
+        "details.extents.wgs_kmol_h": 0.329367,
+        "details.s_c.ratio": 3.0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.extents.smr_kmol_h": 0.002,
+        "details.extents.wgs_kmol_h": 0.002,
+        "details.s_c.ratio": 0.0001
+      },
+      "source": "Hand equilibrium calculation (independent Python solve, not engine output) from the published correlations lnK1 = 30.114 − 26830/T [bar²] (Twigg, Catalyst Handbook, 2nd ed., App.) and lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions of Speight fig. 7-3 (steam reforming equilibrium at 20 atm, H2O/CH4 = 3): dry CH4 slip ≈ 7.6 % at 800 °C, matching the published chart."
+    },
+    {
+      "id": "MB-054",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 1000 °C, ATE 0/0 — near-complete CH4 conversion (published charts: conversion “complete at about 1,000 °C” at 20 atm)",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1273.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0043,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.17877,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.76081,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05612,
+        "details.h2_co_ratio": 4.2557,
+        "details.ch4_slip_dry_pct": 0.43,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: Speight fig. 7-3 (20 atm, H2O/CH4 = 3) — “methane conversion is complete at about 1,000 °C”; dry slip 0.43 % reproduces the chart’s end point."
+    },
+    {
+      "id": "MB-055",
+      "desc": "smr fired: CH4 + 2 H2O, 1 bar, 1300 K, ATE 0/0 — SVN Ex. 13.14 conditions: reforming essentially complete, product split set by the shift equilibrium",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 52.073,
+              "T_K": 800,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.308086724406
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.691913275594
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1300,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 2e-05,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.21151,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.75768,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.03079,
+        "details.h2_co_ratio": 3.5822,
+        "details.ch4_slip_dry_pct": 0.0023,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053) at the conditions of Smith, Van Ness & Abbott Ex. 13.14 (industrial CH4 reforming, 1 bar, 1300 K, 2 mol steam per mol CH4), where SVN’s ΔG°-based solution likewise gives near-total CH4 conversion with the mixture governed by the water-gas-shift equilibrium."
+    },
+    {
+      "id": "MB-056",
+      "desc": "smr fired: pure CH4, S/C = 3.5, 30 bar, 800 °C, ATE 0/0 — ammonia-plant primary-reformer point: ≈ 9 % dry CH4 slip",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 79.0955,
+              "T_K": 800,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.202830755226
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.797169244774
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.08962,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.09723,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.70886,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.10429,
+        "details.h2_co_ratio": 7.2908,
+        "details.ch4_slip_dry_pct": 8.9622,
+        "details.s_c.ratio": 3.5,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.s_c.ratio": 0.0001
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: published ammonia-plant primary-reformer outlets at ~30 bar / ~800 °C / S/C 3–4 run ≈ 9–10 % dry CH4 (Twigg, Catalyst Handbook, steam-reforming ch.; Appl, “Ammonia”, Ullmann’s Encyclopedia)."
+    },
+    {
+      "id": "MB-057",
+      "desc": "smr fired: MB-053 conditions with approach-to-equilibrium ATE_smr = 20 K, ATE_wgs = 10 K — slip drops as the reformer equilibrium is evaluated hotter",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 20,
+            "ate_wgs_K": 10
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0605,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.12283,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.72703,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.08963,
+        "details.ch4_slip_dry_pct": 6.0498,
+        "details.T_eq_smr_K": 1093.15,
+        "details.T_eq_wgs_K": 1083.15,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.T_eq_smr_K": 1e-06,
+        "details.T_eq_wgs_K": 1e-06
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 evaluated at T+20 K and Moe lnK2 at T+10 K — the approach-to-equilibrium convention for reformer rating (Twigg, Catalyst Handbook: reformer duty expressed as an ATE on the reforming reaction)."
+    },
+    {
+      "id": "MB-058",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 700 °C, ATE 0/0 — the dry-CO2 maximum region of the published equilibrium chart",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 973.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.18661,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.05783,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.63914,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.11642,
+        "details.ch4_slip_dry_pct": 18.6614,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: Speight fig. 7-3 (20 atm, H2O/CH4 = 3) — “the production of CO2 from the water gas shift reaction is maximum around 700 °C”; the 11.6 % dry CO2 here sits at that published maximum."
+    },
+    {
+      "id": "MB-059",
+      "desc": "smr secondary: primary-reformer effluent (30 bar, 800 °C) + preheated air (600 °C), O2 fully burned against CH4 then equilibrium, adiabatic T_out by outer bisection — ammonia-plant secondary-reformer point",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 79.095878,
+              "T_K": 1073.15,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.062437092692
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.55792697488
+                },
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.11826077024
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.062056784001
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.199318378187
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 41.2158,
+              "T_K": 873.15,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.232920384901
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.767079615099
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "secondary"
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.00072,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.13907,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.56034,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.06677,
+        "details.composition_dry.4.key": "N2",
+        "details.composition_dry.4.mole_fraction": 0.23311,
+        "details.T_out_K": 1332.4,
+        "details.ch4_slip_dry_pct": 0.0719,
+        "details.h2_co_ratio": 4.0293,
+        "details.ch4_burned_kmol_h": 0.15,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25,
+        "details.ch4_burned_kmol_h": 0.0001
+      },
+      "source": "Hand calculation: CH4 + 2 O2 → CO2 + 2 H2O on all fed O2, then Twigg/Moe equilibrium with the adiabatic balance closed on NIST WebBook Shomate H(T)−H(298)+Hf (independent Python solve). Anchor: published ammonia-plant secondary reformers leave < 0.5 % dry CH4 with ~23 % N2 at ≈ 1000–1050 °C outlet (Appl, “Ammonia”, Ullmann’s; Twigg, Catalyst Handbook). T tolerance ±25 K covers ideal-gas-steam hand calc vs the engine’s IF97 water route on the wet feed."
+    },
+    {
+      "id": "MB-060",
+      "desc": "atr: pure CH4 at 650 K / 25 bar, S/C = 0.6, O2/C = 0.6 (pure O2 at 298 K, steam at 650 K), adiabatic — GTL-class syngas with H2/CO ≈ 2.3",
+      "call": "runModule",
+      "args": [
+        "atr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 16.043,
+              "T_K": 650,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 1.0
+                }
+              ]
+            }
+          ],
+          "params": {
+            "s_c_ratio": 0.6,
+            "o2_c_ratio": 0.6,
+            "steam_T_K": 650,
+            "oxidant_T_K": 298.15
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.01055,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.28589,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.6505,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05306,
+        "details.T_out_K": 1299.07,
+        "details.h2_co_ratio": 2.2754,
+        "details.ch4_slip_dry_pct": 1.0552,
+        "details.o2_c_ratio": 0.6,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25,
+        "details.o2_c_ratio": 1e-09
+      },
+      "source": "Hand calculation (independent Python solve): full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: published ATR operation at O2/C ≈ 0.6 and low S/C delivers H2/CO ≈ 2.0–2.3 at ≈ 1020–1050 °C outlet (Aasberg-Petersen et al., J. Nat. Gas Sci. Eng. 3 (2011) 423–459, Topsøe ATR)."
+    },
+    {
+      "id": "MB-061",
+      "desc": "atr with AIR oxidant: pure CH4 at 650 K / 20 bar, S/C = 1.0, O2/C = 0.55, air and steam at 650 K, adiabatic — nitrogen-diluted syngas",
+      "call": "runModule",
+      "args": [
+        "atr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 16.043,
+              "T_K": 650,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 1.0
+                }
+              ]
+            }
+          ],
+          "params": {
+            "s_c_ratio": 1.0,
+            "o2_c_ratio": 0.55,
+            "oxidant": "air",
+            "steam_T_K": 650,
+            "oxidant_T_K": 650
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.02887,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11807,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.36575,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05971,
+        "details.composition_dry.4.key": "N2",
+        "details.composition_dry.4.mole_fraction": 0.42759,
+        "details.T_out_K": 1096.75,
+        "details.h2_co_ratio": 3.0976,
+        "details.ch4_slip_dry_pct": 2.8873,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25
+      },
+      "source": "Hand calculation (independent Python solve): air taken as 21 % O2 / 79 % N2, full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: air-blown ATR/secondary-reforming trains show exactly this N2-diluted syngas pattern (~40 % dry N2) at ≈ 800–850 °C (Aasberg-Petersen et al. 2011; Appl, “Ammonia”, Ullmann’s)."
+    },
+    {
+      "id": "MB-062",
+      "desc": "smr fired, natural-gas-like feed: 0.90 CH4 / 0.06 C2H6 / 0.03 C3H8 / 0.01 nC4H10, S/C = 3.2 (per mol C), 25 bar, 800 °C, default ATE (0 / +10 K) — full C2+ pre-crack then equilibrium",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 84.44219,
+              "T_K": 800,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.170989170224
+                },
+                {
+                  "key": "C2H6",
+                  "mass_fraction": 0.021365386189
+                },
+                {
+                  "key": "C3H8",
+                  "mass_fraction": 0.015666457727
+                },
+                {
+                  "key": "nC4H10",
+                  "mass_fraction": 0.006883289029
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.785095696831
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0845,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11034,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.70257,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.10258,
+        "details.h2_co_ratio": 6.3672,
+        "details.ch4_slip_dry_pct": 8.4503,
+        "details.s_c.ratio": 3.2,
+        "details.precrack.0.key": "C2H6",
+        "details.precrack.1.key": "C3H8",
+        "details.precrack.2.key": "nC4H10",
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.s_c.ratio": 0.001
+      },
+      "source": "Hand calculation (independent Python solve): CnH2n+2 + n H2O → n CO + (2n+1) H2 applied fully to C2H6/C3H8/nC4H10 (Rostrup-Nielsen: higher hydrocarbons crack irreversibly to C1 species over the reformer inlet), then Twigg/Moe equilibrium at 1073.15 K (R1) / 1083.15 K (R2, default +10 K ATE), 25 bar."
     }
   ]
 }
