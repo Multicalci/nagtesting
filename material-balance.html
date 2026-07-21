@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<!-- ========================================================================
+  REPO PATH: material-balance.html
+  =========================================================================
+  multicalci.com — Material Balance Calculator (spec v5.2) — STEP 9
+  THIN CLIENT: vanilla JS + inline CSS + native SVG. No libraries, no build.
+  The browser computes NOTHING except display-unit conversion and input
+  validation. All thermodynamics live server-side in /api/material-balance.
+
+  API CONTRACT (api/material-balance.js):
+    GET  ?module=components  → { ok, components:[{key,name,formula,mw,
+                                 category,nonvolatile,data_quality}] }
+    POST ?module={name}      → body { streams:[{mass_flow_kg_h,T_K,P_bar,
+                                 components:[{key,mass_fraction}]}], params }
+                               in BASE SI (kg/h, K, bar abs, kJ/h)
+                             → { ok, engine_version, warnings, result:{
+                                 streams_out, mass_balance, energy_balance,
+                                 details, converged, iterations } }
+                               or { error:{code,message,field} }
+
+  Stage-2 modules only (mixer, splitter, flash, heat-exchanger, rotating,
+  reactor) — all driven by MODULE_DEFS so later modules are config additions.
+  (c) multicalci.com
+========================================================================= -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Material Balance Calculator — multicalci</title>
+<meta name="description" content="Free online material &amp; energy balance calculator: mixer, splitter, flash, heat exchanger, pump/compressor/turbine, conversion reactor. NIST-based thermodynamics, formation-enthalpy basis.">
+<style>
+/* ==================== dark-petrol instrument panel ==================== */
+:root{
+  --bg:#081517; --bg2:#0b1d21; --panel:#0f262b; --panel2:#133036;
+  --bezel:#1c424b; --line:#1a3940; --ink:#d9e8e6; --dim:#7fa3a1; --faint:#4f7472;
+  --accent:#35d0ba; --amber:#f5b02e; --amber-dim:#8a6a24;
+  --ok:#3ddc84; --warn:#f5b02e; --err:#ff6b6b;
+  --cat-mixing:#35d0ba; --cat-separation:#b48bf2; --cat-heat:#ff9550;
+  --cat-pressure:#58a6ff; --cat-reaction:#ff6b6b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --r:10px; --tap:48px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:
+    radial-gradient(1200px 500px at 50% -200px, #0f2a30 0%, transparent 60%),
+    var(--bg);
+  color:var(--ink); font:15px/1.45 var(--sans);
+  min-height:100vh; padding-bottom:84px;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select{
+  font:inherit;color:var(--ink);background:var(--bg2);
+  border:1px solid var(--bezel);border-radius:6px;padding:10px;min-height:44px;
+}
+input[type=number]{font-family:var(--mono)}
+select{appearance:auto}
+::placeholder{color:var(--faint)}
+h1,h2,h3{font-weight:600;letter-spacing:.02em}
+small{color:var(--dim)}
+
+/* ---- header ---- */
+header{
+  position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;
+  padding:10px 14px;background:linear-gradient(#0d2226f2,#0b1d21e6);
+  border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
+}
+header .lamp{width:10px;height:10px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 8px var(--accent);flex:none}
+header h1{font-size:16px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header h1 small{font-weight:400;color:var(--dim)}
+.hbtn{
+  min-height:40px;padding:0 12px;border:1px solid var(--bezel);border-radius:8px;
+  color:var(--dim);font-size:13px;background:var(--panel);flex:none;
+}
+.hbtn:hover{color:var(--ink);border-color:var(--accent)}
+
+/* ---- layout ---- */
+#layout{display:grid;grid-template-columns:230px 1fr;gap:16px;max-width:1240px;
+  margin:16px auto;padding:0 14px}
+@media(max-width:860px){#layout{grid-template-columns:1fr}}
+
+/* ---- palette ---- */
+#palette{position:sticky;top:70px;align-self:start}
+#palette .cap, .sheet .cap{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  margin:14px 0 6px;font-family:var(--mono)}
+.pal-item{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:var(--tap);
+  padding:8px 10px;margin:6px 0;border:1px solid var(--bezel);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--panel2),var(--panel));text-align:left;
+  border-left:4px solid var(--c,#888);transition:transform .12s,border-color .12s;
+}
+.pal-item:hover{transform:translateX(3px);border-color:var(--c)}
+.pal-item svg{flex:none}
+.pal-item .nm{font-size:14px}
+.pal-item .ds{display:block;font-size:11px;color:var(--dim)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:860px){#palette{display:none}}
+
+/* ---- mobile bottom bar + sheet ---- */
+#mobilebar{display:none}
+@media(max-width:860px){
+  #mobilebar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+    gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:#0b1d21f0;border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+  #mobilebar button{flex:1;min-height:var(--tap);border-radius:12px;
+    border:1px solid var(--bezel);background:var(--panel2);font-size:14px}
+  #mobilebar .primary{background:var(--accent);color:#04211d;font-weight:600;border:0}
+}
+.sheet-wrap{position:fixed;inset:0;z-index:60;display:none}
+.sheet-wrap.open{display:block}
+.sheet-wrap .scrim{position:absolute;inset:0;background:#000a}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;
+  background:var(--panel);border-radius:18px 18px 0 0;border:1px solid var(--bezel);
+  border-bottom:0;padding:10px 16px calc(18px + env(safe-area-inset-bottom));
+}
+@media(min-width:861px){
+  .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);
+    width:min(620px,94vw);max-height:86vh;border-radius:14px;border-bottom:1px solid var(--bezel)}
+}
+.sheet .grab{width:44px;height:4px;border-radius:2px;background:var(--faint);
+  margin:2px auto 10px}
+@media(min-width:861px){.sheet .grab{display:none}}
+.sheet h3{font-size:15px;margin-bottom:2px}
+.sheet .sub{font-size:12px;color:var(--dim);margin-bottom:12px}
+.sheet .xrow{display:flex;align-items:center;gap:8px}
+.sheet .xrow h3{flex:1}
+.xclose{min-width:44px;min-height:44px;border-radius:8px;color:var(--dim);font-size:20px}
+.xclose:hover{color:var(--ink)}
+
+/* ---- canvas / unit cards ---- */
+#canvas{min-height:300px}
+#empty{
+  border:2px dashed var(--bezel);border-radius:14px;padding:44px 20px;text-align:center;
+  color:var(--dim)}
+#empty .big{font-size:17px;color:var(--ink);margin-bottom:6px}
+.unit{
+  background:linear-gradient(180deg,#11292f,#0e2429);
+  border:1px solid var(--bezel);border-left:5px solid var(--uc,#888);
+  border-radius:14px;margin:0 0 18px;box-shadow:0 6px 24px #0006,inset 0 1px 0 #ffffff10;
+}
+.unit-head{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--line)}
+.unit-head .tag{font-family:var(--mono);font-size:11px;color:var(--uc);
+  border:1px solid var(--uc);border-radius:4px;padding:2px 6px}
+.unit-head .nm{font-size:15px;font-weight:600;flex:1}
+.unit-head button{min-width:40px;min-height:40px;border-radius:8px;color:var(--dim)}
+.unit-head button:hover{color:var(--err)}
+.usect{padding:12px 14px;border-bottom:1px solid var(--line)}
+.usect:last-child{border-bottom:0}
+.usect .cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);font-family:var(--mono);margin-bottom:8px}
+
+/* SVG diagram */
+.diagram{width:100%;height:auto;display:block;touch-action:manipulation}
+.chip rect{fill:#0b1d21;stroke:var(--bezel);rx:9}
+.chip.in rect{stroke:#2b5d63}
+.chip.out rect{stroke:var(--amber-dim)}
+.chip:hover rect,.chip:focus rect{stroke:var(--accent);stroke-width:1.6}
+.chip text{fill:var(--ink);font:600 12.5px var(--sans)}
+.chip text.val{fill:var(--amber);font:11.5px var(--mono)}
+.chip text.ph{fill:var(--dim);font:10.5px var(--mono)}
+.chip.empty text.val{fill:var(--faint)}
+.chip{cursor:pointer;outline:none}
+.blk rect{fill:url(#bezelGrad);stroke:var(--uc,#888);stroke-width:1.6;rx:12}
+.blk text{fill:var(--ink);font:600 13px var(--sans);text-anchor:middle}
+.blk text.sym{font:700 20px var(--mono);fill:var(--uc,#888)}
+.wire{stroke:#2b5d63;stroke-width:2;fill:none}
+.wire.out{stroke:var(--amber-dim)}
+
+/* params grid */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.field label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+.field .duo{display:flex;gap:6px}
+.field .duo input{flex:1;min-width:0}
+.field .duo select{width:92px;flex:none;font-size:13px}
+.field .hint{font-size:11px;color:var(--faint);margin-top:3px}
+.rowbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sbtn{min-height:40px;padding:0 12px;border:1px solid var(--bezel);border-radius:8px;
+  font-size:13px;color:var(--dim);background:var(--bg2)}
+.sbtn:hover{color:var(--ink);border-color:var(--accent)}
+.solve{
+  min-height:var(--tap);padding:0 26px;border-radius:10px;font-weight:700;font-size:15px;
+  background:linear-gradient(180deg,#3fe0c8,#22b7a1);color:#04211d;
+  box-shadow:0 3px 14px #35d0ba44}
+.solve:disabled{opacity:.5;cursor:wait}
+
+/* results */
+.banner{display:flex;align-items:center;gap:10px;border-radius:10px;padding:10px 14px;
+  font-family:var(--mono);font-size:13.5px;margin-bottom:12px;border:1px solid}
+.banner .dot{width:12px;height:12px;border-radius:50%;flex:none}
+.banner.ok{border-color:#1e5c3d;background:#0d2b1d;color:var(--ok)}
+.banner.ok .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.banner.bad{border-color:#6b2b2b;background:#2b0f0f;color:var(--err)}
+.banner.bad .dot{background:var(--err);box-shadow:0 0 10px var(--err)}
+.banner.warn{border-color:#6b5620;background:#2b220c;color:var(--warn)}
+.banner.warn .dot{background:var(--warn)}
+details.acc{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;
+  background:var(--bg2);overflow:hidden}
+details.acc summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
+  min-height:var(--tap);padding:0 14px;font-size:13.5px;color:var(--dim);user-select:none}
+details.acc summary::before{content:"▸";color:var(--faint);transition:transform .15s}
+details.acc[open] summary::before{transform:rotate(90deg)}
+details.acc summary:hover{color:var(--ink)}
+.accbody{padding:4px 12px 14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+  text-align:right;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 10px;border-bottom:1px solid #14313880;font-family:var(--mono);
+  text-align:right;white-space:nowrap}
+td:first-child{font-family:var(--sans)}
+tr.tot td{border-top:1.5px solid var(--bezel);color:var(--amber)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.kv b{color:var(--dim);font-weight:400}
+.kv span{font-family:var(--mono);color:var(--amber)}
+.wlist{font-size:12.5px;color:var(--warn);padding-left:18px}
+.wlist li{margin:3px 0}
+.sendrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
+/* composition editor */
+.modes{display:flex;gap:6px;margin-bottom:10px}
+.modes button{flex:1;min-height:40px;border:1px solid var(--bezel);border-radius:8px;
+  font-size:13px;color:var(--dim);background:var(--bg2)}
+.modes button.on{border-color:var(--accent);color:var(--accent);background:#0d2b28}
+.crow{display:flex;align-items:center;gap:8px;margin:6px 0}
+.crow .cn{flex:1;min-width:0;font-size:13.5px}
+.crow .cn small{display:block;color:var(--faint);font-size:11px;font-family:var(--mono)}
+.crow input{width:110px;flex:none;text-align:right}
+.crow .rm{min-width:40px;min-height:40px;color:var(--faint);font-size:17px;border-radius:8px}
+.crow .rm:hover{color:var(--err)}
+.sumrow{display:flex;align-items:center;gap:10px;margin-top:8px;padding-top:8px;
+  border-top:1px dashed var(--bezel);font-family:var(--mono);font-size:13px}
+.sumrow .s{flex:1}
+.sumrow.ok .s{color:var(--ok)} .sumrow.bad .s{color:var(--err)}
+
+/* picker */
+.pick-search{display:flex;gap:8px;margin-bottom:10px}
+.pick-search input{flex:1}
+.catchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.catchips button{min-height:36px;padding:0 12px;border:1px solid var(--bezel);
+  border-radius:999px;font-size:12px;color:var(--dim)}
+.catchips button.on{border-color:var(--accent);color:var(--accent)}
+.pick-list{max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.pick-row{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--tap);
+  padding:6px 12px;border-bottom:1px solid #14313880;text-align:left}
+.pick-row:hover{background:var(--panel2)}
+.pick-row .n{flex:1;font-size:14px}
+.pick-row .n small{display:block;color:var(--faint);font-family:var(--mono);font-size:11px}
+.pick-row .mw{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.q{width:8px;height:8px;border-radius:50%;flex:none}
+.q.nist{background:var(--ok)} .q.handbook{background:var(--amber)} .q.estimated{background:var(--faint)}
+
+/* toast */
+#toasts{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:80;
+  display:flex;flex-direction:column;gap:8px;width:min(480px,92vw)}
+.toast{border-radius:10px;padding:10px 14px;font-size:13.5px;border:1px solid;
+  animation:tin .2s ease-out;background:var(--panel)}
+.toast.err{border-color:#6b2b2b;color:var(--err)}
+.toast.ok{border-color:#1e5c3d;color:var(--ok)}
+.toast.info{border-color:var(--bezel);color:var(--dim)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1}}
+
+/* sankey */
+.sankey{width:100%;height:auto}
+.sankey .band{opacity:.85}
+.sankey text{font:11px var(--mono);fill:var(--dim)}
+.sankey text.h{fill:var(--amber)}
+.caselist button{display:block;width:100%;text-align:left;padding:10px 12px;
+  min-height:var(--tap);border-bottom:1px solid var(--line);font-size:13.5px}
+.caselist button:hover{background:var(--panel2)}
+.caselist small{display:block;color:var(--faint);font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="lamp" aria-hidden="true"></span>
+  <h1>Material Balance <small>· mass &amp; energy · NIST basis</small></h1>
+  <button class="hbtn" id="btnCases" title="Saved input cases">Cases</button>
+  <button class="hbtn" id="btnLink" title="Copy a shareable permalink">Permalink</button>
+  <button class="hbtn" id="btnClear" title="Clear the worksheet">Clear</button>
+</header>
+
+<div id="layout">
+  <nav id="palette" aria-label="Equipment palette">
+    <div class="cap">Add equipment</div>
+    <div id="palList"></div>
+    <div class="cap">Basis</div>
+    <small>Formation-enthalpy basis: Q = H<sub>out</sub> − H<sub>in</sub>.
+    All solving is server-side; this page only converts display units.</small>
+  </nav>
+
+  <main id="canvas" aria-live="polite">
+    <div id="empty">
+      <div class="big">Empty worksheet</div>
+      Tap a unit in the palette (or drag it here on desktop) to begin.<br>
+      Inlet and outlet streams are created and connected automatically.
+    </div>
+    <div id="units"></div>
+  </main>
+</div>
+
+<div id="mobilebar">
+  <button class="primary" id="btnAddMobile">＋ Add unit</button>
+  <button id="btnCasesM">Cases</button>
+  <button id="btnLinkM">Link</button>
+</div>
+
+<div class="sheet-wrap" id="sheetWrap" role="dialog" aria-modal="true">
+  <div class="scrim" data-close="1"></div>
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div id="toasts" aria-live="assertive"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   0. CONSTANTS, UNIT TABLES, HELPERS  (display conversion + validation
+      only — the ONLY math this page is allowed to do)
+===================================================================== */
+const API = '/api/material-balance';
+const LS_CASES = 'mb_cases_v1';
+const LS_COMPS = 'mb_components_v1';
+const LS_RECENT = 'mb_recent_comps_v1';
+const COMPS_TTL_MS = 24 * 3600 * 1000;
+const MAX_CASES = 20;
+
+const FLOW_UNITS = {
+  'kg/h':   { toSI: (v) => v,                 fromSI: (v) => v },
+  'lb/h':   { toSI: (v) => v * 0.45359237,    fromSI: (v) => v / 0.45359237 },
+  'ton/h':  { toSI: (v) => v * 1000,          fromSI: (v) => v / 1000 },
+  'g/s':    { toSI: (v) => v * 3.6,           fromSI: (v) => v / 3.6 },
+  'kmol/h': { molar: true, toSI: (v, mw) => v * mw,
+              fromSI: (v, mw) => v / mw },
+  'lbmol/h':{ molar: true, toSI: (v, mw) => v * mw * 0.45359237,
+              fromSI: (v, mw) => v / (mw * 0.45359237) },
+};
+const T_UNITS = {
+  'C': { toSI: (v) => v + 273.15,        fromSI: (v) => v - 273.15 },
+  'F': { toSI: (v) => (v + 459.67) / 1.8, fromSI: (v) => v * 1.8 - 459.67 },
+  'K': { toSI: (v) => v,                 fromSI: (v) => v },
+  'R': { toSI: (v) => v / 1.8,           fromSI: (v) => v * 1.8 },
+};
+const P_UNITS = { /* absolute */
+  'bar':  { toSI: (v) => v,             fromSI: (v) => v },
+  'psi':  { toSI: (v) => v / 14.503773773, fromSI: (v) => v * 14.503773773 },
+  'kPa':  { toSI: (v) => v / 100,       fromSI: (v) => v * 100 },
+  'atm':  { toSI: (v) => v * 1.01325,   fromSI: (v) => v / 1.01325 },
+  'mmHg': { toSI: (v) => v / 750.061683, fromSI: (v) => v * 750.061683 },
+};
+/* pressure DIFFERENCE units — same factors, no offset (all P units linear) */
+const DP_UNITS = P_UNITS;
+
+/** @param {*} x @returns {boolean} */
+function num(x) { return typeof x === 'number' && isFinite(x); }
+
+/** Format for readouts — up to 5 significant figures, thin locale commas. */
+function fmt(x, sig) {
+  if (!num(x)) return '—';
+  const s = sig || 5;
+  if (x === 0) return '0';
+  const a = Math.abs(x);
+  if (a >= 1e6 || a < 1e-3) return x.toExponential(3);
+  const d = Math.max(0, s - 1 - Math.floor(Math.log10(a)));
+  return x.toLocaleString('en-US', { maximumFractionDigits: Math.min(d, 6) });
+}
+
+/** Mixture average MW from mass fractions: 1 / Σ(wᵢ/MWᵢ). null if unknown. */
+function mwAvg(components) {
+  if (!components || !components.length) return null;
+  let s = 0, w = 0;
+  for (const c of components) {
+    if (!num(c.mw) || c.mw <= 0 || !num(c.mass_fraction)) return null;
+    s += c.mass_fraction / c.mw;
+    w += c.mass_fraction;
+  }
+  if (s <= 0 || w <= 0) return null;
+  return w / s;
+}
+
+/** Mole fractions from mass fractions (needs every MW). null on failure. */
+function moleFractions(components) {
+  let s = 0;
+  const n = [];
+  for (const c of components) {
+    if (!num(c.mw) || c.mw <= 0) return null;
+    const ni = c.mass_fraction / c.mw;
+    n.push(ni); s += ni;
+  }
+  if (s <= 0) return null;
+  return n.map((v) => v / s);
+}
+
+function el(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === 'class') e.className = attrs[k];
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+  }
+  for (const k of kids) {
+    if (k == null) continue;
+    e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  }
+  return e;
+}
+const svgNS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs, ...kids) {
+  const e = document.createElementNS(svgNS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  for (const k of kids) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return e;
+}
+function toast(msg, kind) {
+  const t = el('div', { class: 'toast ' + (kind || 'info'), role: 'status' }, msg);
+  document.getElementById('toasts').append(t);
+  setTimeout(() => t.remove(), kind === 'err' ? 6500 : 3200);
+}
+
+/* =====================================================================
+   1. MODULE_DEFS — the config that drives everything. Adding a later
+      module (CSTR, PFR, ...) = adding one entry here.
+      field.kind ∈ number | temperature | pressure | dpressure | select
+                 | fractions | reactions
+===================================================================== */
+const CAT_COLORS = {
+  mixing: 'var(--cat-mixing)', separation: 'var(--cat-separation)',
+  heat: 'var(--cat-heat)', pressure: 'var(--cat-pressure)',
+  reaction: 'var(--cat-reaction)',
+};
+
+const MODULE_DEFS = {
+  'mixer': {
+    label: 'Mixer / Blender', sym: 'M', category: 'mixing',
+    desc: 'N inlets → 1 outlet · adiabatic, heated or set T',
+    inlets: { min: 1, max: 12, initial: 2, label: (i) => 'Inlet ' + (i + 1) },
+    outlets: () => ['Outlet'],
+    fields: [
+      { key: 'mode', kind: 'select', label: 'Thermal mode', virtual: true, def: 'adiabatic',
+        options: [['adiabatic', 'Adiabatic'], ['heated', 'Heated / cooled (give Q)'], ['specified_T', 'Specified outlet T']] },
+      { key: 'Q_kW', kind: 'number', label: 'Duty Q (+ = heat added)', unit: 'kW',
+        showIf: (p) => p.mode === 'heated', required: (p) => p.mode === 'heated' },
+      { key: 'T_out_K', kind: 'temperature', label: 'Outlet temperature',
+        showIf: (p) => p.mode === 'specified_T', required: (p) => p.mode === 'specified_T' },
+      { key: 'P_out_bar', kind: 'pressure', label: 'Outlet pressure',
+        hint: 'blank = lowest inlet P' },
+    ],
+  },
+  'splitter': {
+    label: 'Splitter', sym: 'S', category: 'separation',
+    desc: '1 inlet → N outlets · same T, P, composition',
+    inlets: { min: 1, max: 1, initial: 1, label: () => 'Feed' },
+    outlets: (u) => Array.from({ length: u.nOut }, (_, i) => 'Outlet ' + (i + 1)),
+    nOut: { min: 2, max: 6, initial: 2 },
+    fields: [{ key: 'fractions', kind: 'fractions', label: 'Split fractions' }],
+  },
+  'flash': {
+    label: 'Flash Drum', sym: 'F', category: 'separation',
+    desc: 'Isothermal flash at set T, P · Raoult K-values',
+    inlets: { min: 1, max: 1, initial: 1, label: () => 'Feed' },
+    outlets: () => ['Vapor', 'Liquid'],
+    fields: [
+      { key: 'T_K', kind: 'temperature', label: 'Flash temperature', required: () => true },
+      { key: 'P_bar', kind: 'pressure', label: 'Flash pressure', required: () => true },
+    ],
+    note: 'Near-ideal systems only — azeotropic / strongly polar pairs are out of scope.',
+  },
+  'heat-exchanger': {
+    label: 'Heat Exchanger', sym: 'HX', category: 'heat',
+    desc: 'Hot + cold streams · 4 solve modes · optional LMTD/UA',
+    inlets: { min: 2, max: 2, initial: 2, label: (i) => i === 0 ? 'Hot in' : 'Cold in' },
+    outlets: () => ['Hot out', 'Cold out'],
+    fields: [
+      { key: 'mode', kind: 'select', label: 'Solve mode', def: 'solve_cold',
+        options: [
+          ['both_T', 'Both outlet T known (check duty match)'],
+          ['solve_cold', 'Know hot-out T → solve cold-out'],
+          ['solve_hot', 'Know cold-out T → solve hot-out'],
+          ['duty', 'Specify duty → solve both'],
+        ] },
+      { key: 'T_hot_out_K', kind: 'temperature', label: 'Hot outlet T',
+        showIf: (p) => p.mode === 'both_T' || p.mode === 'solve_cold',
+        required: (p) => p.mode === 'both_T' || p.mode === 'solve_cold' },
+      { key: 'T_cold_out_K', kind: 'temperature', label: 'Cold outlet T',
+        showIf: (p) => p.mode === 'both_T' || p.mode === 'solve_hot',
+        required: (p) => p.mode === 'both_T' || p.mode === 'solve_hot' },
+      { key: 'duty_kW', kind: 'number', label: 'Duty (+ = hot → cold)', unit: 'kW',
+        showIf: (p) => p.mode === 'duty', required: (p) => p.mode === 'duty' },
+      { key: 'arrangement', kind: 'select', label: 'Arrangement', def: 'counter',
+        options: [['counter', 'Counter-current'], ['cocurrent', 'Co-current']] },
+      { key: 'dP_hot_bar', kind: 'dpressure', label: 'Hot-side ΔP', hint: 'blank = 0' },
+      { key: 'dP_cold_bar', kind: 'dpressure', label: 'Cold-side ΔP', hint: 'blank = 0' },
+      { key: 'U_W_m2K', kind: 'number', label: 'U (optional → area)', unit: 'W/m²K' },
+    ],
+  },
+  'rotating': {
+    label: 'Pump / Compr / Turbine', sym: 'R', category: 'pressure',
+    desc: 'Pump ΔP·η · compressor / turbine isentropic + η',
+    inlets: { min: 1, max: 1, initial: 1, label: () => 'Suction' },
+    outlets: () => ['Discharge'],
+    fields: [
+      { key: 'machine', kind: 'select', label: 'Machine', def: 'pump',
+        options: [['pump', 'Pump (liquid)'], ['compressor', 'Compressor'], ['turbine', 'Turbine / expander']] },
+      { key: 'dP_bar', kind: 'dpressure', label: 'ΔP rise',
+        showIf: (p) => p.machine === 'pump', hint: 'give ΔP or outlet P' },
+      { key: 'P_out_bar', kind: 'pressure', label: 'Outlet pressure',
+        showIf: () => true,
+        required: (p) => p.machine !== 'pump' },
+      { key: 'eta', kind: 'number', label: 'Efficiency η (0–1]', unit: '–', def: 0.7,
+        required: () => true },
+    ],
+  },
+  'reactor': {
+    label: 'Conversion Reactor', sym: 'RX', category: 'reaction',
+    desc: '≤3 reactions · sequential extents · formation-basis duty',
+    inlets: { min: 1, max: 1, initial: 1, label: () => 'Feed' },
+    outlets: () => ['Effluent'],
+    fields: [
+      { key: 'mode', kind: 'select', label: 'Thermal mode', def: 'isothermal',
+        options: [['isothermal', 'Isothermal (T out = T feed)'],
+                  ['adiabatic', 'Adiabatic (solve T out)'],
+                  ['specified_T', 'Specified outlet T']] },
+      { key: 'T_out_K', kind: 'temperature', label: 'Outlet temperature',
+        showIf: (p) => p.mode === 'specified_T', required: (p) => p.mode === 'specified_T' },
+      { key: 'Q_kW', kind: 'number', label: 'Extra duty Q', unit: 'kW',
+        showIf: (p) => p.mode === 'adiabatic', hint: 'optional, adiabatic only' },
+      { key: 'P_out_bar', kind: 'pressure', label: 'Outlet pressure', hint: 'blank = feed P' },
+      { key: 'reactions', kind: 'reactions', label: 'Reactions' },
+    ],
+  },
+};
+const PALETTE_ORDER = ['mixer', 'splitter', 'flash', 'heat-exchanger', 'rotating', 'reactor'];
+
+/* =====================================================================
+   2. STATE
+===================================================================== */
+let state = { v: 1, units: [] };
+let uid = 1;
+let componentsDB = null;          // [{key,name,formula,mw,category,...}]
+let compByKey = {};
+
+function newStream(role, label) {
+  return {
+    id: 's' + (uid++), role, label,
+    mass_flow_kg_h: null, T_K: null, P_bar: null,
+    components: [],                 // {key,name,mw,mass_fraction}
+    compMode: 'mass',
+    du: { flow: 'kg/h', T: 'C', P: 'bar' },   // per-stream display units
+  };
+}
+
+function newUnit(moduleKey) {
+  const def = MODULE_DEFS[moduleKey];
+  const u = {
+    id: 'u' + (uid++), module: moduleKey,
+    nOut: def.nOut ? def.nOut.initial : def.outlets({}).length,
+    streams: [], params: {}, paramUnits: {}, result: null, apiWarnings: [],
+  };
+  for (const f of def.fields) if (f.def !== undefined) u.params[f.key] = f.def;
+  if (moduleKey === 'splitter') u.params.fractions = [0.5, 0.5];
+  if (moduleKey === 'reactor') u.params.reactions = [blankReaction()];
+  for (let i = 0; i < def.inlets.initial; i++) {
+    u.streams.push(newStream('in', def.inlets.label(i)));
+  }
+  return u;
+}
+function blankReaction() {
+  return { stoich: [{ key: '', nu: -1 }, { key: '', nu: 1 }], limiting: '', conversion: 0.9 };
+}
+function outletLabels(u) { return MODULE_DEFS[u.module].outlets(u); }
+
+/* =====================================================================
+   3. COMPONENT PICKER DATA  (GET ?module=components, 24 h cached)
+===================================================================== */
+async function loadComponents() {
+  if (componentsDB) return componentsDB;
+  try {
+    const raw = localStorage.getItem(LS_COMPS);
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && c.t && Date.now() - c.t < COMPS_TTL_MS && Array.isArray(c.data)) {
+        setComponents(c.data);
+        return componentsDB;
+      }
+    }
+  } catch (_e) { /* ignore cache errors */ }
+  const r = await fetch(API + '?module=components');
+  const j = await r.json();
+  if (!r.ok || !j.ok || !Array.isArray(j.components)) {
+    throw new Error((j.error && j.error.message) || 'components endpoint failed');
+  }
+  setComponents(j.components);
+  try { localStorage.setItem(LS_COMPS, JSON.stringify({ t: Date.now(), data: j.components })); }
+  catch (_e) { /* storage full — fine */ }
+  return componentsDB;
+}
+function setComponents(list) {
+  componentsDB = list;
+  compByKey = {};
+  for (const c of list) compByKey[c.key] = c;
+}
+function getRecents() {
+  try { return JSON.parse(localStorage.getItem(LS_RECENT)) || []; } catch (_e) { return []; }
+}
+function pushRecent(key) {
+  const r = getRecents().filter((k) => k !== key);
+  r.unshift(key);
+  try { localStorage.setItem(LS_RECENT, JSON.stringify(r.slice(0, 8))); } catch (_e) {}
+}
+
+/* =====================================================================
+   4. RENDER — palette
+===================================================================== */
+function palIcon(color) {
+  const s = sv('svg', { width: 26, height: 26, viewBox: '0 0 26 26', 'aria-hidden': 'true' });
+  s.append(sv('rect', { x: 5, y: 6, width: 16, height: 14, rx: 4, fill: 'none', stroke: color, 'stroke-width': 1.6 }));
+  s.append(sv('line', { x1: 0, y1: 13, x2: 5, y2: 13, stroke: color, 'stroke-width': 1.6 }));
+  s.append(sv('line', { x1: 21, y1: 13, x2: 26, y2: 13, stroke: color, 'stroke-width': 1.6 }));
+  return s;
+}
+function renderPalette() {
+  const host = document.getElementById('palList');
+  host.textContent = '';
+  for (const k of PALETTE_ORDER) {
+    const d = MODULE_DEFS[k];
+    const c = CAT_COLORS[d.category];
+    const b = el('button', {
+      class: 'pal-item', draggable: 'true', style: '--c:' + c,
+      onclick: () => addUnit(k),
+      ondragstart: (e) => e.dataTransfer.setData('text/mb-module', k),
+    }, palIcon(c), el('span', null, el('span', { class: 'nm' }, d.label), el('span', { class: 'ds' }, d.desc)));
+    host.append(b);
+  }
+}
+const canvas = document.getElementById('canvas');
+canvas.addEventListener('dragover', (e) => {
+  if (e.dataTransfer.types.includes('text/mb-module')) e.preventDefault();
+});
+canvas.addEventListener('drop', (e) => {
+  const k = e.dataTransfer.getData('text/mb-module');
+  if (k && MODULE_DEFS[k]) { e.preventDefault(); addUnit(k); }
+});
+
+function addUnit(moduleKey, feedStream) {
+  const u = newUnit(moduleKey);
+  if (feedStream) Object.assign(u.streams[0], {
+    mass_flow_kg_h: feedStream.mass_flow_kg_h, T_K: feedStream.T_K,
+    P_bar: feedStream.P_bar,
+    components: feedStream.components.map((c) => ({ ...c })),
+  });
+  state.units.push(u);
+  renderUnits();
+  scheduleSave();
+  u._scroll = true;
+  const dom = document.getElementById(u.id);
+  if (dom) dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return u;
+}
+
+/* =====================================================================
+   5. RENDER — unit cards + SVG diagram
+===================================================================== */
+function renderUnits() {
+  const host = document.getElementById('units');
+  document.getElementById('empty').style.display = state.units.length ? 'none' : '';
+  host.textContent = '';
+  for (const u of state.units) host.append(renderUnit(u));
+}
+
+function renderUnit(u) {
+  const def = MODULE_DEFS[u.module];
+  const color = CAT_COLORS[def.category];
+  const card = el('div', { class: 'unit', id: u.id, style: '--uc:' + color });
+
+  /* head */
+  const head = el('div', { class: 'unit-head' },
+    el('span', { class: 'tag' }, def.sym),
+    el('span', { class: 'nm' }, def.label),
+    el('button', { title: 'Remove unit', 'aria-label': 'Remove ' + def.label,
+      onclick: () => { state.units = state.units.filter((x) => x !== u); renderUnits(); scheduleSave(); } }, '✕'));
+  card.append(head);
+
+  /* diagram */
+  const dia = el('div', { class: 'usect' });
+  dia.append(renderDiagram(u));
+  const rb = el('div', { class: 'rowbtns' });
+  if (def.inlets.max > def.inlets.min) {
+    rb.append(el('button', { class: 'sbtn', onclick: () => {
+      if (u.streams.length >= def.inlets.max) return toast('Max ' + def.inlets.max + ' inlets', 'info');
+      u.streams.push(newStream('in', def.inlets.label(u.streams.length)));
+      renderUnits(); scheduleSave();
+    } }, '＋ Inlet'));
+    if (u.streams.length > def.inlets.min) {
+      rb.append(el('button', { class: 'sbtn', onclick: () => {
+        u.streams.pop(); u.result = null; renderUnits(); scheduleSave();
+      } }, '− Inlet'));
+    }
+  }
+  if (def.nOut) {
+    rb.append(el('button', { class: 'sbtn', onclick: () => {
+      if (u.nOut >= def.nOut.max) return toast('Max ' + def.nOut.max + ' outlets', 'info');
+      u.nOut++; u.params.fractions.push(0); u.result = null; renderUnits(); scheduleSave();
+    } }, '＋ Outlet'));
+    if (u.nOut > def.nOut.min) {
+      rb.append(el('button', { class: 'sbtn', onclick: () => {
+        u.nOut--; u.params.fractions.pop(); u.result = null; renderUnits(); scheduleSave();
+      } }, '− Outlet'));
+    }
+  }
+  if (rb.children.length) dia.append(rb);
+  card.append(dia);
+
+  /* params */
+  const ps = el('div', { class: 'usect' }, el('div', { class: 'cap' }, 'Unit parameters'));
+  ps.append(renderParams(u));
+  if (def.note) ps.append(el('div', { class: 'field' }, el('div', { class: 'hint' }, def.note)));
+  card.append(ps);
+
+  /* solve */
+  const ss = el('div', { class: 'usect' });
+  const btn = el('button', { class: 'solve', onclick: () => solveUnit(u, btn) }, 'Solve ▸');
+  ss.append(btn);
+  card.append(ss);
+
+  /* results */
+  if (u.result) card.append(renderResults(u));
+  return card;
+}
+
+/* ---- SVG flowsheet block with auto chips ---- */
+const CHIP_W = 240, CHIP_H = 52, GAP = 14;
+function renderDiagram(u) {
+  const def = MODULE_DEFS[u.module];
+  const inl = u.streams;
+  const outs = outletLabels(u);
+  const rows = Math.max(inl.length, outs.length);
+  const H = rows * (CHIP_H + GAP) + 24;
+  const W = 760, BX = 300, BW = 160;
+  const svg = sv('svg', { class: 'diagram', viewBox: `0 0 ${W} ${H}`,
+    role: 'group', 'aria-label': def.label + ' flowsheet block' });
+
+  const defs = sv('defs', null,
+    sv('linearGradient', { id: 'bezelGrad', x1: 0, y1: 0, x2: 0, y2: 1 },
+      sv('stop', { offset: '0', 'stop-color': '#17383f' }),
+      sv('stop', { offset: '1', 'stop-color': '#0f272c' })));
+  svg.append(defs);
+
+  const yAt = (i, n) => {
+    const total = n * CHIP_H + (n - 1) * GAP;
+    return (H - total) / 2 + i * (CHIP_H + GAP);
+  };
+
+  /* block */
+  const by = 12, bh = H - 24;
+  const blk = sv('g', { class: 'blk', style: '--uc:' + CAT_COLORS[def.category] });
+  blk.append(sv('rect', { x: BX, y: by, width: BW, height: bh, rx: 12 }));
+  blk.append(sv('text', { class: 'sym', x: BX + BW / 2, y: H / 2 - 4,
+    fill: CAT_COLORS[def.category] }, def.sym));
+  blk.append(sv('text', { x: BX + BW / 2, y: H / 2 + 16 }, def.label.split(' ')[0]));
+  svg.append(blk);
+
+  /* inlet chips */
+  inl.forEach((st, i) => {
+    const y = yAt(i, inl.length);
+    svg.append(sv('path', { class: 'wire',
+      d: `M ${10 + CHIP_W} ${y + CHIP_H / 2} C ${BX - 30} ${y + CHIP_H / 2}, ${BX - 30} ${H / 2}, ${BX} ${H / 2}` }));
+    svg.append(chip(st, 10, y, u, i, null));
+  });
+  /* outlet chips */
+  outs.forEach((label, i) => {
+    const y = yAt(i, outs.length);
+    svg.append(sv('path', { class: 'wire out',
+      d: `M ${BX + BW} ${H / 2} C ${BX + BW + 30} ${H / 2}, ${BX + BW + 30} ${y + CHIP_H / 2}, ${W - 10 - CHIP_W} ${y + CHIP_H / 2}` }));
+    const res = u.result && u.result.streams_out && u.result.streams_out[i];
+    svg.append(chip({ label, role: 'out' }, W - 10 - CHIP_W, y, u, i, res || false));
+  });
+  return svg;
+}
+
+function chip(st, x, y, unit, idx, outRes) {
+  const isOut = st.role === 'out';
+  const filled = isOut ? !!outRes
+    : num(st.mass_flow_kg_h) && num(st.T_K) && st.components.length > 0;
+  const g = sv('g', { class: 'chip ' + (isOut ? 'out' : 'in') + (filled ? '' : ' empty'),
+    tabindex: 0, role: 'button',
+    'aria-label': (isOut ? 'Outlet ' : 'Inlet ') + st.label });
+  g.append(sv('rect', { x, y, width: CHIP_W, height: CHIP_H, rx: 9 }));
+  g.append(sv('text', { x: x + 12, y: y + 20 }, st.label));
+  let line2 = 'tap to define';
+  let line3 = '';
+  if (!isOut && filled) {
+    line2 = fmt(st.mass_flow_kg_h) + ' kg/h · ' + fmt(st.T_K - 273.15, 4) + ' °C';
+    line3 = fmt(st.P_bar, 4) + ' bar · ' + st.components.length + ' comp';
+  } else if (isOut && outRes) {
+    line2 = fmt(outRes.mass_flow_kg_h) + ' kg/h · ' + fmt(outRes.T_K - 273.15, 4) + ' °C';
+    line3 = fmt(outRes.P_bar, 4) + ' bar';
+  } else if (isOut) {
+    line2 = 'solve to fill';
+  }
+  g.append(sv('text', { class: 'val', x: x + 12, y: y + 36 }, line2));
+  if (line3) g.append(sv('text', { class: 'ph', x: x + 12, y: y + 48 }, line3));
+  const open = () => isOut
+    ? (outRes ? openOutletViewer(unit, idx) : toast('Solve the unit first — outlets are computed server-side.', 'info'))
+    : openStreamEditor(unit, idx);
+  g.addEventListener('click', open);
+  g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  return g;
+}
+
+/* =====================================================================
+   6. PARAMS UI (per MODULE_DEFS field kinds)
+===================================================================== */
+function renderParams(u) {
+  const def = MODULE_DEFS[u.module];
+  const grid = el('div', { class: 'pgrid' });
+  for (const f of def.fields) {
+    if (f.showIf && !f.showIf(u.params)) continue;
+    if (f.kind === 'fractions') { grid.append(fractionsField(u)); continue; }
+    if (f.kind === 'reactions') { grid.append(reactionsField(u)); continue; }
+    grid.append(paramField(u, f));
+  }
+  return grid;
+}
+
+function paramField(u, f) {
+  const wrap = el('div', { class: 'field' });
+  wrap.append(el('label', { for: u.id + '_' + f.key }, f.label +
+    (f.required && f.required(u.params) ? ' *' : '')));
+  if (f.kind === 'select') {
+    const s = el('select', { id: u.id + '_' + f.key, onchange: (e) => {
+      u.params[f.key] = e.target.value; u.result = null; renderUnits(); scheduleSave();
+    } });
+    for (const [v, t] of f.options) s.append(el('option', { value: v }, t));
+    s.value = u.params[f.key] !== undefined ? u.params[f.key] : f.def;
+    wrap.append(s);
+  } else if (f.kind === 'temperature' || f.kind === 'pressure' || f.kind === 'dpressure') {
+    const table = f.kind === 'temperature' ? T_UNITS : (f.kind === 'pressure' ? P_UNITS : DP_UNITS);
+    const uKey = u.paramUnits[f.key] || (f.kind === 'temperature' ? 'C' : 'bar');
+    u.paramUnits[f.key] = uKey;
+    const duo = el('div', { class: 'duo' });
+    const inp = el('input', { id: u.id + '_' + f.key, type: 'number', step: 'any',
+      inputmode: 'decimal', placeholder: f.hint || '' });
+    const si = u.params[f.key];
+    if (num(si)) inp.value = round6(table[uKey].fromSI(si));
+    inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value);
+      const tab = table[u.paramUnits[f.key]];
+      u.params[f.key] = isFinite(v) ? tab.toSI(v) : undefined;
+      scheduleSave();
+    });
+    const sel = el('select', { 'aria-label': f.label + ' unit' });
+    for (const k in table) sel.append(el('option', { value: k },
+      f.kind === 'dpressure' ? 'Δ' + k : k));
+    sel.value = uKey;
+    sel.addEventListener('change', () => {
+      u.paramUnits[f.key] = sel.value;
+      const si2 = u.params[f.key];
+      inp.value = num(si2) ? round6(table[sel.value].fromSI(si2)) : '';
+    });
+    duo.append(inp, sel);
+    wrap.append(duo);
+  } else { /* plain number */
+    const duo = el('div', { class: 'duo' });
+    const inp = el('input', { id: u.id + '_' + f.key, type: 'number', step: 'any',
+      inputmode: 'decimal', placeholder: f.hint || '' });
+    if (num(u.params[f.key])) inp.value = u.params[f.key];
+    inp.addEventListener('input', () => {
+      const v = parseFloat(inp.value);
+      u.params[f.key] = isFinite(v) ? v : undefined;
+      scheduleSave();
+    });
+    duo.append(inp, el('select', { disabled: 'disabled', 'aria-hidden': 'true' },
+      el('option', null, f.unit || '')));
+    wrap.append(duo);
+  }
+  if (f.hint) wrap.append(el('div', { class: 'hint' }, f.hint));
+  return wrap;
+}
+function round6(x) { return Math.round(x * 1e6) / 1e6; }
+
+/* splitter fractions — one input per outlet, live sum */
+function fractionsField(u) {
+  const wrap = el('div', { class: 'field', style: 'grid-column:1/-1' });
+  wrap.append(el('label', null, 'Split fractions (must sum to 1)'));
+  const rows = el('div');
+  const sumRow = el('div', { class: 'sumrow' });
+  const redraw = () => {
+    rows.textContent = '';
+    u.params.fractions.forEach((fr, i) => {
+      const r = el('div', { class: 'crow' });
+      r.append(el('span', { class: 'cn' }, 'Outlet ' + (i + 1)));
+      const inp = el('input', { type: 'number', step: 'any', min: 0, max: 1,
+        inputmode: 'decimal', value: num(fr) ? fr : '' });
+      inp.addEventListener('input', () => {
+        const v = parseFloat(inp.value);
+        u.params.fractions[i] = isFinite(v) ? v : 0;
+        upSum(); scheduleSave();
+      });
+      r.append(inp);
+      rows.append(r);
+    });
+    upSum();
+  };
+  const upSum = () => {
+    const s = u.params.fractions.reduce((a, b) => a + (num(b) ? b : 0), 0);
+    sumRow.className = 'sumrow ' + (Math.abs(s - 1) <= 1e-3 ? 'ok' : 'bad');
+    sumRow.textContent = '';
+    sumRow.append(el('span', { class: 's' }, 'Σ = ' + fmt(s, 5)),
+      el('button', { class: 'sbtn', onclick: () => {
+        const t = u.params.fractions.reduce((a, b) => a + (num(b) ? b : 0), 0);
+        if (t > 0) u.params.fractions = u.params.fractions.map((f) => f / t);
+        redraw(); scheduleSave();
+      } }, 'Normalize'));
+  };
+  redraw();
+  wrap.append(rows, sumRow);
+  return wrap;
+}
+
+/* reactor reactions editor */
+function reactionsField(u) {
+  const wrap = el('div', { class: 'field', style: 'grid-column:1/-1' });
+  wrap.append(el('label', null, 'Reactions (ν < 0 reactants · ν > 0 products · applied in order)'));
+  const host = el('div');
+  const redraw = () => {
+    host.textContent = '';
+    u.params.reactions.forEach((rx, j) => {
+      const box = el('div', { style: 'border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0' });
+      box.append(el('div', { class: 'cap' }, 'Reaction ' + (j + 1)));
+      rx.stoich.forEach((row, i) => {
+        const r = el('div', { class: 'crow' });
+        const sel = compSelect(u, row.key, (k) => { row.key = k; syncLimiting(rx); redraw(); scheduleSave(); });
+        sel.classList.add('cn');
+        const nu = el('input', { type: 'number', step: 'any', inputmode: 'decimal',
+          'aria-label': 'stoichiometric coefficient', value: num(row.nu) ? row.nu : '' });
+        nu.addEventListener('input', () => {
+          const v = parseFloat(nu.value);
+          row.nu = isFinite(v) ? v : 0;
+          syncLimiting(rx); scheduleSave();
+        });
+        r.append(sel, nu,
+          el('button', { class: 'rm', 'aria-label': 'remove species', onclick: () => {
+            rx.stoich.splice(i, 1); redraw(); scheduleSave();
+          } }, '✕'));
+        box.append(r);
+      });
+      const lim = el('div', { class: 'crow' });
+      lim.append(el('span', { class: 'cn' }, 'Limiting reactant'));
+      const ls = el('select', { 'aria-label': 'limiting reactant' });
+      ls.append(el('option', { value: '' }, '— pick —'));
+      for (const row of rx.stoich) if (row.key && row.nu < 0) {
+        ls.append(el('option', { value: row.key },
+          (compByKey[row.key] ? compByKey[row.key].name : row.key)));
+      }
+      ls.value = rx.limiting || '';
+      ls.addEventListener('change', () => { rx.limiting = ls.value; scheduleSave(); });
+      lim.append(ls);
+      box.append(lim);
+      const cv = el('div', { class: 'crow' });
+      cv.append(el('span', { class: 'cn' }, 'Conversion of limiting, X (0–1]'));
+      const ci = el('input', { type: 'number', step: 'any', min: 0, max: 1,
+        inputmode: 'decimal', value: num(rx.conversion) ? rx.conversion : '' });
+      ci.addEventListener('input', () => {
+        const v = parseFloat(ci.value);
+        rx.conversion = isFinite(v) ? v : undefined;
+        scheduleSave();
+      });
+      cv.append(ci);
+      box.append(cv);
+      const bb = el('div', { class: 'rowbtns' });
+      bb.append(el('button', { class: 'sbtn', onclick: () => { rx.stoich.push({ key: '', nu: 1 }); redraw(); scheduleSave(); } }, '＋ Species'));
+      if (u.params.reactions.length > 1) {
+        bb.append(el('button', { class: 'sbtn', onclick: () => { u.params.reactions.splice(j, 1); redraw(); scheduleSave(); } }, 'Remove reaction'));
+      }
+      box.append(bb);
+      host.append(box);
+    });
+    if (u.params.reactions.length < 3) {
+      host.append(el('button', { class: 'sbtn', onclick: () => {
+        u.params.reactions.push(blankReaction()); redraw(); scheduleSave();
+      } }, '＋ Reaction'));
+    }
+  };
+  redraw();
+  wrap.append(host);
+  return wrap;
+}
+function syncLimiting(rx) {
+  if (rx.limiting && !rx.stoich.some((r) => r.key === rx.limiting && r.nu < 0)) rx.limiting = '';
+}
+/** Select fed by the picker DB + any keys already in the unit's feed. */
+function compSelect(u, current, onPick) {
+  const s = el('select');
+  s.append(el('option', { value: '' }, '— component —'));
+  const seen = new Set();
+  const add = (key, name) => {
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    s.append(el('option', { value: key }, name || key));
+  };
+  for (const c of (u.streams[0] ? u.streams[0].components : [])) add(c.key, c.name);
+  if (componentsDB) for (const c of componentsDB) add(c.key, c.name + (c.formula ? ' (' + c.formula + ')' : ''));
+  if (current) add(current, current);
+  s.value = current || '';
+  s.addEventListener('change', () => onPick(s.value));
+  if (!componentsDB) loadComponents().then(() => { /* options refresh on next redraw */ }).catch(() => {});
+  return s;
+}
+
+/* =====================================================================
+   7. STREAM EDITOR (bottom sheet / modal)
+===================================================================== */
+const sheetWrap = document.getElementById('sheetWrap');
+const sheet = document.getElementById('sheet');
+sheetWrap.addEventListener('click', (e) => { if (e.target.dataset.close) closeSheet(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+function openSheet(node) { sheet.textContent = ''; sheet.append(node); sheetWrap.classList.add('open'); }
+function closeSheet() { sheetWrap.classList.remove('open'); renderUnits(); scheduleSave(); }
+
+function openStreamEditor(u, idx) {
+  const st = u.streams[idx];
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' },
+      el('h3', null, st.label + ' — stream editor'),
+      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
+    el('div', { class: 'sub' }, 'Values are converted instantly; the solver always receives base SI (kg/h · K · bar abs).'));
+
+  /* --- flow / T / P with unit dropdowns --- */
+  const grid = el('div', { class: 'pgrid' });
+  grid.append(fTPfield(st, 'flow'), fTPfield(st, 'T'), fTPfield(st, 'P'));
+  box.append(grid);
+
+  /* --- composition --- */
+  box.append(el('div', { class: 'cap', style: 'margin-top:16px' }, 'Composition'));
+  const modes = el('div', { class: 'modes' });
+  const compHost = el('div');
+  const sumRow = el('div', { class: 'sumrow' });
+  const MODES = [['mass', 'mass %'], ['mole', 'mole %'], ['flows', 'flows kg/h']];
+
+  /* editor working values in the CURRENT mode; canonical = mass_fraction */
+  let vals = toModeVals(st, st.compMode);
+
+  function toModeVals(s, mode) {
+    if (mode === 'mass') return s.components.map((c) => c.mass_fraction * 100);
+    if (mode === 'flows') return s.components.map((c) =>
+      num(s.mass_flow_kg_h) ? c.mass_fraction * s.mass_flow_kg_h : c.mass_fraction * 100);
+    const x = moleFractions(s.components);
+    return x ? x.map((v) => v * 100) : null;
+  }
+  /** write current-mode vals back to canonical mass fractions (+ flow in flows mode) */
+  function commit() {
+    const cs = st.components;
+    if (!cs.length) return;
+    if (st.compMode === 'mass') {
+      const s = vals.reduce((a, b) => a + (num(b) ? b : 0), 0);
+      if (s > 0) cs.forEach((c, i) => { c.mass_fraction = (num(vals[i]) ? vals[i] : 0) / s; });
+    } else if (st.compMode === 'flows') {
+      const s = vals.reduce((a, b) => a + (num(b) ? b : 0), 0);
+      if (s > 0) {
+        cs.forEach((c, i) => { c.mass_fraction = (num(vals[i]) ? vals[i] : 0) / s; });
+        st.mass_flow_kg_h = s;
+        drawFTP(); // total flow readout follows the sum
+      }
+    } else { /* mole% → mass fractions needs MWs */
+      let denom = 0;
+      const wi = [];
+      for (let i = 0; i < cs.length; i++) {
+        const mw = cs[i].mw;
+        if (!num(mw) || mw <= 0) return; // silently keep old canonical
+        const t = (num(vals[i]) ? vals[i] : 0) * mw;
+        wi.push(t); denom += t;
+      }
+      if (denom > 0) cs.forEach((c, i) => { c.mass_fraction = wi[i] / denom; });
+    }
+    u.result = null;
+  }
+  function drawModes() {
+    modes.textContent = '';
+    for (const [m, lbl] of MODES) {
+      modes.append(el('button', { class: m === st.compMode ? 'on' : '', onclick: () => {
+        if (m === st.compMode) return;
+        const nv = toModeVals(st, m);
+        if (nv === null) return toast('Mole % needs a molecular weight for every component.', 'err');
+        st.compMode = m; vals = nv; drawComp();
+        for (const b of modes.children) b.classList.toggle('on', b.textContent === lbl);
+      } }, lbl));
+    }
+  }
+  function drawComp() {
+    compHost.textContent = '';
+    st.components.forEach((c, i) => {
+      const r = el('div', { class: 'crow' });
+      r.append(el('span', { class: 'cn' }, c.name || c.key,
+        el('small', null, (c.formula || '') + (num(c.mw) ? ' · MW ' + fmt(c.mw, 4) : ' · MW ?'))));
+      const inp = el('input', { type: 'number', step: 'any', inputmode: 'decimal',
+        'aria-label': (c.name || c.key) + ' amount',
+        value: num(vals[i]) ? round6(vals[i]) : '' });
+      inp.addEventListener('input', () => {
+        const v = parseFloat(inp.value);
+        vals[i] = isFinite(v) ? v : 0;
+        commit(); drawSum();
+      });
+      r.append(inp,
+        el('button', { class: 'rm', 'aria-label': 'remove ' + (c.name || c.key), onclick: () => {
+          st.components.splice(i, 1); vals.splice(i, 1); commit(); drawComp();
+        } }, '✕'));
+      compHost.append(r);
+    });
+    drawSum();
+  }
+  function drawSum() {
+    const s = vals.reduce((a, b) => a + (num(b) ? b : 0), 0);
+    const isFlows = st.compMode === 'flows';
+    const ok = isFlows ? s > 0 : Math.abs(s - 100) <= 0.5;
+    sumRow.className = 'sumrow ' + (ok ? 'ok' : 'bad');
+    sumRow.textContent = '';
+    sumRow.append(el('span', { class: 's' },
+      isFlows ? 'Σ = ' + fmt(s) + ' kg/h (sets total flow)' : 'Σ = ' + fmt(s, 6) + ' %'));
+    if (!isFlows) sumRow.append(el('button', { class: 'sbtn', onclick: () => {
+      const t = vals.reduce((a, b) => a + (num(b) ? b : 0), 0);
+      if (t > 0) vals = vals.map((v) => v * 100 / t);
+      commit(); drawComp();
+    } }, 'Normalize'));
+  }
+
+  drawModes(); drawComp();
+  box.append(modes, compHost, sumRow,
+    el('div', { class: 'rowbtns' },
+      el('button', { class: 'sbtn', onclick: () => openPicker((comp) => {
+        if (st.components.some((c) => c.key === comp.key)) return toast('Already in the stream.', 'info');
+        st.components.push({ key: comp.key, name: comp.name, formula: comp.formula,
+          mw: comp.mw, mass_fraction: 0 });
+        pushRecent(comp.key);
+        vals = toModeVals(st, st.compMode) || vals.concat([0]);
+        if (vals.length < st.components.length) vals.push(0);
+        drawComp();
+      }) }, '＋ Add component'),
+      el('button', { class: 'solve', style: 'margin-left:auto', onclick: closeSheet }, 'Done')));
+
+  /* flow/T/P duo builder + refresh hook (flows mode updates the flow box) */
+  let flowInputRef = null;
+  function fTPfield(s, which) {
+    const table = which === 'flow' ? FLOW_UNITS : which === 'T' ? T_UNITS : P_UNITS;
+    const label = which === 'flow' ? 'Total flow' : which === 'T' ? 'Temperature' : 'Pressure (abs)';
+    const siKey = which === 'flow' ? 'mass_flow_kg_h' : which === 'T' ? 'T_K' : 'P_bar';
+    const wrap = el('div', { class: 'field' });
+    wrap.append(el('label', null, label + ' *'));
+    const duo = el('div', { class: 'duo' });
+    const inp = el('input', { type: 'number', step: 'any', inputmode: 'decimal' });
+    const sel = el('select', { 'aria-label': label + ' unit' });
+    for (const k in table) sel.append(el('option', { value: k }, k));
+    sel.value = s.du[which];
+    const show = () => {
+      const t = table[s.du[which]];
+      const si = s[siKey];
+      if (!num(si)) { inp.value = ''; return; }
+      if (t.molar) {
+        const mw = mwAvg(s.components);
+        inp.value = mw ? round6(t.fromSI(si, mw)) : '';
+        if (!mw) inp.placeholder = 'needs full composition + MWs';
+      } else inp.value = round6(t.fromSI(si));
+    };
+    inp.addEventListener('input', () => {
+      const t = table[s.du[which]];
+      const v = parseFloat(inp.value);
+      if (!isFinite(v)) { s[siKey] = null; u.result = null; return; }
+      if (t.molar) {
+        const mw = mwAvg(s.components);
+        if (!mw) return toast('Molar flow needs a complete composition with known MWs first.', 'err');
+        s[siKey] = t.toSI(v, mw);
+      } else s[siKey] = t.toSI(v);
+      u.result = null;
+    });
+    sel.addEventListener('change', () => {
+      const t = table[sel.value];
+      if (t.molar && !mwAvg(s.components)) {
+        sel.value = s.du[which];
+        return toast('Add the composition (with MWs) before switching to molar units.', 'err');
+      }
+      s.du[which] = sel.value;
+      show();
+    });
+    show();
+    if (which === 'flow') flowInputRef = show;
+    duo.append(inp, sel);
+    wrap.append(duo);
+    return wrap;
+  }
+  function drawFTP() { if (flowInputRef) flowInputRef(); }
+
+  openSheet(box);
+}
+
+/* ---- outlet viewer (read-only, from server result) ---- */
+function openOutletViewer(u, idx) {
+  const res = u.result.streams_out[idx];
+  const label = outletLabels(u)[idx];
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' },
+      el('h3', null, label + ' — solved stream'),
+      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
+    el('div', { class: 'sub' }, 'Computed server-side (engine result, base SI).'));
+  const kv = el('div', { class: 'kv' });
+  kv.append(el('b', null, 'Mass flow'), el('span', null, fmt(res.mass_flow_kg_h) + ' kg/h'),
+    el('b', null, 'Temperature'), el('span', null, fmt(res.T_K, 6) + ' K  (' + fmt(res.T_K - 273.15, 5) + ' °C)'),
+    el('b', null, 'Pressure'), el('span', null, fmt(res.P_bar, 5) + ' bar abs'),
+    el('b', null, 'Enthalpy H'), el('span', null, fmt(res.H_kJh) + ' kJ/h'));
+  box.append(kv);
+  if (Array.isArray(res.components) && res.components.length) {
+    const t = el('table', null, el('thead', null, el('tr', null,
+      el('th', null, 'Component'), el('th', null, 'mass frac'),
+      el('th', null, 'kg/h'), el('th', null, 'phase'))));
+    const tb = el('tbody');
+    for (const c of res.components) {
+      tb.append(el('tr', null,
+        el('td', null, (compByKey[c.key] && compByKey[c.key].name) || c.key),
+        el('td', null, fmt(c.mass_fraction, 5)),
+        el('td', null, fmt(c.mass_fraction * res.mass_flow_kg_h)),
+        el('td', null, c.phase || '—')));
+    }
+    t.append(tb);
+    box.append(el('div', { class: 'accbody' }, t));
+  }
+  const send = el('div', { class: 'sendrow' });
+  send.append(el('span', { style: 'align-self:center;color:var(--dim);font-size:13px' }, 'Send outlet to new unit:'));
+  for (const k of PALETTE_ORDER) {
+    send.append(el('button', { class: 'sbtn', style: 'border-left:3px solid ' + CAT_COLORS[MODULE_DEFS[k].category],
+      onclick: () => {
+        closeSheet();
+        addUnit(k, sanitizeOutlet(res));
+        toast('Outlet forwarded to a new ' + MODULE_DEFS[k].label + '.', 'ok');
+      } }, MODULE_DEFS[k].sym + ' ' + MODULE_DEFS[k].label.split(' ')[0]));
+  }
+  box.append(send);
+  openSheet(box);
+}
+/** Deep-copy a solved outlet into an input-stream shape (phases dropped). */
+function sanitizeOutlet(res) {
+  return {
+    mass_flow_kg_h: res.mass_flow_kg_h, T_K: res.T_K, P_bar: res.P_bar,
+    components: (res.components || []).map((c) => ({
+      key: c.key,
+      name: (compByKey[c.key] && compByKey[c.key].name) || c.key,
+      formula: compByKey[c.key] ? compByKey[c.key].formula : null,
+      mw: compByKey[c.key] ? compByKey[c.key].mw : null,
+      mass_fraction: c.mass_fraction,
+    })),
+  };
+}
+
+/* =====================================================================
+   8. COMPONENT PICKER
+===================================================================== */
+function openPicker(onPick) {
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' },
+      el('h3', null, 'Add component'),
+      el('button', { class: 'xclose', 'aria-label': 'Close picker', onclick: () => { closeSheetKeepEditor(); } }, '✕')));
+  const search = el('input', { type: 'search', placeholder: 'Search name, formula, key…', 'aria-label': 'search components' });
+  box.append(el('div', { class: 'pick-search' }, search));
+  const cats = el('div', { class: 'catchips' });
+  const list = el('div', { class: 'pick-list', role: 'listbox' });
+  box.append(cats, list);
+  let activeCat = '';
+  let q = '';
+
+  /* the picker temporarily replaces the sheet content; restore editor on close */
+  const prev = Array.from(sheet.childNodes);
+  function closeSheetKeepEditor() {
+    sheet.textContent = '';
+    for (const n of prev) sheet.append(n);
+  }
+
+  function draw() {
+    if (!componentsDB) return;
+    /* category chips */
+    cats.textContent = '';
+    const catSet = [...new Set(componentsDB.map((c) => c.category || 'other'))].sort();
+    const chipB = (v, t) => el('button', { class: v === activeCat ? 'on' : '',
+      onclick: () => { activeCat = v; draw(); } }, t);
+    cats.append(chipB('', 'All'));
+    for (const c of catSet) cats.append(chipB(c, c));
+    /* rows */
+    list.textContent = '';
+    const rec = getRecents();
+    const match = (c) => {
+      if (activeCat && (c.category || 'other') !== activeCat) return false;
+      if (!q) return true;
+      const s = q.toLowerCase();
+      return (c.name || '').toLowerCase().includes(s) ||
+             (c.formula || '').toLowerCase().includes(s) ||
+             (c.key || '').toLowerCase().includes(s);
+    };
+    const row = (c) => el('button', { class: 'pick-row', role: 'option', onclick: () => {
+      onPick(c); closeSheetKeepEditor();
+    } },
+      el('span', { class: 'q ' + (c.data_quality || 'estimated'), title: 'data quality: ' + (c.data_quality || '?') }),
+      el('span', { class: 'n' }, c.name, el('small', null,
+        (c.formula || c.key) + (c.nonvolatile ? ' · nonvolatile' : ''))),
+      el('span', { class: 'mw' }, num(c.mw) ? 'MW ' + fmt(c.mw, 5) : ''));
+    if (!q && !activeCat && rec.length) {
+      list.append(el('div', { class: 'cap', style: 'padding:8px 12px 0' }, 'Recently used'));
+      for (const k of rec) if (compByKey[k]) list.append(row(compByKey[k]));
+      list.append(el('div', { class: 'cap', style: 'padding:8px 12px 0' }, 'All components'));
+    }
+    let n = 0;
+    for (const c of componentsDB) {
+      if (!match(c)) continue;
+      list.append(row(c));
+      if (++n >= 250) { list.append(el('div', { class: 'cap', style: 'padding:8px 12px' }, 'refine your search…')); break; }
+    }
+    if (!n) list.append(el('div', { style: 'padding:16px;color:var(--faint)' }, 'No components match.'));
+  }
+  search.addEventListener('input', () => { q = search.value.trim(); draw(); });
+
+  sheet.textContent = '';
+  sheet.append(box);
+  sheetWrap.classList.add('open');
+  if (componentsDB) draw();
+  else {
+    list.append(el('div', { style: 'padding:16px;color:var(--dim)' }, 'Loading component library…'));
+    loadComponents().then(draw).catch((e) => {
+      list.textContent = '';
+      list.append(el('div', { style: 'padding:16px;color:var(--err)' },
+        'Component library unavailable: ' + e.message));
+    });
+  }
+}
+
+/* =====================================================================
+   9. VALIDATE + SOLVE (POST base SI)
+===================================================================== */
+function validateUnit(u) {
+  const def = MODULE_DEFS[u.module];
+  for (let i = 0; i < u.streams.length; i++) {
+    const s = u.streams[i];
+    const at = s.label + ': ';
+    if (!num(s.mass_flow_kg_h) || s.mass_flow_kg_h <= 0) return at + 'mass flow must be > 0.';
+    if (!num(s.T_K) || s.T_K <= 0) return at + 'temperature is required.';
+    if (!num(s.P_bar) || s.P_bar <= 0) return at + 'absolute pressure must be > 0.';
+    if (!s.components.length) return at + 'add at least one component.';
+    const sum = s.components.reduce((a, c) => a + (num(c.mass_fraction) ? c.mass_fraction : 0), 0);
+    if (Math.abs(sum - 1) > 0.005) return at + 'composition sums to ' + fmt(sum * 100, 5) + '% — normalize it.';
+  }
+  for (const f of def.fields) {
+    if (f.showIf && !f.showIf(u.params)) continue;
+    if (f.required && f.required(u.params) && f.kind !== 'fractions' && f.kind !== 'reactions' && f.kind !== 'select') {
+      if (!num(u.params[f.key])) return 'Parameter “' + f.label + '” is required.';
+    }
+  }
+  if (u.module === 'splitter') {
+    const s = u.params.fractions.reduce((a, b) => a + (num(b) ? b : 0), 0);
+    if (Math.abs(s - 1) > 1e-3) return 'Split fractions sum to ' + fmt(s, 5) + ' (must be 1 ± 0.001).';
+  }
+  if (u.module === 'rotating' && u.params.machine === 'pump' &&
+      !num(u.params.dP_bar) && !num(u.params.P_out_bar)) {
+    return 'Pump needs a ΔP rise or an outlet pressure.';
+  }
+  if (u.module === 'reactor') {
+    for (let j = 0; j < u.params.reactions.length; j++) {
+      const rx = u.params.reactions[j];
+      const rows = rx.stoich.filter((r) => r.key && num(r.nu) && r.nu !== 0);
+      if (rows.length < 2 || !rows.some((r) => r.nu < 0) || !rows.some((r) => r.nu > 0)) {
+        return 'Reaction ' + (j + 1) + ' needs at least one reactant (ν<0) and one product (ν>0).';
+      }
+      if (!rx.limiting) return 'Reaction ' + (j + 1) + ': pick the limiting reactant.';
+      if (!num(rx.conversion) || rx.conversion <= 0 || rx.conversion > 1) {
+        return 'Reaction ' + (j + 1) + ': conversion must be in (0, 1].';
+      }
+    }
+  }
+  return null;
+}
+
+/** Build the POST body — base SI only, stripped to the API contract. */
+function buildBody(u) {
+  const streams = u.streams.map((s) => {
+    const sum = s.components.reduce((a, c) => a + c.mass_fraction, 0);
+    return {
+      mass_flow_kg_h: s.mass_flow_kg_h,
+      T_K: s.T_K,
+      P_bar: s.P_bar,
+      components: s.components.map((c) => ({
+        key: c.key, mass_fraction: c.mass_fraction / (sum || 1),
+      })),
+    };
+  });
+  const params = {};
+  const def = MODULE_DEFS[u.module];
+  for (const f of def.fields) {
+    if (f.virtual) continue;
+    if (f.showIf && !f.showIf(u.params)) continue;
+    if (f.kind === 'select') { params[f.key] = u.params[f.key]; continue; }
+    if (f.kind === 'fractions') { params.fractions = u.params.fractions.map((x) => num(x) ? x : 0); continue; }
+    if (f.kind === 'reactions') {
+      params.reactions = u.params.reactions.map((rx) => {
+        const stoich = {};
+        for (const r of rx.stoich) if (r.key && num(r.nu) && r.nu !== 0) stoich[r.key] = r.nu;
+        return { stoich, limiting: rx.limiting, conversion: rx.conversion };
+      });
+      continue;
+    }
+    if (num(u.params[f.key])) params[f.key] = u.params[f.key];
+  }
+  /* mixer 'mode' is virtual — the engine infers from Q_kW / T_out_K presence */
+  if (u.module === 'mixer' && u.params.mode === 'adiabatic') { delete params.Q_kW; delete params.T_out_K; }
+  return { streams, params };
+}
+
+async function solveUnit(u, btn) {
+  const err = validateUnit(u);
+  if (err) return toast(err, 'err');
+  btn.disabled = true;
+  btn.textContent = 'Solving…';
+  try {
+    const r = await fetch(API + '?module=' + encodeURIComponent(u.module), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildBody(u)),
+    });
+    let j;
+    try { j = await r.json(); }
+    catch (_e) { throw new Error('HTTP ' + r.status + ' — non-JSON reply'); }
+    if (j && j.error) {
+      const e = j.error;
+      throw new Error('[' + (e.code || r.status) + '] ' + e.message + (e.field ? ' (field: ' + e.field + ')' : ''));
+    }
+    if (!r.ok || !j.ok || !j.result) throw new Error('HTTP ' + r.status);
+    u.result = j.result;
+    u.apiWarnings = j.warnings || [];
+    u.engineVersion = j.engine_version || '';
+    renderUnits(); scheduleSave();
+    toast('Solved — mass closure ' + fmt(j.result.mass_balance.closure_pct, 3) + ' %', 'ok');
+    const dom = document.getElementById(u.id);
+    if (dom) { const acc = dom.querySelector('.results-anchor'); if (acc) acc.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  } catch (e) {
+    toast('Solve failed: ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Solve ▸';
+  }
+}
+
+/* =====================================================================
+   10. RESULTS RENDERING
+===================================================================== */
+function renderResults(u) {
+  const R = u.result;
+  const wrap = el('div', { class: 'usect results-anchor' });
+  wrap.append(el('div', { class: 'cap' }, 'Results' +
+    (u.engineVersion ? ' · ' + u.engineVersion : '')));
+
+  /* closure banner */
+  const cp = R.mass_balance.closure_pct;
+  const good = num(cp) && Math.abs(cp) < 0.01;
+  const conv = R.converged !== false;
+  const b = el('div', { class: 'banner ' + (good && conv ? 'ok' : (conv ? 'warn' : 'bad')) },
+    el('span', { class: 'dot' }),
+    el('span', null,
+      'MASS CLOSURE ' + fmt(cp, 4) + ' %  ·  in ' + fmt(R.mass_balance.in) +
+      ' / out ' + fmt(R.mass_balance.out) + ' kg/h' +
+      (conv ? '' : '  ·  NOT CONVERGED (' + (R.iterations || 0) + ' it)')));
+  wrap.append(b);
+
+  /* energy line */
+  const eb = R.energy_balance || {};
+  const kv = el('div', { class: 'kv', style: 'margin-bottom:12px' });
+  kv.append(el('b', null, 'H in'), el('span', null, fmt(eb.Hin) + ' kJ/h'),
+    el('b', null, 'H out'), el('span', null, fmt(eb.Hout) + ' kJ/h'),
+    el('b', null, 'Q'), el('span', null, fmt(eb.Q_kW, 5) + ' kW'),
+    el('b', null, 'W (shaft)'), el('span', null, fmt(eb.W_kW, 5) + ' kW'));
+  wrap.append(kv);
+
+  /* stream summary */
+  const d1 = el('details', { class: 'acc', open: '' },
+    el('summary', null, 'Stream summary'));
+  d1.append(el('div', { class: 'accbody' }, streamTable(u)));
+  wrap.append(d1);
+
+  /* component balance */
+  const d2 = el('details', { class: 'acc' }, el('summary', null, 'Component balance'));
+  d2.append(el('div', { class: 'accbody' }, componentBalanceTable(u)));
+  wrap.append(d2);
+
+  /* sankey */
+  const d3 = el('details', { class: 'acc', open: '' }, el('summary', null, 'Enthalpy flow diagram'));
+  d3.append(el('div', { class: 'accbody' }, renderSankey(u)));
+  wrap.append(d3);
+
+  /* details */
+  const d4 = el('details', { class: 'acc' }, el('summary', null, 'Module details'));
+  const kd = el('div', { class: 'kv' });
+  flattenDetails(R.details || {}, '', kd);
+  kd.append(el('b', null, 'converged'), el('span', null, String(R.converged)),
+    el('b', null, 'iterations'), el('span', null, String(R.iterations || 0)));
+  d4.append(el('div', { class: 'accbody' }, kd));
+  wrap.append(d4);
+
+  /* warnings */
+  const warns = (u.apiWarnings || []).concat(R.warnings || []);
+  if (warns.length) {
+    const d5 = el('details', { class: 'acc', open: '' },
+      el('summary', null, 'Warnings (' + warns.length + ')'));
+    const ul = el('ul', { class: 'wlist' });
+    for (const w of warns) ul.append(el('li', null, w));
+    d5.append(el('div', { class: 'accbody' }, ul));
+    wrap.append(d5);
+  }
+  return wrap;
+}
+
+function flattenDetails(obj, prefix, kv) {
+  for (const k in obj) {
+    const v = obj[k];
+    if (v === null || v === undefined) continue;
+    if (Array.isArray(v)) {
+      kv.append(el('b', null, prefix + k), el('span', null,
+        v.length > 6 ? v.length + ' items' : v.map((x) =>
+          typeof x === 'object' ? JSON.stringify(x) : (num(x) ? fmt(x, 5) : x)).join(', ')));
+    } else if (typeof v === 'object') flattenDetails(v, prefix + k + '.', kv);
+    else kv.append(el('b', null, prefix + k),
+      el('span', null, num(v) ? fmt(v, 6) : String(v)));
+  }
+}
+
+function streamTable(u) {
+  const t = el('table', null, el('thead', null, el('tr', null,
+    el('th', null, 'Stream'), el('th', null, 'kg/h'), el('th', null, 'T °C'),
+    el('th', null, 'P bar'), el('th', null, 'H kJ/h'))));
+  const tb = el('tbody');
+  let mi = 0;
+  for (const s of u.streams) {
+    mi += s.mass_flow_kg_h;
+    tb.append(el('tr', null, el('td', null, '▸ ' + s.label),
+      el('td', null, fmt(s.mass_flow_kg_h)), el('td', null, fmt(s.T_K - 273.15, 5)),
+      el('td', null, fmt(s.P_bar, 5)), el('td', null, '—')));
+  }
+  const labels = outletLabels(u);
+  let mo = 0;
+  u.result.streams_out.forEach((s, i) => {
+    mo += s.mass_flow_kg_h;
+    tb.append(el('tr', null, el('td', null, '◂ ' + (labels[i] || 'Out ' + (i + 1))),
+      el('td', null, fmt(s.mass_flow_kg_h)), el('td', null, fmt(s.T_K - 273.15, 5)),
+      el('td', null, fmt(s.P_bar, 5)), el('td', null, fmt(s.H_kJh))));
+  });
+  tb.append(el('tr', { class: 'tot' }, el('td', null, 'Δ (out − in)'),
+    el('td', null, fmt(mo - mi)), el('td', null, ''), el('td', null, ''),
+    el('td', null, fmt((u.result.energy_balance.Hout || 0) - (u.result.energy_balance.Hin || 0)))));
+  t.append(tb);
+  return t;
+}
+
+/** Per-component in/out bookkeeping (pure display arithmetic on flows). */
+function componentBalanceTable(u) {
+  const inn = {}, out = {};
+  for (const s of u.streams) for (const c of s.components) {
+    inn[c.key] = (inn[c.key] || 0) + s.mass_flow_kg_h * c.mass_fraction;
+  }
+  for (const s of u.result.streams_out) for (const c of (s.components || [])) {
+    out[c.key] = (out[c.key] || 0) + s.mass_flow_kg_h * c.mass_fraction;
+  }
+  const keys = [...new Set([...Object.keys(inn), ...Object.keys(out)])];
+  const t = el('table', null, el('thead', null, el('tr', null,
+    el('th', null, 'Component'), el('th', null, 'In kg/h'),
+    el('th', null, 'Out kg/h'), el('th', null, 'Δ kg/h'))));
+  const tb = el('tbody');
+  let ti = 0, to = 0;
+  for (const k of keys) {
+    const a = inn[k] || 0, b = out[k] || 0;
+    ti += a; to += b;
+    tb.append(el('tr', null,
+      el('td', null, (compByKey[k] && compByKey[k].name) || k),
+      el('td', null, fmt(a)), el('td', null, fmt(b)), el('td', null, fmt(b - a))));
+  }
+  tb.append(el('tr', { class: 'tot' }, el('td', null, 'Total'),
+    el('td', null, fmt(ti)), el('td', null, fmt(to)), el('td', null, fmt(to - ti))));
+  t.append(tb);
+  return t;
+}
+
+/* ---- enthalpy Sankey: inlets → block → outlets, Q/W arrow.
+   Band widths scale with mass flow (always available & sign-free);
+   enthalpy values are annotated from the server result. ---- */
+function renderSankey(u) {
+  const R = u.result;
+  const eb = R.energy_balance || {};
+  const ins = u.streams.map((s) => ({ label: s.label, m: s.mass_flow_kg_h }));
+  const labels = outletLabels(u);
+  const outs = R.streams_out.map((s, i) => ({
+    label: labels[i] || 'Out ' + (i + 1), m: s.mass_flow_kg_h, H: s.H_kJh }));
+  const totIn = ins.reduce((a, b) => a + b.m, 0) || 1;
+  const totOut = outs.reduce((a, b) => a + b.m, 0) || 1;
+  const W = 760, BX = 300, BW = 160, PAD = 26;
+  const rows = Math.max(ins.length, outs.length);
+  const H = Math.max(190, rows * 54 + 90);
+  const bandArea = H - 2 * PAD - 40;
+  const svg = sv('svg', { class: 'sankey', viewBox: `0 0 ${W} ${H}`,
+    role: 'img', 'aria-label': 'enthalpy flow diagram' });
+  const color = CAT_COLORS[MODULE_DEFS[u.module].category];
+
+  /* block */
+  svg.append(sv('rect', { x: BX, y: PAD, width: BW, height: H - 2 * PAD, rx: 12,
+    fill: '#123036', stroke: color, 'stroke-width': 1.5 }));
+  svg.append(sv('text', { x: BX + BW / 2, y: H / 2, 'text-anchor': 'middle',
+    style: 'fill:var(--ink);font:600 13px var(--sans)' }, MODULE_DEFS[u.module].sym));
+
+  /* bands */
+  const drawSide = (list, tot, left) => {
+    let yCur = PAD + 20;
+    for (const s of list) {
+      const bw = Math.max(8, bandArea * (s.m / tot) * 0.8);
+      const yc = yCur + bw / 2;
+      const x0 = left ? 8 : BX + BW;
+      const x1 = left ? BX : W - 8;
+      const midY = H / 2;
+      const p = left
+        ? `M ${x0} ${yc - bw / 2} C ${BX - 60} ${yc - bw / 2}, ${BX - 60} ${midY - bw / 2}, ${x1} ${midY - bw / 2}
+           L ${x1} ${midY + bw / 2} C ${BX - 60} ${midY + bw / 2}, ${BX - 60} ${yc + bw / 2}, ${x0} ${yc + bw / 2} Z`
+        : `M ${x0} ${midY - bw / 2} C ${BX + BW + 60} ${midY - bw / 2}, ${BX + BW + 60} ${yc - bw / 2}, ${x1} ${yc - bw / 2}
+           L ${x1} ${yc + bw / 2} C ${BX + BW + 60} ${yc + bw / 2}, ${BX + BW + 60} ${midY + bw / 2}, ${x0} ${midY + bw / 2} Z`;
+      svg.append(sv('path', { class: 'band', d: p,
+        fill: left ? '#2b5d63' : '#6a5522' }));
+      svg.append(sv('text', { x: left ? 10 : W - 10, y: Math.max(12, yc - bw / 2 - 4),
+        'text-anchor': left ? 'start' : 'end' },
+        s.label + ' · ' + fmt(s.m) + ' kg/h' + (num(s.H) ? '' : '')));
+      if (!left && num(s.H)) {
+        svg.append(sv('text', { class: 'h', x: W - 10, y: yc + 4, 'text-anchor': 'end' },
+          fmt(s.H) + ' kJ/h'));
+      }
+      yCur += bw + 18;
+    }
+  };
+  drawSide(ins, totIn, true);
+  drawSide(outs, totOut, false);
+
+  /* totals + Q/W arrow */
+  svg.append(sv('text', { class: 'h', x: BX - 8, y: H - 6, 'text-anchor': 'end' },
+    'H in = ' + fmt(eb.Hin) + ' kJ/h'));
+  svg.append(sv('text', { class: 'h', x: BX + BW + 8, y: H - 6 },
+    'H out = ' + fmt(eb.Hout) + ' kJ/h'));
+  const Q = num(eb.Q_kW) ? eb.Q_kW : 0;
+  const Wk = num(eb.W_kW) ? eb.W_kW : 0;
+  const flux = Wk !== 0 ? Wk : Q;
+  const lbl = (Wk !== 0 ? 'W = ' + fmt(Wk, 5) : 'Q = ' + fmt(Q, 5)) + ' kW';
+  const cx = BX + BW / 2;
+  const down = flux >= 0; /* + duty/power INTO the block: arrow points in */
+  const y0 = down ? 4 : PAD, y1 = down ? PAD : 4;
+  svg.append(sv('line', { x1: cx, y1: y0, x2: cx, y2: y1,
+    stroke: 'var(--amber)', 'stroke-width': 2.5, 'marker-end': 'url(#arr' + u.id + ')' }));
+  const mk = sv('marker', { id: 'arr' + u.id, viewBox: '0 0 10 10', refX: 8, refY: 5,
+    markerWidth: 7, markerHeight: 7, orient: 'auto' },
+    sv('path', { d: 'M0,0 L10,5 L0,10 Z', fill: 'var(--amber)' }));
+  svg.append(sv('defs', null, mk));
+  svg.append(sv('text', { class: 'h', x: cx + 8, y: 16 }, lbl));
+  return svg;
+}
+
+/* =====================================================================
+   11. PERSISTENCE — autosave inputs (last 20) + permalink (#s=)
+===================================================================== */
+function snapshotInputs() {
+  return {
+    v: 1,
+    t: Date.now(),
+    units: state.units.map((u) => ({
+      module: u.module, nOut: u.nOut, params: u.params, paramUnits: u.paramUnits,
+      streams: u.streams.map((s) => ({
+        label: s.label, mass_flow_kg_h: s.mass_flow_kg_h, T_K: s.T_K, P_bar: s.P_bar,
+        compMode: s.compMode, du: s.du,
+        components: s.components.map((c) => ({
+          key: c.key, name: c.name, formula: c.formula, mw: c.mw,
+          mass_fraction: c.mass_fraction })),
+      })),
+    })),
+  };
+}
+function restoreSnapshot(snap) {
+  state = { v: 1, units: [] };
+  for (const su of (snap.units || [])) {
+    if (!MODULE_DEFS[su.module]) continue;
+    const u = newUnit(su.module);
+    u.nOut = su.nOut || u.nOut;
+    u.params = su.params || u.params;
+    u.paramUnits = su.paramUnits || {};
+    u.streams = (su.streams || []).map((s, i) => {
+      const st = newStream('in', s.label || ('Inlet ' + (i + 1)));
+      Object.assign(st, {
+        mass_flow_kg_h: s.mass_flow_kg_h, T_K: s.T_K, P_bar: s.P_bar,
+        compMode: s.compMode || 'mass', du: s.du || st.du,
+        components: (s.components || []).map((c) => ({ ...c })),
+      });
+      return st;
+    });
+    state.units.push(u);
+  }
+  renderUnits();
+}
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (!state.units.length) return;
+    try {
+      const cases = JSON.parse(localStorage.getItem(LS_CASES) || '[]');
+      const snap = snapshotInputs();
+      const sig = JSON.stringify(snap.units);
+      if (cases.length && JSON.stringify(cases[0].units) === sig) {
+        cases[0].t = snap.t; /* same inputs — refresh timestamp only */
+      } else {
+        cases.unshift({ t: snap.t, units: JSON.parse(sig) });
+      }
+      localStorage.setItem(LS_CASES, JSON.stringify(cases.slice(0, MAX_CASES)));
+    } catch (_e) { /* storage unavailable — silent */ }
+  }, 800);
+}
+function openCases() {
+  let cases = [];
+  try { cases = JSON.parse(localStorage.getItem(LS_CASES) || '[]'); } catch (_e) {}
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' },
+      el('h3', null, 'Saved input cases'),
+      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
+    el('div', { class: 'sub' }, 'Inputs autosave locally (last ' + MAX_CASES + '). Results are never stored.'));
+  const list = el('div', { class: 'caselist' });
+  if (!cases.length) list.append(el('div', { style: 'padding:16px;color:var(--faint)' }, 'Nothing saved yet.'));
+  cases.forEach((c) => {
+    const mods = (c.units || []).map((x) => MODULE_DEFS[x.module] ? MODULE_DEFS[x.module].sym : '?').join(' → ');
+    list.append(el('button', { onclick: () => {
+      restoreSnapshot(c); closeSheet(); toast('Case restored.', 'ok');
+    } }, mods + '  (' + (c.units || []).length + ' unit' + ((c.units || []).length === 1 ? '' : 's') + ')',
+      el('small', null, new Date(c.t).toLocaleString())));
+  });
+  box.append(list);
+  openSheet(box);
+}
+
+/* permalink */
+function makePermalink() {
+  if (!state.units.length) return toast('Nothing to link yet.', 'info');
+  const snap = snapshotInputs();
+  delete snap.t;
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(snap))));
+  const url = location.origin + location.pathname + '#s=' + b64;
+  history.replaceState(null, '', '#s=' + b64);
+  const done = () => toast('Permalink copied to clipboard.', 'ok');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, () => toast('Link is in the address bar.', 'info'));
+  } else toast('Link is in the address bar — copy it from there.', 'info');
+}
+function tryRestoreHash() {
+  if (!location.hash.startsWith('#s=')) return false;
+  try {
+    const json = decodeURIComponent(escape(atob(location.hash.slice(3))));
+    restoreSnapshot(JSON.parse(json));
+    toast('Worksheet restored from permalink.', 'ok');
+    return true;
+  } catch (_e) {
+    toast('This permalink could not be read.', 'err');
+    return false;
+  }
+}
+
+/* =====================================================================
+   12. BOOT
+===================================================================== */
+function openMobilePalette() {
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' }, el('h3', null, 'Add equipment'),
+      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')));
+  for (const k of PALETTE_ORDER) {
+    const d = MODULE_DEFS[k];
+    box.append(el('button', { class: 'pal-item', style: '--c:' + CAT_COLORS[d.category],
+      onclick: () => { closeSheet(); addUnit(k); } },
+      palIcon(CAT_COLORS[d.category]),
+      el('span', null, el('span', { class: 'nm' }, d.label), el('span', { class: 'ds' }, d.desc))));
+  }
+  openSheet(box);
+}
+
+document.getElementById('btnCases').addEventListener('click', openCases);
+document.getElementById('btnCasesM').addEventListener('click', openCases);
+document.getElementById('btnLink').addEventListener('click', makePermalink);
+document.getElementById('btnLinkM').addEventListener('click', makePermalink);
+document.getElementById('btnAddMobile').addEventListener('click', openMobilePalette);
+document.getElementById('btnClear').addEventListener('click', () => {
+  if (!state.units.length) return;
+  state.units = []; renderUnits();
+  history.replaceState(null, '', location.pathname);
+  toast('Worksheet cleared (saved cases kept).', 'info');
+});
+
+renderPalette();
+if (!tryRestoreHash()) {
+  /* restore most recent autosaved case, if any */
+  try {
+    const cases = JSON.parse(localStorage.getItem(LS_CASES) || '[]');
+    if (cases.length) restoreSnapshot(cases[0]);
+  } catch (_e) {}
+}
+renderUnits();
+loadComponents().catch(() => { /* picker will retry & surface the error */ });
+</script>
+</body>
+</html>
