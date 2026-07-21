@@ -1,10 +1,10 @@
 {
   "meta": {
     "repo_path": "tests/mb-vectors.json",
-    "version": "mb-vectors 1.1 — thermo core + six core modules, vectors MB-001..MB-040",
-    "target": "api/_lib/mb-engine.js (mb-engine 0.6.x, parts 1+2 — thermo core + module solvers)",
+    "version": "mb-vectors 1.2 — thermo core + core modules + reaction-engineering modules, vectors MB-001..MB-052",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.7.x, parts 1+2+3 — thermo core + module solvers + cstr/pfr/pfr-recycle)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly."
   },
   "vectors": [
     {
@@ -1276,6 +1276,635 @@
         "default": 1e-06
       },
       "source": "Hand mole table, basis 1 kmol/h CH4 + 3 H2O: ξ1=0.8 → CH4 0.2, H2O 2.2, CO 0.8, H2 2.4; ξ2=0.5·0.8=0.4 → CO 0.4, H2O 1.8, CO2 0.4, H2 2.8; atomic MWs make closure exact to <0.001%"
+    },
+    {
+      "id": "MB-041",
+      "desc": "cstr: first-order liquid, V→X — Da = kτ = 2 → X = 2/3 (Fogler CSTR design eq.)",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.6666667,
+        "details.Da": 2,
+        "details.tau_s": 7200,
+        "details.Ca0_kmolm3": 12.3571208,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.Da": 1e-06,
+        "details.tau_s": 1e-06,
+        "details.Ca0_kmolm3": 0.0001,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Fogler (Elements of CRE) first-order liquid CSTR: X = Da/(1+Da), Da = kτ = (2/7200 s⁻¹)(7200 s) = 2 → X = 2/3; Ca0 = 520/42.081 = 12.35712 kmol/m³. Hand calculation."
+    },
+    {
+      "id": "MB-042",
+      "desc": "cstr: second-order liquid, X→V — τ = X/(k·Ca0·(1−X)²) = 16185 s, V = 4.4958 m³; batch-time equivalent 3237 s",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 2,
+            "k_si": 0.0001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "V",
+            "X_target": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "details.V_m3": 4.4958333,
+        "details.tau_s": 16185.0,
+        "details.Da": 20,
+        "details.X": 0.8,
+        "details.batch_time_equiv_s": 3237.0,
+        "converged": true
+      },
+      "tol": {
+        "details.V_m3": 0.0001,
+        "details.tau_s": 0.05,
+        "details.Da": 0.0001,
+        "details.X": 1e-06,
+        "details.batch_time_equiv_s": 0.05,
+        "default": 1e-06
+      },
+      "source": "Fogler CSTR design eq., 2nd order liquid: τ = X/(k·Ca0·(1−X)²) = 0.8/(1e-4 · 12.35712 · 0.04) = 16185 s → V = τ·v = 4.49583 m³; Da₂ = kτCa0 = 20. Batch/PFR equivalent t = X/(k·Ca0·(1−X)) = 3237 s. Hand calculation."
+    },
+    {
+      "id": "MB-043",
+      "desc": "cstr: Arrhenius k(A=1e5 s⁻¹, Ea=50 kJ/mol, T=350 K) = 3.4519e-3 s⁻¹ → Da = 12.427, X = 0.92552 (40 bar keeps C3H6 liquid)",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 350,
+              "P_bar": 40,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 1
+          }
+        }
+      ],
+      "expect": {
+        "details.k_si": 0.0034518643,
+        "details.Da": 12.426711,
+        "details.X": 0.9255216,
+        "converged": true
+      },
+      "tol": {
+        "details.k_si": 5e-06,
+        "details.Da": 0.002,
+        "details.X": 0.0001,
+        "default": 1e-06
+      },
+      "source": "Arrhenius: k = A·e^(−Ea/RT) = 1e5·exp(−50/(0.008314462·350)) = 3.45186e-3 s⁻¹; τ = 3600 s → Da = 12.4267; first-order CSTR X = Da/(1+Da) = 0.925522 (Fogler). Hand calculation."
+    },
+    {
+      "id": "MB-044",
+      "desc": "cstr: adiabatic + Arrhenius (dilute 5 % C3H6 in cyclohexane) — formation-basis identity Q ≈ 0 with converged T↔X loop",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 0.05
+                },
+                {
+                  "key": "cyclohexane",
+                  "mass_fraction": 0.95
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 770,
+            "solve_for": "X",
+            "V_m3": 2,
+            "mode": "adiabatic"
+          }
+        }
+      ],
+      "expect": {
+        "energy_balance.Q_kW": 0,
+        "energy_balance.W_kW": 0,
+        "mass_balance.closure_pct": 0,
+        "converged": true
+      },
+      "tol": {
+        "energy_balance.Q_kW": 0.01,
+        "energy_balance.W_kW": 1e-09,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Formation-basis adiabatic identity: with T_out solved from stream enthalpies, the reported duty Q = Hout − Hin must return ≈ 0 (reaction heat is implicit in the formation enthalpies); exothermic-CSTR T↔k(T)↔X damped loop must converge."
+    },
+    {
+      "id": "MB-045",
+      "desc": "pfr: first-order liquid, V→X — X = 1 − e^(−kτ) = 1 − e⁻² = 0.86466 (exact per-segment march)",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.8646647,
+        "details.tau_s": 7200,
+        "details.segments": 50,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Levenspiel / Fogler PFR design eq., first order constant density: X = 1 − e^(−kτ) = 1 − e⁻² = 0.864665. Hand calculation."
+    },
+    {
+      "id": "MB-046",
+      "desc": "pfr: second-order liquid, X→V — kτCa0 = X/(1−X) = 4 → τ = 3237 s, V = 0.89917 m³",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 2,
+            "k_si": 0.0001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "V",
+            "X_target": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "details.V_m3": 0.8991667,
+        "details.tau_s": 3237.0,
+        "details.X": 0.8,
+        "details.batch_time_equiv_s": 3237.0,
+        "converged": true
+      },
+      "tol": {
+        "details.V_m3": 0.0001,
+        "details.tau_s": 0.05,
+        "details.X": 1e-06,
+        "details.batch_time_equiv_s": 0.05,
+        "default": 1e-06
+      },
+      "source": "Fogler PFR design eq., 2nd order liquid: kτCa0 = X/(1−X) = 4 → τ = 4/(1e-4 · 12.35712) = 3237 s, V = 0.899167 m³; PFR ≡ constant-volume batch, so the batch-time equivalent equals τ. Hand calculation."
+    },
+    {
+      "id": "MB-047",
+      "desc": "pfr: zero-order liquid — X = kτ/Ca0 = (1e-3 · 5040)/12.35712 = 0.40786",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 0,
+            "k_si": 0.001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 1.4
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.407862,
+        "details.tau_s": 5040,
+        "converged": true
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
+        "default": 1e-06
+      },
+      "source": "Levenspiel zero-order design eq. (identical for PFR and batch): X = k·τ/Ca0 = 1e-3 · 5040 / 12.35712 = 0.407862. Hand calculation."
+    },
+    {
+      "id": "MB-048",
+      "desc": "pfr: axial profile — first-order X(z) = 1 − e^(−Da·z); at z = 0.5 (profile index 25 of 50), X = 1 − e⁻¹ = 0.63212",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.profile.25.z": 0.5,
+        "details.profile.25.X": 0.6321206,
+        "details.profile.50.X": 0.8646647,
+        "details.profile.0.X": 0
+      },
+      "tol": {
+        "details.profile.25.X": 1e-05,
+        "details.profile.50.X": 1e-05,
+        "default": 1e-06
+      },
+      "source": "First-order PFR axial profile X(z) = 1 − e^(−Da·z), Da = 2: X(0.5) = 1 − e⁻¹ = 0.632121, X(1) = 1 − e⁻² = 0.864665. The exact-per-segment march must reproduce the closed form at every profile node."
+    },
+    {
+      "id": "MB-049",
+      "desc": "pfr-recycle: R = 50 approaches the CSTR limit — closed form X_ov = 1 − E/(1+R−R·E) = 0.67102 (CSTR: 2/3)",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 50
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.6710238,
+        "details.X_sp": 0.0384567,
+        "converged": true,
+        "iterations": 15
+      },
+      "tol": {
+        "details.X_ov": 0.002,
+        "details.X_sp": 0.0002,
+        "iterations": 15,
+        "default": 1e-06
+      },
+      "source": "Recycle-reactor closed form (Fogler Ch. 6 / Levenspiel recycle reactor), first order: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)), Da0 = kV/v_fresh = 2; R = 50 → X_ov = 0.671024, X_sp = 1 − E = 0.038457 — approaching the CSTR limit Da/(1+Da) = 2/3 as R → ∞. Iterations expected ≤ 30 with bounded Wegstein."
+    },
+    {
+      "id": "MB-050",
+      "desc": "pfr-recycle: R = 0 degenerates to a single PFR pass — X_ov = X_sp = 1 − e⁻²",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.8646647,
+        "details.X_sp": 0.8646647,
+        "iterations": 1,
+        "converged": true
+      },
+      "tol": {
+        "details.X_ov": 1e-05,
+        "details.X_sp": 1e-05,
+        "iterations": 1e-09,
+        "default": 1e-06
+      },
+      "source": "Levenspiel recycle-reactor limit R → 0: plug flow, X = 1 − e^(−Da0) = 1 − e⁻² = 0.864665; single pass, no tear iteration."
+    },
+    {
+      "id": "MB-051",
+      "desc": "pfr-recycle: Wegstein-vs-analytic identity, R = 1, Da0 = 2 — tear fixed point must equal the first-order closed form",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 1
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.7746003,
+        "details.X_sp": 0.6321206,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X_ov": 5e-05,
+        "details.X_sp": 5e-05,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "First-order recycle identity: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)); R = 1, Da0 = 2 → E = e⁻¹, X_ov = 1 − e⁻¹/(2−e⁻¹) = 0.774600 and X_sp = 1 − e⁻¹ = 0.632121. The Wegstein-converged tear must land on the analytic fixed point (bounded q ∈ [−5,0])."
+    },
+    {
+      "id": "MB-052",
+      "desc": "pfr-recycle: adiabatic loop (dilute exothermic feed, R = 2) — envelope identity Q ≈ 0 at the converged tear incl. temperature",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 0.05
+                },
+                {
+                  "key": "cyclohexane",
+                  "mass_fraction": 0.95
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 770,
+            "V_m3": 2,
+            "R": 2,
+            "mode": "adiabatic"
+          }
+        }
+      ],
+      "expect": {
+        "energy_balance.Q_kW": 0,
+        "energy_balance.W_kW": 0,
+        "mass_balance.closure_pct": 0,
+        "converged": true,
+        "iterations": 15
+      },
+      "tol": {
+        "energy_balance.Q_kW": 0.1,
+        "energy_balance.W_kW": 1e-09,
+        "mass_balance.closure_pct": 0.005,
+        "iterations": 15,
+        "default": 1e-06
+      },
+      "source": "Adiabatic recycle envelope identity on the formation basis: mixing point and reactor both adiabatic → fresh-in / product-out duty must return ≈ 0 at the converged tear. Exercises the Wegstein tear including its temperature variable; iterations expected ≤ 30."
     }
   ]
 }
