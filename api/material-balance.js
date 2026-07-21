@@ -1,11 +1,12 @@
 // ============================================================================
 // REPO PATH: api/_lib/mb-engine.js
 // ============================================================================
-// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8 + 11 + 12
-// PARTS 1+2+3+4 — THERMO CORE + ELEVEN MODULE SOLVERS (MODULES{...}):
+// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13
+// PARTS 1+2+3+4+5 — THERMO CORE + THIRTEEN MODULE SOLVERS (MODULES{...}):
 // mixer, splitter, flash, heat-exchanger, rotating, reactor (Part 2);
 // cstr, pfr, pfr-recycle (Part 3 — liquid-basis reaction engineering);
-// smr, atr (Part 4 — steam / autothermal reforming equilibria).
+// smr, atr (Part 4 — steam / autothermal reforming equilibria);
+//   shift, methanator (Part 5 — WGS converter + trace CO/CO2 clean-up).
 //
 // FORMATION-ENTHALPY BASIS: every enthalpy returned here includes the
 // standard enthalpy of formation at 298.15 K, so any module's duty is
@@ -45,7 +46,7 @@ import mbData from './mb-data.js';
 import if97 from './if97.js';
 import eos from './eos.js';
 
-const ENGINE_VERSION = 'mb-engine 0.8.0 (parts 1+2+3+4 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr)';
+const ENGINE_VERSION = 'mb-engine 0.9.0 (parts 1+2+3+4+5 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -2766,7 +2767,9 @@ const SMR_T_MIN = 500;          // K — fired-mode T_out sanity window
 const SMR_T_MAX = 1500;
 const SMR_SC_MIN_DEF = 2.5;     // default S/C coking-check threshold (smr)
 const SMR_SC_MIN_ATR_DEF = 0.5; // default S/C threshold for atr (O2-assisted)
-const SMR_EPS = 1e-12;          // relative positivity floor in the solver
+const SMR_EPS = 1e-18;          // relative positivity floor in the solver
+                                // (equilibrium CO in a methanator sits at
+                                // ~1e-14·N — the floor must sit well below)
 const SMR_AIR_O2 = 0.21;        // mole fraction O2 in dry air
 const SMR_AIR_N2 = 0.79;
 
@@ -2931,16 +2934,21 @@ function reformerEquilibrium(n0, T1_K, T2_K, P_bar) {
   // ∓∞ at the e1 bounds likewise. This lands the seed within bisection
   // accuracy of the solution even when an extreme K pins an extent within
   // 1e-10 of a bound (e.g. a 500 K fired case), where a grid scan cannot.
-  const e1lo = -Math.min(c, d / 3);
-  const e1hi = Math.min(a, b);
-  const e2Bounds = (e1) => [-Math.min(f, d + 3 * e1), Math.min(c + e1, b - e1)];
+  // JOINT feasibility bounds. e2's window given e1 is
+  //   ( max(−f, −d−3·e1), min(c+e1, b−e1) )
+  // and demanding it be non-empty yields the e1 interval below. The naive
+  // per-reaction clamp e1 ≥ −min(c, d/3) is WRONG when CO and CO2 both
+  // methanate: the root then has e1 < −c with e2 < 0 keeping CO positive.
+  const e1lo = Math.max(-(c + f), -(c + d) / 4, -(b + d) / 2);
+  const e1hi = Math.min(a, b + f);
+  const e2Bounds = (e1) => [Math.max(-f, -d - 3 * e1), Math.min(c + e1, b - e1)];
   const e2Star = (e1) => {
     let [lo, hi] = e2Bounds(e1);
-    const w = 1e-13 * Math.max(hi - lo, N0);
+    const w = 1e-18 * Math.max(hi - lo, N0);
     lo += w;
     hi -= w;
     if (hi <= lo) return null;
-    for (let k = 0; k < 80; k++) {
+    for (let k = 0; k < 100; k++) {
       const mid = 0.5 * (lo + hi);
       const r = F(e1, mid);
       if (!r) return null;
@@ -2952,23 +2960,32 @@ function reformerEquilibrium(n0, T1_K, T2_K, P_bar) {
   {
     let lo = e1lo;
     let hi = e1hi;
-    const w = 1e-13 * Math.max(hi - lo, N0);
+    const w = 1e-18 * Math.max(hi - lo, N0);
     lo += w;
     hi -= w;
-    let ok = hi > lo;
-    for (let k = 0; ok && k < 80; k++) {
+    for (let k = 0; hi > lo && k < 100; k++) {
       const mid = 0.5 * (lo + hi);
       const em = e2Star(mid);
       const r = em === null ? null : F(mid, em);
-      if (!r) { ok = false; break; }
-      if (r[0] > 0) hi = mid; else lo = mid;
+      if (!r) {
+        // empty/degenerate inner window — walk toward the collapsing side:
+        // the CO cap (c+e1) collapsing marks the low-e1 edge
+        if (c + mid <= b - mid) lo = mid; else hi = mid;
+      } else if (r[0] > 0) {
+        hi = mid;
+      } else {
+        lo = mid;
+      }
     }
-    if (ok) {
-      const e1s = 0.5 * (lo + hi);
-      const e2s = e2Star(e1s);
-      const rs = e2s === null ? null : F(e1s, e2s);
-      if (rs) best = { s: rs[0] * rs[0] + rs[1] * rs[1], e1: e1s, e2: e2s };
+    // final pick, backing inward if the midpoint window is degenerate
+    let e1s = 0.5 * (lo + hi);
+    let e2s = e2Star(e1s);
+    for (let k = 0; e2s === null && k < 60; k++) {
+      e1s = 0.5 * (e1s + (c + e1s > b - e1s ? e1lo : e1hi));
+      e2s = e2Star(e1s);
     }
+    const rs = e2s === null ? null : F(e1s, e2s);
+    if (rs) best = { s: rs[0] * rs[0] + rs[1] * rs[1], e1: e1s, e2: e2s };
   }
   if (!best) {
     // fallback: coarse grid over the feasible box
@@ -2994,11 +3011,26 @@ function reformerEquilibrium(n0, T1_K, T2_K, P_bar) {
   let e2 = best.e2;
   let it = 0;
   let converged = false;
+  // Achievable precision of F at (e1, e2): each mole is a sum/difference of
+  // terms up to the magnitudes below, so its absolute rounding noise is
+  // ~eps·(term sum) and the log-residual noise is the sum of relative mole
+  // noises. Near a feasibility corner (e.g. a methanator where CO and CO2
+  // both go to ~1e-13·N by cancellation) this dwarfs SMR_NEWTON_TOL — the
+  // solve is then converged when it is within what F can resolve.
+  const EPSM = 2.220446049250313e-16;
+  const noiseAt = (mm, e1v, e2v) => {
+    const a1 = Math.abs(e1v);
+    const a2 = Math.abs(e2v);
+    return 8 * EPSM * ((a + a1) / mm.CH4 + (b + a1 + a2) / mm.H2O +
+      (c + a1 + a2) / mm.CO + (d + 3 * a1 + a2) / mm.H2 + (f + a2) / mm.CO2);
+  };
   for (; it < SMR_NEWTON_MAX; it++) {
     const r = F(e1, e2);
     if (!r) break; // cannot happen while backtracking holds — belt and braces
     const [F1, F2] = r;
-    if (Math.max(Math.abs(F1), Math.abs(F2)) < SMR_NEWTON_TOL) {
+    const mm = molesAt(e1, e2);
+    const tolEff = mm ? Math.max(SMR_NEWTON_TOL, noiseAt(mm, e1, e2)) : SMR_NEWTON_TOL;
+    if (Math.max(Math.abs(F1), Math.abs(F2)) < tolEff) {
       converged = true;
       break;
     }
@@ -3029,7 +3061,15 @@ function reformerEquilibrium(n0, T1_K, T2_K, P_bar) {
       }
       alpha *= 0.5;
     }
-    if (!stepped) break; // stalled — flag not converged
+    if (!stepped) break; // stalled — recheck against achievable precision below
+  }
+  if (!converged) {
+    const r = F(e1, e2);
+    const mm = molesAt(e1, e2);
+    if (r && mm &&
+        Math.max(Math.abs(r[0]), Math.abs(r[1])) < Math.max(SMR_NEWTON_TOL, noiseAt(mm, e1, e2))) {
+      converged = true;
+    }
   }
   const m = molesAt(e1, e2);
   if (!m) {
@@ -3405,6 +3445,379 @@ function reformerRun(streams, p, adiabatic, modeLabel, warnings) {
   };
 }
 
+// ===========================================================================
+// PART 5 — WATER-GAS SHIFT CONVERTER + METHANATOR (Step 13)
+//
+// shift      : single-equilibrium WGS  CO + H2O ⇌ CO2 + H2  at T_out + ATE,
+//              lnK2 = 4400/T − 4.036 (Moe 1962; pressure cancels, Δn = 0).
+//              CH4 is INERT here (no reforming activity on shift catalysts).
+//              Presets: 'hts' (350–450 °C window, ATE default 10 K) and
+//              'lts' (190–250 °C window, ATE default 5 K); T_out outside the
+//              preset window raises a warning, not an error. Modes:
+//              'adiabatic' (default; outlet T by bisection on [400, 1000] K)
+//              and 'isothermal' (params.T_out_K; duty Q_kW reported).
+//              The 1-D extent solve is a bisection — the residual is strictly
+//              increasing in the extent and diverges at the feasibility
+//              bounds, so the root is unique and always bracketed.
+//
+// methanator : the SAME two-reaction equilibrium as the reformer family, run
+//              in the methanation direction (CO + 3H2 → CH4 + H2O and, via
+//              the coupled shift, CO2 + 4H2 → CH4 + 2H2O). Reports residual
+//              CO / CO2 / CO+CO2 in DRY mol-ppm and the per-bed adiabatic
+//              rise (≈ 74 K per 1 % CO, ≈ 60 K per 1 % CO2 — the classic
+//              rules emerge from the enthalpy balance, they are not coded).
+//              Modes 'adiabatic' (default) and 'isothermal'.
+//
+// Feed streams are re-based to gas-phase enthalpies (per-component 'gas'
+// overrides): process gas at LTS temperatures sits below the PURE-water
+// saturation line at total pressure, but the water is vapor because only its
+// PARTIAL pressure matters — waterMolarH's saturated-vapor-at-T branch
+// handles exactly this.
+// ===========================================================================
+
+const SHIFT_PRESETS = {
+  hts: { ate: 10, Tlo: 623.15, Thi: 723.15, label: 'HTS 350\u2013450 \u00b0C' },
+  lts: { ate: 5, Tlo: 463.15, Thi: 523.15, label: 'LTS 190\u2013250 \u00b0C' },
+  none: { ate: 0, Tlo: null, Thi: null, label: null },
+};
+const SHIFT_T_MIN = 350;        // K — isothermal T_out sanity window
+const SHIFT_T_MAX = 1100;
+const SHIFT_ADIA_TLO = 400;     // K — adiabatic outer-bisection bracket
+const SHIFT_ADIA_THI = 1000;
+const SHIFT_BISECT_MAX = 100;   // extent-bisection iteration cap
+const SHIFT_TOL = 1e-9;         // |F| convergence target in log units
+const SHIFT_KEYS = ['CO', 'H2O', 'CO2', 'H2', 'CH4', 'N2', 'Ar', 'He'];
+const SHIFT_ORDER = ['CO', 'H2O', 'CO2', 'H2', 'CH4'];
+
+const METH_T_MIN = 350;         // K — isothermal T_out sanity window
+const METH_T_MAX = 1000;
+const METH_ADIA_TLO = 400;      // K — adiabatic outer-bisection bracket
+const METH_ADIA_THI = 1000;
+const METH_ATE_DEF = 0;         // K — default approach-to-equilibrium
+
+/**
+ * Collect and validate feed moles for shift/methanator (gas-phase species
+ * only; alkanes and O2 are not accepted).
+ * @param {object} stream
+ * @param {string} errCode error code to raise on a foreign component
+ * @returns {{n:Map<string,number>, warnings:string[]}|{error:object}}
+ */
+function shiftFeedMoles(stream, errCode) {
+  const mol = molarize(stream);
+  if (mol.error) return mol;
+  const n = new Map();
+  for (const mc of mol.components) {
+    if (mc.n_kmol_h <= 0) continue;
+    if (!SHIFT_KEYS.includes(mc.key)) {
+      return errObj(errCode,
+        `component '${mc.key}' is not accepted here (allowed: ${SHIFT_KEYS.join(', ')})`,
+        'streams');
+    }
+    n.set(mc.key, (n.get(mc.key) || 0) + mc.n_kmol_h);
+  }
+  return { n, warnings: mol.warnings.slice() };
+}
+
+/**
+ * Single-extent WGS equilibrium CO + H2O ⇌ CO2 + H2 at T. Bisection on the
+ * extent: F(e) = ln(CO2·H2) − ln(CO·H2O) − lnK2 is strictly increasing and
+ * diverges to ∓∞ at the feasibility bounds, so the root is unique. Converged
+ * when |F| is within max(SHIFT_TOL, achievable float precision of F).
+ * @param {Map<string,number>} n0 feed moles [kmol/h]
+ * @param {number} T_K equilibrium temperature (already includes ATE)
+ * @returns {{n:Map, e_kmol_h:number, lnK2:number, iterations:number,
+ *            converged:boolean}|{error:object}}
+ */
+function wgsEquilibrium(n0, T_K) {
+  const c = n0.get('CO') || 0;
+  const b = n0.get('H2O') || 0;
+  const f = n0.get('CO2') || 0;
+  const d = n0.get('H2') || 0;
+  const lnK2 = SMR_LNK2_A / T_K - SMR_LNK2_B;
+  const span0 = Math.min(c, b) + Math.min(f, d);
+  const done = (e, it, conv) => {
+    const n = new Map(n0);
+    n.set('CO', c - e);
+    n.set('H2O', b - e);
+    n.set('CO2', f + e);
+    n.set('H2', d + e);
+    return { n, e_kmol_h: e, lnK2, iterations: it, converged: conv };
+  };
+  if (span0 <= 0) return done(0, 0, true); // no reactive pair in either direction
+  const F = (e) => {
+    const CO = c - e;
+    const H2O = b - e;
+    const CO2 = f + e;
+    const H2 = d + e;
+    if (CO <= 0 || H2O <= 0 || CO2 <= 0 || H2 <= 0) return null;
+    return Math.log(CO2) + Math.log(H2) - Math.log(CO) - Math.log(H2O) - lnK2;
+  };
+  let lo = -Math.min(f, d);
+  let hi = Math.min(c, b);
+  const w = 1e-18 * Math.max(hi - lo, c + b + f + d);
+  lo += w;
+  hi -= w;
+  let it = 0;
+  for (; it < SHIFT_BISECT_MAX; it++) {
+    const mid = 0.5 * (lo + hi);
+    const r = F(mid);
+    if (r === null) return errObj('MB_SHIFT_EQ', 'shift equilibrium left the feasible region', 'streams');
+    if (r > 0) hi = mid; else lo = mid;
+  }
+  const e = 0.5 * (lo + hi);
+  const r = F(e);
+  const EPSM = 2.220446049250313e-16;
+  const ae = Math.abs(e);
+  const noise = r === null ? Infinity :
+    8 * EPSM * ((c + ae) / (c - e) + (b + ae) / (b - e) + (f + ae) / (f + e) + (d + ae) / (d + e));
+  const conv = r !== null && Math.abs(r) < Math.max(SHIFT_TOL, noise);
+  return done(e, it, conv);
+}
+
+/**
+ * Stable output key order: the module's reacting set first, then remaining
+ * feed keys in map order.
+ * @param {Map<string,number>} n
+ * @param {string[]} lead
+ * @returns {string[]}
+ */
+function shiftOrder(n, lead) {
+  const order = lead.filter((k) => n.has(k));
+  for (const k of n.keys()) if (!order.includes(k)) order.push(k);
+  return order;
+}
+
+/**
+ * Shared shift/methanator driver.
+ * @param {object} stream single feed stream
+ * @param {object} p params
+ * @param {string} which 'shift' | 'methanator'
+ * @param {string[]} warnings
+ * @returns {object} module result or error envelope
+ */
+function shiftMethRun(stream, p, which, warnings) {
+  const isShift = which === 'shift';
+  const EC = isShift ? 'MB_SHIFT' : 'MB_METH';
+  const mode = p.mode === undefined ? 'adiabatic' : p.mode;
+  if (mode !== 'adiabatic' && mode !== 'isothermal') {
+    return errObj(`${EC}_MODE`, `params.mode must be 'adiabatic' or 'isothermal'`, 'mode');
+  }
+  let preset = 'none';
+  let ate;
+  if (isShift) {
+    preset = p.preset === undefined ? 'none' : p.preset;
+    if (!(preset in SHIFT_PRESETS)) {
+      return errObj('MB_SHIFT_PRESET', `params.preset must be one of ${Object.keys(SHIFT_PRESETS).join(', ')}`, 'preset');
+    }
+    ate = num(p.ate_K) ? p.ate_K : SHIFT_PRESETS[preset].ate;
+  } else {
+    ate = num(p.ate_K) ? p.ate_K : METH_ATE_DEF;
+  }
+  const P = num(p.P_out_bar) ? p.P_out_bar : stream.P_bar;
+  if (!num(P) || P <= 0) return errObj('MB_P', 'outlet pressure must be positive', 'P_out_bar');
+
+  const fm = shiftFeedMoles(stream, `${EC}_FEED`);
+  if (fm.error) return fm;
+  warnings.push(...fm.warnings);
+  const nFeed = fm.n;
+  const c = nFeed.get('CO') || 0;
+  const b = nFeed.get('H2O') || 0;
+  const f = nFeed.get('CO2') || 0;
+  const d = nFeed.get('H2') || 0;
+  if (isShift) {
+    if (!((c > 0 && b > 0) || (f > 0 && d > 0))) {
+      return errObj('MB_SHIFT_FEED',
+        'water-gas shift needs CO + H2O (forward) and/or CO2 + H2 (reverse) in the feed', 'streams');
+    }
+  } else {
+    if (d <= 0 || c + f <= 0) {
+      return errObj('MB_METH_FEED', 'methanation needs H2 and CO and/or CO2 in the feed', 'streams');
+    }
+  }
+
+  // gas-basis feed enthalpy (see the Part 5 banner note on sub-Tsat water)
+  const feedEntries = [];
+  for (const [k, v] of nFeed.entries()) feedEntries.push({ key: k, n_kmol_h: v });
+  const feedGas = streamFromMoles(feedEntries, stream.T_K, stream.P_bar, 'gas');
+  if (feedGas.error) return feedGas;
+  const eIn = streamEnthalpy(feedGas);
+  if (eIn.error) return eIn;
+  warnings.push(...eIn.warnings);
+  const Hin = eIn.H_kJh;
+  const T_in = stream.T_K;
+
+  /** equilibrium core at outlet T */
+  const coreAt = (T) => {
+    if (isShift) {
+      const eq = wgsEquilibrium(nFeed, T + ate);
+      if (eq.error) return eq;
+      return { n: eq.n, eq, lnK1: null };
+    }
+    const eq = reformerEquilibrium(nFeed, T + ate, T + ate, P);
+    if (eq.error) return eq;
+    return { n: eq.n, eq, lnK1: eq.lnK1 };
+  };
+
+  const [ATLO, ATHI] = isShift ? [SHIFT_ADIA_TLO, SHIFT_ADIA_THI] : [METH_ADIA_TLO, METH_ADIA_THI];
+  const [TMIN, TMAX] = isShift ? [SHIFT_T_MIN, SHIFT_T_MAX] : [METH_T_MIN, METH_T_MAX];
+  let T_out;
+  let core;
+  let outerIters = 0;
+  let outerConverged = true;
+  if (mode === 'adiabatic') {
+    if (num(p.T_out_K)) {
+      warnings.push(`${which}: adiabatic — params.T_out_K ignored (outlet T is solved)`);
+    }
+    const g = (T) => {
+      const cr = coreAt(T);
+      if (cr.error) return cr;
+      const entries = [];
+      for (const [k, v] of cr.n.entries()) entries.push({ key: k, n_kmol_h: v });
+      const s = streamFromMoles(entries, T, P, 'gas');
+      if (s.error) return s;
+      const e = streamEnthalpy(s);
+      if (e.error) return e;
+      return { resid: e.H_kJh - Hin, core: cr };
+    };
+    const glo = g(ATLO);
+    if (glo.error) return glo;
+    const ghi = g(ATHI);
+    if (ghi.error) return ghi;
+    if (glo.resid * ghi.resid > 0) {
+      return errObj(`${EC}_ADIABATIC`,
+        `adiabatic outlet temperature not bracketed in [${ATLO}, ${ATHI}] K — check the feed temperature`,
+        'streams');
+    }
+    let lo = ATLO;
+    let hi = ATHI;
+    let flo = glo.resid;
+    let mid = 0.5 * (lo + hi);
+    let last = glo;
+    for (; outerIters < SMR_ADIA_MAX; outerIters++) {
+      mid = 0.5 * (lo + hi);
+      const gm = g(mid);
+      if (gm.error) return gm;
+      last = gm;
+      if (hi - lo < SMR_ADIA_TOLK) break;
+      if (flo * gm.resid <= 0) { hi = mid; } else { lo = mid; flo = gm.resid; }
+    }
+    outerConverged = outerIters < SMR_ADIA_MAX;
+    if (!outerConverged) {
+      warnings.push(`${which}: adiabatic bisection cap ${SMR_ADIA_MAX} reached — best estimate returned`);
+    }
+    T_out = mid;
+    core = last.core;
+  } else {
+    if (!num(p.T_out_K) || p.T_out_K < TMIN || p.T_out_K > TMAX) {
+      return errObj(`${EC}_T`, `isothermal mode requires params.T_out_K in [${TMIN}, ${TMAX}] K`, 'T_out_K');
+    }
+    T_out = p.T_out_K;
+    core = coreAt(T_out);
+    if (core.error) return core;
+  }
+  if (!core.eq.converged) {
+    warnings.push(`${which}: equilibrium solve did not reach tolerance`);
+  }
+  if (isShift && preset !== 'none') {
+    const pr = SHIFT_PRESETS[preset];
+    if (T_out < pr.Tlo || T_out > pr.Thi) {
+      warnings.push(`shift: T_out ${T_out.toFixed(1)} K is outside the ${preset} window ` +
+        `${pr.Tlo}\u2013${pr.Thi} K (${pr.label})`);
+    }
+  }
+
+  const order = shiftOrder(core.n, isShift ? SHIFT_ORDER : SMR_REACTING);
+  const entries = order.map((k) => ({ key: k, n_kmol_h: core.n.get(k) || 0 }));
+  const outNoH = streamFromMoles(entries, T_out, P, 'gas');
+  if (outNoH.error) return outNoH;
+  const eOut = streamEnthalpy(outNoH);
+  if (eOut.error) return eOut;
+  warnings.push(...eOut.warnings);
+  const out = Object.assign({}, outNoH, { H_kJh: eOut.H_kJh });
+
+  const comp = smrComposition(core.n, order);
+  const eb = energyBalance(Hin, eOut.H_kJh, 0);
+  const dryAt = (k) => {
+    const hit = comp.dry.find((x) => x.key === k);
+    return hit ? hit.mole_fraction : 0;
+  };
+
+  const details = {
+    mode,
+    T_in_K: T_in,
+    T_out_K: T_out,
+    delta_T_K: T_out - T_in,
+    P_out_bar: P,
+    ate_K: ate,
+    T_eq_K: T_out + ate,
+    lnK2: core.eq.lnK2,
+    composition_wet: comp.wet,
+    composition_dry: comp.dry,
+    outlet_mole_flows: entries,
+  };
+  if (isShift) {
+    details.preset = preset;
+    details.extent_kmol_h = core.eq.e_kmol_h;
+    details.co_slip_dry_pct = dryAt('CO') * 100;
+    details.h2_co_ratio = comp.h2_co_ratio;
+  } else {
+    details.lnK1 = core.lnK1;
+    details.extents = { smr_kmol_h: core.eq.e1_kmol_h, wgs_kmol_h: core.eq.e2_kmol_h };
+    details.co_ppm_dry = dryAt('CO') * 1e6;
+    details.co2_ppm_dry = dryAt('CO2') * 1e6;
+    details.co_co2_ppm_dry = (dryAt('CO') + dryAt('CO2')) * 1e6;
+    details.ch4_dry_pct = dryAt('CH4') * 100;
+  }
+  if (mode === 'isothermal') details.Q_kW = eb.Q_kW;
+
+  return {
+    streams_out: [out],
+    mass_balance: massBalance(stream.mass_flow_kg_h, out.mass_flow_kg_h),
+    energy_balance: eb,
+    details,
+    converged: core.eq.converged && outerConverged,
+    iterations: core.eq.iterations + outerIters,
+    warnings,
+  };
+}
+
+/**
+ * MODULE 'shift' — water-gas shift converter (HTS/LTS).
+ * streams: exactly 1 (process gas: CO/H2O/CO2/H2 + CH4/N2/Ar/He inerts).
+ * params:
+ *   mode        'adiabatic' (default) | 'isothermal'
+ *   preset      'hts' | 'lts' | 'none' (default) — sets the ATE default
+ *               (10 / 5 / 0 K) and the T window that raises a warning
+ *   ate_K       approach-to-equilibrium override [K]
+ *   T_out_K     required for isothermal mode [K]
+ *   P_out_bar   defaults to the feed pressure
+ * @param {{streams:Array, params?:object}} input
+ * @returns {object}
+ */
+function solveShift(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  return shiftMethRun(mi.streams[0], mi.params, 'shift', []);
+}
+
+/**
+ * MODULE 'methanator' — trace CO/CO2 clean-up by methanation (the reverse
+ * reformer equilibria; residuals reported in dry mol-ppm).
+ * streams: exactly 1 (H2-rich gas with trace CO and/or CO2).
+ * params:
+ *   mode        'adiabatic' (default) | 'isothermal'
+ *   ate_K       approach-to-equilibrium (default 0 K, both reactions)
+ *   T_out_K     required for isothermal mode [K]
+ *   P_out_bar   defaults to the feed pressure
+ * @param {{streams:Array, params?:object}} input
+ * @returns {object}
+ */
+function solveMethanator(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  return shiftMethRun(mi.streams[0], mi.params, 'methanator', []);
+}
+
 // ---------------------------------------------------------------------------
 // MODULES registry — the api router dispatches into this map. Later steps
 // (CSTR, PFR, SMR, ...) register here without touching Part 1.
@@ -3421,6 +3834,8 @@ const MODULES = {
   'pfr-recycle': solvePFRRecycle,
   'smr': solveSMR,
   'atr': solveATR,
+  'shift': solveShift,
+  'methanator': solveMethanator,
 };
 
 /**
