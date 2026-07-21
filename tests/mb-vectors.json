@@ -1,0 +1,568 @@
+{
+  "meta": {
+    "version": "mb-vectors 1.0 — thermo core, vectors MB-001..MB-025",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.5.x, part 1 — thermo core)",
+    "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips."
+  },
+  "vectors": [
+    {
+      "id": "MB-001",
+      "desc": "Shomate Cp: CO2 gas at 298.15 K",
+      "call": "cpGas",
+      "args": [
+        "CO2",
+        298.15
+      ],
+      "expect": {
+        "cp_J_molK": 37.12,
+        "method": "shomate"
+      },
+      "tol": 0.5,
+      "source": "NIST WebBook CO2 gas, Cp(298.15 K) = 37.12 J/mol·K"
+    },
+    {
+      "id": "MB-002",
+      "desc": "Shomate enthalpy delta: N2 H(1000 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "N2",
+              1000
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "N2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 21.463
+      },
+      "tol": 0.15,
+      "source": "NIST WebBook N2, H°(1000)−H°(298.15) = 21.463 kJ/mol"
+    },
+    {
+      "id": "MB-003",
+      "desc": "Shomate enthalpy delta: CO2 H(1000 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              1000
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 33.4
+      },
+      "tol": 0.2,
+      "source": "NIST WebBook CO2, H°(1000)−H°(298.15) = 33.40 kJ/mol"
+    },
+    {
+      "id": "MB-004",
+      "desc": "Formation basis: CO2 gas h(298.15 K) equals Hf° exactly (Shomate delta = 0 at Tref)",
+      "call": "hGasMolar",
+      "args": [
+        "CO2",
+        298.15
+      ],
+      "expect": {
+        "h_kJmol": -393.52,
+        "hDep_kJmol": 0
+      },
+      "tol": 0.05,
+      "source": "NIST WebBook, ΔfH°(CO2, g) = −393.52 kJ/mol"
+    },
+    {
+      "id": "MB-005",
+      "desc": "SVN polynomial Cp: ethane gas at 400 K (no Shomate set — must route via cp_svn)",
+      "call": "cpGas",
+      "args": [
+        "C2H6",
+        400
+      ],
+      "expect": {
+        "cp_J_molK": 65.7,
+        "method": "svn"
+      },
+      "tol": 1.5,
+      "source": "SVN App. C Table C.1 ethane; handbook Cp(400 K) ≈ 65.5–66 J/mol·K"
+    },
+    {
+      "id": "MB-006",
+      "desc": "SVN enthalpy delta: propane H(400 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "C3H8",
+              400
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "C3H8",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 8.6
+      },
+      "tol": 0.4,
+      "source": "SVN Table C.1 integral; NIST-derived ΔH(298→400) ≈ 8.6 kJ/mol"
+    },
+    {
+      "id": "MB-007",
+      "desc": "IF97 anchor: liquid water at 298.15 K / 1 bar equals Hf°(liq) on the formation basis",
+      "call": "waterMolarH",
+      "args": [
+        298.15,
+        1,
+        "liquid"
+      ],
+      "expect": {
+        "h_kJmol": -285.83,
+        "phase": "liquid",
+        "method": "if97"
+      },
+      "tol": 0.05,
+      "source": "NIST, ΔfH°(H2O, l) = −285.83 kJ/mol; IF97 delta ≡ 0 at the 298.15 K anchor"
+    },
+    {
+      "id": "MB-008",
+      "desc": "IF97 saturated liquid at 373.15 K / 1.01325 bar (region-4 point, liquid branch)",
+      "call": "waterMolarH",
+      "args": [
+        373.15,
+        1.01325,
+        "liquid"
+      ],
+      "expect": {
+        "h_kJmol": -280.17,
+        "phase": "liquid"
+      },
+      "tol": 0.1,
+      "source": "steam tables hf(100 °C) = 419.05 kJ/kg → −285.83 + (419.05−104.92)·0.018015 = −280.17 kJ/mol"
+    },
+    {
+      "id": "MB-009",
+      "desc": "IF97 superheated steam at 423.15 K / 1 bar (region 2)",
+      "call": "waterMolarH",
+      "args": [
+        423.15,
+        1,
+        null
+      ],
+      "expect": {
+        "h_kJmol": -237.7,
+        "phase": "gas",
+        "method": "if97"
+      },
+      "tol": 0.15,
+      "source": "steam tables h(150 °C, 1 bar) = 2776.6 kJ/kg → −285.83 + (2776.6−104.92)·0.018015 = −237.70 kJ/mol"
+    },
+    {
+      "id": "MB-010",
+      "desc": "IF97 latent heat at 373.15 K from the gas/liquid branch difference",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "waterMolarH",
+            "args": [
+              373.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "waterMolarH",
+            "args": [
+              373.15,
+              1,
+              "liquid"
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 40.66
+      },
+      "tol": 0.3,
+      "source": "steam tables hfg(100 °C) = 2256.5 kJ/kg × 0.018015 kg/mol = 40.66 kJ/mol"
+    },
+    {
+      "id": "MB-011",
+      "desc": "IF97 estimated ice branch: water at 263.15 K sits below hf_liq − ΔHfus",
+      "call": "waterMolarH",
+      "args": [
+        263.15,
+        1,
+        null
+      ],
+      "expect": {
+        "h_kJmol": -294.06,
+        "phase": "solid",
+        "method": "if97_ice_estimate"
+      },
+      "tol": 0.3,
+      "source": "−285.83 + (0−104.92)·0.018015 − 6.01 + 2.09·0.018015·(−10) = −294.1 kJ/mol (ice at −10 °C)"
+    },
+    {
+      "id": "MB-012",
+      "desc": "Watson anchor identity: ΔHvap(H2O) at Tb returns the stored anchor exactly",
+      "call": "dhvapT",
+      "args": [
+        "H2O",
+        373.15
+      ],
+      "expect": {
+        "dhvap_kJmol": 40.65,
+        "method": "watson"
+      },
+      "tol": 0.01,
+      "source": "NIST, ΔHvap(H2O, 373.15 K) = 40.65 kJ/mol — at T = Tref the Watson ratio is 1"
+    },
+    {
+      "id": "MB-013",
+      "desc": "Watson extrapolation down: ΔHvap(H2O) at 298.15 K vs calorimetric value",
+      "call": "dhvapT",
+      "args": [
+        "H2O",
+        298.15
+      ],
+      "expect": {
+        "dhvap_kJmol": 43.99
+      },
+      "tol": 1,
+      "source": "NIST, ΔHvap(H2O, 298.15 K) = 43.99 kJ/mol; Watson 0.38-exponent gives ≈44.6 (correlation error < 1.5%)"
+    },
+    {
+      "id": "MB-014",
+      "desc": "Watson with dhvap_ref_K override: CO2 at 250 K anchored at the TRIPLE point (216.59 K), not the sublimation tb_K",
+      "call": "dhvapT",
+      "args": [
+        "CO2",
+        250
+      ],
+      "expect": {
+        "dhvap_kJmol": 12.7,
+        "method": "watson"
+      },
+      "tol": 0.6,
+      "source": "Watson from ΔHvap(216.59 K) = 15.3 kJ/mol; handbook ΔHvap(250 K) ≈ 12.3–13 kJ/mol. Guards the dhvap_ref_K path."
+    },
+    {
+      "id": "MB-015",
+      "desc": "Phase at normal Tb: water at 373.15 K / 1.00 bar is GAS (Tsat(1 bar) = 372.76 K — 0.4 K superheated)",
+      "call": "phaseOf",
+      "args": [
+        "H2O",
+        373.15,
+        1
+      ],
+      "expect": {
+        "phase": "gas",
+        "method": "if97_region"
+      },
+      "tol": 0,
+      "source": "IF97: Tsat(1.0 bar) = 372.756 K; the classic at-Tb trap — 100 °C at 1 bar (not 1 atm) is already vapor"
+    },
+    {
+      "id": "MB-016",
+      "desc": "Phase just below saturation: water at 372.0 K / 1.00 bar is LIQUID",
+      "call": "phaseOf",
+      "args": [
+        "H2O",
+        372,
+        1
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "if97_region"
+      },
+      "tol": 0,
+      "source": "IF97: 372.0 K < Tsat(1.0 bar) = 372.756 K → region 1 liquid"
+    },
+    {
+      "id": "MB-017",
+      "desc": "Phase above Tc: propane at 400 K / 50 bar is GAS regardless of pressure (Tc = 369.8 K)",
+      "call": "phaseOf",
+      "args": [
+        "C3H8",
+        400,
+        50
+      ],
+      "expect": {
+        "phase": "gas",
+        "method": "supercritical"
+      },
+      "tol": 0,
+      "source": "propane Tc = 369.8 K < 400 K — supercritical rule fires before any Psat comparison"
+    },
+    {
+      "id": "MB-018",
+      "desc": "Nonvolatile solid: NaCl at 298.15 K / 1 bar is SOLID with psat = 0",
+      "call": "phaseOf",
+      "args": [
+        "NaCl",
+        298.15,
+        1
+      ],
+      "expect": {
+        "phase": "solid",
+        "method": "nonvolatile",
+        "psat_bar": 0
+      },
+      "tol": 0,
+      "source": "spec: nonvolatile flag → solid below Tm (1073.8 K), psat pinned to 0"
+    },
+    {
+      "id": "MB-019",
+      "desc": "Nonvolatile melt: NaCl at 1200 K / 1 bar is LIQUID (above Tm 1073.8 K), still nonvolatile",
+      "call": "phaseOf",
+      "args": [
+        "NaCl",
+        1200,
+        1
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "nonvolatile",
+        "psat_bar": 0
+      },
+      "tol": 0,
+      "source": "spec: nonvolatile + T ≥ Tm → liquid; never gas (tb_K = 1738 K irrelevant while flagged)"
+    },
+    {
+      "id": "MB-020",
+      "desc": "Antoine Psat route: ethanol at 350 K / 1.01325 bar is LIQUID (Psat ≈ 0.96 bar just under P)",
+      "call": "phaseOf",
+      "args": [
+        "EtOH",
+        350,
+        1.01325
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "psat_antoine",
+        "psat_bar": 0.957
+      },
+      "tol": {
+        "psat_bar": 0.05,
+        "default": 0
+      },
+      "source": "Antoine (CRC set): Psat(350 K) ≈ 0.95–0.97 bar < 1.01325 bar; Tb = 351.44 K — 1.4 K below the boil"
+    },
+    {
+      "id": "MB-021",
+      "desc": "Formation-basis element identity: H2 gas at 298.15 K has h = 0 (element reference state)",
+      "call": "hGasMolar",
+      "args": [
+        "H2",
+        298.15
+      ],
+      "expect": {
+        "h_kJmol": 0
+      },
+      "tol": 0.001,
+      "source": "ΔfH°(element, standard state) ≡ 0; Shomate H(298.15)−H(298.15) ≡ 0 by the F−H closed form"
+    },
+    {
+      "id": "MB-022",
+      "desc": "Formation-basis reaction consistency: H2 + ½O2 → H2O(g) at 298.15 K from stream enthalpies alone",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "waterMolarH",
+            "args": [
+              298.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "H2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "O2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -0.5
+          }
+        ]
+      },
+      "expect": {
+        "value": -241.83
+      },
+      "tol": 0.5,
+      "source": "NIST, ΔfH°(H2O, g) = −241.83 kJ/mol. Proves reaction heat is implicit in h — including the IF97-routed water branch."
+    },
+    {
+      "id": "MB-023",
+      "desc": "Formation-basis reaction consistency: CH4 + 2O2 → CO2 + 2H2O(g), ΔH°rxn(298) = −802.3 kJ/mol (LHV check)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "waterMolarH",
+            "args": [
+              298.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 2
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CH4",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "O2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -2
+          }
+        ]
+      },
+      "expect": {
+        "value": -802.3
+      },
+      "tol": 1,
+      "source": "Hess: −393.52 + 2(−241.83) − (−74.87) = −802.31 kJ/mol (methane lower heating value)"
+    },
+    {
+      "id": "MB-024",
+      "desc": "solveT_forH round-trip: pure liquid water stream, T_true = 350 K over bracket [280, 420]",
+      "call": "solveT_roundtrip",
+      "args": {
+        "stream": {
+          "mass_flow_kg_h": 100,
+          "P_bar": 2,
+          "components": [
+            {
+              "key": "H2O",
+              "mass_fraction": 1,
+              "phase": "liquid"
+            }
+          ]
+        },
+        "T_true": 350,
+        "Tlo": 280,
+        "Thi": 420
+      },
+      "expect": {
+        "T_K": 350,
+        "converged": true
+      },
+      "tol": {
+        "T_K": 0.01,
+        "default": 0
+      },
+      "source": "self-consistency: streamEnthalpy(T) → solveT_forH(H) must invert on the IF97 liquid branch"
+    },
+    {
+      "id": "MB-025",
+      "desc": "solveT_forH round-trip: air (N2/O2 Shomate gas mix), T_true = 800 K over bracket [300, 1500]",
+      "call": "solveT_roundtrip",
+      "args": {
+        "stream": {
+          "mass_flow_kg_h": 1000,
+          "P_bar": 1.01325,
+          "components": [
+            {
+              "key": "N2",
+              "mass_fraction": 0.767
+            },
+            {
+              "key": "O2",
+              "mass_fraction": 0.233
+            }
+          ]
+        },
+        "T_true": 800,
+        "Tlo": 300,
+        "Thi": 1500
+      },
+      "expect": {
+        "T_K": 800,
+        "converged": true
+      },
+      "tol": {
+        "T_K": 0.01,
+        "default": 0
+      },
+      "source": "self-consistency on the multi-component Shomate gas branch (crosses both N2 ranges at 500 K)"
+    }
+  ]
+}
