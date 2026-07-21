@@ -37,10 +37,10 @@
 
 'use strict';
 
-const crypto = require('crypto');
-const engine = require('./_lib/mb-engine.js');
-const mbData = require('./_lib/mb-data.js');
-const fluids = require('./_lib/fluids.js');
+import crypto from 'node:crypto';
+import engine from './_lib/mb-engine.js';
+import mbData from './_lib/mb-data.js';
+import fluids from './_lib/fluids.js';
 
 const API_VERSION = 'material-balance api 1.0.0';
 const COPYRIGHT = '(c) multicalci.com';
@@ -550,7 +550,7 @@ async function handleSolve(req, res, moduleName, ipHash) {
  * @param {object} req IncomingMessage (+ req.query / req.body on Vercel)
  * @param {object} res ServerResponse
  */
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const corsOk = applyCors(req, res);
 
