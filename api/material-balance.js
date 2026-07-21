@@ -1,9 +1,11 @@
 // ============================================================================
 // REPO PATH: api/_lib/mb-engine.js
 // ============================================================================
-// multicalci.com — Material Balance Calculator (spec v5.2) — STEP 8
-// PARTS 1+2 — THERMO CORE + SIX CORE MODULE SOLVERS (MODULES{...}):
-// mixer, splitter, flash, heat-exchanger, rotating, reactor.
+// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8 + 11 + 12
+// PARTS 1+2+3+4 — THERMO CORE + ELEVEN MODULE SOLVERS (MODULES{...}):
+// mixer, splitter, flash, heat-exchanger, rotating, reactor (Part 2);
+// cstr, pfr, pfr-recycle (Part 3 — liquid-basis reaction engineering);
+// smr, atr (Part 4 — steam / autothermal reforming equilibria).
 //
 // FORMATION-ENTHALPY BASIS: every enthalpy returned here includes the
 // standard enthalpy of formation at 298.15 K, so any module's duty is
@@ -43,7 +45,7 @@ import mbData from './mb-data.js';
 import if97 from './if97.js';
 import eos from './eos.js';
 
-const ENGINE_VERSION = 'mb-engine 0.6.0 (parts 1+2 — thermo core + six core modules)';
+const ENGINE_VERSION = 'mb-engine 0.8.0 (parts 1+2+3+4 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -1857,6 +1859,1552 @@ function solveReactor(input) {
   };
 }
 
+// ===========================================================================
+// PART 3 — REACTION-ENGINEERING MODULES (Step 11): cstr, pfr, pfr-recycle.
+//
+// SCOPE (per spec / project report): LIQUID-BASIS kinetics — constant-density
+// incompressible reacting liquid, single rate-controlling reaction, rate law
+// pseudo-nth-order in ONE named reactant:  −r_A = k · Ca^n,  n ∈ {0, 1, 2}.
+// Concentrations in kmol/m³, volumes in m³, rate constant on the SECONDS
+// base:  n=0 → k [kmol/(m³·s)],  n=1 → k [1/s],  n=2 → k [m³/(kmol·s)].
+// Arrhenius option: k = A·exp(−Ea/(R·T)) with A in the same units as k and
+// Ea in kJ/mol (R = 0.008314462 kJ/mol·K).
+//
+// Stoichiometry is FULL (all species, ν < 0 reactants / ν > 0 products) so
+// the mole bookkeeping conserves mass exactly when Σν·MW = 0; a warning is
+// issued when the supplied stoichiometry is mass-inconsistent. Extents are
+// clamped so no species goes negative (negativity guard, as in the
+// conversion reactor).
+//
+// Energy: FORMATION BASIS as everywhere else — isothermal duty is simply
+// Q = Hout − Hin (reaction heat implicit); adiabatic outlet T solved from
+// stream enthalpies via solveOutletT.
+//
+// pfr-recycle: classic recycle reactor (Fogler Ch. 6 / Levenspiel Ch. 6) —
+// fresh feed + recycle mix, PFR pass, splitter returns R·(product flow) as
+// recycle. Tear stream (recycle composition + T) converged by WEGSTEIN with
+// acceleration factor bounded q ∈ [−5, 0] and fallback to direct
+// substitution; tolerances 0.01 % total flow / 1e-3 mass fraction / 0.1 K,
+// iteration cap 100.
+// ===========================================================================
+
+const KIN_MAX_ITER = 100;      // recycle-tear / adiabatic-CSTR cap
+const KIN_TOL_FLOWREL = 1e-4;  // 0.01 % relative on total tear mass flow
+const KIN_TOL_X = 1e-3;        // abs on tear mass fractions
+const KIN_TOL_T = 0.1;         // K on tear / CSTR temperature
+const KIN_CSTR_DAMP = 0.5;     // damping for the adiabatic-CSTR T loop
+const PFR_SEGMENTS_DEF = 50;   // default axial segments
+const PFR_SEGMENTS_MIN = 5;
+const PFR_SEGMENTS_MAX = 500;
+const WEGSTEIN_QMIN = -5;      // bounded acceleration factor q ∈ [−5, 0]
+const WEGSTEIN_QMAX = 0;
+
+// ---------------------------------------------------------------------------
+// shared kinetics helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate the shared kinetics parameter block and return an evaluator.
+ * params: { order:0|1|2, k_si? OR arrhenius:{A_si, Ea_kJmol},
+ *           reaction:{ stoich:{key:ν,...}, reactant:key } }
+ * Exactly one of k_si / arrhenius must be given. `reactant` must appear in
+ * stoich with ν < 0.
+ * @param {object} p module params
+ * @returns {{order:number, reactant:string, stoich:object,
+ *            kAt:(T:number)=>number, kIsConstant:boolean,
+ *            warnings:string[]}|{error:object}}
+ */
+function kineticsSetup(p) {
+  const warnings = [];
+  const order = p.order;
+  if (![0, 1, 2].includes(order)) {
+    return errObj('MB_KIN_ORDER', 'params.order must be 0, 1 or 2', 'order');
+  }
+  const hasK = num(p.k_si);
+  const arr = p.arrhenius;
+  const hasArr = !!(arr && typeof arr === 'object' && num(arr.A_si) && num(arr.Ea_kJmol));
+  if (hasK === hasArr) {
+    return errObj('MB_KIN_K',
+      'give exactly one of params.k_si or params.arrhenius {A_si, Ea_kJmol}', 'k_si');
+  }
+  if (hasK && p.k_si <= 0) return errObj('MB_KIN_K', 'params.k_si must be > 0', 'k_si');
+  if (hasArr && (arr.A_si <= 0 || arr.Ea_kJmol < 0)) {
+    return errObj('MB_KIN_K', 'arrhenius requires A_si > 0 and Ea_kJmol ≥ 0', 'arrhenius');
+  }
+  const rx = p.reaction;
+  if (!rx || typeof rx !== 'object' || !rx.stoich || typeof rx.stoich !== 'object') {
+    return errObj('MB_KIN_RXN', 'params.reaction {stoich, reactant} required', 'reaction');
+  }
+  const keys = Object.keys(rx.stoich);
+  if (keys.length < 2) {
+    return errObj('MB_KIN_RXN', 'reaction.stoich needs at least one reactant and one product', 'reaction');
+  }
+  let massSum = 0;
+  let massAbs = 0;
+  for (const k of keys) {
+    const nu = rx.stoich[k];
+    if (!num(nu) || nu === 0) {
+      return errObj('MB_KIN_RXN', `reaction.stoich['${k}'] must be a nonzero number`, 'reaction');
+    }
+    const rec = resolve(k);
+    if (rec.error) return rec;
+    massSum += nu * rec.mw;
+    massAbs += Math.abs(nu) * rec.mw;
+  }
+  if (massAbs > 0 && Math.abs(massSum) / massAbs > 1e-3) {
+    warnings.push(`kinetics: reaction stoichiometry is mass-inconsistent by ${(100 * massSum / massAbs).toFixed(3)} % — mass closure will show it`);
+  }
+  const reactant = rx.reactant;
+  if (typeof reactant !== 'string' || !num(rx.stoich[reactant]) || rx.stoich[reactant] >= 0) {
+    return errObj('MB_KIN_REACTANT', 'reaction.reactant must name a reactant (ν < 0) in stoich', 'reaction');
+  }
+  const kAt = hasK
+    ? () => p.k_si
+    : (T) => arr.A_si * Math.exp(-arr.Ea_kJmol / (R_KJ * T));
+  return { order, reactant, stoich: rx.stoich, kAt, kIsConstant: hasK, warnings };
+}
+
+/**
+ * Mixture liquid density: params.rho_kgm3 override, else mass-weighted
+ * harmonic mean of fluids.js rho_liq_kgm3 (1000 kg/m³ assumed with a
+ * warning when a component has none) — same convention as the pump.
+ * @param {Array<{key:string, mass_fraction:number}>} molComponents
+ * @param {object} p module params
+ * @param {string[]} warnings appended in place
+ * @returns {number|{error:object}} density [kg/m³]
+ */
+function liquidDensityOf(molComponents, p, warnings) {
+  if (num(p.rho_kgm3)) {
+    if (p.rho_kgm3 <= 0) return errObj('MB_KIN_RHO', 'params.rho_kgm3 must be > 0', 'rho_kgm3');
+    return p.rho_kgm3;
+  }
+  let invRho = 0;
+  for (const c of molComponents) {
+    const fRec = fluids.get(c.key);
+    let rho = fRec && num(fRec.rho_liq_kgm3) ? fRec.rho_liq_kgm3 : null;
+    if (rho == null) {
+      rho = 1000;
+      warnings.push(`kinetics: no liquid density for '${c.key}' — 1000 kg/m³ assumed (or give params.rho_kgm3)`);
+    }
+    invRho += c.mass_fraction / rho;
+  }
+  return 1 / invRho;
+}
+
+/**
+ * Apply conversion X of the named reactant to a mole map (kmol/h),
+ * clamping the extent so no species goes negative.
+ * @param {string[]} order species order (extended in place for new products)
+ * @param {Map<string,number>} n mole flows [kmol/h] (mutated)
+ * @param {object} stoich {key: ν}
+ * @param {string} reactant
+ * @param {number} X requested conversion of the reactant
+ * @param {string[]} warnings appended in place
+ * @returns {{extent_kmolh:number, Xeff:number}}
+ */
+function applyKineticConversion(order, n, stoich, reactant, X, warnings) {
+  for (const k of Object.keys(stoich)) {
+    if (!n.has(k)) { order.push(k); n.set(k, 0); }
+  }
+  const nA0 = n.get(reactant);
+  if (nA0 <= 1e-15) return { extent_kmolh: 0, Xeff: 0 };
+  const wanted = (X * nA0) / -stoich[reactant];
+  let feasible = Infinity;
+  for (const k of Object.keys(stoich)) {
+    if (stoich[k] < 0) feasible = Math.min(feasible, n.get(k) / -stoich[k]);
+  }
+  const extent = Math.min(wanted, feasible);
+  if (extent < wanted - 1e-12) {
+    warnings.push(`kinetics: conversion clamped by co-reactant depletion — requested extent ${wanted.toExponential(4)}, feasible ${feasible.toExponential(4)} kmol/h`);
+  }
+  for (const k of Object.keys(stoich)) {
+    const v = n.get(k) + stoich[k] * extent;
+    n.set(k, Math.abs(v) < 1e-12 ? 0 : v);
+  }
+  return { extent_kmolh: extent, Xeff: (extent * -stoich[reactant]) / nA0 };
+}
+
+/**
+ * Max feasible conversion of the reactant given co-reactant inventories.
+ * @param {Map<string,number>} n feed mole flows [kmol/h]
+ * @param {object} stoich
+ * @param {string} reactant
+ * @returns {number} X_max ∈ [0, 1]
+ */
+function kinXmax(n, stoich, reactant) {
+  const nA0 = n.get(reactant) || 0;
+  if (nA0 <= 1e-15) return 0;
+  let feasible = nA0 / -stoich[reactant];
+  for (const k of Object.keys(stoich)) {
+    if (stoich[k] < 0 && n.has(k)) feasible = Math.min(feasible, n.get(k) / -stoich[k]);
+  }
+  return Math.min(1, (feasible * -stoich[reactant]) / nA0);
+}
+
+/**
+ * Ideal-CSTR conversion for −r_A = k·Ca^n at constant density.
+ *   n=0: X = kτ/Ca0        n=1: X = Da/(1+Da), Da = kτ
+ *   n=2: kτCa0·X² − (2kτCa0+1)·X + kτCa0 = 0 → physical root
+ * @param {number} order 0|1|2
+ * @param {number} k    [SI, per order]
+ * @param {number} tau  [s]
+ * @param {number} Ca0  [kmol/m³]
+ * @returns {number} X ∈ [0, 1)
+ */
+function cstrConversion(order, k, tau, Ca0) {
+  if (tau <= 0 || k <= 0) return 0;
+  if (order === 0) return Ca0 > 0 ? Math.min(1, (k * tau) / Ca0) : 0;
+  if (order === 1) { const Da = k * tau; return Da / (1 + Da); }
+  const a = k * tau * Ca0;
+  if (a <= 0) return 0;
+  return ((2 * a + 1) - Math.sqrt(4 * a + 1)) / (2 * a);
+}
+
+/**
+ * Residence time for target X in the ideal reactor family.
+ *   'cstr' : n=0 Ca0X/k · n=1 X/(k(1−X)) · n=2 X/(kCa0(1−X)²)
+ *   'pfr'  : n=0 Ca0X/k · n=1 ln(1/(1−X))/k · n=2 X/(kCa0(1−X))
+ * ('pfr' doubles as the constant-volume BATCH time — identical integrals.)
+ * @param {('cstr'|'pfr')} ideal
+ * @param {number} order 0|1|2
+ * @param {number} k
+ * @param {number} Ca0 [kmol/m³]
+ * @param {number} X ∈ (0, 1)
+ * @returns {number} τ [s]
+ */
+function tauForConversion(ideal, order, k, Ca0, X) {
+  if (order === 0) return (Ca0 * X) / k;
+  if (order === 1) return ideal === 'cstr' ? X / (k * (1 - X)) : Math.log(1 / (1 - X)) / k;
+  return ideal === 'cstr' ? X / (k * Ca0 * (1 - X) * (1 - X)) : X / (k * Ca0 * (1 - X));
+}
+
+/**
+ * One EXACT constant-density segment of length dτ at fixed k:
+ *   n=0: Ca − k·dτ (floored at 0) · n=1: Ca·e^(−k·dτ) · n=2: Ca/(1+k·Ca·dτ)
+ * @param {number} order
+ * @param {number} k
+ * @param {number} Ca [kmol/m³]
+ * @param {number} dtau [s]
+ * @returns {number} Ca after the segment
+ */
+function segmentStep(order, k, Ca, dtau) {
+  if (Ca <= 0) return 0;
+  if (order === 0) return Math.max(0, Ca - k * dtau);
+  if (order === 1) return Ca * Math.exp(-k * dtau);
+  return Ca / (1 + k * Ca * dtau);
+}
+
+/**
+ * Validate the shared thermal-mode parameters for the kinetics modules.
+ * @param {object} p params
+ * @param {string[]} warnings appended in place
+ * @returns {{mode:string}|{error:object}}
+ */
+function kinThermalMode(p, warnings) {
+  const mode = p.mode === undefined ? 'isothermal' : p.mode;
+  if (!['isothermal', 'adiabatic'].includes(mode)) {
+    return errObj('MB_KIN_MODE', "params.mode must be 'isothermal' | 'adiabatic'", 'mode');
+  }
+  if (mode !== 'adiabatic' && num(p.Q_kW)) {
+    warnings.push('kinetics: params.Q_kW is only used in adiabatic mode — ignored (duty is an output in isothermal)');
+  }
+  return { mode };
+}
+
+/**
+ * Warn when any flowing outlet component resolves to a NON-liquid phase —
+ * the kinetics here are liquid-basis, so a gas-phase resolution flags the
+ * result as outside the model's validity envelope.
+ * @param {object} eOut streamEnthalpy result
+ * @param {string[]} warnings appended in place
+ */
+function warnIfNotLiquid(eOut, warnings) {
+  for (const pc of eOut.perComponent) {
+    if (pc.n_kmol_h > 1e-12 && pc.phase && pc.phase !== 'liquid') {
+      warnings.push(`kinetics: '${pc.key}' resolves ${pc.phase} at outlet conditions — liquid-basis rate law outside validity`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. CSTR — single pseudo-nth-order liquid reaction; V→X or X→V;
+//    Damköhler + batch-time equivalent; isothermal / adiabatic.
+// ---------------------------------------------------------------------------
+
+/**
+ * CSTR. params:
+ *   order, k_si | arrhenius, reaction     — see kineticsSetup
+ *   solve_for : 'X' (default; requires V_m3) | 'V' (requires X_target)
+ *   V_m3, X_target
+ *   mode      : 'isothermal' (default) | 'adiabatic' (+ optional Q_kW)
+ *   rho_kgm3  : liquid-density override [kg/m³]
+ *   P_out_bar : optional (default feed P)
+ * Adiabatic + solve X: k depends on the (unknown) outlet T, so the loop
+ * damped-iterates T_out ↔ X with cap 100 / 0.1 K tolerance; NOTE the
+ * exothermic adiabatic CSTR can have MULTIPLE steady states — the returned
+ * one is the branch reached from the feed temperature (warning issued).
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveCSTR(input) {
+  return solveIdealReactor(input, 'cstr');
+}
+
+// ---------------------------------------------------------------------------
+// 8. PFR — same kinetics, exact-per-segment axial march (default 50
+//    segments), adiabatic per-segment T update, profile [{z,X,Ca,T}].
+// ---------------------------------------------------------------------------
+
+/**
+ * PFR. params as CSTR plus:
+ *   segments : axial segments (default 50, 5–500)
+ * solve_for 'V' (X_target → V) is ISOTHERMAL ONLY (closed-form τ); the
+ * profile is then reported at the resulting volume. Each segment is solved
+ * with the EXACT constant-density kinetic step at the segment-inlet k(T), so
+ * the isothermal march reproduces the analytic conversion to machine
+ * precision at any segment count; adiabatic accuracy improves with segments.
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solvePFR(input) {
+  return solveIdealReactor(input, 'pfr');
+}
+
+/**
+ * Shared CSTR/PFR implementation (they differ only in the design equation
+ * and the axial march).
+ * @param {{streams:Array, params:object}} input
+ * @param {('cstr'|'pfr')} ideal
+ * @returns {object} module result or error envelope
+ */
+function solveIdealReactor(input, ideal) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const feed = mi.streams[0];
+  const p = mi.params;
+  const warnings = [];
+
+  const kin = kineticsSetup(p);
+  if (kin.error) return kin;
+  warnings.push(...kin.warnings);
+  const tm = kinThermalMode(p, warnings);
+  if (tm.error) return tm;
+  const mode = tm.mode;
+
+  const solveFor = p.solve_for === undefined ? 'X' : p.solve_for;
+  if (!['X', 'V'].includes(solveFor)) {
+    return errObj('MB_KIN_SOLVEFOR', "params.solve_for must be 'X' | 'V'", 'solve_for');
+  }
+  if (solveFor === 'X' && (!num(p.V_m3) || p.V_m3 <= 0)) {
+    return errObj('MB_KIN_V', "solve_for 'X' requires params.V_m3 > 0", 'V_m3');
+  }
+  if (solveFor === 'V' && (!num(p.X_target) || p.X_target <= 0 || p.X_target >= 1)) {
+    return errObj('MB_KIN_X', "solve_for 'V' requires params.X_target in (0, 1)", 'X_target');
+  }
+  if (solveFor === 'V' && mode === 'adiabatic' && ideal === 'pfr') {
+    return errObj('MB_KIN_SOLVEFOR', "pfr solve_for 'V' is isothermal only — march the volume (solve_for 'X') for adiabatic", 'solve_for');
+  }
+  let segments = PFR_SEGMENTS_DEF;
+  if (ideal === 'pfr' && p.segments !== undefined) {
+    if (!num(p.segments) || p.segments < PFR_SEGMENTS_MIN || p.segments > PFR_SEGMENTS_MAX) {
+      return errObj('MB_KIN_SEG', `params.segments must be ${PFR_SEGMENTS_MIN}–${PFR_SEGMENTS_MAX}`, 'segments');
+    }
+    segments = Math.round(p.segments);
+  }
+  const P_out = num(p.P_out_bar) ? p.P_out_bar : feed.P_bar;
+  if (P_out <= 0) return errObj('MB_P', 'params.P_out_bar must be positive', 'P_out_bar');
+
+  const eIn = streamEnthalpy(feed);
+  if (eIn.error) return eIn;
+  warnings.push(...eIn.warnings);
+  const mol = molarize(feed);
+  if (mol.error) return mol;
+
+  const rho = liquidDensityOf(mol.components, p, warnings);
+  if (rho.error) return rho;
+  const v_m3s = feed.mass_flow_kg_h / rho / 3600;    // constant-density volumetric flow
+  if (!(v_m3s > 0)) return errObj('MB_KIN_FLOW', 'feed mass flow must be > 0', 'mass_flow_kg_h');
+
+  const order0 = [];
+  const n0 = new Map();
+  for (const c of mol.components) { order0.push(c.key); n0.set(c.key, c.n_kmol_h); }
+  const nA0 = n0.get(kin.reactant) || 0;
+  if (nA0 <= 1e-15) {
+    return errObj('MB_KIN_REACTANT', `reactant '${kin.reactant}' absent from the feed`, 'reaction');
+  }
+  const Ca0 = (nA0 / 3600) / v_m3s;                  // kmol/m³
+  const Xmax = kinXmax(n0, kin.stoich, kin.reactant);
+  const Q_kW = mode === 'adiabatic' && num(p.Q_kW) ? p.Q_kW : 0;
+  const targetH = eIn.H_kJh + Q_kW * KJH_PER_KW;
+
+  /** build outlet stream at conversion X and temperature T (or solve T
+   *  adiabatically toward hTarget); returns {out, eOut, Xeff, itT} */
+  const outletAt = (X, T_fixed, hTarget) => {
+    const ord = order0.slice();
+    const n = new Map(n0);
+    const ap = applyKineticConversion(ord, n, kin.stoich, kin.reactant, X, warnings);
+    const entries = ord.map((k) => ({ key: k, n_kmol_h: n.get(k) }));
+    const base = streamFromMoles(entries, feed.T_K, P_out);
+    if (base.error) return base;
+    const shape = { mass_flow_kg_h: base.mass_flow_kg_h, P_bar: P_out, components: base.components };
+    if (hTarget === undefined) {
+      const e = streamEnthalpy(Object.assign({}, shape, { T_K: T_fixed }));
+      if (e.error) return e;
+      return { out: Object.assign({}, shape, { T_K: T_fixed, H_kJh: e.H_kJh }), eOut: e, Xeff: ap.Xeff, itT: 0 };
+    }
+    const sol = solveOutletT(shape, hTarget, feed.T_K - 60, feed.T_K + 60);
+    if (sol.error) return sol;
+    const e = streamEnthalpy(Object.assign({}, shape, { T_K: sol.T_K }));
+    if (e.error) return e;
+    return { out: Object.assign({}, shape, { T_K: sol.T_K, H_kJh: sol.H_kJh }), eOut: e, Xeff: ap.Xeff, itT: sol.iterations };
+  };
+
+  let X = 0;
+  let V_m3;
+  let tau_s;
+  let T_out = feed.T_K;
+  let iterations = 0;
+  let converged = true;
+  let profile = null;
+  let k_used;
+
+  if (solveFor === 'V') {
+    // -------- X_target → V (k at the operating temperature) ---------------
+    X = Math.min(p.X_target, Xmax);
+    if (X < p.X_target - 1e-12) {
+      warnings.push(`kinetics: X_target ${p.X_target} infeasible (co-reactant limit) — clamped to ${X.toFixed(6)}`);
+    }
+    if (mode === 'adiabatic') {
+      // X fixed → outlet composition fixed → T_out from the energy balance
+      // in ONE solve; k is then evaluated at T_out. (CSTR contents = outlet.)
+      const r = outletAt(X, undefined, targetH);
+      if (r.error) return r;
+      T_out = r.out.T_K;
+      iterations = r.itT;
+    }
+    k_used = kin.kAt(mode === 'adiabatic' ? T_out : feed.T_K);
+    tau_s = tauForConversion(ideal, kin.order, k_used, Ca0, X);
+    V_m3 = tau_s * v_m3s;
+  } else {
+    // -------- V → X --------------------------------------------------------
+    V_m3 = p.V_m3;
+    tau_s = V_m3 / v_m3s;
+    if (ideal === 'cstr') {
+      if (mode === 'isothermal' || kin.kIsConstant) {
+        // isothermal, or constant k: X in one shot; adiabatic constant-k
+        // still needs the single T solve afterwards.
+        k_used = kin.kAt(feed.T_K);
+        X = Math.min(cstrConversion(kin.order, k_used, tau_s, Ca0), Xmax);
+      } else {
+        // adiabatic + Arrhenius: damped T ↔ X loop (k at outlet T).
+        warnings.push('cstr: adiabatic operation can have multiple steady states — result is the branch reached from the feed temperature');
+        let T = feed.T_K;
+        let ok = false;
+        for (iterations = 1; iterations <= KIN_MAX_ITER; iterations++) {
+          k_used = kin.kAt(T);
+          X = Math.min(cstrConversion(kin.order, k_used, tau_s, Ca0), Xmax);
+          const r = outletAt(X, undefined, targetH);
+          if (r.error) return r;
+          const T_new = r.out.T_K;
+          if (Math.abs(T_new - T) < KIN_TOL_T / 2) { T = T_new; ok = true; break; }
+          T = KIN_CSTR_DAMP * T + (1 - KIN_CSTR_DAMP) * T_new;
+        }
+        converged = ok;
+        if (!ok) warnings.push(`cstr: adiabatic T↔X loop hit the ${KIN_MAX_ITER}-iteration cap — best estimate returned`);
+        T_out = T;
+        k_used = kin.kAt(T_out);
+        X = Math.min(cstrConversion(kin.order, k_used, tau_s, Ca0), Xmax);
+      }
+    } else {
+      // PFR march — exact kinetic step per segment at segment-inlet k(T).
+      const m = pfrMarch(kin, mode, segments, tau_s, Ca0, Xmax, feed, order0, n0,
+        P_out, eIn.H_kJh, Q_kW, warnings);
+      if (m.error) return m;
+      X = m.X;
+      T_out = m.T_end;
+      profile = m.profile;
+      iterations = m.iterations;
+      converged = m.converged;
+      k_used = kin.kAt(mode === 'adiabatic' ? T_out : feed.T_K);
+    }
+  }
+
+  // final outlet stream (adiabatic: solve T; isothermal: T = feed T)
+  const fin = mode === 'adiabatic'
+    ? outletAt(X, undefined, targetH)
+    : outletAt(X, feed.T_K);
+  if (fin.error) return fin;
+  warnings.push(...fin.eOut.warnings);
+  warnIfNotLiquid(fin.eOut, warnings);
+  T_out = fin.out.T_K;
+  const Xeff = fin.Xeff;
+
+  // isothermal PFR profile when not produced by a march (solve_for 'V')
+  if (ideal === 'pfr' && profile === null) {
+    const m = pfrMarch(kin, 'isothermal', segments, tau_s, Ca0, Xmax, feed,
+      order0, n0, P_out, eIn.H_kJh, 0, warnings);
+    if (!m.error) profile = m.profile;
+  }
+
+  const Da = kin.order === 1 ? k_used * tau_s
+    : kin.order === 0 ? (Ca0 > 0 ? (k_used * tau_s) / Ca0 : 0)
+      : k_used * tau_s * Ca0;                        // Da = k·τ·Ca0^(n−1)
+  const batch_s = Xeff > 0 && Xeff < 1
+    ? tauForConversion('pfr', kin.order, kin.kAt(mode === 'adiabatic' ? T_out : feed.T_K), Ca0, Xeff)
+    : null;
+
+  const details = {
+    ideal,
+    mode,
+    solve_for: solveFor,
+    order: kin.order,
+    reactant: kin.reactant,
+    k_si: k_used,
+    rho_kgm3: rho,
+    v0_m3h: v_m3s * 3600,
+    Ca0_kmolm3: Ca0,
+    Ca_out_kmolm3: Ca0 * (1 - Xeff),
+    X: Xeff,
+    Da,
+    tau_s,
+    V_m3,
+    batch_time_equiv_s: batch_s,
+    T_out_K: T_out,
+    P_out_bar: P_out,
+  };
+  if (ideal === 'pfr') { details.segments = segments; details.profile = profile; }
+
+  return {
+    streams_out: [fin.out],
+    mass_balance: massBalance(feed.mass_flow_kg_h, fin.out.mass_flow_kg_h),
+    energy_balance: energyBalance(eIn.H_kJh, fin.out.H_kJh, 0),
+    details,
+    converged,
+    iterations,
+    warnings,
+  };
+}
+
+/**
+ * Axial PFR march: `segments` exact kinetic steps of dτ = τ/segments each,
+ * k evaluated at the SEGMENT-INLET temperature; adiabatic T after each
+ * segment solved from the formation-basis energy balance with Q distributed
+ * uniformly along the length.
+ * @returns {{X:number, T_end:number, iterations:number, converged:boolean,
+ *            profile:Array<{z:number,X:number,Ca_kmolm3:number,T_K:number}>}
+ *           |{error:object}}
+ */
+function pfrMarch(kin, mode, segments, tau_s, Ca0, Xmax, feed, order0, n0,
+  P_out, Hin_kJh, Q_kW, warnings) {
+  const dtau = tau_s / segments;
+  let Ca = Ca0;
+  let T = feed.T_K;
+  let iterations = 0;
+  let converged = true;
+  const profile = [{ z: 0, X: 0, Ca_kmolm3: Ca0, T_K: T }];
+  const CaFloor = Ca0 * (1 - Xmax);                  // co-reactant feasibility floor
+  for (let s = 1; s <= segments; s++) {
+    const k = kin.kAt(T);
+    Ca = Math.max(CaFloor, segmentStep(kin.order, k, Ca, dtau));
+    const X = Ca0 > 0 ? 1 - Ca / Ca0 : 0;
+    if (mode === 'adiabatic') {
+      const ord = order0.slice();
+      const n = new Map(n0);
+      applyKineticConversion(ord, n, kin.stoich, kin.reactant, X, []);
+      const entries = ord.map((kk) => ({ key: kk, n_kmol_h: n.get(kk) }));
+      const base = streamFromMoles(entries, T, P_out);
+      if (base.error) return base;
+      const shape = { mass_flow_kg_h: base.mass_flow_kg_h, P_bar: P_out, components: base.components };
+      const target = Hin_kJh + Q_kW * KJH_PER_KW * (s / segments);
+      const sol = solveOutletT(shape, target, T - 60, T + 60);
+      if (sol.error) return sol;
+      iterations += sol.iterations;
+      if (!sol.converged) converged = false;
+      T = sol.T_K;
+    }
+    profile.push({ z: s / segments, X, Ca_kmolm3: Ca, T_K: T });
+  }
+  return { X: profile[segments].X, T_end: T, iterations, converged, profile };
+}
+
+// ---------------------------------------------------------------------------
+// 9. PFR + RECYCLE — recycle ratio R = recycle/product (Fogler Ch. 6);
+//    tear stream converged by bounded Wegstein (q ∈ [−5, 0], fallback to
+//    direct substitution); reports per-pass X_sp and overall X_ov.
+// ---------------------------------------------------------------------------
+
+/**
+ * One bounded-Wegstein update for a scalar tear variable.
+ * @param {number} x   current tear input
+ * @param {number} gx  map output g(x)
+ * @param {number} xp  previous tear input
+ * @param {number} gp  previous map output
+ * @param {boolean} accelerate apply Wegstein (else direct substitution)
+ * @returns {{next:number, q:number, s:number|null}} s = estimated map slope
+ */
+function wegsteinStep(x, gx, xp, gp, accelerate) {
+  if (!accelerate || !num(xp) || !num(gp)) return { next: gx, q: 0, s: null };
+  const dx = x - xp;
+  if (Math.abs(dx) < 1e-14) return { next: gx, q: 0, s: null };
+  const s = (gx - gp) / dx;
+  if (!isFinite(s) || Math.abs(s - 1) < 1e-12) return { next: gx, q: 0, s: null }; // fallback
+  let q = s / (s - 1);
+  if (q < WEGSTEIN_QMIN) q = WEGSTEIN_QMIN;
+  if (q > WEGSTEIN_QMAX) q = WEGSTEIN_QMAX;
+  return { next: q * x + (1 - q) * gx, q, s };
+}
+
+/**
+ * PFR with recycle. params:
+ *   order, k_si | arrhenius, reaction   — see kineticsSetup
+ *   V_m3      : reactor volume (> 0)
+ *   R         : recycle ratio, recycle flow / product flow (≥ 0)
+ *   mode      : 'isothermal' (default; whole loop at fresh-feed T)
+ *               | 'adiabatic' (mixing point + reactor adiabatic; + Q_kW)
+ *   rho_kgm3, segments, P_out_bar : as PFR
+ * Flowsheet: fresh + recycle → PFR(V) → splitter; recycle = R/(1+R) of the
+ * reactor effluent, product = 1/(1+R). TEAR = the recycle stream (component
+ * mole flows + T), converged by Wegstein with q ∈ [−5, 0] (fallback direct
+ * substitution). Tolerances: 0.01 % total tear flow, 1e-3 tear mass
+ * fractions, 0.1 K; cap 100. R = 0 short-circuits to a single PFR pass.
+ * details reports X_sp (per pass, across the reactor) and X_ov (overall,
+ * fresh basis); module streams_out = [product], so at convergence the mass
+ * closure is exact on the fresh-in / product-out envelope.
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solvePFRRecycle(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const fresh = mi.streams[0];
+  const p = mi.params;
+  const warnings = [];
+
+  const kin = kineticsSetup(p);
+  if (kin.error) return kin;
+  warnings.push(...kin.warnings);
+  const tm = kinThermalMode(p, warnings);
+  if (tm.error) return tm;
+  const mode = tm.mode;
+
+  if (!num(p.V_m3) || p.V_m3 <= 0) return errObj('MB_KIN_V', 'params.V_m3 > 0 required', 'V_m3');
+  const R = num(p.R) ? p.R : null;
+  if (!num(R) || R < 0) return errObj('MB_KIN_R', 'params.R (recycle ratio ≥ 0) required', 'R');
+  let segments = PFR_SEGMENTS_DEF;
+  if (p.segments !== undefined) {
+    if (!num(p.segments) || p.segments < PFR_SEGMENTS_MIN || p.segments > PFR_SEGMENTS_MAX) {
+      return errObj('MB_KIN_SEG', `params.segments must be ${PFR_SEGMENTS_MIN}–${PFR_SEGMENTS_MAX}`, 'segments');
+    }
+    segments = Math.round(p.segments);
+  }
+  const P_out = num(p.P_out_bar) ? p.P_out_bar : fresh.P_bar;
+  if (P_out <= 0) return errObj('MB_P', 'params.P_out_bar must be positive', 'P_out_bar');
+
+  const eFresh = streamEnthalpy(fresh);
+  if (eFresh.error) return eFresh;
+  warnings.push(...eFresh.warnings);
+  const molF = molarize(fresh);
+  if (molF.error) return molF;
+
+  const rho = liquidDensityOf(molF.components, p, warnings);
+  if (rho.error) return rho;
+
+  // unified species order: fresh feed first, then stoich-only species
+  const species = [];
+  const nFresh = new Map();
+  for (const c of molF.components) { species.push(c.key); nFresh.set(c.key, c.n_kmol_h); }
+  for (const k of Object.keys(kin.stoich)) {
+    if (!nFresh.has(k)) { species.push(k); nFresh.set(k, 0); }
+  }
+  const nA_fresh = nFresh.get(kin.reactant) || 0;
+  if (nA_fresh <= 1e-15) {
+    return errObj('MB_KIN_REACTANT', `reactant '${kin.reactant}' absent from the fresh feed`, 'reaction');
+  }
+  const Q_kW = mode === 'adiabatic' && num(p.Q_kW) ? p.Q_kW : 0;
+
+  /** one flowsheet pass: tear (recycle mole flows [kmol/h] + T) →
+   *  new recycle after mix → reactor → split. */
+  const passOnce = (tearN, tearT) => {
+    // ---- mixing point --------------------------------------------------
+    const nMix = species.map((k, i) => nFresh.get(k) + tearN[i]);
+    const entries = species.map((k, i) => ({ key: k, n_kmol_h: nMix[i] }));
+    const mixBase = streamFromMoles(entries, fresh.T_K, fresh.P_bar);
+    if (mixBase.error) return mixBase;
+    let T_mix = fresh.T_K;
+    if (mode === 'adiabatic' && tearN.some((x) => x > 0)) {
+      const tearEntries = species.map((k, i) => ({ key: k, n_kmol_h: tearN[i] }));
+      const tearBase = streamFromMoles(tearEntries, tearT, P_out);
+      if (tearBase.error) return tearBase;
+      const eTear = streamEnthalpy(Object.assign({}, tearBase, { T_K: tearT }));
+      if (eTear.error) return eTear;
+      const shape = { mass_flow_kg_h: mixBase.mass_flow_kg_h, P_bar: fresh.P_bar, components: mixBase.components };
+      const sol = solveOutletT(shape, eFresh.H_kJh + eTear.H_kJh,
+        Math.min(fresh.T_K, tearT) - 30, Math.max(fresh.T_K, tearT) + 30);
+      if (sol.error) return sol;
+      T_mix = sol.T_K;
+    }
+    // ---- reactor pass --------------------------------------------------
+    const v_mix = mixBase.mass_flow_kg_h / rho / 3600;      // m³/s
+    const tau = p.V_m3 / v_mix;
+    const nMixMap = new Map(species.map((k, i) => [k, nMix[i]]));
+    const nA_mix = nMixMap.get(kin.reactant);
+    const CaMix = (nA_mix / 3600) / v_mix;
+    const XmaxP = kinXmax(nMixMap, kin.stoich, kin.reactant);
+    const mixFeed = Object.assign({}, mixBase, { T_K: T_mix });
+    const eMix = streamEnthalpy(mixFeed);
+    if (eMix.error) return eMix;
+    const m = pfrMarch(kin, mode, segments, tau, CaMix, XmaxP, mixFeed,
+      species.slice(), nMixMap, P_out, eMix.H_kJh, Q_kW, []);
+    if (m.error) return m;
+    // outlet mole flows at per-pass conversion m.X
+    const ordOut = species.slice();
+    const nOut = new Map(nMixMap);
+    applyKineticConversion(ordOut, nOut, kin.stoich, kin.reactant, m.X, []);
+    const outFlows = species.map((k) => nOut.get(k));
+    // ---- splitter ------------------------------------------------------
+    const fRec = R / (1 + R);
+    return {
+      recycleN: outFlows.map((x) => Math.max(0, x * fRec)),
+      recycleT: m.T_end,
+      productN: outFlows.map((x) => Math.max(0, x * (1 - fRec))),
+      T_out: m.T_end,
+      X_sp: m.X,
+      tau_s: tau,
+      CaMix,
+      profile: m.profile,
+      marchConverged: m.converged,
+    };
+  };
+
+  // ---- tear iteration (Wegstein) ---------------------------------------
+  // MASS-CONSTRAINED TEAR: for this splitter-only loop the converged recycle
+  // mass is known a priori — m_recycle = R · m_fresh (splitter balance) — so
+  // each pass's recycle is rescaled onto that mass before the Wegstein
+  // update. This removes the slowly-contracting total-mass mode (direct-
+  // substitution slope R/(1+R) → 1 for large R, which the bounded q ∈ [−5,0]
+  // cannot fully accelerate) and makes the fresh-in/product-out closure
+  // exact by construction; Wegstein then only has to converge composition
+  // and temperature, which contract at the per-pass reaction rate.
+  const mFresh = fresh.mass_flow_kg_h;
+  const mwOf = species.map((k) => resolve(k).mw);
+  const tearMassTarget = R * mFresh;
+  const rescaleToTearMass = (N) => {
+    let m = 0;
+    for (let i = 0; i < N.length; i++) m += N[i] * mwOf[i];
+    if (!(m > 0) || !(tearMassTarget > 0)) return N.map(() => 0);
+    const f = tearMassTarget / m;
+    return N.map((x) => x * f);
+  };
+  let tearN = rescaleToTearMass(species.map((k) => nFresh.get(k)));
+  let tearT = fresh.T_K;
+  let prevIn = null;                                  // {N:[], T}
+  let prevOut = null;
+  // Wegstein slope estimate of the dominant tear mode: the RESIDUAL
+  // ‖g(x)−x‖ understates the true tear error by 1/(1−s) for a contraction
+  // of slope s (→ 1 as R grows), so the spec tolerances are applied as
+  // residual ≤ tol·(1−ŝ) — the spec numbers then bound the TRUE error.
+  let sHat = 0;
+  let last = null;
+  let iterations = 0;
+  let converged = R === 0;                            // R=0: single pass below
+  for (let it = 1; it <= (R === 0 ? 1 : KIN_MAX_ITER); it++) {
+    iterations = it;
+    last = passOnce(tearN, tearT);
+    if (last.error) return last;
+    if (R === 0) { converged = true; break; }
+    const rawRecycleMass = last.recycleN.reduce((a, x, i) => a + x * mwOf[i], 0);
+    last.recycleN = rescaleToTearMass(last.recycleN);
+    // convergence: g(x) vs x — 0.01 % total mass flow (raw, pre-rescale, so
+    // the splitter balance itself is verified), 1e-3 mass fractions, 0.1 K
+    let massIn = 0;
+    let massOut = 0;
+    for (let i = 0; i < species.length; i++) {
+      massIn += tearN[i] * mwOf[i];
+      massOut += last.recycleN[i] * mwOf[i];
+    }
+    const resFactor = 1 - sHat;                       // residual → true-error scaling
+    const flowOk = Math.abs(rawRecycleMass - massIn)
+      <= KIN_TOL_FLOWREL * resFactor * Math.max(rawRecycleMass, 1e-12);
+    let fracOk = true;
+    for (let i = 0; i < species.length; i++) {
+      const wIn = massIn > 0 ? (tearN[i] * mwOf[i]) / massIn : 0;
+      const wOut = massOut > 0 ? (last.recycleN[i] * mwOf[i]) / massOut : 0;
+      if (Math.abs(wOut - wIn) > KIN_TOL_X * resFactor) { fracOk = false; break; }
+    }
+    const tOk = Math.abs(last.recycleT - tearT) <= KIN_TOL_T * Math.max(resFactor, 0.05);
+    if (flowOk && fracOk && tOk && it > 1) { converged = true; break; }
+    // Wegstein update per tear variable (from iteration 2 onward);
+    // ŝ = flow-weighted max estimated slope, clamped to [0, 0.995]
+    const acc = it >= 2;
+    let sMax = 0;
+    const nextN = species.map((_, i) => {
+      const w = wegsteinStep(tearN[i], last.recycleN[i],
+        prevIn ? prevIn.N[i] : NaN, prevOut ? prevOut.N[i] : NaN, acc);
+      if (w.s !== null && last.recycleN[i] * mwOf[i] > 1e-6 * tearMassTarget) {
+        sMax = Math.max(sMax, Math.min(Math.abs(w.s), 0.995));
+      }
+      return Math.max(0, w.next);
+    });
+    const wT = wegsteinStep(tearT, last.recycleT,
+      prevIn ? prevIn.T : NaN, prevOut ? prevOut.T : NaN, acc);
+    if (acc) sHat = sMax;
+    prevIn = { N: tearN, T: tearT };
+    prevOut = { N: last.recycleN, T: last.recycleT };
+    tearN = nextN;
+    tearT = Math.max(MODULE_T_FLOOR, wT.next);
+  }
+  if (!converged) {
+    warnings.push(`pfr-recycle: tear not converged in ${KIN_MAX_ITER} Wegstein iterations — best estimate returned`);
+  }
+  if (!last.marchConverged) converged = false;
+
+  // ---- product stream + overall conversion -----------------------------
+  const prodEntries = species.map((k, i) => ({ key: k, n_kmol_h: last.productN[i] }));
+  const prodBase = streamFromMoles(prodEntries, last.T_out, P_out);
+  if (prodBase.error) return prodBase;
+  const eProd = streamEnthalpy(Object.assign({}, prodBase, { T_K: last.T_out }));
+  if (eProd.error) return eProd;
+  warnings.push(...eProd.warnings);
+  warnIfNotLiquid(eProd, warnings);
+  const product = Object.assign({}, prodBase, { T_K: last.T_out, H_kJh: eProd.H_kJh });
+
+  const iA = species.indexOf(kin.reactant);
+  const X_ov = 1 - last.productN[iA] / nA_fresh;
+  const recEntries = species.map((k, i) => ({ key: k, n_kmol_h: last.recycleN[i] }));
+  const recBase = streamFromMoles(recEntries, last.recycleT, P_out);
+  if (recBase.error) return recBase;
+  const k_used = kin.kAt(mode === 'adiabatic' ? last.T_out : fresh.T_K);
+  const v_fresh = fresh.mass_flow_kg_h / rho / 3600;
+
+  return {
+    streams_out: [product],
+    mass_balance: massBalance(fresh.mass_flow_kg_h, product.mass_flow_kg_h),
+    energy_balance: energyBalance(eFresh.H_kJh, product.H_kJh, 0),
+    details: {
+      mode,
+      order: kin.order,
+      reactant: kin.reactant,
+      R,
+      k_si: k_used,
+      rho_kgm3: rho,
+      V_m3: p.V_m3,
+      segments,
+      v_fresh_m3h: v_fresh * 3600,
+      Da0_fresh_basis: kin.order === 1 ? k_used * (p.V_m3 / v_fresh)
+        : k_used * (p.V_m3 / v_fresh) * Math.pow((nA_fresh / 3600) / v_fresh, kin.order - 1),
+      tau_reactor_s: last.tau_s,
+      Ca_mix_kmolm3: last.CaMix,
+      X_sp: last.X_sp,
+      X_ov,
+      T_out_K: last.T_out,
+      P_out_bar: P_out,
+      recycle_stream: {
+        mass_flow_kg_h: recBase.mass_flow_kg_h,
+        T_K: last.recycleT,
+        components: recBase.components,
+      },
+      profile: last.profile,
+    },
+    converged,
+    iterations,
+    warnings,
+  };
+}
+
+// ===========================================================================
+// PART 4 — STEAM-REFORMING MODULES (Step 12): smr, atr.
+//
+// CHEMISTRY (per spec): higher alkanes are PRE-CRACKED fully,
+//     CnH2n+2 + n H2O  →  n CO + (2n+1) H2      (C2H6, C3H8, nC4H10),
+// then the two simultaneous equilibria are solved at the outlet condition:
+//     R1  CH4 + H2O ⇌ CO + 3 H2    ln K1 = 30.114 − 26830/T   [K1 in bar²]
+//                                   (Twigg, Catalyst Handbook)
+//     R2  CO + H2O ⇌ CO2 + H2      ln K2 = 4400/T − 4.036      [dimensionless]
+//                                   (Moe 1962)
+// Each reaction is evaluated at T_out + its APPROACH-TO-EQUILIBRIUM offset
+// (params.ate_smr_K, default 0 K; params.ate_wgs_K, default 10 K).
+//
+// SOLVER: 2×2 damped Newton on the extents (e1, e2) in LOG-RESIDUAL form
+//     F1 = ln(y_CO·y_H2³ / (y_CH4·y_H2O)) + 2·ln P − ln K1(T1)
+//     F2 = ln(y_CO2·y_H2 / (y_CO·y_H2O)) − ln K2(T2)
+// with a coarse feasible-box seed scan, numerical Jacobian, step backtracking
+// that enforces strict species positivity, iteration cap 200 and a converged
+// flag. Negative extents (methanation / reverse shift) are permitted.
+//
+// MODES:
+//   smr 'fired'     : 1 process stream; T_out specified; the furnace duty is
+//                     Q_furnace = Hout − Hin on the formation basis, and the
+//                     firing rate follows from params.fuel_lhv_kJkg and
+//                     params.furnace_efficiency.
+//   smr 'secondary' : 2 streams (process + air/O2). ALL O2 is first consumed
+//                     by CH4 combustion (CH4 + 2 O2 → CO2 + 2 H2O), then the
+//                     equilibrium is solved; T_out is ADIABATIC, found by an
+//                     outer bisection on [800, 1600] K.
+//   atr             : 1 hydrocarbon stream + params.s_c_ratio / o2_c_ratio;
+//                     the engine constructs the steam and oxidant (O2 or air)
+//                     streams, then runs the same machinery adiabatically.
+//
+// Outputs per module: wet + dry composition, H2/CO ratio, CH4 slip (dry %),
+// S/C check against params.s_c_min (default 2.5), duty / fuel (fired), and
+// the usual mass/energy-balance blocks. N2, Ar, He pass through as inerts.
+// ===========================================================================
+
+const SMR_LNK1_A = 30.114;      // ln K1 = A − B/T  [bar²] (Twigg)
+const SMR_LNK1_B = 26830;
+const SMR_LNK2_A = 4400;        // ln K2 = A/T − B  [–]    (Moe 1962)
+const SMR_LNK2_B = 4.036;
+const SMR_ATE_SMR_DEF = 0;      // K — default approach-to-equilibrium, R1
+const SMR_ATE_WGS_DEF = 10;     // K — default approach-to-equilibrium, R2
+const SMR_NEWTON_MAX = 200;     // Newton iteration cap (per spec)
+const SMR_NEWTON_TOL = 1e-9;    // max |F| in log units
+const SMR_SEED_GRID = 24;       // seed-scan resolution per extent
+const SMR_ADIA_TLO = 800;       // K — adiabatic outer-bisection bracket
+const SMR_ADIA_THI = 1600;
+const SMR_ADIA_MAX = 100;       // outer-bisection cap
+const SMR_ADIA_TOLK = 0.01;     // K — outer-bisection T tolerance
+const SMR_T_MIN = 500;          // K — fired-mode T_out sanity window
+const SMR_T_MAX = 1500;
+const SMR_SC_MIN_DEF = 2.5;     // default S/C coking-check threshold (smr)
+const SMR_SC_MIN_ATR_DEF = 0.5; // default S/C threshold for atr (O2-assisted)
+const SMR_EPS = 1e-12;          // relative positivity floor in the solver
+const SMR_AIR_O2 = 0.21;        // mole fraction O2 in dry air
+const SMR_AIR_N2 = 0.79;
+
+/** Alkanes pre-cracked fully: key → carbon number n in CnH2n+2. */
+const SMR_ALKANES = { C2H6: 2, C3H8: 3, nC4H10: 4 };
+/** Species participating in the two equilibria. */
+const SMR_REACTING = ['CH4', 'H2O', 'CO', 'H2', 'CO2'];
+/** Species accepted as pass-through inerts. */
+const SMR_INERTS = ['N2', 'Ar', 'He'];
+
+/**
+ * Validate a reformer feed and split it into a working mole map.
+ * Accepted keys: CH4, the SMR_ALKANES, H2O, CO, CO2, H2, O2 (only when
+ * allowO2), and the SMR_INERTS. Any other component is rejected — an
+ * unconverted C2+ olefin or heavy at reformer conditions would silently
+ * corrupt the equilibrium.
+ * @param {object} feed stream object
+ * @param {boolean} allowO2 accept O2 in this stream
+ * @returns {{n:Map<string,number>, nC_hydrocarbon:number, nH2O:number,
+ *            nO2:number, warnings:string[]}|{error:object}}
+ */
+function smrFeedMoles(feed, allowO2) {
+  const mol = molarize(feed);
+  if (mol.error) return mol;
+  const warnings = mol.warnings.slice();
+  const n = new Map();
+  let nC = 0;
+  let nO2 = 0;
+  for (const c of mol.components) {
+    const k = c.key;
+    const ok = k === 'CH4' || k === 'H2O' || k === 'CO' || k === 'CO2' ||
+      k === 'H2' || SMR_ALKANES[k] !== undefined || SMR_INERTS.includes(k) ||
+      (allowO2 && k === 'O2');
+    if (!ok) {
+      return errObj('MB_SMR_FEED',
+        `component '${k}' is not supported by the reformer modules — allowed: CH4, C2H6, C3H8, nC4H10, H2O, CO, CO2, H2, ${allowO2 ? 'O2, ' : ''}N2, Ar, He`,
+        'streams');
+    }
+    if (k === 'CH4') nC += c.n_kmol_h;
+    if (SMR_ALKANES[k] !== undefined) nC += SMR_ALKANES[k] * c.n_kmol_h;
+    if (k === 'O2') nO2 += c.n_kmol_h;
+    n.set(k, (n.get(k) || 0) + c.n_kmol_h);
+  }
+  return { n, nC_hydrocarbon: nC, nH2O: n.get('H2O') || 0, nO2, warnings };
+}
+
+/**
+ * Pre-crack all C2+ alkanes fully: CnH2n+2 + n H2O → n CO + (2n+1) H2.
+ * Errors when the steam inventory cannot cover the crack (the spec demands
+ * FULL cracking, so a shortfall cannot be clamped).
+ * @param {Map<string,number>} n working mole map [kmol/h] — mutated
+ * @param {string[]} warnings appended in place
+ * @returns {{cracked:Array<{key:string,n_kmol_h:number}>}|{error:object}}
+ */
+function smrPrecrack(n, warnings) {
+  const cracked = [];
+  let steamNeed = 0;
+  for (const k of Object.keys(SMR_ALKANES)) {
+    steamNeed += SMR_ALKANES[k] * (n.get(k) || 0);
+  }
+  if (steamNeed > (n.get('H2O') || 0) + 1e-12) {
+    return errObj('MB_SMR_STEAM',
+      `pre-cracking the C2+ alkanes needs ${steamNeed.toExponential(4)} kmol/h H2O but only ${((n.get('H2O') || 0)).toExponential(4)} is fed — raise the steam rate`,
+      'streams');
+  }
+  for (const k of Object.keys(SMR_ALKANES)) {
+    const a = n.get(k) || 0;
+    if (a <= 0) continue;
+    const nc = SMR_ALKANES[k];
+    n.set(k, 0);
+    n.set('H2O', (n.get('H2O') || 0) - nc * a);
+    n.set('CO', (n.get('CO') || 0) + nc * a);
+    n.set('H2', (n.get('H2') || 0) + (2 * nc + 1) * a);
+    cracked.push({ key: k, n_kmol_h: a });
+    warnings.push(`smr: pre-cracked ${a.toExponential(4)} kmol/h ${k} (consumed ${(nc * a).toExponential(4)} kmol/h H2O)`);
+  }
+  return { cracked };
+}
+
+/**
+ * Consume ALL O2 by CH4 combustion, CH4 + 2 O2 → CO2 + 2 H2O.
+ * O2 beyond the sub-stoichiometric window (O2 > 2·CH4) is an error — the
+ * equilibrium set has no oxidation path for the surplus and treating free O2
+ * as an inert would be chemically wrong.
+ * @param {Map<string,number>} n working mole map — mutated; O2 removed
+ * @param {number} nO2 kmol/h O2 fed
+ * @returns {{ch4_burned_kmol_h:number}|{error:object}}
+ */
+function smrCombustO2(n, nO2) {
+  const x = nO2 / 2; // kmol/h CH4 burned
+  const ch4 = n.get('CH4') || 0;
+  if (x > ch4 + 1e-12) {
+    return errObj('MB_SMR_O2',
+      `O2 feed (${nO2.toExponential(4)} kmol/h) exceeds the CH4 combustion capacity (CH4 = ${ch4.toExponential(4)} kmol/h, O2/CH4 must stay below 2)`,
+      'streams');
+  }
+  n.set('CH4', ch4 - x);
+  n.set('CO2', (n.get('CO2') || 0) + x);
+  n.set('H2O', (n.get('H2O') || 0) + 2 * x);
+  n.delete('O2');
+  return { ch4_burned_kmol_h: x };
+}
+
+/**
+ * Simultaneous equilibrium of R1 (at T1) and R2 (at T2), total pressure
+ * P_bar. 2×2 damped Newton on the extents in log-residual form with a
+ * coarse seed scan; strict positivity enforced by backtracking.
+ * @param {Map<string,number>} n0 pre-equilibrium moles [kmol/h]
+ * @param {number} T1_K R1 equilibrium temperature (T_out + ATE_smr)
+ * @param {number} T2_K R2 equilibrium temperature (T_out + ATE_wgs)
+ * @param {number} P_bar total pressure
+ * @returns {{n:Map<string,number>, e1_kmol_h:number, e2_kmol_h:number,
+ *            lnK1:number, lnK2:number, iterations:number,
+ *            converged:boolean}|{error:object}}
+ */
+function reformerEquilibrium(n0, T1_K, T2_K, P_bar) {
+  const a = n0.get('CH4') || 0;
+  const b = n0.get('H2O') || 0;
+  const c = n0.get('CO') || 0;
+  const d = n0.get('H2') || 0;
+  const f = n0.get('CO2') || 0;
+  if (a + c + f <= 0 || b + d <= 0) {
+    return errObj('MB_SMR_FEED',
+      'reformer feed carries no carbon (CH4/CO/CO2) or no hydrogen (H2O/H2) after pre-processing',
+      'streams');
+  }
+  let Ninert = 0;
+  for (const [k, v] of n0.entries()) {
+    if (!SMR_REACTING.includes(k)) Ninert += v;
+  }
+  const N0 = a + b + c + d + f + Ninert;
+  const floor = SMR_EPS * N0;
+  const lnK1 = SMR_LNK1_A - SMR_LNK1_B / T1_K;
+  const lnK2 = SMR_LNK2_A / T2_K - SMR_LNK2_B;
+  const lnP = Math.log(P_bar);
+
+  /** species moles at extents (e1, e2); null when any goes ≤ floor */
+  const molesAt = (e1, e2) => {
+    const m = {
+      CH4: a - e1, H2O: b - e1 - e2, CO: c + e1 - e2,
+      H2: d + 3 * e1 + e2, CO2: f + e2,
+    };
+    for (const k of SMR_REACTING) if (m[k] <= floor) return null;
+    return m;
+  };
+  /** log residuals [F1, F2]; null when infeasible */
+  const F = (e1, e2) => {
+    const m = molesAt(e1, e2);
+    if (!m) return null;
+    const N = m.CH4 + m.H2O + m.CO + m.H2 + m.CO2 + Ninert;
+    const F1 = Math.log(m.CO) + 3 * Math.log(m.H2) - Math.log(m.CH4) -
+      Math.log(m.H2O) - 2 * Math.log(N) + 2 * lnP - lnK1;
+    const F2 = Math.log(m.CO2) + Math.log(m.H2) - Math.log(m.CO) -
+      Math.log(m.H2O) - lnK2;
+    return [F1, F2];
+  };
+
+  // SEED by nested bisection, then let the Newton polish. F2 is STRICTLY
+  // increasing in e2 (Δn = 0, d F2/d e2 = 1/CO2 + 1/H2 + 1/CO + 1/H2O > 0)
+  // and diverges to ∓∞ at the e2 feasibility bounds, so the inner root is
+  // unique and always bracketed; F1 evaluated at that inner root diverges to
+  // ∓∞ at the e1 bounds likewise. This lands the seed within bisection
+  // accuracy of the solution even when an extreme K pins an extent within
+  // 1e-10 of a bound (e.g. a 500 K fired case), where a grid scan cannot.
+  const e1lo = -Math.min(c, d / 3);
+  const e1hi = Math.min(a, b);
+  const e2Bounds = (e1) => [-Math.min(f, d + 3 * e1), Math.min(c + e1, b - e1)];
+  const e2Star = (e1) => {
+    let [lo, hi] = e2Bounds(e1);
+    const w = 1e-13 * Math.max(hi - lo, N0);
+    lo += w;
+    hi -= w;
+    if (hi <= lo) return null;
+    for (let k = 0; k < 80; k++) {
+      const mid = 0.5 * (lo + hi);
+      const r = F(e1, mid);
+      if (!r) return null;
+      if (r[1] > 0) hi = mid; else lo = mid;
+    }
+    return 0.5 * (lo + hi);
+  };
+  let best = null;
+  {
+    let lo = e1lo;
+    let hi = e1hi;
+    const w = 1e-13 * Math.max(hi - lo, N0);
+    lo += w;
+    hi -= w;
+    let ok = hi > lo;
+    for (let k = 0; ok && k < 80; k++) {
+      const mid = 0.5 * (lo + hi);
+      const em = e2Star(mid);
+      const r = em === null ? null : F(mid, em);
+      if (!r) { ok = false; break; }
+      if (r[0] > 0) hi = mid; else lo = mid;
+    }
+    if (ok) {
+      const e1s = 0.5 * (lo + hi);
+      const e2s = e2Star(e1s);
+      const rs = e2s === null ? null : F(e1s, e2s);
+      if (rs) best = { s: rs[0] * rs[0] + rs[1] * rs[1], e1: e1s, e2: e2s };
+    }
+  }
+  if (!best) {
+    // fallback: coarse grid over the feasible box
+    for (let i = 1; i < SMR_SEED_GRID; i++) {
+      const e1 = e1lo + ((e1hi - e1lo) * i) / SMR_SEED_GRID;
+      const [e2lo, e2hi] = e2Bounds(e1);
+      for (let j = 1; j < SMR_SEED_GRID; j++) {
+        const e2 = e2lo + ((e2hi - e2lo) * j) / SMR_SEED_GRID;
+        const r = F(e1, e2);
+        if (!r) continue;
+        const s = r[0] * r[0] + r[1] * r[1];
+        if (!best || s < best.s) best = { s, e1, e2 };
+      }
+    }
+  }
+  if (!best) {
+    return errObj('MB_SMR_EQ_SEED',
+      'no feasible equilibrium extent found — check the feed composition', 'streams');
+  }
+
+  // damped Newton with numerical Jacobian and positivity backtracking
+  let e1 = best.e1;
+  let e2 = best.e2;
+  let it = 0;
+  let converged = false;
+  for (; it < SMR_NEWTON_MAX; it++) {
+    const r = F(e1, e2);
+    if (!r) break; // cannot happen while backtracking holds — belt and braces
+    const [F1, F2] = r;
+    if (Math.max(Math.abs(F1), Math.abs(F2)) < SMR_NEWTON_TOL) {
+      converged = true;
+      break;
+    }
+    const h = 1e-8 * Math.max(1, Math.abs(e1) + Math.abs(e2), N0 * 1e-6);
+    const ra = F(e1 + h, e2) || F(e1 - h, e2);
+    const rb = F(e1, e2 + h) || F(e1, e2 - h);
+    if (!ra || !rb) break;
+    const sa = F(e1 + h, e2) ? h : -h;
+    const sb = F(e1, e2 + h) ? h : -h;
+    const J11 = (ra[0] - F1) / sa;
+    const J21 = (ra[1] - F2) / sa;
+    const J12 = (rb[0] - F1) / sb;
+    const J22 = (rb[1] - F2) / sb;
+    const det = J11 * J22 - J12 * J21;
+    if (!num(det) || Math.abs(det) < 1e-300) break;
+    const de1 = (-F1 * J22 + F2 * J12) / det;
+    const de2 = (-J11 * F2 + J21 * F1) / det;
+    const norm0 = F1 * F1 + F2 * F2;
+    let alpha = 1;
+    let stepped = false;
+    for (let k = 0; k < 50; k++) {
+      const rt = F(e1 + alpha * de1, e2 + alpha * de2);
+      if (rt && rt[0] * rt[0] + rt[1] * rt[1] < norm0) {
+        e1 += alpha * de1;
+        e2 += alpha * de2;
+        stepped = true;
+        break;
+      }
+      alpha *= 0.5;
+    }
+    if (!stepped) break; // stalled — flag not converged
+  }
+  const m = molesAt(e1, e2);
+  if (!m) {
+    return errObj('MB_SMR_EQ',
+      'equilibrium solve left the feasible region — check the feed composition',
+      'streams');
+  }
+  const n = new Map(n0);
+  for (const k of SMR_REACTING) n.set(k, m[k]);
+  return { n, e1_kmol_h: e1, e2_kmol_h: e2, lnK1, lnK2, iterations: it, converged };
+}
+
+/**
+ * Wet/dry composition, H2/CO and CH4 slip from an outlet mole map.
+ * @param {Map<string,number>} n outlet moles [kmol/h]
+ * @param {string[]} order stable key order for the reported arrays
+ * @returns {{wet:Array,dry:Array,h2_co_ratio:(number|null),
+ *            ch4_slip_dry_pct:number}}
+ */
+function smrComposition(n, order) {
+  let tot = 0;
+  let dryTot = 0;
+  for (const k of order) {
+    const v = n.get(k) || 0;
+    tot += v;
+    if (k !== 'H2O') dryTot += v;
+  }
+  const wet = [];
+  const dry = [];
+  let slip = 0;
+  for (const k of order) {
+    const v = n.get(k) || 0;
+    wet.push({ key: k, mole_fraction: tot > 0 ? v / tot : 0 });
+    if (k !== 'H2O') {
+      const y = dryTot > 0 ? v / dryTot : 0;
+      dry.push({ key: k, mole_fraction: y });
+      if (k === 'CH4') slip = 100 * y;
+    }
+  }
+  const nH2 = n.get('H2') || 0;
+  const nCO = n.get('CO') || 0;
+  return {
+    wet, dry,
+    h2_co_ratio: nCO > 0 ? nH2 / nCO : null,
+    ch4_slip_dry_pct: slip,
+  };
+}
+
+/**
+ * Shared reformer core: pre-crack → optional O2 combustion → equilibrium at
+ * a specified T_out, returning the outlet mole map and bookkeeping. The
+ * adiabatic callers re-run this inside the outer T bisection.
+ * @param {Map<string,number>} nFeed combined feed moles [kmol/h] (not mutated)
+ * @param {number} T_out_K outlet temperature
+ * @param {number} P_bar outlet pressure
+ * @param {number} ateSmr ATE offset for R1 [K]
+ * @param {number} ateWgs ATE offset for R2 [K]
+ * @param {string[]} warnings appended in place (pre-crack notes on 1st call)
+ * @param {boolean} quiet suppress pre-crack warnings (bisection re-runs)
+ * @returns {{n:Map, order:string[], cracked:Array, ch4_burned:number,
+ *            eq:object}|{error:object}}
+ */
+function reformerAtT(nFeed, T_out_K, P_bar, ateSmr, ateWgs, warnings, quiet) {
+  const n = new Map(nFeed);
+  const w = quiet ? [] : warnings;
+  const pc = smrPrecrack(n, w);
+  if (pc.error) return pc;
+  let ch4Burned = 0;
+  const nO2 = n.get('O2') || 0;
+  if (nO2 > 0) {
+    const cb = smrCombustO2(n, nO2);
+    if (cb.error) return cb;
+    ch4Burned = cb.ch4_burned_kmol_h;
+  }
+  const eq = reformerEquilibrium(n, T_out_K + ateSmr, T_out_K + ateWgs, P_bar);
+  if (eq.error) return eq;
+  // stable reporting order: reacting species first, then inerts as fed
+  const order = SMR_REACTING.slice();
+  for (const k of eq.n.keys()) if (!order.includes(k)) order.push(k);
+  return { n: eq.n, order, cracked: pc.cracked, ch4_burned: ch4Burned, eq };
+}
+
+/**
+ * Steam-methane reformer. params:
+ *   mode              : 'fired' (default) | 'secondary'
+ *   T_out_K           : outlet T, REQUIRED in fired mode (500–1500 K window)
+ *   P_out_bar         : outlet pressure (default: process-feed P)
+ *   ate_smr_K         : approach-to-equilibrium for CH4+H2O⇌CO+3H2 (default 0)
+ *   ate_wgs_K         : approach-to-equilibrium for CO+H2O⇌CO2+H2 (default 10)
+ *   s_c_min           : S/C coking-check threshold (default 2.5)
+ *   fuel_lhv_kJkg     : fired mode — fuel LHV; enables details.fuel_kg_h
+ *   furnace_efficiency: fired mode — fraction of fired LHV reaching the
+ *                       process gas (default 1.0)
+ * streams: [process feed] (fired) or [process feed, air/O2] (secondary).
+ * Secondary mode consumes ALL O2 by CH4 combustion, then solves the
+ * equilibrium with T_out ADIABATIC via outer bisection on [800, 1600] K.
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveSMR(input) {
+  const mi = moduleInput(input, 1, 2);
+  if (mi.error) return mi;
+  const p = mi.params;
+  const mode = p.mode === undefined ? 'fired' : p.mode;
+  if (!['fired', 'secondary'].includes(mode)) {
+    return errObj('MB_SMR_MODE', "params.mode must be 'fired' | 'secondary'", 'mode');
+  }
+  if (mode === 'fired' && mi.streams.length !== 1) {
+    return errObj('MB_STREAMS', 'fired mode takes exactly one process stream', 'streams');
+  }
+  if (mode === 'secondary' && mi.streams.length !== 2) {
+    return errObj('MB_STREAMS', 'secondary mode takes [process, air/O2] — exactly two streams', 'streams');
+  }
+  const warnings = [];
+  return reformerRun(mi.streams, p, mode === 'secondary', mode, warnings);
+}
+
+/**
+ * Autothermal reformer — adiabatic only. streams: [hydrocarbon feed].
+ * The steam and oxidant streams are CONSTRUCTED from the carbon count:
+ *   s_c_ratio  : kmol H2O ADDED per kmol hydrocarbon carbon (required ≥ 0;
+ *                any H2O already in the feed counts toward the reported S/C
+ *                but not toward this added steam)
+ *   o2_c_ratio : kmol O2 per kmol hydrocarbon carbon (required > 0)
+ *   oxidant    : 'O2' (default) | 'air' (adds 79/21 N2)
+ *   steam_T_K  : added-steam temperature (default 500 K)
+ *   oxidant_T_K: oxidant temperature (default 298.15 K)
+ *   P_out_bar, ate_smr_K, ate_wgs_K as for smr; s_c_min defaults to 0.5
+ *   here (O2-assisted reforming tolerates far leaner steam than fired SMR).
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveATR(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const p = mi.params;
+  const feed = mi.streams[0];
+  if (!num(p.s_c_ratio) || p.s_c_ratio < 0) {
+    return errObj('MB_ATR_SC', 'params.s_c_ratio (kmol added H2O per kmol C) must be ≥ 0', 's_c_ratio');
+  }
+  if (!num(p.o2_c_ratio) || p.o2_c_ratio <= 0) {
+    return errObj('MB_ATR_O2C', 'params.o2_c_ratio (kmol O2 per kmol C) must be > 0', 'o2_c_ratio');
+  }
+  const oxidant = p.oxidant === undefined ? 'O2' : p.oxidant;
+  if (!['O2', 'air'].includes(oxidant)) {
+    return errObj('MB_ATR_OX', "params.oxidant must be 'O2' | 'air'", 'oxidant');
+  }
+  const steamT = num(p.steam_T_K) ? p.steam_T_K : 500;
+  const oxT = num(p.oxidant_T_K) ? p.oxidant_T_K : T_REF;
+  if (steamT <= 0 || oxT <= 0) {
+    return errObj('MB_T', 'steam_T_K / oxidant_T_K must be positive', 'steam_T_K');
+  }
+
+  // carbon count from the feed alone sizes the constructed streams
+  const fm = smrFeedMoles(feed, false);
+  if (fm.error) return fm;
+  if (fm.nC_hydrocarbon <= 0) {
+    return errObj('MB_ATR_FEED', 'ATR feed carries no hydrocarbon carbon', 'streams');
+  }
+  const nSteam = p.s_c_ratio * fm.nC_hydrocarbon;   // kmol/h
+  const nO2 = p.o2_c_ratio * fm.nC_hydrocarbon;     // kmol/h
+  const recH2O = resolve('H2O');
+  if (recH2O.error) return recH2O;
+  const recO2 = resolve('O2');
+  if (recO2.error) return recO2;
+  const P = num(p.P_out_bar) ? p.P_out_bar : feed.P_bar;
+  const streams = [feed];
+  if (nSteam > 0) {
+    streams.push({
+      mass_flow_kg_h: nSteam * recH2O.mw, T_K: steamT, P_bar: P,
+      components: [{ key: 'H2O', mass_fraction: 1, phase: 'gas' }],
+    });
+  }
+  if (oxidant === 'O2') {
+    streams.push({
+      mass_flow_kg_h: nO2 * recO2.mw, T_K: oxT, P_bar: P,
+      components: [{ key: 'O2', mass_fraction: 1 }],
+    });
+  } else {
+    const recN2 = resolve('N2');
+    if (recN2.error) return recN2;
+    const nN2 = nO2 * (SMR_AIR_N2 / SMR_AIR_O2);
+    const mO2 = nO2 * recO2.mw;
+    const mN2 = nN2 * recN2.mw;
+    streams.push({
+      mass_flow_kg_h: mO2 + mN2, T_K: oxT, P_bar: P,
+      components: [
+        { key: 'O2', mass_fraction: mO2 / (mO2 + mN2) },
+        { key: 'N2', mass_fraction: mN2 / (mO2 + mN2) },
+      ],
+    });
+  }
+  const warnings = [];
+  const res = reformerRun(streams, p, true, 'atr', warnings);
+  if (res.error) return res;
+  res.details.o2_c_ratio = p.o2_c_ratio;
+  res.details.constructed_streams = {
+    steam_kmol_h: nSteam, steam_T_K: steamT,
+    oxidant, o2_kmol_h: nO2, oxidant_T_K: oxT,
+  };
+  return res;
+}
+
+/**
+ * Common driver behind solveSMR / solveATR: combine feed streams, take the
+ * inlet enthalpy, then either equilibrate at the specified T_out (fired) or
+ * bisect the adiabatic T_out on [800, 1600] K (secondary / atr).
+ * @param {Array} streams inlet stream objects (process first)
+ * @param {object} p module params
+ * @param {boolean} adiabatic outer-bisection mode
+ * @param {string} modeLabel 'fired' | 'secondary' | 'atr'
+ * @param {string[]} warnings accumulator
+ * @returns {object} module result or error envelope
+ */
+function reformerRun(streams, p, adiabatic, modeLabel, warnings) {
+  const ateSmr = num(p.ate_smr_K) ? p.ate_smr_K : SMR_ATE_SMR_DEF;
+  const ateWgs = num(p.ate_wgs_K) ? p.ate_wgs_K : SMR_ATE_WGS_DEF;
+  const scMin = num(p.s_c_min) ? p.s_c_min
+    : (modeLabel === 'atr' ? SMR_SC_MIN_ATR_DEF : SMR_SC_MIN_DEF);
+  const P = num(p.P_out_bar) ? p.P_out_bar : streams[0].P_bar;
+  if (!num(P) || P <= 0) return errObj('MB_P', 'outlet pressure must be positive', 'P_out_bar');
+
+  // combine feeds: enthalpy per stream (each at its own T/P), moles summed
+  let Hin = 0;
+  let mIn = 0;
+  const nFeed = new Map();
+  let nC = 0;
+  let nH2O = 0;
+  for (let i = 0; i < streams.length; i++) {
+    const e = streamEnthalpy(streams[i]);
+    if (e.error) return e;
+    warnings.push(...e.warnings);
+    Hin += e.H_kJh;
+    mIn += streams[i].mass_flow_kg_h;
+    const fm = smrFeedMoles(streams[i], adiabatic || modeLabel === 'atr');
+    if (fm.error) return fm;
+    warnings.push(...fm.warnings);
+    for (const [k, v] of fm.n.entries()) nFeed.set(k, (nFeed.get(k) || 0) + v);
+    nC += fm.nC_hydrocarbon;
+    nH2O += fm.nH2O;
+  }
+  if (modeLabel === 'fired' && (nFeed.get('O2') || 0) > 0) {
+    return errObj('MB_SMR_O2', 'fired mode accepts no O2 in the process feed — use secondary mode', 'streams');
+  }
+  if (modeLabel === 'secondary' && (nFeed.get('O2') || 0) <= 0) {
+    return errObj('MB_SMR_O2', 'secondary mode requires O2 in the air/oxidant stream', 'streams');
+  }
+
+  // S/C check on the AS-FED streams (total steam over hydrocarbon carbon)
+  const sc = nC > 0 ? nH2O / nC : null;
+  if (sc !== null && sc < scMin) {
+    warnings.push(`${modeLabel}: S/C = ${sc.toFixed(3)} is below the coking threshold ${scMin} — carbon formation risk`);
+  }
+
+  let T_out;
+  let core;
+  let outerIters = 0;
+  let outerConverged = true;
+  if (adiabatic) {
+    if (num(p.T_out_K)) {
+      warnings.push(`${modeLabel}: adiabatic — params.T_out_K ignored (outlet T is solved)`);
+    }
+    /** adiabatic residual g(T) = Hout(T) − Hin; also returns the core */
+    const g = (T) => {
+      const c = reformerAtT(nFeed, T, P, ateSmr, ateWgs, warnings, true);
+      if (c.error) return c;
+      const entries = c.order.map((k) => ({ key: k, n_kmol_h: c.n.get(k) || 0 }));
+      const s = streamFromMoles(entries, T, P);
+      if (s.error) return s;
+      const e = streamEnthalpy(s);
+      if (e.error) return e;
+      return { resid: e.H_kJh - Hin, core: c };
+    };
+    const glo = g(SMR_ADIA_TLO);
+    if (glo.error) return glo;
+    const ghi = g(SMR_ADIA_THI);
+    if (ghi.error) return ghi;
+    if (glo.resid * ghi.resid > 0) {
+      return errObj('MB_SMR_ADIABATIC',
+        `adiabatic outlet temperature not bracketed in [${SMR_ADIA_TLO}, ${SMR_ADIA_THI}] K — check feed preheat / O2 rate`,
+        'streams');
+    }
+    let lo = SMR_ADIA_TLO;
+    let hi = SMR_ADIA_THI;
+    let flo = glo.resid;
+    let mid = 0.5 * (lo + hi);
+    let last = glo;
+    for (; outerIters < SMR_ADIA_MAX; outerIters++) {
+      mid = 0.5 * (lo + hi);
+      const gm = g(mid);
+      if (gm.error) return gm;
+      last = gm;
+      if (hi - lo < SMR_ADIA_TOLK) break;
+      if (flo * gm.resid <= 0) { hi = mid; } else { lo = mid; flo = gm.resid; }
+    }
+    outerConverged = outerIters < SMR_ADIA_MAX;
+    if (!outerConverged) {
+      warnings.push(`${modeLabel}: adiabatic bisection cap ${SMR_ADIA_MAX} reached — best estimate returned`);
+    }
+    T_out = mid;
+    core = last.core;
+  } else {
+    if (!num(p.T_out_K) || p.T_out_K < SMR_T_MIN || p.T_out_K > SMR_T_MAX) {
+      return errObj('MB_SMR_T', `fired mode requires params.T_out_K in [${SMR_T_MIN}, ${SMR_T_MAX}] K`, 'T_out_K');
+    }
+    T_out = p.T_out_K;
+    core = reformerAtT(nFeed, T_out, P, ateSmr, ateWgs, warnings, false);
+    if (core.error) return core;
+  }
+  if (!core.eq.converged) {
+    warnings.push(`${modeLabel}: equilibrium Newton did not reach tolerance in ${SMR_NEWTON_MAX} iterations`);
+  }
+
+  const entries = core.order.map((k) => ({ key: k, n_kmol_h: core.n.get(k) || 0 }));
+  const outNoH = streamFromMoles(entries, T_out, P);
+  if (outNoH.error) return outNoH;
+  const eOut = streamEnthalpy(outNoH);
+  if (eOut.error) return eOut;
+  warnings.push(...eOut.warnings);
+  const out = Object.assign({}, outNoH, { H_kJh: eOut.H_kJh });
+
+  const comp = smrComposition(core.n, core.order);
+  const eb = energyBalance(Hin, eOut.H_kJh, 0);
+
+  const details = {
+    mode: modeLabel,
+    T_out_K: T_out,
+    P_out_bar: P,
+    ate_smr_K: ateSmr,
+    ate_wgs_K: ateWgs,
+    T_eq_smr_K: T_out + ateSmr,
+    T_eq_wgs_K: T_out + ateWgs,
+    lnK1: core.eq.lnK1,
+    lnK2: core.eq.lnK2,
+    extents: { smr_kmol_h: core.eq.e1_kmol_h, wgs_kmol_h: core.eq.e2_kmol_h },
+    precrack: core.cracked,
+    ch4_burned_kmol_h: core.ch4_burned,
+    composition_wet: comp.wet,
+    composition_dry: comp.dry,
+    h2_co_ratio: comp.h2_co_ratio,
+    ch4_slip_dry_pct: comp.ch4_slip_dry_pct,
+    s_c: { ratio: sc, min: scMin, ok: sc === null ? false : sc >= scMin },
+    outlet_mole_flows: entries,
+  };
+  if (modeLabel === 'fired') {
+    details.Q_furnace_kW = eb.Q_kW;
+    const eff = num(p.furnace_efficiency) ? p.furnace_efficiency : 1.0;
+    if (eff <= 0 || eff > 1) {
+      return errObj('MB_SMR_EFF', 'params.furnace_efficiency must be in (0, 1]', 'furnace_efficiency');
+    }
+    details.furnace_efficiency = eff;
+    if (num(p.fuel_lhv_kJkg)) {
+      if (p.fuel_lhv_kJkg <= 0) {
+        return errObj('MB_SMR_LHV', 'params.fuel_lhv_kJkg must be positive', 'fuel_lhv_kJkg');
+      }
+      if (eb.Q_kW <= 0) {
+        details.fuel_kg_h = 0;
+        warnings.push('smr: Q_furnace ≤ 0 (feed enthalpy already covers the outlet) — fuel rate reported as 0');
+      } else {
+        details.fuel_kg_h = (eb.Q_kW * KJH_PER_KW) / (eff * p.fuel_lhv_kJkg);
+      }
+    }
+  }
+
+  return {
+    streams_out: [out],
+    mass_balance: massBalance(mIn, out.mass_flow_kg_h),
+    energy_balance: eb,
+    details,
+    converged: core.eq.converged && outerConverged,
+    iterations: core.eq.iterations + outerIters,
+    warnings,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // MODULES registry — the api router dispatches into this map. Later steps
 // (CSTR, PFR, SMR, ...) register here without touching Part 1.
@@ -1868,6 +3416,11 @@ const MODULES = {
   'heat-exchanger': solveHeatExchanger,
   'rotating': solveRotating,
   'reactor': solveReactor,
+  'cstr': solveCSTR,
+  'pfr': solvePFR,
+  'pfr-recycle': solvePFRRecycle,
+  'smr': solveSMR,
+  'atr': solveATR,
 };
 
 /**
@@ -1944,7 +3497,9 @@ function selfTest() {
 export default {
   ENGINE_VERSION,
   MODULES,          // module registry — mixer, splitter, flash,
-                    // heat-exchanger, rotating, reactor (Part 2)
+                    // heat-exchanger, rotating, reactor (Part 2);
+                    // cstr, pfr, pfr-recycle (Part 3);
+                    // smr, atr (Part 4)
   runModule,
   resolve,
   cpGas,
