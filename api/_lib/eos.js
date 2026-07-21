@@ -407,7 +407,7 @@ function selfTest() {
   return { pass: results.every(r => r.ok), results };
 }
 
-module.exports = {
+export default {
   solveZ,
   hDeparture,
   phiCoefficients,
