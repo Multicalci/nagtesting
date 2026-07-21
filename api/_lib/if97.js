@@ -359,7 +359,7 @@ function selfTest() {
   return { pass: results.every(r => r.ok), maxAbsDev, results };
 }
 
-module.exports = {
+export default {
   h_kJkg,
   s_kJkgK,
   tsat_K,
