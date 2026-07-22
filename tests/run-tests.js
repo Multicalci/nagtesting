@@ -31,19 +31,6 @@
 //                      Runs streamEnthalpy at T_true, feeds H into
 //                      solveT_forH over [Tlo,Thi]; result is the solver
 //                      output (expect targets T_K / converged / iterations).
-//   "chain"            args: { steps:[{ module, params, feeds:[feed,...] }] }
-//                      Sequential flowsheet: each step is runModule(module,
-//                      {streams,params}); a feed is either { source:"seed",
-//                      mass_flow_kg_h, T_K, P_bar, components:[{key,
-//                      mass_fraction}] } or { source:"prev", outlet:N,
-//                      setT_K?, setP_bar?, remove?:[keys] } which forwards a
-//                      prior outlet (transforms model interstage coolers and
-//                      near-perfect component splits — e.g. a CO2 wash). The
-//                      result exposes end-to-end dry-basis metrics computed via
-//                      engine.molarize on the final outlet: h2_n2_dry,
-//                      co_co2_ppm_dry, ch4_pct_dry, n_total_dry_kmol_h, plus
-//                      stages, converged (all stages), and final.{mass_flow_kg_h
-//                      ,T_K,P_bar}. Mirrors the UI's client-side chain runner.
 //
 // Plain ES2020 / CommonJS. No dependencies. (c) multicalci.com
 // ============================================================================
@@ -110,64 +97,7 @@ function fmt(v) {
 }
 
 // ---------------------------------------------------------------------------
-// chain helpers — build inlet streams for the "chain" composite call
-// ---------------------------------------------------------------------------
-
-/** Literal seed feed → inlet stream (mass fractions renormalised). */
-function chainSeedStream(f) {
-  const sum = (f.components || []).reduce((a, c) => a + c.mass_fraction, 0) || 1;
-  return {
-    mass_flow_kg_h: f.mass_flow_kg_h, T_K: f.T_K, P_bar: f.P_bar,
-    components: (f.components || []).map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / sum })),
-  };
-}
-
-/** Forward a solved outlet as the next inlet, applying feed transforms:
- *  remove[] drops components (their mass leaves), then setT_K / setP_bar. */
-function chainForwardStream(outlet, f) {
-  let comps = (outlet.components || []).map((c) => ({ key: c.key, mass_fraction: c.mass_fraction }));
-  let mass = outlet.mass_flow_kg_h;
-  if (Array.isArray(f.remove) && f.remove.length) {
-    const removed = comps
-      .filter((c) => f.remove.includes(c.key))
-      .reduce((a, c) => a + c.mass_fraction * mass, 0);
-    mass -= removed;
-    comps = comps.filter((c) => !f.remove.includes(c.key));
-  }
-  const s = comps.reduce((a, c) => a + c.mass_fraction, 0) || 1;
-  comps = comps.map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / s }));
-  return {
-    mass_flow_kg_h: mass,
-    T_K: num(f.setT_K) ? f.setT_K : outlet.T_K,
-    P_bar: num(f.setP_bar) ? f.setP_bar : outlet.P_bar,
-    components: comps,
-  };
-}
-
-/** Dry-basis end-to-end metrics from a final outlet (via engine.molarize). */
-function chainMetrics(finalOutlet) {
-  const mol = engine.molarize(finalOutlet);
-  if (mol.error) return { error: mol.error };
-  let h2 = 0, n2 = 0, co = 0, co2 = 0, ch4 = 0, dry = 0;
-  for (const c of mol.components) {
-    if (c.key === 'H2O') continue;
-    dry += c.n_kmol_h;
-    if (c.key === 'H2') h2 = c.n_kmol_h;
-    else if (c.key === 'N2') n2 = c.n_kmol_h;
-    else if (c.key === 'CO') co = c.n_kmol_h;
-    else if (c.key === 'CO2') co2 = c.n_kmol_h;
-    else if (c.key === 'CH4') ch4 = c.n_kmol_h;
-  }
-  return {
-    h2_n2_dry: n2 > 0 ? h2 / n2 : NaN,
-    co_co2_ppm_dry: dry > 0 ? (co + co2) / dry * 1e6 : NaN,
-    ch4_pct_dry: dry > 0 ? ch4 / dry * 100 : NaN,
-    n_total_dry_kmol_h: dry,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// call dispatch — plain engine calls + the composite kinds
+// call dispatch — plain engine calls + the two composite kinds
 // ---------------------------------------------------------------------------
 
 /**
@@ -217,54 +147,6 @@ function execute(vec) {
       if (inv.error) return inv;
       inv.H_forward_kJh = fwd.H_kJh; // for the report
       return inv;
-    }
-
-    if (vec.call === 'chain') {
-      const steps = vec.args && vec.args.steps;
-      if (!Array.isArray(steps) || steps.length === 0) {
-        return { error: { code: 'HARNESS_BAD_VECTOR', message: 'chain requires args.steps[]' } };
-      }
-      const stages = [];
-      const warnings = [];
-      let allConverged = true;
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-        const feeds = Array.isArray(step.feeds) ? step.feeds : [];
-        const streams = [];
-        for (const f of feeds) {
-          if (f.source === 'prev') {
-            const prev = stages[i - 1];
-            if (!prev) return { error: { code: 'HARNESS_CHAIN', message: `step ${i} (${step.module}): nothing to forward from` } };
-            const out = prev.streams_out && prev.streams_out[f.outlet || 0];
-            if (!out) return { error: { code: 'HARNESS_CHAIN', message: `step ${i} (${step.module}): previous stage has no outlet ${f.outlet || 0}` } };
-            streams.push(chainForwardStream(out, f));
-          } else {
-            streams.push(chainSeedStream(f));
-          }
-        }
-        const r = engine.runModule(step.module, { streams, params: step.params || {} });
-        if (r && r.error) {
-          return { error: { code: 'HARNESS_CHAIN', message: `step ${i} (${step.module}) → ${r.error.code}: ${r.error.message}` } };
-        }
-        if (r.converged === false) allConverged = false;
-        if (Array.isArray(r.warnings)) warnings.push(...r.warnings.map((w) => `${step.module}: ${w}`));
-        stages.push(r);
-      }
-      const lastOut = stages[stages.length - 1].streams_out[0];
-      const metrics = chainMetrics(lastOut);
-      if (metrics.error) {
-        return { error: { code: 'HARNESS_CHAIN', message: `molarize(final) → ${metrics.error.code}: ${metrics.error.message}` } };
-      }
-      return {
-        stages: stages.length,
-        converged: allConverged,
-        final: { mass_flow_kg_h: lastOut.mass_flow_kg_h, T_K: lastOut.T_K, P_bar: lastOut.P_bar },
-        h2_n2_dry: metrics.h2_n2_dry,
-        co_co2_ppm_dry: metrics.co_co2_ppm_dry,
-        ch4_pct_dry: metrics.ch4_pct_dry,
-        n_total_dry_kmol_h: metrics.n_total_dry_kmol_h,
-        warnings,
-      };
     }
 
     const fn = engine[vec.call];
