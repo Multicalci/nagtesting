@@ -1,0 +1,3079 @@
+{
+  "meta": {
+    "repo_path": "tests/mb-vectors.json",
+    "version": "mb-vectors 1.4 — thermo core + core modules + reaction-engineering + reformer + shift/methanator + end-to-end chains, vectors MB-001..MB-071",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.9.x, parts 1+2+3+4+5 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr)",
+    "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K."
+  },
+  "vectors": [
+    {
+      "id": "MB-001",
+      "desc": "Shomate Cp: CO2 gas at 298.15 K",
+      "call": "cpGas",
+      "args": [
+        "CO2",
+        298.15
+      ],
+      "expect": {
+        "cp_J_molK": 37.12,
+        "method": "shomate"
+      },
+      "tol": 0.5,
+      "source": "NIST WebBook CO2 gas, Cp(298.15 K) = 37.12 J/mol·K"
+    },
+    {
+      "id": "MB-002",
+      "desc": "Shomate enthalpy delta: N2 H(1000 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "N2",
+              1000
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "N2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 21.463
+      },
+      "tol": 0.15,
+      "source": "NIST WebBook N2, H°(1000)−H°(298.15) = 21.463 kJ/mol"
+    },
+    {
+      "id": "MB-003",
+      "desc": "Shomate enthalpy delta: CO2 H(1000 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              1000
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 33.4
+      },
+      "tol": 0.2,
+      "source": "NIST WebBook CO2, H°(1000)−H°(298.15) = 33.40 kJ/mol"
+    },
+    {
+      "id": "MB-004",
+      "desc": "Formation basis: CO2 gas h(298.15 K) equals Hf° exactly (Shomate delta = 0 at Tref)",
+      "call": "hGasMolar",
+      "args": [
+        "CO2",
+        298.15
+      ],
+      "expect": {
+        "h_kJmol": -393.52,
+        "hDep_kJmol": 0
+      },
+      "tol": 0.05,
+      "source": "NIST WebBook, ΔfH°(CO2, g) = −393.52 kJ/mol"
+    },
+    {
+      "id": "MB-005",
+      "desc": "SVN polynomial Cp: ethane gas at 400 K (no Shomate set — must route via cp_svn)",
+      "call": "cpGas",
+      "args": [
+        "C2H6",
+        400
+      ],
+      "expect": {
+        "cp_J_molK": 65.7,
+        "method": "svn"
+      },
+      "tol": 1.5,
+      "source": "SVN App. C Table C.1 ethane; handbook Cp(400 K) ≈ 65.5–66 J/mol·K"
+    },
+    {
+      "id": "MB-006",
+      "desc": "SVN enthalpy delta: propane H(400 K) − H(298.15 K)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "C3H8",
+              400
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "C3H8",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 8.6
+      },
+      "tol": 0.4,
+      "source": "SVN Table C.1 integral; NIST-derived ΔH(298→400) ≈ 8.6 kJ/mol"
+    },
+    {
+      "id": "MB-007",
+      "desc": "IF97 anchor: liquid water at 298.15 K / 1 bar equals Hf°(liq) on the formation basis",
+      "call": "waterMolarH",
+      "args": [
+        298.15,
+        1,
+        "liquid"
+      ],
+      "expect": {
+        "h_kJmol": -285.83,
+        "phase": "liquid",
+        "method": "if97"
+      },
+      "tol": 0.05,
+      "source": "NIST, ΔfH°(H2O, l) = −285.83 kJ/mol; IF97 delta ≡ 0 at the 298.15 K anchor"
+    },
+    {
+      "id": "MB-008",
+      "desc": "IF97 saturated liquid at 373.15 K / 1.01325 bar (region-4 point, liquid branch)",
+      "call": "waterMolarH",
+      "args": [
+        373.15,
+        1.01325,
+        "liquid"
+      ],
+      "expect": {
+        "h_kJmol": -280.17,
+        "phase": "liquid"
+      },
+      "tol": 0.1,
+      "source": "steam tables hf(100 °C) = 419.05 kJ/kg → −285.83 + (419.05−104.92)·0.018015 = −280.17 kJ/mol"
+    },
+    {
+      "id": "MB-009",
+      "desc": "IF97 superheated steam at 423.15 K / 1 bar (region 2)",
+      "call": "waterMolarH",
+      "args": [
+        423.15,
+        1,
+        null
+      ],
+      "expect": {
+        "h_kJmol": -237.7,
+        "phase": "gas",
+        "method": "if97"
+      },
+      "tol": 0.15,
+      "source": "steam tables h(150 °C, 1 bar) = 2776.6 kJ/kg → −285.83 + (2776.6−104.92)·0.018015 = −237.70 kJ/mol"
+    },
+    {
+      "id": "MB-010",
+      "desc": "IF97 latent heat at 373.15 K from the gas/liquid branch difference",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "waterMolarH",
+            "args": [
+              373.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "waterMolarH",
+            "args": [
+              373.15,
+              1,
+              "liquid"
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          }
+        ]
+      },
+      "expect": {
+        "value": 40.66
+      },
+      "tol": 0.3,
+      "source": "steam tables hfg(100 °C) = 2256.5 kJ/kg × 0.018015 kg/mol = 40.66 kJ/mol"
+    },
+    {
+      "id": "MB-011",
+      "desc": "IF97 estimated ice branch: water at 263.15 K sits below hf_liq − ΔHfus",
+      "call": "waterMolarH",
+      "args": [
+        263.15,
+        1,
+        null
+      ],
+      "expect": {
+        "h_kJmol": -294.06,
+        "phase": "solid",
+        "method": "if97_ice_estimate"
+      },
+      "tol": 0.3,
+      "source": "−285.83 + (0−104.92)·0.018015 − 6.01 + 2.09·0.018015·(−10) = −294.1 kJ/mol (ice at −10 °C)"
+    },
+    {
+      "id": "MB-012",
+      "desc": "Watson anchor identity: ΔHvap(H2O) at Tb returns the stored anchor exactly",
+      "call": "dhvapT",
+      "args": [
+        "H2O",
+        373.15
+      ],
+      "expect": {
+        "dhvap_kJmol": 40.65,
+        "method": "watson"
+      },
+      "tol": 0.01,
+      "source": "NIST, ΔHvap(H2O, 373.15 K) = 40.65 kJ/mol — at T = Tref the Watson ratio is 1"
+    },
+    {
+      "id": "MB-013",
+      "desc": "Watson extrapolation down: ΔHvap(H2O) at 298.15 K vs calorimetric value",
+      "call": "dhvapT",
+      "args": [
+        "H2O",
+        298.15
+      ],
+      "expect": {
+        "dhvap_kJmol": 43.99
+      },
+      "tol": 1,
+      "source": "NIST, ΔHvap(H2O, 298.15 K) = 43.99 kJ/mol; Watson 0.38-exponent gives ≈44.6 (correlation error < 1.5%)"
+    },
+    {
+      "id": "MB-014",
+      "desc": "Watson with dhvap_ref_K override: CO2 at 250 K anchored at the TRIPLE point (216.59 K), not the sublimation tb_K",
+      "call": "dhvapT",
+      "args": [
+        "CO2",
+        250
+      ],
+      "expect": {
+        "dhvap_kJmol": 12.7,
+        "method": "watson"
+      },
+      "tol": 0.6,
+      "source": "Watson from ΔHvap(216.59 K) = 15.3 kJ/mol; handbook ΔHvap(250 K) ≈ 12.3–13 kJ/mol. Guards the dhvap_ref_K path."
+    },
+    {
+      "id": "MB-015",
+      "desc": "Phase at normal Tb: water at 373.15 K / 1.00 bar is GAS (Tsat(1 bar) = 372.76 K — 0.4 K superheated)",
+      "call": "phaseOf",
+      "args": [
+        "H2O",
+        373.15,
+        1
+      ],
+      "expect": {
+        "phase": "gas",
+        "method": "if97_region"
+      },
+      "tol": 0,
+      "source": "IF97: Tsat(1.0 bar) = 372.756 K; the classic at-Tb trap — 100 °C at 1 bar (not 1 atm) is already vapor"
+    },
+    {
+      "id": "MB-016",
+      "desc": "Phase just below saturation: water at 372.0 K / 1.00 bar is LIQUID",
+      "call": "phaseOf",
+      "args": [
+        "H2O",
+        372,
+        1
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "if97_region"
+      },
+      "tol": 0,
+      "source": "IF97: 372.0 K < Tsat(1.0 bar) = 372.756 K → region 1 liquid"
+    },
+    {
+      "id": "MB-017",
+      "desc": "Phase above Tc: propane at 400 K / 50 bar is GAS regardless of pressure (Tc = 369.8 K)",
+      "call": "phaseOf",
+      "args": [
+        "C3H8",
+        400,
+        50
+      ],
+      "expect": {
+        "phase": "gas",
+        "method": "supercritical"
+      },
+      "tol": 0,
+      "source": "propane Tc = 369.8 K < 400 K — supercritical rule fires before any Psat comparison"
+    },
+    {
+      "id": "MB-018",
+      "desc": "Nonvolatile solid: NaCl at 298.15 K / 1 bar is SOLID with psat = 0",
+      "call": "phaseOf",
+      "args": [
+        "NaCl",
+        298.15,
+        1
+      ],
+      "expect": {
+        "phase": "solid",
+        "method": "nonvolatile",
+        "psat_bar": 0
+      },
+      "tol": 0,
+      "source": "spec: nonvolatile flag → solid below Tm (1073.8 K), psat pinned to 0"
+    },
+    {
+      "id": "MB-019",
+      "desc": "Nonvolatile melt: NaCl at 1200 K / 1 bar is LIQUID (above Tm 1073.8 K), still nonvolatile",
+      "call": "phaseOf",
+      "args": [
+        "NaCl",
+        1200,
+        1
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "nonvolatile",
+        "psat_bar": 0
+      },
+      "tol": 0,
+      "source": "spec: nonvolatile + T ≥ Tm → liquid; never gas (tb_K = 1738 K irrelevant while flagged)"
+    },
+    {
+      "id": "MB-020",
+      "desc": "Antoine Psat route: ethanol at 350 K / 1.01325 bar is LIQUID (Psat ≈ 0.96 bar just under P)",
+      "call": "phaseOf",
+      "args": [
+        "EtOH",
+        350,
+        1.01325
+      ],
+      "expect": {
+        "phase": "liquid",
+        "method": "psat_antoine",
+        "psat_bar": 0.957
+      },
+      "tol": {
+        "psat_bar": 0.05,
+        "default": 0
+      },
+      "source": "Antoine (CRC set): Psat(350 K) ≈ 0.95–0.97 bar < 1.01325 bar; Tb = 351.44 K — 1.4 K below the boil"
+    },
+    {
+      "id": "MB-021",
+      "desc": "Formation-basis element identity: H2 gas at 298.15 K has h = 0 (element reference state)",
+      "call": "hGasMolar",
+      "args": [
+        "H2",
+        298.15
+      ],
+      "expect": {
+        "h_kJmol": 0
+      },
+      "tol": 0.001,
+      "source": "ΔfH°(element, standard state) ≡ 0; Shomate H(298.15)−H(298.15) ≡ 0 by the F−H closed form"
+    },
+    {
+      "id": "MB-022",
+      "desc": "Formation-basis reaction consistency: H2 + ½O2 → H2O(g) at 298.15 K from stream enthalpies alone",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "waterMolarH",
+            "args": [
+              298.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "H2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "O2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -0.5
+          }
+        ]
+      },
+      "expect": {
+        "value": -241.83
+      },
+      "tol": 0.5,
+      "source": "NIST, ΔfH°(H2O, g) = −241.83 kJ/mol. Proves reaction heat is implicit in h — including the IF97-routed water branch."
+    },
+    {
+      "id": "MB-023",
+      "desc": "Formation-basis reaction consistency: CH4 + 2O2 → CO2 + 2H2O(g), ΔH°rxn(298) = −802.3 kJ/mol (LHV check)",
+      "call": "combine",
+      "args": {
+        "terms": [
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CO2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": 1
+          },
+          {
+            "fn": "waterMolarH",
+            "args": [
+              298.15,
+              1,
+              "gas"
+            ],
+            "field": "h_kJmol",
+            "coef": 2
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "CH4",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -1
+          },
+          {
+            "fn": "hGasMolar",
+            "args": [
+              "O2",
+              298.15
+            ],
+            "field": "h_kJmol",
+            "coef": -2
+          }
+        ]
+      },
+      "expect": {
+        "value": -802.3
+      },
+      "tol": 1,
+      "source": "Hess: −393.52 + 2(−241.83) − (−74.87) = −802.31 kJ/mol (methane lower heating value)"
+    },
+    {
+      "id": "MB-024",
+      "desc": "solveT_forH round-trip: pure liquid water stream, T_true = 350 K over bracket [280, 420]",
+      "call": "solveT_roundtrip",
+      "args": {
+        "stream": {
+          "mass_flow_kg_h": 100,
+          "P_bar": 2,
+          "components": [
+            {
+              "key": "H2O",
+              "mass_fraction": 1,
+              "phase": "liquid"
+            }
+          ]
+        },
+        "T_true": 350,
+        "Tlo": 280,
+        "Thi": 420
+      },
+      "expect": {
+        "T_K": 350,
+        "converged": true
+      },
+      "tol": {
+        "T_K": 0.01,
+        "default": 0
+      },
+      "source": "self-consistency: streamEnthalpy(T) → solveT_forH(H) must invert on the IF97 liquid branch"
+    },
+    {
+      "id": "MB-025",
+      "desc": "solveT_forH round-trip: air (N2/O2 Shomate gas mix), T_true = 800 K over bracket [300, 1500]",
+      "call": "solveT_roundtrip",
+      "args": {
+        "stream": {
+          "mass_flow_kg_h": 1000,
+          "P_bar": 1.01325,
+          "components": [
+            {
+              "key": "N2",
+              "mass_fraction": 0.767
+            },
+            {
+              "key": "O2",
+              "mass_fraction": 0.233
+            }
+          ]
+        },
+        "T_true": 800,
+        "Tlo": 300,
+        "Thi": 1500
+      },
+      "expect": {
+        "T_K": 800,
+        "converged": true
+      },
+      "tol": {
+        "T_K": 0.01,
+        "default": 0
+      },
+      "source": "self-consistency on the multi-component Shomate gas branch (crosses both N2 ranges at 500 K)"
+    },
+    {
+      "id": "MB-026",
+      "desc": "mixer: adiabatic 50/50 hot/cold water — T_out within 0.1 K of hand calc",
+      "call": "runModule",
+      "args": [
+        "mixer",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 363.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 293.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 328.19,
+        "converged": true,
+        "mass_balance.closure_pct": 0,
+        "energy_balance.W_kW": 0
+      },
+      "tol": {
+        "streams_out.0.T_K": 0.15,
+        "mass_balance.closure_pct": 1e-09,
+        "energy_balance.W_kW": 1e-09,
+        "default": 1e-06
+      },
+      "source": "Steam-table hand calc: hf(90 °C)=376.97, hf(20 °C)=83.92 kJ/kg → mixed h=230.44 → T=55.04 °C=328.19 K (constant-cp hand check 328.15 K)"
+    },
+    {
+      "id": "MB-027",
+      "desc": "mixer (Felder-style worked example): quench 100 kg/h saturated steam with 900 kg/h water at 20 °C",
+      "call": "runModule",
+      "args": [
+        "mixer",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 373.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1,
+                  "phase": "gas"
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 900,
+              "T_K": 293.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 355.1,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 0.4,
+        "default": 1e-06
+      },
+      "source": "Felder & Rousseau-class steam-table energy balance (ch. 8 style): hg(1 atm)=2676.0, hf(20 °C)=83.92 kJ/kg → h_mix=343.13 kJ/kg → T≈81.95 °C=355.10 K"
+    },
+    {
+      "id": "MB-028",
+      "desc": "splitter: 60/40 split — identical T/composition, exact closure, zero duty",
+      "call": "runModule",
+      "args": [
+        "splitter",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 300.0,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5
+                },
+                {
+                  "key": "EtOH",
+                  "mass_fraction": 0.5
+                }
+              ]
+            }
+          ],
+          "params": {
+            "fractions": [
+              0.6,
+              0.4
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.mass_flow_kg_h": 60,
+        "streams_out.1.mass_flow_kg_h": 40,
+        "streams_out.0.T_K": 300.0,
+        "mass_balance.closure_pct": 0,
+        "energy_balance.Q_kW": 0,
+        "converged": true,
+        "iterations": 0
+      },
+      "tol": {
+        "energy_balance.Q_kW": 1e-06,
+        "default": 1e-09
+      },
+      "source": "Definition of a splitter: mass split with unchanged intensive state — exact by construction"
+    },
+    {
+      "id": "MB-029",
+      "desc": "flash: equimolar benzene/toluene at 95 °C, 1 atm — Rachford-Rice V/F and vapor composition",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 85.1275,
+              "T_K": 368.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.458805908784
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.541194091216
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 368.15,
+            "P_bar": 1.01325
+          }
+        }
+      ],
+      "expect": {
+        "details.psi_VF": 0.4305,
+        "details.y.0.y": 0.6263,
+        "details.regime": "two_phase",
+        "converged": true
+      },
+      "tol": {
+        "details.psi_VF": 0.006,
+        "details.y.0.y": 0.005,
+        "default": 1e-06
+      },
+      "source": "Raoult/Rachford-Rice hand calc with published Antoine constants (Lange class): Psat(95 °C) benzene 1.569 bar, toluene 0.636 bar → K=1.548/0.627 → ψ=0.4305, y_benzene=0.6263"
+    },
+    {
+      "id": "MB-030",
+      "desc": "flash: equimolar benzene/toluene at 110 °C, 1 atm — above dew point, all-vapor detection",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 85.1275,
+              "T_K": 383.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.458805908784
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.541194091216
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 383.15,
+            "P_bar": 1.01325
+          }
+        }
+      ],
+      "expect": {
+        "details.regime": "all_vapor",
+        "details.psi_VF": 1,
+        "streams_out.1.mass_flow_kg_h": 0
+      },
+      "tol": {
+        "default": 1e-09
+      },
+      "source": "Antoine hand calc: K(110 °C)=2.31 (benzene) / 0.98 (toluene) → Σz(K−1)/K=+0.27>0 — feed is superheated vapor (dew point ≈ 98.8 °C at 1 atm)"
+    },
+    {
+      "id": "MB-031",
+      "desc": "flash: water/NaCl (z=0.9/0.1 mol) at 120 °C, 1 bar — nonvolatile salt stays in the liquid, salt-free vapor",
+      "call": "runModule",
+      "args": [
+        "flash",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 22.0578,
+              "T_K": 298.15,
+              "P_bar": 1.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.735046106139
+                },
+                {
+                  "key": "NaCl",
+                  "mass_fraction": 0.264953893861
+                }
+              ]
+            }
+          ],
+          "params": {
+            "T_K": 393.15,
+            "P_bar": 1.0
+          }
+        }
+      ],
+      "expect": {
+        "details.psi_VF": 0.7985,
+        "details.y.1.y": 0,
+        "details.regime": "two_phase",
+        "converged": true
+      },
+      "tol": {
+        "details.psi_VF": 0.012,
+        "details.y.1.y": 1e-12,
+        "default": 1e-06
+      },
+      "source": "Rachford-Rice hand calc with steam-table Psat(120 °C)=1.9854 bar → K_w=1.985, K_NaCl=0 → ψ=0.7985; nonvolatile → y_NaCl=0 exactly"
+    },
+    {
+      "id": "MB-032",
+      "desc": "heat-exchanger both_T: water/water 80→60 °C vs 20→40 °C, counter-current — duty and LMTD=40 K",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 353.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 293.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "both_T",
+            "T_hot_out_K": 333.15,
+            "T_cold_out_K": 313.15
+          }
+        }
+      ],
+      "expect": {
+        "details.duty_hot_kW": 23.27,
+        "details.lmtd_K": 40.0,
+        "converged": true
+      },
+      "tol": {
+        "details.duty_hot_kW": 0.12,
+        "details.lmtd_K": 0.02,
+        "default": 1e-06
+      },
+      "source": "Steam tables: hf(80)−hf(60)=334.95−251.18=83.77 kJ/kg → 23.27 kW at 1000 kg/h; equal 40 K approaches at both ends → LMTD=40 K exactly"
+    },
+    {
+      "id": "MB-033",
+      "desc": "heat-exchanger solve_cold: hot water 90→50 °C (1000 kg/h) heats 2000 kg/h from 20 °C — cold outlet T",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 363.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 2000,
+              "T_K": 293.15,
+              "P_bar": 2.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "solve_cold",
+            "T_hot_out_K": 323.15
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.1.T_K": 313.2,
+        "converged": true,
+        "energy_balance.Q_kW": 0
+      },
+      "tol": {
+        "streams_out.1.T_K": 0.25,
+        "energy_balance.Q_kW": 0.05,
+        "default": 1e-06
+      },
+      "source": "Steam tables: duty=hf(90)−hf(50)=376.97−209.34=167.63 kJ/kg → 46.56 kW; cold h_out=83.92+83.82=167.74 kJ/kg → 40.05 °C=313.20 K"
+    },
+    {
+      "id": "MB-034",
+      "desc": "heat-exchanger both_T: 100→60 °C vs 30→50 °C counter-current — classic unequal-end LMTD",
+      "call": "runModule",
+      "args": [
+        "heat-exchanger",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 373.15,
+              "P_bar": 3.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 2008,
+              "T_K": 303.15,
+              "P_bar": 3.0,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "both_T",
+            "T_hot_out_K": 333.15,
+            "T_cold_out_K": 323.15,
+            "U_W_m2K": 800
+          }
+        }
+      ],
+      "expect": {
+        "details.lmtd_K": 39.152,
+        "details.duty_hot_kW": 46.64
+      },
+      "tol": {
+        "details.lmtd_K": 0.05,
+        "details.duty_hot_kW": 0.25,
+        "default": 1e-06
+      },
+      "source": "LMTD hand calc: ΔT1=100−50=50 K, ΔT2=60−30=30 K → (50−30)/ln(50/30)=39.152 K; duty=hf(100)−hf(60)=419.04−251.18≈167.9 kJ/kg → 46.6 kW"
+    },
+    {
+      "id": "MB-035",
+      "desc": "rotating/pump: 10 000 kg/h water, ΔP=5 bar, η=0.7 — hydraulic + shaft power and friction T rise",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 10000,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "H2O",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "pump",
+            "dP_bar": 5,
+            "eta": 0.7
+          }
+        }
+      ],
+      "expect": {
+        "details.W_hydraulic_kW": 1.392,
+        "details.W_shaft_kW": 1.988,
+        "streams_out.0.T_K": 298.2,
+        "energy_balance.W_kW": 1.988
+      },
+      "tol": {
+        "details.W_hydraulic_kW": 0.015,
+        "details.W_shaft_kW": 0.02,
+        "streams_out.0.T_K": 0.02,
+        "energy_balance.W_kW": 0.02
+      },
+      "source": "Hand calc: W_hyd=ṁΔP/ρ=(2.778 kg/s·5·10⁵ Pa)/998=1.392 kW; shaft=1.988 kW; ΔT=ΔP(1/η−1)/(ρcp)=0.051 K"
+    },
+    {
+      "id": "MB-036",
+      "desc": "rotating/compressor: 100 kg/h argon 1→10 bar from 25 °C, η=1 — exact monatomic isentropic relation",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 298.15,
+              "P_bar": 1.0,
+              "components": [
+                {
+                  "key": "Ar",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "compressor",
+            "P_out_bar": 10,
+            "eta": 1.0
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 748.92,
+        "energy_balance.W_kW": 6.515,
+        "details.gamma_mean": 1.6667,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 1.5,
+        "energy_balance.W_kW": 0.05,
+        "details.gamma_mean": 0.001,
+        "default": 1e-06
+      },
+      "source": "Ideal-gas hand calc, γ=5/3 (monatomic, NIST cp=20.786 J/mol·K): T2s=298.15·10^0.4=748.9 K; W=cpΔT·n=20.786·450.8·2.503 kmol/h=6.515 kW"
+    },
+    {
+      "id": "MB-037",
+      "desc": "rotating/turbine: 100 kg/h argon 10→1 bar from 800 K, η=0.8 — isentropic then efficiency, W negative",
+      "call": "runModule",
+      "args": [
+        "rotating",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 100,
+              "T_K": 800.0,
+              "P_bar": 10.0,
+              "components": [
+                {
+                  "key": "Ar",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "machine": "turbine",
+            "P_out_bar": 1.0,
+            "eta": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 414.79,
+        "energy_balance.W_kW": -5.568,
+        "details.T2s_K": 318.49,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 1.5,
+        "energy_balance.W_kW": 0.05,
+        "details.T2s_K": 1.0,
+        "default": 1e-06
+      },
+      "source": "Ideal-gas hand calc, γ=5/3: T2s=800·0.1^0.4=318.5 K; Δh=0.8·cp·(T2s−800)=−8.007 kJ/mol → T2=414.8 K, W=−5.568 kW at 2.503 kmol/h"
+    },
+    {
+      "id": "MB-038",
+      "desc": "reactor (Felder worked example): C3H8+5O2→3CO2+4H2O, X=1, isothermal 25 °C — dHr298 equals the tabulated heat of combustion (HHV) and Q follows from formation-basis enthalpies",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 204.097,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "C3H8",
+                  "mass_fraction": 0.216059030755
+                },
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.783940969245
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "reactions": [
+              {
+                "stoich": {
+                  "C3H8": -1,
+                  "O2": -5,
+                  "CO2": 3,
+                  "H2O": 4
+                },
+                "conversion": 1.0,
+                "limiting": "C3H8"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "details.reactions.0.dHr298_kJmol": -2219.2,
+        "energy_balance.Q_kW": -616.44,
+        "converged": true
+      },
+      "tol": {
+        "details.reactions.0.dHr298_kJmol": 2.5,
+        "energy_balance.Q_kW": 1.0,
+        "default": 1e-06
+      },
+      "source": "Felder & Rousseau Table B.1: ΔH°c C3H8(g) with H2O(l) = −2220.0 kJ/mol (NIST Hf: 3·(−393.52)+4·(−285.83)−(−104.7)=−2219.2); Q=−2219.2·1 kmol/h=−616.4 kW"
+    },
+    {
+      "id": "MB-039",
+      "desc": "reactor adiabatic: CH4 + theoretical air (O2:N2 = 2:7.52), X=1 — adiabatic flame temperature, no dissociation",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 290.70828,
+              "T_K": 298.15,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.055185906642
+                },
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.220151968152
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.724662125207
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "adiabatic",
+            "reactions": [
+              {
+                "stoich": {
+                  "CH4": -1,
+                  "O2": -2,
+                  "CO2": 1,
+                  "H2O": 2
+                },
+                "conversion": 1.0,
+                "limiting": "CH4"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "streams_out.0.T_K": 2330,
+        "converged": true
+      },
+      "tol": {
+        "streams_out.0.T_K": 60,
+        "default": 1e-06
+      },
+      "source": "Çengel & Boles (Thermodynamics) worked example class: theoretical adiabatic flame temperature of CH4 with stoichiometric air, complete combustion, no dissociation ≈ 2330 K (variable ideal-gas cp)"
+    },
+    {
+      "id": "MB-040",
+      "desc": "reactor sequential: SMR (X_CH4=0.8) then WGS (X_CO=0.5) at 800 °C — hand-tracked mole table and near-exact mass closure",
+      "call": "runModule",
+      "args": [
+        "reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 1073.15,
+              "P_bar": 20.0,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146,
+                  "phase": "gas"
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "reactions": [
+              {
+                "stoich": {
+                  "CH4": -1,
+                  "H2O": -1,
+                  "CO": 1,
+                  "H2": 3
+                },
+                "conversion": 0.8,
+                "limiting": "CH4"
+              },
+              {
+                "stoich": {
+                  "CO": -1,
+                  "H2O": -1,
+                  "CO2": 1,
+                  "H2": 1
+                },
+                "conversion": 0.5,
+                "limiting": "CO"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "details.outlet_mole_flows.0.n_kmol_h": 0.2,
+        "details.outlet_mole_flows.1.n_kmol_h": 1.8,
+        "details.outlet_mole_flows.2.n_kmol_h": 0.4,
+        "details.outlet_mole_flows.3.n_kmol_h": 2.8,
+        "details.outlet_mole_flows.4.n_kmol_h": 0.4,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "mass_balance.closure_pct": 0.02,
+        "default": 1e-06
+      },
+      "source": "Hand mole table, basis 1 kmol/h CH4 + 3 H2O: ξ1=0.8 → CH4 0.2, H2O 2.2, CO 0.8, H2 2.4; ξ2=0.5·0.8=0.4 → CO 0.4, H2O 1.8, CO2 0.4, H2 2.8; atomic MWs make closure exact to <0.001%"
+    },
+    {
+      "id": "MB-041",
+      "desc": "cstr: first-order liquid, V→X — Da = kτ = 2 → X = 2/3 (Fogler CSTR design eq.)",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.6666667,
+        "details.Da": 2,
+        "details.tau_s": 7200,
+        "details.Ca0_kmolm3": 12.3571208,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.Da": 1e-06,
+        "details.tau_s": 1e-06,
+        "details.Ca0_kmolm3": 0.0001,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Fogler (Elements of CRE) first-order liquid CSTR: X = Da/(1+Da), Da = kτ = (2/7200 s⁻¹)(7200 s) = 2 → X = 2/3; Ca0 = 520/42.081 = 12.35712 kmol/m³. Hand calculation."
+    },
+    {
+      "id": "MB-042",
+      "desc": "cstr: second-order liquid, X→V — τ = X/(k·Ca0·(1−X)²) = 16185 s, V = 4.4958 m³; batch-time equivalent 3237 s",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 2,
+            "k_si": 0.0001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "V",
+            "X_target": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "details.V_m3": 4.4958333,
+        "details.tau_s": 16185.0,
+        "details.Da": 20,
+        "details.X": 0.8,
+        "details.batch_time_equiv_s": 3237.0,
+        "converged": true
+      },
+      "tol": {
+        "details.V_m3": 0.0001,
+        "details.tau_s": 0.05,
+        "details.Da": 0.0001,
+        "details.X": 1e-06,
+        "details.batch_time_equiv_s": 0.05,
+        "default": 1e-06
+      },
+      "source": "Fogler CSTR design eq., 2nd order liquid: τ = X/(k·Ca0·(1−X)²) = 0.8/(1e-4 · 12.35712 · 0.04) = 16185 s → V = τ·v = 4.49583 m³; Da₂ = kτCa0 = 20. Batch/PFR equivalent t = X/(k·Ca0·(1−X)) = 3237 s. Hand calculation."
+    },
+    {
+      "id": "MB-043",
+      "desc": "cstr: Arrhenius k(A=1e5 s⁻¹, Ea=50 kJ/mol, T=350 K) = 3.4519e-3 s⁻¹ → Da = 12.427, X = 0.92552 (40 bar keeps C3H6 liquid)",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 350,
+              "P_bar": 40,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 1
+          }
+        }
+      ],
+      "expect": {
+        "details.k_si": 0.0034518643,
+        "details.Da": 12.426711,
+        "details.X": 0.9255216,
+        "converged": true
+      },
+      "tol": {
+        "details.k_si": 5e-06,
+        "details.Da": 0.002,
+        "details.X": 0.0001,
+        "default": 1e-06
+      },
+      "source": "Arrhenius: k = A·e^(−Ea/RT) = 1e5·exp(−50/(0.008314462·350)) = 3.45186e-3 s⁻¹; τ = 3600 s → Da = 12.4267; first-order CSTR X = Da/(1+Da) = 0.925522 (Fogler). Hand calculation."
+    },
+    {
+      "id": "MB-044",
+      "desc": "cstr: adiabatic + Arrhenius (dilute 5 % C3H6 in cyclohexane) — formation-basis identity Q ≈ 0 with converged T↔X loop",
+      "call": "runModule",
+      "args": [
+        "cstr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 0.05
+                },
+                {
+                  "key": "cyclohexane",
+                  "mass_fraction": 0.95
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 770,
+            "solve_for": "X",
+            "V_m3": 2,
+            "mode": "adiabatic"
+          }
+        }
+      ],
+      "expect": {
+        "energy_balance.Q_kW": 0,
+        "energy_balance.W_kW": 0,
+        "mass_balance.closure_pct": 0,
+        "converged": true
+      },
+      "tol": {
+        "energy_balance.Q_kW": 0.01,
+        "energy_balance.W_kW": 1e-09,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Formation-basis adiabatic identity: with T_out solved from stream enthalpies, the reported duty Q = Hout − Hin must return ≈ 0 (reaction heat is implicit in the formation enthalpies); exothermic-CSTR T↔k(T)↔X damped loop must converge."
+    },
+    {
+      "id": "MB-045",
+      "desc": "pfr: first-order liquid, V→X — X = 1 − e^(−kτ) = 1 − e⁻² = 0.86466 (exact per-segment march)",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.8646647,
+        "details.tau_s": 7200,
+        "details.segments": 50,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "Levenspiel / Fogler PFR design eq., first order constant density: X = 1 − e^(−kτ) = 1 − e⁻² = 0.864665. Hand calculation."
+    },
+    {
+      "id": "MB-046",
+      "desc": "pfr: second-order liquid, X→V — kτCa0 = X/(1−X) = 4 → τ = 3237 s, V = 0.89917 m³",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 2,
+            "k_si": 0.0001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "V",
+            "X_target": 0.8
+          }
+        }
+      ],
+      "expect": {
+        "details.V_m3": 0.8991667,
+        "details.tau_s": 3237.0,
+        "details.X": 0.8,
+        "details.batch_time_equiv_s": 3237.0,
+        "converged": true
+      },
+      "tol": {
+        "details.V_m3": 0.0001,
+        "details.tau_s": 0.05,
+        "details.X": 1e-06,
+        "details.batch_time_equiv_s": 0.05,
+        "default": 1e-06
+      },
+      "source": "Fogler PFR design eq., 2nd order liquid: kτCa0 = X/(1−X) = 4 → τ = 4/(1e-4 · 12.35712) = 3237 s, V = 0.899167 m³; PFR ≡ constant-volume batch, so the batch-time equivalent equals τ. Hand calculation."
+    },
+    {
+      "id": "MB-047",
+      "desc": "pfr: zero-order liquid — X = kτ/Ca0 = (1e-3 · 5040)/12.35712 = 0.40786",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 0,
+            "k_si": 0.001,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 1.4
+          }
+        }
+      ],
+      "expect": {
+        "details.X": 0.407862,
+        "details.tau_s": 5040,
+        "converged": true
+      },
+      "tol": {
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
+        "default": 1e-06
+      },
+      "source": "Levenspiel zero-order design eq. (identical for PFR and batch): X = k·τ/Ca0 = 1e-3 · 5040 / 12.35712 = 0.407862. Hand calculation."
+    },
+    {
+      "id": "MB-048",
+      "desc": "pfr: axial profile — first-order X(z) = 1 − e^(−Da·z); at z = 0.5 (profile index 25 of 50), X = 1 − e⁻¹ = 0.63212",
+      "call": "runModule",
+      "args": [
+        "pfr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "solve_for": "X",
+            "V_m3": 2
+          }
+        }
+      ],
+      "expect": {
+        "details.profile.25.z": 0.5,
+        "details.profile.25.X": 0.6321206,
+        "details.profile.50.X": 0.8646647,
+        "details.profile.0.X": 0
+      },
+      "tol": {
+        "details.profile.25.X": 1e-05,
+        "details.profile.50.X": 1e-05,
+        "default": 1e-06
+      },
+      "source": "First-order PFR axial profile X(z) = 1 − e^(−Da·z), Da = 2: X(0.5) = 1 − e⁻¹ = 0.632121, X(1) = 1 − e⁻² = 0.864665. The exact-per-segment march must reproduce the closed form at every profile node."
+    },
+    {
+      "id": "MB-049",
+      "desc": "pfr-recycle: R = 50 approaches the CSTR limit — closed form X_ov = 1 − E/(1+R−R·E) = 0.67102 (CSTR: 2/3)",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 50
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.6710238,
+        "details.X_sp": 0.0384567,
+        "converged": true,
+        "iterations": 15
+      },
+      "tol": {
+        "details.X_ov": 0.002,
+        "details.X_sp": 0.0002,
+        "iterations": 15,
+        "default": 1e-06
+      },
+      "source": "Recycle-reactor closed form (Fogler Ch. 6 / Levenspiel recycle reactor), first order: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)), Da0 = kV/v_fresh = 2; R = 50 → X_ov = 0.671024, X_sp = 1 − E = 0.038457 — approaching the CSTR limit Da/(1+Da) = 2/3 as R → ∞. Iterations expected ≤ 30 with bounded Wegstein."
+    },
+    {
+      "id": "MB-050",
+      "desc": "pfr-recycle: R = 0 degenerates to a single PFR pass — X_ov = X_sp = 1 − e⁻²",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.8646647,
+        "details.X_sp": 0.8646647,
+        "iterations": 1,
+        "converged": true
+      },
+      "tol": {
+        "details.X_ov": 1e-05,
+        "details.X_sp": 1e-05,
+        "iterations": 1e-09,
+        "default": 1e-06
+      },
+      "source": "Levenspiel recycle-reactor limit R → 0: plug flow, X = 1 − e^(−Da0) = 1 − e⁻² = 0.864665; single pass, no tear iteration."
+    },
+    {
+      "id": "MB-051",
+      "desc": "pfr-recycle: Wegstein-vs-analytic identity, R = 1, Da0 = 2 — tear fixed point must equal the first-order closed form",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 520,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 1
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "k_si": 0.0002777777777777778,
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 520,
+            "V_m3": 2,
+            "R": 1
+          }
+        }
+      ],
+      "expect": {
+        "details.X_ov": 0.7746003,
+        "details.X_sp": 0.6321206,
+        "converged": true,
+        "mass_balance.closure_pct": 0
+      },
+      "tol": {
+        "details.X_ov": 5e-05,
+        "details.X_sp": 5e-05,
+        "mass_balance.closure_pct": 0.005,
+        "default": 1e-06
+      },
+      "source": "First-order recycle identity: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)); R = 1, Da0 = 2 → E = e⁻¹, X_ov = 1 − e⁻¹/(2−e⁻¹) = 0.774600 and X_sp = 1 − e⁻¹ = 0.632121. The Wegstein-converged tear must land on the analytic fixed point (bounded q ∈ [−5,0])."
+    },
+    {
+      "id": "MB-052",
+      "desc": "pfr-recycle: adiabatic loop (dilute exothermic feed, R = 2) — envelope identity Q ≈ 0 at the converged tear incl. temperature",
+      "call": "runModule",
+      "args": [
+        "pfr-recycle",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 298.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "C3H6",
+                  "mass_fraction": 0.05
+                },
+                {
+                  "key": "cyclohexane",
+                  "mass_fraction": 0.95
+                }
+              ]
+            }
+          ],
+          "params": {
+            "order": 1,
+            "arrhenius": {
+              "A_si": 100000.0,
+              "Ea_kJmol": 50
+            },
+            "reaction": {
+              "stoich": {
+                "C3H6": -2,
+                "cyclohexane": 1
+              },
+              "reactant": "C3H6"
+            },
+            "rho_kgm3": 770,
+            "V_m3": 2,
+            "R": 2,
+            "mode": "adiabatic"
+          }
+        }
+      ],
+      "expect": {
+        "energy_balance.Q_kW": 0,
+        "energy_balance.W_kW": 0,
+        "mass_balance.closure_pct": 0,
+        "converged": true,
+        "iterations": 15
+      },
+      "tol": {
+        "energy_balance.Q_kW": 0.1,
+        "energy_balance.W_kW": 1e-09,
+        "mass_balance.closure_pct": 0.005,
+        "iterations": 15,
+        "default": 1e-06
+      },
+      "source": "Adiabatic recycle envelope identity on the formation basis: mixing point and reactor both adiabatic → fresh-in / product-out duty must return ≈ 0 at the converged tear. Exercises the Wegstein tear including its temperature variable; iterations expected ≤ 30."
+    },
+    {
+      "id": "MB-053",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 800 °C, ATE 0/0 — simultaneous reformer + shift equilibrium, dry composition, H2/CO, CH4 slip, extents",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.07626,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11408,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.71618,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.09348,
+        "details.h2_co_ratio": 6.2776,
+        "details.ch4_slip_dry_pct": 7.6257,
+        "details.extents.smr_kmol_h": 0.731322,
+        "details.extents.wgs_kmol_h": 0.329367,
+        "details.s_c.ratio": 3.0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.extents.smr_kmol_h": 0.002,
+        "details.extents.wgs_kmol_h": 0.002,
+        "details.s_c.ratio": 0.0001
+      },
+      "source": "Hand equilibrium calculation (independent Python solve, not engine output) from the published correlations lnK1 = 30.114 − 26830/T [bar²] (Twigg, Catalyst Handbook, 2nd ed., App.) and lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions of Speight fig. 7-3 (steam reforming equilibrium at 20 atm, H2O/CH4 = 3): dry CH4 slip ≈ 7.6 % at 800 °C, matching the published chart."
+    },
+    {
+      "id": "MB-054",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 1000 °C, ATE 0/0 — near-complete CH4 conversion (published charts: conversion “complete at about 1,000 °C” at 20 atm)",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1273.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0043,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.17877,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.76081,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05612,
+        "details.h2_co_ratio": 4.2557,
+        "details.ch4_slip_dry_pct": 0.43,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: Speight fig. 7-3 (20 atm, H2O/CH4 = 3) — “methane conversion is complete at about 1,000 °C”; dry slip 0.43 % reproduces the chart’s end point."
+    },
+    {
+      "id": "MB-055",
+      "desc": "smr fired: CH4 + 2 H2O, 1 bar, 1300 K, ATE 0/0 — SVN Ex. 13.14 conditions: reforming essentially complete, product split set by the shift equilibrium",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 52.073,
+              "T_K": 800,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.308086724406
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.691913275594
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1300,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 2e-05,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.21151,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.75768,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.03079,
+        "details.h2_co_ratio": 3.5822,
+        "details.ch4_slip_dry_pct": 0.0023,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053) at the conditions of Smith, Van Ness & Abbott Ex. 13.14 (industrial CH4 reforming, 1 bar, 1300 K, 2 mol steam per mol CH4), where SVN’s ΔG°-based solution likewise gives near-total CH4 conversion with the mixture governed by the water-gas-shift equilibrium."
+    },
+    {
+      "id": "MB-056",
+      "desc": "smr fired: pure CH4, S/C = 3.5, 30 bar, 800 °C, ATE 0/0 — ammonia-plant primary-reformer point: ≈ 9 % dry CH4 slip",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 79.0955,
+              "T_K": 800,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.202830755226
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.797169244774
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.08962,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.09723,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.70886,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.10429,
+        "details.h2_co_ratio": 7.2908,
+        "details.ch4_slip_dry_pct": 8.9622,
+        "details.s_c.ratio": 3.5,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.s_c.ratio": 0.0001
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: published ammonia-plant primary-reformer outlets at ~30 bar / ~800 °C / S/C 3–4 run ≈ 9–10 % dry CH4 (Twigg, Catalyst Handbook, steam-reforming ch.; Appl, “Ammonia”, Ullmann’s Encyclopedia)."
+    },
+    {
+      "id": "MB-057",
+      "desc": "smr fired: MB-053 conditions with approach-to-equilibrium ATE_smr = 20 K, ATE_wgs = 10 K — slip drops as the reformer equilibrium is evaluated hotter",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15,
+            "ate_smr_K": 20,
+            "ate_wgs_K": 10
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0605,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.12283,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.72703,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.08963,
+        "details.ch4_slip_dry_pct": 6.0498,
+        "details.T_eq_smr_K": 1093.15,
+        "details.T_eq_wgs_K": 1083.15,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.T_eq_smr_K": 1e-06,
+        "details.T_eq_wgs_K": 1e-06
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 evaluated at T+20 K and Moe lnK2 at T+10 K — the approach-to-equilibrium convention for reformer rating (Twigg, Catalyst Handbook: reformer duty expressed as an ATE on the reforming reaction)."
+    },
+    {
+      "id": "MB-058",
+      "desc": "smr fired: pure CH4, S/C = 3, 20 bar, 700 °C, ATE 0/0 — the dry-CO2 maximum region of the published equilibrium chart",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 70.088,
+              "T_K": 800,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.228897956854
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.771102043146
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 973.15,
+            "ate_smr_K": 0,
+            "ate_wgs_K": 0
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.18661,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.05783,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.63914,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.11642,
+        "details.ch4_slip_dry_pct": 18.6614,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05
+      },
+      "source": "Hand equilibrium calculation from Twigg lnK1 / Moe lnK2 (see MB-053). Anchor: Speight fig. 7-3 (20 atm, H2O/CH4 = 3) — “the production of CO2 from the water gas shift reaction is maximum around 700 °C”; the 11.6 % dry CO2 here sits at that published maximum."
+    },
+    {
+      "id": "MB-059",
+      "desc": "smr secondary: primary-reformer effluent (30 bar, 800 °C) + preheated air (600 °C), O2 fully burned against CH4 then equilibrium, adiabatic T_out by outer bisection — ammonia-plant secondary-reformer point",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 79.095878,
+              "T_K": 1073.15,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.062437092692
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.55792697488
+                },
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.11826077024
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.062056784001
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.199318378187
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 41.2158,
+              "T_K": 873.15,
+              "P_bar": 30,
+              "components": [
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.232920384901
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.767079615099
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "secondary"
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.00072,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.13907,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.56034,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.06677,
+        "details.composition_dry.4.key": "N2",
+        "details.composition_dry.4.mole_fraction": 0.23311,
+        "details.T_out_K": 1332.4,
+        "details.ch4_slip_dry_pct": 0.0719,
+        "details.h2_co_ratio": 4.0293,
+        "details.ch4_burned_kmol_h": 0.15,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25,
+        "details.ch4_burned_kmol_h": 0.0001
+      },
+      "source": "Hand calculation: CH4 + 2 O2 → CO2 + 2 H2O on all fed O2, then Twigg/Moe equilibrium with the adiabatic balance closed on NIST WebBook Shomate H(T)−H(298)+Hf (independent Python solve). Anchor: published ammonia-plant secondary reformers leave < 0.5 % dry CH4 with ~23 % N2 at ≈ 1000–1050 °C outlet (Appl, “Ammonia”, Ullmann’s; Twigg, Catalyst Handbook). T tolerance ±25 K covers ideal-gas-steam hand calc vs the engine’s IF97 water route on the wet feed."
+    },
+    {
+      "id": "MB-060",
+      "desc": "atr: pure CH4 at 650 K / 25 bar, S/C = 0.6, O2/C = 0.6 (pure O2 at 298 K, steam at 650 K), adiabatic — GTL-class syngas with H2/CO ≈ 2.3",
+      "call": "runModule",
+      "args": [
+        "atr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 16.043,
+              "T_K": 650,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 1.0
+                }
+              ]
+            }
+          ],
+          "params": {
+            "s_c_ratio": 0.6,
+            "o2_c_ratio": 0.6,
+            "steam_T_K": 650,
+            "oxidant_T_K": 298.15
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.01055,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.28589,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.6505,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05306,
+        "details.T_out_K": 1299.07,
+        "details.h2_co_ratio": 2.2754,
+        "details.ch4_slip_dry_pct": 1.0552,
+        "details.o2_c_ratio": 0.6,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25,
+        "details.o2_c_ratio": 1e-09
+      },
+      "source": "Hand calculation (independent Python solve): full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: published ATR operation at O2/C ≈ 0.6 and low S/C delivers H2/CO ≈ 2.0–2.3 at ≈ 1020–1050 °C outlet (Aasberg-Petersen et al., J. Nat. Gas Sci. Eng. 3 (2011) 423–459, Topsøe ATR)."
+    },
+    {
+      "id": "MB-061",
+      "desc": "atr with AIR oxidant: pure CH4 at 650 K / 20 bar, S/C = 1.0, O2/C = 0.55, air and steam at 650 K, adiabatic — nitrogen-diluted syngas",
+      "call": "runModule",
+      "args": [
+        "atr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 16.043,
+              "T_K": 650,
+              "P_bar": 20,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 1.0
+                }
+              ]
+            }
+          ],
+          "params": {
+            "s_c_ratio": 1.0,
+            "o2_c_ratio": 0.55,
+            "oxidant": "air",
+            "steam_T_K": 650,
+            "oxidant_T_K": 650
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.02887,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11807,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.36575,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.05971,
+        "details.composition_dry.4.key": "N2",
+        "details.composition_dry.4.mole_fraction": 0.42759,
+        "details.T_out_K": 1096.75,
+        "details.h2_co_ratio": 3.0976,
+        "details.ch4_slip_dry_pct": 2.8873,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.2,
+        "details.T_out_K": 25
+      },
+      "source": "Hand calculation (independent Python solve): air taken as 21 % O2 / 79 % N2, full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: air-blown ATR/secondary-reforming trains show exactly this N2-diluted syngas pattern (~40 % dry N2) at ≈ 800–850 °C (Aasberg-Petersen et al. 2011; Appl, “Ammonia”, Ullmann’s)."
+    },
+    {
+      "id": "MB-062",
+      "desc": "smr fired, natural-gas-like feed: 0.90 CH4 / 0.06 C2H6 / 0.03 C3H8 / 0.01 nC4H10, S/C = 3.2 (per mol C), 25 bar, 800 °C, default ATE (0 / +10 K) — full C2+ pre-crack then equilibrium",
+      "call": "runModule",
+      "args": [
+        "smr",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 84.44219,
+              "T_K": 800,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.170989170224
+                },
+                {
+                  "key": "C2H6",
+                  "mass_fraction": 0.021365386189
+                },
+                {
+                  "key": "C3H8",
+                  "mass_fraction": 0.015666457727
+                },
+                {
+                  "key": "nC4H10",
+                  "mass_fraction": 0.006883289029
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.785095696831
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "fired",
+            "T_out_K": 1073.15
+          }
+        }
+      ],
+      "expect": {
+        "details.composition_dry.0.key": "CH4",
+        "details.composition_dry.0.mole_fraction": 0.0845,
+        "details.composition_dry.1.key": "CO",
+        "details.composition_dry.1.mole_fraction": 0.11034,
+        "details.composition_dry.2.key": "H2",
+        "details.composition_dry.2.mole_fraction": 0.70257,
+        "details.composition_dry.3.key": "CO2",
+        "details.composition_dry.3.mole_fraction": 0.10258,
+        "details.h2_co_ratio": 6.3672,
+        "details.ch4_slip_dry_pct": 8.4503,
+        "details.s_c.ratio": 3.2,
+        "details.precrack.0.key": "C2H6",
+        "details.precrack.1.key": "C3H8",
+        "details.precrack.2.key": "nC4H10",
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.composition_dry.0.mole_fraction": 0.015,
+        "details.composition_dry.1.mole_fraction": 0.015,
+        "details.composition_dry.2.mole_fraction": 0.015,
+        "details.composition_dry.3.mole_fraction": 0.015,
+        "details.composition_dry.4.mole_fraction": 0.015,
+        "details.ch4_slip_dry_pct": 1.5,
+        "details.h2_co_ratio": 0.05,
+        "details.s_c.ratio": 0.001
+      },
+      "source": "Hand calculation (independent Python solve): CnH2n+2 + n H2O → n CO + (2n+1) H2 applied fully to C2H6/C3H8/nC4H10 (Rostrup-Nielsen: higher hydrocarbons crack irreversibly to C1 species over the reformer inlet), then Twigg/Moe equilibrium at 1073.15 K (R1) / 1083.15 K (R2, default +10 K ATE), 25 bar."
+    },
+    {
+      "id": "MB-063",
+      "desc": "shift isothermal, HTS preset: 10% CO wet syngas at 350 °C, T_out 400 °C, ATE 10 K (T_eq 683.15 K) — extent, CO slip, duty",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.07526,
+              "T_K": 623.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.2142213615637471
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5235612905594229
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.06938294152468097
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1682949325673065
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539473784842517
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "preset": "hts",
+            "T_out_K": 673.15
+          }
+        }
+      ],
+      "expect": {
+        "details.preset": "hts",
+        "details.ate_K": 10,
+        "details.T_eq_K": 683.15,
+        "details.extent_kmol_h": 0.079419,
+        "details.co_slip_dry_pct": 2.9426,
+        "details.Q_kW": -0.3715,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.extent_kmol_h": 0.001,
+        "details.co_slip_dry_pct": 0.15,
+        "details.T_eq_K": 1e-06,
+        "details.Q_kW": 0.1
+      },
+      "source": "Hand equilibrium calculation (independent Python solve, not engine output) from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions per Twigg, Catalyst Handbook 2nd ed. (HTS window 350–450 °C, exit CO typically 2–4 % dry): computed slip 2.94 % dry. Duty from a Shomate enthalpy balance; the engine's IF97 water route differs by <0.05 kW — covered by the tolerance."
+    },
+    {
+      "id": "MB-064",
+      "desc": "shift adiabatic, HTS preset: same feed at 350 °C inlet — outlet T by bisection, CO slip, adiabatic rise",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.07526,
+              "T_K": 623.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.2142213615637471
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5235612905594229
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.06938294152468097
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1682949325673065
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539473784842517
+                }
+              ]
+            }
+          ],
+          "params": {
+            "preset": "hts"
+          }
+        }
+      ],
+      "expect": {
+        "details.mode": "adiabatic",
+        "details.T_out_K": 705.76,
+        "details.delta_T_K": 82.61,
+        "details.extent_kmol_h": 0.074216,
+        "details.co_slip_dry_pct": 3.7141,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 8,
+        "details.delta_T_K": 8,
+        "details.extent_kmol_h": 0.005,
+        "details.co_slip_dry_pct": 0.3
+      },
+      "source": "Hand calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Adiabatic T from an independent NIST-Shomate enthalpy balance (ideal-gas H2O); the engine's IF97 water route differs by a few K — covered by the tolerance. Outlet lands inside the Twigg HTS window (350–450 °C) with exit CO ≈ 3.7 % dry — consistent with published HTS practice."
+    },
+    {
+      "id": "MB-065",
+      "desc": "shift adiabatic, LTS preset: HTS exit gas cooled to 200 °C, ATE 5 K — exit CO in the published 0.2–0.4 % dry band",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 13.075334,
+              "T_K": 473.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.05523452235096582
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.4213046235758262
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.0808254258393482
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.4180960937358268
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.024539334498032993
+                }
+              ]
+            }
+          ],
+          "params": {
+            "preset": "lts"
+          }
+        }
+      ],
+      "expect": {
+        "details.preset": "lts",
+        "details.ate_K": 5,
+        "details.T_out_K": 500.81,
+        "details.delta_T_K": 27.66,
+        "details.co_slip_dry_pct": 0.3753,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 8,
+        "details.delta_T_K": 8,
+        "details.co_slip_dry_pct": 0.1
+      },
+      "source": "Hand calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962), feed = the MB-064 hand-calc outlet rounded to 6 dp. Adiabatic T from an independent NIST-Shomate enthalpy balance (ideal-gas H2O); the engine's IF97 water route differs by a few K — covered by the tolerance. Exit CO 0.375 % dry sits in the 0.1–0.4 % band quoted for LTS converters (Twigg, Catalyst Handbook; Appl, Ullmann's 'Ammonia'). Sub-Tsat(P_total) water is handled as vapor via the saturated-vapor-at-T branch."
+    },
+    {
+      "id": "MB-066",
+      "desc": "shift reverse direction: CO2/H2 = 1/3 at 700 °C isothermal, ATE 0 — negative extent (reverse WGS), CO make",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 12.5145,
+              "T_K": 973.15,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.8791801510248112
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.12081984897518878
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "T_out_K": 973.15
+          }
+        }
+      ],
+      "expect": {
+        "details.extent_kmol_h": -0.16954,
+        "details.composition_dry.0.key": "CO",
+        "details.composition_dry.0.mole_fraction": 0.204152,
+        "details.composition_dry.1.key": "CO2",
+        "details.composition_dry.1.mole_fraction": 0.096886,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.extent_kmol_h": 0.001,
+        "details.composition_dry.0.mole_fraction": 0.002,
+        "details.composition_dry.1.mole_fraction": 0.002
+      },
+      "source": "Hand equilibrium calculation from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962) run in the reverse (CO2 + H2 → CO + H2O) direction; K2(973.15 K) < 1 so the reverse extent is large. Confirms the solver is direction-agnostic."
+    },
+    {
+      "id": "MB-067",
+      "desc": "shift error path: feed with no shift-reactive pair (H2 + N2 only) → MB_SHIFT_FEED",
+      "call": "runModule",
+      "args": [
+        "shift",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 4.6158,
+              "T_K": 600,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.39308462238398545
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.6069153776160146
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "error.code": "MB_SHIFT_FEED"
+      },
+      "tol": 1e-09,
+      "source": "Input-contract check: WGS needs CO + H2O (forward) and/or CO2 + H2 (reverse)."
+    },
+    {
+      "id": "MB-068",
+      "desc": "methanator isothermal at 320 °C, 25 bar: H2/N2 make-up gas with 0.3 % CO + 0.1 % CO2 — equilibrium residuals far below the 10 ppm spec",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8.661755,
+              "T_K": 593.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.1722329943527611
+                },
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.7923832987656659
+                },
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.009701267237413205
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.005080956457438475
+                },
+                {
+                  "key": "CH4",
+                  "mass_fraction": 0.018521650635465906
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.0020798325512554907
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "isothermal",
+            "T_out_K": 593.15
+          }
+        }
+      ],
+      "expect": {
+        "details.T_eq_K": 593.15,
+        "details.co_ppm_dry": 0,
+        "details.co2_ppm_dry": 0,
+        "details.co_co2_ppm_dry": 0,
+        "details.ch4_dry_pct": 1.4199,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.co_ppm_dry": 10,
+        "details.co2_ppm_dry": 10,
+        "details.co_co2_ppm_dry": 10,
+        "details.ch4_dry_pct": 0.01,
+        "details.T_eq_K": 1e-06
+      },
+      "source": "Hand calculation (independent nested-bisection solve of the Twigg/Moe equilibria in the methanation direction). Methanator duty specs guarantee < 5–10 ppm CO+CO2 (Appl, Ullmann's 'Ammonia'; Twigg): the EQUILIBRIUM residual at 320 °C / 25 bar is orders of magnitude lower still (~1e-7 ppm) — the vector asserts the < 10 ppm bound."
+    },
+    {
+      "id": "MB-069",
+      "desc": "methanator adiabatic: 1 % CO in H2 at 300 °C, 25 bar — the classic ≈74 °C-per-1%-CO adiabatic rise emerges from the enthalpy balance",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2.27594,
+              "T_K": 573.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO",
+                  "mass_fraction": 0.12307002820812499
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.8769299717918749
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "details.T_out_K": 647.87,
+        "details.delta_T_K": 74.72,
+        "details.co_ppm_dry": 0,
+        "details.ch4_dry_pct": 1.0309,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 5,
+        "details.delta_T_K": 5,
+        "details.co_ppm_dry": 1,
+        "details.ch4_dry_pct": 0.05
+      },
+      "source": "Hand adiabatic balance on NIST Shomate enthalpies with the Twigg/Moe equilibria: ΔT = 74.7 K, matching the published rule of ~74 °C temperature rise per 1 % CO methanated (Twigg, Catalyst Handbook; Appl, Ullmann's 'Ammonia'). The rule is emergent — nothing in the engine encodes it."
+    },
+    {
+      "id": "MB-070",
+      "desc": "methanator adiabatic: 1 % CO2 in H2 at 300 °C, 25 bar — the ≈60 °C-per-1%-CO2 rise",
+      "call": "runModule",
+      "args": [
+        "methanator",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2.43594,
+              "T_K": 573.15,
+              "P_bar": 25,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.1806694746176014
+                },
+                {
+                  "key": "H2",
+                  "mass_fraction": 0.8193305253823986
+                }
+              ]
+            }
+          ],
+          "params": {}
+        }
+      ],
+      "expect": {
+        "details.T_out_K": 634.27,
+        "details.delta_T_K": 61.12,
+        "details.co2_ppm_dry": 0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_out_K": 5,
+        "details.delta_T_K": 5,
+        "details.co2_ppm_dry": 1
+      },
+      "source": "Hand adiabatic balance as MB-069: ΔT = 61.1 K vs the published ~60 °C per 1 % CO2 (Twigg; Appl). CO2 methanation consumes 4 H2 but releases less heat per mole than CO — the ratio of the two rises is itself a cross-check."
+    },
+    {
+      "id": "MB-071",
+      "desc": "End-to-end ammonia front-end chain: SMR → secondary → HTS → LTS → methanator → H2/N2 ≈ 3",
+      "call": "chain",
+      "args": {
+        "steps": [
+          {
+            "module": "smr",
+            "params": {
+              "mode": "fired",
+              "T_out_K": 1073.15,
+              "P_out_bar": 30
+            },
+            "feeds": [
+              {
+                "source": "seed",
+                "mass_flow_kg_h": 80.29869,
+                "T_K": 1073.15,
+                "P_bar": 30,
+                "components": [
+                  {
+                    "key": "CH4",
+                    "mass_fraction": 0.1798124
+                  },
+                  {
+                    "key": "C2H6",
+                    "mass_fraction": 0.02246786
+                  },
+                  {
+                    "key": "C3H8",
+                    "mass_fraction": 0.01647449
+                  },
+                  {
+                    "key": "nC4H10",
+                    "mass_fraction": 0.00723823
+                  },
+                  {
+                    "key": "H2O",
+                    "mass_fraction": 0.77400702
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "module": "smr",
+            "params": {
+              "mode": "secondary",
+              "P_out_bar": 30
+            },
+            "feeds": [
+              {
+                "source": "prev",
+                "outlet": 0
+              },
+              {
+                "source": "seed",
+                "mass_flow_kg_h": 45.202381,
+                "T_K": 823.15,
+                "P_bar": 30,
+                "components": [
+                  {
+                    "key": "O2",
+                    "mass_fraction": 0.23195601
+                  },
+                  {
+                    "key": "N2",
+                    "mass_fraction": 0.75425417
+                  },
+                  {
+                    "key": "Ar",
+                    "mass_fraction": 0.01378982
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "module": "shift",
+            "params": {
+              "preset": "hts",
+              "mode": "adiabatic"
+            },
+            "feeds": [
+              {
+                "source": "prev",
+                "outlet": 0,
+                "setT_K": 633.15
+              }
+            ]
+          },
+          {
+            "module": "shift",
+            "params": {
+              "preset": "lts",
+              "mode": "adiabatic"
+            },
+            "feeds": [
+              {
+                "source": "prev",
+                "outlet": 0,
+                "setT_K": 483.15
+              }
+            ]
+          },
+          {
+            "module": "methanator",
+            "params": {
+              "mode": "adiabatic"
+            },
+            "feeds": [
+              {
+                "source": "prev",
+                "outlet": 0,
+                "setT_K": 573.15,
+                "remove": [
+                  "CO2"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "stages": 5,
+        "converged": true,
+        "h2_n2_dry": 3.000117,
+        "co_co2_ppm_dry": 0,
+        "ch4_pct_dry": 0.728817,
+        "final.mass_flow_kg_h": 76.468261
+      },
+      "tol": {
+        "default": 0.000001,
+        "h2_n2_dry": 0.05,
+        "co_co2_ppm_dry": 10,
+        "ch4_pct_dry": 0.005,
+        "final.mass_flow_kg_h": 0.001
+      },
+      "source": "END-TO-END INTEGRATION vector (Group K). Two checks are external design specs: H2/N2 ≈ 3 make-up gas (tol 0.05 covers the 3:1 loop target) and CO+CO2 < 10 ppm dry after methanation (Appl/Ullmann clean-up spec, expect 0 ± 10). The tighter pins on ch4_pct_dry and final.mass_flow_kg_h are regression anchors frozen from the composed part-4/part-5 solvers (each individually validated against external references in Groups I–J: MB-053..070). Air to the secondary reformer is metered to 45.2024 kg/h so the 3:1 target is met; interstage coolers and the CO2 wash are modelled as feed transforms, not solved units."
+    }
+  ]
+}
