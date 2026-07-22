@@ -332,15 +332,29 @@ footer{border-top:1px solid var(--line);padding:18px 20px;text-align:center;font
 
   <!-- ================= RESULTS PANEL ================= -->
   <section class="panel" aria-label="Results">
-    <div class="panel-title">Inventory Readout</div>
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span>Inventory Readout</span>
+      <span style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.08em;text-transform:none;color:var(--text-dim)">
+        Display unit
+        <select id="capUnit" style="width:auto;font-size:.72rem;padding:5px 8px">
+          <option value="usgal" selected>US gallons</option>
+          <option value="impgal">Imperial gallons</option>
+          <option value="bbl">Oil barrels (bbl)</option>
+          <option value="ft3">Cubic feet (ft³)</option>
+          <option value="l">Litres</option>
+          <option value="m3">Cubic metres (m³)</option>
+        </select>
+      </span>
+    </div>
     <div class="panel-body">
 
       <div class="tiles">
         <div class="tile accent"><div class="k">Volume at level</div><div class="v" id="oLvlV">–</div><div class="u">m³</div></div>
+        <div class="tile accent"><div class="k">Volume at level</div><div class="v" id="oLvlU">–</div><div class="u" id="oLvlUUnit">US gal</div></div>
         <div class="tile accent"><div class="k">Percent full</div><div class="v" id="oPct">–</div><div class="u">%</div></div>
         <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTot">–</div><div class="u">m³</div></div>
         <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTotL">–</div><div class="u">litres</div></div>
-        <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTotG">–</div><div class="u">US gal</div></div>
+        <div class="tile"><div class="k">Total capacity</div><div class="v" id="oTotG">–</div><div class="u" id="oTotGUnit">US gal</div></div>
         <div class="tile"><div class="k">Vapour space</div><div class="v" id="oVap">–</div><div class="u">m³</div></div>
         <div class="tile"><div class="k">Liquid mass</div><div class="v" id="oMass">–</div><div class="u">tonnes</div></div>
         <div class="tile"><div class="k">Head depth</div><div class="v" id="oHd">–</div><div class="u">mm</div></div>
@@ -353,7 +367,7 @@ footer{border-top:1px solid var(--line);padding:18px 20px;text-align:center;font
       <div class="panel-title" style="border-top:1px solid var(--line);margin:0 -18px;padding-left:18px">Dip Chart — Level vs Volume</div>
       <div style="overflow-x:auto;margin-top:12px">
         <table id="dipTable" aria-label="Level to volume table">
-          <thead><tr><th>Level</th><th>Volume m³</th><th>Litres</th><th>US gal</th><th>% Full</th></tr></thead>
+          <thead><tr><th>Level</th><th>Volume m³</th><th>Litres</th><th id="dipUnitHead">US gal</th><th>% Full</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -581,6 +595,10 @@ function verticalTank({D_mm,shell_height_mm,bottom_head="flat",top_head="flat",c
    ============================================================ */
 const $ = id => document.getElementById(id);
 const M3_TO_GAL = 264.172, M3_TO_BBL = 6.28981;
+const UNIT_CONV = { m3:1, l:1000, usgal:264.172, impgal:219.969, bbl:6.28981, ft3:35.3147 };
+const UNIT_LABEL = { m3:"m³", l:"litres", usgal:"US gal", impgal:"Imp gal", bbl:"bbl (oil)", ft3:"ft³" };
+function capUnit(){ return $("capUnit") ? $("capUnit").value : "usgal"; }
+function toCapUnit(m3){ return m3 * UNIT_CONV[capUnit()]; }
 let orientation = "H";
 let lastResult = null;
 
@@ -625,13 +643,16 @@ function recalc(){
 
   $("oTot").textContent  = fmt(r.total_capacity_m3,3);
   $("oTotL").textContent = fmt(Math.round(r.total_capacity_m3*1000),0);
-  $("oTotG").textContent = fmt(Math.round(r.total_capacity_m3*M3_TO_GAL),0);
+  $("oTotG").textContent = fmt(toCapUnit(r.total_capacity_m3), capUnit()==="m3"?3:0);
+  $("oTotGUnit").textContent = UNIT_LABEL[capUnit()];
+  $("oLvlUUnit").textContent = UNIT_LABEL[capUnit()];
   const hd = orientation==="H" ? r.geometry.head_depth_mm :
              Math.max(r.geometry.bottom_depth_mm, r.geometry.top_depth_mm);
   $("oHd").textContent = fmt(hd,1);
 
   if(r.at_level){
     $("oLvlV").textContent = fmt(r.at_level.liquid_volume_m3,3);
+    $("oLvlU").textContent = fmt(toCapUnit(r.at_level.liquid_volume_m3), capUnit()==="m3"?3:0);
     $("oPct").textContent  = fmt(r.at_level.percent_full,1);
     $("oVap").textContent  = fmt(r.at_level.vapour_space_m3,3);
     $("lvlPct").textContent = "· "+fmt(r.at_level.percent_full,1)+"% full";
@@ -646,11 +667,15 @@ function recalc(){
 function renderDipTable(r){
   const tb = $("dipTable").querySelector("tbody");
   const inUnit = $("unit").value;
+  const cu = capUnit();
+  $("dipUnitHead").textContent = UNIT_LABEL[cu];
+  const decimals = cu==="m3" ? 3 : 0;
   tb.innerHTML = r.level_volume_table.map(row=>{
     const lv = inUnit==="in" ? (row.level_mm/25.4).toFixed(1)+" in" : row.level_mm+" mm";
+    const uVal = row.volume_m3 * UNIT_CONV[cu];
     return `<tr><td>${lv}</td><td>${row.volume_m3.toFixed(3)}</td>`+
       `<td>${Math.round(row.volume_m3*1000).toLocaleString("en-IN")}</td>`+
-      `<td>${Math.round(row.volume_m3*M3_TO_GAL).toLocaleString("en-IN")}</td>`+
+      `<td>${uVal.toLocaleString("en-IN",{maximumFractionDigits:decimals,minimumFractionDigits:decimals})}</td>`+
       `<td>${row.percent.toFixed(1)}</td></tr>`;
   }).join("");
 }
@@ -795,12 +820,17 @@ $("headBot").addEventListener("change",()=>{
   $(id).addEventListener("input",()=>{ syncLevelBounds(); recalc(); });
   $(id).addEventListener("change",()=>{ syncLevelBounds(); recalc(); });
 });
+$("capUnit").addEventListener("change",()=>recalc());
 $("csvBtn").addEventListener("click",()=>{
   if(!lastResult) return;
-  const rows = [["Level_mm","Volume_m3","Litres","US_gal","Percent_full"]];
+  const rows = [["Level_mm","Volume_m3","Litres","US_gal","Imperial_gal","Oil_bbl","Cubic_ft","Percent_full"]];
   lastResult.level_volume_table.forEach(r=>{
     rows.push([r.level_mm, r.volume_m3.toFixed(4), Math.round(r.volume_m3*1000),
-               Math.round(r.volume_m3*M3_TO_GAL), r.percent.toFixed(2)]);
+               Math.round(r.volume_m3*UNIT_CONV.usgal),
+               Math.round(r.volume_m3*UNIT_CONV.impgal),
+               (r.volume_m3*UNIT_CONV.bbl).toFixed(2),
+               Math.round(r.volume_m3*UNIT_CONV.ft3),
+               r.percent.toFixed(2)]);
   });
   const csv = rows.map(r=>r.join(",")).join("\n");
   const blob = new Blob([csv],{type:"text/csv"});
