@@ -652,13 +652,18 @@ async function solveModule(module, streams, params) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ streams, params }),
   });
-  let j;
-  try { j = await r.json(); } catch (_e) { throw new Error('HTTP ' + r.status + ' — non-JSON reply'); }
-  if (j && j.error) {
+  const text = await r.text();
+  let j = null;
+  try { j = JSON.parse(text); } catch (_e) { /* non-JSON error page */ }
+  if (!j) {
+    const snip = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    throw new Error('HTTP ' + r.status + ' at ' + module + ' — server did not return JSON: ' + (snip || '(empty body)'));
+  }
+  if (j.error) {
     const e = j.error;
     throw new Error('[' + (e.code || r.status) + '] ' + e.message + (e.field ? ' (field: ' + e.field + ')' : ''));
   }
-  if (!r.ok || !j.ok || !j.result) throw new Error('HTTP ' + r.status);
+  if (!r.ok || !j.ok || !j.result) throw new Error('HTTP ' + r.status + ' at ' + module);
   return { result: j.result, warnings: j.warnings || [], engineVersion: j.engine_version || '' };
 }
 
