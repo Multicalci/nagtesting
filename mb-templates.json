@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "_readme": [
+    "Sequential-chain template definitions consumed by the Material Balance UI.",
+    "A template is an ordered list of `steps`. Each step names an engine module,",
+    "its `params`, and its `feeds`. A feed is either:",
+    "  { source:'seed', ... }  a literal inlet stream (mass_flow_kg_h, T_K, P_bar,",
+    "                          components:[{key,mass_fraction}]) — base SI, and",
+    "  { source:'prev', outlet:N, ...transforms } which forwards streams_out[N]",
+    "                          of the previous step as this step's inlet.",
+    "Feed transforms represent balance-of-plant the template abstracts as pure",
+    "stream operations (NOT solved units):",
+    "  setT_K   — interstage waste-heat recovery / cooler duty (sets inlet T),",
+    "  setP_bar — interstage pressure change,",
+    "  remove   — a near-perfect component split (e.g. the CO2 wash) — the listed",
+    "             keys are dropped and the remaining mass fractions renormalised.",
+    "The runner solves each step via POST /api/material-balance?module={module}",
+    "in order, forwarding outlets. `endpoint` is the end-to-end check the UI shows."
+  ],
+  "templates": [
+    {
+      "id": "ammonia-front-end",
+      "label": "Ammonia front end",
+      "category": "reaction",
+      "desc": "SMR \u2192 secondary \u2192 HTS \u2192 LTS \u2192 methanator \u00b7 natural gas \u2192 3:1 H\u2082/N\u2082 make-up gas",
+      "notes": "Air to the secondary reformer is metered so the methanated syngas leaves at H\u2082/N\u2082 \u2248 3. Interstage coolers (process-gas boiler) and the CO\u2082 removal wash are modelled as feed transforms, not as separate solved units.",
+      "endpoint": {
+        "metric": "h2_n2_dry",
+        "label": "H\u2082/N\u2082 (dry)",
+        "target": 3.0,
+        "tol": 0.15
+      },
+      "steps": [
+        {
+          "module": "smr",
+          "label": "Primary reformer (SMR, fired)",
+          "params": { "mode": "fired", "T_out_K": 1073.15, "P_out_bar": 30 },
+          "feeds": [
+            {
+              "source": "seed",
+              "label": "Natural gas + steam (S/C 3.0)",
+              "mass_flow_kg_h": 80.29869,
+              "T_K": 1073.15,
+              "P_bar": 30,
+              "components": [
+                { "key": "CH4",    "mass_fraction": 0.1798124 },
+                { "key": "C2H6",   "mass_fraction": 0.02246786 },
+                { "key": "C3H8",   "mass_fraction": 0.01647449 },
+                { "key": "nC4H10", "mass_fraction": 0.00723823 },
+                { "key": "H2O",    "mass_fraction": 0.77400702 }
+              ]
+            }
+          ]
+        },
+        {
+          "module": "smr",
+          "label": "Secondary reformer (air-blown, adiabatic)",
+          "params": { "mode": "secondary", "P_out_bar": 30 },
+          "feeds": [
+            { "source": "prev", "outlet": 0, "label": "Primary effluent" },
+            {
+              "source": "seed",
+              "label": "Process air (metered for 3:1 H\u2082/N\u2082)",
+              "mass_flow_kg_h": 45.202381,
+              "T_K": 823.15,
+              "P_bar": 30,
+              "components": [
+                { "key": "O2", "mass_fraction": 0.23195601 },
+                { "key": "N2", "mass_fraction": 0.75425417 },
+                { "key": "Ar", "mass_fraction": 0.01378982 }
+              ]
+            }
+          ]
+        },
+        {
+          "module": "shift",
+          "label": "HT shift (HTS, adiabatic)",
+          "params": { "preset": "hts", "mode": "adiabatic" },
+          "feeds": [
+            {
+              "source": "prev",
+              "outlet": 0,
+              "setT_K": 633.15,
+              "note": "cooled in the process-gas boiler to ~360 \u00b0C before HTS"
+            }
+          ]
+        },
+        {
+          "module": "shift",
+          "label": "LT shift (LTS, adiabatic)",
+          "params": { "preset": "lts", "mode": "adiabatic" },
+          "feeds": [
+            {
+              "source": "prev",
+              "outlet": 0,
+              "setT_K": 483.15,
+              "note": "cooled to ~210 \u00b0C between HTS and LTS"
+            }
+          ]
+        },
+        {
+          "module": "methanator",
+          "label": "Methanator (adiabatic)",
+          "params": { "mode": "adiabatic" },
+          "feeds": [
+            {
+              "source": "prev",
+              "outlet": 0,
+              "setT_K": 573.15,
+              "remove": ["CO2"],
+              "note": "CO\u2082 removed in the wash; gas cooled to ~300 \u00b0C before methanation"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
