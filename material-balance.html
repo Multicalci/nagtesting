@@ -283,7 +283,6 @@ tr.tot td{border-top:1.5px solid var(--bezel);color:var(--amber)}
 <header>
   <span class="lamp" aria-hidden="true"></span>
   <h1>Material Balance <small>· mass &amp; energy · NIST basis</small></h1>
-  <button class="hbtn" id="btnTemplates" title="Load a ready-made chain">Templates</button>
   <button class="hbtn" id="btnCases" title="Saved input cases">Cases</button>
   <button class="hbtn" id="btnLink" title="Copy a shareable permalink">Permalink</button>
   <button class="hbtn" id="btnClear" title="Clear the worksheet">Clear</button>
@@ -310,7 +309,6 @@ tr.tot td{border-top:1.5px solid var(--bezel);color:var(--amber)}
 
 <div id="mobilebar">
   <button class="primary" id="btnAddMobile">＋ Add unit</button>
-  <button id="btnTplM">Chains</button>
   <button id="btnCasesM">Cases</button>
   <button id="btnLinkM">Link</button>
 </div>
@@ -540,290 +538,6 @@ const MODULE_DEFS = {
   },
 };
 const PALETTE_ORDER = ['mixer', 'splitter', 'flash', 'heat-exchanger', 'rotating', 'reactor'];
-
-/* =====================================================================
-   1b. SEQUENTIAL-CHAIN TEMPLATES (Step 15) — client-side runner + picker
-   Runs a ready-made chain end to end via the one-module API, forwarding
-   each outlet to the next unit's feed. Adds no thermodynamics; every stage
-   is solved server-side exactly like solveUnit. Data mirrors mb-templates.json.
-===================================================================== */
-const TEMPLATE_DEFS = [
-  {
-    id: 'ammonia-front-end',
-    label: 'Ammonia front end',
-    category: 'reaction',
-    desc: 'SMR → secondary → HTS → LTS → methanator · natural gas → 3:1 H₂/N₂ make-up gas',
-    notes: 'Air to the secondary reformer is metered so the methanated syngas leaves at ' +
-           'H₂/N₂ ≈ 3. Interstage coolers and the CO₂ wash are modelled as feed transforms.',
-    endpoint: { metric: 'h2_n2_dry', label: 'H₂/N₂ (dry)', target: 3.0, tol: 0.15 },
-    steps: [
-      {
-        module: 'smr', label: 'Primary reformer (SMR, fired)',
-        params: { mode: 'fired', T_out_K: 1073.15, P_out_bar: 30 },
-        feeds: [{
-          source: 'seed', label: 'Natural gas + steam (S/C 3.0)',
-          mass_flow_kg_h: 80.29869, T_K: 1073.15, P_bar: 30,
-          components: [
-            { key: 'CH4', mass_fraction: 0.1798124 },
-            { key: 'C2H6', mass_fraction: 0.02246786 },
-            { key: 'C3H8', mass_fraction: 0.01647449 },
-            { key: 'nC4H10', mass_fraction: 0.00723823 },
-            { key: 'H2O', mass_fraction: 0.77400702 },
-          ],
-        }],
-      },
-      {
-        module: 'smr', label: 'Secondary reformer (air-blown, adiabatic)',
-        params: { mode: 'secondary', P_out_bar: 30 },
-        feeds: [
-          { source: 'prev', outlet: 0, label: 'Primary effluent' },
-          {
-            source: 'seed', label: 'Process air (metered for 3:1 H₂/N₂)',
-            mass_flow_kg_h: 45.202381, T_K: 823.15, P_bar: 30,
-            components: [
-              { key: 'O2', mass_fraction: 0.23195601 },
-              { key: 'N2', mass_fraction: 0.75425417 },
-              { key: 'Ar', mass_fraction: 0.01378982 },
-            ],
-          },
-        ],
-      },
-      {
-        module: 'shift', label: 'HT shift (HTS, adiabatic)',
-        params: { preset: 'hts', mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 633.15,
-          note: 'cooled in the process-gas boiler to ~360 °C before HTS' }],
-      },
-      {
-        module: 'shift', label: 'LT shift (LTS, adiabatic)',
-        params: { preset: 'lts', mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 483.15,
-          note: 'cooled to ~210 °C between HTS and LTS' }],
-      },
-      {
-        module: 'methanator', label: 'Methanator (adiabatic)',
-        params: { mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 573.15, remove: ['CO2'],
-          note: 'CO₂ removed in the wash; gas cooled to ~300 °C before methanation' }],
-      },
-    ],
-  },
-];
-
-/* ---------------------------------------------------------------------
-   STREAM BUILDERS — turn a template feed into a base-SI inlet stream.
---------------------------------------------------------------------- */
-/** Literal seed stream → API inlet shape (mass fractions renormalised). */
-function tplSeedStream(f) {
-  const sum = f.components.reduce((a, c) => a + c.mass_fraction, 0) || 1;
-  return {
-    mass_flow_kg_h: f.mass_flow_kg_h, T_K: f.T_K, P_bar: f.P_bar,
-    components: f.components.map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / sum })),
-  };
-}
-
-/** Forward a solved outlet as the next inlet, applying feed transforms.
- *  setT_K/setP_bar = interstage cooler / pressure change;
- *  remove[]        = near-perfect component split (mass leaves with it). */
-function tplForwardStream(outlet, f) {
-  let comps = (outlet.components || []).map((c) => ({ key: c.key, mass_fraction: c.mass_fraction }));
-  let mass = outlet.mass_flow_kg_h;
-  if (f.remove && f.remove.length) {
-    const removed = comps
-      .filter((c) => f.remove.includes(c.key))
-      .reduce((a, c) => a + c.mass_fraction * mass, 0);
-    mass -= removed;
-    comps = comps.filter((c) => !f.remove.includes(c.key));
-  }
-  const s = comps.reduce((a, c) => a + c.mass_fraction, 0) || 1;
-  comps = comps.map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / s }));
-  return {
-    mass_flow_kg_h: mass,
-    T_K: num(f.setT_K) ? f.setT_K : outlet.T_K,
-    P_bar: num(f.setP_bar) ? f.setP_bar : outlet.P_bar,
-    components: comps,
-  };
-}
-
-/** POST one module solve (same contract as solveUnit). Throws on error. */
-async function solveModule(module, streams, params) {
-  const r = await fetch(API + '?module=' + encodeURIComponent(module), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ streams, params }),
-  });
-  let j;
-  try { j = await r.json(); } catch (_e) { throw new Error('HTTP ' + r.status + ' — non-JSON reply'); }
-  if (j && j.error) {
-    const e = j.error;
-    throw new Error('[' + (e.code || r.status) + '] ' + e.message + (e.field ? ' (field: ' + e.field + ')' : ''));
-  }
-  if (!r.ok || !j.ok || !j.result) throw new Error('HTTP ' + r.status);
-  return { result: j.result, warnings: j.warnings || [], engineVersion: j.engine_version || '' };
-}
-
-/** Run a template end to end, forwarding outlets. `onStage(i, step)` fires
- *  before each solve for progress UI. Returns the list of solved stages. */
-async function runTemplate(tpl, onStage) {
-  const stages = [];
-  for (let i = 0; i < tpl.steps.length; i++) {
-    const step = tpl.steps[i];
-    if (onStage) onStage(i, step);
-    const streams = step.feeds.map((f) => {
-      if (f.source === 'seed') return tplSeedStream(f);
-      const prev = stages[i - 1];
-      if (!prev) throw new Error(step.label + ': nothing to forward from');
-      const out = prev.result.streams_out[f.outlet || 0];
-      if (!out) throw new Error(step.label + ': previous stage has no outlet ' + (f.outlet || 0));
-      return tplForwardStream(out, f);
-    });
-    const solved = await solveModule(step.module, streams, step.params);
-    stages.push({ step, ...solved });
-  }
-  return stages;
-}
-
-/* ---------------------------------------------------------------------
-   END-TO-END METRICS — dry molar basis from the final outlet.
---------------------------------------------------------------------- */
-function chainDryMolar(stream) {
-  const n = {}; let tot = 0;
-  for (const c of (stream.components || [])) {
-    if (c.key === 'H2O') continue;
-    const mw = compByKey[c.key] && compByKey[c.key].mw;
-    if (!num(mw) || mw <= 0) continue;
-    const ni = (c.mass_fraction * stream.mass_flow_kg_h) / mw;
-    n[c.key] = ni; tot += ni;
-  }
-  return { n, tot };
-}
-function chainEndpoint(tpl, stages) {
-  const last = stages[stages.length - 1].result.streams_out[0];
-  const { n, tot } = chainDryMolar(last);
-  const co2ppm = ((n.CO || 0) + (n.CO2 || 0)) / (tot || 1) * 1e6;
-  const ch4pct = (n.CH4 || 0) / (tot || 1) * 100;
-  let value = NaN;
-  if (tpl.endpoint && tpl.endpoint.metric === 'h2_n2_dry') value = (n.H2 || 0) / (n.N2 || NaN);
-  return { value, co2ppm, ch4pct };
-}
-
-/* ---------------------------------------------------------------------
-   REPORT — render the solved chain into the bottom sheet (mobile-first).
---------------------------------------------------------------------- */
-function renderChainReport(tpl, stages) {
-  const box = el('div');
-  box.append(el('div', { class: 'grab' }),
-    el('div', { class: 'xrow' },
-      el('h3', null, tpl.label + ' — chain result'),
-      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
-    el('div', { class: 'sub' }, tpl.desc));
-
-  /* end-to-end banner */
-  const ep = chainEndpoint(tpl, stages);
-  const tgt = tpl.endpoint || {};
-  const hit = num(ep.value) && num(tgt.target) &&
-    Math.abs(ep.value - tgt.target) <= (num(tgt.tol) ? tgt.tol : 0.15);
-  box.append(el('div', { class: 'banner ' + (hit ? 'ok' : 'warn') },
-    el('span', { class: 'dot' }),
-    el('span', null,
-      (tgt.label || 'endpoint') + ' = ' + fmt(ep.value, 4) +
-      (num(tgt.target) ? '  (target ≈ ' + tgt.target + ')' : '') +
-      '  ·  CO+CO₂ ' + fmt(ep.co2ppm, 3) + ' ppm dry  ·  CH₄ ' + fmt(ep.ch4pct, 3) + ' % dry')));
-
-  /* per-stage accordions */
-  stages.forEach((st, i) => {
-    const R = st.result;
-    const cp = R.mass_balance.closure_pct;
-    const ok = num(cp) && Math.abs(cp) < 0.01 && R.converged !== false;
-    const out = R.streams_out[0];
-    const d = el('details', { class: 'acc', open: i === stages.length - 1 ? '' : undefined },
-      el('summary', null, (i + 1) + '. ' + st.step.label +
-        '  ·  ' + (ok ? '✓' : '⚠') + ' closure ' + fmt(cp, 4) + ' %'));
-    const kv = el('div', { class: 'kv' });
-    kv.append(
-      el('b', null, 'outlet flow'), el('span', null, fmt(out.mass_flow_kg_h) + ' kg/h'),
-      el('b', null, 'outlet T'), el('span', null, fmt(out.T_K, 6) + ' K  (' + fmt(out.T_K - 273.15, 5) + ' °C)'),
-      el('b', null, 'outlet P'), el('span', null, fmt(out.P_bar, 5) + ' bar'),
-      el('b', null, 'converged'), el('span', null, String(R.converged !== false) + '  (' + (R.iterations || 0) + ' it)'));
-    /* a couple of headline module details when present */
-    const det = R.details || {};
-    if (num(det.ch4_slip_dry_pct)) { kv.append(el('b', null, 'CH₄ slip dry'), el('span', null, fmt(det.ch4_slip_dry_pct, 3) + ' %')); }
-    if (num(det.h2_co_ratio)) { kv.append(el('b', null, 'H₂/CO'), el('span', null, fmt(det.h2_co_ratio, 3))); }
-    if (num(det.T_out_K)) { kv.append(el('b', null, 'solved T_out'), el('span', null, fmt(det.T_out_K, 5) + ' K')); }
-    if (num(det.co_co2_ppm_dry)) { kv.append(el('b', null, 'CO+CO₂ dry'), el('span', null, fmt(det.co_co2_ppm_dry, 4) + ' ppm')); }
-    const body = el('div', { class: 'accbody' }, kv);
-    /* transform note (interstage cooler / CO2 wash) */
-    const tf = st.step.feeds.find((f) => f.note);
-    if (tf) body.append(el('div', { class: 'hint', style: 'margin-top:8px' }, '↳ ' + tf.note));
-    d.append(body);
-    box.append(d);
-  });
-
-  /* footer actions */
-  const row = el('div', { class: 'rowbtns', style: 'margin-top:12px' });
-  row.append(el('button', { class: 'sbtn', onclick: () => runTemplateFlow(tpl) }, '↻ Re-run'),
-    el('button', { class: 'sbtn', onclick: closeSheet }, 'Close'));
-  box.append(row);
-
-  openSheet(box);
-}
-
-/* ---------------------------------------------------------------------
-   FLOW — progress sheet → run → report.  This is the "one tap" path.
---------------------------------------------------------------------- */
-let chainBusy = false;
-async function runTemplateFlow(tpl) {
-  if (chainBusy) return;
-  chainBusy = true;
-
-  /* progress sheet */
-  const prog = el('div');
-  prog.append(el('div', { class: 'grab' }),
-    el('div', { class: 'xrow' }, el('h3', null, 'Running ' + tpl.label + '…'),
-      el('span', null, '')));
-  const list = el('div', { class: 'caselist' });
-  const rows = tpl.steps.map((s, i) =>
-    el('button', { disabled: '' }, '○ ' + (i + 1) + '. ' + s.label));
-  rows.forEach((r) => list.append(r));
-  prog.append(list);
-  openSheet(prog);
-
-  try {
-    const stages = await runTemplate(tpl, (i) => {
-      rows[i].textContent = '▸ ' + (i + 1) + '. ' + tpl.steps[i].label + ' — solving…';
-      if (i > 0) rows[i - 1].textContent = '✓ ' + i + '. ' + tpl.steps[i - 1].label;
-    });
-    rows[rows.length - 1].textContent = '✓ ' + rows.length + '. ' + tpl.steps[rows.length - 1].label;
-    const ep = chainEndpoint(tpl, stages);
-    toast('Chain solved — ' + (tpl.endpoint.label || 'endpoint') + ' = ' + fmt(ep.value, 4), 'ok');
-    renderChainReport(tpl, stages);
-  } catch (e) {
-    toast('Chain failed: ' + e.message, 'err');
-    closeSheet();
-  } finally {
-    chainBusy = false;
-  }
-}
-
-/* ---------------------------------------------------------------------
-   PICKER — the "template menu".
---------------------------------------------------------------------- */
-function openTemplates() {
-  const box = el('div');
-  box.append(el('div', { class: 'grab' }),
-    el('div', { class: 'xrow' },
-      el('h3', null, 'Templates'),
-      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
-    el('div', { class: 'sub' }, 'Ready-made chains — one tap to solve end to end.'));
-  for (const tpl of TEMPLATE_DEFS) {
-    box.append(el('button', {
-      class: 'pal-item', style: '--c:' + (CAT_COLORS[tpl.category] || 'var(--accent)'),
-      onclick: () => runTemplateFlow(tpl),
-    }, el('span', null,
-      el('span', { class: 'nm' }, tpl.label),
-      el('span', { class: 'ds' }, tpl.desc))));
-  }
-  openSheet(box);
-}
 
 /* =====================================================================
    2. STATE
@@ -1321,6 +1035,7 @@ function openStreamEditor(u, idx) {
     el('div', { class: 'sub' }, 'Values are converted instantly; the solver always receives base SI (kg/h · K · bar abs).'));
 
   /* --- flow / T / P with unit dropdowns --- */
+  let flowInputRef = null;
   const grid = el('div', { class: 'pgrid' });
   grid.append(fTPfield(st, 'flow'), fTPfield(st, 'T'), fTPfield(st, 'P'));
   box.append(grid);
@@ -1433,7 +1148,6 @@ function openStreamEditor(u, idx) {
       el('button', { class: 'solve', style: 'margin-left:auto', onclick: closeSheet }, 'Done')));
 
   /* flow/T/P duo builder + refresh hook (flows mode updates the flow box) */
-  let flowInputRef = null;
   function fTPfield(s, which) {
     const table = which === 'flow' ? FLOW_UNITS : which === 'T' ? T_UNITS : P_UNITS;
     const label = which === 'flow' ? 'Total flow' : which === 'T' ? 'Temperature' : 'Pressure (abs)';
@@ -2077,8 +1791,6 @@ function openMobilePalette() {
 
 document.getElementById('btnCases').addEventListener('click', openCases);
 document.getElementById('btnCasesM').addEventListener('click', openCases);
-document.getElementById('btnTemplates').addEventListener('click', openTemplates);
-document.getElementById('btnTplM').addEventListener('click', openTemplates);
 document.getElementById('btnLink').addEventListener('click', makePermalink);
 document.getElementById('btnLinkM').addEventListener('click', makePermalink);
 document.getElementById('btnAddMobile').addEventListener('click', openMobilePalette);
