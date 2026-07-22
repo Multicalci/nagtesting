@@ -2112,9 +2112,9 @@ function toggleFav(id){ if(favs.has(id)) favs.delete(id); else favs.add(id); try
 function updateFavBtn(id){ const b=document.getElementById('btnFav'); if(!b) return; b.textContent=favs.has(id)?'★ Favorited':'☆ Favorite'; }
 function toast(m){ const t=document.createElement('div'); t.className='toast'; t.textContent=m; document.getElementById('toaster').appendChild(t); setTimeout(()=>t.remove(),1900); }
 
-const EXPORT_INK='#1B2A44'; const SIZE=720; const EXPORT_DPI=480; // DPI metadata only — pixel size unchanged, but Office apps paste/insert at ~1.5in instead of ~7.5in
-function buildSvg(sym,bg){ const inner=sym.svg.replace(/currentColor/g,EXPORT_INK); const b=bg?'<rect width="100" height="100" fill="white"/>':''; return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="'+SIZE+'" height="'+SIZE+'">'+b+inner+'</svg>'; }
-function svgToCanvas(s){ return new Promise((res,rej)=>{ const img=new Image(); const blob=new Blob([s],{type:'image/svg+xml'}); const url=URL.createObjectURL(blob); img.onload=()=>{ const c=document.getElementById('cvs'); c.width=SIZE;c.height=SIZE; const x=c.getContext('2d'); x.clearRect(0,0,SIZE,SIZE); if(s.includes('fill="white"')){x.fillStyle='#fff';x.fillRect(0,0,SIZE,SIZE);} x.drawImage(img,0,0,SIZE,SIZE); URL.revokeObjectURL(url); res(c); }; img.onerror=rej; img.src=url; }); }
+const EXPORT_INK='#1B2A44'; const SIZE=720; const CLIP_SIZE=150; const EXPORT_DPI=480; // CLIP_SIZE: actual pixel size used for "Copy image" — clipboard paste in Excel/Word strips DPI metadata and just uses pixels÷96dpi, so this must be small in real pixels, not just tagged as high-DPI
+function buildSvg(sym,bg,size){ size=size||SIZE; const inner=sym.svg.replace(/currentColor/g,EXPORT_INK); const b=bg?'<rect width="100" height="100" fill="white"/>':''; return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="'+size+'" height="'+size+'">'+b+inner+'</svg>'; }
+function svgToCanvas(s,size){ size=size||SIZE; return new Promise((res,rej)=>{ const img=new Image(); const blob=new Blob([s],{type:'image/svg+xml'}); const url=URL.createObjectURL(blob); img.onload=()=>{ const c=document.getElementById('cvs'); c.width=size;c.height=size; const x=c.getContext('2d'); x.clearRect(0,0,size,size); if(s.includes('fill="white"')){x.fillStyle='#fff';x.fillRect(0,0,size,size);} x.drawImage(img,0,0,size,size); URL.revokeObjectURL(url); res(c); }; img.onerror=rej; img.src=url; }); }
 function crc32(bytes){ let c; const table=crc32.table||(crc32.table=(()=>{ const t=[]; for(let n=0;n<256;n++){ c=n; for(let k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);} t[n]=c;} return t; })()); let crc=0xFFFFFFFF; for(let i=0;i<bytes.length;i++){ crc=table[(crc^bytes[i])&0xFF]^(crc>>>8); } return (crc^0xFFFFFFFF)>>>0; }
 function setPngDpi(buf,dpi){
   const bytes=new Uint8Array(buf); const ppm=Math.round(dpi/0.0254);
@@ -2133,15 +2133,15 @@ function setJpegDpi(buf,dpi){
   bytes[13]=1; bytes[14]=(dpi>>8)&0xFF; bytes[15]=dpi&0xFF; bytes[16]=(dpi>>8)&0xFF; bytes[17]=dpi&0xFF;
   return bytes.buffer;
 }
-async function getBlob(sym,f){
-  const s=buildSvg(sym,f==='jpeg'); const c=await svgToCanvas(s);
+async function getBlob(sym,f,size){
+  const s=buildSvg(sym,f==='jpeg',size); const c=await svgToCanvas(s,size);
   const rawBlob=await new Promise(r=>c.toBlob(b=>r(b),'image/'+f,0.96));
   const buf=await rawBlob.arrayBuffer();
   const patched=f==='png'?setPngDpi(buf,EXPORT_DPI):setJpegDpi(buf,EXPORT_DPI);
   return new Blob([patched],{type:rawBlob.type});
 }
-async function copyImage(sym){ try{ const b=await getBlob(sym,'png'); if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({[b.type]:b})]); return true;} return false;}catch(e){return false;}}
-async function dl(sym,f){ const b=await getBlob(sym,f); const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=sym.id+'.'+(f==='jpeg'?'jpg':f); a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200); }
+async function copyImage(sym){ try{ const b=await getBlob(sym,'png',CLIP_SIZE); if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({[b.type]:b})]); return true;} return false;}catch(e){return false;}}
+async function dl(sym,f){ const b=await getBlob(sym,f,SIZE); const url=URL.createObjectURL(b); const a=document.createElement('a'); a.href=url; a.download=sym.id+'.'+(f==='jpeg'?'jpg':f); a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200); }
 function dlSvg(sym){ const s=buildSvg(sym,false); const b=new Blob([s],{type:'image/svg+xml'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=sym.id+'.svg'; a.click(); URL.revokeObjectURL(u); }
 
 let lastFocused=null;
