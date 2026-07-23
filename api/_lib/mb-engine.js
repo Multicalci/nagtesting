@@ -1,12 +1,13 @@
 // ============================================================================
 // REPO PATH: api/_lib/mb-engine.js
 // ============================================================================
-// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13
-// PARTS 1+2+3+4+5 — THERMO CORE + THIRTEEN MODULE SOLVERS (MODULES{...}):
+// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13+16
+// PARTS 1+2+3+4+5+6 — THERMO CORE + FIFTEEN MODULE SOLVERS (MODULES{...}):
 // mixer, splitter, flash, heat-exchanger, rotating, reactor (Part 2);
 // cstr, pfr, pfr-recycle (Part 3 — liquid-basis reaction engineering);
 // smr, atr (Part 4 — steam / autothermal reforming equilibria);
-//   shift, methanator (Part 5 — WGS converter + trace CO/CO2 clean-up).
+//   shift, methanator (Part 5 — WGS converter + trace CO/CO2 clean-up);
+//   distillation, absorber (Part 6 — binary McCabe–Thiele + Kremser).
 //
 // FORMATION-ENTHALPY BASIS: every enthalpy returned here includes the
 // standard enthalpy of formation at 298.15 K, so any module's duty is
@@ -46,7 +47,7 @@ import mbData from './mb-data.js';
 import if97 from './if97.js';
 import eos from './eos.js';
 
-const ENGINE_VERSION = 'mb-engine 0.9.0 (parts 1+2+3+4+5 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator)';
+const ENGINE_VERSION = 'mb-engine 0.10.0 (parts 1+2+3+4+5+6 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -3818,6 +3819,680 @@ function solveMethanator(input) {
   return shiftMethRun(mi.streams[0], mi.params, 'methanator', []);
 }
 
+// ============================================================================
+// PART 6 — SEPARATION MODULES (Step 16): distillation, absorber
+// ----------------------------------------------------------------------------
+// Binary McCabe–Thiele distillation and Kremser absorber / stripper.
+//
+//   distillation : binary M-T. Overall + light-key balance → D, B; Rmin from
+//                  the q-line pinch on the equilibrium curve; operating lines;
+//                  stage stepping from (xD,xD) with optimal feed placement;
+//                  condenser / reboiler duties on the constant-molal-overflow
+//                  (CMO) latent-heat shortcut. Returns the stage table AND a
+//                  render-ready SVG dataset (equilibrium curve, diagonal,
+//                  operating lines, q-line, staircase polyline, key points).
+//   absorber     : Kremser dilute-solute model with linear equilibrium
+//                  y = m·x. Absorber uses absorption factor A = L/(m·V);
+//                  stripper uses stripping factor S = m·V/L. Solves either the
+//                  number of theoretical stages N (given an outlet target) or
+//                  the outlet composition (given N), with the A = 1 / S = 1
+//                  degenerate branches handled explicitly.
+//
+// Both are graphical/analytic single-pass methods (no outer iteration), so
+// `converged` reports feasibility + stepping-within-cap and `iterations`
+// reports the stage count / pinch-solve steps.
+// ============================================================================
+
+// --- distillation constants -------------------------------------------------
+const DIST_MAX_STAGES = 200;      // stepping cap (safety; converged=false past it)
+const DIST_EQ_CURVE_PTS = 51;     // equilibrium-curve resolution for the SVG set
+const DIST_PINCH_TOL = 1e-10;     // q-line ∩ equilibrium bisection tolerance
+const DIST_PINCH_MAX = 200;       // pinch bisection cap
+const DIST_R_FACTOR_DEF = 1.5;    // default R = R_FACTOR · Rmin when R not given
+const DIST_MOLE_FRAC_TOL = 1e-9;  // feasibility slack on 0..1 mole-fraction bounds
+
+/**
+ * y* on the equilibrium curve for a light-key liquid mole fraction x.
+ * @param {{mode:string, alpha?:number, xy?:Array<[number,number]>}} eq
+ * @param {number} x
+ * @returns {number}
+ */
+function distEqY(eq, x) {
+  if (eq.mode === 'alpha') {
+    const a = eq.alpha;
+    return (a * x) / (1 + (a - 1) * x);
+  }
+  return interp1(eq.xy, x, 0, 1);
+}
+
+/**
+ * Inverse equilibrium: liquid x in equilibrium with vapour y (i.e. the
+ * horizontal M-T step onto the equilibrium curve).
+ * @param {{mode:string, alpha?:number, xy?:Array<[number,number]>}} eq
+ * @param {number} y
+ * @returns {number}
+ */
+function distEqXofY(eq, y) {
+  if (eq.mode === 'alpha') {
+    const a = eq.alpha;
+    // y = a x /(1+(a-1)x)  →  x = y /(a-(a-1)y)
+    return y / (a - (a - 1) * y);
+  }
+  // invert the tabulated curve (x increasing ⇒ y increasing): swap columns
+  return interp1(eq.xy, y, 1, 0);
+}
+
+/**
+ * Monotone piecewise-linear interpolation over a sorted point list.
+ * @param {Array<[number,number]>} pts sorted ascending on column `ci`
+ * @param {number} q query value on column `ci`
+ * @param {number} ci input column index (0 = x, 1 = y)
+ * @param {number} co output column index
+ * @returns {number}
+ */
+function interp1(pts, q, ci, co) {
+  const n = pts.length;
+  if (q <= pts[0][ci]) return pts[0][co];
+  if (q >= pts[n - 1][ci]) return pts[n - 1][co];
+  for (let i = 1; i < n; i++) {
+    if (q <= pts[i][ci]) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      const t = (q - a[ci]) / (b[ci] - a[ci]);
+      return a[co] + t * (b[co] - a[co]);
+    }
+  }
+  return pts[n - 1][co];
+}
+
+/**
+ * Build & validate the equilibrium model from params.equilibrium, or derive a
+ * constant relative volatility from the two components' Antoine Psat ratio at
+ * the feed temperature when no explicit model is given.
+ * @param {object} p params
+ * @param {string} lightKey
+ * @param {string} heavyKey
+ * @param {number} T_K feed temperature (for the Antoine fallback)
+ * @param {string[]} warnings
+ * @returns {{mode:string, alpha?:number, xy?:Array<[number,number]>}|{error:object}}
+ */
+function distEquilibrium(p, lightKey, heavyKey, T_K, warnings) {
+  const eq = p.equilibrium;
+  if (eq && typeof eq === 'object') {
+    if (eq.mode === 'alpha') {
+      if (!num(eq.alpha) || eq.alpha <= 1) {
+        return errObj('MB_DIST_ALPHA', 'equilibrium.alpha must be a number > 1', 'equilibrium');
+      }
+      return { mode: 'alpha', alpha: eq.alpha };
+    }
+    if (eq.mode === 'points') {
+      if (!Array.isArray(eq.xy) || eq.xy.length < 2) {
+        return errObj('MB_DIST_XY', 'equilibrium.xy must be an array of ≥ 2 [x,y] pairs', 'equilibrium');
+      }
+      const xy = eq.xy
+        .map((pt) => [Number(pt[0]), Number(pt[1])])
+        .filter((pt) => num(pt[0]) && num(pt[1]))
+        .sort((a, b) => a[0] - b[0]);
+      if (xy.length < 2) return errObj('MB_DIST_XY', 'equilibrium.xy has no valid [x,y] pairs', 'equilibrium');
+      if (xy[0][0] > DIST_MOLE_FRAC_TOL) xy.unshift([0, 0]);
+      if (xy[xy.length - 1][0] < 1 - DIST_MOLE_FRAC_TOL) xy.push([1, 1]);
+      for (let i = 1; i < xy.length; i++) {
+        if (xy[i][1] < xy[i - 1][1] - 1e-9) {
+          warnings.push('distillation: equilibrium points are not monotonically increasing in y — interpolation may be unreliable');
+          break;
+        }
+      }
+      return { mode: 'points', xy };
+    }
+    return errObj('MB_DIST_EQMODE', "equilibrium.mode must be 'alpha' or 'points'", 'equilibrium');
+  }
+  // fallback: relative volatility from Antoine Psat ratio at feed T
+  const rl = resolve(lightKey);
+  if (rl.error) return rl;
+  const rh = resolve(heavyKey);
+  if (rh.error) return rh;
+  const pl = psatOf(rl, T_K);
+  const ph = psatOf(rh, T_K);
+  if (!num(pl.psat_bar) || !num(ph.psat_bar) || ph.psat_bar <= 0) {
+    return errObj('MB_DIST_NOEQ',
+      'no equilibrium model: provide params.equilibrium {mode:"alpha",alpha} or {mode:"points",xy} (Antoine fallback unavailable for these components)',
+      'equilibrium');
+  }
+  const alpha = pl.psat_bar / ph.psat_bar;
+  if (!num(alpha) || alpha <= 1) {
+    return errObj('MB_DIST_NOEQ',
+      `Antoine-derived relative volatility α=${num(alpha) ? alpha.toFixed(3) : 'NaN'} ≤ 1 at ${T_K.toFixed(1)} K — supply params.equilibrium explicitly`,
+      'equilibrium');
+  }
+  warnings.push(`distillation: no equilibrium model supplied — using constant α=${alpha.toFixed(3)} from Antoine Psat ratio at ${T_K.toFixed(1)} K (data_quality: estimated; supply equilibrium.alpha or .points for a validated curve)`);
+  return { mode: 'alpha', alpha };
+}
+
+/**
+ * Rectifying operating line value at x for reflux ratio R and distillate xD.
+ * @param {number} R @param {number} xD @param {number} x @returns {number}
+ */
+function distRectY(R, xD, x) { return (R / (R + 1)) * x + xD / (R + 1); }
+
+/**
+ * q-line ∩ equilibrium-curve pinch. For q = 1 the pinch is (zF, y*(zF));
+ * otherwise the q-line y = a·x − zF/(q−1), a = q/(q−1), is intersected with
+ * the equilibrium curve by bisection on g(x) = y*(x) − qline(x).
+ * @returns {{x:number, y:number, iterations:number}|{error:object}}
+ */
+function distPinch(eq, zF, q, xW, xD) {
+  if (Math.abs(q - 1) < 1e-9) {
+    return { x: zF, y: distEqY(eq, zF), iterations: 0 };
+  }
+  const a = q / (q - 1);
+  const qline = (x) => a * x - zF / (q - 1);
+  const g = (x) => distEqY(eq, x) - qline(x);
+  // bracket between xW and xD (the pinch always lies between the products)
+  let lo = Math.max(0, Math.min(xW, xD)) + 1e-6;
+  let hi = Math.min(1, Math.max(xW, xD)) - 1e-6;
+  let glo = g(lo);
+  let ghi = g(hi);
+  if (glo === 0) return { x: lo, y: distEqY(eq, lo), iterations: 0 };
+  if (ghi === 0) return { x: hi, y: distEqY(eq, hi), iterations: 0 };
+  if (glo * ghi > 0) {
+    // no sign change in the interior — fall back to the feed-composition point
+    return { x: zF, y: distEqY(eq, zF), iterations: 0, fallback: true };
+  }
+  let it = 0;
+  let mid = zF;
+  for (; it < DIST_PINCH_MAX; it++) {
+    mid = 0.5 * (lo + hi);
+    const gm = g(mid);
+    if (Math.abs(gm) < DIST_PINCH_TOL || (hi - lo) < DIST_PINCH_TOL) break;
+    if (glo * gm < 0) { hi = mid; ghi = gm; } else { lo = mid; glo = gm; }
+  }
+  return { x: mid, y: distEqY(eq, mid), iterations: it };
+}
+
+/**
+ * Binary McCabe–Thiele distillation column.
+ *
+ * params:
+ *   light_key    : more-volatile component key (default: lower-Tb of the two
+ *                  feed components).
+ *   xF           : feed light-key mole fraction (default: from the feed stream).
+ *   xD, xW       : distillate / bottoms light-key mole fractions (required).
+ *   q            : feed thermal quality (1 = sat. liquid default, 0 = sat.
+ *                  vapour, >1 subcooled, <0 superheated).
+ *   equilibrium  : {mode:'alpha', alpha>1} | {mode:'points', xy:[[x,y],...]}.
+ *                  Omitted ⇒ constant α from the two components' Antoine Psat
+ *                  ratio at feed T (flagged 'estimated').
+ *   R            : reflux ratio (given directly), OR
+ *   R_factor     : R = R_factor · Rmin (default 1.5) when R not supplied.
+ *   total_reflux : true ⇒ minimum-stage (Fenske) stepping; R/Rmin ignored.
+ *   condenser    : 'total' (default; only total condenser is modelled).
+ *   max_stages   : stepping cap (default 200).
+ *
+ * The partial reboiler counts as one equilibrium stage; a total condenser does
+ * not. N_stages_total therefore INCLUDES the reboiler.
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveDistillation(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const feed = mi.streams[0];
+  const p = mi.params;
+  const warnings = [];
+
+  const molF = molarize(feed);
+  if (molF.error) return molF;
+  warnings.push(...molF.warnings);
+  if (molF.components.length !== 2) {
+    return errObj('MB_DIST_BINARY',
+      `binary column requires exactly 2 feed components (got ${molF.components.length})`, 'components');
+  }
+
+  // identify light (more-volatile) and heavy keys
+  let lightKey = p.light_key;
+  const keys = molF.components.map((c) => c.key);
+  if (lightKey && !keys.includes(lightKey)) {
+    return errObj('MB_DIST_LIGHTKEY', `params.light_key '${lightKey}' is not one of the feed components ${keys.join(', ')}`, 'light_key');
+  }
+  if (!lightKey) {
+    const r0 = resolve(keys[0]);
+    const r1 = resolve(keys[1]);
+    if (r0.error) return r0;
+    if (r1.error) return r1;
+    if (!num(r0.tb_K) || !num(r1.tb_K)) {
+      return errObj('MB_DIST_LIGHTKEY', 'cannot infer light_key (missing tb_K) — set params.light_key', 'light_key');
+    }
+    lightKey = r0.tb_K <= r1.tb_K ? keys[0] : keys[1];
+  }
+  const heavyKey = keys[0] === lightKey ? keys[1] : keys[0];
+
+  const lightComp = molF.components.find((c) => c.key === lightKey);
+  const zF = num(p.xF) ? p.xF : lightComp.mole_fraction;
+  const xD = p.xD;
+  const xW = p.xW;
+  for (const [nm, v] of [['xF', zF], ['xD', xD], ['xW', xW]]) {
+    if (!num(v) || v < -DIST_MOLE_FRAC_TOL || v > 1 + DIST_MOLE_FRAC_TOL) {
+      return errObj('MB_DIST_FRAC', `params.${nm} (light-key mole fraction) must be in [0,1]`, nm);
+    }
+  }
+  if (!(xW < zF && zF < xD)) {
+    return errObj('MB_DIST_SPEC', `require xW < xF < xD (got xW=${xW}, xF=${zF}, xD=${xD})`, 'xD');
+  }
+  const q = num(p.q) ? p.q : 1;
+  const maxStages = num(p.max_stages) && p.max_stages > 0 ? Math.round(p.max_stages) : DIST_MAX_STAGES;
+  if (p.condenser !== undefined && p.condenser !== 'total') {
+    warnings.push(`distillation: condenser='${p.condenser}' not modelled — total condenser assumed`);
+  }
+
+  const eq = distEquilibrium(p, lightKey, heavyKey, feed.T_K, warnings);
+  if (eq.error) return eq;
+
+  // --- overall + light-key balance → D, B (kmol/h) -------------------------
+  const F = molF.n_total_kmol_h;
+  const D = F * (zF - xW) / (xD - xW);
+  const B = F - D;
+  if (D < 0 || B < 0) {
+    return errObj('MB_DIST_BALANCE', 'infeasible D/B from the specified cut — check xF, xD, xW', 'xD');
+  }
+
+  // --- Rmin from the q-line pinch ------------------------------------------
+  const pinch = distPinch(eq, zF, q, xW, xD);
+  if (pinch.error) return pinch;
+  if (pinch.fallback) {
+    warnings.push('distillation: q-line did not intersect the equilibrium curve in the product interval — pinch taken at the feed composition');
+  }
+  const slopeMin = (xD - pinch.y) / (xD - pinch.x);
+  let Rmin = null;
+  if (slopeMin > 0 && slopeMin < 1) {
+    Rmin = slopeMin / (1 - slopeMin);
+  } else {
+    warnings.push(`distillation: q-line pinch gave operating slope ${num(slopeMin) ? slopeMin.toFixed(4) : 'NaN'} — Rmin undefined (feed/spec may sit above the equilibrium curve)`);
+  }
+
+  // --- reflux ratio ---------------------------------------------------------
+  const totalReflux = p.total_reflux === true;
+  let R = null;
+  let Rfactor = null;
+  if (!totalReflux) {
+    if (num(p.R)) {
+      R = p.R;
+      if (num(Rmin) && R <= Rmin) {
+        warnings.push(`distillation: specified R=${R} ≤ Rmin=${Rmin.toFixed(4)} — column cannot make the separation at this reflux (stage count will diverge)`);
+      }
+      if (num(Rmin) && Rmin > 0) Rfactor = R / Rmin;
+    } else {
+      Rfactor = num(p.R_factor) && p.R_factor > 1 ? p.R_factor : DIST_R_FACTOR_DEF;
+      if (!num(Rmin)) {
+        return errObj('MB_DIST_R', 'Rmin is undefined for this spec — supply params.R explicitly', 'R');
+      }
+      R = Rfactor * Rmin;
+    }
+    if (!num(R) || R <= 0) {
+      return errObj('MB_DIST_R', 'reflux ratio R must be positive', 'R');
+    }
+  }
+
+  // --- operating lines & feed point ----------------------------------------
+  let feedX;
+  let feedY;
+  let solSlope;
+  let solIntercept;
+  let rectSlope;
+  let rectIntercept;
+  if (totalReflux) {
+    rectSlope = 1; rectIntercept = 0;
+    solSlope = 1; solIntercept = 0;
+    feedX = zF; feedY = zF;
+  } else {
+    rectSlope = R / (R + 1);
+    rectIntercept = xD / (R + 1);
+    // feed point = ROL ∩ q-line
+    if (Math.abs(q - 1) < 1e-9) {
+      feedX = zF;
+      feedY = distRectY(R, xD, zF);
+    } else {
+      const a = q / (q - 1);
+      const bq = -zF / (q - 1);
+      // rectSlope·x + rectIntercept = a·x + bq
+      feedX = (bq - rectIntercept) / (rectSlope - a);
+      feedY = distRectY(R, xD, feedX);
+    }
+    solSlope = (feedY - xW) / (feedX - xW);
+    solIntercept = xW - solSlope * xW; // y = solSlope·(x−xW)+xW
+  }
+  const rectY = (x) => rectSlope * x + rectIntercept;
+  const solY = (x) => solSlope * x + solIntercept;
+
+  // --- stage stepping (top → bottom) ---------------------------------------
+  const stageTable = [];
+  const stepPts = [[xD, xD]]; // staircase polyline
+  let yOp = xD;               // vapour composition on the operating line
+  let feedStage = null;
+  let converged = true;
+  let xStagePrev = xD;
+  let n = 0;
+  let xStage = xD;
+  for (n = 1; n <= maxStages; n++) {
+    xStage = distEqXofY(eq, yOp);        // horizontal step to equilibrium curve
+    stepPts.push([xStage, yOp]);
+    const section = (!totalReflux && xStage <= feedX) ? 'strip' : 'rectify';
+    if (feedStage === null && !totalReflux && xStage <= feedX) feedStage = n;
+    stageTable.push({
+      stage: n,
+      x: round6(xStage),
+      y: round6(yOp),
+      section: totalReflux ? 'total_reflux' : section,
+      feed: feedStage === n,
+    });
+    if (xStage <= xW) break;             // partial reboiler reached
+    const yNext = section === 'strip' ? solY(xStage) : rectY(xStage);
+    stepPts.push([xStage, yNext]);       // vertical step to the operating line
+    xStagePrev = xStage;
+    yOp = yNext;
+  }
+  if (n > maxStages) {
+    converged = false;
+    warnings.push(`distillation: stepping hit the ${maxStages}-stage cap without reaching xW — R may be at or below Rmin`);
+  }
+  const Nint = stageTable.length;
+  // fractional last stage (overshoot below xW on the last horizontal step)
+  let Nfrac = Nint;
+  if (converged && Nint >= 1) {
+    const denom = xStagePrev - xStage;
+    const frac = denom > 1e-12 ? (xStagePrev - xW) / denom : 1;
+    Nfrac = (Nint - 1) + Math.min(1, Math.max(0, frac));
+  }
+
+  // --- CMO condenser / reboiler duties -------------------------------------
+  const lamD = distLatentMix(lightKey, heavyKey, xD, warnings);
+  const lamW = distLatentMix(lightKey, heavyKey, xW, warnings);
+  let Qc_kJ_h = null;
+  let Qr_kJ_h = null;
+  let Vrect = null;
+  let Vstrip = null;
+  if (!totalReflux && num(lamD.lambda) && num(lamW.lambda)) {
+    Vrect = (R + 1) * D;                 // kmol/h up the rectifying section
+    Vstrip = Vrect - (1 - q) * F;        // kmol/h up the stripping section
+    Qc_kJ_h = Vrect * lamD.lambda * 1000;      // kJ/h removed by the condenser
+    Qr_kJ_h = Vstrip * lamW.lambda * 1000;     // kJ/h added by the reboiler
+    warnings.push('distillation: Qc/Qr use the constant-molal-overflow latent-heat shortcut (sensible & subcooling terms neglected)');
+  } else if (totalReflux) {
+    warnings.push('distillation: total-reflux mode — condenser/reboiler duties are not defined (no net product)');
+  }
+
+  // --- product streams (mole → mass); T set to feed T (M-T does not resolve
+  //     product bubble points) -------------------------------------------------
+  const dStream = streamFromMoles(
+    [{ key: lightKey, n_kmol_h: D * xD }, { key: heavyKey, n_kmol_h: D * (1 - xD) }],
+    feed.T_K, feed.P_bar);
+  if (dStream.error) return dStream;
+  const bStream = streamFromMoles(
+    [{ key: lightKey, n_kmol_h: B * xW }, { key: heavyKey, n_kmol_h: B * (1 - xW) }],
+    feed.T_K, feed.P_bar);
+  if (bStream.error) return bStream;
+  warnings.push('distillation: product stream temperatures are placeholders (feed T) — the M-T method resolves stages & duties, not product bubble points');
+
+  const massOut = dStream.mass_flow_kg_h + bStream.mass_flow_kg_h;
+  const Qc_kW = num(Qc_kJ_h) ? Qc_kJ_h / KJH_PER_KW : null;
+  const Qr_kW = num(Qr_kJ_h) ? Qr_kJ_h / KJH_PER_KW : null;
+
+  // --- SVG-ready dataset ----------------------------------------------------
+  const eqCurve = [];
+  for (let i = 0; i < DIST_EQ_CURVE_PTS; i++) {
+    const x = i / (DIST_EQ_CURVE_PTS - 1);
+    eqCurve.push([round6(x), round6(distEqY(eq, x))]);
+  }
+  const svg = {
+    equilibrium: eqCurve,
+    diagonal: [[0, 0], [1, 1]],
+    q_line: totalReflux ? [] : [[round6(zF), round6(zF)], [round6(pinch.x), round6(pinch.y)]],
+    rectifying: totalReflux ? [[0, 0], [1, 1]]
+      : [[round6(feedX), round6(feedY)], [round6(xD), round6(xD)]],
+    stripping: totalReflux ? [[0, 0], [1, 1]]
+      : [[round6(xW), round6(xW)], [round6(feedX), round6(feedY)]],
+    steps: stepPts.map((pt) => [round6(pt[0]), round6(pt[1])]),
+    points: {
+      xD: round6(xD), xW: round6(xW), xF: round6(zF),
+      feed: [round6(feedX), round6(feedY)],
+      pinch: [round6(pinch.x), round6(pinch.y)],
+    },
+    axis: { xlabel: `x (${lightKey}, liquid)`, ylabel: `y (${lightKey}, vapour)` },
+  };
+
+  return {
+    streams_out: [dStream, bStream],
+    mass_balance: massBalance(feed.mass_flow_kg_h, massOut),
+    energy_balance: {
+      Hin: null, Hout: null,
+      Q_kW: (num(Qr_kW) && num(Qc_kW)) ? (Qr_kW - Qc_kW) : null,
+      W_kW: 0,
+      Qc_kW, Qr_kW,
+    },
+    details: {
+      light_key: lightKey,
+      heavy_key: heavyKey,
+      xF: round6(zF), xD: round6(xD), xW: round6(xW), q,
+      F_kmol_h: round6(F), D_kmol_h: round6(D), B_kmol_h: round6(B),
+      equilibrium: eq.mode === 'alpha' ? { mode: 'alpha', alpha: round6(eq.alpha) } : { mode: 'points', n_points: eq.xy.length },
+      Rmin: num(Rmin) ? round6(Rmin) : null,
+      R: num(R) ? round6(R) : null,
+      R_over_Rmin: num(Rfactor) ? round6(Rfactor) : null,
+      total_reflux: totalReflux,
+      N_stages_total: Nint,
+      N_stages_fractional: round6(Nfrac),
+      N_theoretical_trays: Math.max(0, Nint - 1), // excl. partial reboiler
+      feed_stage: feedStage,
+      stages_above_feed: feedStage ? feedStage - 1 : null,
+      stages_below_feed: feedStage ? Nint - feedStage + 1 : null,
+      pinch: { x: round6(pinch.x), y: round6(pinch.y) },
+      feed_point: { x: round6(feedX), y: round6(feedY) },
+      rectifying_line: { slope: round6(rectSlope), intercept: round6(rectIntercept) },
+      stripping_line: { slope: round6(solSlope), intercept: round6(solIntercept) },
+      V_rect_kmol_h: num(Vrect) ? round6(Vrect) : null,
+      V_strip_kmol_h: num(Vstrip) ? round6(Vstrip) : null,
+      lambda_D_kJ_mol: num(lamD.lambda) ? round6(lamD.lambda) : null,
+      lambda_W_kJ_mol: num(lamW.lambda) ? round6(lamW.lambda) : null,
+      Qc_kJ_h: num(Qc_kJ_h) ? round6(Qc_kJ_h) : null,
+      Qr_kJ_h: num(Qr_kJ_h) ? round6(Qr_kJ_h) : null,
+      stage_table: stageTable,
+      svg,
+    },
+    converged,
+    iterations: Nint,
+    warnings,
+  };
+}
+
+/**
+ * Mole-averaged molar latent heat of the binary at light-key mole fraction x,
+ * each component evaluated at its own normal boiling point.
+ * @returns {{lambda:number|null}}
+ */
+function distLatentMix(lightKey, heavyKey, x, warnings) {
+  const rl = resolve(lightKey);
+  const rh = resolve(heavyKey);
+  if (rl.error || rh.error) return { lambda: null };
+  const dl = dhvapT(lightKey, num(rl.tb_K) ? rl.tb_K : 350);
+  const dh = dhvapT(heavyKey, num(rh.tb_K) ? rh.tb_K : 350);
+  if (dl.error || dh.error || !num(dl.dhvap_kJmol) || !num(dh.dhvap_kJmol)) return { lambda: null };
+  if (Array.isArray(dl.warnings)) warnings.push(...dl.warnings);
+  if (Array.isArray(dh.warnings)) warnings.push(...dh.warnings);
+  return { lambda: x * dl.dhvap_kJmol + (1 - x) * dh.dhvap_kJmol };
+}
+
+/** round to 6 dp for compact JSON output @param {number} v @returns {number} */
+function round6(v) { return num(v) ? Math.round(v * 1e6) / 1e6 : v; }
+
+// ============================================================================
+// ABSORBER / STRIPPER — Kremser (dilute solute, linear equilibrium y = m·x)
+// ============================================================================
+
+const KREMSER_A_TOL = 1e-6;   // |factor − 1| below this ⇒ degenerate branch
+
+/**
+ * Kremser absorber / stripper.
+ *
+ * params:
+ *   mode  : 'absorber' (default) | 'stripper'
+ *   solve : 'N'      → find the number of theoretical stages for an outlet
+ *                      target (absorber: y_out_target; stripper: x_out_target)
+ *           'y_out'  → (absorber) find the leaving-gas mole fraction for a
+ *                      given N
+ *           'x_out'  → (stripper) find the leaving-liquid mole fraction for N
+ *   m     : equilibrium slope, y = m·x (required, > 0)
+ *   V_kmol_h : gas (vapour) molar flow  — default: from the 1st stream
+ *   L_kmol_h : liquid (solvent) molar flow — default: from the 2nd stream
+ *   Absorber:  y_in (entering gas, required), x_in (entering liquid, default 0),
+ *              y_out_target (solve='N') or N (solve='y_out')
+ *   Stripper:  x_in (entering liquid, required), y_in (entering gas, default 0),
+ *              x_out_target (solve='N') or N (solve='x_out')
+ *
+ * Absorption factor A = L/(m·V); stripping factor S = m·V/L. The dilute
+ * (constant L, V) linear-equilibrium form is used; stream-level mass/energy
+ * balances are not computed (see warnings).
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveAbsorber(input) {
+  const mi = moduleInput(input, 1, 2);
+  if (mi.error) return mi;
+  const p = mi.params;
+  const warnings = [];
+  const mode = p.mode === 'stripper' ? 'stripper' : 'absorber';
+
+  if (!num(p.m) || p.m <= 0) return errObj('MB_ABS_M', 'params.m (equilibrium slope y=m·x, > 0) required', 'm');
+  const m = p.m;
+
+  // flows: params override, else derive molar flows from the streams
+  let V = p.V_kmol_h;
+  let L = p.L_kmol_h;
+  if (!num(V)) {
+    const g = molarize(mi.streams[0]);
+    if (g.error) return g;
+    V = g.n_total_kmol_h;
+  }
+  if (!num(L)) {
+    if (mi.streams.length >= 2) {
+      const liq = molarize(mi.streams[1]);
+      if (liq.error) return liq;
+      L = liq.n_total_kmol_h;
+    }
+  }
+  if (!num(V) || V <= 0) return errObj('MB_ABS_V', 'gas molar flow V_kmol_h (> 0) required (params or 1st stream)', 'V_kmol_h');
+  if (!num(L) || L <= 0) return errObj('MB_ABS_L', 'liquid molar flow L_kmol_h (> 0) required (params or 2nd stream)', 'L_kmol_h');
+
+  const A = L / (m * V);   // absorption factor
+  const S = 1 / A;         // stripping factor
+  const factor = mode === 'absorber' ? A : S;   // the "operating/equilibrium" ratio for this mode
+
+  // Map both modes onto the same algebra with generic in/out/reference values.
+  //   absorber: rich(in)=y_in, target(out)=y_out, reference = m·x_in
+  //   stripper: rich(in)=x_in, target(out)=x_out, reference = y_in/m
+  let cin;
+  let ref;
+  let solve;
+  let target;
+  let Ngiven;
+  if (mode === 'absorber') {
+    cin = p.y_in;
+    if (!num(cin)) return errObj('MB_ABS_YIN', 'params.y_in (entering-gas solute mole fraction) required', 'y_in');
+    const x_in = num(p.x_in) ? p.x_in : 0;
+    ref = m * x_in;
+    solve = p.solve === 'y_out' ? 'out' : 'N';
+    target = p.y_out_target;
+    Ngiven = p.N;
+  } else {
+    cin = p.x_in;
+    if (!num(cin)) return errObj('MB_STR_XIN', 'params.x_in (entering-liquid solute mole fraction) required', 'x_in');
+    const y_in = num(p.y_in) ? p.y_in : 0;
+    ref = y_in / m;
+    solve = p.solve === 'x_out' ? 'out' : 'N';
+    target = p.x_out_target;
+    Ngiven = p.N;
+  }
+  if (cin <= ref) {
+    return errObj('MB_ABS_INFEAS',
+      `${mode}: entering composition (${cin}) is not above the equilibrium reference (${ref}) — no net transfer possible`,
+      mode === 'absorber' ? 'y_in' : 'x_in');
+  }
+
+  const degenerate = Math.abs(factor - 1) < KREMSER_A_TOL;
+  let N = null;
+  let cout = null;
+
+  if (solve === 'N') {
+    if (!num(target)) {
+      return errObj('MB_ABS_TARGET',
+        `${mode} solve='N' requires ${mode === 'absorber' ? 'params.y_out_target' : 'params.x_out_target'}`,
+        mode === 'absorber' ? 'y_out_target' : 'x_out_target');
+    }
+    if (!(target > ref) || target >= cin) {
+      return errObj('MB_ABS_TARGET_RANGE',
+        `outlet target must satisfy ${round6(ref)} < target < ${round6(cin)} (given ${target})`,
+        mode === 'absorber' ? 'y_out_target' : 'x_out_target');
+    }
+    const phi = (cin - ref) / (target - ref);   // > 1
+    if (degenerate) {
+      N = phi - 1;                              // factor = 1 limit
+    } else {
+      N = Math.log(phi * (1 - 1 / factor) + 1 / factor) / Math.log(factor);
+    }
+    cout = target;
+  } else {
+    if (!num(Ngiven) || Ngiven <= 0) {
+      return errObj('MB_ABS_N', `${mode} solve='${p.solve}' requires params.N (> 0)`, 'N');
+    }
+    N = Ngiven;
+    let frac;
+    if (degenerate) {
+      frac = N / (N + 1);
+    } else {
+      const fN1 = Math.pow(factor, N + 1);
+      frac = (fN1 - factor) / (fN1 - 1);        // fraction of the removable solute transferred
+    }
+    cout = cin - (cin - ref) * frac;
+  }
+
+  const removableIn = cin - ref;
+  const fractionTransferred = removableIn > 0 ? (cin - cout) / removableIn : 0;
+  const soluteRate = mode === 'absorber' ? V * (cin - cout) : L * (cin - cout); // kmol/h transferred (dilute)
+
+  const details = {
+    mode,
+    m: round6(m),
+    V_kmol_h: round6(V),
+    L_kmol_h: round6(L),
+    L_over_V: round6(L / V),
+    absorption_factor_A: round6(A),
+    stripping_factor_S: round6(S),
+    N_theoretical: round6(N),
+    N_stages: Math.max(1, Math.ceil(N - 1e-9)),
+    fraction_transferred: round6(fractionTransferred),
+    solute_rate_kmol_h: round6(soluteRate),
+  };
+  if (mode === 'absorber') {
+    details.y_in = round6(cin);
+    details.y_out = round6(cout);
+    details.x_in = round6(num(p.x_in) ? p.x_in : 0);
+  } else {
+    details.x_in = round6(cin);
+    details.x_out = round6(cout);
+    details.y_in = round6(num(p.y_in) ? p.y_in : 0);
+  }
+  if (degenerate) warnings.push(`${mode}: ${mode === 'absorber' ? 'A' : 'S'} ≈ 1 — degenerate Kremser branch used (N = φ−1 form)`);
+  warnings.push('absorber/stripper: Kremser dilute-solute model (constant L, V; linear equilibrium y=m·x). Stream-level mass & energy balances are not computed.');
+
+  return {
+    streams_out: [],
+    mass_balance: { in: 0, out: 0, closure_pct: 0 },
+    energy_balance: { Hin: null, Hout: null, Q_kW: null, W_kW: 0 },
+    details,
+    converged: num(N) && isFinite(N),
+    iterations: 1,
+    warnings,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // MODULES registry — the api router dispatches into this map. Later steps
 // (CSTR, PFR, SMR, ...) register here without touching Part 1.
@@ -3836,6 +4511,8 @@ const MODULES = {
   'atr': solveATR,
   'shift': solveShift,
   'methanator': solveMethanator,
+  'distillation': solveDistillation,   // Part 6 — binary McCabe–Thiele
+  'absorber': solveAbsorber,           // Part 6 — Kremser absorber / stripper
 };
 
 /**
@@ -3914,7 +4591,8 @@ export default {
   MODULES,          // module registry — mixer, splitter, flash,
                     // heat-exchanger, rotating, reactor (Part 2);
                     // cstr, pfr, pfr-recycle (Part 3);
-                    // smr, atr (Part 4)
+                    // smr, atr (Part 4); shift, methanator (Part 5);
+                    // distillation, absorber (Part 6)
   runModule,
   resolve,
   cpGas,
