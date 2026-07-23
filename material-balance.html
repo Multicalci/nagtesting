@@ -1121,6 +1121,10 @@ function closeSheet() { sheetWrap.classList.remove('open'); renderUnits(); sched
 
 function openStreamEditor(u, idx) {
   const st = u.streams[idx];
+  /* NOTE: declared here, not beside fTPfield below — fTPfield() is invoked
+     earlier in this function, and a `let` in the temporal dead zone threw
+     ReferenceError: Cannot access 'flowInputRef' before initialization. */
+  let flowInputRef = null;
   const box = el('div');
   box.append(el('div', { class: 'grab' }),
     el('div', { class: 'xrow' },
@@ -1241,7 +1245,6 @@ function openStreamEditor(u, idx) {
       el('button', { class: 'solve', style: 'margin-left:auto', onclick: closeSheet }, 'Done')));
 
   /* flow/T/P duo builder + refresh hook (flows mode updates the flow box) */
-  let flowInputRef = null;
   function fTPfield(s, which) {
     const table = which === 'flow' ? FLOW_UNITS : which === 'T' ? T_UNITS : P_UNITS;
     const label = which === 'flow' ? 'Total flow' : which === 'T' ? 'Temperature' : 'Pressure (abs)';
