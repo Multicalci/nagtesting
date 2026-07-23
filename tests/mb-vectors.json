@@ -1,10 +1,10 @@
 {
   "meta": {
     "repo_path": "tests/mb-vectors.json",
-    "version": "mb-vectors 1.4 — thermo core + core modules + reaction-engineering + reformer + shift/methanator + end-to-end chains, vectors MB-001..MB-071",
-    "target": "api/_lib/mb-engine.js (mb-engine 0.9.x, parts 1+2+3+4+5 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr)",
+    "version": "mb-vectors 1.5 — thermo core + core modules + reaction-engineering + reformer + shift/methanator + distillation/absorber, vectors MB-001..MB-078",
+    "target": "api/_lib/mb-engine.js (mb-engine 0.10.x, parts 1+2+3+4+5+6 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram."
   },
   "vectors": [
     {
@@ -607,9 +607,9 @@
       },
       "tol": {
         "streams_out.0.T_K": 0.15,
-        "mass_balance.closure_pct": 1e-09,
-        "energy_balance.W_kW": 1e-09,
-        "default": 1e-06
+        "mass_balance.closure_pct": 1e-9,
+        "energy_balance.W_kW": 1e-9,
+        "default": 0.000001
       },
       "source": "Steam-table hand calc: hf(90 °C)=376.97, hf(20 °C)=83.92 kJ/kg → mixed h=230.44 → T=55.04 °C=328.19 K (constant-cp hand check 328.15 K)"
     },
@@ -654,7 +654,7 @@
       },
       "tol": {
         "streams_out.0.T_K": 0.4,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Felder & Rousseau-class steam-table energy balance (ch. 8 style): hg(1 atm)=2676.0, hf(20 °C)=83.92 kJ/kg → h_mix=343.13 kJ/kg → T≈81.95 °C=355.10 K"
     },
@@ -668,8 +668,8 @@
           "streams": [
             {
               "mass_flow_kg_h": 100,
-              "T_K": 300.0,
-              "P_bar": 2.0,
+              "T_K": 300,
+              "P_bar": 2,
               "components": [
                 {
                   "key": "H2O",
@@ -693,15 +693,15 @@
       "expect": {
         "streams_out.0.mass_flow_kg_h": 60,
         "streams_out.1.mass_flow_kg_h": 40,
-        "streams_out.0.T_K": 300.0,
+        "streams_out.0.T_K": 300,
         "mass_balance.closure_pct": 0,
         "energy_balance.Q_kW": 0,
         "converged": true,
         "iterations": 0
       },
       "tol": {
-        "energy_balance.Q_kW": 1e-06,
-        "default": 1e-09
+        "energy_balance.Q_kW": 0.000001,
+        "default": 1e-9
       },
       "source": "Definition of a splitter: mass split with unchanged intensive state — exact by construction"
     },
@@ -744,7 +744,7 @@
       "tol": {
         "details.psi_VF": 0.006,
         "details.y.0.y": 0.005,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Raoult/Rachford-Rice hand calc with published Antoine constants (Lange class): Psat(95 °C) benzene 1.569 bar, toluene 0.636 bar → K=1.548/0.627 → ψ=0.4305, y_benzene=0.6263"
     },
@@ -784,7 +784,7 @@
         "streams_out.1.mass_flow_kg_h": 0
       },
       "tol": {
-        "default": 1e-09
+        "default": 1e-9
       },
       "source": "Antoine hand calc: K(110 °C)=2.31 (benzene) / 0.98 (toluene) → Σz(K−1)/K=+0.27>0 — feed is superheated vapor (dew point ≈ 98.8 °C at 1 atm)"
     },
@@ -799,7 +799,7 @@
             {
               "mass_flow_kg_h": 22.0578,
               "T_K": 298.15,
-              "P_bar": 1.0,
+              "P_bar": 1,
               "components": [
                 {
                   "key": "H2O",
@@ -814,7 +814,7 @@
           ],
           "params": {
             "T_K": 393.15,
-            "P_bar": 1.0
+            "P_bar": 1
           }
         }
       ],
@@ -827,7 +827,7 @@
       "tol": {
         "details.psi_VF": 0.012,
         "details.y.1.y": 1e-12,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Rachford-Rice hand calc with steam-table Psat(120 °C)=1.9854 bar → K_w=1.985, K_NaCl=0 → ψ=0.7985; nonvolatile → y_NaCl=0 exactly"
     },
@@ -842,7 +842,7 @@
             {
               "mass_flow_kg_h": 1000,
               "T_K": 353.15,
-              "P_bar": 2.0,
+              "P_bar": 2,
               "components": [
                 {
                   "key": "H2O",
@@ -853,7 +853,7 @@
             {
               "mass_flow_kg_h": 1000,
               "T_K": 293.15,
-              "P_bar": 2.0,
+              "P_bar": 2,
               "components": [
                 {
                   "key": "H2O",
@@ -871,13 +871,13 @@
       ],
       "expect": {
         "details.duty_hot_kW": 23.27,
-        "details.lmtd_K": 40.0,
+        "details.lmtd_K": 40,
         "converged": true
       },
       "tol": {
         "details.duty_hot_kW": 0.12,
         "details.lmtd_K": 0.02,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Steam tables: hf(80)−hf(60)=334.95−251.18=83.77 kJ/kg → 23.27 kW at 1000 kg/h; equal 40 K approaches at both ends → LMTD=40 K exactly"
     },
@@ -892,7 +892,7 @@
             {
               "mass_flow_kg_h": 1000,
               "T_K": 363.15,
-              "P_bar": 2.0,
+              "P_bar": 2,
               "components": [
                 {
                   "key": "H2O",
@@ -903,7 +903,7 @@
             {
               "mass_flow_kg_h": 2000,
               "T_K": 293.15,
-              "P_bar": 2.0,
+              "P_bar": 2,
               "components": [
                 {
                   "key": "H2O",
@@ -926,7 +926,7 @@
       "tol": {
         "streams_out.1.T_K": 0.25,
         "energy_balance.Q_kW": 0.05,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Steam tables: duty=hf(90)−hf(50)=376.97−209.34=167.63 kJ/kg → 46.56 kW; cold h_out=83.92+83.82=167.74 kJ/kg → 40.05 °C=313.20 K"
     },
@@ -941,7 +941,7 @@
             {
               "mass_flow_kg_h": 1000,
               "T_K": 373.15,
-              "P_bar": 3.0,
+              "P_bar": 3,
               "components": [
                 {
                   "key": "H2O",
@@ -952,7 +952,7 @@
             {
               "mass_flow_kg_h": 2008,
               "T_K": 303.15,
-              "P_bar": 3.0,
+              "P_bar": 3,
               "components": [
                 {
                   "key": "H2O",
@@ -976,7 +976,7 @@
       "tol": {
         "details.lmtd_K": 0.05,
         "details.duty_hot_kW": 0.25,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "LMTD hand calc: ΔT1=100−50=50 K, ΔT2=60−30=30 K → (50−30)/ln(50/30)=39.152 K; duty=hf(100)−hf(60)=419.04−251.18≈167.9 kJ/kg → 46.6 kW"
     },
@@ -1032,7 +1032,7 @@
             {
               "mass_flow_kg_h": 100,
               "T_K": 298.15,
-              "P_bar": 1.0,
+              "P_bar": 1,
               "components": [
                 {
                   "key": "Ar",
@@ -1044,7 +1044,7 @@
           "params": {
             "machine": "compressor",
             "P_out_bar": 10,
-            "eta": 1.0
+            "eta": 1
           }
         }
       ],
@@ -1058,7 +1058,7 @@
         "streams_out.0.T_K": 1.5,
         "energy_balance.W_kW": 0.05,
         "details.gamma_mean": 0.001,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Ideal-gas hand calc, γ=5/3 (monatomic, NIST cp=20.786 J/mol·K): T2s=298.15·10^0.4=748.9 K; W=cpΔT·n=20.786·450.8·2.503 kmol/h=6.515 kW"
     },
@@ -1072,8 +1072,8 @@
           "streams": [
             {
               "mass_flow_kg_h": 100,
-              "T_K": 800.0,
-              "P_bar": 10.0,
+              "T_K": 800,
+              "P_bar": 10,
               "components": [
                 {
                   "key": "Ar",
@@ -1084,7 +1084,7 @@
           ],
           "params": {
             "machine": "turbine",
-            "P_out_bar": 1.0,
+            "P_out_bar": 1,
             "eta": 0.8
           }
         }
@@ -1098,8 +1098,8 @@
       "tol": {
         "streams_out.0.T_K": 1.5,
         "energy_balance.W_kW": 0.05,
-        "details.T2s_K": 1.0,
-        "default": 1e-06
+        "details.T2s_K": 1,
+        "default": 0.000001
       },
       "source": "Ideal-gas hand calc, γ=5/3: T2s=800·0.1^0.4=318.5 K; Δh=0.8·cp·(T2s−800)=−8.007 kJ/mol → T2=414.8 K, W=−5.568 kW at 2.503 kmol/h"
     },
@@ -1137,7 +1137,7 @@
                   "CO2": 3,
                   "H2O": 4
                 },
-                "conversion": 1.0,
+                "conversion": 1,
                 "limiting": "C3H8"
               }
             ]
@@ -1151,8 +1151,8 @@
       },
       "tol": {
         "details.reactions.0.dHr298_kJmol": 2.5,
-        "energy_balance.Q_kW": 1.0,
-        "default": 1e-06
+        "energy_balance.Q_kW": 1,
+        "default": 0.000001
       },
       "source": "Felder & Rousseau Table B.1: ΔH°c C3H8(g) with H2O(l) = −2220.0 kJ/mol (NIST Hf: 3·(−393.52)+4·(−285.83)−(−104.7)=−2219.2); Q=−2219.2·1 kmol/h=−616.4 kW"
     },
@@ -1194,7 +1194,7 @@
                   "CO2": 1,
                   "H2O": 2
                 },
-                "conversion": 1.0,
+                "conversion": 1,
                 "limiting": "CH4"
               }
             ]
@@ -1207,7 +1207,7 @@
       },
       "tol": {
         "streams_out.0.T_K": 60,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Çengel & Boles (Thermodynamics) worked example class: theoretical adiabatic flame temperature of CH4 with stoichiometric air, complete combustion, no dissociation ≈ 2330 K (variable ideal-gas cp)"
     },
@@ -1222,7 +1222,7 @@
             {
               "mass_flow_kg_h": 70.088,
               "T_K": 1073.15,
-              "P_bar": 20.0,
+              "P_bar": 20,
               "components": [
                 {
                   "key": "CH4",
@@ -1273,7 +1273,7 @@
       },
       "tol": {
         "mass_balance.closure_pct": 0.02,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Hand mole table, basis 1 kmol/h CH4 + 3 H2O: ξ1=0.8 → CH4 0.2, H2O 2.2, CO 0.8, H2 2.4; ξ2=0.5·0.8=0.4 → CO 0.4, H2O 1.8, CO2 0.4, H2 2.8; atomic MWs make closure exact to <0.001%"
     },
@@ -1322,12 +1322,12 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X": 1e-05,
-        "details.Da": 1e-06,
-        "details.tau_s": 1e-06,
+        "details.X": 0.00001,
+        "details.Da": 0.000001,
+        "details.tau_s": 0.000001,
         "details.Ca0_kmolm3": 0.0001,
         "mass_balance.closure_pct": 0.005,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Fogler (Elements of CRE) first-order liquid CSTR: X = Da/(1+Da), Da = kτ = (2/7200 s⁻¹)(7200 s) = 2 → X = 2/3; Ca0 = 520/42.081 = 12.35712 kmol/m³. Hand calculation."
     },
@@ -1369,19 +1369,19 @@
       ],
       "expect": {
         "details.V_m3": 4.4958333,
-        "details.tau_s": 16185.0,
+        "details.tau_s": 16185,
         "details.Da": 20,
         "details.X": 0.8,
-        "details.batch_time_equiv_s": 3237.0,
+        "details.batch_time_equiv_s": 3237,
         "converged": true
       },
       "tol": {
         "details.V_m3": 0.0001,
         "details.tau_s": 0.05,
         "details.Da": 0.0001,
-        "details.X": 1e-06,
+        "details.X": 0.000001,
         "details.batch_time_equiv_s": 0.05,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Fogler CSTR design eq., 2nd order liquid: τ = X/(k·Ca0·(1−X)²) = 0.8/(1e-4 · 12.35712 · 0.04) = 16185 s → V = τ·v = 4.49583 m³; Da₂ = kτCa0 = 20. Batch/PFR equivalent t = X/(k·Ca0·(1−X)) = 3237 s. Hand calculation."
     },
@@ -1408,7 +1408,7 @@
           "params": {
             "order": 1,
             "arrhenius": {
-              "A_si": 100000.0,
+              "A_si": 100000,
               "Ea_kJmol": 50
             },
             "reaction": {
@@ -1431,10 +1431,10 @@
         "converged": true
       },
       "tol": {
-        "details.k_si": 5e-06,
+        "details.k_si": 0.000005,
         "details.Da": 0.002,
         "details.X": 0.0001,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Arrhenius: k = A·e^(−Ea/RT) = 1e5·exp(−50/(0.008314462·350)) = 3.45186e-3 s⁻¹; τ = 3600 s → Da = 12.4267; first-order CSTR X = Da/(1+Da) = 0.925522 (Fogler). Hand calculation."
     },
@@ -1465,7 +1465,7 @@
           "params": {
             "order": 1,
             "arrhenius": {
-              "A_si": 100000.0,
+              "A_si": 100000,
               "Ea_kJmol": 50
             },
             "reaction": {
@@ -1490,9 +1490,9 @@
       },
       "tol": {
         "energy_balance.Q_kW": 0.01,
-        "energy_balance.W_kW": 1e-09,
+        "energy_balance.W_kW": 1e-9,
         "mass_balance.closure_pct": 0.005,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Formation-basis adiabatic identity: with T_out solved from stream enthalpies, the reported duty Q = Hout − Hin must return ≈ 0 (reaction heat is implicit in the formation enthalpies); exothermic-CSTR T↔k(T)↔X damped loop must converge."
     },
@@ -1540,10 +1540,10 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X": 1e-05,
-        "details.tau_s": 1e-06,
+        "details.X": 0.00001,
+        "details.tau_s": 0.000001,
         "mass_balance.closure_pct": 0.005,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Levenspiel / Fogler PFR design eq., first order constant density: X = 1 − e^(−kτ) = 1 − e⁻² = 0.864665. Hand calculation."
     },
@@ -1585,17 +1585,17 @@
       ],
       "expect": {
         "details.V_m3": 0.8991667,
-        "details.tau_s": 3237.0,
+        "details.tau_s": 3237,
         "details.X": 0.8,
-        "details.batch_time_equiv_s": 3237.0,
+        "details.batch_time_equiv_s": 3237,
         "converged": true
       },
       "tol": {
         "details.V_m3": 0.0001,
         "details.tau_s": 0.05,
-        "details.X": 1e-06,
+        "details.X": 0.000001,
         "details.batch_time_equiv_s": 0.05,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Fogler PFR design eq., 2nd order liquid: kτCa0 = X/(1−X) = 4 → τ = 4/(1e-4 · 12.35712) = 3237 s, V = 0.899167 m³; PFR ≡ constant-volume batch, so the batch-time equivalent equals τ. Hand calculation."
     },
@@ -1641,9 +1641,9 @@
         "converged": true
       },
       "tol": {
-        "details.X": 1e-05,
-        "details.tau_s": 1e-06,
-        "default": 1e-06
+        "details.X": 0.00001,
+        "details.tau_s": 0.000001,
+        "default": 0.000001
       },
       "source": "Levenspiel zero-order design eq. (identical for PFR and batch): X = k·τ/Ca0 = 1e-3 · 5040 / 12.35712 = 0.407862. Hand calculation."
     },
@@ -1690,9 +1690,9 @@
         "details.profile.0.X": 0
       },
       "tol": {
-        "details.profile.25.X": 1e-05,
-        "details.profile.50.X": 1e-05,
-        "default": 1e-06
+        "details.profile.25.X": 0.00001,
+        "details.profile.50.X": 0.00001,
+        "default": 0.000001
       },
       "source": "First-order PFR axial profile X(z) = 1 − e^(−Da·z), Da = 2: X(0.5) = 1 − e⁻¹ = 0.632121, X(1) = 1 − e⁻² = 0.864665. The exact-per-segment march must reproduce the closed form at every profile node."
     },
@@ -1742,7 +1742,7 @@
         "details.X_ov": 0.002,
         "details.X_sp": 0.0002,
         "iterations": 15,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Recycle-reactor closed form (Fogler Ch. 6 / Levenspiel recycle reactor), first order: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)), Da0 = kV/v_fresh = 2; R = 50 → X_ov = 0.671024, X_sp = 1 − E = 0.038457 — approaching the CSTR limit Da/(1+Da) = 2/3 as R → ∞. Iterations expected ≤ 30 with bounded Wegstein."
     },
@@ -1789,10 +1789,10 @@
         "converged": true
       },
       "tol": {
-        "details.X_ov": 1e-05,
-        "details.X_sp": 1e-05,
-        "iterations": 1e-09,
-        "default": 1e-06
+        "details.X_ov": 0.00001,
+        "details.X_sp": 0.00001,
+        "iterations": 1e-9,
+        "default": 0.000001
       },
       "source": "Levenspiel recycle-reactor limit R → 0: plug flow, X = 1 − e^(−Da0) = 1 − e⁻² = 0.864665; single pass, no tear iteration."
     },
@@ -1839,10 +1839,10 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X_ov": 5e-05,
-        "details.X_sp": 5e-05,
+        "details.X_ov": 0.00005,
+        "details.X_sp": 0.00005,
         "mass_balance.closure_pct": 0.005,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "First-order recycle identity: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)); R = 1, Da0 = 2 → E = e⁻¹, X_ov = 1 − e⁻¹/(2−e⁻¹) = 0.774600 and X_sp = 1 − e⁻¹ = 0.632121. The Wegstein-converged tear must land on the analytic fixed point (bounded q ∈ [−5,0])."
     },
@@ -1873,7 +1873,7 @@
           "params": {
             "order": 1,
             "arrhenius": {
-              "A_si": 100000.0,
+              "A_si": 100000,
               "Ea_kJmol": 50
             },
             "reaction": {
@@ -1899,10 +1899,10 @@
       },
       "tol": {
         "energy_balance.Q_kW": 0.1,
-        "energy_balance.W_kW": 1e-09,
+        "energy_balance.W_kW": 1e-9,
         "mass_balance.closure_pct": 0.005,
         "iterations": 15,
-        "default": 1e-06
+        "default": 0.000001
       },
       "source": "Adiabatic recycle envelope identity on the formation basis: mixing point and reactor both adiabatic → fresh-in / product-out duty must return ≈ 0 at the converged tear. Exercises the Wegstein tear including its temperature variable; iterations expected ≤ 30."
     },
@@ -1951,11 +1951,11 @@
         "details.ch4_slip_dry_pct": 7.6257,
         "details.extents.smr_kmol_h": 0.731322,
         "details.extents.wgs_kmol_h": 0.329367,
-        "details.s_c.ratio": 3.0,
+        "details.s_c.ratio": 3,
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2015,7 +2015,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2060,7 +2060,7 @@
       ],
       "expect": {
         "details.composition_dry.0.key": "CH4",
-        "details.composition_dry.0.mole_fraction": 2e-05,
+        "details.composition_dry.0.mole_fraction": 0.00002,
         "details.composition_dry.1.key": "CO",
         "details.composition_dry.1.mole_fraction": 0.21151,
         "details.composition_dry.2.key": "H2",
@@ -2072,7 +2072,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2130,7 +2130,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2189,7 +2189,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2197,8 +2197,8 @@
         "details.composition_dry.4.mole_fraction": 0.015,
         "details.ch4_slip_dry_pct": 1.5,
         "details.h2_co_ratio": 0.05,
-        "details.T_eq_smr_K": 1e-06,
-        "details.T_eq_wgs_K": 1e-06
+        "details.T_eq_smr_K": 0.000001,
+        "details.T_eq_wgs_K": 0.000001
       },
       "source": "Hand equilibrium calculation from Twigg lnK1 evaluated at T+20 K and Moe lnK2 at T+10 K — the approach-to-equilibrium convention for reformer rating (Twigg, Catalyst Handbook: reformer duty expressed as an ATE on the reforming reaction)."
     },
@@ -2247,7 +2247,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2332,7 +2332,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2360,7 +2360,7 @@
               "components": [
                 {
                   "key": "CH4",
-                  "mass_fraction": 1.0
+                  "mass_fraction": 1
                 }
               ]
             }
@@ -2389,7 +2389,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2398,7 +2398,7 @@
         "details.ch4_slip_dry_pct": 1.5,
         "details.h2_co_ratio": 0.2,
         "details.T_out_K": 25,
-        "details.o2_c_ratio": 1e-09
+        "details.o2_c_ratio": 1e-9
       },
       "source": "Hand calculation (independent Python solve): full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: published ATR operation at O2/C ≈ 0.6 and low S/C delivers H2/CO ≈ 2.0–2.3 at ≈ 1020–1050 °C outlet (Aasberg-Petersen et al., J. Nat. Gas Sci. Eng. 3 (2011) 423–459, Topsøe ATR)."
     },
@@ -2417,13 +2417,13 @@
               "components": [
                 {
                   "key": "CH4",
-                  "mass_fraction": 1.0
+                  "mass_fraction": 1
                 }
               ]
             }
           ],
           "params": {
-            "s_c_ratio": 1.0,
+            "s_c_ratio": 1,
             "o2_c_ratio": 0.55,
             "oxidant": "air",
             "steam_T_K": 650,
@@ -2448,7 +2448,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2520,7 +2520,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2585,10 +2585,10 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.extent_kmol_h": 0.001,
         "details.co_slip_dry_pct": 0.15,
-        "details.T_eq_K": 1e-06,
+        "details.T_eq_K": 0.000001,
         "details.Q_kW": 0.1
       },
       "source": "Hand equilibrium calculation (independent Python solve, not engine output) from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions per Twigg, Catalyst Handbook 2nd ed. (HTS window 350–450 °C, exit CO typically 2–4 % dry): computed slip 2.94 % dry. Duty from a Shomate enthalpy balance; the engine's IF97 water route differs by <0.05 kW — covered by the tolerance."
@@ -2643,7 +2643,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.T_out_K": 8,
         "details.delta_T_K": 8,
         "details.extent_kmol_h": 0.005,
@@ -2701,7 +2701,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.T_out_K": 8,
         "details.delta_T_K": 8,
         "details.co_slip_dry_pct": 0.1
@@ -2747,7 +2747,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.extent_kmol_h": 0.001,
         "details.composition_dry.0.mole_fraction": 0.002,
         "details.composition_dry.1.mole_fraction": 0.002
@@ -2784,7 +2784,7 @@
       "expect": {
         "error.code": "MB_SHIFT_FEED"
       },
-      "tol": 1e-09,
+      "tol": 1e-9,
       "source": "Input-contract check: WGS needs CO + H2O (forward) and/or CO2 + H2 (reverse)."
     },
     {
@@ -2842,12 +2842,12 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.co_ppm_dry": 10,
         "details.co2_ppm_dry": 10,
         "details.co_co2_ppm_dry": 10,
         "details.ch4_dry_pct": 0.01,
-        "details.T_eq_K": 1e-06
+        "details.T_eq_K": 0.000001
       },
       "source": "Hand calculation (independent nested-bisection solve of the Twigg/Moe equilibria in the methanation direction). Methanator duty specs guarantee < 5–10 ppm CO+CO2 (Appl, Ullmann's 'Ammonia'; Twigg): the EQUILIBRIUM residual at 320 °C / 25 bar is orders of magnitude lower still (~1e-7 ppm) — the vector asserts the < 10 ppm bound."
     },
@@ -2886,7 +2886,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.T_out_K": 5,
         "details.delta_T_K": 5,
         "details.co_ppm_dry": 1,
@@ -2928,7 +2928,7 @@
         "converged": true
       },
       "tol": {
-        "default": 1e-06,
+        "default": 0.000001,
         "details.T_out_K": 5,
         "details.delta_T_K": 5,
         "details.co2_ppm_dry": 1
@@ -2937,143 +2937,460 @@
     },
     {
       "id": "MB-071",
-      "desc": "End-to-end ammonia front-end chain: SMR → secondary → HTS → LTS → methanator → H2/N2 ≈ 3",
-      "call": "chain",
-      "args": {
-        "steps": [
-          {
-            "module": "smr",
-            "params": {
-              "mode": "fired",
-              "T_out_K": 1073.15,
-              "P_out_bar": 30
-            },
-            "feeds": [
-              {
-                "source": "seed",
-                "mass_flow_kg_h": 80.29869,
-                "T_K": 1073.15,
-                "P_bar": 30,
-                "components": [
-                  {
-                    "key": "CH4",
-                    "mass_fraction": 0.1798124
-                  },
-                  {
-                    "key": "C2H6",
-                    "mass_fraction": 0.02246786
-                  },
-                  {
-                    "key": "C3H8",
-                    "mass_fraction": 0.01647449
-                  },
-                  {
-                    "key": "nC4H10",
-                    "mass_fraction": 0.00723823
-                  },
-                  {
-                    "key": "H2O",
-                    "mass_fraction": 0.77400702
-                  }
+      "desc": "distillation: benzene–toluene classic (Perry x-y), R=2.0, q=1 — VERIFY stage count",
+      "call": "runModule",
+      "args": [
+        "distillation",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8582.885000000002,
+              "T_K": 366,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.40955110082448964
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.5904488991755102
+                }
+              ]
+            }
+          ],
+          "params": {
+            "light_key": "benzene",
+            "xD": 0.95,
+            "xW": 0.1,
+            "q": 1,
+            "equilibrium": {
+              "mode": "points",
+              "xy": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.21
+                ],
+                [
+                  0.2,
+                  0.37
+                ],
+                [
+                  0.3,
+                  0.51
+                ],
+                [
+                  0.4,
+                  0.62
+                ],
+                [
+                  0.5,
+                  0.71
+                ],
+                [
+                  0.6,
+                  0.79
+                ],
+                [
+                  0.7,
+                  0.86
+                ],
+                [
+                  0.8,
+                  0.91
+                ],
+                [
+                  0.9,
+                  0.96
+                ],
+                [
+                  1,
+                  1
                 ]
-              }
-            ]
-          },
-          {
-            "module": "smr",
-            "params": {
-              "mode": "secondary",
-              "P_out_bar": 30
+              ]
             },
-            "feeds": [
-              {
-                "source": "prev",
-                "outlet": 0
-              },
-              {
-                "source": "seed",
-                "mass_flow_kg_h": 45.202381,
-                "T_K": 823.15,
-                "P_bar": 30,
-                "components": [
-                  {
-                    "key": "O2",
-                    "mass_fraction": 0.23195601
-                  },
-                  {
-                    "key": "N2",
-                    "mass_fraction": 0.75425417
-                  },
-                  {
-                    "key": "Ar",
-                    "mass_fraction": 0.01378982
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "module": "shift",
-            "params": {
-              "preset": "hts",
-              "mode": "adiabatic"
-            },
-            "feeds": [
-              {
-                "source": "prev",
-                "outlet": 0,
-                "setT_K": 633.15
-              }
-            ]
-          },
-          {
-            "module": "shift",
-            "params": {
-              "preset": "lts",
-              "mode": "adiabatic"
-            },
-            "feeds": [
-              {
-                "source": "prev",
-                "outlet": 0,
-                "setT_K": 483.15
-              }
-            ]
-          },
-          {
-            "module": "methanator",
-            "params": {
-              "mode": "adiabatic"
-            },
-            "feeds": [
-              {
-                "source": "prev",
-                "outlet": 0,
-                "setT_K": 573.15,
-                "remove": [
-                  "CO2"
-                ]
-              }
-            ]
+            "R": 2
           }
-        ]
-      },
+        }
+      ],
       "expect": {
-        "stages": 5,
-        "converged": true,
-        "h2_n2_dry": 3.000117,
-        "co_co2_ppm_dry": 0,
-        "ch4_pct_dry": 0.728817,
-        "final.mass_flow_kg_h": 76.468261
+        "details.D_kmol_h": 41.176471,
+        "details.B_kmol_h": 58.823529,
+        "details.Rmin": 1.325581,
+        "details.N_stages_total": 11,
+        "details.feed_stage": 6,
+        "mass_balance.closure_pct": 0,
+        "converged": true
       },
       "tol": {
-        "default": 0.000001,
-        "h2_n2_dry": 0.05,
-        "co_co2_ppm_dry": 10,
-        "ch4_pct_dry": 0.005,
-        "final.mass_flow_kg_h": 0.001
+        "details.D_kmol_h": 0.01,
+        "details.B_kmol_h": 0.01,
+        "details.Rmin": 0.01,
+        "details.N_stages_total": 1,
+        "details.feed_stage": 1,
+        "mass_balance.closure_pct": 0.000001,
+        "default": 0.000001
       },
-      "source": "END-TO-END INTEGRATION vector (Group K). Two checks are external design specs: H2/N2 ≈ 3 make-up gas (tol 0.05 covers the 3:1 loop target) and CO+CO2 < 10 ppm dry after methanation (Appl/Ullmann clean-up spec, expect 0 ± 10). The tighter pins on ch4_pct_dry and final.mass_flow_kg_h are regression anchors frozen from the composed part-4/part-5 solvers (each individually validated against external references in Groups I–J: MB-053..070). Air to the secondary reformer is metered to 45.2024 kg/h so the 3:1 target is met; interstage coolers and the CO2 wash are modelled as feed transforms, not solved units."
+      "source": "Benzene–toluene classic (Perry 1-atm x-y table). D/B exact algebra: D=F(z−xW)/(xD−xW)=100(0.45−0.10)/(0.95−0.10)=41.176. Rmin from q-line pinch (q=1): y*(0.45)=0.665 (table interp) → slope=(0.95−0.665)/(0.95−0.45)=0.570 → Rmin=1.3256. Fenske Nmin≈5.7, R/Rmin≈1.51 → Gilliland–Molokanov N≈11 (incl. partial reboiler)."
+    },
+    {
+      "id": "MB-072",
+      "desc": "distillation: total reflux (Fenske minimum stages), α=2.5, xD=0.95, xW=0.05",
+      "call": "runModule",
+      "args": [
+        "distillation",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8512.75,
+              "T_K": 366,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.45880590878388305
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.5411940912161171
+                }
+              ]
+            }
+          ],
+          "params": {
+            "light_key": "benzene",
+            "xD": 0.95,
+            "xW": 0.05,
+            "total_reflux": true,
+            "equilibrium": {
+              "mode": "alpha",
+              "alpha": 2.5
+            }
+          }
+        }
+      ],
+      "expect": {
+        "details.N_stages_total": 7,
+        "details.N_stages_fractional": 6.427,
+        "details.total_reflux": true,
+        "converged": true
+      },
+      "tol": {
+        "details.N_stages_total": 0.000001,
+        "details.N_stages_fractional": 0.2,
+        "default": 0.000001
+      },
+      "source": "Fenske minimum stages at total reflux: Nmin=ln[(xD/(1−xD))((1−xW)/xW)]/ln α = ln[(0.95/0.05)(0.95/0.05)]/ln2.5 = ln(361)/0.91629 = 6.427 (incl. partial reboiler). Graphical stair-step rounds up to 7 equilibrium stages."
+    },
+    {
+      "id": "MB-073",
+      "desc": "distillation: minimum reflux from q-line pinch (q=1), constant α=2.0",
+      "call": "runModule",
+      "args": [
+        "distillation",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8512.75,
+              "T_K": 366,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.45880590878388305
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.5411940912161171
+                }
+              ]
+            }
+          ],
+          "params": {
+            "light_key": "benzene",
+            "xD": 0.9,
+            "xW": 0.1,
+            "q": 1,
+            "equilibrium": {
+              "mode": "alpha",
+              "alpha": 2
+            },
+            "R_factor": 1.5
+          }
+        }
+      ],
+      "expect": {
+        "details.Rmin": 1.4,
+        "details.D_kmol_h": 50,
+        "details.R_over_Rmin": 1.5,
+        "converged": true
+      },
+      "tol": {
+        "details.Rmin": 0.005,
+        "details.D_kmol_h": 0.01,
+        "details.R_over_Rmin": 0.000001,
+        "default": 0.000001
+      },
+      "source": "q-line pinch (q=1), α=2.0: y*(0.5)=2·0.5/(1+0.5)=0.6667 → slope_min=(0.9−0.6667)/(0.9−0.5)=0.5833 → Rmin=0.5833/(1−0.5833)=1.400. D=F(z−xW)/(xD−xW)=100(0.5−0.1)/(0.9−0.1)=50."
+    },
+    {
+      "id": "MB-074",
+      "desc": "distillation: saturated-vapour feed (q=0) q-line pinch, α=2.5",
+      "call": "runModule",
+      "args": [
+        "distillation",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 8512.75,
+              "T_K": 366,
+              "P_bar": 1.01325,
+              "components": [
+                {
+                  "key": "benzene",
+                  "mass_fraction": 0.45880590878388305
+                },
+                {
+                  "key": "toluene",
+                  "mass_fraction": 0.5411940912161171
+                }
+              ]
+            }
+          ],
+          "params": {
+            "light_key": "benzene",
+            "xD": 0.95,
+            "xW": 0.05,
+            "q": 0,
+            "equilibrium": {
+              "mode": "alpha",
+              "alpha": 2.5
+            },
+            "R_factor": 1.5
+          }
+        }
+      ],
+      "expect": {
+        "details.Rmin": 2.1,
+        "details.pinch.x": 0.285714,
+        "details.pinch.y": 0.5,
+        "converged": true
+      },
+      "tol": {
+        "details.Rmin": 0.02,
+        "details.pinch.x": 0.002,
+        "details.pinch.y": 0.000001,
+        "default": 0.000001
+      },
+      "source": "Saturated-vapour feed: q-line is horizontal y=z=0.5. Pinch x=z/(α−(α−1)z)=0.5/(2.5−1.5·0.5)=0.2857. slope_min=(0.95−0.5)/(0.95−0.2857)=0.6774 → Rmin=0.6774/(1−0.6774)=2.100."
+    },
+    {
+      "id": "MB-075",
+      "desc": "absorber (Kremser): solve N for outlet target, A=1.5",
+      "call": "runModule",
+      "args": [
+        "absorber",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 300,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.98
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.02
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "absorber",
+            "solve": "N",
+            "m": 0.5,
+            "V_kmol_h": 100,
+            "L_kmol_h": 75,
+            "y_in": 0.02,
+            "x_in": 0,
+            "y_out_target": 0.001
+          }
+        }
+      ],
+      "expect": {
+        "details.absorption_factor_A": 1.5,
+        "details.N_theoretical": 4.913937,
+        "details.N_stages": 5,
+        "details.y_out": 0.001,
+        "converged": true
+      },
+      "tol": {
+        "details.absorption_factor_A": 0.000001,
+        "details.N_theoretical": 0.01,
+        "details.N_stages": 0.000001,
+        "details.y_out": 1e-9,
+        "default": 0.000001
+      },
+      "source": "Kremser absorber, A=L/(mV)=75/(0.5·100)=1.5. φ=(y_in−m·x0)/(y_out−m·x0)=0.02/0.001=20. N=ln[φ(1−1/A)+1/A]/ln A = ln[20·0.3333+0.6667]/ln1.5 = ln(7.3333)/0.40546 = 4.914."
+    },
+    {
+      "id": "MB-076",
+      "desc": "absorber (Kremser): solve outlet y for given N=5, A=1.5 (round-trip of MB-075)",
+      "call": "runModule",
+      "args": [
+        "absorber",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 300,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.98
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.02
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "absorber",
+            "solve": "y_out",
+            "m": 0.5,
+            "V_kmol_h": 100,
+            "L_kmol_h": 75,
+            "y_in": 0.02,
+            "x_in": 0,
+            "N": 5
+          }
+        }
+      ],
+      "expect": {
+        "details.absorption_factor_A": 1.5,
+        "details.y_out": 0.000962,
+        "details.fraction_transferred": 0.95188,
+        "converged": true
+      },
+      "tol": {
+        "details.absorption_factor_A": 0.000001,
+        "details.y_out": 0.000002,
+        "details.fraction_transferred": 0.0001,
+        "default": 0.000001
+      },
+      "source": "Kremser, A=1.5, N=5: fraction removed = (A^{N+1}−A)/(A^{N+1}−1) = (1.5^6−1.5)/(1.5^6−1) = 9.8906/10.3906 = 0.95188. y_out = y_in(1−0.95188) = 0.02·0.04812 = 9.62e-4."
+    },
+    {
+      "id": "MB-077",
+      "desc": "absorber (Kremser): A=1 degenerate branch, solve N",
+      "call": "runModule",
+      "args": [
+        "absorber",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 300,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.98
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.02
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "absorber",
+            "solve": "N",
+            "m": 1,
+            "V_kmol_h": 100,
+            "L_kmol_h": 100,
+            "y_in": 0.01,
+            "x_in": 0,
+            "y_out_target": 0.001
+          }
+        }
+      ],
+      "expect": {
+        "details.absorption_factor_A": 1,
+        "details.N_theoretical": 9,
+        "details.N_stages": 9,
+        "converged": true
+      },
+      "tol": {
+        "details.absorption_factor_A": 0.000001,
+        "details.N_theoretical": 0.000001,
+        "details.N_stages": 0.000001,
+        "default": 0.000001
+      },
+      "source": "Kremser degenerate A=1 (L=mV): the geometric series collapses to N=φ−1 with φ=y_in/y_out=0.01/0.001=10 → N=9."
+    },
+    {
+      "id": "MB-078",
+      "desc": "stripper (Kremser): solve N, stripping factor S=1.5",
+      "call": "runModule",
+      "args": [
+        "absorber",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 1000,
+              "T_K": 300,
+              "P_bar": 1,
+              "components": [
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.98
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.02
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "stripper",
+            "solve": "N",
+            "m": 2,
+            "V_kmol_h": 100,
+            "L_kmol_h": 133.333333,
+            "x_in": 0.005,
+            "y_in": 0,
+            "x_out_target": 0.0005
+          }
+        }
+      ],
+      "expect": {
+        "details.stripping_factor_S": 1.5,
+        "details.N_theoretical": 3.419023,
+        "details.N_stages": 4,
+        "details.x_out": 0.0005,
+        "converged": true
+      },
+      "tol": {
+        "details.stripping_factor_S": 0.00001,
+        "details.N_theoretical": 0.01,
+        "details.N_stages": 0.000001,
+        "details.x_out": 1e-9,
+        "default": 0.000001
+      },
+      "source": "Kremser stripper, S=mV/L=2·100/133.33=1.5. φ=(x_in−y_in/m)/(x_out−y_in/m)=0.005/0.0005=10. N=ln[φ(1−1/S)+1/S]/ln S = ln(4)/ln1.5 = 1.38629/0.40546 = 3.419."
     }
   ]
 }
