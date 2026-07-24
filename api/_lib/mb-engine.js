@@ -46,8 +46,9 @@ import fluids from './fluids.js';
 import mbData from './mb-data.js';
 import if97 from './if97.js';
 import eos from './eos.js';
+import urea from './mb-urea.js';
 
-const ENGINE_VERSION = 'mb-engine 0.10.0 (parts 1+2+3+4+5+6 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber)';
+const ENGINE_VERSION = 'mb-engine 0.10.0 (parts 1+2+3+4+5+6 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + urea HP section & solids)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
