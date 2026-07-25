@@ -36,7 +36,7 @@
   --accent:#35d0ba; --amber:#f5b02e; --amber-dim:#8a6a24;
   --ok:#3ddc84; --warn:#f5b02e; --err:#ff6b6b;
   --cat-mixing:#35d0ba; --cat-separation:#b48bf2; --cat-heat:#ff9550;
-  --cat-pressure:#58a6ff; --cat-reaction:#ff6b6b;
+  --cat-pressure:#58a6ff; --cat-reaction:#ff6b6b; --cat-solids:#b07d3a;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --r:10px; --tap:48px;
@@ -463,7 +463,7 @@ function toast(msg, kind) {
 const CAT_COLORS = {
   mixing: 'var(--cat-mixing)', separation: 'var(--cat-separation)',
   heat: 'var(--cat-heat)', pressure: 'var(--cat-pressure)',
-  reaction: 'var(--cat-reaction)',
+  reaction: 'var(--cat-reaction)', solids: 'var(--cat-solids)',
 };
 
 const MODULE_DEFS = {
@@ -625,8 +625,114 @@ const MODULE_DEFS = {
     ],
     note: 'Kremser dilute-solute model: constant L, V and linear equilibrium y = m·x. Stream-level mass & energy balances are not computed.',
   },
+  'urea-reactor': {
+    label: 'Urea Reactor', sym: 'UR', category: 'reaction',
+    desc: 'HP synthesis · empirical X(N/C, H\u2082O/C, T) · EMPIRICAL ESTIMATE',
+    inlets: { min: 1, max: 4, initial: 2,
+      label: (i) => ['Fresh NH\u2083', 'Carbamate solution', 'Recycle', 'Extra feed'][i] || ('Inlet ' + (i + 1)) },
+    outlets: () => ['Urea melt'],
+    fields: [
+      { key: 'mode', kind: 'select', label: 'Thermal mode', def: 'adiabatic',
+        options: [['adiabatic', 'Adiabatic (solve outlet T)'],
+                  ['specified_T', 'Specified reactor T'],
+                  ['isothermal', 'Isothermal (T out = mixed feed T)']] },
+      { key: 'T_out_K', kind: 'temperature', label: 'Reactor temperature',
+        showIf: (p) => p.mode === 'specified_T', required: (p) => p.mode === 'specified_T',
+        hint: 'plant range 183\u2013190 \u00b0C' },
+      { key: 'Q_kW', kind: 'number', label: 'External duty Q', unit: 'kW',
+        showIf: (p) => p.mode === 'adiabatic', hint: 'optional, + into the melt' },
+      { key: 'P_bar', kind: 'pressure', label: 'Reactor pressure',
+        hint: 'blank = lowest inlet P \u00b7 envelope 130\u2013200 bar' },
+      { key: 'eta_approach', kind: 'number', label: 'Approach factor \u03b7', unit: '\u2013', def: 1.0,
+        hint: 'residence time / holdup knob \u00b7 1.0 = design' },
+      { key: 'X_co2', kind: 'number', label: 'Override conversion X', unit: 'frac',
+        hint: 'blank = use the correlation \u00b7 plant tuning only' },
+      { key: 'carbamate_fraction', kind: 'number', label: 'Residue as carbamate', unit: 'frac',
+        hint: 'blank = 0.97' },
+      { key: 'biuret_pct', kind: 'number', label: 'Biuret override', unit: 'wt% of urea',
+        hint: 'blank = correlated from T and N/C' },
+    ],
+    note: 'EMPIRICAL ESTIMATE. Conversion comes from a tuned correlation valid for N/C 2.5\u20134.5, H\u2082O/C 0\u20131.2, 170\u2013200 \u00b0C, 130\u2013200 bar \u2014 not rigorous urea VLE. Balances only; not a design guarantee.',
+  },
+  'hp-stripper': {
+    label: 'HP Carbamate Stripper', sym: 'HS', category: 'separation',
+    desc: 'Falling film \u00b7 decomposition + strip gas \u00b7 MP steam via IF97',
+    inlets: { min: 1, max: 2, initial: 2,
+      label: (i) => i === 0 ? 'Urea melt' : 'Strip gas (CO\u2082 / NH\u2083)' },
+    outlets: () => ['Off-gas', 'Urea solution'],
+    fields: [
+      { key: 'decomposition_efficiency', kind: 'number', label: 'Carbamate decomposition', unit: 'frac',
+        def: 0.80, required: () => true },
+      { key: 'nh3_strip_efficiency', kind: 'number', label: 'NH\u2083 stripped to gas', unit: 'frac', def: 0.85 },
+      { key: 'co2_strip_efficiency', kind: 'number', label: 'CO\u2082 stripped to gas', unit: 'frac', def: 0.97 },
+      { key: 'h2o_to_gas_fraction', kind: 'number', label: 'Water carried over', unit: 'frac', def: 0.03 },
+      { key: 'T_out_K', kind: 'temperature', label: 'Bottom temperature',
+        hint: 'blank = feed T \u00b7 plant 185\u2013200 \u00b0C' },
+      { key: 'T_gas_out_K', kind: 'temperature', label: 'Top gas temperature', hint: 'blank = bottom T' },
+      { key: 'P_bar', kind: 'pressure', label: 'Stripper pressure', hint: 'blank = feed P' },
+      { key: 'steam_P_bar', kind: 'pressure', label: 'MP heating steam', def: 23,
+        hint: 'sets Tsat and hfg from IF97' },
+    ],
+  },
+  'urea-hp-loop': {
+    label: 'Urea HP Loop', sym: 'HL', category: 'reaction',
+    desc: 'Reactor \u2192 stripper \u2192 carbamate condenser \u00b7 Wegstein tear',
+    inlets: { min: 2, max: 3, initial: 3,
+      label: (i) => ['Fresh NH\u2083', 'Fresh CO\u2082', 'LP carbamate recycle'][i] },
+    outlets: () => ['Urea solution', 'HP vent'],
+    fields: [
+      { key: 'P_bar', kind: 'pressure', label: 'Loop pressure', def: 150, required: () => true },
+      { key: 'strip_gas_fraction', kind: 'number', label: 'Fresh CO\u2082 to stripper', unit: 'frac', def: 1.0,
+        hint: '1.0 = full CO\u2082-stripping layout \u00b7 0 = all CO\u2082 to the condenser' },
+      { key: 'reactor_T_out_K', kind: 'temperature', label: 'Reactor temperature', def: 458.15 },
+      { key: 'stripper_decomposition_efficiency', kind: 'number', label: 'Stripper decomposition',
+        unit: 'frac', def: 0.82 },
+      { key: 'stripper_T_out_K', kind: 'temperature', label: 'Stripper bottom T', def: 463.15 },
+      { key: 'stripper_steam_P_bar', kind: 'pressure', label: 'MP stripping steam', def: 23 },
+      { key: 'condenser_T_K', kind: 'temperature', label: 'HP condenser T', def: 443.15 },
+      { key: 'condensation_fraction', kind: 'number', label: 'Condensation fraction', unit: 'frac', def: 0.95 },
+      { key: 'condenser_steam_P_bar', kind: 'pressure', label: 'LP steam raised', def: 4.5 },
+      { key: 'vent_fraction', kind: 'number', label: 'NH\u2083/CO\u2082 slip to vent', unit: 'frac', def: 0,
+        hint: 'inerts always vent; this adds a deliberate slip' },
+    ],
+    note: 'EMPIRICAL ESTIMATE. The HP carbamate recycle is the converged tear and is internal, so the mass balance closes on fresh NH\u2083 + fresh CO\u2082 + LP recycle against the urea solution and vent.',
+  },
+  'sls': {
+    label: 'Solid\u2013Liquid Separator', sym: 'SL', category: 'solids',
+    desc: 'Centrifuge / filter \u00b7 recovery + cake moisture',
+    inlets: { min: 1, max: 1, initial: 1, label: () => 'Slurry' },
+    outlets: () => ['Cake', 'Mother liquor'],
+    fields: [
+      { key: 'recovery', kind: 'number', label: 'Solids recovery to cake', unit: 'frac', def: 0.98,
+        required: () => true },
+      { key: 'cake_moisture', kind: 'number', label: 'Cake moisture', unit: 'mass frac', def: 0.05,
+        required: () => true, hint: 'adhering mother liquor \u00b7 urea centrifuge 0.03\u20130.08' },
+      { key: 'T_out_K', kind: 'temperature', label: 'Outlet temperature', hint: 'blank = feed T' },
+      { key: 'P_bar', kind: 'pressure', label: 'Outlet pressure', hint: 'blank = feed P' },
+    ],
+    note: 'Solids are the components flagged non-volatile in the library (urea, carbamate, biuret, salts).',
+  },
+  'dryer': {
+    label: 'Dryer', sym: 'DR', category: 'solids',
+    desc: 'Target moisture \u00b7 evaporation \u00b7 full gas-side balance',
+    inlets: { min: 2, max: 2, initial: 2, label: (i) => i === 0 ? 'Wet solids' : 'Drying gas' },
+    outlets: () => ['Dried product', 'Exhaust gas'],
+    fields: [
+      { key: 'target_moisture', kind: 'number', label: 'Product moisture', unit: 'mass frac', def: 0.003,
+        required: () => true, hint: 'urea prills / granules 0.002\u20130.005' },
+      { key: 'mode', kind: 'select', label: 'Solve mode', def: 'specified_T',
+        options: [['specified_T', 'Specified exhaust T'], ['adiabatic', 'Adiabatic (solve exhaust T)']] },
+      { key: 'T_gas_out_K', kind: 'temperature', label: 'Exhaust temperature',
+        showIf: (p) => p.mode === 'specified_T', required: (p) => p.mode === 'specified_T' },
+      { key: 'T_solid_out_K', kind: 'temperature', label: 'Product temperature',
+        hint: 'blank = gas inlet T \u2212 20 K' },
+      { key: 'P_bar', kind: 'pressure', label: 'Outlet pressure', hint: 'blank = solids feed P' },
+    ],
+    note: 'The exhaust is checked against the water dew point; a condensation warning fires above 90 % relative saturation.',
+  },
 };
-const PALETTE_ORDER = ['mixer', 'splitter', 'flash', 'heat-exchanger', 'rotating', 'reactor', 'distillation', 'absorber'];
+const PALETTE_ORDER = ['mixer', 'splitter', 'flash', 'heat-exchanger', 'rotating', 'reactor',
+  'distillation', 'absorber', 'urea-reactor', 'hp-stripper', 'urea-hp-loop', 'sls', 'dryer'];
 
 /* =====================================================================
    1b. SEQUENTIAL-CHAIN TEMPLATES (Step 15) — client-side runner + picker
@@ -1810,6 +1916,29 @@ function buildBody(u) {
     if (u.params.solve === 'out') { params.solve = u.params.mode === 'stripper' ? 'x_out' : 'y_out'; }
     else { params.solve = 'N'; }
   }
+  /* urea HP loop — the solver takes nested param groups, the UI is flat */
+  if (u.module === 'urea-hp-loop') {
+    const f = params;
+    return {
+      streams,
+      params: {
+        P_bar: f.P_bar,
+        strip_gas_fraction: f.strip_gas_fraction,
+        reactor: { mode: 'specified_T', T_out_K: f.reactor_T_out_K },
+        stripper: {
+          decomposition_efficiency: f.stripper_decomposition_efficiency,
+          T_out_K: f.stripper_T_out_K,
+          steam_P_bar: f.stripper_steam_P_bar,
+        },
+        condenser: {
+          condenser_T_K: f.condenser_T_K,
+          condensation_fraction: f.condensation_fraction,
+          condenser_steam_P_bar: f.condenser_steam_P_bar,
+          vent_fraction: f.vent_fraction,
+        },
+      },
+    };
+  }
   return { streams, params };
 }
 
@@ -1866,6 +1995,20 @@ function renderResults(u) {
       ' / out ' + fmt(R.mass_balance.out) + ' kg/h' +
       (conv ? '' : '  ·  NOT CONVERGED (' + (R.iterations || 0) + ' it)')));
   wrap.append(b);
+
+  /* empirical-correlation banner (urea modules set details.estimate_flag) */
+  const D = R.details || {};
+  if (D.estimate_flag) {
+    const co = D.correlation || (D.reactor && D.reactor.correlation) || {};
+    const outside = co.envelope_ok === false;
+    wrap.append(el('div', { class: 'banner warn' },
+      el('span', { class: 'dot' }),
+      el('span', null, D.estimate_flag + '  ·  ' +
+        (outside
+          ? 'OUTSIDE the validity envelope (' + (co.envelope_breaches || []).join(', ') + ')'
+          : 'tuned correlation, inside its stated envelope') +
+        '  ·  balances only, not a design guarantee')));
+  }
 
   /* energy line */
   const eb = R.energy_balance || {};
