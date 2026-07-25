@@ -1848,4 +1848,6 @@ export default {
   register,
   loadCorrelations,
   correlation,
-  
+  resetCorrelations,
+  CORRELATION_FALLBACK,
+};
