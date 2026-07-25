@@ -735,12 +735,79 @@ const PALETTE_ORDER = ['mixer', 'splitter', 'flash', 'heat-exchanger', 'rotating
   'distillation', 'absorber', 'urea-reactor', 'hp-stripper', 'urea-hp-loop', 'sls', 'dryer'];
 
 /* =====================================================================
-   1b. SEQUENTIAL-CHAIN TEMPLATES (Step 15) — client-side runner + picker
+   1b. SEQUENTIAL-CHAIN TEMPLATES (Step 15 + input layer)
    Runs a ready-made chain end to end via the one-module API, forwarding
    each outlet to the next unit's feed. Adds no thermodynamics; every stage
-   is solved server-side exactly like solveUnit. Data mirrors mb-templates.json.
-   Self-contained: needs no MODULE_DEFS entries for smr/shift/methanator.
+   is solved server-side exactly like solveUnit.
+
+   Templates are now PARAMETRIC: each def carries an `inputs` schema and a
+   build(v, nAir) that turns user values into the step list. The picker
+   opens an input sheet; the chain runs on the user's own numbers.
 ===================================================================== */
+
+/* fallback MWs so the input layer works before componentsDB lands */
+const TPL_MW = {
+  CH4: 16.043, C2H6: 30.070, C3H8: 44.097, nC4H10: 58.123,
+  H2O: 18.015, O2: 31.998, N2: 28.014, Ar: 39.948,
+};
+function mwOf(k) {
+  const c = compByKey && compByKey[k];
+  return (c && num(c.mw) && c.mw > 0) ? c.mw : TPL_MW[k];
+}
+
+/* dry-air molar composition (21/78/1 — matches the frozen vector to 3e-4 rel.) */
+const AIR_Y = { O2: 0.2100, N2: 0.7800, Ar: 0.0100 };
+
+/* ---------------------------------------------------------------------
+   SEED BUILDERS — user values → base-SI inlet streams.
+--------------------------------------------------------------------- */
+const NG_KEYS = ['CH4', 'C2H6', 'C3H8', 'nC4H10'];
+const NG_CARBON = { CH4: 1, C2H6: 2, C3H8: 3, nC4H10: 4 };
+
+/** Carbon atoms per mol of dry NG, from normalised mole fractions. */
+function ngCarbonPerMol(yn) {
+  return NG_KEYS.reduce((a, k, i) => a + yn[i] * NG_CARBON[k], 0);
+}
+function ngNormalised(v) {
+  const y = NG_KEYS.map((k) => Math.max(0, num(v['y_' + k]) ? v['y_' + k] : 0));
+  const s = y.reduce((a, b) => a + b, 0);
+  if (s <= 0) throw new Error('Natural-gas composition is empty');
+  return y.map((x) => x / s);
+}
+
+/** Mixed NG + process-steam feed to the primary reformer. */
+function ngSteamSeed(v) {
+  const yn = ngNormalised(v);
+  const nNG = v.ng_kmol_h;
+  if (!num(nNG) || nNG <= 0) throw new Error('Natural-gas flow must be > 0');
+  const nSteam = nNG * ngCarbonPerMol(yn) * v.s_c;
+  const mHC = NG_KEYS.map((k, i) => nNG * yn[i] * mwOf(k));
+  const mH2O = nSteam * mwOf('H2O');
+  const tot = mHC.reduce((a, b) => a + b, 0) + mH2O;
+  const components = NG_KEYS
+    .map((k, i) => ({ key: k, mass_fraction: mHC[i] / tot }))
+    .filter((c) => c.mass_fraction > 0);
+  components.push({ key: 'H2O', mass_fraction: mH2O / tot });
+  return {
+    mass_flow_kg_h: tot, T_K: v.T_feed_C + 273.15, P_bar: v.P_bar, components,
+    _label: 'Natural gas + steam (S/C ' + fmt(v.s_c, 3) + ')',
+  };
+}
+
+/** Process air to the secondary reformer, at a given molar flow. */
+function airSeed(v, nAir) {
+  if (!num(nAir) || nAir <= 0) throw new Error('Air flow must be > 0');
+  const m = {}; let tot = 0;
+  for (const k in AIR_Y) { m[k] = nAir * AIR_Y[k] * mwOf(k); tot += m[k]; }
+  return {
+    mass_flow_kg_h: tot, T_K: v.T_air_C + 273.15, P_bar: v.P_bar,
+    components: Object.keys(AIR_Y).map((k) => ({ key: k, mass_fraction: m[k] / tot })),
+  };
+}
+
+/* ---------------------------------------------------------------------
+   TEMPLATE DEFINITIONS
+--------------------------------------------------------------------- */
 const TEMPLATE_DEFS = [
   {
     id: 'ammonia-front-end',
@@ -750,62 +817,92 @@ const TEMPLATE_DEFS = [
     notes: 'Air to the secondary reformer is metered so the methanated syngas leaves at ' +
            'H₂/N₂ ≈ 3. Interstage coolers and the CO₂ wash are modelled as feed transforms.',
     endpoint: { metric: 'h2_n2_dry', label: 'H₂/N₂ (dry)', target: 3.0, tol: 0.15 },
-    steps: [
-      {
-        module: 'smr', label: 'Primary reformer (SMR, fired)',
-        params: { mode: 'fired', T_out_K: 1073.15, P_out_bar: 30 },
-        feeds: [{
-          source: 'seed', label: 'Natural gas + steam (S/C 3.0)',
-          mass_flow_kg_h: 80.29869, T_K: 1073.15, P_bar: 30,
-          components: [
-            { key: 'CH4', mass_fraction: 0.1798124 },
-            { key: 'C2H6', mass_fraction: 0.02246786 },
-            { key: 'C3H8', mass_fraction: 0.01647449 },
-            { key: 'nC4H10', mass_fraction: 0.00723823 },
-            { key: 'H2O', mass_fraction: 0.77400702 },
-          ],
-        }],
-      },
-      {
-        module: 'smr', label: 'Secondary reformer (air-blown, adiabatic)',
-        params: { mode: 'secondary', P_out_bar: 30 },
-        feeds: [
-          { source: 'prev', outlet: 0, label: 'Primary effluent' },
-          {
-            source: 'seed', label: 'Process air (metered for 3:1 H₂/N₂)',
-            mass_flow_kg_h: 45.202381, T_K: 823.15, P_bar: 30,
-            components: [
-              { key: 'O2', mass_fraction: 0.23195601 },
-              { key: 'N2', mass_fraction: 0.75425417 },
-              { key: 'Ar', mass_fraction: 0.01378982 },
-            ],
-          },
-        ],
-      },
-      {
-        module: 'shift', label: 'HT shift (HTS, adiabatic)',
-        params: { preset: 'hts', mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 633.15,
-          note: 'cooled in the process-gas boiler to ~360 °C before HTS' }],
-      },
-      {
-        module: 'shift', label: 'LT shift (LTS, adiabatic)',
-        params: { preset: 'lts', mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 483.15,
-          note: 'cooled to ~210 °C between HTS and LTS' }],
-      },
-      {
-        module: 'methanator', label: 'Methanator (adiabatic)',
-        params: { mode: 'adiabatic' },
-        feeds: [{ source: 'prev', outlet: 0, setT_K: 573.15, remove: ['CO2'],
-          note: 'CO₂ removed in the wash; gas cooled to ~300 °C before methanation' }],
-      },
+
+    /* the knob that the auto-solver turns, in the units of build()'s nAir */
+    solveFor: { key: 'air_kmol_h', label: 'Process air', unit: 'kmol/h' },
+
+    inputs: [
+      { group: 'Natural gas feed' },
+      { key: 'ng_kmol_h', label: 'Dry NG flow', unit: 'kmol/h', def: 1.0, min: 1e-6,
+        hint: 'scale freely — everything downstream scales with it' },
+      { key: 'y_CH4', label: 'CH₄', unit: 'mol %', def: 90, min: 0 },
+      { key: 'y_C2H6', label: 'C₂H₆', unit: 'mol %', def: 6, min: 0 },
+      { key: 'y_C3H8', label: 'C₃H₈', unit: 'mol %', def: 3, min: 0 },
+      { key: 'y_nC4H10', label: 'n-C₄H₁₀', unit: 'mol %', def: 1, min: 0,
+        hint: 'renormalised automatically' },
+
+      { group: 'Primary reformer (fired)' },
+      { key: 's_c', label: 'Steam / carbon', unit: 'mol/mol', def: 3.0, min: 0.5,
+        hint: 'ammonia plants run 2.8–3.5' },
+      { key: 'P_bar', label: 'Reforming pressure', unit: 'bar', def: 30, min: 1 },
+      { key: 'T_feed_C', label: 'Mixed-feed inlet T', unit: '°C', def: 800,
+        hint: 'affects fired duty only, not the outlet composition' },
+      { key: 'T_pri_C', label: 'Primary outlet T', unit: '°C', def: 800, min: 400,
+        hint: 'sets CH₄ slip — 780–830 °C typical' },
+
+      { group: 'Secondary reformer' },
+      { key: 'T_air_C', label: 'Air preheat T', unit: '°C', def: 550 },
+      { key: 'air_kmol_h', label: 'Process air', unit: 'kmol/h', def: 1.5603, min: 1e-6,
+        hint: 'ignored when auto-solve for 3:1 is on' },
+
+      { group: 'Shift + methanation' },
+      { key: 'T_hts_C', label: 'HTS inlet T', unit: '°C', def: 360, min: 250 },
+      { key: 'T_lts_C', label: 'LTS inlet T', unit: '°C', def: 210, min: 150 },
+      { key: 'T_meth_C', label: 'Methanator inlet T', unit: '°C', def: 300, min: 200 },
+      { key: 'co2_removal_pct', label: 'CO₂ wash removal', unit: '%', def: 100, min: 0, max: 100,
+        hint: '100 % = perfect wash; anything left is methanated and eats H₂' },
     ],
+
+    build(v, nAir) {
+      const air = num(nAir) ? nAir : v.air_kmol_h;
+      return [
+        {
+          module: 'smr', label: 'Primary reformer (SMR, fired)',
+          params: { mode: 'fired', T_out_K: v.T_pri_C + 273.15, P_out_bar: v.P_bar },
+          feeds: [Object.assign({ source: 'seed' }, ngSteamSeed(v))],
+        },
+        {
+          module: 'smr', label: 'Secondary reformer (air-blown, adiabatic)',
+          params: { mode: 'secondary', P_out_bar: v.P_bar },
+          feeds: [
+            { source: 'prev', outlet: 0, label: 'Primary effluent' },
+            Object.assign({ source: 'seed', label: 'Process air ' + fmt(air, 5) + ' kmol/h' },
+              airSeed(v, air)),
+          ],
+        },
+        {
+          module: 'shift', label: 'HT shift (HTS, adiabatic)',
+          params: { preset: 'hts', mode: 'adiabatic' },
+          feeds: [{ source: 'prev', outlet: 0, setT_K: v.T_hts_C + 273.15,
+            note: 'cooled in the process-gas boiler to ' + fmt(v.T_hts_C, 4) + ' °C before HTS' }],
+        },
+        {
+          module: 'shift', label: 'LT shift (LTS, adiabatic)',
+          params: { preset: 'lts', mode: 'adiabatic' },
+          feeds: [{ source: 'prev', outlet: 0, setT_K: v.T_lts_C + 273.15,
+            note: 'cooled to ' + fmt(v.T_lts_C, 4) + ' °C between HTS and LTS' }],
+        },
+        {
+          module: 'methanator', label: 'Methanator (adiabatic)',
+          params: { mode: 'adiabatic' },
+          feeds: [{ source: 'prev', outlet: 0, setT_K: v.T_meth_C + 273.15,
+            removeFrac: { CO2: v.co2_removal_pct / 100 },
+            note: 'CO₂ wash removes ' + fmt(v.co2_removal_pct, 4) +
+                  ' %; gas cooled to ' + fmt(v.T_meth_C, 4) + ' °C before methanation' }],
+        },
+      ];
+    },
   },
 ];
 
+function tplDefaults(tpl) {
+  const v = {};
+  for (const f of tpl.inputs) if (f.key) v[f.key] = f.def;
+  return v;
+}
+
 /* ---------------------------------------------------------------------
-   STREAM BUILDERS — turn a template feed into a base-SI inlet stream.
+   STREAM BUILDERS — template feed → base-SI inlet stream.
 --------------------------------------------------------------------- */
 /** Literal seed stream → API inlet shape (mass fractions renormalised). */
 function tplSeedStream(f) {
@@ -818,17 +915,24 @@ function tplSeedStream(f) {
 
 /** Forward a solved outlet as the next inlet, applying feed transforms.
  *  setT_K/setP_bar = interstage cooler / pressure change;
- *  remove[]        = near-perfect component split (mass leaves with it). */
+ *  remove[]        = perfect component split;
+ *  removeFrac{}    = partial split, e.g. { CO2: 0.98 } for a real wash. */
 function tplForwardStream(outlet, f) {
   let comps = (outlet.components || []).map((c) => ({ key: c.key, mass_fraction: c.mass_fraction }));
   let mass = outlet.mass_flow_kg_h;
-  if (f.remove && f.remove.length) {
-    const removed = comps
-      .filter((c) => f.remove.includes(c.key))
-      .reduce((a, c) => a + c.mass_fraction * mass, 0);
+  const frac = Object.assign({}, f.removeFrac || {});
+  for (const k of (f.remove || [])) frac[k] = 1;
+  if (Object.keys(frac).length) {
+    let removed = 0;
+    comps = comps.map((c) => {
+      const r = num(frac[c.key]) ? Math.min(1, Math.max(0, frac[c.key])) : 0;
+      if (!r) return c;
+      removed += c.mass_fraction * mass * r;
+      return { key: c.key, mass_fraction: c.mass_fraction * (1 - r) };
+    }).filter((c) => c.mass_fraction > 1e-12);
     mass -= removed;
-    comps = comps.filter((c) => !f.remove.includes(c.key));
   }
+  if (!(mass > 0)) throw new Error('feed transform removed the whole stream');
   const s = comps.reduce((a, c) => a + c.mass_fraction, 0) || 1;
   comps = comps.map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / s }));
   return {
@@ -860,23 +964,29 @@ async function solveModule(module, streams, params) {
   return { result: j.result, warnings: j.warnings || [], engineVersion: j.engine_version || '' };
 }
 
-/** Run a template end to end, forwarding outlets. `onStage(i, step)` fires
- *  before each solve for progress UI. Returns the list of solved stages. */
-async function runTemplate(tpl, onStage) {
+/** Solve one built step given the already-solved stages before it. */
+async function tplSolveStep(step, stages, i) {
+  const streams = step.feeds.map((f) => {
+    if (f.source === 'seed') return tplSeedStream(f);
+    const prev = stages[i - 1];
+    if (!prev) throw new Error(step.label + ': nothing to forward from');
+    const out = prev.result.streams_out[f.outlet || 0];
+    if (!out) throw new Error(step.label + ': previous stage has no outlet ' + (f.outlet || 0));
+    return tplForwardStream(out, f);
+  });
+  const solved = await solveModule(step.module, streams, step.params);
+  return { step, ...solved };
+}
+
+/** Run a parametric chain end to end. `from` lets the air solver reuse a
+ *  cached stage 0 (the primary reformer never sees the air flow). */
+async function runTemplate(tpl, v, nAir, onStage, cache) {
+  const steps = tpl.build(v, nAir);
   const stages = [];
-  for (let i = 0; i < tpl.steps.length; i++) {
-    const step = tpl.steps[i];
-    if (onStage) onStage(i, step);
-    const streams = step.feeds.map((f) => {
-      if (f.source === 'seed') return tplSeedStream(f);
-      const prev = stages[i - 1];
-      if (!prev) throw new Error(step.label + ': nothing to forward from');
-      const out = prev.result.streams_out[f.outlet || 0];
-      if (!out) throw new Error(step.label + ': previous stage has no outlet ' + (f.outlet || 0));
-      return tplForwardStream(out, f);
-    });
-    const solved = await solveModule(step.module, streams, step.params);
-    stages.push({ step, ...solved });
+  for (let i = 0; i < steps.length; i++) {
+    if (cache && cache[i]) { stages.push(cache[i]); continue; }
+    if (onStage) onStage(i, steps[i]);
+    stages.push(await tplSolveStep(steps[i], stages, i));
   }
   return stages;
 }
@@ -888,7 +998,7 @@ function chainDryMolar(stream) {
   const n = {}; let tot = 0;
   for (const c of (stream.components || [])) {
     if (c.key === 'H2O') continue;
-    const mw = compByKey[c.key] && compByKey[c.key].mw;
+    const mw = mwOf(c.key);
     if (!num(mw) || mw <= 0) continue;
     const ni = (c.mass_fraction * stream.mass_flow_kg_h) / mw;
     n[c.key] = ni; tot += ni;
@@ -902,13 +1012,146 @@ function chainEndpoint(tpl, stages) {
   const ch4pct = (n.CH4 || 0) / (tot || 1) * 100;
   let value = NaN;
   if (tpl.endpoint && tpl.endpoint.metric === 'h2_n2_dry') value = (n.H2 || 0) / (n.N2 || NaN);
-  return { value, co2ppm, ch4pct };
+  return { value, co2ppm, ch4pct, dry_kmol_h: tot, n };
+}
+
+/* ---------------------------------------------------------------------
+   AIR SOLVER — secant on air flow to hit the endpoint target.
+   H₂/N₂ is monotonically decreasing in air, so the secant is well behaved.
+   Stage 0 is solved once and cached: 4 API calls per iteration, not 5.
+--------------------------------------------------------------------- */
+async function solveTemplateKnob(tpl, v, onIter) {
+  const target = tpl.endpoint.target;
+  const stage0 = await tplSolveStep(tpl.build(v, v.air_kmol_h)[0], [], 0);
+  const cache = { 0: stage0 };
+
+  const evalAt = async (x) => {
+    const stages = await runTemplate(tpl, v, x, null, cache);
+    const ep = chainEndpoint(tpl, stages);
+    return { x, f: ep.value - target, stages, ep };
+  };
+
+  /* scale the frozen default with NG throughput for a good first guess */
+  let a = await evalAt(1.5603 * v.ng_kmol_h);
+  if (onIter) onIter(1, a);
+  if (Math.abs(a.f) < 1e-4) return a;
+  let b = await evalAt(a.x * (a.f > 0 ? 1.08 : 0.92));
+  if (onIter) onIter(2, b);
+
+  for (let k = 3; k <= 12; k++) {
+    if (Math.abs(b.f) < 1e-4) return b;
+    const df = b.f - a.f;
+    if (!num(df) || df === 0) break;
+    let x = b.x - b.f * (b.x - a.x) / df;
+    if (!num(x) || x <= 0) break;
+    /* damp so a wild step can't push air negative or absurd */
+    x = Math.min(Math.max(x, b.x * 0.5), b.x * 2);
+    a = b;
+    b = await evalAt(x);
+    if (onIter) onIter(k, b);
+  }
+  return b;
+}
+
+/* ---------------------------------------------------------------------
+   INPUT SHEET — the thing that was missing.
+--------------------------------------------------------------------- */
+const tplVals = {};                       // last-used values, per template id
+function tplState(tpl) {
+  if (!tplVals[tpl.id]) tplVals[tpl.id] = tplDefaults(tpl);
+  return tplVals[tpl.id];
+}
+
+function openTemplateInputs(tpl, opts) {
+  const v = tplState(tpl);
+  const auto = { on: opts && 'auto' in opts ? opts.auto : true };
+
+  const box = el('div');
+  box.append(el('div', { class: 'grab' }),
+    el('div', { class: 'xrow' },
+      el('h3', null, tpl.label),
+      el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
+    el('div', { class: 'sub' }, tpl.desc));
+
+  /* auto-solve toggle for the endpoint */
+  const chk = el('input', { type: 'checkbox', id: 'tplAuto' });
+  chk.checked = auto.on;
+  chk.addEventListener('change', () => {
+    auto.on = chk.checked;
+    const f = box.querySelector('[data-fk="' + tpl.solveFor.key + '"]');
+    if (f) f.style.opacity = auto.on ? 0.45 : 1;
+  });
+  box.append(el('div', { class: 'banner warn', style: 'margin:10px 0' },
+    chk,
+    el('label', { for: 'tplAuto', style: 'cursor:pointer' },
+      'Solve ' + tpl.solveFor.label.toLowerCase() + ' for ' +
+      tpl.endpoint.label + ' = ' + tpl.endpoint.target)));
+
+  /* fields, grouped */
+  let grid = null;
+  for (const f of tpl.inputs) {
+    if (f.group) {
+      box.append(el('div', { class: 'sub', style: 'margin:12px 0 4px;color:var(--ink)' }, f.group));
+      grid = el('div', { class: 'pgrid' });
+      box.append(grid);
+      continue;
+    }
+    const inp = el('input', {
+      type: 'number', step: 'any', value: String(v[f.key]),
+      inputmode: 'decimal', 'aria-label': f.label,
+    });
+    inp.addEventListener('input', () => {
+      const x = parseFloat(inp.value);
+      if (num(x)) v[f.key] = x;
+    });
+    const wrap = el('div', { class: 'field', 'data-fk': f.key },
+      el('label', null, f.label + (f.unit ? ' · ' + f.unit : '')),
+      el('div', { class: 'duo' }, inp));
+    if (f.hint) wrap.append(el('div', { class: 'hint' }, f.hint));
+    if (f.key === tpl.solveFor.key) wrap.style.opacity = auto.on ? 0.45 : 1;
+    grid.append(wrap);
+  }
+
+  /* derived readout — S/C sanity, total feed mass, C flow */
+  const derived = el('div', { class: 'kv', style: 'margin-top:14px' });
+  const refresh = () => {
+    derived.textContent = '';
+    try {
+      const s = ngSteamSeed(v);
+      const yn = ngNormalised(v);
+      derived.append(
+        el('b', null, 'mixed feed'), el('span', null, fmt(s.mass_flow_kg_h) + ' kg/h'),
+        el('b', null, 'carbon in'), el('span', null,
+          fmt(v.ng_kmol_h * ngCarbonPerMol(yn), 5) + ' kmol C/h'),
+        el('b', null, 'steam'), el('span', null,
+          fmt(v.ng_kmol_h * ngCarbonPerMol(yn) * v.s_c, 5) + ' kmol/h'));
+    } catch (e) {
+      derived.append(el('b', null, 'feed'), el('span', null, e.message));
+    }
+  };
+  refresh();
+  box.append(derived);
+
+  const row = el('div', { class: 'rowbtns' });
+  row.append(
+    el('button', { class: 'sbtn', onclick: () => { refresh(); runTemplateFlow(tpl, auto.on); } },
+      '▶ Solve chain'),
+    el('button', { class: 'sbtn', onclick: () => {
+      tplVals[tpl.id] = tplDefaults(tpl);
+      openTemplateInputs(tpl, { auto: true });
+      toast('Reset to the reference case', 'info');
+    } }, '↺ Reset'),
+    el('button', { class: 'sbtn', onclick: closeSheet }, 'Cancel'));
+  box.append(row);
+  box.append(el('div', { class: 'hint', style: 'margin-top:10px' }, tpl.notes));
+
+  openSheet(box);
 }
 
 /* ---------------------------------------------------------------------
    REPORT — render the solved chain into the bottom sheet (mobile-first).
 --------------------------------------------------------------------- */
-function renderChainReport(tpl, stages) {
+function renderChainReport(tpl, stages, v, solvedKnob) {
   const box = el('div');
   box.append(el('div', { class: 'grab' }),
     el('div', { class: 'xrow' },
@@ -928,6 +1171,27 @@ function renderChainReport(tpl, stages) {
       (num(tgt.target) ? '  (target ≈ ' + tgt.target + ')' : '') +
       '  ·  CO+CO₂ ' + fmt(ep.co2ppm, 3) + ' ppm dry  ·  CH₄ ' + fmt(ep.ch4pct, 3) + ' % dry')));
 
+  if (num(solvedKnob)) {
+    box.append(el('div', { class: 'banner ok', style: 'margin-top:8px' },
+      el('span', { class: 'dot' }),
+      el('span', null, tpl.solveFor.label + ' solved = ' + fmt(solvedKnob, 6) +
+        ' ' + tpl.solveFor.unit)));
+  }
+
+  /* the inputs this run used — makes the result reproducible */
+  if (v) {
+    const ikv = el('div', { class: 'kv' });
+    for (const f of tpl.inputs) {
+      if (!f.key) continue;
+      const shown = (num(solvedKnob) && f.key === tpl.solveFor.key) ? solvedKnob : v[f.key];
+      ikv.append(el('b', null, f.label), el('span', null,
+        fmt(shown, 6) + (f.unit ? ' ' + f.unit : '')));
+    }
+    const di = el('details', { class: 'acc' }, el('summary', null, 'Inputs used'));
+    di.append(el('div', { class: 'accbody' }, ikv));
+    box.append(di);
+  }
+
   /* per-stage accordions */
   stages.forEach((st, i) => {
     const R = st.result;
@@ -943,23 +1207,25 @@ function renderChainReport(tpl, stages) {
       el('b', null, 'outlet T'), el('span', null, fmt(out.T_K, 6) + ' K  (' + fmt(out.T_K - 273.15, 5) + ' °C)'),
       el('b', null, 'outlet P'), el('span', null, fmt(out.P_bar, 5) + ' bar'),
       el('b', null, 'converged'), el('span', null, String(R.converged !== false) + '  (' + (R.iterations || 0) + ' it)'));
-    /* a couple of headline module details when present */
     const det = R.details || {};
     if (num(det.ch4_slip_dry_pct)) { kv.append(el('b', null, 'CH₄ slip dry'), el('span', null, fmt(det.ch4_slip_dry_pct, 3) + ' %')); }
     if (num(det.h2_co_ratio)) { kv.append(el('b', null, 'H₂/CO'), el('span', null, fmt(det.h2_co_ratio, 3))); }
     if (num(det.T_out_K)) { kv.append(el('b', null, 'solved T_out'), el('span', null, fmt(det.T_out_K, 5) + ' K')); }
     if (num(det.co_co2_ppm_dry)) { kv.append(el('b', null, 'CO+CO₂ dry'), el('span', null, fmt(det.co_co2_ppm_dry, 4) + ' ppm')); }
     const body = el('div', { class: 'accbody' }, kv);
-    /* transform note (interstage cooler / CO2 wash) */
     const tf = st.step.feeds.find((f) => f.note);
     if (tf) body.append(el('div', { class: 'hint', style: 'margin-top:8px' }, '↳ ' + tf.note));
+    for (const w of (st.warnings || [])) {
+      body.append(el('div', { class: 'hint', style: 'margin-top:6px;color:var(--warn)' },
+        '⚠ ' + (w.message || w)));
+    }
     d.append(body);
     box.append(d);
   });
 
-  /* footer actions */
   const row = el('div', { class: 'rowbtns', style: 'margin-top:12px' });
-  row.append(el('button', { class: 'sbtn', onclick: () => runTemplateFlow(tpl) }, '↻ Re-run'),
+  row.append(
+    el('button', { class: 'sbtn', onclick: () => openTemplateInputs(tpl) }, '✎ Edit inputs'),
     el('button', { class: 'sbtn', onclick: closeSheet }, 'Close'));
   box.append(row);
 
@@ -967,44 +1233,65 @@ function renderChainReport(tpl, stages) {
 }
 
 /* ---------------------------------------------------------------------
-   FLOW — progress sheet → run → report.  This is the "one tap" path.
+   FLOW — progress sheet → run (optionally solving the knob) → report.
 --------------------------------------------------------------------- */
 let chainBusy = false;
-async function runTemplateFlow(tpl) {
+async function runTemplateFlow(tpl, auto) {
   if (chainBusy) return;
   chainBusy = true;
+  const v = Object.assign({}, tplState(tpl));
 
-  /* progress sheet */
   const prog = el('div');
   prog.append(el('div', { class: 'grab' }),
-    el('div', { class: 'xrow' }, el('h3', null, 'Running ' + tpl.label + '…'),
-      el('span', null, '')));
+    el('div', { class: 'xrow' }, el('h3', null, 'Running ' + tpl.label + '…'), el('span', null, '')));
   const list = el('div', { class: 'caselist' });
-  const rows = tpl.steps.map((s, i) =>
+  const rows = tpl.build(v, v.air_kmol_h).map((s, i) =>
     el('button', { disabled: '' }, '○ ' + (i + 1) + '. ' + s.label));
   rows.forEach((r) => list.append(r));
   prog.append(list);
+  const note = el('div', { class: 'hint', style: 'margin-top:8px' });
+  prog.append(note);
   openSheet(prog);
 
   try {
-    const stages = await runTemplate(tpl, (i) => {
-      rows[i].textContent = '▸ ' + (i + 1) + '. ' + tpl.steps[i].label + ' — solving…';
-      if (i > 0) rows[i - 1].textContent = '✓ ' + i + '. ' + tpl.steps[i - 1].label;
-    });
-    rows[rows.length - 1].textContent = '✓ ' + rows.length + '. ' + tpl.steps[rows.length - 1].label;
+    let stages, solvedKnob = null;
+    if (auto && tpl.solveFor && num(tpl.endpoint && tpl.endpoint.target)) {
+      note.textContent = 'Solving ' + tpl.solveFor.label.toLowerCase() +
+        ' for ' + tpl.endpoint.label + ' = ' + tpl.endpoint.target + '…';
+      rows.forEach((r, i) => { r.textContent = '◌ ' + (i + 1) + '. ' + r.textContent.slice(5); });
+      const res = await solveTemplateKnob(tpl, v, (k, s) => {
+        note.textContent = 'Iteration ' + k + ' · ' + tpl.solveFor.label.toLowerCase() +
+          ' ' + fmt(s.x, 6) + ' ' + tpl.solveFor.unit +
+          ' → ' + tpl.endpoint.label + ' ' + fmt(s.ep.value, 5);
+      });
+      if (Math.abs(res.f) > (tpl.endpoint.tol || 0.15)) {
+        toast('Auto-solve did not fully converge — showing the closest run', 'err');
+      }
+      stages = res.stages;
+      solvedKnob = res.x;
+      v[tpl.solveFor.key] = res.x;
+      rows.forEach((r, i) => { r.textContent = '✓ ' + (i + 1) + '. ' + tpl.build(v, res.x)[i].label; });
+    } else {
+      note.textContent = 'Using the ' + tpl.solveFor.label.toLowerCase() + ' you entered.';
+      stages = await runTemplate(tpl, v, v.air_kmol_h, (i, step) => {
+        rows[i].textContent = '▸ ' + (i + 1) + '. ' + step.label + ' — solving…';
+        if (i > 0) rows[i - 1].textContent = '✓ ' + i + '. ' + rows[i - 1].textContent.slice(5);
+      });
+      rows[rows.length - 1].textContent = '✓ ' + rows.length + '. ' + stages[rows.length - 1].step.label;
+    }
     const ep = chainEndpoint(tpl, stages);
     toast('Chain solved — ' + (tpl.endpoint.label || 'endpoint') + ' = ' + fmt(ep.value, 4), 'ok');
-    renderChainReport(tpl, stages);
+    renderChainReport(tpl, stages, v, solvedKnob);
   } catch (e) {
     toast('Chain failed: ' + e.message, 'err');
-    closeSheet();
+    openTemplateInputs(tpl);
   } finally {
     chainBusy = false;
   }
 }
 
 /* ---------------------------------------------------------------------
-   PICKER — the "template menu".
+   PICKER — the "template menu". Now opens the input sheet, not a solve.
 --------------------------------------------------------------------- */
 function openTemplates() {
   const box = el('div');
@@ -1012,11 +1299,11 @@ function openTemplates() {
     el('div', { class: 'xrow' },
       el('h3', null, 'Templates'),
       el('button', { class: 'xclose', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
-    el('div', { class: 'sub' }, 'Ready-made chains — one tap to solve end to end.'));
+    el('div', { class: 'sub' }, 'Pick a chain, enter your feed, solve end to end.'));
   for (const tpl of TEMPLATE_DEFS) {
     box.append(el('button', {
       class: 'pal-item', style: '--c:' + (CAT_COLORS[tpl.category] || 'var(--accent)'),
-      onclick: () => runTemplateFlow(tpl),
+      onclick: () => openTemplateInputs(tpl),
     }, el('span', null,
       el('span', { class: 'nm' }, tpl.label),
       el('span', { class: 'ds' }, tpl.desc))));
