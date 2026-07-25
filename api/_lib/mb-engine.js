@@ -1,13 +1,16 @@
 // ============================================================================
 // REPO PATH: api/_lib/mb-engine.js
 // ============================================================================
-// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13+16
-// PARTS 1+2+3+4+5+6 — THERMO CORE + FIFTEEN MODULE SOLVERS (MODULES{...}):
+// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13+16+17
+// PARTS 1+2+3+4+5+6+7 — THERMO CORE + TWENTY MODULE SOLVERS (MODULES{...}):
 // mixer, splitter, flash, heat-exchanger, rotating, reactor (Part 2);
 // cstr, pfr, pfr-recycle (Part 3 — liquid-basis reaction engineering);
 // smr, atr (Part 4 — steam / autothermal reforming equilibria);
 //   shift, methanator (Part 5 — WGS converter + trace CO/CO2 clean-up);
-//   distillation, absorber (Part 6 — binary McCabe–Thiele + Kremser).
+//   distillation, absorber (Part 6 — binary McCabe–Thiele + Kremser);
+//   urea-reactor, hp-stripper, sls, dryer, urea-hp-loop (Part 7 — urea HP
+//   section + solids finishing; the solvers themselves live in mb-urea.js and
+//   are registered into MODULES at the bottom of this file).
 //
 // FORMATION-ENTHALPY BASIS: every enthalpy returned here includes the
 // standard enthalpy of formation at 298.15 K, so any module's duty is
@@ -48,7 +51,7 @@ import if97 from './if97.js';
 import eos from './eos.js';
 import urea from './mb-urea.js';
 
-const ENGINE_VERSION = 'mb-engine 0.10.0 (parts 1+2+3+4+5+6 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + urea HP section & solids)';
+const ENGINE_VERSION = 'mb-engine 0.11.0 (parts 1-7 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -4516,6 +4519,20 @@ const MODULES = {
   'absorber': solveAbsorber,           // Part 6 — Kremser absorber / stripper
 };
 
+// ---------------------------------------------------------------------------
+// PART 7 (Step 17) — urea HP section + solids finishing live in mb-urea.js.
+// That module imports NOTHING from here; it receives this toolbox instead, so
+// there is no circular import. Registration must stay AFTER the MODULES
+// literal and AFTER every helper it names. Adds:
+//   urea-reactor, hp-stripper, sls, dryer, urea-hp-loop
+// ---------------------------------------------------------------------------
+Object.assign(MODULES, urea.register({
+  errObj, num, resolve, molarize, streamEnthalpy, streamFromMoles,
+  massBalance, energyBalance, moduleInput, solveOutletT, solveT_forH,
+  waterMolarH, dhvapT, hGasMolar, hLiqMolar, hSolMolar, phaseOf,
+  KJH_PER_KW, T_REF,
+}));
+
 /**
  * Run a registered module by name — never throws (belt-and-braces for the
  * router and the test harness).
@@ -4593,7 +4610,12 @@ export default {
                     // heat-exchanger, rotating, reactor (Part 2);
                     // cstr, pfr, pfr-recycle (Part 3);
                     // smr, atr (Part 4); shift, methanator (Part 5);
-                    // distillation, absorber (Part 6)
+                    // distillation, absorber (Part 6);
+                    // urea-reactor, hp-stripper, sls, dryer,
+                    // urea-hp-loop (Part 7, via mb-urea.js)
+  loadCorrelations: urea.loadCorrelations,   // router awaits this pre-dispatch
+  correlation: urea.correlation,
+  resetCorrelations: urea.resetCorrelations,
   runModule,
   resolve,
   cpGas,
