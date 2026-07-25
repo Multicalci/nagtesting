@@ -1,10 +1,10 @@
 {
   "meta": {
     "repo_path": "tests/mb-vectors.json",
-    "version": "mb-vectors 1.5 — thermo core + core modules + reaction-engineering + reformer + shift/methanator + distillation/absorber, vectors MB-001..MB-078",
+    "version": "mb-vectors 1.6 — thermo core + core modules + reaction-engineering + reformer + shift/methanator + distillation/absorber + urea HP section & solids, vectors MB-001..MB-088",
     "target": "api/_lib/mb-engine.js (mb-engine 0.10.x, parts 1+2+3+4+5+6 — thermo core + module solvers + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber)",
     "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram."
+    "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately."
   },
   "vectors": [
     {
@@ -607,9 +607,9 @@
       },
       "tol": {
         "streams_out.0.T_K": 0.15,
-        "mass_balance.closure_pct": 1e-9,
-        "energy_balance.W_kW": 1e-9,
-        "default": 0.000001
+        "mass_balance.closure_pct": 1e-09,
+        "energy_balance.W_kW": 1e-09,
+        "default": 1e-06
       },
       "source": "Steam-table hand calc: hf(90 °C)=376.97, hf(20 °C)=83.92 kJ/kg → mixed h=230.44 → T=55.04 °C=328.19 K (constant-cp hand check 328.15 K)"
     },
@@ -654,7 +654,7 @@
       },
       "tol": {
         "streams_out.0.T_K": 0.4,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Felder & Rousseau-class steam-table energy balance (ch. 8 style): hg(1 atm)=2676.0, hf(20 °C)=83.92 kJ/kg → h_mix=343.13 kJ/kg → T≈81.95 °C=355.10 K"
     },
@@ -700,8 +700,8 @@
         "iterations": 0
       },
       "tol": {
-        "energy_balance.Q_kW": 0.000001,
-        "default": 1e-9
+        "energy_balance.Q_kW": 1e-06,
+        "default": 1e-09
       },
       "source": "Definition of a splitter: mass split with unchanged intensive state — exact by construction"
     },
@@ -744,7 +744,7 @@
       "tol": {
         "details.psi_VF": 0.006,
         "details.y.0.y": 0.005,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Raoult/Rachford-Rice hand calc with published Antoine constants (Lange class): Psat(95 °C) benzene 1.569 bar, toluene 0.636 bar → K=1.548/0.627 → ψ=0.4305, y_benzene=0.6263"
     },
@@ -784,7 +784,7 @@
         "streams_out.1.mass_flow_kg_h": 0
       },
       "tol": {
-        "default": 1e-9
+        "default": 1e-09
       },
       "source": "Antoine hand calc: K(110 °C)=2.31 (benzene) / 0.98 (toluene) → Σz(K−1)/K=+0.27>0 — feed is superheated vapor (dew point ≈ 98.8 °C at 1 atm)"
     },
@@ -827,7 +827,7 @@
       "tol": {
         "details.psi_VF": 0.012,
         "details.y.1.y": 1e-12,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Rachford-Rice hand calc with steam-table Psat(120 °C)=1.9854 bar → K_w=1.985, K_NaCl=0 → ψ=0.7985; nonvolatile → y_NaCl=0 exactly"
     },
@@ -877,7 +877,7 @@
       "tol": {
         "details.duty_hot_kW": 0.12,
         "details.lmtd_K": 0.02,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Steam tables: hf(80)−hf(60)=334.95−251.18=83.77 kJ/kg → 23.27 kW at 1000 kg/h; equal 40 K approaches at both ends → LMTD=40 K exactly"
     },
@@ -926,7 +926,7 @@
       "tol": {
         "streams_out.1.T_K": 0.25,
         "energy_balance.Q_kW": 0.05,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Steam tables: duty=hf(90)−hf(50)=376.97−209.34=167.63 kJ/kg → 46.56 kW; cold h_out=83.92+83.82=167.74 kJ/kg → 40.05 °C=313.20 K"
     },
@@ -976,7 +976,7 @@
       "tol": {
         "details.lmtd_K": 0.05,
         "details.duty_hot_kW": 0.25,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "LMTD hand calc: ΔT1=100−50=50 K, ΔT2=60−30=30 K → (50−30)/ln(50/30)=39.152 K; duty=hf(100)−hf(60)=419.04−251.18≈167.9 kJ/kg → 46.6 kW"
     },
@@ -1058,7 +1058,7 @@
         "streams_out.0.T_K": 1.5,
         "energy_balance.W_kW": 0.05,
         "details.gamma_mean": 0.001,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Ideal-gas hand calc, γ=5/3 (monatomic, NIST cp=20.786 J/mol·K): T2s=298.15·10^0.4=748.9 K; W=cpΔT·n=20.786·450.8·2.503 kmol/h=6.515 kW"
     },
@@ -1099,7 +1099,7 @@
         "streams_out.0.T_K": 1.5,
         "energy_balance.W_kW": 0.05,
         "details.T2s_K": 1,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Ideal-gas hand calc, γ=5/3: T2s=800·0.1^0.4=318.5 K; Δh=0.8·cp·(T2s−800)=−8.007 kJ/mol → T2=414.8 K, W=−5.568 kW at 2.503 kmol/h"
     },
@@ -1152,7 +1152,7 @@
       "tol": {
         "details.reactions.0.dHr298_kJmol": 2.5,
         "energy_balance.Q_kW": 1,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Felder & Rousseau Table B.1: ΔH°c C3H8(g) with H2O(l) = −2220.0 kJ/mol (NIST Hf: 3·(−393.52)+4·(−285.83)−(−104.7)=−2219.2); Q=−2219.2·1 kmol/h=−616.4 kW"
     },
@@ -1207,7 +1207,7 @@
       },
       "tol": {
         "streams_out.0.T_K": 60,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Çengel & Boles (Thermodynamics) worked example class: theoretical adiabatic flame temperature of CH4 with stoichiometric air, complete combustion, no dissociation ≈ 2330 K (variable ideal-gas cp)"
     },
@@ -1273,7 +1273,7 @@
       },
       "tol": {
         "mass_balance.closure_pct": 0.02,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Hand mole table, basis 1 kmol/h CH4 + 3 H2O: ξ1=0.8 → CH4 0.2, H2O 2.2, CO 0.8, H2 2.4; ξ2=0.5·0.8=0.4 → CO 0.4, H2O 1.8, CO2 0.4, H2 2.8; atomic MWs make closure exact to <0.001%"
     },
@@ -1322,12 +1322,12 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X": 0.00001,
-        "details.Da": 0.000001,
-        "details.tau_s": 0.000001,
+        "details.X": 1e-05,
+        "details.Da": 1e-06,
+        "details.tau_s": 1e-06,
         "details.Ca0_kmolm3": 0.0001,
         "mass_balance.closure_pct": 0.005,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Fogler (Elements of CRE) first-order liquid CSTR: X = Da/(1+Da), Da = kτ = (2/7200 s⁻¹)(7200 s) = 2 → X = 2/3; Ca0 = 520/42.081 = 12.35712 kmol/m³. Hand calculation."
     },
@@ -1379,9 +1379,9 @@
         "details.V_m3": 0.0001,
         "details.tau_s": 0.05,
         "details.Da": 0.0001,
-        "details.X": 0.000001,
+        "details.X": 1e-06,
         "details.batch_time_equiv_s": 0.05,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Fogler CSTR design eq., 2nd order liquid: τ = X/(k·Ca0·(1−X)²) = 0.8/(1e-4 · 12.35712 · 0.04) = 16185 s → V = τ·v = 4.49583 m³; Da₂ = kτCa0 = 20. Batch/PFR equivalent t = X/(k·Ca0·(1−X)) = 3237 s. Hand calculation."
     },
@@ -1431,10 +1431,10 @@
         "converged": true
       },
       "tol": {
-        "details.k_si": 0.000005,
+        "details.k_si": 5e-06,
         "details.Da": 0.002,
         "details.X": 0.0001,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Arrhenius: k = A·e^(−Ea/RT) = 1e5·exp(−50/(0.008314462·350)) = 3.45186e-3 s⁻¹; τ = 3600 s → Da = 12.4267; first-order CSTR X = Da/(1+Da) = 0.925522 (Fogler). Hand calculation."
     },
@@ -1490,9 +1490,9 @@
       },
       "tol": {
         "energy_balance.Q_kW": 0.01,
-        "energy_balance.W_kW": 1e-9,
+        "energy_balance.W_kW": 1e-09,
         "mass_balance.closure_pct": 0.005,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Formation-basis adiabatic identity: with T_out solved from stream enthalpies, the reported duty Q = Hout − Hin must return ≈ 0 (reaction heat is implicit in the formation enthalpies); exothermic-CSTR T↔k(T)↔X damped loop must converge."
     },
@@ -1540,10 +1540,10 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X": 0.00001,
-        "details.tau_s": 0.000001,
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
         "mass_balance.closure_pct": 0.005,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Levenspiel / Fogler PFR design eq., first order constant density: X = 1 − e^(−kτ) = 1 − e⁻² = 0.864665. Hand calculation."
     },
@@ -1593,9 +1593,9 @@
       "tol": {
         "details.V_m3": 0.0001,
         "details.tau_s": 0.05,
-        "details.X": 0.000001,
+        "details.X": 1e-06,
         "details.batch_time_equiv_s": 0.05,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Fogler PFR design eq., 2nd order liquid: kτCa0 = X/(1−X) = 4 → τ = 4/(1e-4 · 12.35712) = 3237 s, V = 0.899167 m³; PFR ≡ constant-volume batch, so the batch-time equivalent equals τ. Hand calculation."
     },
@@ -1641,9 +1641,9 @@
         "converged": true
       },
       "tol": {
-        "details.X": 0.00001,
-        "details.tau_s": 0.000001,
-        "default": 0.000001
+        "details.X": 1e-05,
+        "details.tau_s": 1e-06,
+        "default": 1e-06
       },
       "source": "Levenspiel zero-order design eq. (identical for PFR and batch): X = k·τ/Ca0 = 1e-3 · 5040 / 12.35712 = 0.407862. Hand calculation."
     },
@@ -1690,9 +1690,9 @@
         "details.profile.0.X": 0
       },
       "tol": {
-        "details.profile.25.X": 0.00001,
-        "details.profile.50.X": 0.00001,
-        "default": 0.000001
+        "details.profile.25.X": 1e-05,
+        "details.profile.50.X": 1e-05,
+        "default": 1e-06
       },
       "source": "First-order PFR axial profile X(z) = 1 − e^(−Da·z), Da = 2: X(0.5) = 1 − e⁻¹ = 0.632121, X(1) = 1 − e⁻² = 0.864665. The exact-per-segment march must reproduce the closed form at every profile node."
     },
@@ -1742,7 +1742,7 @@
         "details.X_ov": 0.002,
         "details.X_sp": 0.0002,
         "iterations": 15,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Recycle-reactor closed form (Fogler Ch. 6 / Levenspiel recycle reactor), first order: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)), Da0 = kV/v_fresh = 2; R = 50 → X_ov = 0.671024, X_sp = 1 − E = 0.038457 — approaching the CSTR limit Da/(1+Da) = 2/3 as R → ∞. Iterations expected ≤ 30 with bounded Wegstein."
     },
@@ -1789,10 +1789,10 @@
         "converged": true
       },
       "tol": {
-        "details.X_ov": 0.00001,
-        "details.X_sp": 0.00001,
-        "iterations": 1e-9,
-        "default": 0.000001
+        "details.X_ov": 1e-05,
+        "details.X_sp": 1e-05,
+        "iterations": 1e-09,
+        "default": 1e-06
       },
       "source": "Levenspiel recycle-reactor limit R → 0: plug flow, X = 1 − e^(−Da0) = 1 − e⁻² = 0.864665; single pass, no tear iteration."
     },
@@ -1839,10 +1839,10 @@
         "mass_balance.closure_pct": 0
       },
       "tol": {
-        "details.X_ov": 0.00005,
-        "details.X_sp": 0.00005,
+        "details.X_ov": 5e-05,
+        "details.X_sp": 5e-05,
         "mass_balance.closure_pct": 0.005,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "First-order recycle identity: X_ov = 1 − E/(1+R−R·E), E = e^(−Da0/(1+R)); R = 1, Da0 = 2 → E = e⁻¹, X_ov = 1 − e⁻¹/(2−e⁻¹) = 0.774600 and X_sp = 1 − e⁻¹ = 0.632121. The Wegstein-converged tear must land on the analytic fixed point (bounded q ∈ [−5,0])."
     },
@@ -1899,10 +1899,10 @@
       },
       "tol": {
         "energy_balance.Q_kW": 0.1,
-        "energy_balance.W_kW": 1e-9,
+        "energy_balance.W_kW": 1e-09,
         "mass_balance.closure_pct": 0.005,
         "iterations": 15,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Adiabatic recycle envelope identity on the formation basis: mixing point and reactor both adiabatic → fresh-in / product-out duty must return ≈ 0 at the converged tear. Exercises the Wegstein tear including its temperature variable; iterations expected ≤ 30."
     },
@@ -1955,7 +1955,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2015,7 +2015,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2060,7 +2060,7 @@
       ],
       "expect": {
         "details.composition_dry.0.key": "CH4",
-        "details.composition_dry.0.mole_fraction": 0.00002,
+        "details.composition_dry.0.mole_fraction": 2e-05,
         "details.composition_dry.1.key": "CO",
         "details.composition_dry.1.mole_fraction": 0.21151,
         "details.composition_dry.2.key": "H2",
@@ -2072,7 +2072,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2130,7 +2130,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2189,7 +2189,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2197,8 +2197,8 @@
         "details.composition_dry.4.mole_fraction": 0.015,
         "details.ch4_slip_dry_pct": 1.5,
         "details.h2_co_ratio": 0.05,
-        "details.T_eq_smr_K": 0.000001,
-        "details.T_eq_wgs_K": 0.000001
+        "details.T_eq_smr_K": 1e-06,
+        "details.T_eq_wgs_K": 1e-06
       },
       "source": "Hand equilibrium calculation from Twigg lnK1 evaluated at T+20 K and Moe lnK2 at T+10 K — the approach-to-equilibrium convention for reformer rating (Twigg, Catalyst Handbook: reformer duty expressed as an ATE on the reforming reaction)."
     },
@@ -2247,7 +2247,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2332,7 +2332,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2389,7 +2389,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2398,7 +2398,7 @@
         "details.ch4_slip_dry_pct": 1.5,
         "details.h2_co_ratio": 0.2,
         "details.T_out_K": 25,
-        "details.o2_c_ratio": 1e-9
+        "details.o2_c_ratio": 1e-09
       },
       "source": "Hand calculation (independent Python solve): full O2 combustion of CH4, then Twigg/Moe equilibrium with the adiabatic balance on NIST Shomate enthalpies. Anchor: published ATR operation at O2/C ≈ 0.6 and low S/C delivers H2/CO ≈ 2.0–2.3 at ≈ 1020–1050 °C outlet (Aasberg-Petersen et al., J. Nat. Gas Sci. Eng. 3 (2011) 423–459, Topsøe ATR)."
     },
@@ -2448,7 +2448,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2520,7 +2520,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.composition_dry.0.mole_fraction": 0.015,
         "details.composition_dry.1.mole_fraction": 0.015,
         "details.composition_dry.2.mole_fraction": 0.015,
@@ -2585,10 +2585,10 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.extent_kmol_h": 0.001,
         "details.co_slip_dry_pct": 0.15,
-        "details.T_eq_K": 0.000001,
+        "details.T_eq_K": 1e-06,
         "details.Q_kW": 0.1
       },
       "source": "Hand equilibrium calculation (independent Python solve, not engine output) from lnK2 = 4400/T − 4.036 (Moe, Chem. Eng. Prog. 58(3), 1962). Conditions per Twigg, Catalyst Handbook 2nd ed. (HTS window 350–450 °C, exit CO typically 2–4 % dry): computed slip 2.94 % dry. Duty from a Shomate enthalpy balance; the engine's IF97 water route differs by <0.05 kW — covered by the tolerance."
@@ -2643,7 +2643,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.T_out_K": 8,
         "details.delta_T_K": 8,
         "details.extent_kmol_h": 0.005,
@@ -2701,7 +2701,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.T_out_K": 8,
         "details.delta_T_K": 8,
         "details.co_slip_dry_pct": 0.1
@@ -2747,7 +2747,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.extent_kmol_h": 0.001,
         "details.composition_dry.0.mole_fraction": 0.002,
         "details.composition_dry.1.mole_fraction": 0.002
@@ -2784,7 +2784,7 @@
       "expect": {
         "error.code": "MB_SHIFT_FEED"
       },
-      "tol": 1e-9,
+      "tol": 1e-09,
       "source": "Input-contract check: WGS needs CO + H2O (forward) and/or CO2 + H2 (reverse)."
     },
     {
@@ -2842,12 +2842,12 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.co_ppm_dry": 10,
         "details.co2_ppm_dry": 10,
         "details.co_co2_ppm_dry": 10,
         "details.ch4_dry_pct": 0.01,
-        "details.T_eq_K": 0.000001
+        "details.T_eq_K": 1e-06
       },
       "source": "Hand calculation (independent nested-bisection solve of the Twigg/Moe equilibria in the methanation direction). Methanator duty specs guarantee < 5–10 ppm CO+CO2 (Appl, Ullmann's 'Ammonia'; Twigg): the EQUILIBRIUM residual at 320 °C / 25 bar is orders of magnitude lower still (~1e-7 ppm) — the vector asserts the < 10 ppm bound."
     },
@@ -2886,7 +2886,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.T_out_K": 5,
         "details.delta_T_K": 5,
         "details.co_ppm_dry": 1,
@@ -2928,7 +2928,7 @@
         "converged": true
       },
       "tol": {
-        "default": 0.000001,
+        "default": 1e-06,
         "details.T_out_K": 5,
         "details.delta_T_K": 5,
         "details.co2_ppm_dry": 1
@@ -3032,8 +3032,8 @@
         "details.Rmin": 0.01,
         "details.N_stages_total": 1,
         "details.feed_stage": 1,
-        "mass_balance.closure_pct": 0.000001,
-        "default": 0.000001
+        "mass_balance.closure_pct": 1e-06,
+        "default": 1e-06
       },
       "source": "Benzene–toluene classic (Perry 1-atm x-y table). D/B exact algebra: D=F(z−xW)/(xD−xW)=100(0.45−0.10)/(0.95−0.10)=41.176. Rmin from q-line pinch (q=1): y*(0.45)=0.665 (table interp) → slope=(0.95−0.665)/(0.95−0.45)=0.570 → Rmin=1.3256. Fenske Nmin≈5.7, R/Rmin≈1.51 → Gilliland–Molokanov N≈11 (incl. partial reboiler)."
     },
@@ -3080,9 +3080,9 @@
         "converged": true
       },
       "tol": {
-        "details.N_stages_total": 0.000001,
+        "details.N_stages_total": 1e-06,
         "details.N_stages_fractional": 0.2,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Fenske minimum stages at total reflux: Nmin=ln[(xD/(1−xD))((1−xW)/xW)]/ln α = ln[(0.95/0.05)(0.95/0.05)]/ln2.5 = ln(361)/0.91629 = 6.427 (incl. partial reboiler). Graphical stair-step rounds up to 7 equilibrium stages."
     },
@@ -3132,8 +3132,8 @@
       "tol": {
         "details.Rmin": 0.005,
         "details.D_kmol_h": 0.01,
-        "details.R_over_Rmin": 0.000001,
-        "default": 0.000001
+        "details.R_over_Rmin": 1e-06,
+        "default": 1e-06
       },
       "source": "q-line pinch (q=1), α=2.0: y*(0.5)=2·0.5/(1+0.5)=0.6667 → slope_min=(0.9−0.6667)/(0.9−0.5)=0.5833 → Rmin=0.5833/(1−0.5833)=1.400. D=F(z−xW)/(xD−xW)=100(0.5−0.1)/(0.9−0.1)=50."
     },
@@ -3183,8 +3183,8 @@
       "tol": {
         "details.Rmin": 0.02,
         "details.pinch.x": 0.002,
-        "details.pinch.y": 0.000001,
-        "default": 0.000001
+        "details.pinch.y": 1e-06,
+        "default": 1e-06
       },
       "source": "Saturated-vapour feed: q-line is horizontal y=z=0.5. Pinch x=z/(α−(α−1)z)=0.5/(2.5−1.5·0.5)=0.2857. slope_min=(0.95−0.5)/(0.95−0.2857)=0.6774 → Rmin=0.6774/(1−0.6774)=2.100."
     },
@@ -3232,11 +3232,11 @@
         "converged": true
       },
       "tol": {
-        "details.absorption_factor_A": 0.000001,
+        "details.absorption_factor_A": 1e-06,
         "details.N_theoretical": 0.01,
-        "details.N_stages": 0.000001,
-        "details.y_out": 1e-9,
-        "default": 0.000001
+        "details.N_stages": 1e-06,
+        "details.y_out": 1e-09,
+        "default": 1e-06
       },
       "source": "Kremser absorber, A=L/(mV)=75/(0.5·100)=1.5. φ=(y_in−m·x0)/(y_out−m·x0)=0.02/0.001=20. N=ln[φ(1−1/A)+1/A]/ln A = ln[20·0.3333+0.6667]/ln1.5 = ln(7.3333)/0.40546 = 4.914."
     },
@@ -3283,10 +3283,10 @@
         "converged": true
       },
       "tol": {
-        "details.absorption_factor_A": 0.000001,
-        "details.y_out": 0.000002,
+        "details.absorption_factor_A": 1e-06,
+        "details.y_out": 2e-06,
         "details.fraction_transferred": 0.0001,
-        "default": 0.000001
+        "default": 1e-06
       },
       "source": "Kremser, A=1.5, N=5: fraction removed = (A^{N+1}−A)/(A^{N+1}−1) = (1.5^6−1.5)/(1.5^6−1) = 9.8906/10.3906 = 0.95188. y_out = y_in(1−0.95188) = 0.02·0.04812 = 9.62e-4."
     },
@@ -3333,10 +3333,10 @@
         "converged": true
       },
       "tol": {
-        "details.absorption_factor_A": 0.000001,
-        "details.N_theoretical": 0.000001,
-        "details.N_stages": 0.000001,
-        "default": 0.000001
+        "details.absorption_factor_A": 1e-06,
+        "details.N_theoretical": 1e-06,
+        "details.N_stages": 1e-06,
+        "default": 1e-06
       },
       "source": "Kremser degenerate A=1 (L=mV): the geometric series collapses to N=φ−1 with φ=y_in/y_out=0.01/0.001=10 → N=9."
     },
@@ -3384,13 +3384,741 @@
         "converged": true
       },
       "tol": {
-        "details.stripping_factor_S": 0.00001,
+        "details.stripping_factor_S": 1e-05,
         "details.N_theoretical": 0.01,
-        "details.N_stages": 0.000001,
-        "details.x_out": 1e-9,
-        "default": 0.000001
+        "details.N_stages": 1e-06,
+        "details.x_out": 1e-09,
+        "default": 1e-06
       },
       "source": "Kremser stripper, S=mV/L=2·100/133.33=1.5. φ=(x_in−y_in/m)/(x_out−y_in/m)=0.005/0.0005=10. N=ln[φ(1−1/S)+1/S]/ln S = ln(4)/ln1.5 = 1.38629/0.40546 = 3.419."
+    },
+    {
+      "id": "MB-079",
+      "desc": "urea-reactor specified_T: N/C 3.0, H2O/C 0.5, 185 degC, 150 bar - correlation reference point, residual carbamate, biuret, atom closure",
+      "call": "runModule",
+      "args": [
+        "urea-reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2082.1929999999998,
+              "T_K": 438.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.6374082517806947
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.06340910760914095
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.21266328337478804
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.08651935723537636
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "specified_T",
+            "T_out_K": 458.15,
+            "P_bar": 150.0
+          }
+        }
+      ],
+      "expect": {
+        "details.ratios.n_c": 3.0,
+        "details.ratios.h2o_c": 0.5,
+        "details.conversion.X_co2_pct": 62.0,
+        "details.conversion.urea_kmol_h": 12.334981,
+        "details.residuals.carbamate_kmol_h": 7.372,
+        "details.residuals.free_co2_kmol_h": 0.228,
+        "details.residuals.free_nh3_kmol_h": 20.48851,
+        "details.residuals.biuret_kmol_h": 0.03251,
+        "details.residuals.biuret_wt_pct_of_urea": 0.45,
+        "details.thermal.heat_release_kJ_h": 132124.0,
+        "details.atom_balance.C_closure_pct": 0.0,
+        "details.atom_balance.N_closure_pct": 0.0,
+        "details.correlation.envelope_ok": true,
+        "details.estimate_flag": "EMPIRICAL ESTIMATE",
+        "mass_balance.closure_pct": -0.000133,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.conversion.X_co2_pct": 0.01,
+        "details.conversion.urea_kmol_h": 0.0005,
+        "details.residuals.carbamate_kmol_h": 0.0005,
+        "details.residuals.free_co2_kmol_h": 0.0005,
+        "details.residuals.free_nh3_kmol_h": 0.0005,
+        "details.residuals.biuret_kmol_h": 0.0002,
+        "details.residuals.biuret_wt_pct_of_urea": 0.005,
+        "details.thermal.heat_release_kJ_h": 5.0,
+        "details.atom_balance.C_closure_pct": 1e-08,
+        "details.atom_balance.N_closure_pct": 1e-08,
+        "details.ratios.n_c": 1e-09,
+        "details.ratios.h2o_c": 1e-09,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Independent evaluation (separate Python script, NOT engine output) of the empirical correlation held in Supabase correlation_params key 'urea_x_co2': X[%] = 62.0 + 12.0dNC - 1.6dNC^2 - 12.0dWC + 4.0dWC^2 + 0.45dT - 0.020dT^2 + 2.0dNC*dWC about (N/C 3.0, H2O/C 0.5, 185 degC). Material quantities are closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. PLANT ANCHOR: total-recycle HP loops at 140-160 bar, 183-190 degC report CO2-to-urea conversion of roughly 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5 with H2O/C near 0.5; reactor melt is typically 33-38 wt% urea, 22-28 wt% carbamate, 17-20 wt% water and 18-21 wt% free NH3, with reactor biuret 0.3-0.6 wt% of urea. EMPIRICAL ESTIMATE - the vector freezes the tuned correlation, it is not a design guarantee."
+    },
+    {
+      "id": "MB-080",
+      "desc": "urea-reactor specified_T: N/C 3.5, H2O/C 0.5, 185 degC - the upper plant band (66-70 % window)",
+      "call": "runModule",
+      "args": [
+        "urea-reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2252.5029999999997,
+              "T_K": 438.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.5892143095924844
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.058614794297721255
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.27219320018663684
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.0799776959231575
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "specified_T",
+            "T_out_K": 458.15,
+            "P_bar": 150.0
+          }
+        }
+      ],
+      "expect": {
+        "details.ratios.n_c": 3.5,
+        "details.conversion.X_co2_pct": 67.6,
+        "details.conversion.urea_kmol_h": 13.460923,
+        "details.residuals.carbamate_kmol_h": 6.2856,
+        "details.residuals.free_nh3_kmol_h": 30.418338,
+        "details.residuals.biuret_wt_pct_of_urea": 0.375,
+        "details.thermal.heat_release_kJ_h": 118695.2,
+        "details.correlation.envelope_ok": true,
+        "mass_balance.closure_pct": -0.000125,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.conversion.X_co2_pct": 0.01,
+        "details.conversion.urea_kmol_h": 0.0005,
+        "details.residuals.carbamate_kmol_h": 0.0005,
+        "details.residuals.free_nh3_kmol_h": 0.0005,
+        "details.residuals.biuret_wt_pct_of_urea": 0.005,
+        "details.thermal.heat_release_kJ_h": 5.0,
+        "details.ratios.n_c": 1e-09,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Independent evaluation (separate Python script, NOT engine output) of the empirical correlation held in Supabase correlation_params key 'urea_x_co2': X[%] = 62.0 + 12.0dNC - 1.6dNC^2 - 12.0dWC + 4.0dWC^2 + 0.45dT - 0.020dT^2 + 2.0dNC*dWC about (N/C 3.0, H2O/C 0.5, 185 degC). Material quantities are closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. PLANT ANCHOR: total-recycle HP loops at 140-160 bar, 183-190 degC report CO2-to-urea conversion of roughly 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5 with H2O/C near 0.5; reactor melt is typically 33-38 wt% urea, 22-28 wt% carbamate, 17-20 wt% water and 18-21 wt% free NH3, with reactor biuret 0.3-0.6 wt% of urea. EMPIRICAL ESTIMATE - the vector freezes the tuned correlation, it is not a design guarantee."
+    },
+    {
+      "id": "MB-081",
+      "desc": "urea-reactor specified_T: N/C 4.0, H2O/C 0.6, 188 degC, 155 bar - high-NH3 plant maximum",
+      "call": "runModule",
+      "args": [
+        "urea-reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2458.843,
+              "T_K": 438.15,
+              "P_bar": 155.0,
+              "components": [
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.5397689075715693
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.05369598628297944
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.31861570665552863
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.08791939948992271
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "specified_T",
+            "T_out_K": 461.15,
+            "P_bar": 155.0
+          }
+        }
+      ],
+      "expect": {
+        "details.ratios.n_c": 4.0,
+        "details.ratios.h2o_c": 0.6,
+        "details.conversion.X_co2_pct": 72.61,
+        "details.conversion.urea_kmol_h": 14.461083,
+        "details.residuals.carbamate_kmol_h": 5.31366,
+        "details.residuals.free_co2_kmol_h": 0.16434,
+        "details.thermal.heat_release_kJ_h": 106681.22,
+        "details.correlation.envelope_ok": true,
+        "mass_balance.closure_pct": -0.000115,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.conversion.X_co2_pct": 0.01,
+        "details.conversion.urea_kmol_h": 0.0005,
+        "details.residuals.carbamate_kmol_h": 0.0005,
+        "details.residuals.free_co2_kmol_h": 0.0005,
+        "details.thermal.heat_release_kJ_h": 5.0,
+        "details.ratios.n_c": 1e-09,
+        "details.ratios.h2o_c": 1e-09,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Independent evaluation (separate Python script, NOT engine output) of the empirical correlation held in Supabase correlation_params key 'urea_x_co2': X[%] = 62.0 + 12.0dNC - 1.6dNC^2 - 12.0dWC + 4.0dWC^2 + 0.45dT - 0.020dT^2 + 2.0dNC*dWC about (N/C 3.0, H2O/C 0.5, 185 degC). Material quantities are closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. PLANT ANCHOR: total-recycle HP loops at 140-160 bar, 183-190 degC report CO2-to-urea conversion of roughly 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5 with H2O/C near 0.5; reactor melt is typically 33-38 wt% urea, 22-28 wt% carbamate, 17-20 wt% water and 18-21 wt% free NH3, with reactor biuret 0.3-0.6 wt% of urea. EMPIRICAL ESTIMATE - the vector freezes the tuned correlation, it is not a design guarantee."
+    },
+    {
+      "id": "MB-082",
+      "desc": "urea-reactor OUTSIDE the validity envelope: N/C 5.0, 205 degC, 210 bar - three breaches flagged, result still returned as an extrapolation",
+      "call": "runModule",
+      "args": [
+        "urea-reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2763.4329999999995,
+              "T_K": 438.15,
+              "P_bar": 210.0,
+              "components": [
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.4802747162677728
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.04777752889250437
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.4067571024881009
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.06519065235162207
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "specified_T",
+            "T_out_K": 478.15,
+            "P_bar": 210.0
+          }
+        }
+      ],
+      "expect": {
+        "details.ratios.n_c": 5.0,
+        "details.conversion.X_co2_pct": 80.6,
+        "details.conversion.urea_kmol_h": 16.016692,
+        "details.correlation.envelope_ok": false,
+        "details.correlation.envelope_breaches.0": "N/C",
+        "details.correlation.envelope_breaches.1": "reactor T",
+        "details.correlation.envelope_breaches.2": "reactor P",
+        "details.correlation.clamped": false,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.conversion.X_co2_pct": 0.01,
+        "details.conversion.urea_kmol_h": 0.0005,
+        "details.ratios.n_c": 1e-09
+      },
+      "source": "Independent evaluation (separate Python script, NOT engine output) of the empirical correlation held in Supabase correlation_params key 'urea_x_co2': X[%] = 62.0 + 12.0dNC - 1.6dNC^2 - 12.0dWC + 4.0dWC^2 + 0.45dT - 0.020dT^2 + 2.0dNC*dWC about (N/C 3.0, H2O/C 0.5, 185 degC). Material quantities are closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. PLANT ANCHOR: total-recycle HP loops at 140-160 bar, 183-190 degC report CO2-to-urea conversion of roughly 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5 with H2O/C near 0.5; reactor melt is typically 33-38 wt% urea, 22-28 wt% carbamate, 17-20 wt% water and 18-21 wt% free NH3, with reactor biuret 0.3-0.6 wt% of urea. EMPIRICAL ESTIMATE - the vector freezes the tuned correlation, it is not a design guarantee. Envelope from the same correlation record: N/C 2.5-4.5, H2O/C 0.0-1.2, 170-200 degC, 130-200 bar."
+    },
+    {
+      "id": "MB-083",
+      "desc": "urea-reactor adiabatic: carbamate-solution feed at 165 degC, N/C 3.25 - temperature rise from the fixed reaction heats (-117 / +15.5 kJ/mol)",
+      "call": "runModule",
+      "args": [
+        "urea-reactor",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2167.348,
+              "T_K": 438.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.6123645118365855
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.06091776678226109
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.24359770558304436
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.08312001579810903
+                }
+              ]
+            }
+          ],
+          "params": {
+            "mode": "adiabatic",
+            "P_bar": 150.0
+          }
+        }
+      ],
+      "expect": {
+        "details.ratios.n_c": 3.25,
+        "details.T_feed_mix_K": 438.15,
+        "details.T_out_K": 457.776,
+        "details.delta_T_K": 19.626,
+        "details.conversion.X_co2_pct": 64.729,
+        "details.conversion.urea_kmol_h": 12.8847,
+        "details.thermal.dHr_carbamate_kJ_mol": -117.0,
+        "details.thermal.dHr_dehydration_kJ_mol": 15.5,
+        "energy_balance.Q_kW": 0.0,
+        "mass_balance.closure_pct": -0.000129,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.T_feed_mix_K": 0.5,
+        "details.T_out_K": 3.0,
+        "details.delta_T_K": 3.0,
+        "details.conversion.X_co2_pct": 1.5,
+        "details.conversion.urea_kmol_h": 0.3,
+        "energy_balance.Q_kW": 0.0001,
+        "details.ratios.n_c": 1e-09,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Independent hand adiabatic balance (separate Python fixed point, NOT engine output): the conversion correlation above is solved simultaneously with an energy balance that releases xi1*117 - xi2*15.5 kJ/mol against a constant condensed-phase melt heat capacity built from the mb-data cp values (NH3 4.7, H2O 4.4, urea 2.1, carbamate 1.67 kJ/kg.K, all published handbook figures), giving T_out = 457.78 K (dT 19.63 K) and X = 64.73 %. The engine routes water through IF97 and carries the reaction heats with their true dCp temperature dependence, so it lands about 1.7 K higher - covered by the +/-3 K tolerance. Q_kW must be identically zero: in adiabatic mode the anchored basis makes Q = Hout - Hin = 0 an exact identity, which is what proves the prescribed reaction heats are actually live. PLANT ANCHOR: a carbamate-solution-fed HP reactor rises 15-25 K from a 160-170 degC feed to 183-190 degC."
+    },
+    {
+      "id": "MB-084",
+      "desc": "hp-stripper with CO2 strip gas: 80 % carbamate decomposition, 85 % NH3 / 97 % CO2 stripping, 190 degC bottoms, 23 bar MP steam",
+      "call": "runModule",
+      "args": [
+        "hp-stripper",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2081.018970771,
+              "T_K": 458.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "urea",
+                  "mass_fraction": 0.35597446699947366
+                },
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.27656615344874413
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.19334983888490323
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.1676773824318962
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.004821810920965504
+                },
+                {
+                  "key": "biuret",
+                  "mass_fraction": 0.0016103473140172393
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 264.06,
+              "T_K": 383.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 1.0
+                }
+              ]
+            }
+          ],
+          "params": {
+            "decomposition_efficiency": 0.8,
+            "nh3_strip_efficiency": 0.85,
+            "co2_strip_efficiency": 0.97,
+            "h2o_to_gas_fraction": 0.03,
+            "T_out_K": 463.15,
+            "steam_P_bar": 23.0
+          }
+        }
+      ],
+      "expect": {
+        "details.decomposition.carbamate_decomposed_kmol_h": 5.8976,
+        "details.decomposition.carbamate_out_kmol_h": 1.4744,
+        "details.stripping.nh3_to_gas_kmol_h": 27.441154,
+        "details.stripping.co2_to_gas_kmol_h": 11.761832,
+        "details.stripping.h2o_to_gas_kmol_h": 0.670049,
+        "details.solution_out.urea_wt_pct": 54.954,
+        "details.solution_out.h2o_wt_pct": 28.953,
+        "details.solution_out.biuret_wt_pct": 0.2486,
+        "details.steam.T_sat_K": 492.7,
+        "details.steam.hfg_kJkg": 1857.0,
+        "details.steam.steam_t_per_t_urea": 0.686,
+        "details.strip_gas": "co2",
+        "mass_balance.closure_pct": 0.00025,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.decomposition.carbamate_decomposed_kmol_h": 0.0001,
+        "details.decomposition.carbamate_out_kmol_h": 0.0001,
+        "details.stripping.nh3_to_gas_kmol_h": 0.0005,
+        "details.stripping.co2_to_gas_kmol_h": 0.0005,
+        "details.stripping.h2o_to_gas_kmol_h": 0.0005,
+        "details.solution_out.urea_wt_pct": 0.02,
+        "details.solution_out.h2o_wt_pct": 0.02,
+        "details.solution_out.biuret_wt_pct": 0.002,
+        "details.steam.T_sat_K": 0.5,
+        "details.steam.hfg_kJkg": 6.0,
+        "details.steam.steam_t_per_t_urea": 0.05,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Closed-form hand balance (separate Python, NOT engine output) of the stripper model: D = eff*carbamate_in; NH3 pool = NH3_in + 2D + strip-gas NH3; CO2 pool = CO2_in + D + strip-gas CO2; each pool split by its stripping efficiency. For this vector D = 0.80*7.372 = 5.8976, NH3 to gas = 0.85*(20.48851+11.7952) = 27.44115, CO2 to gas = 0.97*(0.228+5.8976+6.0) = 11.76183, H2O to gas = 0.03*22.334981 = 0.67005 kmol/h. MP steam properties are EXTERNAL steam-table anchors: saturated steam at 23 bar(a) is quoted at 219.6 degC (492.7 K) with hfg about 1857 kJ/kg; the IF97 port reproduces 492.51 K and 1860.9 kJ/kg, inside the stated tolerance. PLANT ANCHOR: HP stripper bottoms from a total-recycle loop run 50-60 wt% urea with 26-32 wt% water and 0.2-0.4 wt% biuret; HP stripping steam is 0.6-0.9 t per t of urea."
+    },
+    {
+      "id": "MB-085",
+      "desc": "hp-stripper thermal only (no strip gas): 65 % decomposition, 195 degC bottoms, 25 bar MP steam - lower stripping duty, weaker urea solution",
+      "call": "runModule",
+      "args": [
+        "hp-stripper",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2081.018970771,
+              "T_K": 458.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "urea",
+                  "mass_fraction": 0.35597446699947366
+                },
+                {
+                  "key": "amm_carbamate",
+                  "mass_fraction": 0.27656615344874413
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.19334983888490323
+                },
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.1676773824318962
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.004821810920965504
+                },
+                {
+                  "key": "biuret",
+                  "mass_fraction": 0.0016103473140172393
+                }
+              ]
+            }
+          ],
+          "params": {
+            "decomposition_efficiency": 0.65,
+            "nh3_strip_efficiency": 0.7,
+            "co2_strip_efficiency": 0.9,
+            "h2o_to_gas_fraction": 0.02,
+            "T_out_K": 468.15,
+            "steam_P_bar": 25.0
+          }
+        }
+      ],
+      "expect": {
+        "details.strip_gas": "none",
+        "details.decomposition.carbamate_decomposed_kmol_h": 4.7918,
+        "details.decomposition.carbamate_out_kmol_h": 2.5802,
+        "details.stripping.nh3_to_gas_kmol_h": 21.050477,
+        "details.stripping.co2_to_gas_kmol_h": 4.51782,
+        "details.stripping.h2o_to_gas_kmol_h": 0.4467,
+        "details.solution_out.urea_wt_pct": 48.877,
+        "details.steam.T_sat_K": 497.1,
+        "mass_balance.closure_pct": 0.00023,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.decomposition.carbamate_decomposed_kmol_h": 0.0001,
+        "details.decomposition.carbamate_out_kmol_h": 0.0001,
+        "details.stripping.nh3_to_gas_kmol_h": 0.0005,
+        "details.stripping.co2_to_gas_kmol_h": 0.0005,
+        "details.stripping.h2o_to_gas_kmol_h": 0.0005,
+        "details.solution_out.urea_wt_pct": 0.02,
+        "details.steam.T_sat_K": 0.6,
+        "mass_balance.closure_pct": 1e-05
+      },
+      "source": "Same closed-form hand balance as MB-084 with no strip gas: D = 0.65*7.372 = 4.7918, NH3 to gas = 0.70*(20.48851+9.5836) = 0.70*30.07211 = 21.050477, CO2 to gas = 0.90*(0.228+4.7918) = 4.51782, H2O to gas = 0.02*22.334981 = 0.44670 kmol/h. Saturated steam at 25 bar(a) is quoted at 224.0 degC (497.1 K) in published steam tables. Removing the strip gas drops the urea strength from 55.0 to 48.9 wt% - the expected direction and magnitude for a self-stripping layout run at lower decomposition."
+    },
+    {
+      "id": "MB-086",
+      "desc": "sls: 5 t/h urea slurry at 55 wt% solids, 98.5 % recovery, 6 wt% cake moisture - cake, adhering liquor, suspended-solids loss",
+      "call": "runModule",
+      "args": [
+        "sls",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 5000.0,
+              "T_K": 333.15,
+              "P_bar": 1.2,
+              "components": [
+                {
+                  "key": "urea",
+                  "mass_fraction": 0.55
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.45
+                }
+              ]
+            }
+          ],
+          "params": {
+            "recovery": 0.985,
+            "cake_moisture": 0.06
+          }
+        }
+      ],
+      "expect": {
+        "details.feed.solids_kg_h": 2750.0,
+        "details.feed.liquor_kg_h": 2250.0,
+        "details.cake.solids_kg_h": 2708.75,
+        "details.cake.liquor_kg_h": 172.898936,
+        "details.cake.total_kg_h": 2881.648936,
+        "details.cake.moisture_wt_pct": 6.0,
+        "details.mother_liquor.total_kg_h": 2118.351064,
+        "details.mother_liquor.suspended_solids_kg_h": 41.25,
+        "details.mother_liquor.solids_wt_pct": 1.947269,
+        "mass_balance.closure_pct": 0.0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.cake.liquor_kg_h": 0.0001,
+        "details.cake.total_kg_h": 0.0001,
+        "details.mother_liquor.total_kg_h": 0.0001,
+        "details.mother_liquor.solids_wt_pct": 1e-05,
+        "details.cake.moisture_wt_pct": 1e-09,
+        "mass_balance.closure_pct": 1e-09
+      },
+      "source": "Exact hand arithmetic (no correlation involved): solids 0.55*5000 = 2750 kg/h, cake solids 0.985*2750 = 2708.75, adhering liquor 2708.75*0.06/0.94 = 172.8989, cake 2881.6489 kg/h at exactly 6.00 wt% moisture, mother liquor 2118.3511 kg/h carrying the 41.25 kg/h of unrecovered crystals (1.947 wt%). PLANT ANCHOR: urea centrifuge cake leaves at 3-8 wt% moisture with 98-99.5 % crystal recovery."
+    },
+    {
+      "id": "MB-087",
+      "desc": "dryer specified_T: 2881.65 kg/h urea cake at 6 wt% moisture to 0.3 wt% product, 22 t/h air at 120 degC - evaporation, exhaust humidity, saturation margin",
+      "call": "runModule",
+      "args": [
+        "dryer",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 2881.648936170213,
+              "T_K": 333.15,
+              "P_bar": 1.2,
+              "components": [
+                {
+                  "key": "urea",
+                  "mass_fraction": 0.94
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.06
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 22000.0,
+              "T_K": 393.15,
+              "P_bar": 1.05,
+              "components": [
+                {
+                  "key": "N2",
+                  "mass_fraction": 0.7521
+                },
+                {
+                  "key": "O2",
+                  "mass_fraction": 0.2314
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.01
+                },
+                {
+                  "key": "Ar",
+                  "mass_fraction": 0.0065
+                }
+              ]
+            }
+          ],
+          "params": {
+            "target_moisture": 0.003,
+            "mode": "specified_T",
+            "T_gas_out_K": 373.15,
+            "T_solid_out_K": 353.15,
+            "P_bar": 1.05
+          }
+        }
+      ],
+      "expect": {
+        "details.feed.dry_solids_kg_h": 2708.75,
+        "details.feed.moisture_kg_h": 172.898936,
+        "details.product.kg_h": 2716.900702,
+        "details.product.moisture_kg_h": 8.150702,
+        "details.evaporation_kg_h": 164.748234,
+        "details.gas_side.dry_gas_kg_h": 21780.0,
+        "details.gas_side.exhaust_kg_h": 22164.748234,
+        "details.gas_side.humidity_in_kg_per_kg_dry": 0.010101,
+        "details.gas_side.humidity_out_kg_per_kg_dry": 0.017665,
+        "details.gas_side.relative_saturation_out": 0.02852,
+        "mass_balance.closure_pct": 0.0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.feed.moisture_kg_h": 0.0001,
+        "details.product.kg_h": 0.0001,
+        "details.product.moisture_kg_h": 0.0001,
+        "details.evaporation_kg_h": 0.0001,
+        "details.gas_side.exhaust_kg_h": 0.0001,
+        "details.gas_side.humidity_in_kg_per_kg_dry": 1e-06,
+        "details.gas_side.humidity_out_kg_per_kg_dry": 1e-06,
+        "details.gas_side.relative_saturation_out": 0.0005,
+        "mass_balance.closure_pct": 1e-09
+      },
+      "source": "Exact hand arithmetic plus one external steam-table anchor. Dry solids 2881.6489*0.94 = 2708.75 kg/h; product 2708.75/0.997 = 2716.9007 kg/h carrying 8.1507 kg/h of water; evaporation 172.8989 - 8.1507 = 164.7482 kg/h. Dry gas 22000*0.99 = 21780 kg/h, so the exhaust humidity is (220 + 164.7482)/21780 = 0.017665 kg/kg dry gas. Exhaust mole fractions give y_H2O = 0.027570; with the published saturation pressure of water at 100 degC (1.0142 bar) the relative saturation is 0.027570*1.05/1.0142 = 0.02854, i.e. the exhaust sits well clear of the dew point. PLANT ANCHOR: urea prill/granule dryers finish at 0.2-0.5 wt% moisture on hot air of 100-140 degC."
+    },
+    {
+      "id": "MB-088",
+      "desc": "urea-hp-loop: 46 kmol/h fresh NH3 + 20 kmol/h fresh CO2 + LP carbamate recycle at 150 bar - Wegstein tear on the HP carbamate recycle, overall C/N closure",
+      "call": "runModule",
+      "args": [
+        "urea-hp-loop",
+        {
+          "streams": [
+            {
+              "mass_flow_kg_h": 783.4259999999999,
+              "T_K": 353.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "NH3",
+                  "mass_fraction": 1.0
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 880.1999999999999,
+              "T_K": 383.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "CO2",
+                  "mass_fraction": 1.0
+                }
+              ]
+            },
+            {
+              "mass_flow_kg_h": 486.426,
+              "T_K": 358.15,
+              "P_bar": 150.0,
+              "components": [
+                {
+                  "key": "NH3",
+                  "mass_fraction": 0.2100751193398379
+                },
+                {
+                  "key": "CO2",
+                  "mass_fraction": 0.2714287476409567
+                },
+                {
+                  "key": "H2O",
+                  "mass_fraction": 0.5184961330192054
+                }
+              ]
+            }
+          ],
+          "params": {
+            "P_bar": 150.0,
+            "strip_gas_fraction": 1.0,
+            "reactor": {
+              "mode": "specified_T",
+              "T_out_K": 458.15
+            },
+            "stripper": {
+              "decomposition_efficiency": 0.82,
+              "T_out_K": 463.15,
+              "steam_P_bar": 23.0
+            },
+            "condenser": {
+              "condenser_T_K": 443.15,
+              "condensation_fraction": 0.95,
+              "condenser_steam_P_bar": 4.5
+            }
+          }
+        }
+      ],
+      "expect": {
+        "details.atom_balance.C_in_kmol_h": 23.0,
+        "details.atom_balance.N_in_kmol_h": 52.0,
+        "details.atom_balance.C_closure_pct": 0.0,
+        "details.atom_balance.N_closure_pct": 0.0,
+        "details.reactor.ratios.n_c": 3.01,
+        "details.reactor.conversion.X_co2_pct": 62.5,
+        "details.production.urea_kg_h": 1195.4,
+        "details.production.hp_steam_t_per_t_urea": 0.712,
+        "mass_balance.closure_pct": 0.0,
+        "converged": true
+      },
+      "tol": {
+        "default": 1e-06,
+        "details.atom_balance.C_in_kmol_h": 1e-09,
+        "details.atom_balance.N_in_kmol_h": 1e-09,
+        "details.atom_balance.C_closure_pct": 0.005,
+        "details.atom_balance.N_closure_pct": 0.005,
+        "details.reactor.ratios.n_c": 0.05,
+        "details.reactor.conversion.X_co2_pct": 0.6,
+        "details.production.urea_kg_h": 12.0,
+        "details.production.hp_steam_t_per_t_urea": 0.05,
+        "mass_balance.closure_pct": 0.005
+      },
+      "source": "Structural closure test, not a point prediction. The carbamate recycle is the converged Wegstein tear and is INTERNAL, so at steady state every carbon and nitrogen atom fed as fresh NH3, fresh CO2 or LP recycle must leave in the stripped urea solution: C_in = 20 + 3 = 23 kmol/h and N_in = 46 + 6 = 52 kmol/h are exact by inspection, and both closures plus the overall mass closure must fall inside the 0.01 % spec limit. The reactor ratios and conversion are then checked against the MB-079 correlation band, and the specific figures against plant experience: HP stripping steam 0.6-0.9 t per t urea, reactor N/C near 3 with the LP recycle shown. NH3 specific consumption reads high (about 655 kg/t against a plant 575-590) because the free ammonia in the stripper bottoms leaves this module for LP recovery rather than being recycled inside it - a topology statement about the module boundary, not a model error."
     }
   ]
 }
