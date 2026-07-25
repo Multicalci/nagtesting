@@ -14,7 +14,8 @@
 //                                   merged with fluids.js physicals.
 //                                   Cache-Control: public, max-age=86400.
 //   GET  ?selftest=1              → engine smoke checks → {pass, fail, ms}
-//   POST ?module={name}           → shape-validate body, throttle, dispatch to
+//   POST ?module={name}           → refresh correlation_params (TTL-cached),
+//                                   shape-validate body, throttle, dispatch to
 //                                   MODULES[name] in mb-engine.js, wrap as
 //                                   {ok, engine_version, copyright, warnings,
 //                                    result}; errors as 400/429/500/504 with
@@ -482,6 +483,15 @@ async function handleSolve(req, res, moduleName, ipHash) {
       (known.length ? ` — available: ${known.join(', ')}` : ' — no solver modules registered yet'),
       'module');
     return;
+  }
+
+  // ---- tunable correlations (Step 17) ----
+  // Refresh the server-side correlation_params cache BEFORE dispatch so the
+  // solvers themselves stay synchronous. TTL-guarded inside the engine, so
+  // this is a no-op on all but the first request per warm instance, and it
+  // never rejects — on any failure the embedded fallback stays in force.
+  if (typeof engine.loadCorrelations === 'function') {
+    try { await engine.loadCorrelations(); } catch (_e) { /* fallback in place */ }
   }
 
   // ---- body shape ----
