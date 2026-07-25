@@ -2,7 +2,7 @@
 // REPO PATH: api/_lib/mb-urea.js
 // ============================================================================
 // multicalci.com — Material Balance Calculator (spec v5.2) — STEP 17
-// PART 6 — UREA HP SECTION + SOLIDS FINISHING:
+// PART 7 — UREA HP SECTION + SOLIDS FINISHING:
 //   urea-reactor   empirical X_CO2 = f(N/C, H2O/C, T) from Supabase
 //                  `correlation_params` (embedded fallback), validity
 //                  envelope enforced with warnings, EMPIRICAL ESTIMATE flag,
@@ -24,7 +24,7 @@
 // MELT. Closing the balance on the crystal values gives a net ENDOTHERMIC
 // reactor, which is wrong by inspection.
 //
-// So Part 6 RE-ANCHORS the three fertilizer species to the reaction heats the
+// So Part 7 RE-ANCHORS the three fertilizer species to the reaction heats the
 // spec prescribes, at 298.15 K, in a hypothetical dissolved/melt state:
 //     hf*(NH3)       = hf_gas(NH3) − ΔHvap(298.15)      (Watson, from Part 1)
 //     hf*(CO2)       = hf_gas(CO2) − ΔHvap(298.15)      (Watson, clamped)
@@ -33,7 +33,7 @@
 //     hf*(urea)      = hf*(carbamate) − hf*(H2O) + ΔHr2, ΔHr2 = +15.5 kJ/mol
 //     hf*(biuret)    = 2·hf*(urea) − hf*(NH3) + ΔHr3,  ΔHr3 = 0 (tunable)
 // The universal contract Q = Hout − Hin therefore still holds EXACTLY inside
-// Part 6 — but with the prescribed HP-loop reaction heats built in instead of
+// Part 7 — but with the prescribed HP-loop reaction heats built in instead of
 // the crystal Hf set. The tabulated values are reported alongside the anchored
 // ones in details.enthalpy_basis so the offset is visible, never hidden. The
 // anchored carbamate lands within ~2.3 kJ/mol of the tabulated crystal value,
@@ -56,7 +56,7 @@
 
 import if97 from './if97.js';
 
-const PART6_VERSION = 'mb-urea 1.0.0';
+const PART7_VERSION = 'mb-urea 1.0.0 (Part 7 — urea HP section + solids finishing)';
 
 // ---------------------------------------------------------------------------
 // tunables (structural — the numeric correlation lives in CORRELATION_FALLBACK)
@@ -1826,7 +1826,7 @@ function mergeStreams(list) {
 // ---------------------------------------------------------------------------
 
 /**
- * Receive the mb-engine internal toolbox and hand back the Part-6 solver map.
+ * Receive the mb-engine internal toolbox and hand back the Part-7 solver map.
  * Called exactly once, at mb-engine module load.
  * @param {object} toolbox mb-engine internals (errObj, num, resolve, ...)
  * @returns {Object<string, function>} solver map for MODULES
@@ -1844,10 +1844,8 @@ function register(toolbox) {
 }
 
 export default {
-  PART6_VERSION,
+  PART7_VERSION,
   register,
   loadCorrelations,
   correlation,
-  resetCorrelations,
-  CORRELATION_FALLBACK,
-};
+  
