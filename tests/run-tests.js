@@ -45,16 +45,19 @@
 //                      stages, converged (all stages), and final.{mass_flow_kg_h
 //                      ,T_K,P_bar}. Mirrors the UI's client-side chain runner.
 //
-// Plain ES2020 / CommonJS. No dependencies. (c) multicalci.com
+// Plain ES2020 ES MODULE (matches api/_lib/*.js, which use import/export).
+// No dependencies. (c) multicalci.com
 // ============================================================================
 
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import engineModule from '../api/_lib/mb-engine.js';
 
-const ROOT = path.join(__dirname, '..');
-const engine = require(path.join(ROOT, 'api', '_lib', 'mb-engine.js'));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const engine = engineModule.default || engineModule;
 const VECTOR_FILE = path.join(__dirname, 'mb-vectors.json');
 
 const DEFAULT_TOL = 1e-6;
