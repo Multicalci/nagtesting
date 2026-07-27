@@ -82,6 +82,11 @@ export default async function handler(req, res) {
 // Route auto-created at /api/heatxpert by Vercel
 
 export const config = { api: { bodyParser: true } };
+
+// Build marker — returned on every response as `apiBuild`, and on its own via
+// {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
+// actually serving without reading the logs.
+const API_BUILD = '2026-07-condenser-isothermal+satlink';
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
   'https://multicalci.com',
@@ -117,7 +122,8 @@ async function heatxpert_handler(req, res) {
     // ── UPGRADE (2026-07): property engine init (lazy, cached across warm calls)
     await initCoolProp();
     const _stamp = r => (r && typeof r === 'object'
-      ? { ...r, propSource: CPI ? 'CoolProp 6.6 (Helmholtz EOS, NIST-grade)' : 'built-in DB (interpolated)' } : r);
+      ? { ...r, propSource: CPI ? 'CoolProp 6.6 (Helmholtz EOS, NIST-grade)' : 'built-in DB (interpolated)',
+          apiBuild: API_BUILD } : r);
 
    // ── Normalise units before dispatch ──────────────────────────────────
     const us = body.unitSys || 'metric';
@@ -156,7 +162,9 @@ async function heatxpert_handler(req, res) {
       // Lightweight lookup used by the UI's temperature ⇄ pressure auto-fill.
       // Always SI in / SI out (°C, bar a) — deliberately NOT unit-normalised
       // above, since its field names are its own.
-      case 'saturation':  return res.json(calcSaturation(body));
+      case 'saturation':  return res.json({ ...calcSaturation(body), apiBuild: API_BUILD });
+      // Health check: confirms which build is deployed.
+      case 'version':     return res.json({ apiBuild: API_BUILD, coolProp: !!CPI });
       default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
     }
   } catch (err) {
@@ -3284,3 +3292,253 @@ function calcFinFan(b) {
   return {
     Qhot,tTi,tTo,tF_kgh,tFluid,tFlDB,aTamb,aTout,mAir_kgh,
     A_extended,A_bare,A_req,A_prov,overDesign,EMTD,lmtd,F,F_rows,dT1,dT2,
+    U_ext,U_actual,h_outside:h_air,h_tubeside:h_tube,h_clean,
+    eta_fin,eta_surf,h_air,h_air_eff,
+    dpTube,dpAir_Pa,dpAir_mmH2O,vPr_mmH2O,P_fan_total,P_fan_each,
+    v_face,v_max,G_max,V_air_m3s,V_air_100m3min,Re_air,Re_tube,tubeVel,
+    A_face_total,bundleL_calc,areaRatio,finsPerTube,
+    R_tube_film,R_foul_tube,R_wall_val,R_foul_air,R_air_film,R_total,
+    T_skin_max,T_skin_min,nTubeTotal,nTubesPerPass,
+    fanAreaRatio,driverKW,nFans,nBays,nBundlesPBay,bundleW,
+    st,stTxt,warns
+  };
+}
+
+// ─── LMTD / NTU ──────────────────────────────────────────────────────────────
+function calcLmtdNtu(b) {
+  const hTi=requireFinite(b.hTi,'hTi'), hTo=requireFinite(b.hTo,'hTo');
+  const cTi=requireFinite(b.cTi,'cTi'), cTo=requireFinite(b.cTo,'cTo');
+  const arr=b.arr||'counter';
+  if(hTo>=hTi) throw new Error('Hot outlet must be below hot inlet');
+  if(cTo<=cTi) throw new Error('Cold outlet must be above cold inlet');
+  if(hTi<=cTi) throw new Error('Hot inlet must be above cold inlet');
+  const lmtdRes=calcLMTD(hTi,hTo,cTi,cTo,arr);
+  if (!lmtdRes.lmtd) throw new Error(lmtdRes.err||'Cannot compute LMTD');
+  const {lmtd,F,dT1,dT2}=lmtdRes, FLMTD=lmtd*F;
+  const Ch=parseFloat(b.Ch)||null, Cc=parseFloat(b.Cc)||null;
+  const UA_given=parseFloat(b.UA)||null;
+  let NTU=null,eff=null,Cmin_kW=null,UA=UA_given;
+  if(Ch&&Cc){
+    Cmin_kW=Math.min(Ch,Cc);
+    const Cmax_kW=Math.max(Ch,Cc);
+    const Q_kW=Ch*(hTi-hTo), Qmax=Cmin_kW*(hTi-cTi);
+    eff=Qmax>0?Q_kW/Qmax:null;
+    const Cr=Cmin_kW/Cmax_kW;
+   if(arr==='counter'&&Cr<0.999&&eff!=null)
+      NTU=Math.log((1-Cr*Math.max(eff,0.001))/Math.max(1-eff,0.001))/(1-Cr);
+    else if(arr==='counter'&&Cr>=0.999&&eff!=null)
+      NTU=eff/Math.max(1-eff,1e-9);
+    else if(arr==='parallel'&&eff!=null)
+      NTU=-Math.log(1-eff*(1+Cr))/(1+Cr);
+    else if(arr==='cross1'&&eff!=null)
+      // Crossflow (both unmixed) — iterative inversion of NTU-effectiveness
+      NTU=(function(){let n=1.0;for(let i=0;i<30;i++){const e=1-Math.exp((Math.exp(-Cr*Math.pow(n,0.22))-1)*Math.pow(n,0.78)/Cr);const de=(e-eff);if(Math.abs(de)<1e-6)break;n-=de/0.5;n=Math.max(0.01,n);}return n;})();
+    else if(eff!=null)
+      NTU=Math.log((1-Cr*Math.max(eff,0.001))/Math.max(1-eff,0.001))/(1-Math.max(Cr,0.001));
+    UA=NTU*Cmin_kW*1000;
+  }
+  return {lmtd,F,FLMTD,dT1,dT2,NTU,eff,UA,Cmin_kW,hTi,hTo,cTi,cTo,arr};
+}
+
+// ─── WALL THICKNESS ───────────────────────────────────────────────────────────
+function calcWallThickness(b) {
+  const std=b.std||'asme8d1', type=b.type||'cylinder';
+  const P_barg=requireFinite(b.P,'P'), D_mm=requireFinite(b.D,'D');
+  let S_MPa=parseFloat(b.S)||138;
+  const CA_mm=parseFloat(b.CA)||3, MT_mm=parseFloat(b.MT)||0.6;
+  const E=parseFloat(b.E)||1.0, alpha=parseFloat(b.alpha)||30;
+  // NOTE (audit 2026-07): the frontend's wt_mat dropdown sends NUMERIC strings
+  // ("138","118","130","103","96","115") or "custom", never names like 'ss316'.
+  // parseFloat therefore works; 'custom' correctly falls back to the wt_S input.
+  // Do NOT add a name→stress map here without also changing the frontend options.
+  if(b.mat&&b.mat!=='custom') S_MPa=parseFloat(b.mat)||S_MPa;
+  const P_MPa=P_barg*0.1, R_i=D_mm/2;
+  if(P_MPa<=0||D_mm<=0||S_MPa<=0) throw new Error('Enter valid pressure, diameter, and stress');
+
+  let t_thin_mm, formula, standardName;
+  if(type==='cylinder'){
+    if(std==='asme8d1'){t_thin_mm=(P_MPa*R_i)/(S_MPa*E-0.6*P_MPa);formula='t = P·R_i/(S·E−0.6P)';standardName='ASME VIII Div.1 UG-27(c)(1)';}
+    else if(std==='en13445'){t_thin_mm=(P_MPa*D_mm)/(2*S_MPa*E-P_MPa);formula='e = P·D_i/(2·f·z−P)';standardName='EN 13445-3 Clause 7.4.2';}
+    else{t_thin_mm=(P_MPa*D_mm)/(2*S_MPa*E-P_MPa);formula='e = P·D_i/(2·f·z−P)';standardName='BS PD 5500';}
+  } else if(type==='sphere'){
+    if(std==='asme8d1'){t_thin_mm=(P_MPa*R_i)/(2*S_MPa*E-0.2*P_MPa);formula='t = P·R_i/(2·S·E−0.2P)';standardName='ASME VIII Div.1 UG-27(d)';}
+    else{t_thin_mm=(P_MPa*D_mm)/(4*S_MPa*E-P_MPa);formula='e = P·D_i/(4·f·z−P)';standardName='EN 13445-3 Clause 7.4.3';}
+  } else {
+    const aRad=alpha*Math.PI/180;
+    t_thin_mm=(P_MPa*D_mm)/(2*Math.cos(aRad)*(S_MPa*E-0.6*P_MPa));
+    formula=`t = P·D_i/(2·cos(α)·(S·E−0.6P)) α=${alpha}°`;
+    standardName=`ASME VIII Div.1 UG-32(g) Conical`;
+  }
+
+  // ── Thick-wall check ────────────────────────────────────────────────────
+  // Industry standard: thin-wall assumption valid when t/R_i < 0.1 (10%).
+  // Previous code used t/R > 0.5 (too lenient) and only reported Lamé informational.
+  // FIX: When t/R_i ≥ 0.1, compute Lamé thick-wall result and USE IT for t_calc_mm.
+  // The Lamé formula for a thick-wall cylinder under internal pressure:
+  //   t = R_i × (exp(P / (2·S·E)) − 1)      [exact elastic solution]
+  // This gives a larger (more conservative) t than thin-wall at high t/R.
+  const tRatio_thin = t_thin_mm / R_i;
+  let t_calc_mm = t_thin_mm;
+  let lameT = null;
+  let isThickWall = false;
+  const warns = [];
+  if (type === 'cylinder' && tRatio_thin >= 0.1) {
+    lameT = R_i * (Math.exp(P_MPa / (2 * S_MPa * E)) - 1);
+    isThickWall = true;
+    t_calc_mm = Math.max(t_thin_mm, lameT);  // take the larger (conservative)
+    // For internal pressure cylinders: thin-wall (UG-27) gives larger t than Lamé.
+    // UG-27 is therefore conservative and is used. Lamé is shown informational.
+    // Warn the user that they are in the thick-wall regime.
+    warns.push(`Thick-wall regime (t/R = ${tRatio_thin.toFixed(3)} ≥ 0.1). ASME UG-27 thin-wall formula gives t = ${t_thin_mm.toFixed(2)} mm (conservative for internal pressure). Lamé exact solution: ${lameT.toFixed(2)} mm.`);
+  }
+
+  const tRatio = t_calc_mm / R_i;
+  const t_with_CA = t_calc_mm + CA_mm + MT_mm;
+  const t_nominal = Math.ceil(t_with_CA * 2) / 2;
+  const pMax_check = (S_MPa*E*(t_nominal-CA_mm-MT_mm)) / (R_i+0.6*(t_nominal-CA_mm-MT_mm));
+  const OD_mm = D_mm + 2 * t_nominal;
+
+  return {t_calc_mm, t_thin_mm, t_with_CA, t_nominal, OD_mm, tRatio, isThickWall,
+          pMax_check_bar:pMax_check*10, lameT, P_barg, P_MPa, D_mm, S_MPa, E,
+          CA_mm, MT_mm, formula, standardName, warns};
+}
+
+// ─── FOULING COMBINED ─────────────────────────────────────────────────────────
+function calcFouling(b) {
+  const Rf_s=parseFloat(b.Rf_s)||0, Rf_t=parseFloat(b.Rf_t)||0;
+  const U_cl=parseFloat(b.U_cl)||800;
+  const Rf_total=Rf_s+Rf_t;
+  const U_service=1/(1/U_cl+Rf_total);
+  const area_increase=(U_cl/U_service-1)*100;
+  return {Rf_s,Rf_t,Rf_total,U_cl,U_service,area_increase};
+}
+
+// ─── SPACE-CONSTRAINED GEOMETRY OPTIMIZER ────────────────────────────────────
+// Called when tube length is fixed and velocity target cannot be met.
+// Finds the best combination of (OD, nPasses, nShells) that satisfies
+// BOTH area requirement AND target velocity within engineering constraints.
+function calcGeometryOptimizer(b) {
+  const area_req   = requireFinite(b.area_req,  'area_req');   // m²
+  const massC_kgs  = requireFinite(b.massC_kgs, 'massC_kgs');  // kg/s cold side
+  const L_fixed    = requireFinite(b.L_fixed,   'L_fixed');     // m — max allowed
+  const rho_c      = requireFinite(b.rho_c,     'rho_c');       // kg/m³ cold fluid
+  const target_vel = parseFloat(b.target_vel) || 1.5;           // m/s
+  const vel_min    = parseFloat(b.vel_min)    || 0.8;           // m/s acceptable floor
+  const vel_max    = parseFloat(b.vel_max)    || 3.5;           // m/s erosion ceiling
+  const max_passes = parseInt(b.max_passes)   || 8;
+  const max_shells = parseInt(b.max_shells)   || 4;
+  const tw_default = parseFloat(b.tw_mm)      || 2.0;           // mm wall thickness
+
+  // Standard tube OD options (TEMA/ASME preferred sizes in mm)
+  const OD_options_mm = [12.7, 15.88, 19.05, 25.4, 31.75, 38.1];
+  // Standard pass counts
+  const pass_options  = [1, 2, 4, 6, 8].filter(p => p <= max_passes);
+  // Shell series options
+  const shell_options = [1, 2, 3].filter(s => s <= max_shells);
+
+  const solutions = [];
+
+  OD_options_mm.forEach(od_mm => {
+    const OD  = od_mm / 1000;
+    const tw  = Math.min(tw_default / 1000, OD * 0.12); // max 12% wall ratio
+    const Di  = OD - 2 * tw;
+    if (Di <= 0.005) return;
+    const A_cross     = Math.PI * Di * Di / 4;
+    const A_per_tube  = Math.PI * OD * L_fixed;
+
+    pass_options.forEach(np => {
+      shell_options.forEach(ns => {
+        // Each shell sees 1/ns of the total area requirement
+        const area_per_shell = area_req / ns;
+        const n_total = Math.ceil(area_per_shell / A_per_tube / np) * np;
+        if (n_total < 1 || n_total > 500) return;
+        const nTPP    = n_total / np;
+        const vel     = massC_kgs / (nTPP * rho_c * A_cross);
+        const A_prov  = A_per_tube * n_total * ns;
+        const margin  = (A_prov / area_req - 1) * 100;
+
+        // Score solution: penalize velocity deviation from target, reward fewer tubes/passes
+        const vel_ok   = vel >= vel_min && vel <= vel_max;
+        const vel_score = Math.abs(vel - target_vel) / target_vel;  // 0 = perfect
+        const complexity = (np / 8) + (ns / 4) + (n_total / 200);   // lower = simpler
+        const score = vel_ok ? (vel_score + complexity * 0.3) : 999;
+
+        solutions.push({
+          od_mm, OD, Di: +(Di*1000).toFixed(2), tw_mm: +(tw*1000).toFixed(2),
+          nPasses: np, nShells: ns,
+          numTubes: n_total, nTubesPerPass: nTPP,
+          velocity: +vel.toFixed(3),
+          area_provided: +A_prov.toFixed(2),
+          area_margin_pct: +margin.toFixed(1),
+          vel_ok, score: +score.toFixed(4),
+          label: `OD=${od_mm}mm · ${np} pass · ${ns} shell${ns>1?'s':''}`
+        });
+      });
+    });
+  });
+
+  // Sort: valid solutions first (by score), then invalid by closeness to vel_min
+  solutions.sort((a, b) => a.score - b.score);
+
+  const valid   = solutions.filter(s => s.vel_ok).slice(0, 5);
+  const invalid = solutions.filter(s => !s.vel_ok)
+    .sort((a, b) => Math.abs(a.velocity - vel_min) - Math.abs(b.velocity - vel_min))
+    .slice(0, 3);
+
+  // Generate plain-English recommendation
+  let recommendation = '';
+  if (valid.length > 0) {
+    const best = valid[0];
+    recommendation = `Best option: ${best.od_mm}mm OD tubes with ${best.nPasses} passes` +
+      (best.nShells > 1 ? ` × ${best.nShells} shells in series` : '') +
+      ` → ${best.numTubes} tubes (${best.nTubesPerPass}/pass), velocity ${best.velocity} m/s.`;
+  } else {
+    recommendation = `No solution found within constraints. Consider relaxing velocity floor to ${(vel_min*0.8).toFixed(1)} m/s or allowing longer tubes.`;
+  }
+
+  return {
+    area_req: +area_req.toFixed(3),
+    L_fixed,
+    target_vel,
+    vel_min,
+    vel_max,
+    solutions_valid:   valid,
+    solutions_partial: invalid,
+    recommendation,
+    any_solution: valid.length > 0
+  };
+}
+
+// ─── HX SELECTOR ─────────────────────────────────────────────────────────────
+function calcSelector(b) {
+  const {app,pres,foul,duty,space,corr}=b;
+  const scores={'shell-tube':0,'plate':0,'air-cooled':0,'double-pipe':0,'spiral':0,'plate-fin':0};
+  if(app==='liquid-liquid'){scores['plate']+=3;scores['shell-tube']+=2;scores['double-pipe']+=1;}
+  if(app==='liquid-gas'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
+  if(app==='gas-gas'){scores['plate-fin']+=3;scores['shell-tube']+=1;}
+  if(app==='condensing'){scores['shell-tube']+=4;scores['plate']+=1;}
+  if(app==='evaporating'){scores['shell-tube']+=4;}
+  if(app==='air-cooling'){scores['air-cooled']+=5;}
+  if(pres==='high'){scores['shell-tube']+=3;scores['plate']-=2;scores['double-pipe']+=2;}
+  if(pres==='medium'){scores['shell-tube']+=2;scores['plate']+=1;}
+  if(pres==='low'){scores['plate']+=2;scores['shell-tube']+=1;}
+  if(foul==='high'){scores['shell-tube']+=3;scores['plate']-=3;scores['spiral']+=3;}
+  if(foul==='medium'){scores['shell-tube']+=2;}
+  if(foul==='low'){scores['plate']+=2;}
+  if(duty==='small'){scores['double-pipe']+=3;scores['plate']+=2;}
+  if(duty==='medium'){scores['plate']+=2;scores['shell-tube']+=2;}
+  if(duty==='large'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
+  if(space==='very-limited'){scores['plate']+=3;scores['plate-fin']+=2;scores['shell-tube']-=1;}
+  if(space==='limited'){scores['plate']+=2;}
+  if(space==='plenty'){scores['shell-tube']+=1;scores['air-cooled']+=1;}
+  if(corr==='high'){scores['plate']+=2;scores['shell-tube']+=1;}
+  if(corr==='medium'){scores['shell-tube']+=1;}
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  return {top:sorted[0][0],second:sorted[1][0],scores};
+}
+
+// ── End of Section 06: HeatXpert Pro (Heat Exchanger) ──────────────────────────────────────────
+
+
+
+// ══════════════════════════════════════════════════════════════════════════════
