@@ -153,6 +153,10 @@ async function heatxpert_handler(req, res) {
       case 'fouling':     return res.json(_stamp(calcFouling(body)));
       case 'selector':    return res.json(_stamp(calcSelector(body)));
       case 'geoOptimizer': return res.json(_stamp(calcGeometryOptimizer(body)));
+      // Lightweight lookup used by the UI's temperature ⇄ pressure auto-fill.
+      // Always SI in / SI out (°C, bar a) — deliberately NOT unit-normalised
+      // above, since its field names are its own.
+      case 'saturation':  return res.json(calcSaturation(body));
       default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
     }
   } catch (err) {
@@ -368,9 +372,41 @@ const LIQUID_OF = {'steam':'water','ammonia-gas':'ammonia-liquid'};
 //   LATENT HEAT  — Watson relation: L(T) = L_ref·[(Tc−T)/(Tc−T_ref)]^0.38.
 //                  NH₃ at 25°C → 1162 kJ/kg (table ≈1166).
 // ═══════════════════════════════════════════════════════════════════════════
+// ── ANTOINE CONSTANTS for the common condensables (upgrade 2026-07) ─────────
+// NIST form, pressure in BAR and temperature in KELVIN:
+//     log10(P_bar) = A − B/(T_K + C)
+// Added because the single-anchor Clausius-Clapeyron fallback is only exact AT
+// its 1 atm anchor and degrades as pressure departs from it — for ammonia it
+// read +9.1 °C high at 15 bar, which is squarely in the middle of the normal
+// NH₃ condenser range. Each set below was checked against its published normal
+// boiling point (all reproduce it within 0.35 °C) and, for ammonia, against
+// R717 tables from 1–20 bar (within 0.4 °C throughout).
+// Used only inside its stated validity window; outside it the
+// Clausius-Clapeyron path still answers. CoolProp, when installed, outranks
+// both of these.
+const ANTOINE = {
+  //              A        B         C        Tmin_K  Tmax_K
+  'ammonia':  [4.86886, 1113.928, -10.409,   239.6,  371.5],
+  'methanol': [5.20409, 1581.341, -33.50,    288.1,  356.8],
+  'ethanol':  [5.24677, 1598.673, -46.424,   292.8,  366.6],
+  'benzene':  [4.72583, 1660.652,  -1.461,   333.4,  373.5],
+  'toluene':  [4.14157, 1377.578, -50.507,   308.0,  384.0],
+  'acetone':  [4.42448, 1312.253, -32.445,   259.2,  380.0],
+};
+// Fluid-database key → Antoine entry
+const ANTOINE_OF = {
+  'ammonia-liquid':'ammonia', 'ammonia-gas':'ammonia', 'r717':'ammonia',
+  'methanol':'methanol', 'ethanol':'ethanol',
+  'benzene':'benzene', 'toluene':'toluene', 'acetone':'acetone',
+};
+
 function satTemperature(fluidKey, P_bar_abs) {
   const key = (fluidKey || '').toLowerCase().trim();
-  const P = Math.max(parseFloat(P_bar_abs) || 1.01325, 0.01);
+  // Floor lowered 0.01 → 0.001 bar (2026-07). The old floor silently clamped
+  // any deep-vacuum pressure to 0.01 bar, which for water pins Tsat at 7.1 °C
+  // and broke the T→P→T round trip the UI auto-fill relies on. 0.001 bar is
+  // still far from any numerical singularity in the Antoine form below.
+  const P = Math.max(parseFloat(P_bar_abs) || 1.01325, 0.001);
   if (key === 'water' || key === 'steam') {
     const P_mmHg = P * 750.062;
     const lgP = Math.log10(P_mmHg);
@@ -379,6 +415,15 @@ function satTemperature(fluidKey, P_bar_abs) {
     if (T > 99) T = 1810.94 / (8.14019 - lgP) - 244.485;
     return T;
   }
+  // Antoine, where a validated constant set exists and the result lands inside
+  // its published window. Falls through to Clausius-Clapeyron otherwise.
+  const anKey = ANTOINE_OF[key];
+  if (anKey) {
+    const [A, B, C, Tmin, Tmax] = ANTOINE[anKey];
+    const T_K = B / (A - Math.log10(P)) - C;
+    if (isFinite(T_K) && T_K >= Tmin && T_K <= Tmax) return T_K - 273.15;
+  }
+
   const f = FP[key];
   if (!f || !f.Tsat || !f.hvap || !f.MW) return f?.Tsat ?? null;
   const R_s = 8314 / f.MW;                       // J/kgK
@@ -398,6 +443,155 @@ function satTemperature(fluidKey, P_bar_abs) {
   // never extrapolate beyond ~0.9·Tc (Clausius-Clapeyron breaks near critical)
   if (f.Tc && T_K > 0.9 * f.Tc) T_K = 0.9 * f.Tc;
   return T_K - 273.15;
+}
+
+// ── INVERSE: saturation PRESSURE from temperature (upgrade 2026-07) ─────────
+// Analytical inverse of satTemperature() above, so that the T→P→T round trip
+// is self-consistent to <0.05 °C:
+//   WATER/STEAM  — Antoine solved for P:  P_mmHg = 10^(A − B/(C+T)),
+//                  same two published ranges, switched on T (not on P).
+//   OTHER FLUIDS — Clausius-Clapeyron solved for P:
+//                    ln(P/P_ref) = (L/R_s)·(1/T_ref − 1/T)
+//                  with the same one-pass Watson refinement of L at the mean
+//                  temperature that the forward function applies.
+// Returns bar absolute, or null when the fluid has no saturation anchor.
+function satPressure(fluidKey, T_degC) {
+  const key = (fluidKey || '').toLowerCase().trim();
+  const T = parseFloat(T_degC);
+  if (!isFinite(T)) return null;
+  if (key === 'water' || key === 'steam') {
+    // Validity window: triple point (0.01 °C) to critical point (373.95 °C).
+    // Outside it there is no saturation state to return — null, not a number.
+    if (T < 0.01 || T > 373.9) return null;
+    // Antoine ranges are the mirror image of satTemperature's switch at ~99 °C
+    const [A, B, C] = T > 99 ? [8.14019, 1810.94, 244.485] : [8.07131, 1730.63, 233.426];
+    if (C + T <= 0) return null;                       // below Antoine validity
+    const P_mmHg = Math.pow(10, A - B / (C + T));
+    const P_bar = P_mmHg / 750.062;
+    return isFinite(P_bar) && P_bar > 0 ? P_bar : null;
+  }
+  const f = FP[key];
+  if (!f || f.Tsat == null || !f.hvap || !f.MW) return null;
+  const T_K = T + 273.15;
+  if (T_K <= 0) return null;
+  // Mirror satTemperature's 0.9·Tc ceiling exactly, so the T→P→T round trip is
+  // consistent. Above it Clausius-Clapeyron is extrapolating past where the
+  // forward function will follow, and near/above Tc there is no dome at all —
+  // e.g. ammonia at 200 °C is 68 °C supercritical and must return null rather
+  // than a plausible-looking 38 bar.
+  if (f.Tc && (T_K > 0.9 * f.Tc || T_K < 0.4 * f.Tc)) return null;
+
+  // NUMERICAL INVERSION of satTemperature (2026-07). An analytical inverse of
+  // the Clausius-Clapeyron form is available, but it cannot reproduce the
+  // forward function's two-pass Watson fixed point exactly — the residual
+  // asymmetry reached 8.5 °C for ammonia at 90 °C, which the UI would surface
+  // as the temperature visibly jumping after an auto-fill. Bisecting the
+  // forward function instead makes satPressure its exact inverse by
+  // construction. Tsat(P) is monotonic in P, so bisection on ln P is
+  // unconditionally convergent; 60 halvings of the bracket below take it to
+  // machine precision at negligible cost.
+  let lo = 1e-4, hi = f.Pc ? Math.min(0.98 * f.Pc, 500) : 500;
+  const fwd = P => satTemperature(key, P);
+  const T_lo = fwd(lo), T_hi = fwd(hi);
+  if (T_lo == null || T_hi == null) return null;
+  if (T < T_lo || T > T_hi) return null;               // outside invertible range
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.sqrt(lo * hi);                     // geometric = bisect ln P
+    if (fwd(mid) < T) lo = mid; else hi = mid;
+  }
+  const P = Math.sqrt(lo * hi);
+  return isFinite(P) && P > 0 ? P : null;
+}
+
+// ── SATURATION LOOKUP ENDPOINT (upgrade 2026-07) ────────────────────────────
+// Powers the UI's temperature ⇄ pressure auto-fill. Given ONE of the pair it
+// returns the other, plus the latent heat, so that a condenser or reboiler can
+// be specified without the user hand-looking-up steam tables.
+//   direction:'T_from_P'  → needs P_bar  → returns Tsat
+//   direction:'P_from_T'  → needs T_degC → returns Psat
+// CoolProp (Helmholtz EOS) is used when the fluid is mapped and the WASM
+// module loaded; otherwise the Antoine / Clausius-Clapeyron layer answers and
+// `source` says so. Fluids with no saturation model return saturable:false
+// rather than a fabricated number.
+// Which correlation satTemperature/satPressure will actually have used, so the
+// UI reports the real provenance instead of guessing from the fluid key.
+function satFallbackSource(fluidKey) {
+  const k = (fluidKey || '').toLowerCase().trim();
+  if (k === 'water' || k === 'steam') return 'Antoine equation';
+  return ANTOINE_OF[k] ? 'Antoine equation' : 'Clausius-Clapeyron + Watson';
+}
+
+function calcSaturation(b) {
+  const fluidKey = (b.fluidKey || 'water').toLowerCase().trim();
+  const dir = b.direction === 'P_from_T' ? 'P_from_T' : 'T_from_P';
+  const cpName = COOLPROP_NAME[fluidKey];
+  const f = FP[fluidKey];
+  const label = f?.name || fluidKey;
+
+  // Fluids with neither a CoolProp model nor a DB saturation anchor
+  const hasDbAnchor = !!(f && f.Tsat != null && f.hvap && f.MW) || fluidKey === 'water' || fluidKey === 'steam';
+  if (!cpName && !hasDbAnchor) {
+    return { saturable: false, fluidKey, fluidName: label,
+             note: `${label} has no saturation model in this library — enter temperature and pressure independently.` };
+  }
+
+  let T_degC = null, P_bar = null, hvap = null, source = null;
+
+  if (dir === 'T_from_P') {
+    P_bar = parseFloat(b.P_bar);
+    if (!isFinite(P_bar) || P_bar <= 0) throw new Error('A positive absolute pressure is required');
+    if (CPI && cpName && !cpName.startsWith('INCOMP')) {
+      try {
+        const Pa = P_bar * 1e5;
+        T_degC = CPI.PropsSI('T', 'P', Pa, 'Q', 1, cpName) - 273.15;
+        hvap = (CPI.PropsSI('H', 'P', Pa, 'Q', 1, cpName) - CPI.PropsSI('H', 'P', Pa, 'Q', 0, cpName)) / 1000;
+        source = 'CoolProp (Helmholtz EOS)';
+      } catch { T_degC = null; }
+    }
+    if (T_degC == null || !isFinite(T_degC)) {
+      T_degC = satTemperature(fluidKey, P_bar);
+      hvap = T_degC != null ? hvapAtT(fluidKey, T_degC) : null;
+      source = satFallbackSource(fluidKey);
+    }
+  } else {
+    T_degC = parseFloat(b.T_degC);
+    if (!isFinite(T_degC)) throw new Error('A temperature is required');
+    if (CPI && cpName && !cpName.startsWith('INCOMP')) {
+      try {
+        const T_K = T_degC + 273.15;
+        P_bar = CPI.PropsSI('P', 'T', T_K, 'Q', 1, cpName) / 1e5;
+        hvap = (CPI.PropsSI('H', 'T', T_K, 'Q', 1, cpName) - CPI.PropsSI('H', 'T', T_K, 'Q', 0, cpName)) / 1000;
+        source = 'CoolProp (Helmholtz EOS)';
+      } catch { P_bar = null; }
+    }
+    if (P_bar == null || !isFinite(P_bar)) {
+      P_bar = satPressure(fluidKey, T_degC);
+      hvap = hvapAtT(fluidKey, T_degC);
+      source = satFallbackSource(fluidKey);
+    }
+  }
+
+  if (T_degC == null || P_bar == null || !isFinite(T_degC) || !isFinite(P_bar)) {
+    return { saturable: false, fluidKey, fluidName: label,
+             note: `Saturation state for ${label} is outside the range this library can model at that condition.` };
+  }
+
+  // Critical-point guard — the dome does not extend past Tc/Pc
+  const Tc_K = f?.Tc, Pc_bar = f?.Pc;
+  let nearCritical = false;
+  if (Tc_K && (T_degC + 273.15) > 0.98 * Tc_K) nearCritical = true;
+  if (Pc_bar && P_bar > 0.98 * Pc_bar) nearCritical = true;
+
+  return {
+    saturable: true, fluidKey, fluidName: label, direction: dir,
+    Tsat_degC: +T_degC.toFixed(3),
+    Psat_bar:  +P_bar.toFixed(5),
+    hvap_kJkg: hvap != null && isFinite(hvap) ? +hvap.toFixed(1) : null,
+    source, nearCritical,
+    note: nearCritical
+      ? `Close to the critical point of ${label} — latent heat approaches zero and saturation correlations lose accuracy.`
+      : null
+  };
 }
 
 function hvapAtT(fluidKey, T_degC) {
@@ -1502,7 +1696,36 @@ function calcShellTube(b) {
 
   const hF=requireFinite(b.hF,'hF');
   if (hF<=0) throw new Error('Hot flow must be positive');
-  if (hTo>=hTi) throw new Error('Hot outlet must be less than hot inlet temperature');
+
+  // ── Thermal mode — declared here because the hot-side temperature validation
+  //    below depends on it (was previously declared after the Q block).
+  const shellMode  = b.shellMode || 'single-phase';
+
+  // ── FIX (2026-07): hot-side temperature validation is now PHASE-AWARE ──────
+  // The old rule `hTo >= hTi → error` is only correct for sensible-heat duty.
+  // In a total condenser handling a saturated vapour with no subcooling, the
+  // stream enters and leaves at the SAME temperature (both at Tsat) and all of
+  // the duty is latent:  Q = m·hvap.  Rejecting hTi = hTo made the single most
+  // common condenser case impossible to enter.
+  //   • condensing  : hTo may equal hTi (pure latent), or be below it
+  //                   (subcooling), but never above it.
+  //   • single-phase: strict decrease still required — hTi = hTo would mean
+  //                   Q = 0, which is not a heat exchanger.
+  if (shellMode === 'condensing') {
+    if (hTo > hTi + 1e-9) {
+      throw new Error(
+        'Hot outlet cannot be above hot inlet. For a total condenser with no ' +
+        'subcooling set outlet = inlet (both at the saturation temperature); ' +
+        'for a subcooling condenser set outlet below it.'
+      );
+    }
+  } else if (hTo >= hTi) {
+    throw new Error(
+      shellMode === 'evaporating'
+        ? 'Hot outlet must be less than hot inlet temperature — in evaporating mode the hot stream gives up sensible heat.'
+        : 'Hot outlet must be less than hot inlet temperature. If the hot stream is condensing at constant temperature, set Thermal Mode to "Condensing".'
+    );
+  }
 
   // ── Phase-change heat duty — correctly uses latent heat ──────────────────
   // This was the critical bug: shellMode='condensing'/'evaporating' was only
@@ -1525,7 +1748,7 @@ function calcShellTube(b) {
   let cF=parseFloat(b.cF)||0, cTo=parseFloat(b.cTo)||0;
   const coldMode=b.coldMode||'flow';
   const massH_kgs = hF / 3600;   // kg/s — used in phase-change heat duty below
-  const shellMode  = b.shellMode || 'single-phase';   // declared early for Q calc
+  // shellMode is declared above (needed by the hot-side temperature validation)
 
   // ── Compute hot-side heat duty with phase-change awareness ───────────────
   let Qhot;
@@ -2136,6 +2359,27 @@ function calcShellTube(b) {
   if (shellDP > pdAllowShell) warns.push(`Shell ΔP ${shellDP.toFixed(3)} bar exceeds allowable`);
   if (tubeDp > pdAllowTube)   warns.push(`Tube ΔP ${tubeDp.toFixed(3)} bar exceeds allowable`);
   if (overSurf < 0) warns.push('Insufficient area — increase tube length or passes');
+  // ── Saturation-consistency check (upgrade 2026-07) ────────────────────────
+  // Now that a condenser may legitimately be specified isothermally, the most
+  // likely remaining user error is a temperature/pressure pair that is not on
+  // the saturation curve — e.g. steam entered as 120 °C at 3 bar a, where Tsat
+  // is 133.5 °C. The duty is then built on the wrong latent heat and the wrong
+  // driving force, so it is flagged explicitly rather than silently absorbed.
+  if (shellMode === 'condensing' && phaseZones?.Tsat != null) {
+    const dTsat = hTi - phaseZones.Tsat;
+    if (Math.abs(dTsat) > 1.0 && Math.abs(hTi - hTo) < 0.05) {
+      warns.push(
+        `Hot inlet ${hTi.toFixed(1)}°C was entered as isothermal, but the saturation temperature at ` +
+        `${hPop.toFixed(3)} bar a is ${phaseZones.Tsat.toFixed(1)}°C — a ${Math.abs(dTsat).toFixed(1)}°C mismatch. ` +
+        `Use the T ⇄ P link so the pair sits on the saturation curve, or correct the operating pressure.`
+      );
+    } else if (dTsat < -1.0) {
+      warns.push(
+        `Hot inlet ${hTi.toFixed(1)}°C is below the saturation temperature ${phaseZones.Tsat.toFixed(1)}°C at ` +
+        `${hPop.toFixed(3)} bar a — that stream is subcooled liquid, not condensing vapour. Check the operating pressure.`
+      );
+    }
+  }
   if (shellMode === 'condensing'  && !cFluidDB.hvap) warns.push('Condensing mode: no hvap data for this fluid — using Nusselt film correlation only');
   if (shellMode === 'evaporating' && !hFluidDB.hvap) warns.push('Evaporating mode: no hvap data — Chen correlation using approximate Xtt=0.9');
 
