@@ -78,8 +78,8 @@ export default async function handler(req, res) {
 function steam_handler(req, res) {
   // Allow CORS for your domain only
   const origin = req.headers.origin || '';
-  const allowed = origin.endsWith('.vercel.app') || origin === 'https://multicalci.com';
-  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://multicalci.com');
+  const allowed = origin.endsWith('.vercel.app') || origin === 'https://www.multicalci.com';
+  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://www.multicalci.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

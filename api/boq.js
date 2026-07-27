@@ -45,11 +45,11 @@ const SB_URL = (process.env.SUPABASE_URL || '')
   .replace(/\/+$/, '');
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const DAILY_LIMIT = parseInt(process.env.BOQ_FREE_DAILY_LIMIT || '20', 10);
-const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://multicalci.com';
+const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://www.multicalci.com';
 // [CORS] allow both hosts + localhost; dedupe
 const ALLOWED_ORIGINS = [...new Set([
   ORIGIN,
-  'https://multicalci.com',
+  'https://www.multicalci.com',
   'https://www.multicalci.com',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -851,7 +851,7 @@ export default async function handler(req, res) {
       if (rl.blocked) {
         return res.status(429).json({
           error: `Free limit reached (${DAILY_LIMIT} calculations/day). Upgrade to Pro for unlimited calculations, PDF & Excel export.`,
-          upgrade_url: 'https://multicalci.com/pro/',
+          upgrade_url: 'https://www.multicalci.com/pro/',
         });
       }
       if (!rows || !rows[0]) return res.status(404).json({ error: 'Template not found.' });

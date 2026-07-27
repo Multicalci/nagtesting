@@ -50,7 +50,7 @@ const COPYRIGHT = '(c) multicalci.com';
 // tunables
 // ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = [
-  'https://multicalci.com',
+  'https://www.multicalci.com',
   'https://www.multicalci.com',
 ];
 

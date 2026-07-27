@@ -14,7 +14,7 @@ const COMPONENTS = [
 
 const dom = new JSDOM(html, {
   runScripts: 'dangerously',
-  url: 'https://multicalci.com/material-balance.html',
+  url: 'https://www.multicalci.com/material-balance.html',
   pretendToBeVisual: true,
   beforeParse(win) {
     win.fetch = () => Promise.resolve({

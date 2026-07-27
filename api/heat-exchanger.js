@@ -89,7 +89,7 @@ export const config = { api: { bodyParser: true } };
 const API_BUILD = '2026-07-condenser-satlink-local-r5';
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
-  'https://multicalci.com',
+  'https://www.multicalci.com',
   'https://www.multicalci.com',
   'http://localhost:3000',
   'http://localhost:5173',
@@ -103,7 +103,7 @@ async function heatxpert_handler(req, res) {
   const allowed = HEATXPERT_ALLOWED_ORIGINS.has(origin);
   res.setHeader('Vary', 'Origin');   // required when CORS origin is dynamic
 
-  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://multicalci.com');
+  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://www.multicalci.com');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');

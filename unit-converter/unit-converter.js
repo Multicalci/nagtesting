@@ -190,7 +190,7 @@ function buildMetaDesc(catName,fromUnit,toUnit,factorStr){
 function injectSchema(catName,fromUnit,toUnit,factorStr,formulaStr){
   const fs=shortUnit(fromUnit),ts=shortUnit(toUnit),fl=longUnit(fromUnit),tl=longUnit(toUnit);
   const cat=CATEGORIES[catName];
-  const url=`https://multicalci.com/unit-converter/${cat.slug}/${slugify(fromUnit)}-to-${slugify(toUnit)}/`;
+  const url=`https://www.multicalci.com/unit-converter/${cat.slug}/${slugify(fromUnit)}-to-${slugify(toUnit)}/`;
   const faqs=buildFAQData(catName,fromUnit,toUnit,factorStr,formulaStr);
   const schema={
     "@context":"https://schema.org",
@@ -207,9 +207,9 @@ function injectSchema(catName,fromUnit,toUnit,factorStr,formulaStr){
          {"@type":"HowToStep","name":"Read the result","text":`The result in ${ts} is shown instantly in the right box.`}
        ]},
       {"@type":"BreadcrumbList","itemListElement":[
-        {"@type":"ListItem","position":1,"name":"Home","item":"https://multicalci.com/"},
-        {"@type":"ListItem","position":2,"name":"Unit Converter","item":"https://multicalci.com/unit-converter/"},
-        {"@type":"ListItem","position":3,"name":catName,"item":`https://multicalci.com/unit-converter/${cat.slug}/`},
+        {"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com/"},
+        {"@type":"ListItem","position":2,"name":"Unit Converter","item":"https://www.multicalci.com/unit-converter/"},
+        {"@type":"ListItem","position":3,"name":catName,"item":`https://www.multicalci.com/unit-converter/${cat.slug}/`},
         {"@type":"ListItem","position":4,"name":`${fs} to ${ts}`,"item":url}
       ]},
       ...(faqs.length>0?[{"@type":"FAQPage","mainEntity":faqs.map(f=>({
@@ -224,7 +224,7 @@ function updateSEO(catName,fromUnit,toUnit,factorStr,formulaStr){
   const title=buildPageTitle(catName,fromUnit,toUnit);
   const desc=buildMetaDesc(catName,fromUnit,toUnit,factorStr);
   const cat=CATEGORIES[catName];
-  const url=`https://multicalci.com/unit-converter/${cat.slug}/${slugify(fromUnit)}-to-${slugify(toUnit)}/`;
+  const url=`https://www.multicalci.com/unit-converter/${cat.slug}/${slugify(fromUnit)}-to-${slugify(toUnit)}/`;
   const fs=shortUnit(fromUnit),ts=shortUnit(toUnit);
   document.getElementById('pageTitle').textContent=title;
   document.title=title;
