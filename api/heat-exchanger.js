@@ -2228,9 +2228,36 @@ function calcShellTube(b) {
   const A_tube_OD = Math.PI * OD * L_eff * numTubes_final;
   const area_provided = A_tube_OD;
   const overSurf = (area_provided / area - 1) * 100;
-  const NTU = area * U / Math.max(Math.min(Wh, Wc) * 1000, 0.001);
-  const Cmin = Math.min(Wh, Wc), Qmax = Cmin * (hTi - cTi);
-  const eff = Qmax > 0 ? Q / Qmax : 0;
+  // ── NTU / EFFECTIVENESS — phase-aware capacity rates (FIX 2026-07) ────────
+  // A stream undergoing phase change exchanges heat at essentially constant
+  // temperature, so its capacity rate C = Q/ΔT → ∞ and the capacity ratio
+  // Cr → 0. The old code used C = ṁ·cp for BOTH streams unconditionally. For a
+  // condenser that takes cp of the VAPOUR, giving a tiny C that then wins
+  // Math.min() and becomes Cmin — producing nonsense like ε = 3999 % and
+  // NTU = 47 on a duty whose true values are ε ≈ 27 % and NTU ≈ 0.31.
+  //
+  // The effective capacity rate Q/ΔT is exact for any process: for a purely
+  // sensible stream it reduces identically to ṁ·cp (since Q = ṁ·cp·ΔT), and
+  // for an isothermal one it correctly diverges. It is applied only to the
+  // side that is actually changing phase, so the validated single-phase path
+  // is untouched.
+  const _dTh = hTi - hTo, _dTc = cTo - cTi;
+  const Wh_eff = (shellMode === 'condensing')
+    ? (_dTh > 0.01 ? Q / _dTh : Infinity) : Wh;
+  const Wc_eff = (shellMode === 'evaporating')
+    ? (_dTc > 0.01 ? Q / _dTc : Infinity) : Wc;
+
+  const Cmin = Math.min(Wh_eff, Wc_eff);
+  const Cmax = Math.max(Wh_eff, Wc_eff);
+  const Cr   = isFinite(Cmax) && Cmax > 0 ? Cmin / Cmax : 0;
+  // NTU must use the U that is consistent with the reported area and LMTD.
+  // When a zone model is active the required area is zone-summed (each zone
+  // carrying its own U and its own driving force), so pairing it with the
+  // single-point U overstates UA by ~4 % and NTU stops reconciling with ε.
+  // U_effective = Q/(A·F·LMTD) is exactly the U that closes that loop.
+  const NTU  = area * (U_effective || U) / Math.max(Cmin * 1000, 0.001);
+  const Qmax = Cmin * (hTi - cTi);
+  const eff  = Qmax > 0 ? Q / Qmax : 0;
 
   // ── GAS/STEAM SHELL AUTO-RESIZE ────────────────────────────────────────────
   // For gas/steam on shell side: if crossflow velocity > 30 m/s, the shell is
@@ -2243,7 +2270,15 @@ function calcShellTube(b) {
   let gasResizeNote = null;
   let shellDP = calcBellDelawareDP(hFluid, massH, shellID_final, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_final, bdRes);
 
-  if (isHotGas) {
+  if (isHotGas && shellMode !== 'condensing') {
+    // FIX (2026-07): the 30 m/s erosion limit and the shell auto-resize that
+    // follows are a SINGLE-PHASE gas-service rule. In a condenser the vapour is
+    // being destroyed as it flows — volumetric flow falls from full inlet rate
+    // to near zero at the outlet — so sizing the whole shell on the inlet
+    // velocity is not meaningful. Applied to steam at 0.20 bar it demanded a
+    // 3550 mm shell and reported "infeasible", while the actual computed
+    // shell-side ΔP was 0.038 bar against 0.70 bar allowable. Condenser vapour
+    // belt / inlet nozzle sizing is a separate check, not a shell diameter one.
     const GAS_VEL_LIMIT = 30; // m/s — erosion/vibration limit for shell-side gas
     const pitch_m = pitch * OD;
     const Sm_current = bsp_ratio * shellID_final * (pitch_m - OD) / pitch_m;
@@ -2638,8 +2673,17 @@ function calcShellTube(b) {
     tubeVel, targetVel, velMode,
     shellDP, tubeDp, pdAllowShell, pdAllowTube,
     shellDP_method: 'bell-delaware-4term-Nc',   // tells UI which ΔP method was used
-    bdCorr: { ...bdRes, hShell, hTube },
+    bdCorr: { ...bdRes, hShell, hTube,
+      // Tube-side Reynolds at the converged mean condition, so the datasheet
+      // can report it instead of a dash.
+      Re_tube: (cFluid?.rho && cFluid?.mu && tubeVel && Di)
+        ? cFluid.rho * tubeVel * Di / (cFluid.mu * 1e-3) : null },
     NTU, eff, balErr, tema, pitchLayout, hTmean, cTmean,
+    // FIX (2026-07): these were rendered by the PDF datasheet but never
+    // returned, so it printed "—" for fouling, tube material, pitch ratio and
+    // tube-side Reynolds even though every one of them was used in the maths.
+    Rfo, Rfi, pitchRatio: pitch, tubeMat: b.mat || null, tubeK: kw, Cr,
+    massH_kgh: massH * 3600, massC_kgh: massC * 3600,
     hTi, hTo, cTi, cTo, hPop, cPop,
     hFluid, cFluid, hFluidDB, cFluidDB,
     shellRe: bdRes.shellRe, shellVel: bdRes.shellVel,
@@ -3493,65 +3537,4 @@ function calcGeometryOptimizer(b) {
   // Sort: valid solutions first (by score), then invalid by closeness to vel_min
   solutions.sort((a, b) => a.score - b.score);
 
-  const valid   = solutions.filter(s => s.vel_ok).slice(0, 5);
-  const invalid = solutions.filter(s => !s.vel_ok)
-    .sort((a, b) => Math.abs(a.velocity - vel_min) - Math.abs(b.velocity - vel_min))
-    .slice(0, 3);
-
-  // Generate plain-English recommendation
-  let recommendation = '';
-  if (valid.length > 0) {
-    const best = valid[0];
-    recommendation = `Best option: ${best.od_mm}mm OD tubes with ${best.nPasses} passes` +
-      (best.nShells > 1 ? ` × ${best.nShells} shells in series` : '') +
-      ` → ${best.numTubes} tubes (${best.nTubesPerPass}/pass), velocity ${best.velocity} m/s.`;
-  } else {
-    recommendation = `No solution found within constraints. Consider relaxing velocity floor to ${(vel_min*0.8).toFixed(1)} m/s or allowing longer tubes.`;
-  }
-
-  return {
-    area_req: +area_req.toFixed(3),
-    L_fixed,
-    target_vel,
-    vel_min,
-    vel_max,
-    solutions_valid:   valid,
-    solutions_partial: invalid,
-    recommendation,
-    any_solution: valid.length > 0
-  };
-}
-
-// ─── HX SELECTOR ─────────────────────────────────────────────────────────────
-function calcSelector(b) {
-  const {app,pres,foul,duty,space,corr}=b;
-  const scores={'shell-tube':0,'plate':0,'air-cooled':0,'double-pipe':0,'spiral':0,'plate-fin':0};
-  if(app==='liquid-liquid'){scores['plate']+=3;scores['shell-tube']+=2;scores['double-pipe']+=1;}
-  if(app==='liquid-gas'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
-  if(app==='gas-gas'){scores['plate-fin']+=3;scores['shell-tube']+=1;}
-  if(app==='condensing'){scores['shell-tube']+=4;scores['plate']+=1;}
-  if(app==='evaporating'){scores['shell-tube']+=4;}
-  if(app==='air-cooling'){scores['air-cooled']+=5;}
-  if(pres==='high'){scores['shell-tube']+=3;scores['plate']-=2;scores['double-pipe']+=2;}
-  if(pres==='medium'){scores['shell-tube']+=2;scores['plate']+=1;}
-  if(pres==='low'){scores['plate']+=2;scores['shell-tube']+=1;}
-  if(foul==='high'){scores['shell-tube']+=3;scores['plate']-=3;scores['spiral']+=3;}
-  if(foul==='medium'){scores['shell-tube']+=2;}
-  if(foul==='low'){scores['plate']+=2;}
-  if(duty==='small'){scores['double-pipe']+=3;scores['plate']+=2;}
-  if(duty==='medium'){scores['plate']+=2;scores['shell-tube']+=2;}
-  if(duty==='large'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
-  if(space==='very-limited'){scores['plate']+=3;scores['plate-fin']+=2;scores['shell-tube']-=1;}
-  if(space==='limited'){scores['plate']+=2;}
-  if(space==='plenty'){scores['shell-tube']+=1;scores['air-cooled']+=1;}
-  if(corr==='high'){scores['plate']+=2;scores['shell-tube']+=1;}
-  if(corr==='medium'){scores['shell-tube']+=1;}
-  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  return {top:sorted[0][0],second:sorted[1][0],scores};
-}
-
-// ── End of Section 06: HeatXpert Pro (Heat Exchanger) ──────────────────────────────────────────
-
-
-
-// ══════════════════════════════════════════════════════════════════════════════
+  const valid   = solutions.filter(s => s
