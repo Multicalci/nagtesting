@@ -3560,10 +3560,11 @@ function renderSTResults(r, warns=[]) {
         </td>
       </tr>
       <tr><td class="lbl-col">Shell Re / h</td>
-        <td>${r.shellRe ? r.shellRe.toFixed(0) : '—'} / ${r.bdCorr ? r.bdCorr.hShell.toFixed(0)+' W/m²K' : '—'}</td>
+        <td>${r.shellRe ? r.shellRe.toFixed(0) : '—'} / ${r.bdCorr && r.bdCorr.hShell!=null ? r.bdCorr.hShell.toFixed(0)+' W/m²K' : '—'}
+          ${r.shellMode==='condensing'?`<br><span style="font-size:.7rem;color:var(--gold)">🌡️ Nusselt film condensation (shell side) — h=${r.bdCorr&&r.bdCorr.hShell!=null?r.bdCorr.hShell.toFixed(0):'—'} W/m²K</span>`:''}</td>
         <td>Re: ${r.cFluid && r.Di ? (r.cFluid.rho * r.tubeVel * r.Di / (r.cFluid.mu*1e-3)).toFixed(0) : '—'} / h: ${r.bdCorr ? r.bdCorr.hTube.toFixed(0)+' W/m²K' : '—'}
           ${r.cFluid && r.cFluid._isGas ? `<br><span style="font-size:.7rem;color:var(--blue)">⚗ gas props at ${r.cTmean?r.cTmean.toFixed(0):'—'}°C, ${r.cPop?r.cPop.toFixed(2):'—'} bar, Z=${r.cFluid.Z?r.cFluid.Z.toFixed(4):'1.0'}</span>` : ''}
-          ${r.shellMode==='condensing'?`<br><span style="font-size:.7rem;color:var(--gold)">🌡️ Nusselt film condensation — h=${r.bdCorr?r.bdCorr.hTube.toFixed(0):'—'} W/m²K</span>`:''}
+
           ${r.shellMode==='evaporating'?`<br><span style="font-size:.7rem;color:var(--gold)">♨️ Chen correlation (flow boiling) — h=${r.bdCorr?r.bdCorr.hTube.toFixed(0):'—'} W/m²K</span>`:''}
         </td>
       </tr>
@@ -3880,7 +3881,7 @@ ${st?`
     <tr><td class="lbl">Fluid</td><td>—</td><td>${st.hFluid.name}</td></tr>
     <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(st.hTi).toFixed(2)} / ${tDisp(st.hTo).toFixed(2)}</td></tr>
     <tr><td class="lbl">ΔT (Hot)</td><td>${T}</td><td>${(st.hTi-st.hTo).toFixed(2)}</td></tr>
-    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${st.hFluidDB?.name?st.hFluidDB.name:'—'}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${st.massH_kgh!=null?st.massH_kgh.toFixed(0):(st.hF!=null?Number(st.hF).toFixed(0):'—')}</td></tr>
     <tr><td class="lbl">Heat Duty Qh</td><td>${H}</td><td>${convQ(st.Qh).toFixed(3)}</td></tr>
     <tr><td class="lbl">Film HTC h_shell</td><td>W/m²K</td><td>${st.bdCorr?.hShell!=null?st.bdCorr.hShell.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Velocity (cross-flow)</td><td>m/s</td><td>${st.shellVel!=null?st.shellVel.toFixed(3):'—'}</td></tr>
@@ -3899,7 +3900,7 @@ ${st?`
     <tr><td class="lbl">Fluid</td><td>—</td><td>${st.cFluid.name}</td></tr>
     <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(st.cTi).toFixed(2)} / ${tDisp(st.cTo).toFixed(2)}</td></tr>
     <tr><td class="lbl">ΔT (Cold)</td><td>${T}</td><td>${(st.cTo-st.cTi).toFixed(2)}</td></tr>
-    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${st.cFluidDB?.name?st.cFluidDB.name:'—'}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${st.massC_kgh!=null?st.massC_kgh.toFixed(0):(st.cF!=null?Number(st.cF).toFixed(0):'—')}</td></tr>
     <tr><td class="lbl">Heat Duty Qc</td><td>${H}</td><td>${convQ(st.Qc).toFixed(3)}</td></tr>
     <tr><td class="lbl">Film HTC h_tube</td><td>W/m²K</td><td>${st.bdCorr?.hTube!=null?st.bdCorr.hTube.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Velocity (in-tube)</td><td>m/s</td><td>${st.tubeVel!=null?st.tubeVel.toFixed(3):'—'}</td></tr>
@@ -4016,7 +4017,10 @@ ${st?`
       <td class="lbl">Tube Material (k)</td><td>W/mK</td><td>${st.tubeMat||'—'}</td>
       <td class="lbl">Fouling R_fo (shell)</td><td>m²K/W</td><td>${st.Rfo!=null?st.Rfo.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'} / R_fi (tube): ${st.Rfi!=null?st.Rfi.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'}</td>
     </tr>
-    ${st.bdCorr?`<tr>
+    ${st.bdCorr && st.bdCorr.bdApplicable===false?`<tr>
+      <td class="lbl">Bell-Delaware J factors</td>
+      <td colspan="3">Not applicable — shell side changing phase (coefficient from film-condensation correlation)</td>
+    </tr>`:st.bdCorr?`<tr>
       <td class="lbl">Bell-Delaware J factors</td><td>—</td>
       <td>Jc=${st.bdCorr.Jc!=null?st.bdCorr.Jc.toFixed(3):'—'} · Jl=${st.bdCorr.Jl!=null?st.bdCorr.Jl.toFixed(3):'—'} · Jb=${st.bdCorr.Jb!=null?st.bdCorr.Jb.toFixed(3):'—'} · Jr=${st.bdCorr.Jr!=null?st.bdCorr.Jr.toFixed(3):'—'} · Js=${st.bdCorr.Js!=null?st.bdCorr.Js.toFixed(3):'1.000'}</td>
       <td class="lbl">J_total</td><td>—</td><td><b>${st.bdCorr.Jtotal!=null?st.bdCorr.Jtotal.toFixed(4):'—'}</b></td>
@@ -6218,14 +6222,4 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="https://multicalci.com/cooling-tower/" class="seo-related-link">Cooling Tower (CTI ATC-105)</a>
       <a href="https://multicalci.com/steam-turbine/" class="seo-related-link">Steam Turbine (IAPWS-IF97)</a>
       <a href="https://multicalci.com/pipe-sizing/" class="seo-related-link">Pipe Sizing (119 Fluids)</a>
-      <a href="https://multicalci.com/control-valve/" class="seo-related-link">Control Valve (ISA 5.1)</a>
-      <a href="https://multicalci.com/npsh-calculator/" class="seo-related-link">NPSH Calculator</a>
-      <a href="https://multicalci.com/vessel-sizing/" class="seo-related-link">Vessel / Separator Sizing</a>
-    </div>
-
-  </div>
-</section>
-<!-- ═══ END SEO REFERENCE SECTION ═══ -->
-
-</body>
-</html>
+      <a href="https:
