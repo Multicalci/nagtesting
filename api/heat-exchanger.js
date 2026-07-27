@@ -86,7 +86,7 @@ export const config = { api: { bodyParser: true } };
 // Build marker — returned on every response as `apiBuild`, and on its own via
 // {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
 // actually serving without reading the logs.
-const API_BUILD = '2026-07-condenser-isothermal+satlink';
+const API_BUILD = '2026-07-condenser-satlink-local-r5';
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
   'https://multicalci.com',
@@ -418,9 +418,15 @@ function satTemperature(fluidKey, P_bar_abs) {
   if (key === 'water' || key === 'steam') {
     const P_mmHg = P * 750.062;
     const lgP = Math.log10(P_mmHg);
-    // low range first; switch to high range above its ~100°C validity edge
+    // Crossover moved 99 → 108 °C (2026-07). Checked against steam tables, the
+    // low-range constants stay the more accurate of the two well past their
+    // nominal 99 °C edge (−0.00 % at 99, +0.01 % at 100, +0.02 % at 105) while
+    // the high range is still +0.56 % out at 100 °C. Switching at 99 therefore
+    // put a 0.5 % discontinuity exactly at the atmospheric boiling point — the
+    // single most commonly entered condition in the tool. They cross near
+    // 108 °C, which is where the handover now happens.
     let T = 1730.63 / (8.07131 - lgP) - 233.426;
-    if (T > 99) T = 1810.94 / (8.14019 - lgP) - 244.485;
+    if (T > 108) T = 1810.94 / (8.14019 - lgP) - 244.485;
     return T;
   }
   // Antoine, where a validated constant set exists and the result lands inside
@@ -471,8 +477,8 @@ function satPressure(fluidKey, T_degC) {
     // Validity window: triple point (0.01 °C) to critical point (373.95 °C).
     // Outside it there is no saturation state to return — null, not a number.
     if (T < 0.01 || T > 373.9) return null;
-    // Antoine ranges are the mirror image of satTemperature's switch at ~99 °C
-    const [A, B, C] = T > 99 ? [8.14019, 1810.94, 244.485] : [8.07131, 1730.63, 233.426];
+    // Mirrors satTemperature's crossover exactly (see note there).
+    const [A, B, C] = T > 108 ? [8.14019, 1810.94, 244.485] : [8.07131, 1730.63, 233.426];
     if (C + T <= 0) return null;                       // below Antoine validity
     const P_mmHg = Math.pow(10, A - B / (C + T));
     const P_bar = P_mmHg / 750.062;
@@ -547,7 +553,14 @@ function calcSaturation(b) {
 
   if (dir === 'T_from_P') {
     P_bar = parseFloat(b.P_bar);
-    if (!isFinite(P_bar) || P_bar <= 0) throw new Error('A positive absolute pressure is required');
+    // Return a structured answer rather than throwing. This endpoint is called
+    // on every keystroke, so a half-typed or cleared field is normal traffic,
+    // not an error condition — and a 500 here makes callAPI throw, which the UI
+    // surfaces as "Saturation lookup unavailable".
+    if (!isFinite(P_bar) || P_bar <= 0) {
+      return { saturable: false, fluidKey, fluidName: label, pending: true,
+               note: 'Enter a positive absolute pressure.' };
+    }
     if (CPI && cpName && !cpName.startsWith('INCOMP')) {
       try {
         const Pa = P_bar * 1e5;
@@ -563,7 +576,10 @@ function calcSaturation(b) {
     }
   } else {
     T_degC = parseFloat(b.T_degC);
-    if (!isFinite(T_degC)) throw new Error('A temperature is required');
+    if (!isFinite(T_degC)) {
+      return { saturable: false, fluidKey, fluidName: label, pending: true,
+               note: 'Enter a temperature.' };
+    }
     if (CPI && cpName && !cpName.startsWith('INCOMP')) {
       try {
         const T_K = T_degC + 273.15;
@@ -3537,4 +3553,65 @@ function calcGeometryOptimizer(b) {
   // Sort: valid solutions first (by score), then invalid by closeness to vel_min
   solutions.sort((a, b) => a.score - b.score);
 
-  const valid   = solutions.filter(s => s
+  const valid   = solutions.filter(s => s.vel_ok).slice(0, 5);
+  const invalid = solutions.filter(s => !s.vel_ok)
+    .sort((a, b) => Math.abs(a.velocity - vel_min) - Math.abs(b.velocity - vel_min))
+    .slice(0, 3);
+
+  // Generate plain-English recommendation
+  let recommendation = '';
+  if (valid.length > 0) {
+    const best = valid[0];
+    recommendation = `Best option: ${best.od_mm}mm OD tubes with ${best.nPasses} passes` +
+      (best.nShells > 1 ? ` × ${best.nShells} shells in series` : '') +
+      ` → ${best.numTubes} tubes (${best.nTubesPerPass}/pass), velocity ${best.velocity} m/s.`;
+  } else {
+    recommendation = `No solution found within constraints. Consider relaxing velocity floor to ${(vel_min*0.8).toFixed(1)} m/s or allowing longer tubes.`;
+  }
+
+  return {
+    area_req: +area_req.toFixed(3),
+    L_fixed,
+    target_vel,
+    vel_min,
+    vel_max,
+    solutions_valid:   valid,
+    solutions_partial: invalid,
+    recommendation,
+    any_solution: valid.length > 0
+  };
+}
+
+// ─── HX SELECTOR ─────────────────────────────────────────────────────────────
+function calcSelector(b) {
+  const {app,pres,foul,duty,space,corr}=b;
+  const scores={'shell-tube':0,'plate':0,'air-cooled':0,'double-pipe':0,'spiral':0,'plate-fin':0};
+  if(app==='liquid-liquid'){scores['plate']+=3;scores['shell-tube']+=2;scores['double-pipe']+=1;}
+  if(app==='liquid-gas'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
+  if(app==='gas-gas'){scores['plate-fin']+=3;scores['shell-tube']+=1;}
+  if(app==='condensing'){scores['shell-tube']+=4;scores['plate']+=1;}
+  if(app==='evaporating'){scores['shell-tube']+=4;}
+  if(app==='air-cooling'){scores['air-cooled']+=5;}
+  if(pres==='high'){scores['shell-tube']+=3;scores['plate']-=2;scores['double-pipe']+=2;}
+  if(pres==='medium'){scores['shell-tube']+=2;scores['plate']+=1;}
+  if(pres==='low'){scores['plate']+=2;scores['shell-tube']+=1;}
+  if(foul==='high'){scores['shell-tube']+=3;scores['plate']-=3;scores['spiral']+=3;}
+  if(foul==='medium'){scores['shell-tube']+=2;}
+  if(foul==='low'){scores['plate']+=2;}
+  if(duty==='small'){scores['double-pipe']+=3;scores['plate']+=2;}
+  if(duty==='medium'){scores['plate']+=2;scores['shell-tube']+=2;}
+  if(duty==='large'){scores['shell-tube']+=3;scores['air-cooled']+=2;}
+  if(space==='very-limited'){scores['plate']+=3;scores['plate-fin']+=2;scores['shell-tube']-=1;}
+  if(space==='limited'){scores['plate']+=2;}
+  if(space==='plenty'){scores['shell-tube']+=1;scores['air-cooled']+=1;}
+  if(corr==='high'){scores['plate']+=2;scores['shell-tube']+=1;}
+  if(corr==='medium'){scores['shell-tube']+=1;}
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  return {top:sorted[0][0],second:sorted[1][0],scores};
+}
+
+// ── End of Section 06: HeatXpert Pro (Heat Exchanger) ──────────────────────────────────────────
+
+
+
+// ══════════════════════════════════════════════════════════════════════════════
