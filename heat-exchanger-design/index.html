@@ -5845,6 +5845,97 @@ function setPresVal(inputId, bar) {
   el.value = fmtNum(bar / (PRES_TO_BAR[g(inputId + '_usel')?.value || 'bar'] || 1));
 }
 
+// ── LOCAL SATURATION SOLVER (2026-07) ──────────────────────────────────────
+// Same Antoine constants the API uses, evaluated in the browser.
+//
+// Why duplicate them: the lookup fires on every keystroke, so a round trip made
+// the feature hostage to network latency, a cold serverless start, or a stale
+// API deployment — any of which left the user staring at "Saturation lookup
+// unavailable" for what is arithmetic on six constants. The local solver
+// answers instantly and always; the API is then called to refine the answer
+// with CoolProp's Helmholtz EOS where that is available, and silently ignored
+// when it is not. Values only ever get more accurate, never absent.
+//
+// NIST form, pressure in BAR, temperature in KELVIN:
+//     log10(P_bar) = A − B/(T_K + C),  valid Tmin_K..Tmax_K
+const SAT_ANTOINE = {
+  'water':    [[8.07131,1730.63,233.426,'mmHg-C',   0.01, 108.0],  // Antoine, °C + mmHg
+               [8.14019,1810.94,244.485,'mmHg-C', 108.0, 373.9]],
+  'ammonia':  [[4.86886,1113.928,-10.409,'bar-K', 239.6, 371.5]],
+  'methanol': [[5.20409,1581.341,-33.50, 'bar-K', 288.1, 356.8]],
+  'ethanol':  [[5.24677,1598.673,-46.424,'bar-K', 292.8, 366.6]],
+  'benzene':  [[4.72583,1660.652, -1.461,'bar-K', 333.4, 373.5]],
+  'toluene':  [[4.14157,1377.578,-50.507,'bar-K', 308.0, 384.0]],
+  'acetone':  [[4.42448,1312.253,-32.445,'bar-K', 259.2, 380.0]],
+};
+const SAT_ALIAS = {
+  'water':'water', 'steam':'water',
+  'ammonia-liquid':'ammonia', 'ammonia-gas':'ammonia', 'r717':'ammonia',
+  'methanol':'methanol', 'ethanol':'ethanol',
+  'benzene':'benzene', 'toluene':'toluene', 'acetone':'acetone',
+};
+// Latent heat for the chip display, via the Watson correlation:
+//     h_fg(T) = h_fg(Tref) · [(Tc − T)/(Tc − Tref)]^0.38
+// A single fixed value per fluid was 4.3 % out for steam at 60 °C — enough to
+// mislead on a condenser duty. Watson holds to ~1 % over 40–180 °C.
+//                 h_fg@NBP  Tref(NBP,°C)  Tc(°C)
+const SAT_HVAP = { water:   [2257,  100.00, 373.95],
+                   ammonia: [1370,  -33.34, 132.25],
+                   methanol:[1100,   64.70, 239.45],
+                   ethanol: [ 846,   78.37, 240.75],
+                   benzene: [ 394,   80.09, 288.90],
+                   toluene: [ 351,  110.60, 318.60],
+                   acetone: [ 518,   56.05, 234.95] };
+function satHvap(key, T_degC) {
+  const d = SAT_HVAP[key];
+  if (!d) return null;
+  const [h0, Tref, Tc] = d;
+  if (!(Tc > T_degC) || !(Tc > Tref)) return null;
+  return h0 * Math.pow((Tc - T_degC) / (Tc - Tref), 0.38);
+}
+
+function satLocal(fluidKey, mode, value) {
+  const key = SAT_ALIAS[(fluidKey||'').toLowerCase().trim()];
+  if (!key) return null;                       // no local model — API only
+  const sets = SAT_ANTOINE[key];
+
+  const Pof = (s, T_degC) => {                 // bar from °C
+    const [A,B,C,form] = s;
+    return form === 'mmHg-C'
+      ? Math.pow(10, A - B/(C + T_degC)) / 750.062
+      : Math.pow(10, A - B/((T_degC+273.15) + C));
+  };
+  const Tof = (s, P_bar) => {                  // °C from bar
+    const [A,B,C,form] = s;
+    return form === 'mmHg-C'
+      ? B/(A - Math.log10(P_bar*750.062)) - C
+      : B/(A - Math.log10(P_bar)) - C - 273.15;
+  };
+
+  let T = null, P = null;
+  if (mode === 'T_from_P') {
+    if (!(value > 0)) return null;
+    for (const s of sets) {
+      const t = Tof(s, value);
+      const lo = s[3]==='mmHg-C' ? s[4] : s[4]-273.15;
+      const hi = s[3]==='mmHg-C' ? s[5] : s[5]-273.15;
+      if (isFinite(t) && t >= lo - 0.5 && t <= hi + 0.5) { T = t; P = value; break; }
+    }
+  } else {
+    if (!isFinite(value)) return null;
+    for (const s of sets) {
+      const lo = s[3]==='mmHg-C' ? s[4] : s[4]-273.15;
+      const hi = s[3]==='mmHg-C' ? s[5] : s[5]-273.15;
+      if (value >= lo - 0.5 && value <= hi + 0.5) { P = Pof(s, value); T = value; break; }
+    }
+  }
+  if (T == null || P == null || !isFinite(T) || !isFinite(P) || P <= 0) return null;
+  return { saturable:true, fluidKey, fluidName:fluidKey,
+           Tsat_degC:+T.toFixed(3), Psat_bar:+P.toFixed(5),
+           hvap_kJkg:(h=>h!=null?+h.toFixed(0):null)(satHvap(key,T)),
+           source:'Antoine equation (local)' };
+}
+
 async function fetchSat(fluidKey, direction, value) {
   const key = fluidKey + '|' + direction + '|' + (Math.round(value * 1e4) / 1e4);
   if (_satCache.has(key)) return _satCache.get(key);
@@ -5887,25 +5978,35 @@ async function satRefresh(driver) {
   const forceOutlet = _satResetOutlet;   // consume once
   _satResetOutlet = false;
 
-  try {
-    let res;
-    if (driver === 'temp' && satLinkOn()) {
-      const T = getTempVal(F.tIn);
-      if (!isFinite(T)) return;
-      res = await fetchSat(fluidKey, 'P_from_T', T);
-      if (seq !== _satSeq) return;                       // a newer edit won
-      if (res && res.saturable) setPresVal(F.pres, res.Psat_bar);
-    } else {
-      const P = getPresVal(F.pres);
-      if (!isFinite(P) || P <= 0) return;
-      res = await fetchSat(fluidKey, 'T_from_P', P);
-      if (seq !== _satSeq) return;
-      if (res && res.saturable && satLinkOn()) setTempVal(F.tIn, res.Tsat_degC);
-    }
-    if (seq !== _satSeq) return;
+  // Direction and driving value
+  const useTemp = (driver === 'temp' && satLinkOn());
+  const mode    = useTemp ? 'P_from_T' : 'T_from_P';
+  const input   = useTemp ? getTempVal(F.tIn) : getPresVal(F.pres);
+  if (!isFinite(input) || (!useTemp && input <= 0)) return;   // mid-typing
 
-    if (!res || !res.saturable) {
-      paintSatChip(side, '⚪ ' + ((res && res.note) || 'No saturation model for this fluid.'), 'mute');
+  const apply = res => {
+    if (!res || !res.saturable) return;
+    if (useTemp)              setPresVal(F.pres, res.Psat_bar);
+    else if (satLinkOn())     setTempVal(F.tIn,  res.Tsat_degC);
+  };
+
+  try {
+    // 1) Local Antoine answer — instant, and independent of the network.
+    let res = satLocal(fluidKey, mode, input);
+    if (res) { apply(res); }
+
+    // 2) Ask the API to refine it (CoolProp where installed). A failure here is
+    //    not an error the user needs to see — the local answer already stands.
+    let refined = null;
+    try { refined = await fetchSat(fluidKey, mode, input); } catch (e) { refined = null; }
+    if (seq !== _satSeq) return;                     // a newer edit won
+    if (refined && refined.saturable) { res = refined; apply(res); }
+    else if (refined && refined.pending) return;     // field still being typed
+
+    if (!res) {
+      // No local model AND the API could not answer.
+      paintSatChip(side, '⚪ ' + ((refined && refined.note)
+        || 'No saturation model available for this fluid — enter temperature and pressure independently.'), 'mute');
       _satLast[side] = null;
       return;
     }
@@ -5960,7 +6061,9 @@ async function satRefresh(driver) {
 
     paintSatChip(side, html, tone);
   } catch (err) {
-    if (seq === _satSeq) paintSatChip(side, '⚪ Saturation lookup unavailable — enter temperature and pressure manually.', 'mute');
+    // Should be unreachable: the API call has its own catch and the local
+    // solver is pure arithmetic. Stay quiet rather than alarming the user.
+    if (seq === _satSeq) console.warn('saturation refresh failed:', err);
   }
 }
 
@@ -6222,4 +6325,14 @@ document.addEventListener('DOMContentLoaded', function(){
       <a href="https://multicalci.com/cooling-tower/" class="seo-related-link">Cooling Tower (CTI ATC-105)</a>
       <a href="https://multicalci.com/steam-turbine/" class="seo-related-link">Steam Turbine (IAPWS-IF97)</a>
       <a href="https://multicalci.com/pipe-sizing/" class="seo-related-link">Pipe Sizing (119 Fluids)</a>
-      <a href="https:
+      <a href="https://multicalci.com/control-valve/" class="seo-related-link">Control Valve (ISA 5.1)</a>
+      <a href="https://multicalci.com/npsh-calculator/" class="seo-related-link">NPSH Calculator</a>
+      <a href="https://multicalci.com/vessel-sizing/" class="seo-related-link">Vessel / Separator Sizing</a>
+    </div>
+
+  </div>
+</section>
+<!-- ═══ END SEO REFERENCE SECTION ═══ -->
+
+</body>
+</html>
