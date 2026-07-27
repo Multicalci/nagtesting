@@ -3909,4 +3909,2315 @@ ${st?`
 <svg viewBox="0 0 680 230" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:680px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px">
   <defs>
     <marker id="arrd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-      <path d="M2 1L8 5L2 9" fill="none" stroke="context-
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="dimd" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <line x1="5" y1="1" x2="5" y2="9" stroke="context-stroke" stroke-width="1.5"/>
+    </marker>
+  </defs>
+  <!-- Shell -->
+  <rect x="70" y="55" width="440" height="100" rx="5" fill="none" stroke="#3a4560" stroke-width="1.8"/>
+  <ellipse cx="70"  cy="105" rx="12" ry="50" fill="#f5f7fb" stroke="#3a4560" stroke-width="1.8"/>
+  <ellipse cx="510" cy="105" rx="12" ry="50" fill="#f5f7fb" stroke="#3a4560" stroke-width="1.8"/>
+  <!-- Tubes -->
+  <line x1="70"  y1="88"  x2="510" y2="88"  stroke="#0055c8" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>
+  <line x1="70"  y1="105" x2="510" y2="105" stroke="#0055c8" stroke-width="1.8" stroke-dasharray="5 3" opacity=".8"/>
+  <line x1="70"  y1="122" x2="510" y2="122" stroke="#0055c8" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>
+  <text x="290" y="100" text-anchor="middle" fill="#0055c8" font-size="7.5" font-weight="600">${st.numTubes} tubes · ${st.nTubesPerPass}/pass × ${st.nPasses} passes · OD ${st.OD?(st.OD*1000).toFixed(1):'?'} / ID ${st.Di?(st.Di*1000).toFixed(1):'?'} mm</text>
+  <!-- Baffles -->
+  ${Array.from({length:Math.min(st.bdCorr?.nBaffles??4,6)},(_,i)=>{
+    const x=70+(440*(i+1)/(Math.min(st.bdCorr?.nBaffles??4,6)+1));
+    const t=i%2===0?70:55; const b=i%2===0?155:140;
+    return `<line x1="${x.toFixed(0)}" y1="${t}" x2="${x.toFixed(0)}" y2="${b}" stroke="#888" stroke-width="2" opacity=".55"/>`;
+  }).join('')}
+  <!-- Hot nozzles -->
+  <rect x="130" y="35" width="28" height="22" rx="2" fill="#fff3ee" stroke="#e8500a" stroke-width="1.2"/>
+  <text x="144" y="29" text-anchor="middle" fill="#e8500a" font-size="7.5" font-weight="700">HOT IN ${tDisp(st.hTi).toFixed(1)}${tU()}</text>
+  <line x1="144" y1="35" x2="144" y2="55" stroke="#e8500a" stroke-width="1.2" marker-end="url(#arrd)"/>
+  <rect x="370" y="155" width="28" height="22" rx="2" fill="#fff3ee" stroke="#c03d00" stroke-width="1.2"/>
+  <text x="384" y="192" text-anchor="middle" fill="#c03d00" font-size="7.5" font-weight="700">HOT OUT ${tDisp(st.hTo).toFixed(1)}${tU()}</text>
+  <line x1="384" y1="177" x2="384" y2="155" stroke="#c03d00" stroke-width="1.2" marker-end="url(#arrd)"/>
+  <!-- Cold nozzles -->
+  <rect x="34" y="88" width="26" height="34" rx="2" fill="#eef4ff" stroke="#0055c8" stroke-width="1.2"/>
+  <text x="20" y="98" text-anchor="end" fill="#0055c8" font-size="7.5" font-weight="700">COLD IN</text>
+  <text x="20" y="108" text-anchor="end" fill="#0055c8" font-size="7.5">${tDisp(st.cTi).toFixed(1)}${tU()}</text>
+  <line x1="60" y1="105" x2="70" y2="105" stroke="#0055c8" stroke-width="1.5" marker-end="url(#arrd)"/>
+  <rect x="522" y="88" width="26" height="34" rx="2" fill="#eef4ff" stroke="#008f76" stroke-width="1.2"/>
+  <text x="660" y="98" text-anchor="end" fill="#008f76" font-size="7.5" font-weight="700">COLD OUT</text>
+  <text x="660" y="108" text-anchor="end" fill="#008f76" font-size="7.5">${tDisp(st.cTo).toFixed(1)}${tU()}</text>
+  <line x1="522" y1="105" x2="510" y2="105" stroke="#008f76" stroke-width="1.5" marker-start="url(#arrd)"/>
+  <!-- Tube length dimension -->
+  <line x1="70" y1="183" x2="510" y2="183" stroke="#444" stroke-width="0.8" marker-start="url(#dimd)" marker-end="url(#dimd)"/>
+  <line x1="70" y1="174" x2="70" y2="192" stroke="#444" stroke-width="0.7"/>
+  <line x1="510" y1="174" x2="510" y2="192" stroke="#444" stroke-width="0.7"/>
+  <text x="290" y="196" text-anchor="middle" fill="#0c1322" font-size="9" font-weight="700">L = ${st.L!=null?st.L.toFixed(2):'?'} m</text>
+  <!-- Shell ID dimension -->
+  <line x1="28" y1="55" x2="28" y2="155" stroke="#444" stroke-width="0.8" marker-start="url(#dimd)" marker-end="url(#dimd)"/>
+  <line x1="18" y1="55" x2="38" y2="55" stroke="#444" stroke-width="0.7"/>
+  <line x1="18" y1="155" x2="38" y2="155" stroke="#444" stroke-width="0.7"/>
+  <text x="14" y="108" text-anchor="middle" fill="#0c1322" font-size="8" font-weight="700" transform="rotate(-90,14,108)">ID=${st.shellID?(st.shellID*1000).toFixed(0):'?'} mm</text>
+  <!-- Status strip -->
+  <rect x="70"  y="207" width="125" height="16" rx="3" fill="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#e6f7f4':'#fff3ee'}" stroke="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#008f76':'#e8500a'}" stroke-width="0.8"/>
+  <text x="133" y="219" text-anchor="middle" fill="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">v=${st.tubeVel!=null?st.tubeVel.toFixed(3):'?'} m/s ${st.tubeVel>=(st.targetVel||1.5)*0.9?'✓':'⚠'}</text>
+  <rect x="205" y="207" width="125" height="16" rx="3" fill="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#e6f7f4':'#fff3ee'}" stroke="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
+  <text x="268" y="219" text-anchor="middle" fill="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">ΔP_s=${convP(st.shellDP||0).toFixed(3)} ${pU()} ${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'✓':'✗'}</text>
+  <rect x="340" y="207" width="125" height="16" rx="3" fill="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#e6f7f4':'#fff3ee'}" stroke="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
+  <text x="403" y="219" text-anchor="middle" fill="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">ΔP_t=${convP(st.tubeDp||0).toFixed(3)} ${pU()} ${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'✓':'✗'}</text>
+  <rect x="475" y="207" width="105" height="16" rx="3" fill="${(st.overSurf||0)>=0?'#e6f7f4':'#fff3ee'}" stroke="${(st.overSurf||0)>=0?'#008f76':'#e8500a'}" stroke-width="0.8"/>
+  <text x="528" y="219" text-anchor="middle" fill="${(st.overSurf||0)>=0?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">OS=${(st.overSurf||0).toFixed(1)}% ${(st.overSurf||0)>=0?'✓':'✗'}</text>
+</svg>
+
+<div class="mini-sec">⚡ Exchanger Performance &amp; Geometry</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="lbl">LMTD (raw)</td><td>${T}</td><td>${st.lmtd!=null?st.lmtd.toFixed(4):'—'}</td>
+      <td class="lbl">U Overall</td><td>W/m²K</td><td><b>${st.U!=null?st.U.toFixed(2):'—'}</b></td>
+    </tr>
+    <tr>
+      <td class="lbl">F correction</td><td>—</td><td>${st.F!=null?st.F.toFixed(4):'—'}</td>
+      <td class="lbl">Required Area</td><td>${Au}</td><td>${st.area!=null?convA(st.area).toFixed(3):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Effective LMTD (F×LMTD)</td><td>${T}</td><td><b>${st.FLMTD!=null?st.FLMTD.toFixed(4):'—'}</b></td>
+      <td class="lbl">Heat Balance Error</td><td>%</td>
+      <td class="${st.balErr>5?'hi-warn':'hi-ok'}">${st.balErr!=null?st.balErr.toFixed(3):'—'} ${st.balErr<3?'✓ Balanced':'⚠ Check inputs'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Effectiveness ε</td><td>%</td><td>${st.eff!=null?(st.eff*100).toFixed(2):'—'}</td>
+      <td class="lbl">NTU</td><td>—</td><td>${st.NTU!=null?st.NTU.toFixed(4):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Number of Tubes</td><td>—</td><td>${st.numTubes!=null?st.numTubes:'—'}</td>
+      <td class="lbl">Shell ID (est.)</td><td>mm</td><td>${st.shellID!=null?(st.shellID*1000).toFixed(0):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Tube Length</td><td>m</td><td><b>${st.L!=null?st.L.toFixed(2):'—'}</b></td>
+      <td class="lbl">Tubes per Pass</td><td>—</td><td>${st.nTubesPerPass!=null?st.nTubesPerPass:'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Tube OD / ID</td><td>mm</td><td>${st.OD!=null?(st.OD*1000).toFixed(2):'—'} / ${st.Di!=null?(st.Di*1000).toFixed(2):'—'}</td>
+      <td class="lbl">Number of Passes</td><td>—</td><td>${st.nPasses!=null?st.nPasses:'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">TEMA Class</td><td>—</td><td>${st.tema||'—'}</td>
+      <td class="lbl">Pitch / Layout</td><td>—</td><td>${st.pitchRatio!=null?st.pitchRatio.toFixed(2):'—'} / ${st.pitchLayout||'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Tube Material (k)</td><td>W/mK</td><td>${st.tubeMat||'—'}</td>
+      <td class="lbl">Fouling R_fo (shell)</td><td>m²K/W</td><td>${st.Rfo!=null?st.Rfo.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'} / R_fi (tube): ${st.Rfi!=null?st.Rfi.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'}</td>
+    </tr>
+    ${st.bdCorr?`<tr>
+      <td class="lbl">Bell-Delaware J factors</td><td>—</td>
+      <td>Jc=${st.bdCorr.Jc.toFixed(3)} · Jl=${st.bdCorr.Jl.toFixed(3)} · Jb=${st.bdCorr.Jb.toFixed(3)} · Jr=${st.bdCorr.Jr.toFixed(3)} · Js=${st.bdCorr.Js!=null?st.bdCorr.Js.toFixed(3):'1.000'}</td>
+      <td class="lbl">J_total</td><td>—</td><td><b>${st.bdCorr.Jtotal.toFixed(4)}</b></td>
+    </tr>`:''}
+    ${st.bdCorr?.hShell&&st.bdCorr?.hTube?`<tr>
+      <td class="lbl">Shell-side Re</td><td>—</td><td>${st.shellRe!=null?st.shellRe.toFixed(0):'—'}</td>
+      <td class="lbl">Tube-side Re</td><td>—</td><td>${st.bdCorr?.Re_tube!=null?st.bdCorr.Re_tube.toFixed(0):'—'}</td>
+    </tr>`:''}
+  </tbody>
+</table>
+
+
+${(()=>{
+  if(!st.resistanceBreakdown||st.resistanceBreakdown.length===0) return '';
+  const segs=st.resistanceBreakdown;
+  const Rt_val=segs.reduce((s,x)=>s+x.pct,0);
+  return `<div style="margin-bottom:8px">
+  <div class="mini-sec">🔬 Thermal Resistance Distribution</div>
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <table>
+        <thead><tr><th>Component</th><th>R (m²K/W)</th><th>%</th></tr></thead>
+        <tbody>
+          ${segs.map(s=>`<tr><td class="lbl">${s.label}</td><td>—</td><td class="${s.pct>60?'hi-warn':''}">${s.pct.toFixed(1)}%</td></tr>`).join('')}
+          <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>—</td><td><b>100%</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="flex-shrink:0;padding-top:4px">${thermalPieSVG(segs)}</div>
+  </div>
+  </div>`;
+})()}
+
+<div class="div-strip">
+  <div class="div-item">Status: <span>${st.st||'—'}</span></div>
+  <span class="div-sep">|</span>
+  <div class="div-item">Flow Arrangement: <span>${st.lmtdArr||'—'}</span></div>
+  <span class="div-sep">|</span>
+  <div class="div-item">HX Type: <span>${st.tema||'—'}</span></div>
+  <span class="div-sep">|</span>
+  <div class="div-item">Balance Error: <span>${st.balErr!=null?st.balErr.toFixed(2)+'%':'—'}</span></div>
+  ${st.convergence?`<span class="div-sep">|</span>
+  <div class="div-item">U Convergence: <span style="color:${st.convergence.converged?'#1b7a3e':'#c0201a'}">${st.convergence.converged?'✓':'⚠'} ${st.convergence.iterations} iter / ${st.convergence.deviation_pct}% dev</span></div>`:''}
+  ${st.convergence?.twophase_lmtd?`<span class="div-sep">|</span><div class="div-item">LMTD Mode: <span style="color:#0055c8">Two-phase (F=1.0)</span></div>`:''}
+</div>
+
+${(()=>{
+  if(!st.convergence) return '';
+  const cv=st.convergence;
+  return `<div style="margin-top:6px;page-break-inside:avoid">
+  <div class="mini-sec" style="color:#6b21d4;border-bottom-color:#dab8fa">🔁 U Convergence Iteration Log — Temperature-Dependent Fluid Properties</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <table>
+      <thead><tr><th>Iter</th><th>U Assumed (W/m²K)</th><th>U Actual (W/m²K)</th><th>Dev %</th></tr></thead>
+      <tbody>
+        ${cv.history.slice(0,8).map(r=>`<tr>
+          <td>${r.iter}</td>
+          <td>${r.U_assumed.toFixed(1)}</td>
+          <td>${r.U_actual.toFixed(1)}</td>
+          <td class="${r.deviation_pct<1?'hi-ok':r.deviation_pct<5?'':'hi-warn'}">${r.deviation_pct.toFixed(3)}%</td>
+        </tr>`).join('')}
+        ${cv.history.length>8?`<tr><td colspan="4" style="text-align:center;color:#888;font-size:6.5pt">... ${cv.history.length-8} more iterations</td></tr>`:''}
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">Seed U (literature)</td><td>${cv.U_seed} W/m²K</td></tr>
+        <tr><td class="lbl">Final U (converged)</td><td><b>${cv.U_final} W/m²K</b></td></tr>
+        <tr><td class="lbl">Total iterations</td><td>${cv.iterations}</td></tr>
+        <tr><td class="lbl">Final deviation</td><td class="${cv.converged?'hi-ok':'hi-warn'}">${cv.deviation_pct}%</td></tr>
+        <tr><td class="lbl">Convergence status</td><td class="${cv.converged?'hi-ok':'hi-warn'}">${cv.converged?'✓ Converged (<0.5%)':'⚠ Not converged'}</td></tr>
+        <tr><td class="lbl">Fluid props method</td><td>T-dependent (getFluidAtT)</td></tr>
+        <tr><td class="lbl">Viscosity correction</td><td>Sieder-Tate (μ/μ_w)^0.14</td></tr>
+        <tr><td class="lbl">LMTD method</td><td>${cv.twophase_lmtd?'Two-phase isothermal (F=1.0)':'Standard F-correction'}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </div>`;
+})()}
+`:''}
+
+
+${pl?`
+<div class="sec ${st?'pg ':''}teal">
+  <span style="flex:1">🔲 Plate Heat Exchanger — Calculation Results</span>
+</div>
+<!-- page brand repeat -->
+${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20">
+  <span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span>
+  <span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span>
+</div>`:''}
+<div class="kpi-strip">
+  <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(pl.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
+  <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${pl.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">Area Req.</div><div class="kv">${convA(pl.A_req).toFixed(2)}<span class="ku"> ${Au}</span></div></div>
+  <div class="kpi g"><div class="kl">U Overall</div><div class="kv">${pl.U!=null?convU(pl.U).toFixed(0):'—'}<span class="ku"> ${Uu}</span></div></div>
+  <div class="kpi ${pl.eff>0.65?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${pl.eff!=null?(pl.eff*100).toFixed(1):'—'}<span class="ku"> %</span></div></div>
+  <div class="kpi b"><div class="kl">No. Plates</div><div class="kv">${pl.nPlates||'—'}</div></div>
+</div>
+
+<div class="panel-pair">
+<div>
+<div class="mini-sec red">🔴 Hot Side</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid</td><td>—</td><td>${pl.hFluid.name}</td></tr>
+    <tr><td class="lbl">T In / Out</td><td>${T}</td><td>${tDisp(pl.hTi).toFixed(2)} / ${tDisp(pl.hTo).toFixed(2)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${pl.hF!=null?pl.hF.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(pl.Q).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
+      <td class="${(pl.dpH||0)>(pl.pdAllowH||1.5)?'hi-err':'hi-ok'}">${pl.dpH!=null?convP(pl.dpH).toFixed(4):'—'}</td></tr>
+    <tr><td class="lbl">Allow. ΔP</td><td>${Pu}</td><td>${convP(pl.pdAllowH||1.5).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Film h (hot)</td><td>W/m²K</td><td>${pl.hH!=null?pl.hH.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Re (hot)</td><td>—</td><td>${pl.Reh!=null?pl.Reh.toFixed(0):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<div class="mini-sec teal">🔵 Cold Side</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid</td><td>—</td><td>${pl.cFluid.name}</td></tr>
+    <tr><td class="lbl">T In / Out</td><td>${T}</td><td>${tDisp(pl.cTi).toFixed(2)} / ${tDisp(pl.cTo).toFixed(2)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${pl.cF!=null?pl.cF.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${pl.Qcold!=null?convQ(pl.Qcold).toFixed(3):convQ(pl.Q).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
+      <td class="${(pl.dpC||0)>(pl.pdAllowC||1.5)?'hi-err':'hi-ok'}">${pl.dpC!=null?convP(pl.dpC).toFixed(4):'—'}</td></tr>
+    <tr><td class="lbl">Allow. ΔP</td><td>${Pu}</td><td>${convP(pl.pdAllowC||1.5).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Film h (cold)</td><td>W/m²K</td><td>${pl.hC!=null?pl.hC.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Re (cold)</td><td>—</td><td>${pl.Rec!=null?pl.Rec.toFixed(0):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<div class="mini-sec">⚡ Plate Specification &amp; Performance</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="lbl">Plate dimensions (W×L)</td><td>mm</td><td>${pl.plateW!=null?(pl.plateW*1000).toFixed(0):'—'} × ${pl.plateL!=null?(pl.plateL*1000).toFixed(0):'—'}</td>
+      <td class="lbl">Plate thickness</td><td>mm</td><td>${pl.plateTh!=null?(pl.plateTh*1000).toFixed(1):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Channel gap</td><td>mm</td><td>${pl.gap!=null?(pl.gap*1000).toFixed(1):'—'}</td>
+      <td class="lbl">Corrugation angle</td><td>°</td><td>${pl.angle!=null?pl.angle.toFixed(0):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Enlargement factor φ</td><td>—</td><td>${pl.phi!=null?pl.phi.toFixed(3):'—'}</td>
+      <td class="lbl">Material</td><td>—</td><td>${pl.matName||'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Number of plates</td><td>—</td><td><b>${pl.nPlates||'—'}</b></td>
+      <td class="lbl">Required area</td><td>${Au}</td><td>${pl.A_req!=null?convA(pl.A_req).toFixed(3):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Fouling factor</td><td>m²K/W</td><td>${pl.foul!=null?pl.foul.toExponential(2):'—'}</td>
+      <td class="lbl">U overall</td><td>W/m²K</td><td><b>${pl.U!=null?pl.U.toFixed(2):'—'}</b></td>
+    </tr>
+    <tr>
+      <td class="lbl">Effectiveness ε</td><td>%</td><td>${pl.eff!=null?(pl.eff*100).toFixed(2):'—'}</td>
+      <td class="lbl">NTU</td><td>—</td><td>${pl.NTU!=null?pl.NTU.toFixed(4):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">LMTD</td><td>${T}</td><td>${pl.lmtd!=null?pl.lmtd.toFixed(4):'—'}</td>
+      <td class="lbl">Heat Balance Error</td><td>%</td>
+      <td class="${pl.balErr>5?'hi-warn':'hi-ok'}">${pl.balErr!=null?pl.balErr.toFixed(3):'—'}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="div-strip">
+  <div class="div-item">Status: <span>${pl.st||'—'}</span></div>
+  <span class="div-sep">|</span>
+  <div class="div-item">Close Approach ΔT: <span>${pl.minApproachDT!=null?pl.minApproachDT.toFixed(2):(Math.min(pl.hTi-pl.cTo, pl.hTo-pl.cTi)).toFixed(2)} ${T}</span></div>
+  <span class="div-sep">|</span>
+  <div class="div-item">Balance Error: <span>${pl.balErr!=null?pl.balErr.toFixed(2)+'%':'—'}</span></div>
+</div>
+`:''}
+
+
+${ac?`
+<div class="sec ${(st||pl)?'pg ':''}">💨 Air Cooled Heat Exchanger — Calculation Results</div>
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+<div class="kpi-strip">
+  <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(ac.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
+  <div class="kpi b"><div class="kl">LMTD</div><div class="kv">${ac.FLMTD!=null?ac.FLMTD.toFixed(2):'—'}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">Req. Area</div><div class="kv">${convA(ac.area).toFixed(1)}<span class="ku"> ${Au}</span></div></div>
+  <div class="kpi g"><div class="kl">U Overall</div><div class="kv">${ac.U!=null?convU(ac.U).toFixed(0):'—'}<span class="ku"> ${Uu}</span></div></div>
+  <div class="kpi b"><div class="kl">No. Bays</div><div class="kv">${ac.numBays||'—'}</div></div>
+  <div class="kpi ${ac.eff>0.5?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${ac.eff!=null?(ac.eff*100).toFixed(1):'—'}<span class="ku"> %</span></div></div>
+</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Process Side (Hot)</th><th>Air Side</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid</td><td>—</td><td>${ac.fluid!=null?ac.fluid.name:'—'}</td><td>Atmospheric Air</td></tr>
+    <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(ac.Ti).toFixed(2)} / ${tDisp(ac.To).toFixed(2)}</td><td>${tDisp(ac.Tamb).toFixed(2)} / ${tDisp(ac.TairOut!=null?ac.TairOut:ac.Tamb+(ac.dTa||15)).toFixed(2)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${ac.F!=null?ac.F.toFixed(1):'—'}</td><td>${ac.mAir!=null?ac.mAir.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Heat Duty</td><td>${H}</td><td colspan="2">${convQ(ac.Q).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td><td>${ac.dpProcess!=null?convP(ac.dpProcess).toFixed(4):'—'}</td><td>${ac.dpAir!=null?convP(ac.dpAir).toFixed(5):'—'}</td></tr>
+    <tr><td class="lbl">Film HTC</td><td>W/m²K</td><td>${ac.hProcess!=null?ac.hProcess.toFixed(0):'—'}</td><td>${ac.hAir!=null?ac.hAir.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">LMTD / U / Area</td><td>—</td><td colspan="2">${ac.FLMTD!=null?ac.FLMTD.toFixed(2):'—'} ${T} / ${ac.U!=null?ac.U.toFixed(1):'—'} W/m²K / ${convA(ac.area).toFixed(2)} ${Au}</td></tr>
+    <tr><td class="lbl">No. Bays / Fan Type</td><td>—</td><td colspan="2">${ac.numBays||'—'} bays / ${ac.fanType||'—'}</td></tr>
+    <tr><td class="lbl">Fin Type / Material</td><td>—</td><td colspan="2">${ac.finType||'—'} / ${ac.finMat||'—'}</td></tr>
+    <tr><td class="lbl">Fins per Metre / Rows</td><td>—</td><td colspan="2">${ac.fpm!=null?ac.fpm:''} fins/m / ${ac.rows||'—'} rows</td></tr>
+  </tbody>
+</table>
+`:''}
+
+
+${ff?`
+<div class="sec ${(st||pl||ac)?'pg ':''}blue">🌬️ Fin-Fan Air Cooled HX — Engineering Datasheet (API 661)</div>
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;background:#f0f9f7;border:0.5px solid #a0ded5;border-radius:4px;padding:6px 10px">
+  <div style="font-size:9pt;font-weight:700;color:#0c1322">Overall Status: <span style="color:${ff.st==='ok'?'#1b7a3e':ff.st==='warn'?'#b35a00':'#c0201a'}">${ff.stTxt}</span></div>
+  <div style="font-size:7.5pt;color:#555">Total Duty: <b>${ff.Qhot!=null?ff.Qhot.toFixed(1):'—'} kW</b> | Area Prov: <b>${ff.A_prov!=null?ff.A_prov.toFixed(1):'—'} m²</b> | Overdesign: <b style="color:${ff.overDesign>=5?'#1b7a3e':'#b35a00'}">${ff.overDesign!=null?ff.overDesign.toFixed(1)+'%':'—'}</b></div>
+</div>
+
+
+<div class="kpi-strip">
+  <div class="kpi r"><div class="kl">Total Duty</div><div class="kv">${ff.Qhot!=null?ff.Qhot.toFixed(1):'—'}<span class="ku"> kW</span></div></div>
+  <div class="kpi b"><div class="kl">EMTD</div><div class="kv">${ff.EMTD!=null?ff.EMTD.toFixed(1):'—'}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">Ext. Area (prov)</div><div class="kv">${ff.A_prov!=null?ff.A_prov.toFixed(0):'—'}<span class="ku"> m²</span></div></div>
+  <div class="kpi g"><div class="kl">Actual U</div><div class="kv">${ff.U_actual!=null?ff.U_actual.toFixed(1):'—'}<span class="ku"> W/m²K</span></div></div>
+  <div class="kpi ${ff.overDesign>=5?'ok':'warn'}"><div class="kl">Overdesign</div><div class="kv">${ff.overDesign!=null?ff.overDesign.toFixed(1):'—'}<span class="ku"> %</span></div></div>
+  <div class="kpi ${ff.eta_fin>=0.7?'ok':'warn'}"><div class="kl">Fin Efficiency η</div><div class="kv">${ff.eta_fin!=null?(ff.eta_fin*100).toFixed(1):'—'}<span class="ku"> %</span></div></div>
+</div>
+
+
+<div class="mini-sec">📋 Process Conditions</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Outside (Air)</th><th>Tubeside (Process)</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid name</td><td>—</td><td>Atmospheric Air</td><td>${ff.tFluid!=null?ff.tFluid.name:'—'}</td></tr>
+    <tr><td class="lbl">Fluid condition</td><td>—</td><td>Sens. Gas</td><td>${(()=>{if(!ff.tTi||!ff.tTo)return'—';const dt=ff.tTi-ff.tTo;return dt>0?'Sensible Liquid/Gas':dt===0?'Phase change':'—';})()}</td></tr>
+    <tr><td class="lbl">Total flow rate</td><td>1000 kg/h</td>
+      <td>${ff.mAir_kgh!=null?(ff.mAir_kgh/1000).toFixed(3):'—'}</td>
+      <td>${ff.tF_kgh!=null?(ff.tF_kgh/1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Temperature In / Out</td><td>${T}</td>
+      <td>${ff.aTamb!=null?tDisp(ff.aTamb).toFixed(2):'—'} / ${ff.aTout!=null?tDisp(ff.aTout).toFixed(2):'—'}</td>
+      <td>${ff.tTi!=null?tDisp(ff.tTi).toFixed(2):'—'} / ${ff.tTo!=null?tDisp(ff.tTo).toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Pressure Drop Total / Allow</td><td>bar</td>
+      <td>${ff.dpAir_Pa!=null?(ff.dpAir_Pa/1e5).toFixed(5):'—'} / —</td>
+      <td class="${ff.dpTube>ff.tPdAllow?'hi-err':'hi-ok'}">${ff.dpTube!=null?ff.dpTube.toFixed(4):'—'} / ${ff.tPdAllow!=null?ff.tPdAllow.toFixed(3):'—'} ${ff.dpTube>ff.tPdAllow?'✗':'✓'}</td></tr>
+    <tr><td class="lbl">Velocity (face / tube)</td><td>m/s</td>
+      <td>${ff.v_face!=null?ff.v_face.toFixed(3):'—'} face / ${ff.v_max!=null?ff.v_max.toFixed(3):'—'} max</td>
+      <td>${ff.tubeVel!=null?ff.tubeVel.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Re (air / tube)</td><td>—</td>
+      <td>${ff.Re_air!=null?ff.Re_air.toFixed(0):'—'}</td>
+      <td>${ff.Re_tube!=null?ff.Re_tube.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Fouling</td><td>m²K/W</td>
+      <td>${ff.aFoul!=null?ff.aFoul.toExponential(2):'—'}</td>
+      <td>${ff.tFoul!=null?ff.tFoul.toExponential(2):'—'}</td></tr>
+  </tbody>
+</table>
+
+
+<div class="panel-pair">
+<div>
+<div class="mini-sec">⚡ Exchanger Performance</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Outside film coeff (air)</td><td>W/m²K</td><td>${ff.h_outside!=null?ff.h_outside.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Tubeside film coeff</td><td>W/m²K</td><td>${ff.h_tubeside!=null?ff.h_tubeside.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Clean coeff (U_clean)</td><td>W/m²K</td><td>${ff.h_clean!=null?ff.h_clean.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Actual U (extended area)</td><td>W/m²K</td><td><b>${ff.U_actual!=null?ff.U_actual.toFixed(3):'—'}</b></td></tr>
+    <tr><td class="lbl">Required U</td><td>W/m²K</td><td>${ff.U_req!=null?ff.U_req.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Provided area</td><td>m²</td><td>${ff.A_prov!=null?ff.A_prov.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Required area</td><td>m²</td><td>${ff.A_req!=null?ff.A_req.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Overdesign</td><td>%</td><td class="${ff.overDesign>=5?'hi-ok':'hi-warn'}">${ff.overDesign!=null?ff.overDesign.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">EMTD</td><td>${T}</td><td><b>${ff.EMTD!=null?ff.EMTD.toFixed(2):'—'}</b></td></tr>
+    <tr><td class="lbl">LMTD (raw)</td><td>${T}</td><td>${ff.lmtd!=null?ff.lmtd.toFixed(4):'—'}</td></tr>
+    <tr><td class="lbl">F correction (rows)</td><td>—</td><td>${ff.F_rows!=null?ff.F_rows.toFixed(4):'—'}</td></tr>
+    <tr><td class="lbl">Overall surf. eff. η₀</td><td>—</td><td>${ff.eta_surf!=null?ff.eta_surf.toFixed(4):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<div class="mini-sec">🔬 Thermal Resistance Distribution</div>
+${(()=>{
+  if(!ff.U_actual) return '<p style="font-size:7pt;color:#999">Run calculation to see resistance breakdown</p>';
+  const U=ff.U_actual||1, R_total=1/U;
+  const R_air=ff.h_air_eff!=null?1/ff.h_air_eff:R_total*0.5;
+  const R_tube=ff.h_tubeside!=null?1/ff.h_tubeside:R_total*0.1;
+  const R_foul=(ff.tFoul||0.00029)+(ff.aFoul||0.00018);
+  const R_wall_est=R_total-R_air-R_tube-R_foul;
+  const Rt2=R_air+R_tube+R_foul+Math.max(R_wall_est,0.001);
+  const p2=x=>Rt2>0?(x/Rt2*100).toFixed(1):'0.0';
+  const segs2=[
+    {label:'Air-side film',pct:parseFloat(p2(R_air)),  color:'#0055c8'},
+    {label:'Tube film',    pct:parseFloat(p2(R_tube)), color:'#e8500a'},
+    {label:'Fouling',      pct:parseFloat(p2(R_foul)), color:'#c07800'},
+    {label:'Metal wall',   pct:parseFloat(p2(Math.max(R_wall_est,0.001))),color:'#6b7899'},
+  ];
+  return `<table>
+    <thead><tr><th>Component</th><th>R (m²K/W)</th><th>%</th></tr></thead>
+    <tbody>
+      <tr><td class="lbl">Air-side film (dominant)</td><td>${R_air.toExponential(3)}</td><td class="hi-warn">${p2(R_air)}%</td></tr>
+      <tr><td class="lbl">Tube-side film</td><td>${R_tube.toExponential(3)}</td><td>${p2(R_tube)}%</td></tr>
+      <tr><td class="lbl">Fouling (tube+air)</td><td>${R_foul.toExponential(3)}</td><td>${p2(R_foul)}%</td></tr>
+      <tr><td class="lbl">Metal wall</td><td>${Math.max(R_wall_est,0).toExponential(3)}</td><td>${p2(Math.max(R_wall_est,0.001))}%</td></tr>
+      <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>${Rt2.toExponential(3)}</td><td><b>100%</b></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:6px">${thermalPieSVG(segs2)}</div>`;
+})()}
+</div>
+</div>
+
+
+<div class="mini-sec gold">🏗️ Unit &amp; Tube Geometry</div>
+<div class="panel-pair">
+<div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Bays in parallel / unit</td><td>—</td><td>${ff.nBays||'—'}</td></tr>
+    <tr><td class="lbl">Bundles parallel / bay</td><td>—</td><td>${ff.nBundlesPBay||'—'}</td></tr>
+    <tr><td class="lbl">Extended area (eff.)</td><td>m²</td><td>${ff.A_extended!=null?ff.A_extended.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Bare area/unit (eff.)</td><td>m²</td><td>${ff.A_bare!=null?ff.A_bare.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Bundle width</td><td>mm</td><td>${ff.bundleW!=null?(ff.bundleW*1000).toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Bundle depth (est.)</td><td>mm</td><td>${ff.bundleL_calc!=null?(ff.bundleL_calc*1000).toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Face area (total)</td><td>m²</td><td>${ff.A_face_total!=null?ff.A_face_total.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Area ratio (ext/bare)</td><td>—</td><td>${ff.areaRatio!=null?ff.areaRatio.toFixed(3):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Tube OD / ID</td><td>mm</td><td>${ff.tubeOD!=null?(ff.tubeOD*1000).toFixed(3):'—'} / ${ff.tubeID!=null?(ff.tubeID*1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Tube length</td><td>mm</td><td>${ff.tubeLen!=null?(ff.tubeLen*1000).toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Tube layout / rows</td><td>—</td><td>${ff.tubeLayout||'—'} / ${ff.nRows||'—'} rows</td></tr>
+    <tr><td class="lbl">Trans / Long pitch</td><td>mm</td><td>${ff.pitchT!=null?(ff.pitchT*1000).toFixed(1):'—'} / ${ff.pitchL!=null?(ff.pitchL*1000).toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Number of passes</td><td>—</td><td>${ff.nPasses||'—'}</td></tr>
+    <tr><td class="lbl">Tube count (per bay)</td><td>—</td><td>${ff.nTubes||'—'} (${ff.nTubeTotal!=null?ff.nTubeTotal+' total':'—'})</td></tr>
+    <tr><td class="lbl">Tube material</td><td>—</td><td>${ff.tubeMat||'—'}</td></tr>
+    <tr><td class="lbl">Tube type</td><td>—</td><td>${ff.tubeType||'High-finned'}</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+
+<div class="panel-pair">
+<div>
+<div class="mini-sec">🌀 Fin Geometry</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fin type</td><td>—</td><td>${ff.finType||'Rectangular'}</td></tr>
+    <tr><td class="lbl">Fins / length</td><td>fins/m</td><td>${ff.finDensity!=null?ff.finDensity.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Fin root diameter</td><td>mm</td><td>${ff.finRoot!=null?(ff.finRoot*1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Fin height</td><td>mm</td><td>${ff.finH!=null?(ff.finH*1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Fin OD (tip)</td><td>mm</td><td>${ff.finOD!=null?(ff.finOD*1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Base thickness</td><td>mm</td><td>${ff.finThk!=null?(ff.finThk*1000).toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Fin efficiency η</td><td>%</td><td class="${ff.eta_fin>=0.7?'hi-ok':'hi-warn'}">${ff.eta_fin!=null?(ff.eta_fin*100).toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Overall surf. eff. η₀</td><td>%</td><td>${ff.eta_surf!=null?(ff.eta_surf*100).toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Fin material</td><td>—</td><td>${ff.finMat||'Al 1100-H14'}</td></tr>
+    <tr><td class="lbl">Fins per tube</td><td>—</td><td>${ff.finsPerTube!=null?ff.finsPerTube.toFixed(0):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<div class="mini-sec">🔄 Fan Geometry &amp; Airside</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">No. fans per bay</td><td>—</td><td>${ff.nFans||'—'}</td></tr>
+    <tr><td class="lbl">Fan ring type</td><td>—</td><td>${ff.fanRing||'—'}</td></tr>
+    <tr><td class="lbl">Fan diameter</td><td>mm</td><td>${ff.fanDia!=null?(ff.fanDia*1000).toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Fan efficiency</td><td>%</td><td>${ff.fanEff!=null?(ff.fanEff*100).toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Driver power (design)</td><td>kW</td><td>${ff.driverKW!=null?ff.driverKW.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Required power / fan</td><td>kW</td>
+      <td class="${ff.P_fan_each>ff.driverKW?'hi-err':'hi-ok'}">${ff.P_fan_each!=null?ff.P_fan_each.toFixed(2):'—'}</td></tr>
+    <tr><td class="lbl">Face velocity</td><td>m/s</td>
+      <td class="${ff.v_face>=1.5&&ff.v_face<=4?'hi-ok':'hi-warn'}">${ff.v_face!=null?ff.v_face.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Max velocity</td><td>m/s</td><td>${ff.v_max!=null?ff.v_max.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Air flow (total)</td><td>100 m³/min</td><td>${ff.V_air_100m3min!=null?ff.V_air_100m3min.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Bundle ΔP (air)</td><td>mmH₂O</td><td>${ff.dpAir_mmH2O!=null?ff.dpAir_mmH2O.toFixed(1):'—'}</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+`:''}
+
+
+${dp?`
+<div class="sec ${(st||pl||ac||ff)?'pg ':''}blue">↔️ Double Pipe (Hairpin) HX — Calculation Results</div>
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+<div class="kpi-strip">
+  <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(dp.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
+  <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${dp.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">Req. Length</div><div class="kv">${(dp.A_req!=null?dp.A_req.toFixed(2):'—')}<span class="ku"> m</span></div></div>
+  <div class="kpi g"><div class="kl">U Overall</div><div class="kv">${convU(dp.U).toFixed(0)}<span class="ku"> ${Uu}</span></div></div>
+  <div class="kpi b"><div class="kl">No. Hairpins</div><div class="kv">${dp.nHairpins||'—'}</div></div>
+  <div class="kpi ${dp.eff>0.6?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${(dp.eff*100).toFixed(1)}<span class="ku"> %</span></div></div>
+</div>
+
+<div class="panel-pair">
+<div>
+<div class="mini-sec red">🔴 Inner Pipe (Hot)</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid</td><td>—</td><td>${dp.hFluid.name}</td></tr>
+    <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(dp.hTi).toFixed(2)} / ${tDisp(dp.hTo).toFixed(2)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.hF!=null?dp.hF.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(dp.Qhot).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.velInner!=null?dp.velInner.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Re</td><td>—</td><td>${dp.Re_inner!=null?dp.Re_inner.toFixed(0):'—'} ${dp.Re_inner>=10000?'✓ turbulent':dp.Re_inner>=2300?'transition':'⚠ laminar'}</td></tr>
+    <tr><td class="lbl">Film HTC h_i</td><td>W/m²K</td><td>${dp.hInner!=null?dp.hInner.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
+      <td class="${dp.dpInner>dp.pdAllow?'hi-err':'hi-ok'}">${convP(dp.dpInner).toFixed(4)} ${dp.dpInner>dp.pdAllow?'✗':'✓'}</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<div class="mini-sec teal">🔵 Annulus (Cold)</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Fluid</td><td>—</td><td>${dp.cFluid.name}</td></tr>
+    <tr><td class="lbl">T Inlet / Outlet</td><td>${T}</td><td>${tDisp(dp.cTi).toFixed(2)} / ${tDisp(dp.cTo).toFixed(2)}</td></tr>
+    <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${dp.cF!=null?dp.cF.toFixed(1):'—'}</td></tr>
+    <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(dp.Qcold).toFixed(3)}</td></tr>
+    <tr><td class="lbl">Velocity</td><td>m/s</td><td>${dp.velAnn!=null?dp.velAnn.toFixed(3):'—'}</td></tr>
+    <tr><td class="lbl">Re</td><td>—</td><td>${dp.Re_ann!=null?dp.Re_ann.toFixed(0):'—'} ${dp.Re_ann>=10000?'✓ turbulent':dp.Re_ann>=2300?'transition':'⚠ laminar'}</td></tr>
+    <tr><td class="lbl">Film HTC h_ann</td><td>W/m²K</td><td>${dp.hAnn!=null?dp.hAnn.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
+      <td class="${dp.dpAnn>dp.pdAllow?'hi-err':'hi-ok'}">${convP(dp.dpAnn).toFixed(4)} ${dp.dpAnn>dp.pdAllow?'✗':'✓'}</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<div class="mini-sec">🔧 Geometry &amp; Summary</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="lbl">Inner pipe OD/ID</td><td>mm</td>
+      <td>${dp.iOD!=null?(dp.iOD*1000).toFixed(1):'—'} / ${dp.iID!=null?(dp.iID*1000).toFixed(1):'—'}</td>
+      <td class="lbl">Annulus Dh</td><td>mm</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="lbl">Outer pipe ID</td><td>mm</td><td>${dp.iOD!=null?((dp.iOD+0.006)*1000).toFixed(1):'—'}</td>
+      <td class="lbl">Flow arrangement</td><td>—</td><td>Countercurrent</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hairpin length</td><td>m</td><td>${dp.L||'—'}</td>
+      <td class="lbl">No. hairpins</td><td>—</td><td>${dp.nHairpins||'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Total active length</td><td>m</td><td>${dp.L_total!=null?dp.L_total.toFixed(1):'—'}</td>
+      <td class="lbl">Over-surface</td><td>%</td>
+      <td class="${dp.overDesign>40?'hi-warn':'hi-ok'}">${dp.overDesign!=null?dp.overDesign.toFixed(1):'—'}</td>
+    </tr>
+    <tr>
+      <td class="lbl">LMTD / F×LMTD</td><td>${T}</td>
+      <td>${dp.lmtd.toFixed(4)} / <b>${dp.FLMTD.toFixed(4)}</b></td>
+      <td class="lbl">Balance Error</td><td>%</td>
+      <td class="${dp.balErr>5?'hi-warn':'hi-ok'}">${dp.balErr.toFixed(3)}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Effectiveness ε</td><td>%</td><td>${(dp.eff*100).toFixed(2)}</td>
+      <td class="lbl">NTU</td><td>—</td><td>${dp.NTU.toFixed(4)}</td>
+    </tr>
+  </tbody>
+</table>
+`:''}
+
+
+${lm?`
+<div class="sec ${(st||pl||ac||ff||dp)?'pg ':''}teal">📐 LMTD &amp; NTU Calculator — Results</div>
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+<div class="kpi-strip">
+  <div class="kpi r"><div class="kl">ΔT₁</div><div class="kv">${lm.dT1.toFixed(3)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi b"><div class="kl">ΔT₂</div><div class="kv">${lm.dT2.toFixed(3)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">LMTD</div><div class="kv">${lm.lmtd.toFixed(4)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi g"><div class="kl">F Correction</div><div class="kv">${lm.F.toFixed(4)}</div></div>
+  <div class="kpi r"><div class="kl">F × LMTD</div><div class="kv">${lm.FLMTD.toFixed(4)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi ${lm.eff>0.7?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${lm.eff!=null?(lm.eff*100).toFixed(2):'—'}<span class="ku">%</span></div></div>
+</div>
+<table>
+  <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td class="lbl">Hot side: T_in → T_out</td><td>${lm.hTi.toFixed(2)} → ${lm.hTo.toFixed(2)} °C</td><td>ΔT_hot = ${(lm.hTi-lm.hTo).toFixed(4)} ${T}</td></tr>
+    <tr><td class="lbl">Cold side: T_in → T_out</td><td>${lm.cTi.toFixed(2)} → ${lm.cTo.toFixed(2)} °C</td><td>ΔT_cold = ${(lm.cTo-lm.cTi).toFixed(4)} ${T}</td></tr>
+    <tr><td class="lbl">ΔT₁ / ΔT₂</td><td>${lm.dT1.toFixed(6)} / ${lm.dT2.toFixed(6)} ${T}</td><td>${lm.arr==='counter'?'T_h,in−T_c,out / T_h,out−T_c,in':'Parallel end differences'}</td></tr>
+    <tr><td class="lbl">LMTD (log mean)</td><td>${lm.lmtd.toFixed(6)} ${T}</td><td>ΔT_LM = (ΔT₁−ΔT₂)/ln(ΔT₁/ΔT₂)</td></tr>
+    <tr><td class="lbl">F correction factor</td><td>${lm.F.toFixed(6)}</td><td>${lm.arr} arrangement</td></tr>
+    <tr><td class="lbl">Effective LMTD (F×LMTD)</td><td><b>${lm.FLMTD.toFixed(6)} ${T}</b></td><td>Use in: Q = U · A · F · ΔT_LM</td></tr>
+    ${lm.eff!=null?`<tr><td class="lbl">Effectiveness ε</td><td>${(lm.eff*100).toFixed(4)} %</td><td>ε = Q_actual / Q_max</td></tr>`:''}
+    ${lm.NTU!=null?`<tr><td class="lbl">NTU</td><td>${lm.NTU.toFixed(6)}</td><td>NTU = U·A/C_min</td></tr>`:''}
+    ${lm.UA!=null?`<tr><td class="lbl">U·A product</td><td>${(lm.UA/1000).toFixed(4)} kW/K</td><td>Direct from NTU × C_min</td></tr>`:''}
+    ${(lm.Cmin_kW!=null&&lm.NTU!=null&&lm.NTU>0)?`<tr><td class="lbl">C_min / C_max</td><td>${lm.Cmin_kW.toFixed(4)} / ${(lm.UA/lm.NTU/1000).toFixed(4)} kW/K</td><td>C_r = ${(Math.min(lm.Cmin_kW,(lm.UA/lm.NTU/1000))/Math.max(lm.Cmin_kW,(lm.UA/lm.NTU/1000))).toFixed(4)}</td></tr>`:''}
+  </tbody>
+</table>
+`:''}
+
+
+<div style="margin-top:10px;page-break-inside:avoid">
+<div class="sec">📋 Engineering Notes &amp; References</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  <div class="note-pdf">
+    <b>Correlation Methods Used:</b><br>
+    • Shell-side HTC: Bell-Delaware (1963) with TEMA correction factors (Jc, Jl, Jb, Jr)<br>
+    • Tube-side HTC: Gnielinski (1976) — Turbulent | Sieder-Tate — Laminar | Interpolated — Transition<br>
+    • Gas density: Pitzer virial / Peng-Robinson EOS (Z-factor corrected at T&amp;P)<br>
+    • Fin-Fan: Robinson-Briggs (1966) j-factor | Schmidt fin efficiency<br>
+    • Plate HX: Martin (1996) Nusselt correlation for chevron plates<br>
+    • Tube ΔP: Darcy-Weisbach + entry/exit (Ke=0.5, Kx=1.0) + return bends (1.5/pass)
+  </div>
+  <div class="note-pdf warn">
+    <b>⚠ Design Disclaimer:</b><br>
+    Results are based on engineering correlations for <b>preliminary sizing only</b>.
+    Accuracy: ±15–25% typical for heat transfer; ±20–30% for pressure drop.
+    <br><br>
+    All final designs must be verified by a qualified engineer and comply with:
+    ASME Section VIII (pressure vessels) · TEMA (shell &amp; tube) · API 661 (air coolers)
+    · EN 13445 (unfired pressure vessels) · local codes.
+  </div>
+</div>
+
+<div class="note-pdf" style="margin-top:6px">
+  <b>Typical U Values (W/m²K):</b>
+  Water–Water: 800–2000 | Water–Light Oil: 150–500 | Gas–Liquid: 15–100 |
+  Condensing Steam–Water: 1000–4000 | Air Cooled (extended area): 30–80 |
+  Plate HX (L-L): 1000–6000 | Double Pipe: 200–800
+</div>
+</div>
+
+<div class="ftr">
+  <span style="font-weight:800;color:#0055c8;font-size:7pt">multicalci.com</span>
+  <span style="font-size:6.5pt">HeatXpert Pro v7.0 — Professional Heat Exchanger Design &amp; Analysis</span>
+  <span style="font-size:6.5pt">Generated: ${now} | For Engineering Review Only</span>
+  <span>Rev A — Preliminary | For Engineering Review Only</span>
+</div>
+
+<\/body><\/html>`;
+
+  // Write HTML directly into new window — blob URL onload is unreliable in Chrome
+  const win=window.open('','_blank');
+  if (!win) { alert('Pop-up blocked — please allow pop-ups for this site to generate PDF.'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  // Wait for fonts/images to load, then trigger print dialog
+  setTimeout(() => { try { win.focus(); win.print(); } catch(e) {} }, 900);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   WALL THICKNESS CALCULATOR (ASME VIII Div. 1 UG-27 / EN 13445-3 Cl. 7)
+   ══════════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════════
+   HeatXpert Pro — Client-side JS (API-backed version)
+   All calculations are performed server-side via /api/heatxpert
+   This file handles: UI, form reads, API calls, result rendering
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// Fix: Use absolute API URL so it works from any host (GitHub Pages, CDN, etc.)
+// Replace 'your-project.vercel.app' with your actual Vercel deployment URL
+const API_URL = (()=>{
+  // If the page is served from the same Vercel deployment, use relative path
+  if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('multicalci.com')) {
+    return '/api/heatxpert';
+  }
+  // Otherwise (local dev, GitHub Pages, etc.) use the full Vercel URL
+  return 'https://your-project.vercel.app/api/heatxpert'; // ← REPLACE with your actual URL
+})();
+// GAS_RHO_THRESHOLD defined above
+let unitSys = 'metric';
+let coldMode = 'flow';
+let _apiPending = false;
+let lastResults = {};
+
+// ── Unit helpers (display only — server always uses SI) ──────────────────────
+function tC(val)   { return unitSys==='imperial'?(val-32)*5/9:val; }
+function tDisp(v)  { return unitSys==='imperial'?v*9/5+32:v; }
+function mF(val)   { return unitSys==='imperial'?val/2.20462:val; }
+function tU()      { return unitSys==='metric'?'°C':'°F'; }
+function fU()      { return unitSys==='metric'?'kg/h':'lb/h'; }
+function pU()      { return unitSys==='metric'?'bar':'psi'; }
+function aU()      { return unitSys==='metric'?'m²':'ft²'; }
+function hU()      { return unitSys==='metric'?'kW':'BTU/hr'; }
+function uU()      { return unitSys==='metric'?'W/m²·K':'BTU/hr·ft²·°F'; }
+function convQ(kw) { return unitSys==='imperial'?kw*3412.14:kw; }
+function convA(m2) { return unitSys==='imperial'?m2*10.7639:m2; }
+function convP(b)  { return unitSys==='imperial'?b*14.504:b; }
+function convU(w)  { return unitSys==='imperial'?w*0.17611:w; }
+
+// ═══════════════════════════════════════════════════════════════════
+// PER-FIELD UNIT CONVERSION FUNCTIONS
+// Each reads the unit selector for that field and converts to SI.
+// The API always receives SI values (°C, bar, kg/h, mm for dims).
+// ═══════════════════════════════════════════════════════════════════
+
+// Conversion factors to SI
+const PRES_TO_BAR = { bar:1, kpa:0.01, mpa:10, psi:0.0689476, kgcm2:0.980665 };
+const TEMP_OFFSETS = { c:[1,0], f:[5/9,-32*5/9], k:[1,-273.15] };
+const DIM_TO_MM = { mm:1, cm:10, 'in':25.4 };
+const LEN_TO_M = { m:1, ft:0.3048 };
+
+function getPresVal(inputId) {
+  const raw = parseFloat(g(inputId)?.value) || 0;
+  const unit = g(inputId+'_usel')?.value || 'bar';
+  return raw * (PRES_TO_BAR[unit] || 1);
+}
+function getTempVal(inputId) {
+  const raw = parseFloat(g(inputId)?.value);
+  if (isNaN(raw)) return NaN;
+  const unit = g(inputId+'_usel')?.value || 'c';
+  const [m,b] = TEMP_OFFSETS[unit] || [1,0];
+  return raw * m + b;
+}
+function getDimMm(inputId) {
+  const raw = parseFloat(g(inputId)?.value) || 0;
+  const unit = g(inputId+'_usel')?.value || 'mm';
+  return raw * (DIM_TO_MM[unit] || 1);
+}
+function getLenM(inputId) {
+  const raw = parseFloat(g(inputId)?.value) || 0;
+  const unit = g(inputId+'_usel')?.value || 'm';
+  return raw * (LEN_TO_M[unit] || 1);
+}
+function getFlowKgh(inputId) {
+  const raw = parseFloat(g(inputId)?.value) || 0;
+  if (unitSys === 'imperial') return raw / 2.20462;
+  return raw;
+}
+
+// When SI/US global toggle fires, also flip all individual selectors
+const _origSetUnit = setUnit;
+function setUnit(sys, btn) {
+  unitSys = sys;
+  document.querySelectorAll('.unit-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  updateAllUnitLabels();
+  // Flip all temp selectors
+  document.querySelectorAll('.u-temp-sel').forEach(sel=>{
+    sel.value = sys==='metric' ? 'c' : 'f';
+  });
+  // Flip all pressure selectors
+  document.querySelectorAll('.u-pres-sel, .u-pdrop-sel').forEach(sel=>{
+    sel.value = sys==='metric' ? 'bar' : 'psi';
+  });
+  // Flip flow labels
+  document.querySelectorAll('.u-flow-l').forEach(el=>{
+    el.textContent = sys==='metric' ? 'kg/h' : 'lb/h';
+  });
+  // Flip length selectors
+  document.querySelectorAll('.u-len-sel').forEach(sel=>{
+    sel.value = sys==='metric' ? 'm' : 'ft';
+  });
+  if (typeof satRefreshDebounced === 'function') satRefreshDebounced('pres', 60);
+}
+
+// onchange callbacks for individual selectors
+function onPresUnitChange(baseId, unit) {
+  // Conversion happens at submit via getPresVal(); the displayed number is now
+  // read in a different unit, so the saturation readout must be recomputed.
+  if (typeof satRefreshDebounced === 'function') satRefreshDebounced('pres', 60);
+}
+function onTempUnitChange(baseId, unit) {
+  // Same as above — see getTempVal().
+  if (typeof satRefreshDebounced === 'function') satRefreshDebounced('pres', 60);
+}
+function onDimUnitChange2(baseId, unit) {
+  // Just visual — conversion happens at submit via getDimMm()
+}
+function onLenUnitChange(baseId, unit) {
+  // Just visual — conversion happens at submit via getLenM()
+}
+
+// ── Core API call ────────────────────────────────────────────────────────────
+async function callAPI(payload) {
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: resp.statusText }));
+    throw new Error(err.error || 'API error ' + resp.status);
+  }
+  return resp.json();
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+function v(id)      { return parseFloat(document.getElementById(id).value); }
+function g(id)      { return document.getElementById(id); }
+function showErr(pfx, msg) {
+  const _spin=document.getElementById(pfx+'_spin'); if(_spin) _spin.classList.remove('show');
+  const _ph=document.getElementById(pfx+'_ph'); if(_ph) _ph.style.display='';
+  const el = document.getElementById(pfx+'_err');
+  if (el) {
+    // Error boxes use <span id="pfx_err_txt"> for the message text
+    const txtEl = document.getElementById(pfx+'_err_txt');
+    if (txtEl) txtEl.textContent = msg;
+    else el.textContent = msg;
+    el.classList.add('show');
+  } else alert(msg);
+  _apiPending = false;
+}
+function hideErr(pfx) {
+  const el = document.getElementById(pfx+'_err');
+  if (el) el.classList.remove('show');
+}
+function startCalc(pfx) {
+  _apiPending = true;
+  hideErr(pfx);
+  const _ph2=document.getElementById(pfx+'_ph'); if(_ph2) _ph2.style.display='none';
+  const _spin2=document.getElementById(pfx+'_spin'); if(_spin2) _spin2.classList.add('show');
+  const res = document.getElementById(pfx+'_res');
+  if (res) res.classList.remove('show');
+}
+// ── Space-Constrained Geometry Optimizer ──────────────────────────────────────
+async function runGeoOptimizer(area_req, massC_kgs, L_fixed, rho_c, target_vel) {
+  const el = document.getElementById('geo-optimizer-results');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--t3);font-size:.82rem;padding:8px 0">🔍 Searching configurations…</div>';
+  try {
+    const resp = await fetch('/api/heatxpert', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        calcType:'geoOptimizer',
+        area_req, massC_kgs, L_fixed, rho_c, target_vel,
+        vel_min: 0.8, vel_max: 3.5, max_passes: 8, max_shells: 3
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { el.innerHTML = `<div style="color:var(--err);font-size:.82rem">${data.error}</div>`; return; }
+
+    const valid   = data.solutions_valid   || [];
+    const partial = data.solutions_partial || [];
+
+    const scoreColor = v => v >= target_vel*0.95 && v <= target_vel*1.3 ? 'var(--ok)'
+                          : v >= 0.8 ? 'var(--warn)' : 'var(--err)';
+
+    const renderRow = (s, rank) => `
+      <tr style="${rank===0?'background:var(--teal-lt)':''}">
+        <td style="font-weight:700;color:${rank===0?'var(--teal)':'var(--t1)'}">${rank===0?'⭐ Best':'#'+(rank+1)}</td>
+        <td style="font-weight:700">${s.od_mm} mm</td>
+        <td style="font-weight:700">${s.nPasses}</td>
+        <td>${s.nShells > 1 ? s.nShells+' × series' : '1'}</td>
+        <td>${s.numTubes} <span style="font-size:.7rem;color:var(--t3)">(${s.nTubesPerPass}/pass)</span></td>
+        <td style="font-weight:700;color:${scoreColor(s.velocity)}">${s.velocity} m/s</td>
+        <td style="color:var(--ok)">+${s.area_margin_pct}%</td>
+        <td><button onclick="applyGeoSolution(${s.od_mm},${s.nPasses},${s.nShells},${s.numTubes})"
+          style="font-size:.7rem;padding:3px 10px;border:none;border-radius:5px;background:var(--blue);color:#fff;cursor:pointer;font-weight:700">Apply</button></td>
+      </tr>`;
+
+    el.innerHTML = `
+      <div style="margin-top:6px">
+        <div style="font-size:.8rem;font-weight:700;color:#7c3aed;margin-bottom:6px">
+          ${data.any_solution
+            ? `✅ ${valid.length} solution(s) found — ${data.recommendation}`
+            : `⚠ No perfect solution found. Closest partial options shown.`}
+        </div>
+        <div style="overflow-x:auto">
+          <table class="dtbl" style="font-size:.78rem">
+            <thead><tr>
+              <th>Rank</th><th>Tube OD</th><th>Passes</th><th>Shells</th>
+              <th>Tubes</th><th>Velocity</th><th>Area margin</th><th>Action</th>
+            </tr></thead>
+            <tbody>
+              ${valid.map((s,i)=>renderRow(s,i)).join('')}
+              ${!data.any_solution ? partial.map((s,i)=>renderRow(s,i)).join('') : ''}
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:.7rem;color:var(--t3);margin-top:6px">
+          * Area requirement: ${area_req.toFixed(2)} m² | L fixed: ${L_fixed} m | Target velocity: ${target_vel} m/s |
+          Vel range: 0.8–3.5 m/s | Max ${data.solutions_valid?.length||0}+${data.solutions_partial?.length||0} configs evaluated
+        </div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--err);font-size:.82rem">Optimizer error: ${e.message}</div>`;
+  }
+}
+
+function applyGeoSolution(od_mm, nPasses, nShells, numTubes) {
+  var g = function(id) { return document.getElementById(id); };
+  var odField      = g('st_od');
+  var typeField    = g('st_type');
+  var velModeField = g('st_velMode');
+  var hxMap = {1:'1-1', 2:'1-2', 4: nShells>=2 ? '2-4' : '1-4', 6:'1-6', 8:'1-4'};
+  if (odField)      odField.value      = od_mm;
+  if (typeField)    typeField.value    = hxMap[nPasses] || '1-2';
+  if (velModeField) velModeField.value = 'target';
+  onVelModeChange();
+  showToast('✅ Geometry applied — recalculating…');
+  setTimeout(function() {
+    var calcBtn = document.querySelector('#tab-st .btn-calc');
+    if (calcBtn) calcBtn.click();
+    var res = document.getElementById('st_res');
+    if (res) res.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 150);
+}
+
+function applyAdvisorLever(lever, newL, newPasses, newShells, newTubes, newOD_mm, newTW_mm) {
+  var g = function(id) { return document.getElementById(id); };
+
+  var hTi = parseFloat((g('st_hTi') || {}).value);
+  var hTo  = parseFloat((g('st_hTo') || {}).value);
+  var cTi  = parseFloat((g('st_cTi') || {}).value);
+  // Phase-aware (2026-07): in condensing mode hTo === hTi is the normal total
+  // condenser case, so only an outlet ABOVE the inlet is rejected here. Mirrors
+  // the server-side rule in calcShellTube.
+  var _mode = (g('st_shellMode') || {}).value || 'single-phase';
+  var _tempsBad = _mode === 'condensing' ? (hTo > hTi) : (hTo >= hTi);
+  if (!isFinite(hTi) || !isFinite(hTo) || !isFinite(cTi) || _tempsBad) {
+    showToast(_mode === 'condensing'
+      ? '⚠ Check temperatures before applying — hot outlet cannot be above hot inlet'
+      : '⚠ Check temperatures before applying — hot outlet must be below hot inlet');
+    return;
+  }
+
+  var typeField    = g('st_type');
+  var lenField     = g('st_len');
+  var odField      = g('st_od');
+  var twField      = g('st_tw');
+  var velModeField = g('st_velMode');
+  var hxMap = {1:'1-1', 2:'1-2', 4:'1-4', 6:'1-6', 8:'1-4'};
+
+  if (lever === 'A') {
+    if (newL != null && lenField) lenField.value = newL;
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'B') {
+    if (newPasses != null && typeField) {
+      typeField.value = hxMap[newPasses] || '1-4';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'C') {
+    if (newShells != null && typeField) {
+      typeField.value = newShells >= 2 ? '2-4' : '1-2';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+    if (newShells > 2) {
+      showToast('ℹ️ Note: form supports up to 2 shells. For ' + newShells + ' shells, apply twice.');
+      return;
+    }
+  }
+
+  if (lever === 'D') {
+    if (newOD_mm != null && odField) odField.value = newOD_mm;
+    if (newTW_mm != null && twField)  twField.value = newTW_mm;
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  if (lever === 'E') {
+    if (newL != null && lenField)    lenField.value = newL;
+    if (newPasses != null && typeField) {
+      typeField.value = hxMap[newPasses] || '1-4';
+    }
+    if (velModeField) velModeField.value = 'target';
+    onVelModeChange();
+  }
+
+  var leverNames = {
+    A: 'Tube length updated',
+    B: 'Pass count updated',
+    C: 'Shells in series applied',
+    D: 'Tube OD updated',
+    E: 'Combined length + passes applied'
+  };
+  showToast('✅ ' + (leverNames[lever] || 'Applied') + ' — recalculating…');
+
+  setTimeout(function() {
+    var calcBtn = document.querySelector('#tab-st .btn-calc');
+    if (calcBtn) calcBtn.click();
+    var res = document.getElementById('st_res');
+    if (res) res.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 150);
+}
+
+
+function showRes(pfx, html) {
+  document.getElementById(pfx+'_spin').classList.remove('show');
+  const res = document.getElementById(pfx+'_res');
+  if (res) { res.innerHTML=html; res.classList.add('show'); }
+  _apiPending = false;
+}
+function resetForm(pfx) {
+  const formMap={st:'stForm',pl:'plForm',ac:'acForm',dp:'dpForm',ff:'ffForm'};
+  const form=document.getElementById(formMap[pfx]);
+  if(form) form.reset();
+  const res=document.getElementById(pfx+'_res');
+  if(res){res.innerHTML='';res.classList.remove('show');}
+  hideErr(pfx);
+  const ph=document.getElementById(pfx+'_ph');
+  if(ph) ph.style.display='';
+}
+function switchTab(id,btn){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+function updateAllUnitLabels(){
+  // data-unit-metric / data-unit-imperial generic labels
+  document.querySelectorAll('[data-unit-metric]').forEach(el=>{
+    el.textContent=unitSys==='metric'?el.dataset.unitMetric:el.dataset.unitImperial;
+  });
+  // Temperature labels
+  document.querySelectorAll('.u-temp-l').forEach(el=>{
+    const sel=el.closest('.irow')?.querySelector('.u-temp-sel');
+    if(!sel) el.textContent=unitSys==='metric'?'°C':'°F';
+  });
+  // Simple flow labels (no dropdown — air cooled, fin-fan)
+  document.querySelectorAll('.u-flow-l').forEach(el=>{
+    el.textContent=unitSys==='metric'?'kg/h':'lb/h';
+  });
+  // Pressure labels (bar / psi)
+  document.querySelectorAll('.u-pres-l').forEach(el=>{
+    el.textContent=unitSys==='metric'?'bar a':'psia';
+  });
+  // Pressure allowable labels (bar / psi)
+  document.querySelectorAll('.u-pdrop-l').forEach(el=>{
+    el.textContent=unitSys==='metric'?'bar':'psi';
+  });
+  // Length labels (m / ft) — tube length etc
+  document.querySelectorAll('.u-len-l').forEach(el=>{
+    el.textContent=unitSys==='metric'?'m':'ft';
+  });
+  // Dimension labels mm/in driven by per-field dropdown (u-dim-sel)
+  // These are handled by their own onchange. No bulk update needed.
+}
+
+// ── Per-input unit conversion helpers ────────────────────────────────────────
+// Called by pressure unit selectors
+function convInputPres(inputId, selId) {
+  const sel=g(selId), inp=g(inputId);
+  if(!sel||!inp) return;
+  const val=parseFloat(inp.value)||0;
+  const unit=sel.value;
+  // Convert displayed value → bar_a for storage; display in chosen unit
+  // We store nothing; just update the ulab text
+  g(selId+'_lbl') && (g(selId+'_lbl').textContent=unit);
+}
+
+// Called when dimension unit selector changes (mm / cm / in)
+function onDimUnitChange(selId, labId) {
+  const sel=g(selId); if(!sel) return;
+  if(g(labId)) g(labId).textContent=sel.value;
+}
+
+// ── Fluid selector ───────────────────────────────────────────────────────────
+const FP_NAMES = {
+  water:'Water',brine_nacl:'Brine NaCl 25%',ethylene_glycol_30:'Ethylene Glycol 30%',
+  crude_oil_light:'Crude Oil (Light)',crude_oil_heavy:'Crude Oil (Heavy)',diesel:'Diesel',
+  kerosene:'Kerosene',fuel_oil:'Fuel Oil',lube_oil:'Lubricating Oil',thermal_oil:'Thermal Oil',
+  benzene:'Benzene',toluene:'Toluene',air:'Air',nitrogen:'Nitrogen',natural_gas:'Natural Gas',
+  methane:'Methane',co2:'Carbon Dioxide',steam:'Steam',ammonia_gas:'Ammonia Gas',
+  ammonia_liquid:'Ammonia (Liquid)',ethanol:'Ethanol',methanol:'Methanol',acetone:'Acetone',
+  sulfuric_acid_98:'Sulfuric Acid 98%',hcl_32:'HCl 32%',naoh_50:'NaOH 50%',
+  r134a:'R-134a',r410a:'R-410A',milk:'Milk',beer:'Beer',dowtherm:'Dowtherm A'
+};
+function buildFluidOptions() {
+  const groups={
+    'Common Liquids':['water','brine-nacl','brine-cacl2','ethylene-glycol-30','ethylene-glycol-50','propylene-glycol-30','propylene-glycol-50'],
+    'Hydrocarbons':['crude-oil-light','crude-oil-heavy','diesel','gasoline','kerosene','fuel-oil','lube-oil','hydraulic-oil','thermal-oil'],
+    'Aromatics':['benzene','toluene','xylene'],
+    'Gases':['air','nitrogen','oxygen','hydrogen','natural-gas','methane','co2','steam','ammonia-gas'],
+    'Chemicals':['ammonia-liquid','ethanol','methanol','acetone','sulfuric-acid-98','sulfuric-acid-75','nitric-acid-68','hcl-32','naoh-50','naoh-25','acetic-acid'],
+    'Refrigerants':['r134a','r410a','r717'],
+    'Food/Process':['milk','juice','beer','sugar-solution'],
+    'Special':['molten-salt','dowtherm','mercury','sodium']
+  };
+  let html='';
+  for(const [grp,keys] of Object.entries(groups)){
+    html+=`<optgroup label="${grp}">`;
+    for(const k of keys){
+      const name = k.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      html+=`<option value="${k}">${name}</option>`;
+    }
+    html+='</optgroup>';
+  }
+  // Fix: HTML uses data-fluid attribute, not .fluid-sel class
+  document.querySelectorAll('[data-fluid]').forEach(s=>{ s.innerHTML=html; });
+}
+
+// Fix Bug 2: fluidChange was called but never defined
+function fluidChange(id) {
+  // Placeholder — fluid properties are resolved server-side.
+  // Optionally update gas pressure tag hints here.
+  const sel = g(id);
+  if (!sel) return;
+  const gasKeys = ['air','nitrogen','oxygen','hydrogen','natural-gas','methane','co2','steam','ammonia-gas'];
+  const isGas = gasKeys.includes(sel.value);
+  // Show/hide gas pressure hints if the tag element exists
+  const tagMap = { 'st_hFl':'st_hPgasTag','st_cFl':'st_cPgasTag' };
+  const tagEl = g(tagMap[id]);
+  if (tagEl) tagEl.textContent = isGas ? '⚗ gas — P matters' : '';
+}
+
+// Fix Bug 4: updateVelHint was called but never defined
+function updateVelHint() {
+  const vel = parseFloat((g('st_targetVel')||{value:'1.5'}).value) || 1.5;
+  const el = g('st_velHint');
+  if (!el) return;
+  const isGas = vel >= 5;
+  el.textContent = isGas
+    ? `✓ Target: ${vel} m/s → gas/vapour velocity range`
+    : `✓ Target: ${vel} m/s → auto-calculating required tube passes`;
+}
+
+// Fix Bug 5: live preview stubs for plate and double-pipe cold side
+function plUpdateColdOutlet() {
+  if (g('pl_coldMode') && g('pl_coldMode').value === 'flow') {
+    // Estimate cold outlet from energy balance for display only
+    try {
+      const hTi = parseFloat(g('pl_hTi').value)||0;
+      const hTo = parseFloat(g('pl_hTo').value)||0;
+      const hF  = parseFloat(g('pl_hF').value)||1;
+      const cTi = parseFloat(g('pl_cTi').value)||0;
+      const cF  = parseFloat(g('pl_cF').value)||1;
+      // Rough: assume same cp → ΔTc = (hF/cF)*(hTi-hTo)
+      const dTc = (hF / cF) * (hTi - hTo);
+      const cTo = cTi + Math.abs(dTc);
+      if (g('pl_cTo_disp')) g('pl_cTo_disp').value = cTo.toFixed(1);
+      if (g('pl_cTo_lbl'))  g('pl_cTo_lbl').textContent = `Estimated (server will compute exactly)`;
+    } catch(e) {}
+  }
+}
+function plUpdateColdFlow() {
+  if (g('pl_coldMode') && g('pl_coldMode').value === 'temp') {
+    try {
+      const hTi = parseFloat(g('pl_hTi').value)||0;
+      const hTo = parseFloat(g('pl_hTo').value)||0;
+      const hF  = parseFloat(g('pl_hF').value)||1;
+      const cTi = parseFloat(g('pl_cTi').value)||0;
+      const cTo = parseFloat(g('pl_cTo').value)||1;
+      const dTc = cTo - cTi; if (dTc <= 0) return;
+      const cF = hF * (hTi - hTo) / dTc;
+      if (g('pl_cF_disp')) g('pl_cF_disp').value = Math.abs(cF).toFixed(0);
+      if (g('pl_cF_lbl'))  g('pl_cF_lbl').textContent = `Estimated kg/h`;
+    } catch(e) {}
+  }
+}
+function dpUpdateColdOutlet() {
+  if (g('dp_coldMode') && g('dp_coldMode').value === 'flow') {
+    try {
+      const hTi = parseFloat(g('dp_hTi').value)||0;
+      const hTo = parseFloat(g('dp_hTo').value)||0;
+      const hF  = parseFloat(g('dp_hF').value)||1;
+      const cTi = parseFloat(g('dp_cTi').value)||0;
+      const cF  = parseFloat(g('dp_cF').value)||1;
+      const dTc = (hF / cF) * (hTi - hTo);
+      const cTo = cTi + Math.abs(dTc);
+      if (g('dp_cTo_disp')) g('dp_cTo_disp').value = cTo.toFixed(1);
+    } catch(e) {}
+  }
+}
+function dpUpdateColdFlow() {
+  if (g('dp_coldMode') && g('dp_coldMode').value === 'temp') {
+    try {
+      const hTi = parseFloat(g('dp_hTi').value)||0;
+      const hTo = parseFloat(g('dp_hTo').value)||0;
+      const hF  = parseFloat(g('dp_hF').value)||1;
+      const cTi = parseFloat(g('dp_cTi').value)||0;
+      const cTo = parseFloat(g('dp_cTo').value)||1;
+      const dTc = cTo - cTi; if (dTc <= 0) return;
+      const cF = hF * (hTi - hTo) / dTc;
+      if (g('dp_cF_disp')) g('dp_cF_disp').value = Math.abs(cF).toFixed(0);
+    } catch(e) {}
+  }
+}
+
+// ── Flow unit handling ───────────────────────────────────────────────────────
+function getFlowKgH_client(inputId, unitSelId) {
+  const val = parseFloat(g(inputId).value) || 0;
+  const unit = g(unitSelId) ? g(unitSelId).value : 'kgh';
+  // For non-kgh units, let server handle the conversion
+  // We just pass val and unit to server
+  return { val, unit };
+}
+function updateFlowUnit(selId,labId){
+  const u=g(selId)?g(selId).value:'kgh';
+  const lbl=g(labId);
+  if(lbl) lbl.textContent=u==='kgh'?'kg/h':u==='nm3h'?'Nm³/h':'Sm³/h';
+}
+
+// ── Cold mode logic ──────────────────────────────────────────────────────────
+function setColdMode(mode){
+  coldMode=mode;
+  const flowBtn = g('coldModeFlowBtn'), tempBtn = g('coldModeTempBtn');
+  if (flowBtn) { flowBtn.style.background = mode==='flow' ? 'var(--teal)' : 'transparent'; flowBtn.style.color = mode==='flow' ? '#fff' : 'var(--teal)'; }
+  if (tempBtn) { tempBtn.style.background = mode==='temp' ? 'var(--teal)' : 'transparent'; tempBtn.style.color = mode==='temp' ? '#fff' : 'var(--teal)'; }
+  const hint = g('coldModeHint');
+  if (hint) hint.innerHTML = mode==='flow'
+    ? '✅ <strong>Mode: Know Flow Rate</strong> — enter cold flow rate; outlet temp will be auto-calculated from Q<sub>hot</sub> = Q<sub>cold</sub>.'
+    : '✅ <strong>Mode: Know Outlet Temp</strong> — enter cold outlet temp; flow rate will be auto-calculated.';
+  const cToEl = g('st_cTo'), cFEl = g('st_cF');
+  if (cToEl) { cToEl.readOnly = mode==='flow'; cToEl.style.borderStyle = mode==='flow' ? 'dashed' : 'solid'; cToEl.style.color = mode==='flow' ? 'var(--t3)' : 'var(--t1)'; }
+}
+
+// ── Hot-side flow/temp mode ───────────────────────────────────────────────────
+// Hot side: always uses known hTi, hTo, hF — no toggle needed
+function hotBalancePreview() { coldBalancePreview(); }
+function plToggleColdMode(){
+  const mode=g('pl_coldMode').value;
+  const showFlow=mode==='flow';
+  const plcFgrp=g('pl_cF_grp');   if(plcFgrp)   plcFgrp.style.display   =showFlow?'':'none';
+  const plcTocalc=g('pl_cTo_calc');if(plcTocalc) plcTocalc.style.display =showFlow?'':'none';
+  const plcTogrp=g('pl_cTo_grp'); if(plcTogrp)  plcTogrp.style.display  =showFlow?'none':'';
+  const plcFcalc=g('pl_cF_calc'); if(plcFcalc)  plcFcalc.style.display  =showFlow?'none':'';
+}
+function dpToggleColdMode(){
+  const mode=g('dp_coldMode').value;
+  const showFlow=mode==='flow';
+  const dpcFgrp=g('dp_cF_grp');   if(dpcFgrp)   dpcFgrp.style.display   =showFlow?'':'none';
+  const dpcTocalc=g('dp_cTo_calc');if(dpcTocalc) dpcTocalc.style.display =showFlow?'':'none';
+  const dpcTogrp=g('dp_cTo_grp'); if(dpcTogrp)  dpcTogrp.style.display  =showFlow?'none':'';
+  const dpcFcalc=g('dp_cF_calc'); if(dpcFcalc)  dpcFcalc.style.display  =showFlow?'none':'';
+}
+
+// ── Cold flow/outlet live preview ─────────────────────────────────────────────
+function coldBalancePreview(){} // simplified — handled server-side
+function autoTubeSpecs(){}     // simplified — client hint only
+
+// ── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openShareModal(){openModal('shareModal');}
+function openCompareModal(){openModal('compareModal');}
+function shareOn(platform){
+  const url=encodeURIComponent(window.location.href);
+  const text=encodeURIComponent('🔧 HeatXpert Pro — Free Heat Exchanger Design Tool #ProcessEngineering');
+  const urls={twitter:`https://twitter.com/intent/tweet?text=${text}&url=${url}`,linkedin:`https://www.linkedin.com/sharing/share-offsite/?url=${url}`,whatsapp:`https://api.whatsapp.com/send?text=${text}%20${url}`};
+  if(urls[platform]) window.open(urls[platform],'_blank');
+}
+function copyShareLink(){
+  navigator.clipboard.writeText(window.location.href).then(()=>showToast('Link copied!'));
+}
+function shareResult(type,summaryText){
+  const text=encodeURIComponent(`📊 HeatXpert Pro — ${summaryText}\n🔧 multicalci.com #ProcessEngineering`);
+  window.open('https://twitter.com/intent/tweet?text='+text,'_blank');
+}
+function showToast(msg){
+  const t=document.getElementById('toastEl');
+  if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── Tube standard selector ────────────────────────────────────────────────────
+const TUBE_STANDARDS = {
+  // value: [OD_mm, WT_mm]
+  'tema_12.7_1.2':    [12.7,  1.2],
+  'tema_15.88_1.2':   [15.88, 1.2],
+  'tema_19.05_1.6':   [19.05, 1.6],
+  'tema_25.4_2.0':    [25.4,  2.0],
+  'tema_31.75_2.0':   [31.75, 2.0],
+  'tema_38.1_2.6':    [38.1,  2.6],
+  'tema_50.8_3.0':    [50.8,  3.0],
+  'bwg_19.05_bwg14':  [19.05, 2.11],
+  'bwg_19.05_bwg16':  [19.05, 1.65],
+  'bwg_25.4_bwg14':   [25.4,  2.11],
+  'bwg_25.4_bwg16':   [25.4,  1.65],
+  'bwg_25.4_bwg18':   [25.4,  1.24],
+  'bwg_31.75_bwg14':  [31.75, 2.11],
+  'bwg_38.1_bwg12':   [38.1,  2.77],
+  'ansi_21.3_sch40':  [21.3,  2.77],
+  'ansi_26.67_sch40': [26.67, 2.87],
+  'ansi_33.4_sch40':  [33.4,  3.38],
+  'ansi_42.16_sch40': [42.16, 3.56],
+  'ansi_26.67_sch80': [26.67, 3.91],
+  'ansi_33.4_sch80':  [33.4,  4.55],
+  'din_20_2':         [20.0,  2.0],
+  'din_25_2':         [25.0,  2.0],
+  'din_25_2.5':       [25.0,  2.5],
+  'din_30_2':         [30.0,  2.0],
+  'din_38_2.5':       [38.0,  2.5],
+};
+
+function onTubeStdChange() {
+  const sel = g('st_tube_std');
+  if (!sel || !sel.value) return;
+  const spec = TUBE_STANDARDS[sel.value];
+  if (!spec) return;
+  const [od, tw] = spec;
+  const idField = g('st_od'), twField = g('st_tw');
+  if (idField) {
+    idField.value = od;
+    // Clear manual override tag
+    const tag = g('odAutoTag');
+    if (tag) { tag.textContent = '(standard)'; tag.style.color = 'var(--teal)'; }
+  }
+  if (twField) twField.value = tw;
+  // Update ID and ratio display
+  updateTubeIdDisplay(od, tw);
+  autoTubeSpecs();
+}
+
+function updateTubeIdDisplay(od_mm, tw_mm) {
+  const id_mm = od_mm - 2 * tw_mm;
+  const ratio  = (tw_mm / od_mm * 100).toFixed(1);
+  const idEl   = g('st_tube_id_display');
+  const ratioEl = g('st_tube_ratio_display');
+  if (idEl)    idEl.textContent   = id_mm.toFixed(1) + ' mm';
+  if (ratioEl) ratioEl.textContent = ratio + '%';
+}
+
+// Update display whenever OD or WT fields change manually
+function onTubeGeomChange() {
+  const od = parseFloat(g('st_od')?.value) || 25.4;
+  const tw = parseFloat(g('st_tw')?.value) || 2.0;
+  updateTubeIdDisplay(od, tw);
+  // Reset standard selector if user overrides manually
+  const sel = g('st_tube_std');
+  if (sel) {
+    const spec = TUBE_STANDARDS[sel.value];
+    if (!spec || spec[0] !== od || spec[1] !== tw) sel.value = '';
+  }
+  autoTubeSpecs();
+}
+function onVelModeChange(){
+  const mode=(g('st_velMode')||{value:'target'}).value;
+  const tgt=g('st_targetVel_row'), fix=g('st_numTubesFixed_row');
+  if(tgt) tgt.style.display=mode==='target'?'':'none';
+  if(fix) fix.style.display=mode==='fixedtubes'?'':'none';
+}
+function applyVelPreset(){
+  const p=g('st_velPreset'); if(!p) return;
+  const vals={liquid_low:0.5,liquid_std:1.5,liquid_high:3.0,gas_low:10,gas_std:20,gas_high:30};
+  const el=g('st_targetVel');
+  if(el&&vals[p.value]) el.value=vals[p.value];
+}
+
+// ── SHELL & TUBE ─────────────────────────────────────────────────────────────
+document.getElementById('stForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('st');
+  startCalc('st');
+  try {
+    // Send raw values + unitSys — server handles all unit conversion
+    const hFlKey=g('st_hFl').value, cFlKey=g('st_cFl').value;
+    const hTi=getTempVal('st_hTi'), hTo=getTempVal('st_hTo'), cTi=getTempVal('st_cTi');
+    const hPop=getPresVal('st_hPop'), cPop=getPresVal('st_cPop');
+    let hFraw = parseFloat(g('st_hF').value)||0;
+    const hFunit=(g('st_hFunit')||{value:'kgh'}).value;
+    /* FIX (audit 2026-07): hot flow previously received NO imperial conversion
+       at all (cold side did) — lb/h was sent to the API as kg/h. Convert when
+       the selector is a mass-flow unit; volumetric Nm³/Sm³ pass through. */
+    if(unitSys==='imperial' && hFunit==='kgh') hFraw=hFraw/2.20462;
+
+    /* FIX (audit 2026-07): st_cFunit was never sent, so Nm³/h and Sm³/h
+       selections on the COLD flow were silently treated as kg/h. Also,
+       the imperial lb/h→kg/h division must only apply to mass-flow units. */
+    const cFunit=(g('st_cFunit')||{value:'kgh'}).value;
+    let cFraw=0, cToVal=0;
+    if(coldMode==='flow'){
+      cFraw=parseFloat(g('st_cF').value)||0;
+      if(unitSys==='imperial' && cFunit==='kgh') cFraw=cFraw/2.20462;
+    } else {
+      cToVal=getTempVal('st_cTo');
+    }
+
+    const payload = {
+      calcType:'shellTube', unitSys:'metric',
+      hFlKey, cFlKey, hPop, cPop,
+      hTi, hTo, cTi, hF: hFraw, hFunit,
+      coldMode, cF: cFraw, cFunit, cTo: cToVal,
+      OD: getDimMm('st_od'), tw: getDimMm('st_tw'), L: getLenM('st_len'),
+      pitch: v('st_pitch'),
+      Rfo: parseFloat(g('st_foulS').value)||0.0002,
+      Rfi: parseFloat(g('st_foulT').value)||0.0002,
+      arr: g('st_flow').value,
+      mat: g('st_mat').value,
+      hxType: g('st_type').value,
+      tema: g('st_tema').value,
+      bcut: parseFloat(g('st_bcut').value)/100||0.25,
+      bsp: parseFloat(g('st_bsp').value)||0.50,
+      velMode: (g('st_velMode')||{value:'target'}).value,
+      targetVel: parseFloat(g('st_targetVel').value)||1.5,
+      pdAllowShell: getPresVal('st_pdAllowShell'),
+      pdAllowTube: getPresVal('st_pdAllowTube'),
+      pitchLayout: (g('st_pitchlayout')||{value:'triangular'}).value,
+      numTubesFixed: parseInt((g('st_numTubesFixed')||{value:'0'}).value)||0,
+      shellMode: (g('st_shellMode')||{value:'single-phase'}).value,
+      L_max:        parseFloat(g('st_L_max')?.value) || undefined,
+      shell_OD_max: parseFloat(g('st_shell_OD_max')?.value) || undefined,
+    };
+    const r = await callAPI(payload);
+    if (r.error) return showErr('st', r.error);
+    lastResults.st = r;
+    // Update computed cold outlet/flow in form
+    if(coldMode==='flow' && g('st_cTo')) {
+      const tUnit = g('st_cTo_usel')?.value || 'c';
+      const dispVal = tUnit==='f' ? r.cTo*9/5+32 : tUnit==='k' ? r.cTo+273.15 : r.cTo;
+      g('st_cTo').value = dispVal.toFixed(2);
+    }
+    else if(coldMode==='temp' && g('st_cF')) g('st_cF').value = r.cF.toFixed(1);
+    showRes('st', renderSTResults(r, r.warns||[]));
+  } catch(err) { showErr('st', err.message); }
+});
+
+// ── PLATE HX ──────────────────────────────────────────────────────────────────
+document.getElementById('plForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('pl');
+  startCalc('pl');
+  try {
+    const hFlKey=g('pl_hFl').value, cFlKey=g('pl_cFl').value;
+    const hTi=getTempVal('pl_hTi'), hTo=getTempVal('pl_hTo'), cTi=getTempVal('pl_cTi');
+    const hPop=getPresVal('pl_hPop'), cPop=getPresVal('pl_cPop');
+    /* FIX (audit 2026-07): pl_hFunit / pl_cFunit selectors existed in the UI
+       but were never sent — Nm³/h and Sm³/h flows were silently treated as
+       kg/h by the API. Now sent; the backend converts via gas density.
+       Imperial lb/h→kg/h division applies to mass-flow units only. */
+    const plHFunit=(g('pl_hFunit')||{value:'kgh'}).value;
+    const plCFunit=(g('pl_cFunit')||{value:'kgh'}).value;
+    let hF=parseFloat(g('pl_hF').value)||0;
+    if(unitSys==='imperial' && plHFunit==='kgh') hF/=2.20462;
+    const plColdMode=g('pl_coldMode').value;
+    let cToVal=0, cFval=0;
+    if(plColdMode==='temp') cToVal=getTempVal('pl_cTo');
+    else { cFval=parseFloat(g('pl_cF').value)||0; if(unitSys==='imperial' && plCFunit==='kgh') cFval/=2.20462; }
+    const payload = {
+      calcType:'plate', unitSys:'metric', hFlKey, cFlKey, hPop, cPop,
+      hTi, hTo, cTi, hF, hFunit:plHFunit, coldMode:plColdMode, cTo:cToVal, cF:cFval, cFunit:plCFunit,
+      th: v('pl_th'), angle: v('pl_angle'), gap: v('pl_gap'),
+      pw: v('pl_width'), plen: v('pl_plen'), phi: parseFloat((g('pl_phi')||{value:'1.17'}).value)||1.17,
+      mat: g('pl_mat').value,
+      foul: parseFloat((g('pl_foul')||{value:'0.0002'}).value)||0.0002,
+      pdAllowH: getPresVal('pl_pdH'),
+      pdAllowC: getPresVal('pl_pdC'),
+    };
+    const r = await callAPI(payload);
+    if (r.error) return showErr('pl', r.error);
+    lastResults.pl = r;
+    if(plColdMode==='flow' && g('pl_cTo_disp')) {
+      const tUnit = g('pl_cTo_usel')?.value || 'c';
+      const dispVal = tUnit==='f' ? r.cTo*9/5+32 : tUnit==='k' ? r.cTo+273.15 : r.cTo;
+      g('pl_cTo_disp').value = dispVal.toFixed(2);
+    }
+    showRes('pl', renderPlateResults(r));
+  } catch(err) { showErr('pl', err.message); }
+});
+
+// ── AIR COOLED ────────────────────────────────────────────────────────────────
+document.getElementById('acForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('ac');
+  startCalc('ac');
+  try {
+    const Ti=getTempVal('ac_Ti'), To=getTempVal('ac_To');
+    let F_=parseFloat(g('ac_F').value)||0;
+    if(unitSys==='imperial') F_=F_/2.20462;
+    const payload = {
+      calcType:'airCooled', unitSys:'metric', flKey: g('ac_Fl').value,
+      Ti, To, F: F_, Tamb: getTempVal('ac_amb'), dTa: v('ac_dTa'),
+      rows: v('ac_rows'), bayW: v('ac_bayW'),
+      nTubes: parseInt(g('ac_nTubes').value)||40,
+      tubeLen: parseFloat(g('ac_tubeLen').value)||6,
+      tubeOD: parseFloat(g('ac_tubeOD').value)||25.4,
+      tubeID: parseFloat(g('ac_tubeID').value)||20.0,
+      finH:   parseFloat(g('ac_finH').value)||12.5,
+      finThk: parseFloat(g('ac_finThk').value)||0.4,
+      finDens:parseFloat(g('ac_finDens').value)||394,
+      pitchT: parseFloat(g('ac_pitchT').value)||63.5,
+      Rfo:    parseFloat(g('ac_Rfo').value)||0.0002,
+      fmat: g('ac_fmat').value, fpm: v('ac_fpm'),
+      fanType: g('ac_fan').value
+    };
+    const r = await callAPI(payload);
+    if (r.error) return showErr('ac', r.error);
+    lastResults.ac = r;
+    showRes('ac', renderAirCooledResults(r));
+  } catch(err) { showErr('ac', err.message); }
+});
+
+// ── DOUBLE PIPE ───────────────────────────────────────────────────────────────
+document.getElementById('dpForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('dp');
+  startCalc('dp');
+  try {
+    const hFlKey=g('dp_hFl').value, cFlKey=g('dp_cFl').value;
+    const hTi=getTempVal('dp_hTi'), hTo=getTempVal('dp_hTo'), cTi=getTempVal('dp_cTi');
+    const hPop=getPresVal('dp_hPop'), cPop=getPresVal('dp_cPop');
+    /* FIX (audit 2026-07): dp_hFunit / dp_cFunit selectors existed in the UI
+       but were never sent — Nm³/h and Sm³/h flows were silently treated as
+       kg/h by the API. Now sent; backend converts. Imperial lb/h division
+       applies to mass-flow units only. */
+    const dpHFunit=(g('dp_hFunit')||{value:'kgh'}).value;
+    const dpCFunit=(g('dp_cFunit')||{value:'kgh'}).value;
+    let hF=parseFloat(g('dp_hF').value)||0;
+    if(unitSys==='imperial' && dpHFunit==='kgh') hF/=2.20462;
+    const dpColdMode=g('dp_coldMode').value;
+    let cFval=0, cToVal=0;
+    if(dpColdMode==='flow'){cFval=parseFloat(g('dp_cF').value)||0;if(unitSys==='imperial' && dpCFunit==='kgh')cFval/=2.20462;}
+    else cToVal=getTempVal('dp_cTo');
+    const payload = {
+      calcType:'doublePipe', unitSys:'metric', hFlKey, cFlKey, hPop, cPop,
+      hTi, hTo, cTi, hF, hFunit:dpHFunit, coldMode:dpColdMode, cF:cFval, cFunit:dpCFunit, cTo:cToVal,
+      iOD: getDimMm('dp_iOD'), iTW: getDimMm('dp_iW'), oID: v('dp_oID'),
+      L: getLenM('dp_hplen'), nHairpins: 1,
+      arr: g('dp_arr').value, mat: g('dp_mat').value,
+      foul: parseFloat((g('dp_foul')||{value:'0.0002'}).value)||0.0002,
+      pdAllow: Math.min(getPresVal('dp_pdH'), getPresVal('dp_pdC')),
+    };
+    const r = await callAPI(payload);
+    if (r.error) return showErr('dp', r.error);
+    lastResults.dp = r;
+    showRes('dp', renderDoublePipeResults(r));
+  } catch(err) { showErr('dp', err.message); }
+});
+
+// ── FIN-FAN ────────────────────────────────────────────────────────────────────
+document.getElementById('ffForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('ff');
+  startCalc('ff');
+  try {
+    const tTi=getTempVal('ff_tTi'), tTo=getTempVal('ff_tTo');
+    const aTamb=getTempVal('ff_aTamb'), aTout=getTempVal('ff_aTout');
+    const payload = {
+      calcType:'finFan', unitSys:'metric',
+      tFlKey: g('ff_tFl').value,
+      tTi, tTo, tF_kgh: parseFloat(g('ff_tF').value)||0,
+      tFoul: parseFloat(g('ff_tFoul').value)||2.9e-4,
+      tPdAllow: getPresVal('ff_tPdAllow'),
+      htSF: parseFloat(g('ff_htSF').value)||1.0,
+      aTamb, aTout, aPop: getPresVal('ff_aPop')||1.01325, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
+      aFoul: parseFloat(g('ff_aFoul').value)||1.8e-4,
+      tPop: getPresVal('ff_tPop')||4.0, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
+      tubeOD: v('ff_tubeOD'), tubeID: v('ff_tubeID'), tubeLen: v('ff_tubeLen'),
+      pitchT: v('ff_pitchT'), pitchL: v('ff_pitchL'),
+      nRows: v('ff_nRows'), nPasses: v('ff_nPasses'), nTubes: v('ff_nTubes'),
+      tubeLayout: g('ff_layout').value, tubeMat: g('ff_tubeMat').value,
+      finDensity: v('ff_finDensity'), finRoot: v('ff_finRoot'),
+      finH: v('ff_finH'), finThk: v('ff_finThk'), finMat: g('ff_finMat').value,
+      nBays: v('ff_nBays'), nBundlesPBay: v('ff_nBundlesPBay'),
+      bundleW: v('ff_bundleW'), nFans: v('ff_nFans'),
+      fanDia: v('ff_fanDia'), fanEff: v('ff_fanEff'), driverKW: v('ff_driverKW'),
+      draftType: g('ff_draft').value,
+    };
+    const r = await callAPI(payload);
+    if (r.error) return showErr('ff', r.error);
+    lastResults.ff = r;
+    showRes('ff', renderFinFanResults(r));
+  } catch(err) { showErr('ff', err.message); }
+});
+
+// ── LMTD / NTU ────────────────────────────────────────────────────────────────
+document.getElementById('lmForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('lm');
+  try {
+    const payload = {
+      calcType:'lmtdNtu', unitSys:'metric',
+      hTi:getTempVal('lm_hTi'), hTo:getTempVal('lm_hTo'),
+      cTi:getTempVal('lm_cTi'), cTo:getTempVal('lm_cTo'),
+      Ch: v('lm_Ch')||null, Cc: v('lm_Cc')||null,
+      UA: v('lm_UA')||null, arr: g('lm_arr').value
+    };
+    startCalc('lm');
+    const r = await callAPI(payload);
+    _apiPending = false;
+    g('lm_spin').classList.remove('show');
+    if (r.error) { _apiPending = false; return showErr('lm', r.error); }
+    lastResults.lm = r;
+    const T=tU(), FLMTD=r.FLMTD;
+    const sumText=`LMTD=${r.lmtd.toFixed(2)}${T}, F=${r.F.toFixed(3)}, FLMTD=${FLMTD.toFixed(2)}${T}${r.eff!=null?', ε='+(r.eff*100).toFixed(1)+'%':''}`;
+    const lmRes=g('lm_res');
+    lmRes.innerHTML=`
+    <div class="res-hd">
+      <div class="res-hd-left"><h3>LMTD &amp; NTU Results</h3><div class="res-meta">${r.arr} flow | ${unitSys==='metric'?'Metric':'Imperial'}</div></div>
+      <button class="share-result-btn" onclick="shareResult('lm','${sumText.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">🔗 Share</button>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi red"><div class="kpi-label">ΔT₁</div><div class="kpi-val">${r.dT1.toFixed(3)}<span class="kpi-unit">${T}</span></div></div>
+      <div class="kpi blue"><div class="kpi-label">ΔT₂</div><div class="kpi-val">${r.dT2.toFixed(3)}<span class="kpi-unit">${T}</span></div></div>
+      <div class="kpi teal"><div class="kpi-label">LMTD</div><div class="kpi-val">${r.lmtd.toFixed(4)}<span class="kpi-unit">${T}</span></div></div>
+      <div class="kpi gold"><div class="kpi-label">F Factor</div><div class="kpi-val">${r.F.toFixed(4)}</div></div>
+      <div class="kpi red"><div class="kpi-label">F × LMTD</div><div class="kpi-val">${FLMTD.toFixed(4)}<span class="kpi-unit">${T}</span></div></div>
+      ${r.eff!=null?`<div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness ε</div><div class="kpi-val">${(r.eff*100).toFixed(2)}<span class="kpi-unit">%</span></div></div>`:''}
+      ${r.NTU!=null?`<div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(4)}</div></div>`:''}
+      ${r.UA!=null?`<div class="kpi teal"><div class="kpi-label">U·A Product</div><div class="kpi-val">${(r.UA/1000).toFixed(3)}<span class="kpi-unit">kW/K</span></div></div>`:''}
+    </div>
+    <div class="tbl-wrap"><table class="dtbl" style="margin-top:14px">
+      <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl-col">Hot: T_in → T_out</td><td>${tDisp(r.hTi).toFixed(2)} → ${tDisp(r.hTo).toFixed(2)} ${T}</td><td>ΔT = ${(r.hTi-r.hTo).toFixed(2)} ${T}</td></tr>
+        <tr><td class="lbl-col">Cold: T_in → T_out</td><td>${tDisp(r.cTi).toFixed(2)} → ${tDisp(r.cTo).toFixed(2)} ${T}</td><td>ΔT = ${(r.cTo-r.cTi).toFixed(2)} ${T}</td></tr>
+        <tr><td class="lbl-col">LMTD / F / F×LMTD</td><td colspan="2">${r.lmtd.toFixed(4)} × ${r.F.toFixed(4)} = <strong>${FLMTD.toFixed(4)} ${T}</strong></td></tr>
+      </tbody>
+    </table></div>
+    <div class="note" style="margin-top:14px"><div class="note-title">📐 Design Formula</div>
+      <div class="note-body"><strong>A = Q / (U × F × LMTD)</strong><br><br>
+      ${FLMTD<5?'<strong style="color:var(--warn)">⚠ FLMTD very low (&lt;5°C)</strong>':FLMTD<10?'Note: LMTD is relatively low.':'LMTD is adequate for economic design.'}
+    </div></div>`;
+    lmRes.classList.add('show');
+    g('lm_ph').style.display='none';
+  } catch(err) { _apiPending = false; g('lm_spin').classList.remove('show'); showErr('lm',err.message); }
+});
+
+// ── SELECTOR ──────────────────────────────────────────────────────────────────
+async function runSelector(){
+  try {
+    const payload={calcType:'selector',app:g('sel_app').value,pres:g('sel_pres').value,foul:g('sel_foul').value,duty:g('sel_duty').value,space:g('sel_space').value,corr:g('sel_corr').value};
+    const r=await callAPI(payload);
+    if(r.error){alert(r.error);return;}
+    const names={'shell-tube':'Shell & Tube','plate':'Plate HX','air-cooled':'Air Cooled','double-pipe':'Double Pipe','spiral':'Spiral','plate-fin':'Plate-Fin'};
+    const icons={'shell-tube':'⚙️','plate':'🔲','air-cooled':'💨','double-pipe':'↔️','spiral':'🌀','plate-fin':'📄'};
+    const descs={'shell-tube':'Most versatile. Handles high P, T, fouling. Coded per TEMA/ASME.','plate':'Very high U (2–5× S&T). Compact, close approach. Limited to ~30 bar.','air-cooled':'Eliminates cooling water. Required by API 661.','double-pipe':'Simplest construction for small duties (<200 kW).','spiral':'Best for fouling/viscous fluids. Self-cleaning.','plate-fin':'Extremely compact for gas-gas or cryogenic service.'};
+    const div=g('sel_result');div.style.display='block';
+    div.innerHTML=`<div class="sec-hd purple">🎯 Recommendation</div><div class="selector-grid">
+      <div class="hx-card" style="border-color:var(--red)"><div class="hx-card-icon">${icons[r.top]}</div><div class="hx-card-title">${names[r.top]}</div><div class="hx-card-desc">${descs[r.top]}</div><div class="hx-card-badge">⭐ Primary</div></div>
+      <div class="hx-card"><div class="hx-card-icon">${icons[r.second]}</div><div class="hx-card-title">${names[r.second]}</div><div class="hx-card-desc">${descs[r.second]}</div><div class="hx-card-badge" style="background:var(--blue-lt);color:var(--blue)">🔷 Alternative</div></div>
+    </div>`;
+  } catch(e){alert(e.message);}
+}
+
+// ── WALL THICKNESS ────────────────────────────────────────────────────────────
+async function calcWallThickness(){
+  try {
+    const payload={calcType:'wallThick',std:g('wt_std').value,type:g('wt_type').value,P:parseFloat(g('wt_P').value)||0,D:parseFloat(g('wt_D').value)||0,S:parseFloat(g('wt_S').value)||138,CA:parseFloat(g('wt_CA').value)||3,MT:parseFloat(g('wt_MT').value)||0.6,E:parseFloat(g('wt_E').value)||1.0,alpha:parseFloat(g('wt_alpha').value)||30,mat:g('wt_mat').value};
+    const r=await callAPI(payload);
+    if(r.error){alert(r.error);return;}
+    const ph=g('wt_ph'),resEl=g('wt_res');
+    ph.style.display='none'; resEl.style.display='block';
+    resEl.innerHTML=`
+    <div style="background:var(--blue-lt);border:1px solid rgba(0,85,200,.15);border-left:3px solid var(--blue);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:700;color:var(--blue)">${r.standardName}</div>
+      <div style="font-family:var(--mono);font-size:.8rem;background:rgba(0,85,200,.06);padding:6px 10px;border-radius:5px;margin-top:4px">${r.formula}</div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi blue"><div class="kpi-label">Calc. Thickness t</div><div class="kpi-val">${r.t_calc_mm.toFixed(2)}<span class="kpi-unit"> mm</span></div></div>
+      <div class="kpi red"><div class="kpi-label">t + CA + MT</div><div class="kpi-val">${r.t_with_CA.toFixed(2)}<span class="kpi-unit"> mm</span></div></div>
+      <div class="kpi teal"><div class="kpi-label">Nominal (round-up)</div><div class="kpi-val">${r.t_nominal.toFixed(1)}<span class="kpi-unit"> mm</span></div></div>
+      <div class="kpi gold"><div class="kpi-label">OD</div><div class="kpi-val">${r.OD_mm.toFixed(1)}<span class="kpi-unit"> mm</span></div></div>
+      <div class="kpi ${r.isThickWall?'warn':'ok'}"><div class="kpi-label">t/R ratio</div><div class="kpi-val">${(r.tRatio*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
+      <div class="kpi blue"><div class="kpi-label">MAWP</div><div class="kpi-val">${r.pMax_check_bar.toFixed(2)}<span class="kpi-unit"> bar g</span></div></div>
+    </div>
+    <div class="note" style="margin-top:8px"><div class="note-title">✅ Summary</div><div class="note-body">
+    Specify <strong>${r.t_nominal.toFixed(1)} mm</strong> nominal wall for ${r.D_mm}mm ID, ${r.P_barg} bar g. MAWP = ${r.pMax_check_bar.toFixed(2)} bar g.
+    </div></div>`;
+  } catch(e){alert(e.message);}
+}
+
+// ── FOULING ──────────────────────────────────────────────────────────────────
+async function calcFoulingCombined(){
+  try {
+    const payload={calcType:'fouling',Rf_s:parseFloat(g('foul_shell').value)||0,Rf_t:parseFloat(g('foul_tube').value)||0,U_cl:parseFloat(g('foul_U_clean').value)||800};
+    const r=await callAPI(payload);
+    if(r.error) return;
+    const res=g('foul_result'); res.style.display='block';
+    res.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:.82rem">
+      <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">R_f shell</div><div style="font-family:var(--mono);font-weight:700">${r.Rf_s.toExponential(3)} m²K/W</div></div>
+      <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">R_f tube</div><div style="font-family:var(--mono);font-weight:700">${r.Rf_t.toExponential(3)} m²K/W</div></div>
+      <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">R_f total</div><div style="font-family:var(--mono);font-weight:700;color:var(--red)">${r.Rf_total.toExponential(3)} m²K/W</div></div>
+      <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">U_clean → U_service</div><div style="font-family:var(--mono);font-weight:700">${r.U_cl.toFixed(0)} → ${r.U_service.toFixed(0)} W/m²K</div></div>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:rgba(232,80,10,.06);border-radius:6px;font-size:.82rem;font-weight:600">
+      💡 Area must increase by <b style="color:var(--red)">${r.area_increase.toFixed(1)}%</b> to compensate for fouling.
+    </div>`;
+  } catch(e){}
+}
+
+// ── RENDER FUNCTIONS ──────────────────────────────────────────────────────────
+function renderPlateResults(r){
+  const Q=convQ(r.Q),A=convA(r.A_req),Ap=convA(r.A_provided),U=convU(r.U);
+  const T=tU(),H=hU(),Au=aU(),Pu=pU(),Uu=uU();
+  const warnHtml=r.warns&&r.warns.length?`<div class="note warn"><div class="note-title">⚠ Warnings</div><div class="note-body"><ul>${r.warns.map(w=>`<li>${w}</li>`).join('')}</ul></div></div>`:'';
+  const sumText=`Q=${Q.toFixed(1)}${H}, Area=${Ap.toFixed(1)}${Au}, U=${U.toFixed(0)}${Uu}`;
+  return `<div class="res-hd"><div class="res-hd-left"><h3>Plate HX — Results</h3><div class="res-meta">Counter-current | ${unitSys==='metric'?'SI':'Imperial'}</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="badge badge-${r.st}">${r.st==='ok'?'✓ OK':r.st==='warn'?'⚠ Check':'✗ Failed'}</span>
+    <button class="share-result-btn" onclick="shareResult('pl','${sumText}')">🔗 Share</button></div></div>
+  <div class="kpi-grid">
+    <div class="kpi red"><div class="kpi-label">Heat Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">F×LMTD</div><div class="kpi-val">${r.FLMTD.toFixed(2)}<span class="kpi-unit">${T}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Required Area</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi gold"><div class="kpi-label">Overall U</div><div class="kpi-val">${U.toFixed(0)}<span class="kpi-unit">${Uu}</span></div></div>
+    <div class="kpi ${r.overDesign>=5?'ok':'warn'}"><div class="kpi-label">Overdesign</div><div class="kpi-val">${r.overDesign.toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi"><div class="kpi-label">Plate Count</div><div class="kpi-val">${r.nPlates}</div></div>
+    <div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness</div><div class="kpi-val">${(r.eff*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(3)}</div></div>
+  </div>
+  <div class="tbl-wrap"><table class="dtbl" style="margin-top:12px">
+    <thead><tr><th>Parameter</th><th>Hot Side</th><th>Cold Side</th></tr></thead>
+    <tbody>
+      <tr><td class="lbl-col">Inlet Temp</td><td>${tDisp(r.hTi).toFixed(1)} ${T}</td><td>${tDisp(r.cTi).toFixed(1)} ${T}</td></tr>
+      <tr><td class="lbl-col">Outlet Temp</td><td>${tDisp(r.hTo).toFixed(1)} ${T}</td><td>${tDisp(r.cTo).toFixed(1)} ${T}</td></tr>
+     <tr><td class="lbl-col">Film HTC h</td><td>${r.hH.toFixed(0)} W/m²K</td><td>${r.hC.toFixed(0)} W/m²K</td></tr>
+      <tr><td class="lbl-col">Channel Velocity</td>
+        <td style="color:${r.vH!=null&&r.vH>=0.1&&r.vH<=1.5?'var(--ok)':r.vH!=null&&r.vH<0.1?'var(--err)':'var(--warn)'}; font-weight:700">
+          ${r.vH!=null ? r.vH.toFixed(3)+' m/s' : '—'}
+          ${r.vH!=null ? (r.vH<0.1?'⚠ too low':r.vH>1.5?'⚠ high':'✓') : ''}
+        </td>
+        <td style="color:${r.vC!=null&&r.vC>=0.1&&r.vC<=1.5?'var(--ok)':r.vC!=null&&r.vC<0.1?'var(--err)':'var(--warn)'}; font-weight:700">
+          ${r.vC!=null ? r.vC.toFixed(3)+' m/s' : '—'}
+          ${r.vC!=null ? (r.vC<0.1?'⚠ too low':r.vC>1.5?'⚠ high':'✓') : ''}
+        </td>
+      </tr>
+      <tr><td class="lbl-col">Reynolds Number Re</td>
+        <td style="color:${r.Reh!=null&&r.Reh>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
+          ${r.Reh!=null ? r.Reh.toFixed(0) : '—'}
+          ${r.Reh!=null ? (r.Reh<400?'⚠ laminar':r.Reh<1000?'transitional':'✓ turbulent') : ''}
+        </td>
+        <td style="color:${r.Rec!=null&&r.Rec>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
+          ${r.Rec!=null ? r.Rec.toFixed(0) : '—'}
+          ${r.Rec!=null ? (r.Rec<400?'⚠ laminar':r.Rec<1000?'transitional':'✓ turbulent') : ''}
+        </td>
+      </tr>
+      <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpH>r.pdAllowH?'var(--err)':'var(--ok)'}">${convP(r.dpH).toFixed(3)} ${Pu}</td><td style="color:${r.dpC>r.pdAllowC?'var(--err)':'var(--ok)'}">${convP(r.dpC).toFixed(3)} ${Pu}</td></tr>
+    </tbody></table></div>
+  ${warnHtml}`;
+}
+
+function renderAirCooledResults(r){
+  const Q=convQ(r.Q), Au=aU(), T=tU(), H=hU();
+  const A_total = r.A_total ? convA(r.A_total) : null;
+  const A_req   = r.A_req   ? convA(r.A_req)   : null;
+  const sumText = A_total
+    ? `Q=${Q.toFixed(1)}${H}, ExtArea=${A_total.toFixed(1)}${Au}, OD=${r.overDesign!=null?r.overDesign.toFixed(1):'—'}%`
+    : `Q=${Q.toFixed(1)}${H}`;
+  const warnHtml = r.warns&&r.warns.length
+    ? `<div class="note warn"><div class="note-title">⚠ Warnings</div><div class="note-body"><ul>${r.warns.map(w=>`<li>${w}</li>`).join('')}</ul></div></div>` : '';
+  return `<div class="res-hd"><div class="res-hd-left"><h3>Air Cooled HX — Results</h3>
+    <div class="res-meta">Robinson-Briggs j-factor | Schmidt fin efficiency</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="badge badge-${r.st}">${r.stTxt}</span>
+      <button class="share-result-btn" onclick="shareResult('ac','${sumText}')">🔗 Share</button>
+    </div></div>
+  <div class="kpi-grid">
+    <div class="kpi red"><div class="kpi-label">Heat Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">F×LMTD</div><div class="kpi-val">${r.FLMTD.toFixed(2)}<span class="kpi-unit">${T}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Ext. Surface Area</div><div class="kpi-val">${A_total!=null?A_total.toFixed(1):'—'}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi gold"><div class="kpi-label">Overall U</div><div class="kpi-val">${convU(r.U).toFixed(0)}<span class="kpi-unit">${uU()}</span></div></div>
+    <div class="kpi ${r.overDesign>=5?'ok':'warn'}"><div class="kpi-label">Overdesign</div><div class="kpi-val">${r.overDesign!=null?r.overDesign.toFixed(1):'—'}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi"><div class="kpi-label">Air Flow</div><div class="kpi-val">${(r.mAir*3.6).toFixed(1)}<span class="kpi-unit">t/h</span></div></div>
+    <div class="kpi ${r.ApproachTemp>=15?'ok':'warn'}"><div class="kpi-label">Approach ΔT</div><div class="kpi-val">${r.ApproachTemp.toFixed(1)}<span class="kpi-unit">${T}</span></div></div>
+    <div class="kpi"><div class="kpi-label">Fan Power</div><div class="kpi-val">${r.fanPower!=null?convQ(r.fanPower).toFixed(2):'—'}<span class="kpi-unit">${H}</span></div></div>
+  </div>
+  <div class="tbl-wrap"><table class="dtbl" style="margin-top:12px">
+    <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="lbl-col">Airside Re</td>
+        <td style="color:${r.Re_fin&&r.Re_fin>=2000?'var(--ok)':'var(--warn)'};font-weight:700">${r.Re_fin!=null?r.Re_fin.toFixed(0):'—'}</td>
+        <td style="font-size:.75rem;color:var(--t3)">Valid range: 2,000–50,000</td></tr>
+      <tr><td class="lbl-col">Fin Efficiency η_fin</td>
+        <td style="color:${r.eta_fin&&r.eta_fin>=0.7?'var(--ok)':r.eta_fin&&r.eta_fin>=0.6?'var(--warn)':'var(--err)'};font-weight:700">
+          ${r.eta_fin!=null?(r.eta_fin*100).toFixed(1)+'%':'—'}
+        </td>
+        <td style="font-size:.75rem;color:var(--t3)">Schmidt approx. Target ≥ 70%</td></tr>
+      <tr><td class="lbl-col">Surface Efficiency η₀</td>
+        <td style="font-weight:700">${r.eta_0!=null?(r.eta_0*100).toFixed(1)+'%':'—'}</td>
+        <td style="font-size:.75rem;color:var(--t3)">Overall (bare + fin weighted)</td></tr>
+      <tr><td class="lbl-col">Airside h (bare)</td>
+        <td style="font-weight:700">${r.h_air_bare!=null?r.h_air_bare.toFixed(0)+' W/m²K':'—'}</td>
+        <td style="font-size:.75rem;color:var(--t3)">Robinson-Briggs j-factor</td></tr>
+      <tr><td class="lbl-col">Effective h_air</td>
+        <td style="font-weight:700">${r.h_eff!=null?r.h_eff.toFixed(0)+' W/m²K':'—'}</td>
+        <td style="font-size:.75rem;color:var(--t3)">h_bare × η₀</td></tr>
+      <tr><td class="lbl-col">Tube-side Velocity</td>
+        <td style="color:${r.tubeVel&&r.tubeVel>=0.5&&r.tubeVel<=4?'var(--ok)':'var(--warn)'};font-weight:700">
+          ${r.tubeVel!=null?r.tubeVel.toFixed(3)+' m/s':'—'}
+        </td>
+        <td style="font-size:.75rem;color:var(--t3)">Target 0.5–4 m/s (liquid)</td></tr>
+      <tr><td class="lbl-col">Area: Required / Provided</td>
+        <td style="font-weight:700">${A_req!=null?A_req.toFixed(1):' —'} / ${A_total!=null?A_total.toFixed(1):'—'} ${Au}</td>
+        <td style="font-size:.75rem;color:var(--t3)">Extended surface basis</td></tr>
+      <tr><td class="lbl-col">Fluid / Approach Temp</td>
+        <td style="font-weight:700">${r.fluidName||'—'}</td>
+        <td style="font-size:.75rem;color:${r.ApproachTemp>=15?'var(--ok)':'var(--warn)'}">
+          Approach: ${r.ApproachTemp!=null?r.ApproachTemp.toFixed(1):'—'} ${T} ${r.ApproachTemp>=15?'✓ OK':'⚠ Close'}
+        </td></tr>
+    </tbody>
+  </table></div>
+  ${warnHtml}`;
+}
+
+function renderDoublePipeResults(r){
+  const Q=convQ(r.Q),A=convA(r.A_req),Ap=convA(r.A_provided);
+  const T=tU(),H=hU(),Au=aU(),Pu=pU();
+  const warnHtml=r.warns&&r.warns.length?`<div class="note warn"><div class="note-title">⚠ Warnings</div><div class="note-body"><ul>${r.warns.map(w=>`<li>${w}</li>`).join('')}</ul></div></div>`:'';
+  const sumText=`Q=${Q.toFixed(1)}${H}, Area=${Ap.toFixed(1)}${Au}`;
+  return `<div class="res-hd"><div class="res-hd-left"><h3>Double Pipe HX — Results</h3></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="badge badge-${r.st}">${r.st==='ok'?'✓ OK':r.st==='warn'?'⚠ Check':'✗ Failed'}</span>
+    <button class="share-result-btn" onclick="shareResult('dp','${sumText}')">🔗 Share</button></div></div>
+  <div class="kpi-grid">
+    <div class="kpi red"><div class="kpi-label">Heat Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">F×LMTD</div><div class="kpi-val">${r.FLMTD.toFixed(2)}<span class="kpi-unit">${T}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Required Area</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi gold"><div class="kpi-label">Overall U</div><div class="kpi-val">${convU(r.U).toFixed(0)}<span class="kpi-unit">${uU()}</span></div></div>
+    <div class="kpi ${r.overDesign>=5?'ok':'warn'}"><div class="kpi-label">Overdesign</div><div class="kpi-val">${r.overDesign.toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi"><div class="kpi-label">Hairpins</div><div class="kpi-val">${r.nHairpins}<span class="kpi-unit"> × ${r.L.toFixed(1)}m</span></div></div>
+    <div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness</div><div class="kpi-val">${(r.eff*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(3)}</div></div>
+  </div>
+  <div class="tbl-wrap"><table class="dtbl" style="margin-top:12px">
+    <thead><tr><th>Parameter</th><th>Inner (Hot)</th><th>Annulus (Cold)</th></tr></thead>
+    <tbody>
+      <tr><td class="lbl-col">Film HTC h</td><td>${r.hInner.toFixed(0)} W/m²K</td><td>${r.hAnn.toFixed(0)} W/m²K</td></tr>
+      <tr><td class="lbl-col">Velocity</td><td>${r.velInner.toFixed(3)} m/s</td><td>${r.velAnn.toFixed(3)} m/s</td></tr>
+      <tr><td class="lbl-col">Re</td><td>${r.Re_inner.toFixed(0)}</td><td>${r.Re_ann.toFixed(0)}</td></tr>
+      <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpInner>r.pdAllow?'var(--err)':'var(--ok)'}">${convP(r.dpInner).toFixed(3)} ${Pu}</td><td style="color:${r.dpAnn>r.pdAllow?'var(--err)':'var(--ok)'}">${convP(r.dpAnn).toFixed(3)} ${Pu}</td></tr>
+    </tbody></table></div>
+  ${warnHtml}`;
+}
+
+function renderFinFanResults(r){
+  const T=tU(),H=hU(),Au=aU(),Pu=pU();
+  const Q=convQ(r.Qhot),Ap=convA(r.A_prov),Ar=convA(r.A_req);
+  const warnHtml=r.warns&&r.warns.length?`<div class="warn-box">${r.warns.map(w=>`<div class="warn-item">⚠ ${w}</div>`).join('')}</div>`:'';
+  const sumText=`Q=${Q.toFixed(1)}${H}, Area=${Ap.toFixed(0)}${Au}, OD%=${r.overDesign.toFixed(1)}%`;
+  return `<div class="res-hd"><div class="res-hd-left"><h3>Fin-Fan HX — Engineering Datasheet</h3><div class="res-meta">Robinson-Briggs | API 661</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="badge badge-${r.st}">${r.stTxt}</span>
+    <button class="share-result-btn" onclick="shareResult('ff','${sumText}')">🔗 Share</button></div></div>
+  <div class="kpi-grid">
+    <div class="kpi red"><div class="kpi-label">Total Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
+    <div class="kpi blue"><div class="kpi-label">EMTD</div><div class="kpi-val">${r.EMTD.toFixed(1)}<span class="kpi-unit">${T}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Ext. Area (prov)</div><div class="kpi-val">${Ap.toFixed(0)}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi gold"><div class="kpi-label">Actual U</div><div class="kpi-val">${r.U_actual.toFixed(1)}<span class="kpi-unit">W/m²K</span></div></div>
+    <div class="kpi ${r.overDesign>=5?'ok':'warn'}"><div class="kpi-label">Overdesign</div><div class="kpi-val">${r.overDesign.toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi"><div class="kpi-label">Air Flow</div><div class="kpi-val">${(r.mAir_kgh/1000).toFixed(1)}<span class="kpi-unit">t/h</span></div></div>
+    <div class="kpi ${r.eta_fin>=0.7?'ok':'warn'}"><div class="kpi-label">Fin Efficiency</div><div class="kpi-val">${(r.eta_fin*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
+    <div class="kpi ${r.P_fan_each<=r.driverKW?'ok':'warn'}"><div class="kpi-label">Fan Power</div><div class="kpi-val">${r.P_fan_each.toFixed(1)}<span class="kpi-unit">kW/fan</span></div></div>
+  </div>
+  <div class="tbl-wrap" style="margin-top:12px"><table class="dtbl">
+    <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td class="lbl-col">Outside film coef</td><td>W/m²K</td><td>${r.h_outside.toFixed(2)}</td></tr>
+      <tr><td class="lbl-col">Tubeside film coef</td><td>W/m²K</td><td>${r.h_tubeside.toFixed(0)}</td></tr>
+      <tr><td class="lbl-col">Overall surf efficiency η₀</td><td>—</td><td>${(r.eta_surf*100).toFixed(1)}%</td></tr>
+      <tr><td class="lbl-col">Face velocity</td><td>m/s</td><td style="color:${r.v_face>=1.5&&r.v_face<=4?'var(--ok)':'var(--warn)'}">${r.v_face.toFixed(2)}</td></tr>
+      <tr><td class="lbl-col">Airside Re</td><td>—</td><td>${r.Re_air.toFixed(0)}</td></tr>
+      <tr><td class="lbl-col">Airside ΔP</td><td>mmH₂O</td><td>${r.dpAir_mmH2O.toFixed(1)}</td></tr>
+      <tr><td class="lbl-col">Tubeside ΔP</td><td>bar</td><td style="color:${r.dpTube>r.tPdAllow?'var(--err)':'var(--ok)'}">${r.dpTube.toFixed(3)}</td></tr>
+    </tbody></table></div>
+  ${warnHtml}`;
+}
+
+// ── SHELL MODE CHANGE (phase change selector) ────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// SATURATION T ⇄ P AUTO-FILL  (2026-07)
+//
+// A stream that is boiling or condensing is not free to sit at any temperature
+// at any pressure — it lies on its saturation curve. So for the phase-changing
+// side we solve for whichever of the pair the user did not just type:
+//     edit the pressure    → inlet temperature becomes Tsat(P)
+//     edit the temperature → operating pressure becomes Psat(T)
+//
+// Which side is saturated follows the thermal mode, and matches the API:
+//     condensing  → HOT  stream (shell side)
+//     evaporating → COLD stream (tube side)
+//
+// The link is deliberately NOT applied in single-phase mode: subcooled water at
+// 5 bar and 30 °C is an entirely normal duty, and forcing its pressure down to
+// the 0.042 bar saturation value would be wrong. The toggle is shown only when
+// a phase-change mode is selected, and defaults on.
+//
+// Solving happens server-side (calcType:'saturation') so the UI uses exactly
+// the same property stack as the sizing run — CoolProp where available, the
+// Antoine / Clausius-Clapeyron layer otherwise — rather than a second, silently
+// divergent copy of the correlations living in the browser.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SAT_FIELDS = {
+  hot:  { fluid:'st_hFl', pres:'st_hPop', tIn:'st_hTi', tOut:'st_hTo', chip:'st_hSatChip' },
+  cold: { fluid:'st_cFl', pres:'st_cPop', tIn:'st_cTi', tOut:'st_cTo', chip:'st_cSatChip' },
+};
+
+const _satCache = new Map();     // fluid|dir|value → API result
+let   _satTimer = null;          // debounce handle
+let   _satSeq   = 0;             // guards against out-of-order responses
+// Last Tsat this side was synced to. Used to tell a deliberate subcooling spec
+// ("outlet 20 °C below Tsat") apart from an outlet that was merely tracking the
+// saturation temperature and should keep tracking it.
+const _satLast  = { hot:null, cold:null };
+// Set when the user changes mode / fluid / the link toggle — i.e. the outlet
+// currently in the box is a leftover from a different configuration and should
+// be reset to the total-condenser default (outlet = Tsat) rather than being
+// read as a deliberate subcooling specification.
+let _satResetOutlet = false;
+
+function satSideOf(mode) {
+  if (mode === 'condensing')  return 'hot';
+  if (mode === 'evaporating') return 'cold';
+  return null;
+}
+function currentSatSide() {
+  return satSideOf((g('st_shellMode') || {}).value || 'single-phase');
+}
+function satLinkOn() {
+  const cb = g('st_satLink');
+  return !!(cb && cb.checked);
+}
+
+// Format a number for an input box without trailing-zero noise
+function fmtNum(x) {
+  if (!isFinite(x)) return '';
+  const a = Math.abs(x);
+  const d = a >= 100 ? 2 : a >= 1 ? 4 : a >= 0.01 ? 5 : 7;
+  return String(parseFloat(x.toFixed(d)));
+}
+// Inverse of getTempVal / getPresVal — write an SI value into a field, honouring
+// whatever unit that field's own selector is currently showing.
+function setTempVal(inputId, degC) {
+  const el = g(inputId);
+  if (!el || !isFinite(degC)) return;
+  const [m, b] = TEMP_OFFSETS[g(inputId + '_usel')?.value || 'c'] || [1, 0];
+  el.value = fmtNum((degC - b) / m);
+}
+function setPresVal(inputId, bar) {
+  const el = g(inputId);
+  if (!el || !isFinite(bar)) return;
+  el.value = fmtNum(bar / (PRES_TO_BAR[g(inputId + '_usel')?.value || 'bar'] || 1));
+}
+
+async function fetchSat(fluidKey, direction, value) {
+  const key = fluidKey + '|' + direction + '|' + (Math.round(value * 1e4) / 1e4);
+  if (_satCache.has(key)) return _satCache.get(key);
+  const payload = { calcType: 'saturation', fluidKey, direction };
+  if (direction === 'T_from_P') payload.P_bar = value; else payload.T_degC = value;
+  const r = await callAPI(payload);
+  if (_satCache.size > 400) _satCache.clear();
+  _satCache.set(key, r);
+  return r;
+}
+
+function paintSatChip(side, html, tone) {
+  const el = g(SAT_FIELDS[side].chip);
+  if (!el) return;
+  if (!html) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const tones = {
+    ok:   ['var(--teal-lt)', 'rgba(0,143,118,.25)', 'var(--teal)'],
+    warn: ['var(--gold-lt)', 'rgba(192,120,0,.28)', 'var(--gold)'],
+    mute: ['var(--surf2)',   'var(--bdr)',          'var(--t3)'],
+  };
+  const [bg, bd, fg] = tones[tone] || tones.mute;
+  el.style.background = bg;
+  el.style.border = '1px solid ' + bd;
+  el.style.color = fg;
+  el.style.display = 'block';
+  el.innerHTML = html;
+}
+
+// Core: recompute the saturated side. `driver` says which field the user just
+// touched, so we solve for the other one.
+async function satRefresh(driver) {
+  const side = currentSatSide();
+  // Clear both chips, then repaint only the saturated side
+  ['hot', 'cold'].forEach(s => { if (s !== side) paintSatChip(s, null); });
+  if (!side) { paintSatChip('hot', null); paintSatChip('cold', null); return; }
+
+  const F = SAT_FIELDS[side];
+  const fluidKey = (g(F.fluid) || {}).value || 'water';
+  const seq = ++_satSeq;
+  const forceOutlet = _satResetOutlet;   // consume once
+  _satResetOutlet = false;
+
+  try {
+    let res;
+    if (driver === 'temp' && satLinkOn()) {
+      const T = getTempVal(F.tIn);
+      if (!isFinite(T)) return;
+      res = await fetchSat(fluidKey, 'P_from_T', T);
+      if (seq !== _satSeq) return;                       // a newer edit won
+      if (res && res.saturable) setPresVal(F.pres, res.Psat_bar);
+    } else {
+      const P = getPresVal(F.pres);
+      if (!isFinite(P) || P <= 0) return;
+      res = await fetchSat(fluidKey, 'T_from_P', P);
+      if (seq !== _satSeq) return;
+      if (res && res.saturable && satLinkOn()) setTempVal(F.tIn, res.Tsat_degC);
+    }
+    if (seq !== _satSeq) return;
+
+    if (!res || !res.saturable) {
+      paintSatChip(side, '⚪ ' + ((res && res.note) || 'No saturation model for this fluid.'), 'mute');
+      _satLast[side] = null;
+      return;
+    }
+
+    const Tsat = res.Tsat_degC;
+
+    // ── Hot side, condensing: keep the outlet on Tsat unless the user has
+    //    deliberately dialled in subcooling. On entering the mode (or changing
+    //    fluid) the outlet is reset to Tsat — a total condenser with no
+    //    subcooling is by far the most common duty, and it is the case the old
+    //    validation made impossible to enter. Once the user edits the outlet
+    //    themselves, that spec is preserved across later pressure changes.
+    if (side === 'hot' && satLinkOn()) {
+      const hTo = getTempVal(F.tOut);
+      const wasTracking = _satLast.hot != null && isFinite(hTo) && Math.abs(hTo - _satLast.hot) < 0.06;
+      if (forceOutlet || !isFinite(hTo) || wasTracking || hTo > Tsat) setTempVal(F.tOut, Tsat);
+    }
+    _satLast[side] = Tsat;
+
+    // ── Build the readout ────────────────────────────────────────────────
+    const pUnit = g(F.pres + '_usel')?.value || 'bar';
+    const pLabel = { bar:'bar a', kpa:'kPa a', mpa:'MPa a', psi:'psia', kgcm2:'kg/cm²' }[pUnit] || 'bar a';
+    const pShown = fmtNum(res.Psat_bar / (PRES_TO_BAR[pUnit] || 1));
+    const tUnit = g(F.tIn + '_usel')?.value || 'c';
+    const [tm, tb] = TEMP_OFFSETS[tUnit] || [1, 0];
+    const tLabel = { c:'°C', f:'°F', k:'K' }[tUnit] || '°C';
+    const tShown = fmtNum((Tsat - tb) / tm);
+
+    let html = satLinkOn()
+      ? `🔗 <strong>Saturated:</strong> ${tShown} ${tLabel} ⇄ ${pShown} ${pLabel}`
+      : `\u2139 <strong>At this pressure</strong> ${fluidKey} saturates at ${tShown} ${tLabel} (${pShown} ${pLabel})`;
+    if (res.hvap_kJkg) html += ` · h<sub>fg</sub> ${res.hvap_kJkg} kJ/kg`;
+    let tone = 'ok';
+
+    if (side === 'hot') {
+      const hTi = getTempVal(F.tIn), hTo = getTempVal(F.tOut);
+      const sub = isFinite(hTo) ? Tsat - hTo : 0;
+      if (sub > 0.05)  html += ` · subcooling ${sub.toFixed(1)} ${tLabel}`;
+      else             html += ' · total condenser (latent only)';
+      if (isFinite(hTi) && hTi > Tsat + 0.5)
+        html += `<br>↑ Inlet is ${(hTi - Tsat).toFixed(1)} ${tLabel} superheated — a desuperheating zone will be added.`;
+      if (isFinite(hTi) && hTi < Tsat - 0.5) {
+        html += `<br>⚠ Inlet is ${(Tsat - hTi).toFixed(1)} ${tLabel} <em>below</em> saturation — that stream is subcooled liquid, not condensing vapour. Check the pressure.`;
+        tone = 'warn';
+      }
+    } else {
+      html += ' · boiling is isothermal — outlet stays at T<sub>sat</sub>';
+    }
+    if (res.nearCritical) { html += '<br>⚠ ' + res.note; tone = 'warn'; }
+    if (res.source)       html += `<br><span style="opacity:.75">source: ${res.source}</span>`;
+    if (!satLinkOn())     html += '<br><span style="opacity:.75">Link is off — values are advisory only.</span>';
+
+    paintSatChip(side, html, tone);
+  } catch (err) {
+    if (seq === _satSeq) paintSatChip(side, '⚪ Saturation lookup unavailable — enter temperature and pressure manually.', 'mute');
+  }
+}
+
+function satRefreshDebounced(driver, delay) {
+  clearTimeout(_satTimer);
+  _satTimer = setTimeout(() => satRefresh(driver), delay == null ? 400 : delay);
+}
+
+// ── Input hooks ────────────────────────────────────────────────────────────
+function onSatPresInput(side) {
+  if (currentSatSide() !== side) return;
+  satRefreshDebounced('pres');
+}
+function onSatTempInput(side) {
+  if (currentSatSide() !== side) return;
+  satRefreshDebounced('temp');
+}
+function onSatOutletInput() {
+  // The user is setting subcooling by hand — stop treating the outlet as
+  // tracking Tsat, and refresh the readout without moving anything.
+  if (currentSatSide() !== 'hot') return;
+  _satLast.hot = null;
+  _satResetOutlet = false;
+  satRefreshDebounced('pres');
+}
+function onSatFluidChange(side) {
+  if (currentSatSide() !== side) return;
+  _satLast[side] = null;
+  _satResetOutlet = true;
+  satRefreshDebounced('pres', 60);
+}
+function onSatLinkToggle() {
+  _satLast.hot = _satLast.cold = null;
+  _satResetOutlet = true;
+  satRefresh('pres');
+}
+
+function onShellModeChange() {
+  const mode = (document.getElementById('st_shellMode') || {}).value || 'single-phase';
+  const note = document.getElementById('st_phaseNote');
+  const txt  = document.getElementById('st_phaseNoteText');
+  const row  = document.getElementById('st_satLinkRow');
+  const hint = document.getElementById('st_satLinkHint');
+
+  if (note && txt) {
+    if (mode === 'condensing') {
+      note.style.display = 'block';
+      // Corrected 2026-07: condensing acts on the HOT (shell) stream — the API
+      // takes its saturation state from the hot fluid and hot pressure. The
+      // previous wording said tube-side, which would have had users entering
+      // the condensing stream on the wrong side of the exchanger.
+      txt.innerHTML = 'Condensing: the <strong>hot (shell) stream</strong> condenses. Duty is latent — '
+        + 'Q = ṁ·h<sub>fg</sub> — with Nusselt film condensation corrected for bundle inundation and vapour shear. '
+        + 'For a total condenser with no subcooling, set hot outlet = hot inlet (both at T<sub>sat</sub>); '
+        + 'set the outlet below T<sub>sat</sub> to add a subcooling zone, or the inlet above it to add desuperheating.';
+    } else if (mode === 'evaporating') {
+      note.style.display = 'block';
+      txt.innerHTML = 'Evaporating: the <strong>cold (tube) stream</strong> boils at constant temperature, so its outlet '
+        + 'is held at T<sub>sat</sub> regardless of flow rate. Tube-side HTC uses the Chen correlation '
+        + '(forced convection + nucleate boiling) at the local quality. The hot stream gives up sensible heat.';
+    } else {
+      note.style.display = 'none';
+    }
+  }
+
+  const side = satSideOf(mode);
+  if (row) row.style.display = side ? 'flex' : 'none';
+  if (hint) hint.textContent = side === 'hot'
+    ? '— applies to the hot (shell) stream'
+    : side === 'cold' ? '— applies to the cold (tube) stream' : '';
+
+  _satLast.hot = _satLast.cold = null;
+  _satResetOutlet = true;
+  if (side) satRefresh('pres'); else { paintSatChip('hot', null); paintSatChip('cold', null); }
+}
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  buildFluidOptions();
+  setColdMode('flow');  // initialise cold-side toggle to default state
+  plToggleColdMode();
+  dpToggleColdMode();
+  onVelModeChange();
+  // Isolated: a failure inside the saturation setup must never prevent the
+  // remaining initialisation (modal handlers, fouling defaults) from running.
+  try { onShellModeChange(); } catch (e) { console.warn('saturation link init skipped:', e); }
+  setTimeout(calcFoulingCombined, 500);
+  document.querySelectorAll('.modal-backdrop').forEach(bd=>{
+    bd.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+  });
+});
+</script>
+
+<!-- ═══ SEO REFERENCE SECTION — GOOGLE MAGNET ═══ -->
+<section class="seo-panel" aria-label="Heat Exchanger Design Reference Guide">
+  <div class="seo-panel-inner">
+
+    <div class="seo-panel-hd">
+      <div class="seo-panel-icon">📘</div>
+      <div>
+        <h2 class="seo-panel-title">Heat Exchanger Design — Engineering Reference</h2>
+        <p class="seo-panel-sub">Quick-access formulas, TEMA fouling data, and design guidelines for process engineers</p>
+      </div>
+    </div>
+
+    <div class="seo-grid-3">
+      <div class="seo-card">
+        <h3 class="seo-card-h">LMTD Method</h3>
+        <p class="seo-card-body">The fundamental heat exchanger sizing equation:</p>
+        <div class="seo-formula">A = Q / (U × F × LMTD)</div>
+        <p class="seo-card-body">Where LMTD = (ΔT₁ − ΔT₂) / ln(ΔT₁/ΔT₂). For countercurrent flow: ΔT₁ = T<sub>h,in</sub> − T<sub>c,out</sub> and ΔT₂ = T<sub>h,out</sub> − T<sub>c,in</sub>. F correction factor accounts for departure from true countercurrent flow (F ≥ 0.75 recommended).</p>
+      </div>
+      <div class="seo-card">
+        <h3 class="seo-card-h">NTU-Effectiveness Method</h3>
+        <p class="seo-card-body">Best when outlet temperatures are unknown:</p>
+        <div class="seo-formula">NTU = U·A / C<sub>min</sub><br>ε = Q<sub>actual</sub> / Q<sub>max</sub><br>Q<sub>max</sub> = C<sub>min</sub>(T<sub>h,in</sub> − T<sub>c,in</sub>)</div>
+        <p class="seo-card-body">For countercurrent flow (C<sub>r</sub> &lt; 1): ε = [1 − exp(−NTU(1−C<sub>r</sub>))] / [1 − C<sub>r</sub>·exp(−NTU(1−C<sub>r</sub>))]. NTU &gt; 4 yields diminishing returns.</p>
+      </div>
+      <div class="seo-card">
+        <h3 class="seo-card-h">Overall Heat Transfer Coefficient</h3>
+        <p class="seo-card-body">The thermal resistance network (series resistances):</p>
+        <div class="seo-formula">1/U<sub>o</sub> = 1/h<sub>o</sub> + R<sub>fo</sub> + (r<sub>o</sub>·ln r<sub>o</sub>/r<sub>i</sub>)/k + R<sub>fi</sub>·(A<sub>o</sub>/A<sub>i</sub>) + (A<sub>o</sub>/A<sub>i</sub>)·(1/h<sub>i</sub>)</div>
+        <p class="seo-card-body">The dominant resistance controls U. For gas–liquid service, the gas-side film always dominates. Fouling typically adds 20–40% to required area.</p>
+      </div>
+    </div>
+
+    <h3 class="seo-subhead">Typical Overall Heat Transfer Coefficients — Shell &amp; Tube</h3>
+    <div class="seo-table-wrap">
+      <table class="seo-table" aria-label="Typical U values for shell and tube heat exchangers">
+        <thead><tr><th scope="col">Service</th><th scope="col">U (W/m²K)</th><th scope="col">Plate HX (W/m²K)</th><th scope="col">Key Consideration</th></tr></thead>
+        <tbody>
+          <tr><td>Water – Water (clean)</td><td>800 – 2 000</td><td>3 000 – 7 000</td><td>Fouling dominates in service</td></tr>
+          <tr><td>Steam Condensing (shell)</td><td>1 500 – 6 000</td><td>2 000 – 5 000</td><td>Tube-side film controls</td></tr>
+          <tr><td>Water – Light Oil</td><td>150 – 500</td><td>400 – 1 200</td><td>Oil viscosity limits h<sub>o</sub></td></tr>
+          <tr><td>Water – Heavy Fuel Oil</td><td>50 – 200</td><td>Not recommended</td><td>High fouling; S&amp;T only</td></tr>
+          <tr><td>Gas – Liquid (high-P gas)</td><td>100 – 350</td><td>—</td><td>Gas side always limiting</td></tr>
+          <tr><td>Gas – Gas (no fins)</td><td>15 – 60</td><td>—</td><td>Use plate-fin for compact duty</td></tr>
+          <tr><td>Air Cooling (extended surface)</td><td>40 – 120</td><td>—</td><td>Fins increase area 10–20×</td></tr>
+          <tr><td>Reboiler / Vaporiser</td><td>500 – 2 500</td><td>1 000 – 4 000</td><td>Nucleate boiling enhances h</td></tr>
+          <tr><td>Crude Oil Train</td><td>100 – 400</td><td>—</td><td>R<sub>f</sub> = 0.0005 each side</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="seo-subhead">TEMA Fouling Resistances — Table RGP-T-2.4 (Selected Values)</h3>
+    <div class="seo-grid-2-table">
+      <div class="seo-table-wrap">
+        <table class="seo-table" aria-label="TEMA water service fouling factors">
+          <caption class="seo-table-cap">Water &amp; Utility Services</caption>
+          <thead><tr><th scope="col">Service</th><th scope="col">R<sub>f</sub> (m²K/W)</th></tr></thead>
+          <tbody>
+            <tr><td>Sea water (≤ 52°C)</td><td>0.000088</td></tr>
+            <tr><td>Sea water (&gt; 52°C)</td><td>0.000176</td></tr>
+            <tr><td>Treated cooling tower water</td><td>0.000176</td></tr>
+            <tr><td>City / hard well water</td><td>0.000352</td></tr>
+            <tr><td>River water (average)</td><td>0.000528</td></tr>
+            <tr><td>Boiler feed water (treated)</td><td>0.000088</td></tr>
+            <tr><td>Steam (oil-free)</td><td>0.000088</td></tr>
+            <tr><td>Brine (refrigeration)</td><td>0.000352</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="seo-table-wrap">
+        <table class="seo-table" aria-label="TEMA hydrocarbon fouling factors">
+          <caption class="seo-table-cap">Hydrocarbon &amp; Process Services</caption>
+          <thead><tr><th scope="col">Service</th><th scope="col">R<sub>f</sub> (m²K/W)</th></tr></thead>
+          <tbody>
+            <tr><td>Light hydrocarbons (clean)</td><td>0.000176</td></tr>
+            <tr><td>Crude oil (below 150°C)</td><td>0.000352</td></tr>
+            <tr><td>Crude oil (150–230°C)</td><td>0.000528</td></tr>
+            <tr><td>Crude oil (above 230°C)</td><td>0.000704</td></tr>
+            <tr><td>Fuel oil (clean)</td><td>0.000528</td></tr>
+            <tr><td>Heavy fuel oil</td><td>0.000880</td></tr>
+            <tr><td>Amine solutions</td><td>0.000176</td></tr>
+            <tr><td>Engine exhaust gas</td><td>0.001760</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="seo-grid-2">
+      <div class="seo-card">
+        <h3 class="seo-card-h">TEMA 3-Letter Designation Guide</h3>
+        <p class="seo-card-body">Every shell &amp; tube HX is described as <strong>[Front Head] – [Shell] – [Rear Head]</strong>:</p>
+        <ul class="seo-list">
+          <li><strong>BEM</strong> — Fixed tube sheet (cheapest; ΔT &lt; 50°C or low fouling)</li>
+          <li><strong>AES</strong> — Split ring floating head (good for fouling services)</li>
+          <li><strong>AEU</strong> — U-tube bundle (cheapest floating option)</li>
+          <li><strong>AKT</strong> — Kettle reboiler (pool boiling on shell side)</li>
+          <li><strong>BEU</strong> — U-tube with bonnet head (common in refineries)</li>
+        </ul>
+        <p class="seo-card-body">TEMA Class R (petroleum) → B (chemical) → C (commercial).</p>
+      </div>
+      <div class="seo-card">
+        <h3 class="seo-card-h">Shell &amp; Tube Design Rules of Thumb</h3>
+        <ul class="seo-list">
+          <li>Target tube velocity: <strong>1–3 m/s</strong> (liquids) · <strong>10–30 m/s</strong> (gases/steam)</li>
+          <li>Shell-side ΔP allowable: <strong>≤ 0.7 bar</strong> (process)</li>
+          <li>Tube-side ΔP allowable: <strong>≤ 1.0 bar</strong> (liquid)</li>
+          <li>Baffle cut standard: <strong>25%</strong> (balances h vs ΔP)</li>
+          <li>Baffle spacing: <strong>0.2–0.5 × shell ID</strong></li>
+          <li>Pitch ratio: <strong>1.25</strong> triangular · <strong>1.25–1.5</strong> square</li>
+          <li>LMTD F-factor: keep <strong>F ≥ 0.75</strong>; below this, add shell passes</li>
+          <li>Overdesign margin: <strong>10–20%</strong> for process service</li>
+          <li>Minimum approach ΔT: <strong>5–10°C</strong> for water coolers</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="seo-subhead">Heat Exchanger Type Selection — Quick Guide</h3>
+    <div class="seo-grid-4">
+      <div class="seo-type-card seo-type-red">
+        <div class="seo-type-icon">⚙️</div>
+        <h4 class="seo-type-name">Shell &amp; Tube</h4>
+        <p class="seo-type-body">Best for: high pressure (&gt;30 bar), high temperature, large duties, fouling services, phase change. U = 100–2000 W/m²K. Standards: TEMA / ASME VIII.</p>
+      </div>
+      <div class="seo-type-card seo-type-blue">
+        <div class="seo-type-icon">🔲</div>
+        <h4 class="seo-type-name">Plate HX</h4>
+        <p class="seo-type-body">Best for: clean liquid–liquid, pharma/dairy, close approach (&lt;2°C). U = 2000–7000 W/m²K. Limit: ≤25 bar, ≤180°C.</p>
+      </div>
+      <div class="seo-type-card seo-type-teal">
+        <div class="seo-type-icon">💨</div>
+        <h4 class="seo-type-name">Air-Cooled (ACHE)</h4>
+        <p class="seo-type-body">Best for: no cooling water available, remote locations, overhead condensers. U = 30–100 W/m²K bare tube. Standards: API 661.</p>
+      </div>
+      <div class="seo-type-card seo-type-purple">
+        <div class="seo-type-icon">↔️</div>
+        <h4 class="seo-type-name">Double Pipe</h4>
+        <p class="seo-type-body">Best for: small duties (&lt;500 kW), high-pressure narrow streams, pilot plants. True countercurrent in one pass. U = 300–1200 W/m²K.</p>
+      </div>
+    </div>
+
+    <div class="seo-grid-2">
+      <div class="seo-card">
+        <h3 class="seo-card-h">Gnielinski Correlation — Tube-Side HTC</h3>
+        <p class="seo-card-body">Industry-standard tube-side correlation (Re &gt; 3000, Pr = 0.5–2000, accuracy ±10%):</p>
+        <div class="seo-formula">Nu = (f/8)(Re−1000)Pr / [1 + 12.7√(f/8)(Pr<sup>2/3</sup>−1)]<br>f = (0.790 ln Re − 1.64)<sup>−2</sup></div>
+        <p class="seo-card-body">Applied with entry-length correction for L/D &lt; 60, and Sieder-Tate viscosity correction (μ<sub>bulk</sub>/μ<sub>wall</sub>)<sup>0.14</sup> for high-viscosity fluids. Preferred over Dittus-Boelter (±25% accuracy).</p>
+      </div>
+      <div class="seo-card">
+        <h3 class="seo-card-h">Bell-Delaware Shell-Side HTC</h3>
+        <p class="seo-card-body">Corrects idealised crossflow for real baffle geometry:</p>
+        <div class="seo-formula">h<sub>s</sub> = h<sub>ideal</sub> × J<sub>c</sub> × J<sub>l</sub> × J<sub>b</sub> × J<sub>s</sub> × J<sub>r</sub></div>
+        <p class="seo-card-body">
+          <strong>J<sub>c</sub></strong> — baffle cut geometry (0.65–1.15)<br>
+          <strong>J<sub>l</sub></strong> — tube-to-baffle &amp; baffle-to-shell leakage (0.70–0.90)<br>
+          <strong>J<sub>b</sub></strong> — bundle bypass (0.65–0.95)<br>
+          <strong>J<sub>s</sub></strong> — unequal end-baffle spacing (0.85–1.00)<br>
+          <strong>J<sub>r</sub></strong> — laminar flow adverse gradient (&lt;Re 100)<br>
+          Combined J<sub>total</sub> typically 0.5–0.7.
+        </p>
+      </div>
+    </div>
+
+    <div class="seo-related">
+      <span class="seo-related-label">Related Calculators on multicalci.com:</span>
+      <a href="https://multicalci.com/orifice-flow/" class="seo-related-link">Orifice Flow (ISO 5167)</a>
+      <a href="https://multicalci.com/cooling-tower/" class="seo-related-link">Cooling Tower (CTI ATC-105)</a>
+      <a href="https://multicalci.com/steam-turbine/" class="seo-related-link">Steam Turbine (IAPWS-IF97)</a>
+      <a href="https://multicalci.com/pipe-sizing/" class="seo-related-link">Pipe Sizing (119 Fluids)</a>
+      <a href="https://multicalci.com/control-valve/" class="seo-related-link">Control Valve (ISA 5.1)</a>
+      <a href="https://multicalci.com/npsh-calculator/" class="seo-related-link">NPSH Calculator</a>
+      <a href="https://multicalci.com/vessel-sizing/" class="seo-related-link">Vessel / Separator Sizing</a>
+    </div>
+
+  </div>
+</section>
+<!-- ═══ END SEO REFERENCE SECTION ═══ -->
+
+</body>
+</html>
