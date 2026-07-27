@@ -2074,7 +2074,20 @@ function calcShellTube(b) {
   const hShell = hShell_iter;
   const hTube  = hTube_iter;
   // bdRes_iter is null for condensing mode (no Bell-Delaware on condensing shell side)
-  const bdRes  = bdRes_iter || { hShell:hShell_iter, shellRe:0, Jc:1, Jl:1, Jb:1, Jr:1, Js:1, hTube:hTube_iter };
+  // FIX (2026-07): when the shell side is condensing, the shell coefficient
+  // comes from the Nusselt film correlation and Bell-Delaware is never run, so
+  // bdRes_iter is null. The old stub omitted Jtotal / jh / nBaffles entirely,
+  // which crashed the results renderer on `bdCorr.Jtotal.toFixed(3)`. That was
+  // unreachable before, because condensing always failed validation first.
+  // The stub is now shape-complete and flags itself as not-Bell-Delaware, so
+  // the UI can say so instead of printing correction factors of 1.000 that
+  // would imply the method ran and found nothing to correct.
+  const bdRes  = bdRes_iter
+    ? { ...bdRes_iter, bdApplicable: true }
+    : { hShell:hShell_iter, shellRe:0, Jc:1, Jl:1, Jb:1, Jr:1, Js:1, Jtotal:1,
+        jh:null, shellVel:null, nBaffles:null, hTube:hTube_iter,
+        bdApplicable:false,
+        bdNote:'Bell-Delaware shell-side correction not applicable — shell coefficient from phase-change correlation.' };
   const Ao_Ai  = OD / Di;
 
   // ── Recalculate cTo with converged fluid properties ──
