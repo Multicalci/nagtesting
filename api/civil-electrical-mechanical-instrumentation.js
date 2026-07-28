@@ -2479,21 +2479,24 @@ function mech_beam(inp) {
   } else {
     return { error: 'Unknown load type' };
   }
-  const sigma   = Z_mm3 > 0 ? M_max_Nm*1e3/Z_mm3 : 0;
-  const dLimit  = L_m / 360;
-  const Fy_Pa   = (Fy||250) * 1e6;
-  const ok      = sigma <= Fy_Pa && delta_max_m <= dLimit;
+  // FIX: M_max_Nm*1e3/Z_mm3 is N·mm/mm³, i.e. already MPa. The previous code
+  // compared it against Fy in Pa, which made sigma_MPa read ~0, inflated sf by
+  // 1e6 and meant stressFail could never fire. All comparisons are now in MPa.
+  const sigma_MPa_val = Z_mm3 > 0 ? M_max_Nm*1e3/Z_mm3 : 0;
+  const dLimit        = L_m / 360;
+  const Fy_MPa_val    = Fy || 250;
+  const ok            = sigma_MPa_val <= Fy_MPa_val && delta_max_m <= dLimit;
   return {
     ok,
     Mmax: +(M_max_Nm/1000).toFixed(3), Vmax: +(V_max_N/1000).toFixed(3),
     delta_mm: +(delta_max_m*1000).toFixed(3), dLimit_mm: +(dLimit*1000).toFixed(3),
-    sigma_MPa: +(sigma/1e6).toFixed(2), Fy_MPa: Fy||250,
-    sf: +(Fy_Pa/Math.max(sigma,1)).toFixed(3),
+    sigma_MPa: +sigma_MPa_val.toFixed(2), Fy_MPa: Fy_MPa_val,
+    sf: +(Fy_MPa_val/Math.max(sigma_MPa_val, 1e-6)).toFixed(3),
     EI_kNm2: +(EI/1e3).toFixed(1),
     reaction_A_kN: +(reaction_A/1000).toFixed(3), reaction_B_kN: +(reaction_B/1000).toFixed(3),
     I_mm4: I_mm4.toExponential(3), Z_mm3: Z_mm3.toExponential(3), A_mm2,
     E_GPa: E, L_m: +L_m.toFixed(3), sectionDesc, formulaStr,
-    stressFail: sigma > Fy_Pa, deflFail: delta_max_m > dLimit,
+    stressFail: sigma_MPa_val > Fy_MPa_val, deflFail: delta_max_m > dLimit,
   };
 }
 
