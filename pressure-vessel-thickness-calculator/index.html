@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Pressure Vessel Thickness Calculator — ASME VIII UG-27 | multicalci.com</title>
+<meta name="description" content="Free pressure vessel wall thickness calculator to ASME Section VIII Division 1. Cylindrical shells, spherical shells, hemispherical and 2:1 ellipsoidal heads. Returns required thickness, nominal plate, corrosion allowance, hoop and longitudinal stress, and MAWP.">
+<link rel="canonical" href="https://www.multicalci.com/pressure-vessel-thickness-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/pressure-vessel-thickness-calculator">
+<meta property="og:title" content="Pressure Vessel Thickness Calculator — ASME VIII UG-27">
+<meta property="og:description" content="Required shell and head thickness, hoop stress and MAWP to ASME Section VIII Division 1.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Pressure Vessel Thickness Calculator","description":"Calculates required wall thickness, nominal plate thickness, hoop and longitudinal stress and maximum allowable working pressure for cylindrical shells, spherical shells, hemispherical heads and 2:1 ellipsoidal heads to ASME Section VIII Division 1.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/pressure-vessel-thickness-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Pressure Vessel Thickness Calculator","item":"https://www.multicalci.com/pressure-vessel-thickness-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How is pressure vessel wall thickness calculated?","acceptedAnswer":{"@type":"Answer","text":"For a cylindrical shell under internal pressure ASME Section VIII Division 1 paragraph UG-27 gives thickness as P times R divided by the quantity S times E minus 0.6 times P, where P is internal design pressure, R is the inside radius, S is the maximum allowable stress and E is the joint efficiency. The corrosion allowance is added afterwards, and the result is rounded up to an available plate thickness."}},
+{"@type":"Question","name":"What is joint efficiency E in ASME VIII?","acceptedAnswer":{"@type":"Answer","text":"Joint efficiency accounts for the reliability of welded seams and the extent of radiographic examination. Under ASME Section VIII Division 1 Table UW-12 a double welded butt joint with full radiography takes 1.00, with spot radiography 0.85, and with no radiography 0.70. Lower joint efficiency directly increases the required thickness, so the cost of radiography is often offset by the saving in plate."}},
+{"@type":"Question","name":"How much corrosion allowance should a pressure vessel have?","acceptedAnswer":{"@type":"Answer","text":"Typical corrosion allowance is 1.5 to 3 millimetres for carbon steel in general service, and 3 to 6 millimetres in corrosive duty. Stainless steel and clad vessels often carry zero or a nominal allowance. The allowance is added to the calculated thickness before rounding up to plate size, and it is subtracted again when checking stress and maximum allowable working pressure in the fully corroded condition."}},
+{"@type":"Question","name":"What is MAWP and how does it differ from design pressure?","acceptedAnswer":{"@type":"Answer","text":"Maximum allowable working pressure is the highest pressure the vessel may carry in its corroded condition at design temperature, based on the thickness actually installed. Design pressure is the value the vessel was specified to. Because nominal plate is always thicker than the calculated requirement, MAWP is normally somewhat higher than design pressure, and it is MAWP that sets the relief valve pressure."}},
+{"@type":"Question","name":"When do the thin-wall formulas stop being valid?","acceptedAnswer":{"@type":"Answer","text":"The UG-27 membrane formulas assume a thin shell where stress is essentially uniform through the wall. They apply while thickness does not exceed half the inside radius, or equivalently while pressure does not exceed 0.385 times S times E. Beyond that the through wall stress gradient becomes significant and the thick wall rules of ASME Section VIII Division 1 Appendix 1-2 or Division 2 must be used instead."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Pressure Vessel Thickness Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">ASME VIII Div 1 · UG-27 shells · UG-32 heads</span>
+    <h1>Pressure Vessel Thickness Calculator</h1>
+    <p class="lede">Required wall thickness for cylindrical shells, spherical shells,
+    hemispherical heads and 2:1 ellipsoidal heads under internal pressure. Returns nominal plate
+    thickness, hoop and longitudinal stress in the corroded condition, and maximum allowable
+    working pressure.</p>
+    <div class="stdref">
+      <span>ASME VIII Div 1</span>
+      <span>UG-27(c)(1)</span>
+      <span>UG-32(d)/(f)</span>
+      <span>UW-12 joint efficiency</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate required thickness</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">⚗</span>
+      <span class="card-hd-ttl">Design Conditions</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="pv-type">Component</label>
+          <select id="pv-type">
+            <option value="cyl" selected>Cylindrical shell — UG-27(c)(1)</option>
+            <option value="sph">Spherical shell — UG-27(d)</option>
+            <option value="head-hemi">Hemispherical head — UG-32(f)</option>
+            <option value="head-ell">2:1 ellipsoidal head — UG-32(d)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pv-mat">Material</label>
+          <select id="pv-mat" onchange="applyMaterial()">
+            <option value="cs" selected>Carbon steel — S 138 MPa</option>
+            <option value="ss">Stainless 304 — S 138 MPa</option>
+            <option value="ss316">Stainless 316 — S 115 MPa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="pv-P">Design pressure <span class="u">P</span></label>
+          <input id="pv-P" type="number" step="0.5" value="10" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="pv-P-u">Pressure unit</label>
+          <select id="pv-P-u">
+            <option value="bar" selected>bar</option>
+            <option value="MPa">MPa</option>
+            <option value="psi">psi</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pv-S">Allowable stress <span class="u">S, MPa</span></label>
+          <input id="pv-S" type="number" step="1" value="138" inputmode="decimal">
+          <div class="hint">Set automatically by material.</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="pv-D">Inside diameter <span class="u">D</span></label>
+          <input id="pv-D" type="number" step="10" value="1500" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="pv-D-u">Diameter unit</label>
+          <select id="pv-D-u">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pv-CA">Corrosion allowance <span class="u">CA, mm</span></label>
+          <input id="pv-CA" type="number" step="0.5" value="3" inputmode="decimal">
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="pv-E-sel">Joint efficiency <span class="u">E</span></label>
+          <select id="pv-E-sel" onchange="applyJoint()">
+            <option value="1">Full radiography — 1.00</option>
+            <option value="0.85" selected>Spot radiography — 0.85</option>
+            <option value="0.7">No radiography — 0.70</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pv-E">E value</label>
+          <input id="pv-E" type="number" step="0.05" min="0.1" max="1" value="0.85" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="pv-T">Design temperature <span class="u">T</span></label>
+          <input id="pv-T" type="number" step="5" value="150" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="pv-T-u">Temperature unit</label>
+          <select id="pv-T-u">
+            <option value="C" selected>°C</option>
+            <option value="F">°F</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="pv-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="pv-btn" onclick="calcVessel()">Calculate thickness</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="pv-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="pv-share" onclick="shareCase()">Share this calculation</button>
+        <span id="pv-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="pv-verdict"></div>
+  <div class="results" id="pv-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="pv-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>ASME VIII thickness formulas</h2>
+
+  <p>All four cases use the thin-shell membrane equations of ASME Section VIII Division 1. The
+  corrosion allowance is added <strong>after</strong> the pressure calculation, and stress and
+  MAWP are then checked on the <strong>corroded</strong> thickness — the condition the vessel must
+  still be safe in at the end of its life.</p>
+
+  <div class="fbox">
+<span class="cm">— Required thickness under internal pressure —</span>
+Cylindrical shell   <span class="ht">t</span> = P·R / (S·E − 0.6P)      <span class="cm">UG-27(c)(1)</span>
+Spherical shell     <span class="ht">t</span> = P·R / (2·S·E − 0.2P)    <span class="cm">UG-27(d)</span>
+Hemispherical head  <span class="ht">t</span> = P·R / (2·S·E − 0.2P)    <span class="cm">UG-32(f)</span>
+2:1 ellipsoidal head <span class="ht">t</span> = P·D / (2·S·E − 0.2P)   <span class="cm">UG-32(d)</span>
+
+<span class="ht">t<sub>gross</sub></span>  = t + CA
+<span class="ht">t<sub>nominal</sub></span> = round up t<sub>gross</sub> to the next 0.5 mm
+<span class="ht">t<sub>net</sub></span>    = t<sub>nominal</sub> − CA          <span class="cm">— corroded wall</span>
+
+<span class="cm">— Checked on the corroded wall —</span>
+<span class="hi">σ<sub>h</sub></span> = P·R / t<sub>net</sub>                <span class="cm">— hoop stress (cylinder)</span>
+<span class="hi">σ<sub>l</sub></span> = P·R / (2·t<sub>net</sub>)            <span class="cm">— longitudinal stress</span>
+<span class="hi">MAWP</span> = S·E·t<sub>net</sub> / (R + 0.6·t<sub>net</sub>)   <span class="cm">— cylinder</span>
+  </div>
+
+  <p class="legend">
+    <code>P</code> internal design pressure (MPa) ·
+    <code>R</code> inside radius (mm) ·
+    <code>D</code> inside diameter (mm) ·
+    <code>S</code> maximum allowable stress (MPa) ·
+    <code>E</code> joint efficiency ·
+    <code>CA</code> corrosion allowance (mm) ·
+    <code>t<sub>net</sub></code> corroded thickness (mm)
+  </p>
+
+  <div class="note">
+    <strong>On the margin figure.</strong> The ratio reported as safety factor is
+    S·E ÷ σ<sub>h</sub> — margin against the <em>code allowable</em> stress, not against burst.
+    S already contains the code's own safety factor against ultimate tensile strength, so a value
+    just above 1.0 is normal and means the plate chosen is close to the minimum required.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A carbon steel cylindrical vessel, 1500 mm inside diameter, designed for 10 bar at 150 °C,
+  spot radiographed, with 3 mm corrosion allowance.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Component</dt><dd>Cylindrical shell</dd>
+      <dt>Design pressure P</dt><dd>10 bar = 1.0 MPa</dd>
+      <dt>Inside diameter D</dt><dd>1500 mm → R = 750 mm</dd>
+      <dt>Allowable stress S</dt><dd>138 MPa (carbon steel)</dd>
+      <dt>Joint efficiency E</dt><dd>0.85 (spot radiography)</dd>
+      <dt>Corrosion allowance</dt><dd>3 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — required thickness</div>
+    <dl>
+      <dt>S·E = 138 × 0.85</dt><dd>117.3 MPa</dd>
+      <dt>t = 1.0 × 750 / (117.3 − 0.6)</dt><dd>6.427 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — plate selection</div>
+    <dl>
+      <dt>t<sub>gross</sub> = 6.427 + 3</dt><dd>9.427 mm</dd>
+      <dt>Round up to next 0.5 mm</dt><dd>9.5 mm nominal</dd>
+      <dt>t<sub>net</sub> = 9.5 − 3</dt><dd>6.5 mm corroded</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — corroded-condition check</div>
+    <dl>
+      <dt>σ<sub>h</sub> = 1.0 × 750 / 6.5</dt><dd>115.38 MPa</dd>
+      <dt>σ<sub>l</sub> = σ<sub>h</sub> / 2</dt><dd>57.69 MPa</dd>
+      <dt>MAWP = 117.3 × 6.5 / (750 + 3.9)</dt><dd>1.011 MPa = 10.11 bar</dd>
+      <dt>Margin = 117.3 / 115.38</dt><dd>1.017</dd>
+    </dl>
+
+    <div class="ans">9.5 mm plate · σ<sub>h</sub> 115.38 MPa vs 117.3 allowable · MAWP 10.11 bar</div>
+  </div>
+
+  <p>The vessel is adequate but tight — MAWP exceeds design pressure by only 1 %. Moving to full
+  radiography (E = 1.00) would drop the required thickness to 5.46 mm and allow the same 9.5 mm
+  plate to carry a considerably higher MAWP, which is often worth the inspection cost.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Design pressure</td><td>P</td><td>bar, MPa or psi</td><td>&gt; 0</td></tr>
+        <tr><td>Inside diameter</td><td>D</td><td>mm or in</td><td>&gt; 0</td></tr>
+        <tr><td>Allowable stress</td><td>S</td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Joint efficiency</td><td>E</td><td>dimensionless</td><td>0.1 – 1.0</td></tr>
+        <tr><td>Corrosion allowance</td><td>CA</td><td>mm</td><td>≥ 0</td></tr>
+        <tr><td>Design temperature</td><td>T</td><td>°C or °F</td><td>any</td></tr>
+        <tr><td>Required thickness</td><td>t</td><td>mm</td><td>output</td></tr>
+        <tr><td>Nominal plate</td><td>t<sub>nominal</sub></td><td>mm</td><td>output</td></tr>
+        <tr><td>MAWP</td><td>—</td><td>bar</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Pressure is converted to MPa internally: 1 bar = 0.1 MPa and 1 psi = 0.00689476 MPa.
+  Diameters in inches are converted at 25.4 mm. The ASME minimum shell thickness of 1.5875 mm
+  (1/16 in) is applied as a floor.</p>
+
+  <h3>Joint efficiency — ASME VIII Div 1 Table UW-12</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Examination</th><th>E</th><th>Effect on thickness</th></tr></thead>
+      <tbody>
+        <tr><td>Full radiography</td><td>1.00</td><td>Thinnest plate, highest inspection cost</td></tr>
+        <tr class="hl"><td>Spot radiography</td><td>0.85</td><td>Common compromise</td></tr>
+        <tr><td>No radiography</td><td>0.70</td><td>Roughly 43 % more plate than full RT</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Allowable stress at ambient</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Material</th><th>S (MPa)</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Carbon steel</td><td>138</td><td>General pressure vessel plate</td></tr>
+        <tr><td>Stainless 304</td><td>138</td><td>Corrosion service, food and pharma</td></tr>
+        <tr><td>Stainless 316</td><td>115</td><td>Chloride and acid service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>Temperature derating.</strong> These are ambient values. Allowable stress falls with
+    temperature, and above about 50 °C you should take S from ASME Section II Part D Table 1A for
+    the actual design temperature rather than relying on the ambient figure.
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How is pressure vessel wall thickness calculated?</summary>
+      <div class="faq-a"><p>For a cylindrical shell under internal pressure ASME Section VIII
+      Division 1 paragraph UG-27 gives t = P·R / (S·E − 0.6P), where P is internal design
+      pressure, R is the inside radius, S is the maximum allowable stress and E is the joint
+      efficiency. The corrosion allowance is added afterwards, and the result is rounded up to an
+      available plate thickness.</p></div>
+    </details>
+
+    <details>
+      <summary>What is joint efficiency E in ASME VIII?</summary>
+      <div class="faq-a"><p>Joint efficiency accounts for the reliability of welded seams and the
+      extent of radiographic examination. Under ASME Section VIII Division 1 Table UW-12 a
+      double-welded butt joint with full radiography takes 1.00, with spot radiography 0.85, and
+      with no radiography 0.70. Lower joint efficiency directly increases the required thickness,
+      so the cost of radiography is often offset by the saving in plate.</p></div>
+    </details>
+
+    <details>
+      <summary>How much corrosion allowance should a pressure vessel have?</summary>
+      <div class="faq-a"><p>Typical corrosion allowance is 1.5 to 3 mm for carbon steel in general
+      service, and 3 to 6 mm in corrosive duty. Stainless steel and clad vessels often carry zero
+      or a nominal allowance. The allowance is added to the calculated thickness before rounding
+      up to plate size, and it is subtracted again when checking stress and maximum allowable
+      working pressure in the fully corroded condition.</p></div>
+    </details>
+
+    <details>
+      <summary>What is MAWP and how does it differ from design pressure?</summary>
+      <div class="faq-a"><p>Maximum allowable working pressure is the highest pressure the vessel
+      may carry in its corroded condition at design temperature, based on the thickness actually
+      installed. Design pressure is the value the vessel was specified to. Because nominal plate
+      is always thicker than the calculated requirement, MAWP is normally somewhat higher than
+      design pressure, and it is MAWP that sets the relief valve pressure.</p></div>
+    </details>
+
+    <details>
+      <summary>When do the thin-wall formulas stop being valid?</summary>
+      <div class="faq-a"><p>The UG-27 membrane formulas assume a thin shell where stress is
+      essentially uniform through the wall. They apply while thickness does not exceed half the
+      inside radius, or equivalently while pressure does not exceed 0.385·S·E. Beyond that the
+      through-wall stress gradient becomes significant and the thick-wall rules of ASME Section
+      VIII Division 1 Appendix 1-2 or Division 2 must be used instead.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+    <a href="/fillet-weld-size-calculator">Fillet Weld Size Calculator
+      <span class="d">Throat, combined stress and utilisation</span></a>
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection</span></a>
+    <a href="/mechanical-engineering-calculators#s_boltflange">Bolt &amp; Flange Calculator
+      <span class="d">Flange bolt-up and gasket seating</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. A complete ASME VIII design must
+    also address nozzle reinforcement, external pressure, supports, weld details and inspection.
+    Verify against the current code edition before fabrication.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.pvessel server-side. The backend overrides S from
+   materialKey, so this only keeps the visible field in step. */
+var MATS = { cs: 138, ss: 138, ss316: 115 };
+
+function applyMaterial() {
+  var s = MATS[gs('pv-mat')];
+  if (s) $('pv-S').value = s;
+}
+
+function applyJoint() {
+  var e = gs('pv-E-sel');
+  if (e) $('pv-E').value = e;
+}
+
+async function calcVessel() {
+  var btn = $('pv-btn');
+
+  var v = validate([
+    { id: 'pv-P',  label: 'Design pressure',     required: true, gt: 0 },
+    { id: 'pv-D',  label: 'Inside diameter',     required: true, gt: 0 },
+    { id: 'pv-S',  label: 'Allowable stress',    required: true, gt: 0 },
+    { id: 'pv-E',  label: 'Joint efficiency',    required: true, gte: 0.1, lte: 1 },
+    { id: 'pv-CA', label: 'Corrosion allowance', required: true, gte: 0 },
+    { id: 'pv-T',  label: 'Design temperature',  required: true }
+  ]);
+  showValidation('pv-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('pv-pdf').disabled = true;
+    set('pv-verdict', '');
+    clearResults('pv-results', 'Correct the highlighted inputs and calculate again.');
+    set('pv-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('pv-results');
+  set('pv-verdict', '');
+  set('pv-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('pressure-vessel', {
+      P:           gv('pv-P'),
+      Pu:          gs('pv-P-u'),
+      T_design:    gv('pv-T'),
+      T_unit:      gs('pv-T-u'),
+      D:           gv('pv-D'),
+      Du:          gs('pv-D-u'),
+      S:           gv('pv-S'),
+      E:           gv('pv-E'),
+      CA:          gv('pv-CA'),
+      type:        gs('pv-type'),
+      materialKey: gs('pv-mat')
+    });
+
+    LAST = { r: r, typeLabel: $('pv-type').selectedOptions[0].textContent,
+             matLabel: $('pv-mat').selectedOptions[0].textContent,
+             jointLabel: $('pv-E-sel').selectedOptions[0].textContent,
+             P_in: gs('pv-P') + ' ' + gs('pv-P-u'),
+             D_in: gs('pv-D') + ' ' + gs('pv-D-u'),
+             T_in: gs('pv-T') + ' °' + gs('pv-T-u'), at: new Date() };
+    $('pv-pdf').disabled = false;
+
+    var reason = r.hoopFail
+        ? 'Hoop stress exceeds the allowable S·E. Increase thickness, raise joint efficiency or select a higher-strength material.'
+      : !r.thinWallOk
+        ? 'Thickness exceeds half the inside radius. The thin-wall formulas no longer apply — use ASME VIII Div 1 Appendix 1-2 or Div 2.'
+      : r.t_nominal < r.t_min_asme
+        ? 'Nominal thickness is below the ASME minimum of 1.5875 mm.'
+        : 'MAWP ' + MC.fN(r.MAWP_bar, 2) + ' bar against ' + MC.fN(r.P_bar, 2) +
+          ' bar design, on ' + MC.fN(r.t_nominal, 1) + ' mm plate.';
+
+    // r.ok does not account for thinWallOk. A result computed outside the
+    // validity range of the membrane formulas must not be shown as acceptable.
+    var pass = r.ok && r.thinWallOk;
+
+    set('pv-verdict',
+      '<div class="note" style="' +
+      (pass ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (pass ? 'Design acceptable' : 'Design not acceptable') + '</strong> — ' + reason +
+      '</div>');
+
+    renderResults('pv-results', [
+      { label: 'Nominal plate thickness', value: MC.fN(r.t_nominal, 1), unit: 'mm',
+        tone: 'main', big: true, sub: 'Required ' + MC.fN(r.t_calc, 3) + ' mm + ' + r.CA + ' mm CA' },
+      { label: 'MAWP',            value: MC.fN(r.MAWP_bar, 2), unit: 'bar',
+        tone: r.MAWP_bar >= r.P_bar ? 'grn' : 'red', big: true,
+        sub: 'Design ' + MC.fN(r.P_bar, 2) + ' bar' },
+      { label: 'Calculated thickness', value: MC.fN(r.t_calc, 3),  unit: 'mm' },
+      { label: 'Corroded thickness',   value: MC.fN(r.t_net, 3),   unit: 'mm' },
+      { label: 'Hoop stress σh',       value: MC.fN(r.sigma_h, 2), unit: 'MPa',
+        tone: r.hoopFail ? 'red' : 'grn' },
+      { label: 'Longitudinal σl',      value: MC.fN(r.sigma_l, 2), unit: 'MPa' },
+      { label: 'Margin vs S·E',        value: MC.fN(r.sf, 3),      unit: '',
+        tone: r.sf < 1 ? 'red' : (r.sf < 1.05 ? 'amb' : 'grn') },
+      { label: 'Thin-wall ratio t/R',  value: MC.fN(r.thinWallRatio, 3), unit: '',
+        tone: r.thinWallOk ? 'blu' : 'red', sub: r.thinWallOk ? 'Below 0.5 — formulas valid' : 'Exceeds 0.5' }
+    ]);
+
+    set('pv-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Component</td><td>' + esc(LAST.typeLabel) + '</td></tr>' +
+      '<tr><td>Formula</td><td>' + esc(r.formula) + '</td></tr>' +
+      '<tr><td>Inside radius R</td><td>' + MC.fN(r.R_mm, 1) + ' mm</td></tr>' +
+      '<tr><td>Design pressure</td><td>' + esc(LAST.P_in) + '  (' + MC.fN(r.P_bar, 2) + ' bar)</td></tr>' +
+      '<tr><td>Material</td><td>' + esc(LAST.matLabel) + '</td></tr>' +
+      '<tr><td>Allowable stress S</td><td>' + MC.fN(r.S, 0) + ' MPa</td></tr>' +
+      '<tr><td>Joint efficiency</td><td>' + esc(LAST.jointLabel) + '</td></tr>' +
+      '<tr><td>S·E</td><td>' + MC.fN(r.S * r.E, 2) + ' MPa</td></tr>' +
+      '<tr><td>ASME minimum thickness</td><td>' + MC.fN(r.t_min_asme, 4) + ' mm</td></tr>' +
+      '<tr class="hl"><td>Plate selected</td><td>' + MC.fN(r.t_nominal, 1) + ' mm</td></tr>' +
+      '</tbody></table></div>' +
+      (r.tempWarning
+        ? '<div class="note"><strong>Temperature.</strong> ' + esc(r.tempWarning) + '</div>'
+        : ''));
+
+  } catch (err) {
+    LAST = null;
+    $('pv-pdf').disabled = true;
+    set('pv-verdict', '');
+    MC.showError('pv-results', err);
+    set('pv-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { type:'pv-type', mat:'pv-mat', P:'pv-P', Pu:'pv-P-u', S:'pv-S',
+               D:'pv-D', Du:'pv-D-u', CA:'pv-CA', Esel:'pv-E-sel', E:'pv-E',
+               T:'pv-T', Tu:'pv-T-u' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  calcVessel();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Pressure Vessel Thickness Calculator — multicalci.com';
+  var text = LAST
+    ? gs('pv-D') + ' mm ID at ' + gs('pv-P') + ' ' + gs('pv-P-u') + ' \u2192 ' +
+      MC.fN(LAST.r.t_nominal, 1) + ' mm plate, MAWP ' + MC.fN(LAST.r.MAWP_bar, 2) + ' bar'
+    : 'ASME VIII pressure vessel wall thickness calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('pv-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Component',            esc(LAST.typeLabel)],
+    ['Design pressure',      esc(LAST.P_in) + '  (' + MC.fN(r.P_bar, 2) + ' bar)'],
+    ['Inside diameter',      esc(LAST.D_in) + '  (R = ' + MC.fN(r.R_mm, 1) + ' mm)'],
+    ['Design temperature',   esc(LAST.T_in)],
+    ['Material',             esc(LAST.matLabel)],
+    ['Allowable stress S',   MC.fN(r.S, 0) + ' MPa'],
+    ['Joint efficiency E',   esc(LAST.jointLabel)],
+    ['Corrosion allowance',  r.CA + ' mm']
+  ]);
+
+  var outRows = rows([
+    ['Calculated thickness',  MC.fN(r.t_calc, 3) + ' mm'],
+    ['Plus corrosion allowance', MC.fN(r.t_gross, 3) + ' mm'],
+    ['Nominal plate',         MC.fN(r.t_nominal, 1) + ' mm', true],
+    ['Corroded thickness',    MC.fN(r.t_net, 3) + ' mm'],
+    ['Hoop stress',           MC.fN(r.sigma_h, 2) + ' MPa', true],
+    ['Longitudinal stress',   MC.fN(r.sigma_l, 2) + ' MPa'],
+    ['Allowable S x E',       MC.fN(r.S * r.E, 2) + ' MPa'],
+    ['Margin vs S x E',       MC.fN(r.sf, 3)],
+    ['MAWP',                  MC.fN(r.MAWP_bar, 2) + ' bar', true],
+    ['Thin-wall ratio t/R',   MC.fN(r.thinWallRatio, 3) + (r.thinWallOk ? '  (valid)' : '  (EXCEEDS 0.5)')],
+    ['ASME minimum thickness', MC.fN(r.t_min_asme, 4) + ' mm']
+  ]);
+
+  var pass = r.ok && r.thinWallOk;
+  var verdict = pass
+    ? 'ACCEPTABLE \u2014 ' + MC.fN(r.t_nominal, 1) + ' mm plate, MAWP ' +
+      MC.fN(r.MAWP_bar, 2) + ' bar against ' + MC.fN(r.P_bar, 2) + ' bar design.'
+    : 'NOT ACCEPTABLE \u2014 ' + (r.hoopFail ? 'hoop stress exceeds the allowable S x E.'
+        : !r.thinWallOk ? 'thin-wall formulas no longer valid at this t/R ratio.'
+        : 'nominal thickness is below the ASME minimum.');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (pass ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Pressure Vessel Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Pressure Vessel Thickness Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Design conditions</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formula used</h2><div class="fml">' + esc(r.formula) + '\n' +
+    't_gross = t + CA          t_net = t_nominal - CA\n' +
+    'Stress and MAWP are evaluated on the corroded wall t_net.</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'ASME Section VIII Division 1, internal pressure, thin-wall membrane rules.\n' +
+    (r.tempWarning ? esc(r.tempWarning) + '\n' : '') +
+    'NOT covered: external pressure and buckling, nozzle reinforcement (UG-37),\n' +
+    'flange and cover design, supports and lifting lugs, cyclic and fatigue service,\n' +
+    'post-weld heat treatment, and impact testing requirements.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify against the current code edition</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['pv-P', 'pv-D', 'pv-S', 'pv-E', 'pv-CA', 'pv-T'], calcVessel);
+ready(loadFromURL);
+</script>
+
+</body>
+</html>
