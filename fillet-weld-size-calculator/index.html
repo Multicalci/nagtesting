@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Fillet Weld Size Calculator — Throat, Shear Stress &amp; Utilisation | multicalci.com</title>
+<meta name="description" content="Free fillet weld size calculator. Enter leg size, weld length, shear, axial and moment loads to get throat thickness, weld area, combined stress, allowable stress and utilisation. AWS D1.1 minimum leg sizes, E70 to E90 electrodes.">
+<link rel="canonical" href="https://www.multicalci.com/fillet-weld-size-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/fillet-weld-size-calculator">
+<meta property="og:title" content="Fillet Weld Size Calculator — Throat, Shear Stress &amp; Utilisation">
+<meta property="og:description" content="Check fillet weld leg size against shear, axial and moment loading with AWS D1.1 minimum weld sizes.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Fillet Weld Size Calculator","description":"Calculates fillet weld throat thickness, effective area, shear and combined stress, allowable stress and utilisation for single, double and rectangular group weld configurations.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/fillet-weld-size-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Fillet Weld Size Calculator","item":"https://www.multicalci.com/fillet-weld-size-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How is fillet weld throat thickness calculated?","acceptedAnswer":{"@type":"Answer","text":"For a standard 45 degree equal leg fillet the effective throat is 0.707 times the leg size, because the throat is the perpendicular distance from the root to the hypotenuse of a right isosceles triangle. An 8 millimetre leg gives a 5.66 millimetre throat. For a complete joint penetration butt weld the throat equals the plate thickness. For a partial penetration weld this calculator uses the greater of leg minus 3 millimetres or 70 percent of the leg."}},
+{"@type":"Question","name":"What is the allowable stress for a fillet weld?","acceptedAnswer":{"@type":"Answer","text":"This calculator uses 0.30 times the electrode tensile strength, which is the AWS D1.1 and AISC allowable shear stress on the effective throat area. For an E70 electrode at 480 megapascals the allowable is 144 megapascals. For E80 at 550 megapascals it is 165 megapascals, and for E90 at 620 megapascals it is 186 megapascals."}},
+{"@type":"Question","name":"What is the minimum fillet weld size allowed?","acceptedAnswer":{"@type":"Answer","text":"AWS D1.1 sets a minimum leg size based on the thickness of the thicker part joined, to ensure the weld cools slowly enough to avoid cracking. This calculator applies 3 millimetres up to 6 millimetre material, 5 millimetres up to 12 millimetres, 6 millimetres up to 19 millimetres and 8 millimetres above that. The minimum is a fabrication requirement and applies even when the strength calculation permits a smaller weld."}},
+{"@type":"Question","name":"How are shear and moment combined on a weld?","acceptedAnswer":{"@type":"Answer","text":"Direct shear produces a stress of V divided by the weld area. Axial force and bending produce a normal stress on the throat. The two are combined using a von Mises style relationship in which the normal component is divided by the square root of three before being added in quadrature to the shear component. The result is compared against the allowable shear stress on the throat."}},
+{"@type":"Question","name":"Should I use a single or double sided fillet weld?","acceptedAnswer":{"@type":"Answer","text":"A double sided fillet doubles the effective weld area for the same leg size and length, halving the stress. It also balances the joint and reduces angular distortion from one sided shrinkage. Single sided welds are used where access is restricted, but they induce eccentricity and should not be used for joints carrying significant bending about the weld line."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Fillet Weld Size Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">AWS D1.1 · AISC 360 · effective throat method</span>
+    <h1>Fillet Weld Size Calculator</h1>
+    <p class="lede">Check a fillet weld leg size against shear, axial and bending load. Returns
+    effective throat, weld area, combined stress, allowable stress and utilisation, plus the
+    AWS D1.1 minimum leg size for the joint.</p>
+    <div class="stdref">
+      <span>AWS D1.1</span>
+      <span>AISC 360</span>
+      <span>E70 – E90</span>
+      <span>Single · Double · Group</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Check a fillet weld</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">⚒</span>
+      <span class="card-hd-ttl">Weld Geometry &amp; Loading</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="w-type">Weld type</label>
+          <select id="w-type">
+            <option value="fillet" selected>Fillet (45° equal leg)</option>
+            <option value="butt-full">Butt — complete penetration</option>
+            <option value="butt-partial">Butt — partial penetration</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="w-config">Configuration</label>
+          <select id="w-config" onchange="toggleGroup()">
+            <option value="single">Single sided</option>
+            <option value="double" selected>Double sided</option>
+            <option value="group-rect">Rectangular group</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="w-elec">Electrode</label>
+          <select id="w-elec" onchange="applyElectrode()">
+            <option value="480" selected>E70XX — 480 MPa</option>
+            <option value="550">E80XX — 550 MPa</option>
+            <option value="620">E90XX — 620 MPa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="w-w">Leg size <span class="u">w</span></label>
+          <input id="w-w" type="number" step="0.5" value="8" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="w-w-u">Leg unit</label>
+          <select id="w-w-u">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="w-FEXX">Electrode strength <span class="u">F<sub>EXX</sub>, MPa</span></label>
+          <input id="w-FEXX" type="number" step="10" value="480" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g3" id="w-linear-dims">
+        <div class="field">
+          <label for="w-Lw">Weld length <span class="u">L<sub>w</sub></span></label>
+          <input id="w-Lw" type="number" step="5" value="250" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="w-Lw-u">Length unit</label>
+          <select id="w-Lw-u">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="w-M">Bending moment <span class="u">M, kN·m</span></label>
+          <input id="w-M" type="number" step="0.5" value="0" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g3" id="w-group-dims" style="display:none">
+        <div class="field">
+          <label for="w-gw">Group width <span class="u">mm</span></label>
+          <input id="w-gw" type="number" step="5" value="200" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="w-gh">Group height <span class="u">mm</span></label>
+          <input id="w-gh" type="number" step="5" value="150" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="w-e">Load eccentricity <span class="u">e, mm</span></label>
+          <input id="w-e" type="number" step="5" value="0" inputmode="decimal">
+          <div class="hint">Distance from weld centroid to load line.</div>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="w-V">Shear force <span class="u">V</span></label>
+          <input id="w-V" type="number" step="1" value="120" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="w-V-u">Shear unit</label>
+          <select id="w-V-u">
+            <option value="kN" selected>kN</option>
+            <option value="N">N</option>
+            <option value="kip">kip</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="w-N">Axial force <span class="u">N, kN</span></label>
+          <input id="w-N" type="number" step="1" value="0" inputmode="decimal">
+        </div>
+      </div>
+
+      <div id="w-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="w-btn" onclick="calcWeld()">Calculate weld stress</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="w-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="w-share" onclick="shareCase()">Share this calculation</button>
+        <span id="w-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="w-verdict"></div>
+  <div class="results" id="w-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="w-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Fillet weld formula</h2>
+
+  <p>A fillet weld is checked on its <strong>effective throat</strong> — the shortest distance
+  from the weld root to the face. For a 45° equal-leg fillet that is 0.707 times the leg size.
+  All stress is referred to that throat area, never to the leg.</p>
+
+  <div class="fbox">
+<span class="ht">a</span> = 0.707 × w                    <span class="cm">— effective throat, mm (45° fillet)</span>
+<span class="ht">A<sub>w</sub></span> = a × L<sub>w</sub> × n                  <span class="cm">— throat area, mm² (n = 1 single, 2 double)</span>
+
+<span class="ht">τ<sub>V</sub></span> = V × 1000 / A<sub>w</sub>               <span class="cm">— direct shear stress, MPa</span>
+<span class="ht">σ<sub>N</sub></span> = N × 1000 / A<sub>w</sub>               <span class="cm">— axial stress on throat, MPa</span>
+<span class="ht">σ<sub>M</sub></span> = M × 10⁶ / (A<sub>w</sub> × L<sub>w</sub> / 6)      <span class="cm">— bending stress on throat, MPa</span>
+
+<span class="hi">τ<sub>tot</sub></span> = √( τ<sub>V</sub>² + (σ<sub>tot</sub> / √3)² )     <span class="cm">— combined, von Mises basis</span>
+<span class="hi">τ<sub>allow</sub></span> = 0.30 × F<sub>EXX</sub>              <span class="cm">— AWS D1.1 / AISC 360</span>
+  </div>
+
+  <p class="legend">
+    <code>w</code> leg size (mm) ·
+    <code>a</code> effective throat (mm) ·
+    <code>L<sub>w</sub></code> weld length (mm) ·
+    <code>n</code> number of weld lines ·
+    <code>V</code> shear (kN) ·
+    <code>N</code> axial (kN) ·
+    <code>M</code> moment (kN·m) ·
+    <code>F<sub>EXX</sub></code> electrode tensile strength (MPa)
+  </p>
+
+  <div class="note">
+    <strong>Throat, not leg.</strong> Sizing a fillet on its leg size overstates capacity by about
+    41 %. The 0.707 factor is the single most common error in hand weld calculations. For
+    unequal-leg fillets the throat must be derived from the actual geometry rather than this
+    factor.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A bracket is attached with an 8 mm double-sided fillet weld, 250 mm long each side, carrying
+  120 kN of direct shear. Electrode is E70XX.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Leg size w</dt><dd>8 mm</dd>
+      <dt>Weld length L<sub>w</sub></dt><dd>250 mm</dd>
+      <dt>Configuration</dt><dd>Double sided (n = 2)</dd>
+      <dt>Shear V</dt><dd>120 kN</dd>
+      <dt>Electrode</dt><dd>E70XX → F<sub>EXX</sub> = 480 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — throat and area</div>
+    <dl>
+      <dt>a = 0.707 × 8</dt><dd>5.66 mm</dd>
+      <dt>A<sub>w</sub> = 5.66 × 250 × 2</dt><dd>2 828 mm²</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — stress</div>
+    <dl>
+      <dt>τ<sub>V</sub> = 120 000 / 2 828</dt><dd>42.43 MPa</dd>
+      <dt>σ<sub>tot</sub> (no axial or moment)</dt><dd>0 MPa</dd>
+      <dt>τ<sub>tot</sub></dt><dd>42.43 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — capacity</div>
+    <dl>
+      <dt>τ<sub>allow</sub> = 0.30 × 480</dt><dd>144 MPa</dd>
+      <dt>Utilisation = 42.43 / 144</dt><dd>29.5 %</dd>
+      <dt>AWS D1.1 minimum leg</dt><dd>5 mm — 8 mm leg is compliant</dd>
+    </dl>
+
+    <div class="ans">τ 42.43 MPa vs 144 MPa allowable · utilisation 29.5 % → weld adequate</div>
+  </div>
+
+  <p>The weld is lightly loaded at under 30 % utilisation. Reducing to a 6 mm leg would raise
+  utilisation to about 39 %, still comfortable, and would cut weld metal volume by roughly 44 %
+  since deposit volume scales with the square of the leg.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Leg size</td><td>w</td><td>mm or in</td><td>&gt; 0</td></tr>
+        <tr><td>Weld length</td><td>L<sub>w</sub></td><td>mm or in</td><td>&gt; 0</td></tr>
+        <tr><td>Shear force</td><td>V</td><td>kN, N or kip</td><td>≥ 0</td></tr>
+        <tr><td>Axial force</td><td>N</td><td>kN</td><td>≥ 0</td></tr>
+        <tr><td>Bending moment</td><td>M</td><td>kN·m</td><td>≥ 0</td></tr>
+        <tr><td>Electrode strength</td><td>F<sub>EXX</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Effective throat</td><td>a</td><td>mm</td><td>output</td></tr>
+        <tr><td>Throat area</td><td>A<sub>w</sub></td><td>mm²</td><td>output</td></tr>
+        <tr><td>Combined stress</td><td>τ<sub>tot</sub></td><td>MPa</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Imperial inputs are converted before calculation: 1 in = 25.4 mm and 1 kip = 4.44822 kN.
+  All internal work is done in SI.</p>
+
+  <h3>Electrode strengths</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Classification</th><th>F<sub>EXX</sub> (MPa)</th><th>Allowable 0.30·F<sub>EXX</sub> (MPa)</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>E70XX</td><td>480</td><td>144</td></tr>
+        <tr><td>E80XX</td><td>550</td><td>165</td></tr>
+        <tr><td>E90XX</td><td>620</td><td>186</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>AWS D1.1 minimum fillet leg size</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Thicker part joined</th><th>Minimum leg (mm)</th></tr></thead>
+      <tbody>
+        <tr><td>Up to 6 mm</td><td>3</td></tr>
+        <tr class="hl"><td>Over 6 to 12 mm</td><td>5</td></tr>
+        <tr><td>Over 12 to 19 mm</td><td>6</td></tr>
+        <tr><td>Over 19 mm</td><td>8</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How is fillet weld throat thickness calculated?</summary>
+      <div class="faq-a"><p>For a standard 45° equal-leg fillet the effective throat is 0.707 × leg
+      size, because the throat is the perpendicular distance from the root to the hypotenuse of a
+      right isosceles triangle. An 8 mm leg gives a 5.66 mm throat. For a complete joint
+      penetration butt weld the throat equals the plate thickness. For a partial penetration weld
+      this calculator uses the greater of leg − 3 mm or 70 % of the leg.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the allowable stress for a fillet weld?</summary>
+      <div class="faq-a"><p>This calculator uses 0.30 × electrode tensile strength, the AWS D1.1
+      and AISC allowable shear stress on the effective throat area. For an E70 electrode at
+      480 MPa the allowable is 144 MPa. For E80 at 550 MPa it is 165 MPa, and for E90 at 620 MPa
+      it is 186 MPa.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the minimum fillet weld size allowed?</summary>
+      <div class="faq-a"><p>AWS D1.1 sets a minimum leg size based on the thickness of the thicker
+      part joined, to ensure the weld cools slowly enough to avoid cracking. This calculator
+      applies 3 mm up to 6 mm material, 5 mm up to 12 mm, 6 mm up to 19 mm and 8 mm above that.
+      The minimum is a fabrication requirement and applies even when the strength calculation
+      permits a smaller weld.</p></div>
+    </details>
+
+    <details>
+      <summary>How are shear and moment combined on a weld?</summary>
+      <div class="faq-a"><p>Direct shear produces a stress of V / A<sub>w</sub>. Axial force and
+      bending produce a normal stress on the throat. The two are combined using a von Mises style
+      relationship in which the normal component is divided by √3 before being added in quadrature
+      to the shear component. The result is compared against the allowable shear stress on the
+      throat.</p></div>
+    </details>
+
+    <details>
+      <summary>Should I use a single or double sided fillet weld?</summary>
+      <div class="faq-a"><p>A double-sided fillet doubles the effective weld area for the same leg
+      size and length, halving the stress. It also balances the joint and reduces angular
+      distortion from one-sided shrinkage. Single-sided welds are used where access is restricted,
+      but they induce eccentricity and should not be used for joints carrying significant bending
+      about the weld line.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor from tightening torque</span></a>
+    <a href="/mechanical-engineering-calculators#s_beam">Beam Calculator
+      <span class="d">Bending moment, stress and deflection</span></a>
+    <a href="/mechanical-engineering-calculators#s_shaft">Shaft Design Calculator
+      <span class="d">Torsion, bending and combined loading</span></a>
+    <a href="/mechanical-engineering-calculators#s_pvessel">Pressure Vessel Calculator
+      <span class="d">Shell thickness to ASME VIII</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. Verify against the governing design
+    code and your fabrication specification before construction.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+function applyElectrode() {
+  var v = gs('w-elec');
+  if (v) $('w-FEXX').value = v;
+}
+
+function toggleGroup() {
+  var isGroup = gs('w-config') === 'group-rect';
+  $('w-group-dims').style.display  = isGroup ? 'grid' : 'none';
+  $('w-linear-dims').style.display = isGroup ? 'none' : 'grid';
+}
+
+async function calcWeld() {
+  var btn = $('w-btn');
+  var isGroup = gs('w-config') === 'group-rect';
+
+  var rules = [
+    { id: 'w-w',    label: 'Leg size',           required: true, gt: 0 },
+    { id: 'w-FEXX', label: 'Electrode strength', required: true, gt: 0 },
+    { id: 'w-V',    label: 'Shear force',        gte: 0 },
+    { id: 'w-N',    label: 'Axial force',        gte: 0 }
+  ];
+  if (isGroup) {
+    rules.push({ id: 'w-gw', label: 'Group width',  required: true, gt: 0 });
+    rules.push({ id: 'w-gh', label: 'Group height', required: true, gt: 0 });
+    rules.push({ id: 'w-e',  label: 'Eccentricity', gte: 0 });
+  } else {
+    rules.push({ id: 'w-Lw', label: 'Weld length',    required: true, gt: 0 });
+    rules.push({ id: 'w-M',  label: 'Bending moment', gte: 0 });
+  }
+
+  var v = validate(rules);
+  showValidation('w-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('w-pdf').disabled = true;
+    set('w-verdict', '');
+    clearResults('w-results', 'Correct the highlighted inputs and calculate again.');
+    set('w-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('w-results');
+  set('w-verdict', '');
+  set('w-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('weld', {
+      w:       gv('w-w'),
+      wLeg_u:  gs('w-w-u'),
+      Lw:      isGroup ? 2 * (gv('w-gw') + gv('w-gh')) : gv('w-Lw'),
+      wL_u:    gs('w-Lw-u'),
+      wtype:   gs('w-type'),
+      config:  gs('w-config'),
+      V:       gvOr('w-V', 0),
+      V_u:     gs('w-V-u'),
+      N_kN:    gvOr('w-N', 0),
+      M_kNm:   isGroup ? 0 : gvOr('w-M', 0),
+      FEXX:    gv('w-FEXX'),
+      e:       isGroup ? gvOr('w-e', 0) : 0,
+      gw:      isGroup ? gv('w-gw') : 0,
+      gh:      isGroup ? gv('w-gh') : 0
+    });
+
+    LAST = { r: r, type: $('w-type').selectedOptions[0].textContent,
+             config: $('w-config').selectedOptions[0].textContent,
+             elec: $('w-elec').selectedOptions[0].textContent, at: new Date() };
+    $('w-pdf').disabled = false;
+
+    var stress = r.isGroup ? r.combined : r.tau_tot;
+
+    set('w-verdict',
+      '<div class="note" style="' +
+      (r.ok ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (r.ok ? 'Weld adequate' : 'Weld overstressed') + '</strong> — ' +
+      MC.fN(stress, 2) + ' MPa against ' + MC.fN(r.allowable, 1) + ' MPa allowable, ' +
+      MC.fN(r.util, 1) + ' % utilisation.' +
+      (!r.ok && r.suggestedLeg ? ' Try a ' + r.suggestedLeg + ' mm leg.' : '') +
+      '</div>');
+
+    var cards = [
+      { label: 'Effective throat a', value: MC.fN(r.throat, 2), unit: 'mm', tone: 'main', big: true },
+      { label: r.isGroup ? 'Combined stress' : 'Combined stress τ',
+        value: MC.fN(stress, 2), unit: 'MPa',
+        tone: r.ok ? 'grn' : 'red', big: true },
+      { label: 'Throat area Aw',   value: MC.fN(r.Aw, 1),        unit: 'mm²' },
+      { label: 'Utilisation',      value: MC.fN(r.util, 1),      unit: '%',
+        tone: r.util > 100 ? 'red' : (r.util > 80 ? 'amb' : 'grn') },
+      { label: 'Direct shear τV',  value: MC.fN(r.tau_V, 2),     unit: 'MPa' },
+      { label: 'Allowable stress', value: MC.fN(r.allowable, 1), unit: 'MPa', tone: 'blu' }
+    ];
+    if (r.isGroup) {
+      cards.push({ label: 'Torsional shear', value: MC.fN(r.tau_torsion, 2), unit: 'MPa', tone: 'amb' });
+      cards.push({ label: 'Group perimeter', value: MC.fN(r.Lw_group, 0),    unit: 'mm' });
+    } else {
+      cards.push({ label: 'Normal stress σ',  value: MC.fN(r.sigma_tot, 2),  unit: 'MPa' });
+      cards.push({ label: 'AWS min leg',      value: MC.fN(r.minWeld, 0),    unit: 'mm', tone: 'amb' });
+    }
+    renderResults('w-results', cards);
+
+    var rows =
+      '<tr><td>Weld type</td><td>' + esc(LAST.type) + '</td></tr>' +
+      '<tr><td>Configuration</td><td>' + esc(LAST.config) + '</td></tr>' +
+      '<tr><td>Electrode</td><td>' + esc(LAST.elec) + '</td></tr>' +
+      '<tr><td>Throat basis</td><td>' + esc(r.throatNote) + '</td></tr>';
+    if (r.isGroup) {
+      rows += '<tr><td>Group size</td><td>' + r.gw + ' × ' + r.gh + ' mm</td></tr>';
+      if (r.torsionNote) rows += '<tr><td>Torsion</td><td>' + esc(r.torsionNote) + '</td></tr>';
+    } else {
+      rows += '<tr><td>Leg × length</td><td>' + r.w + ' mm × ' + r.Lw + ' mm</td></tr>' +
+              '<tr><td>Shear applied</td><td>' + r.V + ' kN</td></tr>' +
+              '<tr><td>Moment applied</td><td>' + r.M_kNm + ' kN·m</td></tr>';
+    }
+    rows += '<tr class="hl"><td>Utilisation</td><td>' + MC.fN(r.util, 1) + ' % of allowable</td></tr>';
+
+    set('w-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' + rows +
+      '</tbody></table></div>');
+
+  } catch (err) {
+    LAST = null;
+    $('w-pdf').disabled = true;
+    set('w-verdict', '');
+    MC.showError('w-results', err);
+    set('w-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { type:'w-type', config:'w-config', elec:'w-elec', w:'w-w', wu:'w-w-u',
+               FEXX:'w-FEXX', Lw:'w-Lw', Lwu:'w-Lw-u', M:'w-M', gw:'w-gw', gh:'w-gh',
+               e:'w-e', V:'w-V', Vu:'w-V-u', N:'w-N' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  toggleGroup();
+  calcWeld();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Fillet Weld Size Calculator — multicalci.com';
+  var text = LAST
+    ? gs('w-w') + ' mm ' + gs('w-config') + ' fillet \u2192 ' +
+      MC.fN(LAST.r.isGroup ? LAST.r.combined : LAST.r.tau_tot, 1) + ' MPa, ' +
+      MC.fN(LAST.r.util, 1) + ' % utilisation'
+    : 'Fillet weld throat, stress and utilisation calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('w-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+  var stress = r.isGroup ? r.combined : r.tau_tot;
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = [
+    ['Weld type',        esc(LAST.type)],
+    ['Configuration',    esc(LAST.config)],
+    ['Electrode',        esc(LAST.elec) + ' (F_EXX = ' + r.FEXX + ' MPa)'],
+    ['Leg size w',       MC.fN(gv('w-w'), 2) + ' ' + gs('w-w-u')]
+  ];
+  if (r.isGroup) {
+    inRows.push(['Group size', r.gw + ' \u00d7 ' + r.gh + ' mm']);
+    inRows.push(['Eccentricity', MC.fN(gvOr('w-e', 0), 1) + ' mm']);
+  } else {
+    inRows.push(['Weld length', r.Lw + ' mm']);
+    inRows.push(['Bending moment', r.M_kNm + ' kN\u00b7m']);
+  }
+  inRows.push(['Shear force', MC.fN(gvOr('w-V', 0), 2) + ' ' + gs('w-V-u')]);
+  inRows.push(['Axial force', MC.fN(gvOr('w-N', 0), 2) + ' kN']);
+
+  var outRows = [
+    ['Effective throat a', MC.fN(r.throat, 2) + ' mm', true],
+    ['Throat area Aw',     MC.fN(r.Aw, 1) + ' mm\u00b2'],
+    ['Direct shear tau_V', MC.fN(r.tau_V, 2) + ' MPa'],
+    ['Combined stress',    MC.fN(stress, 2) + ' MPa', true],
+    ['Allowable stress',   MC.fN(r.allowable, 1) + ' MPa'],
+    ['Utilisation',        MC.fN(r.util, 1) + ' %', true]
+  ];
+  if (r.isGroup) {
+    outRows.push(['Torsional shear', MC.fN(r.tau_torsion, 2) + ' MPa']);
+    outRows.push(['Group perimeter', MC.fN(r.Lw_group, 0) + ' mm']);
+  } else {
+    outRows.push(['Normal stress', MC.fN(r.sigma_tot, 2) + ' MPa']);
+    outRows.push(['AWS D1.1 min leg', MC.fN(r.minWeld, 0) + ' mm']);
+    if (r.suggestedLeg) outRows.push(['Suggested leg', r.suggestedLeg + ' mm']);
+  }
+
+  var verdict = r.ok
+    ? 'ADEQUATE \u2014 ' + MC.fN(stress, 2) + ' MPa against ' + MC.fN(r.allowable, 1) +
+      ' MPa allowable, ' + MC.fN(r.util, 1) + ' % utilisation.'
+    : 'OVERSTRESSED \u2014 ' + MC.fN(stress, 2) + ' MPa exceeds the ' + MC.fN(r.allowable, 1) +
+      ' MPa allowable.' + (r.suggestedLeg ? ' Increase the leg to ' + r.suggestedLeg + ' mm.' : '');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (r.ok ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'a  = 0.707 \u00d7 w                 (45\u00b0 equal-leg fillet)\n' +
+    'Aw = a \u00d7 Lw \u00d7 n\n' +
+    'tau_V = V \u00d7 1000 / Aw\n' +
+    'sigma = N \u00d7 1000 / Aw  +  M \u00d7 1e6 / (Aw \u00d7 Lw / 6)\n' +
+    'tau_tot = sqrt( tau_V\u00b2 + (sigma / sqrt(3))\u00b2 )\n' +
+    'tau_allow = 0.30 \u00d7 F_EXX        (AWS D1.1 / AISC 360)';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Fillet Weld Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Fillet Weld Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + rows(inRows) + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + rows(outRows) + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    esc(r.throatNote) + '\n' +
+    'Allowable stress is 0.30 \u00d7 F_EXX on the effective throat (AWS D1.1 / AISC 360).\n' +
+    'AWS D1.1 minimum leg size is a fabrication requirement and applies even where the\n' +
+    'strength check permits a smaller weld. Unequal-leg fillets require the throat to be\n' +
+    'derived from actual geometry rather than the 0.707 factor.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify against the governing design code</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['w-w', 'w-FEXX', 'w-Lw', 'w-M', 'w-V', 'w-N', 'w-gw', 'w-gh', 'w-e'], calcWeld);
+ready(function () { toggleGroup(); loadFromURL(); });
+</script>
+
+</body>
+</html>
