@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Bolt Torque Calculator — Preload, Stress &amp; Safety Factor | multicalci.com</title>
+<meta name="description" content="Free bolt torque calculator. Enter tightening torque, thread size and nut factor K to get bolt preload, tensile stress area, service stress, safety factor and thread strip torque. ISO metric threads, grades 4.6 to 12.9.">
+<link rel="canonical" href="https://www.multicalci.com/bolt-torque-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/bolt-torque-calculator">
+<meta property="og:title" content="Bolt Torque Calculator — Preload, Stress &amp; Safety Factor">
+<meta property="og:description" content="Convert tightening torque to bolt preload and check stress, safety factor and thread strip margin for ISO metric bolts.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Bolt Torque Calculator","description":"Converts bolt tightening torque to preload and reports tensile stress area, preload stress, service stress, safety factor and thread strip torque for ISO metric fasteners.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/bolt-torque-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Bolt Torque Calculator","item":"https://www.multicalci.com/bolt-torque-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is the nut factor K in the bolt torque formula?","acceptedAnswer":{"@type":"Answer","text":"K is an empirical coefficient that bundles thread friction, under-head friction and thread geometry into a single number. Typical values are 0.20 for dry as-received steel, 0.18 for lightly oiled, 0.15 for waxed or lubricated, 0.12 for PTFE coated and 0.10 for molybdenum disulphide. K is the largest source of scatter in torque control: a change from 0.20 to 0.15 raises preload by about 33 percent for the same applied torque."}},
+{"@type":"Question","name":"Why does the same torque give different preload on different bolts?","acceptedAnswer":{"@type":"Answer","text":"Preload depends on torque, nut factor and bolt diameter through Fi = T divided by K times d. Two bolts of the same size tightened to the same torque will reach different preloads if their surface condition differs, because K changes. Field scatter of plus or minus 25 to 30 percent on preload is normal with torque control alone. Angle control, bolt elongation measurement or ultrasonic methods give tighter control."}},
+{"@type":"Question","name":"What safety factor should a bolted joint have?","acceptedAnswer":{"@type":"Answer","text":"This calculator flags a joint as adequate when the safety factor against yield is at least 1.2 and the service stress stays below the yield strength. Many design codes target higher margins for fatigue loaded or safety critical joints. The safety factor here compares yield strength against the greater of the von Mises stress during tightening and the direct stress under preload plus external load."}},
+{"@type":"Question","name":"What is thread strip torque and why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Strip torque is the estimated torque at which the threads shear rather than the bolt stretching. The ratio of strip torque to applied torque should generally exceed 1.5 so that a bolt yields in tension before the threads fail, which is the safer and more detectable failure mode. A low ratio suggests insufficient thread engagement or a nut or tapped hole material weaker than the bolt."}},
+{"@type":"Question","name":"Does this calculator use the ISO tensile stress area?","acceptedAnswer":{"@type":"Answer","text":"Yes. The tensile stress area is computed from the pitch diameter and minor diameter of the ISO metric thread as At equals pi over four times the square of the mean of d2 and d3. For an M12 coarse thread this returns 84.27 square millimetres against the ISO 898 tabulated value of 84.3 square millimetres."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Bolt Torque Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">ISO 898-1 · VDI 2230 · ISO 68-1 metric thread</span>
+    <h1>Bolt Torque Calculator</h1>
+    <p class="lede">Convert tightening torque into bolt preload, then check preload stress, service
+    stress, safety factor against yield and thread strip margin. Covers ISO metric coarse threads
+    M6 to M30 in property classes 4.6 through 12.9 and stainless A2-70.</p>
+    <div class="stdref">
+      <span>ISO 898-1</span>
+      <span>ISO 68-1</span>
+      <span>VDI 2230</span>
+      <span>M6 – M30</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate bolt preload from torque</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">🔩</span>
+      <span class="card-hd-ttl">Bolt &amp; Joint Inputs</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="ft-size">Thread size</label>
+          <select id="ft-size" onchange="applyThread()">
+            <option value="M6">M6 × 1.0</option>
+            <option value="M8">M8 × 1.25</option>
+            <option value="M10">M10 × 1.5</option>
+            <option value="M12" selected>M12 × 1.75</option>
+            <option value="M16">M16 × 2.0</option>
+            <option value="M20">M20 × 2.5</option>
+            <option value="M24">M24 × 3.0</option>
+            <option value="M30">M30 × 3.5</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ft-d">Nominal diameter <span class="u">d, mm</span></label>
+          <input id="ft-d" type="number" step="0.1" value="12" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="ft-p">Thread pitch <span class="u">p, mm</span></label>
+          <input id="ft-p" type="number" step="0.05" value="1.75" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ft-grade">Property class</label>
+          <select id="ft-grade" onchange="applyGrade()">
+            <option value="4.6">4.6 — low carbon steel</option>
+            <option value="8.8" selected>8.8 — medium carbon, Q&amp;T</option>
+            <option value="10.9">10.9 — alloy steel, Q&amp;T</option>
+            <option value="12.9">12.9 — alloy steel, high strength</option>
+            <option value="A2-70">A2-70 — austenitic stainless</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ft-Sy">Yield strength <span class="u">Sy, MPa</span></label>
+          <input id="ft-Sy" type="number" step="1" value="660" inputmode="decimal">
+          <div class="hint">Set automatically by property class.</div>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="ft-T">Tightening torque <span class="u">T</span></label>
+          <input id="ft-T" type="number" step="0.5" value="80" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="ft-T-u">Torque unit</label>
+          <select id="ft-T-u">
+            <option value="Nm" selected>N·m</option>
+            <option value="lbft">lb·ft</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ft-Fa">External axial load <span class="u">Fa, kN</span></label>
+          <input id="ft-Fa" type="number" step="0.5" value="10" inputmode="decimal">
+          <div class="hint">Enter 0 for preload only.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ft-cond">Thread condition</label>
+          <select id="ft-cond" onchange="applyK()">
+            <option value="0.2" selected>Dry, as-received steel — K 0.20</option>
+            <option value="0.18">Lightly oiled — K 0.18</option>
+            <option value="0.15">Waxed or lubricated — K 0.15</option>
+            <option value="0.12">PTFE coated — K 0.12</option>
+            <option value="0.1">Molybdenum disulphide — K 0.10</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ft-K">Nut factor <span class="u">K</span></label>
+          <input id="ft-K" type="number" step="0.01" min="0.05" max="0.5" value="0.2" inputmode="decimal">
+          <div class="hint">Valid range 0.05 – 0.50. Override if you have measured data.</div>
+        </div>
+      </div>
+
+      <div id="ft-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="ft-btn" onclick="calcBoltTorque()">Calculate preload</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="ft-verdict"></div>
+  <div class="results" id="ft-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="ft-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Bolt torque formula</h2>
+
+  <p>Torque control relies on the short-form torque–preload relationship. The applied torque is
+  resisted by thread friction, under-head friction and the useful work of stretching the bolt.
+  Those three are bundled into the empirical nut factor <strong>K</strong>:</p>
+
+  <div class="fbox">
+<span class="ht">F<sub>i</sub></span> = T × 1000 / (<span class="ht">K</span> × <span class="ht">d</span>)      <span class="cm">— preload, N</span>
+
+<span class="ht">d<sub>2</sub></span> = d − 0.6495 × p              <span class="cm">— pitch diameter, mm</span>
+<span class="ht">d<sub>3</sub></span> = d − 1.2269 × p              <span class="cm">— minor diameter, mm</span>
+
+<span class="ht">A<sub>t</sub></span> = (π/4) × ((d<sub>2</sub> + d<sub>3</sub>) / 2)²      <span class="cm">— tensile stress area, mm²</span>
+
+<span class="ht">σ<sub>preload</sub></span> = F<sub>i</sub> / A<sub>t</sub>
+<span class="ht">σ<sub>service</sub></span> = (F<sub>i</sub> + F<sub>a</sub>) / A<sub>t</sub>
+
+<span class="hi">SF</span> = S<sub>y</sub> / max(σ<sub>vm,tight</sub> , σ<sub>service</sub>)
+<span class="hi">T<sub>strip</sub></span> = 0.18 × S<sub>y</sub> × A<sub>t</sub> × d / 1000   <span class="cm">— N·m</span>
+  </div>
+
+  <p class="legend">
+    <code>T</code> tightening torque (N·m) ·
+    <code>K</code> nut factor ·
+    <code>d</code> nominal diameter (mm) ·
+    <code>p</code> pitch (mm) ·
+    <code>F<sub>i</sub></code> preload (N) ·
+    <code>F<sub>a</sub></code> external axial load (N) ·
+    <code>A<sub>t</sub></code> tensile stress area (mm²) ·
+    <code>S<sub>y</sub></code> yield strength (MPa) ·
+    <code>SF</code> safety factor against yield
+  </p>
+
+  <div class="note">
+    <strong>On accuracy.</strong> The nut factor dominates the result. Torque control alone
+    typically delivers preload scatter of ±25–30&nbsp;%. Where preload matters — gasketed joints,
+    fatigue-loaded joints, structural connections — use angle control, bolt elongation
+    measurement or ultrasonic tensioning and treat this calculation as a starting estimate.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>An M12 property class 8.8 bolt is tightened dry to 80&nbsp;N·m and carries a 10&nbsp;kN
+  external axial service load.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Thread size</dt><dd>M12 × 1.75 coarse</dd>
+      <dt>Nominal diameter d</dt><dd>12 mm</dd>
+      <dt>Pitch p</dt><dd>1.75 mm</dd>
+      <dt>Property class</dt><dd>8.8 → S<sub>y</sub> = 660 MPa</dd>
+      <dt>Tightening torque T</dt><dd>80 N·m</dd>
+      <dt>Nut factor K</dt><dd>0.20 (dry, as-received)</dd>
+      <dt>External load F<sub>a</sub></dt><dd>10 kN</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — thread geometry</div>
+    <dl>
+      <dt>d<sub>2</sub> = 12 − 0.6495 × 1.75</dt><dd>10.863 mm</dd>
+      <dt>d<sub>3</sub> = 12 − 1.2269 × 1.75</dt><dd>9.853 mm</dd>
+      <dt>A<sub>t</sub> = (π/4)((10.863 + 9.853)/2)²</dt><dd>84.27 mm²</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — preload and stress</div>
+    <dl>
+      <dt>F<sub>i</sub> = 80 × 1000 / (0.20 × 12)</dt><dd>33 333 N = 33.33 kN</dd>
+      <dt>σ<sub>preload</sub> = 33 333 / 84.27</dt><dd>395.6 MPa</dd>
+      <dt>σ<sub>service</sub> = (33 333 + 10 000) / 84.27</dt><dd>514.2 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — margins</div>
+    <dl>
+      <dt>Safety factor = 660 / 514.2</dt><dd>1.283</dd>
+      <dt>Bolt utilisation</dt><dd>77.9 % of yield</dd>
+      <dt>Strip torque = 0.18 × 660 × 84.27 × 12 / 1000</dt><dd>120.1 N·m</dd>
+      <dt>Strip / applied ratio</dt><dd>1.50</dd>
+    </dl>
+
+    <div class="ans">Preload 33.33 kN · SF 1.283 · utilisation 77.9 % → joint adequate</div>
+  </div>
+
+  <p>The tensile stress area of 84.27&nbsp;mm² agrees with the 84.3&nbsp;mm² tabulated in
+  ISO&nbsp;898-1 for M12 coarse thread. The strip-to-applied torque ratio of 1.50 sits at the
+  lower edge of the usual 1.5 guideline, so thread engagement length and nut material should be
+  confirmed for this joint.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Tightening torque</td><td>T</td><td>N·m or lb·ft</td><td>&gt; 0</td></tr>
+        <tr><td>Nominal diameter</td><td>d</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Thread pitch</td><td>p</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Yield strength</td><td>S<sub>y</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Nut factor</td><td>K</td><td>dimensionless</td><td>0.05 – 0.50</td></tr>
+        <tr><td>External axial load</td><td>F<sub>a</sub></td><td>kN</td><td>≥ 0</td></tr>
+        <tr><td>Preload</td><td>F<sub>i</sub></td><td>kN</td><td>output</td></tr>
+        <tr><td>Tensile stress area</td><td>A<sub>t</sub></td><td>mm²</td><td>output</td></tr>
+        <tr><td>Strip torque</td><td>T<sub>strip</sub></td><td>N·m</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Torque entered in lb·ft is converted using 1&nbsp;lb·ft = 1.35582&nbsp;N·m before
+  calculation. All internal work is done in SI.</p>
+
+  <h3>Property class yield strengths</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Class</th><th>Sy (MPa)</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td>4.6</td><td>240</td><td>General low-duty steel fasteners</td></tr>
+        <tr class="hl"><td>8.8</td><td>660</td><td>Most common structural and machine bolt</td></tr>
+        <tr><td>10.9</td><td>940</td><td>High-strength alloy, preloaded joints</td></tr>
+        <tr><td>12.9</td><td>1100</td><td>Highest standard class, socket head screws</td></tr>
+        <tr><td>A2-70</td><td>450</td><td>Austenitic stainless, corrosion service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>What is the nut factor K in the bolt torque formula?</summary>
+      <div class="faq-a"><p>K is an empirical coefficient that bundles thread friction, under-head
+      friction and thread geometry into a single number. Typical values are 0.20 for dry
+      as-received steel, 0.18 for lightly oiled, 0.15 for waxed or lubricated, 0.12 for PTFE
+      coated and 0.10 for molybdenum disulphide. K is the largest source of scatter in torque
+      control: a change from 0.20 to 0.15 raises preload by about 33&nbsp;% for the same applied
+      torque.</p></div>
+    </details>
+
+    <details>
+      <summary>Why does the same torque give different preload on different bolts?</summary>
+      <div class="faq-a"><p>Preload depends on torque, nut factor and bolt diameter through
+      F<sub>i</sub> = T / (K·d). Two bolts of the same size tightened to the same torque will reach
+      different preloads if their surface condition differs, because K changes. Field scatter of
+      ±25–30&nbsp;% on preload is normal with torque control alone. Angle control, bolt elongation
+      measurement or ultrasonic methods give tighter control.</p></div>
+    </details>
+
+    <details>
+      <summary>What safety factor should a bolted joint have?</summary>
+      <div class="faq-a"><p>This calculator flags a joint as adequate when the safety factor
+      against yield is at least 1.2 and the service stress stays below the yield strength. Many
+      design codes target higher margins for fatigue-loaded or safety-critical joints. The safety
+      factor here compares yield strength against the greater of the von Mises stress during
+      tightening and the direct stress under preload plus external load.</p></div>
+    </details>
+
+    <details>
+      <summary>What is thread strip torque and why does it matter?</summary>
+      <div class="faq-a"><p>Strip torque is the estimated torque at which the threads shear rather
+      than the bolt stretching. The ratio of strip torque to applied torque should generally exceed
+      1.5 so that a bolt yields in tension before the threads fail, which is the safer and more
+      detectable failure mode. A low ratio suggests insufficient thread engagement or a nut or
+      tapped-hole material weaker than the bolt.</p></div>
+    </details>
+
+    <details>
+      <summary>Does this calculator use the ISO tensile stress area?</summary>
+      <div class="faq-a"><p>Yes. The tensile stress area is computed from the pitch diameter and
+      minor diameter of the ISO metric thread as A<sub>t</sub> = (π/4)·((d<sub>2</sub>+d<sub>3</sub>)/2)².
+      For an M12 coarse thread this returns 84.27&nbsp;mm² against the ISO 898-1 tabulated value of
+      84.3&nbsp;mm².</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/mechanical-engineering-calculators#s_boltflange">Bolt &amp; Flange Calculator
+      <span class="d">ASME flange bolt-up and gasket seating</span></a>
+    <a href="/mechanical-engineering-calculators#s_weld">Weld Size Calculator
+      <span class="d">Fillet and groove weld strength, AWS D1.1</span></a>
+    <a href="/mechanical-engineering-calculators#s_shaft">Shaft Design Calculator
+      <span class="d">Torsion, bending and combined loading</span></a>
+    <a href="/mechanical-engineering-calculators#s_spring">Spring Calculator
+      <span class="d">Compression spring rate and stress</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. Verify against the governing design
+    code and manufacturer data before construction or procurement.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+/* Thread data — nominal diameter and coarse pitch, ISO 68-1.
+   Copied verbatim from the mechanical hub's setThreadData(). */
+var THREADS = {
+  M6:  { d: 6,  p: 1.0  },
+  M8:  { d: 8,  p: 1.25 },
+  M10: { d: 10, p: 1.5  },
+  M12: { d: 12, p: 1.75 },
+  M16: { d: 16, p: 2.0  },
+  M20: { d: 20, p: 2.5  },
+  M24: { d: 24, p: 3.0  },
+  M30: { d: 30, p: 3.5  }
+};
+
+/* Property class yield strengths — mirrors MECH_MAT.fastener server-side.
+   The backend overrides Sy from gradeKey, so this only keeps the visible
+   field in step with the selection. */
+var GRADES = { '4.6': 240, '8.8': 660, '10.9': 940, '12.9': 1100, 'A2-70': 450 };
+
+function applyThread() {
+  var t = THREADS[gs('ft-size')];
+  if (!t) return;
+  $('ft-d').value = t.d;
+  $('ft-p').value = t.p;
+}
+
+function applyGrade() {
+  var sy = GRADES[gs('ft-grade')];
+  if (sy) $('ft-Sy').value = sy;
+}
+
+function applyK() {
+  var k = gs('ft-cond');
+  if (k) $('ft-K').value = k;
+}
+
+async function calcBoltTorque() {
+  var btn = $('ft-btn');
+
+  var v = validate([
+    { id: 'ft-d',  label: 'Nominal diameter', required: true, gt: 0 },
+    { id: 'ft-p',  label: 'Thread pitch',     required: true, gt: 0 },
+    { id: 'ft-Sy', label: 'Yield strength',   required: true, gt: 0 },
+    { id: 'ft-T',  label: 'Tightening torque',required: true, gt: 0 },
+    { id: 'ft-K',  label: 'Nut factor',       required: true, gte: 0.05, lte: 0.5 },
+    { id: 'ft-Fa', label: 'External axial load', gte: 0 }
+  ]);
+  showValidation('ft-validation', v);
+  if (!v.ok) {
+    set('ft-verdict', '');
+    clearResults('ft-results', 'Correct the highlighted inputs and calculate again.');
+    set('ft-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('ft-results');
+  set('ft-verdict', '');
+  set('ft-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('fastener', {
+      d:        gv('ft-d'),
+      p:        gv('ft-p'),
+      Sy:       gv('ft-Sy'),
+      T:        gv('ft-T'),
+      Tu:       gs('ft-T-u'),
+      K:        gv('ft-K'),
+      Fa_kN:    gvOr('ft-Fa', 0),
+      gradeKey: gs('ft-grade')
+    });
+
+    set('ft-verdict',
+      '<div class="note" style="' +
+      (r.ok ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (r.ok ? 'Joint adequate' : 'Joint not adequate') + '</strong> — ' +
+      (r.ok
+        ? 'Bolt utilisation ' + r.util + ' % of yield. Applied torque is ' +
+          MC.fN(r.T / r.T_strip_Nm * 100, 0) + ' % of estimated strip torque.'
+        : (r.sigma_service > r.Sy
+            ? 'Bolt yields under combined preload and service load. Reduce the load or move up a property class.'
+            : 'Safety factor is below 1.2. Reduce torque, increase bolt size or move up a property class.')) +
+      '</div>');
+
+    renderResults('ft-results', [
+      { label: 'Preload Fi',           value: MC.fN(r.Fi_kN, 2),         unit: 'kN',  tone: 'main', big: true },
+      { label: 'Safety factor',        value: MC.fN(r.sf, 3),            unit: '',    tone: r.sf >= 1.2 ? 'grn' : 'red', big: true },
+      { label: 'Tensile stress area',  value: MC.fN(r.At, 2),            unit: 'mm²' },
+      { label: 'Bolt utilisation',     value: MC.fN(r.util, 1),          unit: '%',   tone: r.util > 100 ? 'red' : (r.util > 80 ? 'amb' : 'grn') },
+      { label: 'Preload stress',       value: MC.fN(r.sigma_preload, 1), unit: 'MPa', tone: r.sigma_preload > r.Sy ? 'red' : '' },
+      { label: 'Service stress',       value: MC.fN(r.sigma_service, 1), unit: 'MPa', tone: r.sigma_service > r.Sy ? 'red' : '' },
+      { label: 'Yield strength Sy',    value: MC.fN(r.Sy, 0),            unit: 'MPa', tone: 'blu' },
+      { label: 'Strip torque (est.)',  value: MC.fN(r.T_strip_Nm, 1),    unit: 'N·m', tone: 'amb' },
+      { label: 'Pitch diameter d₂',    value: MC.fN(r.d2, 3),            unit: 'mm' },
+      { label: 'Minor diameter d₃',    value: MC.fN(r.d3, 3),            unit: 'mm' }
+    ]);
+
+    set('ft-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Input summary</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Thread size</td><td>' + esc(gs('ft-size')) + ' (p = ' + r.p + ' mm)</td></tr>' +
+      '<tr><td>Tightening torque</td><td>' + r.T + ' N·m</td></tr>' +
+      '<tr><td>External load Fa</td><td>' + r.Fa_kN + ' kN</td></tr>' +
+      '<tr><td>Property class</td><td>' + esc(r.gradeKey) + '</td></tr>' +
+      '<tr><td>Nut factor K</td><td>' + r.K + '</td></tr>' +
+      '<tr class="hl"><td>Strip torque / applied</td><td>' + r.T_strip_ratio + ' — 1.5 or higher recommended</td></tr>' +
+      '</tbody></table></div>');
+
+  } catch (err) {
+    set('ft-verdict', '');
+    MC.showError('ft-results', err);
+    set('ft-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+enterToCalc(['ft-d', 'ft-p', 'ft-Sy', 'ft-T', 'ft-K', 'ft-Fa'], calcBoltTorque);
+</script>
+
+</body>
+</html>
