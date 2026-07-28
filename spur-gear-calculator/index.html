@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Spur Gear Calculator — Ratio, Torque &amp; Lewis Bending Stress | multicalci.com</title>
+<meta name="description" content="Free spur gear calculator. Enter module, tooth counts, face width, speed and power to get gear ratio, pitch diameters, centre distance, tangential force, pitch line velocity and AGMA-corrected Lewis bending stress with safety factor.">
+<link rel="canonical" href="https://www.multicalci.com/spur-gear-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/spur-gear-calculator">
+<meta property="og:title" content="Spur Gear Calculator — Ratio, Torque &amp; Lewis Bending Stress">
+<meta property="og:description" content="Gear ratio, pitch diameters, centre distance, tangential load and AGMA bending stress for spur gear pairs.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Spur Gear Calculator","description":"Calculates gear ratio, pitch diameters, centre distance, output speed, torque, tangential force, pitch line velocity and AGMA-corrected Lewis bending stress with safety factor for spur gear pairs.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/spur-gear-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Spur Gear Calculator","item":"https://www.multicalci.com/spur-gear-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is module in gear design?","acceptedAnswer":{"@type":"Answer","text":"Module is the pitch diameter divided by the number of teeth, in millimetres, and it sets the physical size of the teeth. A module 4 gear with 20 teeth has a pitch diameter of 80 millimetres. Two gears can only mesh if they share the same module and the same pressure angle. Module is the metric equivalent of diametral pitch, which is teeth per inch of pitch diameter."}},
+{"@type":"Question","name":"How is gear ratio calculated?","acceptedAnswer":{"@type":"Answer","text":"Gear ratio is the number of teeth on the driven gear divided by the number on the driving gear. A 20 tooth pinion driving a 60 tooth gear gives a ratio of 3 to 1, so output speed is one third of input speed and output torque is three times input torque before losses. Because module is common to both gears, the ratio of pitch diameters equals the ratio of tooth counts."}},
+{"@type":"Question","name":"What is the Lewis form factor?","acceptedAnswer":{"@type":"Answer","text":"The Lewis form factor Y accounts for tooth shape when treating a gear tooth as a cantilever beam in bending. It increases with tooth count because teeth on larger gears are less curved and therefore stronger in bending. Values run from about 0.245 at 12 teeth to 0.480 at 400 teeth. The weaker of the two gears governs, so the calculation uses the smaller of the two form factors."}},
+{"@type":"Question","name":"What do the AGMA factors Kv, Ks and Km mean?","acceptedAnswer":{"@type":"Answer","text":"These correct the basic Lewis stress for real operating conditions. Kv is the dynamic factor, which grows with pitch line velocity and accounts for tooth impact from manufacturing error. Ks is the size factor, which penalises large teeth for their lower material strength. Km is the load distribution factor, which accounts for load concentrating at one end of the face when the gear is wide relative to its diameter or the shafts deflect."}},
+{"@type":"Question","name":"How wide should a gear face be?","acceptedAnswer":{"@type":"Answer","text":"Common AGMA practice puts face width between 8 and 16 times the module, with 9 to 14 times module a typical target. Narrower than 8 times module makes the teeth unnecessarily highly stressed for the space used. Wider than 16 times module means load cannot be distributed evenly across the face because shaft and housing deflection concentrate it at one end, which shows up as a rising load distribution factor."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Spur Gear Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">Lewis bending · AGMA Kv · Ks · Km correction</span>
+    <h1>Spur Gear Calculator</h1>
+    <p class="lede">Gear ratio, pitch diameters, centre distance, output speed and torque for a
+    spur gear pair — plus tangential load, pitch line velocity and AGMA-corrected Lewis bending
+    stress with safety factor against the material allowable.</p>
+    <div class="stdref">
+      <span>Lewis equation</span>
+      <span>AGMA Kv · Ks · Km</span>
+      <span>20° full-depth</span>
+      <span>Face width 8m – 16m</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate a spur gear pair</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">⚙</span>
+      <span class="card-hd-ttl">Geometry, Speed &amp; Power</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="g-m">Module <span class="u">m, mm</span></label>
+          <input id="g-m" type="number" step="0.5" value="4" inputmode="decimal" onchange="updateFaceHint()">
+        </div>
+        <div class="field">
+          <label for="g-z1">Pinion teeth <span class="u">z<sub>1</sub></span></label>
+          <input id="g-z1" type="number" step="1" min="6" value="20" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="g-z2">Gear teeth <span class="u">z<sub>2</sub></span></label>
+          <input id="g-z2" type="number" step="1" min="6" value="60" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="g-F">Face width <span class="u">F, mm</span></label>
+          <input id="g-F" type="number" step="1" value="40" inputmode="decimal">
+          <div class="hint" id="g-face-hint">AGMA range 32 – 64 mm for this module.</div>
+        </div>
+        <div class="field">
+          <label for="g-mat">Gear material</label>
+          <select id="g-mat" onchange="applyMaterial()">
+            <option value="steel-ht" selected>Steel, hardened — 200 MPa</option>
+            <option value="steel-soft">Steel, soft — 83 MPa</option>
+            <option value="ci">Cast iron — 50 MPa</option>
+            <option value="bronze">Bronze — 40 MPa</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="g-Sall">Allowable stress <span class="u">S<sub>all</sub>, MPa</span></label>
+          <input id="g-Sall" type="number" step="1" value="200" inputmode="decimal">
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="g-n1">Pinion speed <span class="u">n<sub>1</sub>, rpm</span></label>
+          <input id="g-n1" type="number" step="10" value="1450" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="g-P">Transmitted power <span class="u">P</span></label>
+          <input id="g-P" type="number" step="0.5" value="15" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="g-P-u">Power unit</label>
+          <select id="g-P-u">
+            <option value="kW" selected>kW</option>
+            <option value="hp">hp</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="g-eta">Mesh efficiency <span class="u">η</span></label>
+          <input id="g-eta" type="number" step="0.01" min="0.5" max="1" value="0.97" inputmode="decimal">
+          <div class="hint">0.96 below 5 m/s · 0.97 to 15 m/s · 0.98 above.</div>
+        </div>
+      </div>
+
+      <div id="g-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="g-btn" onclick="calcGear()">Calculate gear pair</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="g-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="g-share" onclick="shareCase()">Share this calculation</button>
+        <span id="g-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="g-verdict"></div>
+  <div class="results" id="g-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="g-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Spur gear formulas</h2>
+
+  <p>Geometry follows directly from module and tooth count. Strength is checked with the
+  <strong>Lewis equation</strong>, which treats a tooth as a cantilever beam, then corrected by
+  the AGMA velocity, size and load-distribution factors to reflect real running conditions.</p>
+
+  <div class="fbox">
+<span class="cm">— Geometry —</span>
+<span class="ht">d</span> = m × z                     <span class="cm">— pitch diameter, mm</span>
+<span class="ht">a</span> = (d₁ + d₂) / 2              <span class="cm">— centre distance, mm</span>
+<span class="ht">i</span> = z₂ / z₁                    <span class="cm">— gear ratio</span>
+<span class="ht">n₂</span> = n₁ / i                    <span class="cm">— output speed, rpm</span>
+
+<span class="cm">— Loads —</span>
+<span class="ht">T₁</span> = P × 1000 / (2π·n₁/60)     <span class="cm">— pinion torque, N·m</span>
+<span class="ht">T₂</span> = T₁ × i × η                <span class="cm">— output torque, N·m</span>
+<span class="ht">W<sub>t</sub></span> = 2·T₁ × 1000 / d₁          <span class="cm">— tangential force, N</span>
+<span class="ht">V<sub>p</sub></span> = π·d₁·n₁ / 60000           <span class="cm">— pitch line velocity, m/s</span>
+
+<span class="cm">— Bending strength —</span>
+<span class="ht">σ<sub>Lewis</sub></span> = W<sub>t</sub> / (F × m × Y<sub>min</sub>)
+<span class="hi">σ<sub>AGMA</sub></span>  = σ<sub>Lewis</sub> × K<sub>v</sub> × K<sub>s</sub> × K<sub>m</sub>
+<span class="hi">SF</span> = S<sub>all</sub> / σ<sub>AGMA</sub>
+  </div>
+
+  <p class="legend">
+    <code>m</code> module (mm) ·
+    <code>z</code> tooth count ·
+    <code>F</code> face width (mm) ·
+    <code>Y</code> Lewis form factor ·
+    <code>K<sub>v</sub></code> dynamic factor ·
+    <code>K<sub>s</sub></code> size factor ·
+    <code>K<sub>m</sub></code> load distribution factor ·
+    <code>S<sub>all</sub></code> allowable bending stress (MPa)
+  </p>
+
+  <div class="note">
+    <strong>The weaker gear governs.</strong> Bending stress uses the smaller of the two Lewis
+    form factors, which is almost always the pinion — fewer teeth means a more curved, more
+    slender tooth root. Checking only the larger gear will overstate the pair's capacity.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A module 4 spur pair, 20-tooth pinion driving a 60-tooth gear, 40 mm face width, transmitting
+  15 kW at 1450 rpm through hardened steel gears.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Module m</dt><dd>4 mm</dd>
+      <dt>Teeth z<sub>1</sub> / z<sub>2</sub></dt><dd>20 / 60</dd>
+      <dt>Face width F</dt><dd>40 mm (within 8m = 32 to 16m = 64)</dd>
+      <dt>Speed n<sub>1</sub></dt><dd>1450 rpm</dd>
+      <dt>Power P</dt><dd>15 kW, η = 0.97</dd>
+      <dt>Material</dt><dd>Hardened steel — S<sub>all</sub> = 200 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — geometry</div>
+    <dl>
+      <dt>d<sub>1</sub> = 4 × 20</dt><dd>80 mm</dd>
+      <dt>d<sub>2</sub> = 4 × 60</dt><dd>240 mm</dd>
+      <dt>a = (80 + 240) / 2</dt><dd>160 mm</dd>
+      <dt>i = 60 / 20</dt><dd>3.000</dd>
+      <dt>n<sub>2</sub> = 1450 / 3</dt><dd>483.3 rpm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — loads</div>
+    <dl>
+      <dt>T<sub>1</sub> = 15 000 / (2π × 1450/60)</dt><dd>98.79 N·m</dd>
+      <dt>W<sub>t</sub> = 2 × 98.79 × 1000 / 80</dt><dd>2 469.6 N</dd>
+      <dt>V<sub>p</sub> = π × 80 × 1450 / 60 000</dt><dd>6.07 m/s</dd>
+      <dt>T<sub>2</sub> = 98.79 × 3 × 0.97</dt><dd>287.47 N·m</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — bending stress</div>
+    <dl>
+      <dt>Y<sub>min</sub> (z = 20)</dt><dd>0.322</dd>
+      <dt>σ<sub>Lewis</sub> = 2469.6 / (40 × 4 × 0.322)</dt><dd>47.94 MPa</dd>
+      <dt>K<sub>v</sub> · K<sub>s</sub> · K<sub>m</sub></dt><dd>1.503 × 1.308 × 1.037</dd>
+      <dt>σ<sub>AGMA</sub></dt><dd>97.69 MPa</dd>
+      <dt>SF = 200 / 97.69</dt><dd>2.047</dd>
+    </dl>
+
+    <div class="ans">σ<sub>AGMA</sub> 97.69 MPa · SF 2.047 · V<sub>p</sub> 6.07 m/s → design acceptable</div>
+  </div>
+
+  <p>The AGMA correction factors nearly double the basic Lewis stress here — from 47.94 to
+  97.69 MPa. Most of that comes from the dynamic factor at 6 m/s pitch line velocity. Ignoring the
+  correction factors would suggest a safety factor of 4.2 rather than the realistic 2.05.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Module</td><td>m</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Tooth count</td><td>z</td><td>—</td><td>≥ 6 each gear</td></tr>
+        <tr><td>Face width</td><td>F</td><td>mm</td><td>≥ 8 × m</td></tr>
+        <tr><td>Pinion speed</td><td>n<sub>1</sub></td><td>rpm</td><td>&gt; 0</td></tr>
+        <tr><td>Power</td><td>P</td><td>kW or hp</td><td>&gt; 0</td></tr>
+        <tr><td>Mesh efficiency</td><td>η</td><td>—</td><td>0.5 – 1.0</td></tr>
+        <tr><td>Allowable stress</td><td>S<sub>all</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Pitch line velocity</td><td>V<sub>p</sub></td><td>m/s</td><td>output, flagged above 25</td></tr>
+        <tr><td>Bending stress</td><td>σ<sub>AGMA</sub></td><td>MPa</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Power in horsepower is converted at 1 hp = 0.7457 kW. Face width below 8 × module is rejected
+  as an AGMA violation; above 16 × module produces a warning because load cannot be distributed
+  evenly across the face.</p>
+
+  <h3>Lewis form factor Y — 20° full-depth teeth</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Teeth z</th><th>Y</th><th>Teeth z</th><th>Y</th></tr></thead>
+      <tbody>
+        <tr><td>12</td><td>0.245</td><td>30</td><td>0.359</td></tr>
+        <tr><td>14</td><td>0.277</td><td>38</td><td>0.384</td></tr>
+        <tr><td>16</td><td>0.296</td><td>50</td><td>0.409</td></tr>
+        <tr><td>18</td><td>0.309</td><td>60</td><td>0.422</td></tr>
+        <tr class="hl"><td>20</td><td>0.322</td><td>100</td><td>0.447</td></tr>
+        <tr><td>24</td><td>0.337</td><td>300</td><td>0.472</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Allowable bending stress by material</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Material</th><th>S<sub>all</sub> (MPa)</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Steel, hardened</td><td>200</td><td>Industrial drives, gearboxes</td></tr>
+        <tr><td>Steel, soft</td><td>83</td><td>Light duty, low-cost machined gears</td></tr>
+        <tr><td>Cast iron</td><td>50</td><td>Slow-speed machinery, good damping</td></tr>
+        <tr><td>Bronze</td><td>40</td><td>Worm wheels, corrosion service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>What is module in gear design?</summary>
+      <div class="faq-a"><p>Module is the pitch diameter divided by the number of teeth, in
+      millimetres, and it sets the physical size of the teeth. A module 4 gear with 20 teeth has a
+      pitch diameter of 80 mm. Two gears can only mesh if they share the same module and the same
+      pressure angle. Module is the metric equivalent of diametral pitch, which is teeth per inch
+      of pitch diameter.</p></div>
+    </details>
+
+    <details>
+      <summary>How is gear ratio calculated?</summary>
+      <div class="faq-a"><p>Gear ratio is the number of teeth on the driven gear divided by the
+      number on the driving gear. A 20-tooth pinion driving a 60-tooth gear gives a ratio of 3:1,
+      so output speed is one third of input speed and output torque is three times input torque
+      before losses. Because module is common to both gears, the ratio of pitch diameters equals
+      the ratio of tooth counts.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the Lewis form factor?</summary>
+      <div class="faq-a"><p>The Lewis form factor Y accounts for tooth shape when treating a gear
+      tooth as a cantilever beam in bending. It increases with tooth count because teeth on larger
+      gears are less curved and therefore stronger in bending. Values run from about 0.245 at
+      12 teeth to 0.480 at 400 teeth. The weaker of the two gears governs, so the calculation uses
+      the smaller of the two form factors.</p></div>
+    </details>
+
+    <details>
+      <summary>What do the AGMA factors Kv, Ks and Km mean?</summary>
+      <div class="faq-a"><p>These correct the basic Lewis stress for real operating conditions.
+      K<sub>v</sub> is the dynamic factor, which grows with pitch line velocity and accounts for
+      tooth impact from manufacturing error. K<sub>s</sub> is the size factor, which penalises
+      large teeth for their lower material strength. K<sub>m</sub> is the load distribution factor,
+      which accounts for load concentrating at one end of the face when the gear is wide relative
+      to its diameter or the shafts deflect.</p></div>
+    </details>
+
+    <details>
+      <summary>How wide should a gear face be?</summary>
+      <div class="faq-a"><p>Common AGMA practice puts face width between 8 and 16 times the module,
+      with 9 to 14 times module a typical target. Narrower than 8 × m makes the teeth unnecessarily
+      highly stressed for the space used. Wider than 16 × m means load cannot be distributed evenly
+      across the face because shaft and housing deflection concentrate it at one end, which shows
+      up as a rising load distribution factor.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection for 7 load cases</span></a>
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+    <a href="/fillet-weld-size-calculator">Fillet Weld Size Calculator
+      <span class="d">Throat, combined stress and utilisation</span></a>
+    <a href="/mechanical-engineering-calculators#s_shaft">Shaft Design Calculator
+      <span class="d">Torsion, bending and combined loading</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. Bending strength alone does not
+    size a gear — surface durability (pitting), scuffing, lubrication and heat treatment must also
+    be checked to a full AGMA or ISO 6336 procedure.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.gear server-side. The backend overrides Sall from
+   materialKey, so this only keeps the visible field in step. */
+var MATS = { 'steel-ht': 200, 'steel-soft': 83, 'ci': 50, 'bronze': 40 };
+
+function applyMaterial() {
+  var s = MATS[gs('g-mat')];
+  if (s) $('g-Sall').value = s;
+}
+
+/* The backend rejects F < 8m outright and warns above 16m. Show the window
+   so the user does not have to discover it through an error. */
+function updateFaceHint() {
+  var m = gv('g-m');
+  var el = $('g-face-hint');
+  if (!el) return;
+  if (isNaN(m) || m <= 0) { el.textContent = 'Enter a module to see the AGMA face width range.'; return; }
+  el.textContent = 'AGMA range ' + MC.fN(8 * m, 0) + ' – ' + MC.fN(16 * m, 0) + ' mm for this module.';
+}
+
+async function calcGear() {
+  var btn = $('g-btn');
+
+  var v = validate([
+    { id: 'g-m',    label: 'Module',            required: true, gt: 0 },
+    { id: 'g-z1',   label: 'Pinion teeth',      required: true, gte: 6 },
+    { id: 'g-z2',   label: 'Gear teeth',        required: true, gte: 6 },
+    { id: 'g-F',    label: 'Face width',        required: true, gt: 0 },
+    { id: 'g-n1',   label: 'Pinion speed',      required: true, gt: 0 },
+    { id: 'g-P',    label: 'Power',             required: true, gt: 0 },
+    { id: 'g-eta',  label: 'Mesh efficiency',   required: true, gte: 0.5, lte: 1 },
+    { id: 'g-Sall', label: 'Allowable stress',  required: true, gt: 0 }
+  ]);
+
+  // Mirror the backend's AGMA face-width floor so the user gets a field-level
+  // message instead of a server error.
+  var m = gv('g-m'), F = gv('g-F');
+  if (v.ok && !isNaN(m) && !isNaN(F) && F < 8 * m) {
+    v.ok = false;
+    v.errors.push({ id: 'g-F', msg: 'Face width must be at least 8 × module = ' + MC.fN(8 * m, 0) + ' mm (AGMA)' });
+  }
+
+  showValidation('g-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('g-pdf').disabled = true;
+    set('g-verdict', '');
+    clearResults('g-results', 'Correct the highlighted inputs and calculate again.');
+    set('g-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('g-results');
+  set('g-verdict', '');
+  set('g-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('gear', {
+      m:           gv('g-m'),
+      z1:          gv('g-z1'),
+      z2:          gv('g-z2'),
+      F:           gv('g-F'),
+      n1:          gv('g-n1'),
+      P:           gv('g-P'),
+      P_u:         gs('g-P-u'),
+      eta:         gv('g-eta'),
+      materialKey: gs('g-mat'),
+      Sall:        gv('g-Sall')
+    });
+
+    LAST = { r: r, matLabel: $('g-mat').selectedOptions[0].textContent,
+             m: gs('g-m'), z1: gs('g-z1'), z2: gs('g-z2'), F: gs('g-F'),
+             n1: gs('g-n1'), P_in: gs('g-P') + ' ' + gs('g-P-u'),
+             eta: gs('g-eta'), at: new Date() };
+    $('g-pdf').disabled = false;
+
+    var reason = r.sf <= 1.5
+        ? 'Bending safety factor is below the 1.5 minimum. Increase face width or module, or use a stronger material.'
+      : r.Vp >= 25
+        ? 'Pitch line velocity exceeds 25 m/s. High-speed gearing needs a full AGMA or ISO 6336 assessment including scuffing.'
+        : 'Safety factor ' + MC.fN(r.sf, 2) + ' on bending, pitch line velocity ' + MC.fN(r.Vp, 2) + ' m/s.';
+
+    set('g-verdict',
+      '<div class="note" style="' +
+      (r.ok ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (r.ok ? 'Design acceptable' : 'Design not acceptable') + '</strong> — ' + reason +
+      '</div>');
+
+    renderResults('g-results', [
+      { label: 'Gear ratio',        value: MC.fN(r.i, 3),        unit: ': 1', tone: 'main', big: true,
+        sub: 'Output ' + MC.fN(r.n2, 1) + ' rpm' },
+      { label: 'Bending safety factor', value: MC.fN(r.sf, 3),   unit: '',
+        tone: r.sf > 1.5 ? 'grn' : 'red', big: true,
+        sub: 'σ ' + MC.fN(r.sigma_agma, 2) + ' vs ' + MC.fN(r.Sall, 0) + ' MPa' },
+      { label: 'Pitch dia — pinion', value: MC.fN(r.d1, 1),      unit: 'mm' },
+      { label: 'Pitch dia — gear',   value: MC.fN(r.d2, 1),      unit: 'mm' },
+      { label: 'Centre distance',    value: MC.fN(r.a, 1),       unit: 'mm', tone: 'blu' },
+      { label: 'Tangential force Wt', value: MC.fN(r.Wt, 1),     unit: 'N' },
+      { label: 'Pinion torque T1',   value: MC.fN(r.T1_Nm, 2),   unit: 'N·m' },
+      { label: 'Output torque T2',   value: MC.fN(r.T2_Nm, 2),   unit: 'N·m' },
+      { label: 'Pitch line velocity', value: MC.fN(r.Vp, 2),     unit: 'm/s',
+        tone: r.Vp >= 25 ? 'red' : (r.Vp > 15 ? 'amb' : 'grn') },
+      { label: 'AGMA bending stress', value: MC.fN(r.sigma_agma, 2), unit: 'MPa',
+        tone: r.sigma_agma > r.Sall ? 'red' : '' }
+    ]);
+
+    set('g-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Module × teeth</td><td>m ' + LAST.m + ' · z₁ ' + LAST.z1 + ' · z₂ ' + LAST.z2 + '</td></tr>' +
+      '<tr><td>Face width</td><td>' + LAST.F + ' mm  (8m = ' + MC.fN(8 * gv('g-m'), 0) +
+        ', 16m = ' + MC.fN(16 * gv('g-m'), 0) + ')</td></tr>' +
+      '<tr><td>Material</td><td>' + esc(LAST.matLabel) + '</td></tr>' +
+      '<tr><td>Lewis form factor Y₁ / Y₂</td><td>' + MC.fN(r.Y1, 4) + ' / ' + MC.fN(r.Y2, 4) + '</td></tr>' +
+      '<tr><td>Basic Lewis stress</td><td>' + MC.fN(r.sigma_lewis, 2) + ' MPa</td></tr>' +
+      '<tr><td>Dynamic factor Kv</td><td>' + MC.fN(r.Kv, 3) + '</td></tr>' +
+      '<tr><td>Size factor Ks</td><td>' + MC.fN(r.Ks, 3) + '</td></tr>' +
+      '<tr><td>Load distribution Km</td><td>' + MC.fN(r.Km, 3) + '</td></tr>' +
+      '<tr><td>Power in / out</td><td>' + MC.fN(r.P_kW, 2) + ' / ' + MC.fN(r.P_out_kW, 2) + ' kW</td></tr>' +
+      '<tr class="hl"><td>Corrected AGMA stress</td><td>' + MC.fN(r.sigma_agma, 2) + ' MPa</td></tr>' +
+      '</tbody></table></div>' +
+      (r.faceWidthWarn
+        ? '<div class="note"><strong>Face width.</strong> ' + esc(r.faceWidthWarn) + '</div>' : '') +
+      (Math.abs(r.eta_recommended - gv('g-eta')) > 0.005
+        ? '<div class="note"><strong>Efficiency.</strong> At ' + MC.fN(r.Vp, 2) +
+          ' m/s a mesh efficiency of ' + r.eta_recommended + ' is more typical than the ' +
+          LAST.eta + ' entered.</div>' : ''));
+
+  } catch (err) {
+    LAST = null;
+    $('g-pdf').disabled = true;
+    set('g-verdict', '');
+    MC.showError('g-results', err);
+    set('g-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { m:'g-m', z1:'g-z1', z2:'g-z2', F:'g-F', mat:'g-mat', Sall:'g-Sall',
+               n1:'g-n1', P:'g-P', Pu:'g-P-u', eta:'g-eta' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  updateFaceHint();
+  calcGear();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Spur Gear Calculator — multicalci.com';
+  var text = LAST
+    ? 'm' + LAST.m + ' ' + LAST.z1 + '/' + LAST.z2 + 'T \u2192 ratio ' +
+      MC.fN(LAST.r.i, 2) + ':1, SF ' + MC.fN(LAST.r.sf, 2)
+    : 'Spur gear ratio, torque and bending stress calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('g-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Module m',            LAST.m + ' mm'],
+    ['Teeth z1 / z2',       LAST.z1 + ' / ' + LAST.z2],
+    ['Face width F',        LAST.F + ' mm'],
+    ['Pinion speed n1',     LAST.n1 + ' rpm'],
+    ['Transmitted power',   esc(LAST.P_in) + '  (' + MC.fN(r.P_kW, 2) + ' kW)'],
+    ['Mesh efficiency',     LAST.eta],
+    ['Material',            esc(LAST.matLabel)],
+    ['Allowable stress',    MC.fN(r.Sall, 0) + ' MPa']
+  ]);
+
+  var outRows = rows([
+    ['Gear ratio',            MC.fN(r.i, 3) + ' : 1', true],
+    ['Output speed n2',       MC.fN(r.n2, 1) + ' rpm'],
+    ['Pitch diameter d1',     MC.fN(r.d1, 1) + ' mm'],
+    ['Pitch diameter d2',     MC.fN(r.d2, 1) + ' mm'],
+    ['Centre distance a',     MC.fN(r.a, 1) + ' mm', true],
+    ['Pinion torque T1',      MC.fN(r.T1_Nm, 2) + ' N\u00b7m'],
+    ['Output torque T2',      MC.fN(r.T2_Nm, 2) + ' N\u00b7m'],
+    ['Tangential force Wt',   MC.fN(r.Wt, 1) + ' N'],
+    ['Pitch line velocity',   MC.fN(r.Vp, 2) + ' m/s'],
+    ['Lewis Y1 / Y2',         MC.fN(r.Y1, 4) + ' / ' + MC.fN(r.Y2, 4)],
+    ['Basic Lewis stress',    MC.fN(r.sigma_lewis, 2) + ' MPa'],
+    ['Kv / Ks / Km',          MC.fN(r.Kv, 3) + ' / ' + MC.fN(r.Ks, 3) + ' / ' + MC.fN(r.Km, 3)],
+    ['AGMA bending stress',   MC.fN(r.sigma_agma, 2) + ' MPa', true],
+    ['Bending safety factor', MC.fN(r.sf, 3), true],
+    ['Power in / out',        MC.fN(r.P_kW, 2) + ' / ' + MC.fN(r.P_out_kW, 2) + ' kW']
+  ]);
+
+  var verdict = r.ok
+    ? 'ACCEPTABLE \u2014 bending safety factor ' + MC.fN(r.sf, 2) + ', pitch line velocity ' +
+      MC.fN(r.Vp, 2) + ' m/s.'
+    : 'NOT ACCEPTABLE \u2014 ' + (r.sf <= 1.5
+        ? 'bending safety factor ' + MC.fN(r.sf, 2) + ' is below the 1.5 minimum.'
+        : 'pitch line velocity ' + MC.fN(r.Vp, 2) + ' m/s exceeds 25 m/s.');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (r.ok ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'd = m x z          a = (d1 + d2) / 2          i = z2 / z1\n' +
+    'T1 = P x 1000 / (2*pi*n1/60)        Wt = 2 x T1 x 1000 / d1\n' +
+    'Vp = pi x d1 x n1 / 60000\n' +
+    'sigma_Lewis = Wt / (F x m x Ymin)\n' +
+    'sigma_AGMA  = sigma_Lewis x Kv x Ks x Km\n' +
+    'SF = Sall / sigma_AGMA';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Spur Gear Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Spur Gear Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'Lewis bending with AGMA velocity, size and load-distribution correction.\n' +
+    '20 degree full-depth involute teeth assumed. The weaker gear governs.\n' +
+    (r.faceWidthWarn ? esc(r.faceWidthWarn) + '\n' : '') +
+    'NOT checked: surface durability and pitting, scuffing and scoring, lubrication\n' +
+    'and thermal rating, bearing and shaft loads, backlash, tooth profile modification,\n' +
+    'and dynamic or resonance behaviour. Bending strength alone does not size a gear.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify to a full AGMA or ISO 6336 procedure</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['g-m', 'g-z1', 'g-z2', 'g-F', 'g-n1', 'g-P', 'g-eta', 'g-Sall'], calcGear);
+ready(function () { updateFaceHint(); loadFromURL(); });
+</script>
+
+</body>
+</html>
