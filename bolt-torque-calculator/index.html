@@ -172,6 +172,12 @@
         <button class="btn-calc" id="ft-btn" onclick="calcBoltTorque()">Calculate preload</button>
       </div>
 
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="ft-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="ft-share" onclick="shareCase()">Share this calculation</button>
+        <span id="ft-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
     </div>
   </div>
 
@@ -409,6 +415,8 @@ var THREADS = {
 /* Property class yield strengths — mirrors MECH_MAT.fastener server-side.
    The backend overrides Sy from gradeKey, so this only keeps the visible
    field in step with the selection. */
+var LAST = null;
+
 var GRADES = { '4.6': 240, '8.8': 660, '10.9': 940, '12.9': 1100, 'A2-70': 450 };
 
 function applyThread() {
@@ -441,6 +449,8 @@ async function calcBoltTorque() {
   ]);
   showValidation('ft-validation', v);
   if (!v.ok) {
+    LAST = null;
+    $('ft-pdf').disabled = true;
     set('ft-verdict', '');
     clearResults('ft-results', 'Correct the highlighted inputs and calculate again.');
     set('ft-summary', '');
@@ -490,6 +500,10 @@ async function calcBoltTorque() {
       { label: 'Minor diameter d₃',    value: MC.fN(r.d3, 3),            unit: 'mm' }
     ]);
 
+    LAST = { r: r, size: gs('ft-size'), grade: gs('ft-grade'), Tu: gs('ft-T-u'),
+             cond: $('ft-cond').selectedOptions[0].textContent, at: new Date() };
+    $('ft-pdf').disabled = false;
+
     set('ft-summary',
       '<div class="tbl-wrap"><table class="tbl">' +
       '<thead><tr><th>Input summary</th><th>Value</th></tr></thead><tbody>' +
@@ -502,6 +516,8 @@ async function calcBoltTorque() {
       '</tbody></table></div>');
 
   } catch (err) {
+    LAST = null;
+    $('ft-pdf').disabled = true;
     set('ft-verdict', '');
     MC.showError('ft-results', err);
     set('ft-summary', '');
@@ -510,7 +526,175 @@ async function calcBoltTorque() {
   }
 }
 
+
+/* ══════════════════════════════
+   SHAREABLE CASE  —  prefill from ?d=..&p=..&grade=..
+   The canonical stays pointed at the clean URL, so parameter
+   variants do not create duplicate indexable pages.
+══════════════════════════════ */
+var FIELDS = { size:'ft-size', d:'ft-d', p:'ft-p', grade:'ft-grade',
+               Sy:'ft-Sy', T:'ft-T', Tu:'ft-T-u', K:'ft-K', Fa:'ft-Fa' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (![].concat.apply([], [Object.keys(FIELDS)]).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  calcBoltTorque();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Bolt Torque Calculator — multicalci.com';
+  var text = LAST
+    ? gs('ft-size') + ' class ' + gs('ft-grade') + ' at ' + LAST.r.T +
+      ' N\u00b7m \u2192 preload ' + MC.fN(LAST.r.Fi_kN, 2) + ' kN, SF ' + MC.fN(LAST.r.sf, 3)
+    : 'Bolt preload, stress and safety factor calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('ft-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+   Opens a print-ready document and calls the browser's print
+   dialog, where "Save as PDF" produces the file. Matches the
+   export pattern already used by the discipline hubs — no
+   external library.
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inputRows = rows([
+    ['Thread size',            esc(LAST.size) + ' \u00d7 ' + r.p + ' mm'],
+    ['Nominal diameter d',     MC.fN(gv('ft-d'), 2) + ' mm'],
+    ['Thread pitch p',         r.p + ' mm'],
+    ['Property class',         esc(r.gradeKey)],
+    ['Yield strength Sy',      MC.fN(r.Sy, 0) + ' MPa'],
+    ['Tightening torque T',    r.T + ' N\u00b7m' + (LAST.Tu === 'lbft' ? ' (entered as lb\u00b7ft)' : '')],
+    ['Thread condition',       esc(LAST.cond)],
+    ['Nut factor K',           r.K],
+    ['External axial load Fa', r.Fa_kN + ' kN']
+  ]);
+
+  var resultRows = rows([
+    ['Preload Fi',            MC.fN(r.Fi_kN, 3) + ' kN', true],
+    ['Tensile stress area At', MC.fN(r.At, 2) + ' mm\u00b2'],
+    ['Pitch diameter d\u2082', MC.fN(r.d2, 3) + ' mm'],
+    ['Minor diameter d\u2083', MC.fN(r.d3, 3) + ' mm'],
+    ['Preload stress',        MC.fN(r.sigma_preload, 1) + ' MPa'],
+    ['Service stress',        MC.fN(r.sigma_service, 1) + ' MPa'],
+    ['Safety factor',         MC.fN(r.sf, 3), true],
+    ['Bolt utilisation',      MC.fN(r.util, 1) + ' %', true],
+    ['Strip torque (est.)',   MC.fN(r.T_strip_Nm, 1) + ' N\u00b7m'],
+    ['Strip / applied ratio', r.T_strip_ratio]
+  ]);
+
+  var verdict = r.ok
+    ? 'ADEQUATE \u2014 safety factor ' + MC.fN(r.sf, 3) + ', utilisation ' + MC.fN(r.util, 1) + ' % of yield.'
+    : 'NOT ADEQUATE \u2014 ' + (r.sigma_service > r.Sy
+        ? 'bolt yields under combined preload and service load.'
+        : 'safety factor is below 1.2.');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (r.ok ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'Fi = T \u00d7 1000 / (K \u00d7 d)\n' +
+    'd\u2082 = d \u2212 0.6495 \u00d7 p          d\u2083 = d \u2212 1.2269 \u00d7 p\n' +
+    'At = (\u03c0/4) \u00d7 ((d\u2082 + d\u2083) / 2)\u00b2\n' +
+    '\u03c3preload = Fi / At          \u03c3service = (Fi + Fa) / At\n' +
+    'SF = Sy / max(\u03c3vm,tight , \u03c3service)\n' +
+    'Tstrip = 0.18 \u00d7 Sy \u00d7 At \u00d7 d / 1000';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Bolt Torque Report ' + esc(LAST.size) + ' class ' + esc(r.gradeKey) + ' \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Bolt Torque Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inputRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + resultRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'ISO 898-1 property classes \u00b7 ISO 68-1 metric coarse thread \u00b7 VDI 2230 short-form torque method.\n' +
+    'Nut factor K is empirical and dominates the result. Torque control alone typically gives\n' +
+    'preload scatter of \u00b125\u201330 %. For gasketed, fatigue-loaded or safety-critical joints use\n' +
+    'angle control, bolt elongation measurement or ultrasonic tensioning.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify against the governing design code</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
 enterToCalc(['ft-d', 'ft-p', 'ft-Sy', 'ft-T', 'ft-K', 'ft-Fa'], calcBoltTorque);
+ready(loadFromURL);
 </script>
 
 </body>
