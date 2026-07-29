@@ -296,7 +296,7 @@ footer{text-align:center;padding:24px 16px;color:var(--text-3);font-size:.8rem;b
 .etab:hover{border-color:var(--blue);color:var(--blue)}
 .etab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .edu-tab-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
-.edu-panel{}.edu-panel.active{display:block}
+.edu-panel{display:none}.edu-panel.active{display:block}
 .edu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:16px}
 .edu-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
 .edu-card-hd{padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,var(--blue-lt),#f0f5ff)}
@@ -1158,16 +1158,16 @@ function goHome() {
 }
 
 function eduTab(name, btn) {
-  document.querySelectorAll('#page-edu .edu-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#page-edu .edu-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = '';          // clear any stale inline display
+  });
   document.querySelectorAll('#page-edu .etab').forEach(b => b.classList.remove('active'));
   const p = document.getElementById('ep_' + name);
-  if (p) p.classList.add('active');
+  if (p) { p.classList.add('active'); p.style.display = ''; }
   if (btn) btn.classList.add('active');
   if (name === 'quiz' && !mechQuizBuilt) buildMechQuiz();
 }
-document.querySelectorAll('.edu-panel').forEach(function(p){
-  if(!p.classList.contains('active')) p.style.display='none';
-});
 /* ── Quiz Engine ──────────────────────────────────── */
 let mechQuizBuilt = false, mechQuizAnswers = {};
 
