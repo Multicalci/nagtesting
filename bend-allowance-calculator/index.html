@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Bend Allowance Calculator — K-Factor, Flat Pattern &amp; Springback | multicalci.com</title>
+<meta name="description" content="Free sheet metal bend allowance calculator. Enter thickness, bend radius, angle and K-factor to get bend allowance, bend deduction, flat pattern length, springback and overbend angle, with minimum bend radius checks for steel, stainless, aluminium and copper.">
+<link rel="canonical" href="https://www.multicalci.com/bend-allowance-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/bend-allowance-calculator">
+<meta property="og:title" content="Bend Allowance Calculator — K-Factor, Flat Pattern &amp; Springback">
+<meta property="og:description" content="Bend allowance, bend deduction, flat pattern length and springback for sheet metal forming.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Bend Allowance Calculator","description":"Calculates sheet metal bend allowance, bend deduction, flat pattern length, springback angle, overbend angle and minimum bend radius from thickness, inside radius, bend angle and K-factor.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/bend-allowance-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Bend Allowance Calculator","item":"https://www.multicalci.com/bend-allowance-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is bend allowance?","acceptedAnswer":{"@type":"Answer","text":"Bend allowance is the arc length of the neutral axis through a bend. When sheet metal is bent the outside stretches and the inside compresses, and somewhere between them a layer neither stretches nor compresses. That neutral layer keeps its original length, so its arc length is the amount of material consumed by the bend. Adding bend allowance to the flat leg lengths gives the blank size needed."}},
+{"@type":"Question","name":"What is the K-factor in sheet metal bending?","acceptedAnswer":{"@type":"Answer","text":"The K-factor is the position of the neutral axis expressed as a fraction of material thickness measured from the inside surface. A K-factor of 0.44 means the neutral axis sits 44 percent of the way through the thickness. It is always less than 0.5 because the neutral axis shifts toward the inside of the bend. Typical values are 0.44 for mild steel and stainless and about 0.40 for aluminium, though the true value depends on tooling, radius to thickness ratio and forming method."}},
+{"@type":"Question","name":"What is the difference between bend allowance and bend deduction?","acceptedAnswer":{"@type":"Answer","text":"They are two ways of reaching the same blank size from different measurements. Bend allowance is added to leg lengths measured from the bend tangent lines. Bend deduction is subtracted from leg lengths measured to the outside mould line, which is where the two flat faces would meet if extended. Using the wrong one with the wrong measurement is the most common cause of an incorrect flat pattern."}},
+{"@type":"Question","name":"How much springback should I expect?","acceptedAnswer":{"@type":"Answer","text":"Springback grows with the ratio of yield strength to elastic modulus and with the bend radius to thickness ratio. Mild steel at a tight radius may spring back well under one degree, while aluminium at the same geometry springs back roughly twice as much because its elastic modulus is about one third that of steel. The tool must overbend by the springback amount so the part relaxes to the intended angle."}},
+{"@type":"Question","name":"What is the minimum bend radius?","acceptedAnswer":{"@type":"Answer","text":"Minimum inside bend radius is the tightest radius a material tolerates before the outer surface cracks, and it scales with thickness. Common guidance is 0.5 times thickness for mild steel and galvanised sheet, 1.0 times thickness for stainless 304 and copper, and 4.0 times thickness for aluminium 6061. Bending across the grain direction allows tighter radii than bending along it."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Bend Allowance Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">Neutral axis method · K-factor · springback compensation</span>
+    <h1>Bend Allowance Calculator</h1>
+    <p class="lede">Bend allowance, bend deduction and flat pattern length for sheet metal, plus
+    springback angle, the overbend needed to compensate for it, and a minimum bend radius check
+    against the material.</p>
+    <div class="stdref">
+      <span>K-factor method</span>
+      <span>Bend deduction</span>
+      <span>Springback</span>
+      <span>Min bend radius</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate bend allowance and flat pattern</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">📐</span>
+      <span class="card-hd-ttl">Material &amp; Bend Geometry</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="sm-mat">Material</label>
+          <select id="sm-mat" onchange="applyMaterial()">
+            <option value="ms" selected>Mild steel — K 0.44, R<sub>min</sub> 0.5t</option>
+            <option value="ss304">Stainless 304 — K 0.44, R<sub>min</sub> 1.0t</option>
+            <option value="alum">Aluminium 6061 — K 0.40, R<sub>min</sub> 4.0t</option>
+            <option value="copper">Copper — K 0.44, R<sub>min</sub> 1.0t</option>
+            <option value="galv">Galvanised — K 0.44, R<sub>min</sub> 0.5t</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sm-K">K-factor</label>
+          <input id="sm-K" type="number" step="0.01" min="0.1" max="0.5" value="0.44" inputmode="decimal">
+          <div class="hint">Set by material. Override with a measured value if you have one.</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="sm-t">Sheet thickness <span class="u">t</span></label>
+          <input id="sm-t" type="number" step="0.1" value="2" inputmode="decimal" onchange="updateRminHint()">
+        </div>
+        <div class="field">
+          <label for="sm-t-u">Thickness unit</label>
+          <select id="sm-t-u" onchange="updateRminHint()">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sm-R">Inside bend radius <span class="u">R, mm</span></label>
+          <input id="sm-R" type="number" step="0.5" value="3" inputmode="decimal">
+          <div class="hint" id="sm-rmin-hint">Minimum 1.0 mm for this material and thickness.</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="sm-theta">Bend angle <span class="u">θ, degrees</span></label>
+          <input id="sm-theta" type="number" step="1" min="1" max="180" value="90" inputmode="decimal">
+          <div class="hint">Angle through which the sheet turns, not the included angle.</div>
+        </div>
+        <div class="field">
+          <label for="sm-A">Leg A <span class="u">mm</span></label>
+          <input id="sm-A" type="number" step="1" value="50" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sm-B">Leg B <span class="u">mm</span></label>
+          <input id="sm-B" type="number" step="1" value="50" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="note" style="margin:4px 0 14px;font-size:.83rem">
+        <strong>Measure legs from the tangent lines.</strong> A and B are the flat lengths from
+        each edge to where the bend starts — not to the outside corner. Flat pattern is then
+        A + B + bend allowance.
+      </div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="sm-Sy">Yield strength <span class="u">S<sub>y</sub>, MPa</span></label>
+          <input id="sm-Sy" type="number" step="5" value="250" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sm-E">Young's modulus <span class="u">E, GPa</span></label>
+          <input id="sm-E" type="number" step="1" value="200" inputmode="decimal">
+        </div>
+      </div>
+
+      <div id="sm-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="sm-btn" onclick="calcBend()">Calculate bend allowance</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="sm-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="sm-share" onclick="shareCase()">Share this calculation</button>
+        <span id="sm-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sm-verdict"></div>
+  <div class="results" id="sm-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="sm-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Bend allowance formulas</h2>
+
+  <p>When sheet is bent, the outer surface stretches and the inner compresses. Between them lies
+  the <strong>neutral axis</strong>, which keeps its original length. Its arc through the bend is
+  the bend allowance — the material the bend consumes.</p>
+
+  <div class="fbox">
+<span class="ht">BA</span> = (π/180) × θ × (R + K·t)        <span class="cm">— bend allowance, mm</span>
+<span class="ht">BD</span> = 2(R + t)·tan(θ/2) − BA         <span class="cm">— bend deduction, mm</span>
+
+<span class="hi">Flat</span> = A + B + BA                    <span class="cm">— legs measured from tangent lines</span>
+<span class="cm">    (equivalently A′ + B′ − BD, with legs to the outside mould line)</span>
+
+<span class="cm">— Springback —</span>
+<span class="ht">K<sub>f</sub></span> = S<sub>y</sub> · R / (E · t)
+<span class="ht">θ<sub>final</sub></span> = θ × (1 − 3K<sub>f</sub> + 4K<sub>f</sub>³)
+<span class="hi">springback</span> = θ − θ<sub>final</sub>
+<span class="hi">overbend</span>   = θ + springback         <span class="cm">— set the tool to this angle</span>
+
+<span class="cm">— Formability —</span>
+<span class="hi">R<sub>min</sub></span> = factor × t                <span class="cm">— 0.5t steel · 1.0t SS/Cu · 4.0t aluminium</span>
+  </div>
+
+  <p class="legend">
+    <code>t</code> sheet thickness (mm) ·
+    <code>R</code> inside bend radius (mm) ·
+    <code>θ</code> bend angle (degrees) ·
+    <code>K</code> K-factor ·
+    <code>A</code>, <code>B</code> flat leg lengths (mm) ·
+    <code>S<sub>y</sub></code> yield strength (MPa) ·
+    <code>E</code> Young's modulus (GPa)
+  </p>
+
+  <div class="note">
+    <strong>The most common flat-pattern error.</strong> Bend allowance and bend deduction are not
+    interchangeable — each belongs with a different way of measuring the legs. Add BA to legs
+    measured from the tangent lines; subtract BD from legs measured to the outside corner. Mixing
+    them produces a blank wrong by roughly BA + BD, about 10 mm on the example below.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A 2 mm mild steel bracket bent 90° over a 3 mm inside radius, with 50 mm flat legs each side.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Material</dt><dd>Mild steel — K = 0.44, S<sub>y</sub> = 250 MPa, E = 200 GPa</dd>
+      <dt>Thickness t</dt><dd>2 mm</dd>
+      <dt>Inside radius R</dt><dd>3 mm</dd>
+      <dt>Bend angle θ</dt><dd>90°</dd>
+      <dt>Legs A / B</dt><dd>50 mm / 50 mm (from tangent lines)</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — neutral axis and bend allowance</div>
+    <dl>
+      <dt>Neutral axis offset = K·t = 0.44 × 2</dt><dd>0.88 mm</dd>
+      <dt>Neutral arc radius = R + K·t = 3 + 0.88</dt><dd>3.88 mm</dd>
+      <dt>BA = (π/180) × 90 × 3.88</dt><dd>6.095 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — deduction and blank size</div>
+    <dl>
+      <dt>BD = 2 × (3 + 2) × tan 45° − 6.095</dt><dd>3.905 mm</dd>
+      <dt>Flat = 50 + 50 + 6.095</dt><dd>106.095 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — springback</div>
+    <dl>
+      <dt>K<sub>f</sub> = 250 × 3 / (200 000 × 2)</dt><dd>0.001875</dd>
+      <dt>θ<sub>final</sub> = 90 × (1 − 0.005625 + …)</dt><dd>89.49°</dd>
+      <dt>Springback</dt><dd>0.51°</dd>
+      <dt>Overbend target</dt><dd>90.5°</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 4 — formability</div>
+    <dl>
+      <dt>R<sub>min</sub> = 0.5 × 2</dt><dd>1.0 mm — 3 mm radius is well clear</dd>
+    </dl>
+
+    <div class="ans">Blank 106.095 mm · BA 6.095 · BD 3.905 · overbend to 90.5° → bend acceptable</div>
+  </div>
+
+  <p>Cut the blank at 106.1 mm and set the press brake to 90.5° so the part relaxes to 90°. The
+  same geometry in aluminium 6061 would need a 8 mm minimum radius — the 3 mm radius here would
+  crack it — and would spring back about 1.12°, roughly twice as much, because aluminium's elastic
+  modulus is about a third of steel's.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Sheet thickness</td><td>t</td><td>mm or in</td><td>&gt; 0</td></tr>
+        <tr><td>Inside bend radius</td><td>R</td><td>mm</td><td>≥ 0</td></tr>
+        <tr><td>Bend angle</td><td>θ</td><td>degrees</td><td>&gt; 0, typically ≤ 180</td></tr>
+        <tr><td>K-factor</td><td>K</td><td>—</td><td>0.1 – 0.5</td></tr>
+        <tr><td>Leg lengths</td><td>A, B</td><td>mm</td><td>≥ 0</td></tr>
+        <tr><td>Yield strength</td><td>S<sub>y</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Young's modulus</td><td>E</td><td>GPa</td><td>&gt; 0</td></tr>
+        <tr><td>Bend allowance</td><td>BA</td><td>mm</td><td>output</td></tr>
+        <tr><td>Springback</td><td>—</td><td>degrees</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Thickness in inches is converted at 25.4 mm. Radius and leg lengths are always in millimetres.
+  Note that E is entered in <strong>GPa</strong>, not MPa.</p>
+
+  <h3>Material properties and minimum bend radius</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Material</th><th>K</th><th>S<sub>y</sub> (MPa)</th><th>E (GPa)</th><th>R<sub>min</sub></th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Mild steel</td><td>0.44</td><td>250</td><td>200</td><td>0.5 t</td></tr>
+        <tr><td>Stainless 304</td><td>0.44</td><td>310</td><td>193</td><td>1.0 t</td></tr>
+        <tr><td>Aluminium 6061</td><td>0.40</td><td>193</td><td>70</td><td>4.0 t</td></tr>
+        <tr><td>Copper</td><td>0.44</td><td>210</td><td>117</td><td>1.0 t</td></tr>
+        <tr><td>Galvanised</td><td>0.44</td><td>280</td><td>200</td><td>0.5 t</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>K-factor is not a constant.</strong> The tabulated values are reasonable defaults for
+    air bending at moderate R/t. The true neutral axis position shifts with radius-to-thickness
+    ratio, tooling and forming method — bottoming and coining push it higher than air bending. For
+    production work, back-calculate K from a test bend and use that.
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>What is bend allowance?</summary>
+      <div class="faq-a"><p>Bend allowance is the arc length of the neutral axis through a bend.
+      When sheet metal is bent the outside stretches and the inside compresses, and somewhere
+      between them a layer neither stretches nor compresses. That neutral layer keeps its original
+      length, so its arc length is the amount of material consumed by the bend. Adding bend
+      allowance to the flat leg lengths gives the blank size needed.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the K-factor in sheet metal bending?</summary>
+      <div class="faq-a"><p>The K-factor is the position of the neutral axis expressed as a
+      fraction of material thickness measured from the inside surface. A K-factor of 0.44 means
+      the neutral axis sits 44 % of the way through the thickness. It is always less than 0.5
+      because the neutral axis shifts toward the inside of the bend. Typical values are 0.44 for
+      mild steel and stainless and about 0.40 for aluminium, though the true value depends on
+      tooling, radius-to-thickness ratio and forming method.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the difference between bend allowance and bend deduction?</summary>
+      <div class="faq-a"><p>They are two ways of reaching the same blank size from different
+      measurements. Bend allowance is <em>added</em> to leg lengths measured from the bend tangent
+      lines. Bend deduction is <em>subtracted</em> from leg lengths measured to the outside mould
+      line, which is where the two flat faces would meet if extended. Using the wrong one with the
+      wrong measurement is the most common cause of an incorrect flat pattern.</p></div>
+    </details>
+
+    <details>
+      <summary>How much springback should I expect?</summary>
+      <div class="faq-a"><p>Springback grows with the ratio of yield strength to elastic modulus
+      and with the bend radius to thickness ratio. Mild steel at a tight radius may spring back
+      well under one degree, while aluminium at the same geometry springs back roughly twice as
+      much because its elastic modulus is about one third that of steel. The tool must overbend by
+      the springback amount so the part relaxes to the intended angle.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the minimum bend radius?</summary>
+      <div class="faq-a"><p>Minimum inside bend radius is the tightest radius a material tolerates
+      before the outer surface cracks, and it scales with thickness. Common guidance is 0.5 × t for
+      mild steel and galvanised sheet, 1.0 × t for stainless 304 and copper, and 4.0 × t for
+      aluminium 6061. Bending across the grain direction allows tighter radii than bending along
+      it.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/spur-gear-calculator">Spur Gear Calculator
+      <span class="d">Ratio, torque and AGMA bending stress</span></a>
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection for 7 load cases</span></a>
+    <a href="/fillet-weld-size-calculator">Fillet Weld Size Calculator
+      <span class="d">Throat, combined stress and utilisation</span></a>
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. K-factor and springback vary with
+    tooling, grain direction and forming method — verify against a test bend before committing to
+    production tooling.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.sheet server-side. The backend overrides K, Sy and E from
+   materialKey, so this only keeps the visible fields in step. */
+var MATS = {
+  ms:     { K: 0.44, Sy: 250, E: 200, Rmin: 0.5 },
+  ss304:  { K: 0.44, Sy: 310, E: 193, Rmin: 1.0 },
+  alum:   { K: 0.40, Sy: 193, E: 70,  Rmin: 4.0 },
+  copper: { K: 0.44, Sy: 210, E: 117, Rmin: 1.0 },
+  galv:   { K: 0.44, Sy: 280, E: 200, Rmin: 0.5 }
+};
+
+function applyMaterial() {
+  var m = MATS[gs('sm-mat')];
+  if (!m) return;
+  $('sm-K').value  = m.K;
+  $('sm-Sy').value = m.Sy;
+  $('sm-E').value  = m.E;
+  updateRminHint();
+}
+
+/* Thickness may be entered in inches; the minimum-radius rule is in mm. */
+function thicknessMm() {
+  var t = gv('sm-t');
+  return gs('sm-t-u') === 'in' ? t * 25.4 : t;
+}
+
+function updateRminHint() {
+  var el = $('sm-rmin-hint');
+  if (!el) return;
+  var m = MATS[gs('sm-mat')];
+  var t = thicknessMm();
+  if (!m || isNaN(t) || t <= 0) { el.textContent = 'Enter a thickness to see the minimum radius.'; return; }
+  el.textContent = 'Minimum ' + MC.fN(m.Rmin * t, 2) + ' mm for this material and thickness.';
+}
+
+async function calcBend() {
+  var btn = $('sm-btn');
+
+  var v = validate([
+    { id: 'sm-t',     label: 'Sheet thickness',  required: true, gt: 0 },
+    { id: 'sm-R',     label: 'Inside bend radius', required: true, gte: 0 },
+    { id: 'sm-theta', label: 'Bend angle',       required: true, gt: 0, lte: 180 },
+    { id: 'sm-K',     label: 'K-factor',         required: true, gte: 0.1, lte: 0.5 },
+    { id: 'sm-A',     label: 'Leg A',            required: true, gte: 0 },
+    { id: 'sm-B',     label: 'Leg B',            required: true, gte: 0 },
+    { id: 'sm-Sy',    label: 'Yield strength',   required: true, gt: 0 },
+    { id: 'sm-E',     label: "Young's modulus",  required: true, gt: 0 }
+  ]);
+  showValidation('sm-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('sm-pdf').disabled = true;
+    set('sm-verdict', '');
+    clearResults('sm-results', 'Correct the highlighted inputs and calculate again.');
+    set('sm-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('sm-results');
+  set('sm-verdict', '');
+  set('sm-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('sheet-metal', {
+      t:           gv('sm-t'),
+      t_u:         gs('sm-t-u'),
+      K:           gv('sm-K'),
+      theta:       gv('sm-theta'),
+      R:           gv('sm-R'),
+      A:           gv('sm-A'),
+      B:           gv('sm-B'),
+      Sy:          gv('sm-Sy'),
+      E:           gv('sm-E'),
+      materialKey: gs('sm-mat')
+    });
+
+    LAST = { r: r, matLabel: $('sm-mat').selectedOptions[0].textContent.split('—')[0].trim(),
+             t_in: gs('sm-t') + ' ' + gs('sm-t-u'), at: new Date() };
+    $('sm-pdf').disabled = false;
+
+    var reason = !r.bendOk
+        ? 'Inside radius ' + MC.fN(r.R, 2) + ' mm is below the ' + MC.fN(r.Rmin, 2) +
+          ' mm minimum (' + esc(r.Rmin_note) + '). The outer surface is likely to crack.'
+      : r.Kf_warn
+        ? 'Springback factor is high at this radius-to-thickness ratio — verify the overbend angle on a test piece.'
+        : 'Blank length ' + MC.fN(r.TotalFlat, 2) + ' mm, overbend to ' + MC.fN(r.overbend, 1) + '°.';
+
+    set('sm-verdict',
+      '<div class="note" style="' +
+      (r.bendOk ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+                : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (r.bendOk ? 'Bend acceptable' : 'Bend radius too tight') + '</strong> — ' + reason +
+      '</div>');
+
+    renderResults('sm-results', [
+      { label: 'Flat pattern length', value: MC.fN(r.TotalFlat, 3), unit: 'mm',
+        tone: 'main', big: true, sub: 'A + B + bend allowance' },
+      { label: 'Bend allowance BA',   value: MC.fN(r.BA, 3),        unit: 'mm',
+        tone: 'grn', big: true },
+      { label: 'Bend deduction BD',   value: MC.fN(r.BD, 3),        unit: 'mm' },
+      { label: 'Neutral axis radius', value: MC.fN(r.arc_R, 3),     unit: 'mm',
+        sub: 'R + K·t = ' + MC.fN(r.R, 2) + ' + ' + MC.fN(r.neutral_mm, 3) },
+      { label: 'Springback',          value: MC.fN(r.springback, 2), unit: '°', tone: 'amb' },
+      { label: 'Overbend target',     value: MC.fN(r.overbend, 1),   unit: '°', tone: 'amb',
+        sub: 'Set the tool to this angle' },
+      { label: 'Minimum bend radius', value: MC.fN(r.Rmin, 2),       unit: 'mm',
+        tone: r.bendOk ? 'blu' : 'red', sub: esc(r.Rmin_note) },
+      { label: 'Springback factor Kf', value: MC.fN(r.Kf, 4),        unit: '',
+        tone: r.Kf_warn ? 'amb' : '' }
+    ]);
+
+    set('sm-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Material</td><td>' + esc(LAST.matLabel) + '</td></tr>' +
+      '<tr><td>Thickness</td><td>' + esc(LAST.t_in) + '  (' + MC.fN(r.t, 3) + ' mm)</td></tr>' +
+      '<tr><td>Inside radius / angle</td><td>' + MC.fN(r.R, 2) + ' mm at ' + MC.fN(r.theta, 1) + '°</td></tr>' +
+      '<tr><td>K-factor</td><td>' + MC.fN(r.K, 3) + '  (neutral axis ' + MC.fN(r.neutral_mm, 3) + ' mm from inside)</td></tr>' +
+      '<tr><td>Legs A / B</td><td>' + MC.fN(r.A, 1) + ' / ' + MC.fN(r.B, 1) + ' mm from tangent lines</td></tr>' +
+      '<tr><td>Yield / modulus</td><td>' + MC.fN(r.Sy, 0) + ' MPa / ' + MC.fN(r.E, 0) + ' GPa</td></tr>' +
+      '<tr><td>R / t ratio</td><td>' + MC.fN(r.R / r.t, 2) + '</td></tr>' +
+      '<tr class="hl"><td>Cut blank at</td><td>' + MC.fN(r.TotalFlat, 2) + ' mm</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="note" style="font-size:.84rem"><strong>Alternative measurement.</strong> ' +
+      'If your legs are measured to the outside mould line instead, use ' +
+      'A′ + B′ − ' + MC.fN(r.BD, 3) + ' mm rather than adding the bend allowance.</div>');
+
+  } catch (err) {
+    LAST = null;
+    $('sm-pdf').disabled = true;
+    set('sm-verdict', '');
+    MC.showError('sm-results', err);
+    set('sm-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { mat:'sm-mat', K:'sm-K', t:'sm-t', tu:'sm-t-u', R:'sm-R',
+               theta:'sm-theta', A:'sm-A', B:'sm-B', Sy:'sm-Sy', E:'sm-E' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  updateRminHint();
+  calcBend();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Bend Allowance Calculator — multicalci.com';
+  var text = LAST
+    ? gs('sm-t') + ' mm at ' + gs('sm-theta') + '\u00b0, R' + gs('sm-R') + ' \u2192 BA ' +
+      MC.fN(LAST.r.BA, 3) + ' mm, blank ' + MC.fN(LAST.r.TotalFlat, 2) + ' mm'
+    : 'Sheet metal bend allowance and flat pattern calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('sm-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Material',            esc(LAST.matLabel)],
+    ['Thickness t',         esc(LAST.t_in) + '  (' + MC.fN(r.t, 3) + ' mm)'],
+    ['Inside bend radius R', MC.fN(r.R, 2) + ' mm'],
+    ['Bend angle',          MC.fN(r.theta, 1) + ' deg'],
+    ['K-factor',            MC.fN(r.K, 3)],
+    ['Leg A / Leg B',       MC.fN(r.A, 1) + ' / ' + MC.fN(r.B, 1) + ' mm (from tangent lines)'],
+    ['Yield strength Sy',   MC.fN(r.Sy, 0) + ' MPa'],
+    ["Young's modulus E",   MC.fN(r.E, 0) + ' GPa']
+  ]);
+
+  var outRows = rows([
+    ['Bend allowance BA',    MC.fN(r.BA, 3) + ' mm', true],
+    ['Bend deduction BD',    MC.fN(r.BD, 3) + ' mm'],
+    ['Flat pattern length',  MC.fN(r.TotalFlat, 3) + ' mm', true],
+    ['Neutral axis offset',  MC.fN(r.neutral_mm, 3) + ' mm from inside'],
+    ['Neutral arc radius',   MC.fN(r.arc_R, 3) + ' mm'],
+    ['R / t ratio',          MC.fN(r.R / r.t, 2)],
+    ['Springback factor Kf', MC.fN(r.Kf, 4)],
+    ['Springback',           MC.fN(r.springback, 2) + ' deg', true],
+    ['Overbend target',      MC.fN(r.overbend, 1) + ' deg', true],
+    ['Minimum bend radius',  MC.fN(r.Rmin, 2) + ' mm  (' + esc(r.Rmin_note) + ')']
+  ]);
+
+  var verdict = r.bendOk
+    ? 'ACCEPTABLE \u2014 cut blank at ' + MC.fN(r.TotalFlat, 2) + ' mm, overbend to ' +
+      MC.fN(r.overbend, 1) + ' deg.'
+    : 'BEND RADIUS TOO TIGHT \u2014 inside radius ' + MC.fN(r.R, 2) + ' mm is below the ' +
+      MC.fN(r.Rmin, 2) + ' mm minimum for this material.';
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (r.bendOk ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'BA = (pi/180) x theta x (R + K x t)\n' +
+    'BD = 2(R + t) x tan(theta/2) - BA\n' +
+    'Flat = A + B + BA        (legs measured from the bend tangent lines)\n' +
+    'Kf = Sy x R / (E x t)\n' +
+    'theta_final = theta x (1 - 3Kf + 4Kf^3)\n' +
+    'springback = theta - theta_final          overbend = theta + springback';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Bend Allowance Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Sheet Metal Bend Allowance Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'Neutral-axis (K-factor) method. Legs are measured from the bend tangent lines,\n' +
+    'so the flat pattern is A + B + BA. If legs are measured to the outside mould\n' +
+    'line instead, use A + B - BD = A + B - ' + MC.fN(r.BD, 3) + ' mm.\n' +
+    'K-factor and springback vary with tooling, grain direction, radius-to-thickness\n' +
+    'ratio and forming method (air bending vs bottoming vs coining). Verify against\n' +
+    'a test bend before committing production tooling.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 confirm with a test bend</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['sm-t', 'sm-R', 'sm-theta', 'sm-K', 'sm-A', 'sm-B', 'sm-Sy', 'sm-E'], calcBend);
+ready(function () { updateRminHint(); loadFromURL(); });
+</script>
+
+</body>
+</html>
