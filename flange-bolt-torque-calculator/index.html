@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Flange Bolt Torque Calculator — Gasket Seating &amp; Bolt Load | multicalci.com</title>
+<meta name="description" content="Free flange bolt torque calculator. Enter bolt count, size, torque and gasket dimensions to get bolt preload, total flange load, bolt stress and the ASME VIII required loads Wm1 and Wm2 for operating and gasket seating conditions. Spiral wound, RTJ, flat and rubber gaskets.">
+<link rel="canonical" href="https://www.multicalci.com/flange-bolt-torque-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/flange-bolt-torque-calculator">
+<meta property="og:title" content="Flange Bolt Torque Calculator — Gasket Seating &amp; Bolt Load">
+<meta property="og:description" content="Bolt preload, total flange load and ASME VIII Wm1/Wm2 required loads from bolt-up torque.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Flange Bolt Torque Calculator","description":"Calculates bolt preload and total flange load from bolt-up torque, and compares it against the ASME Section VIII Appendix 2 required bolt loads for the operating condition and for gasket seating, with bolt stress and utilisation.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/flange-bolt-torque-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Flange Bolt Torque Calculator","item":"https://www.multicalci.com/flange-bolt-torque-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How does flange bolt torque relate to preload?","acceptedAnswer":{"@type":"Answer","text":"Preload per bolt equals the applied torque divided by the nut factor times the bolt diameter. Total flange load is that figure multiplied by the number of bolts. The nut factor bundles thread and under-head friction into one number, and it is the dominant source of scatter: the same torque with a dry bolt at 0.20 and a lubricated bolt at 0.15 produces preloads differing by about a third."}},
+{"@type":"Question","name":"What are the gasket factors m and y?","acceptedAnswer":{"@type":"Answer","text":"They come from ASME Section VIII Appendix 2. The gasket factor m is a multiplier on internal pressure that sets how much residual compression the gasket needs to stay sealed under operating conditions. The minimum design seating stress y, in megapascals, is the compressive stress needed to make the gasket conform and seal initially. Spiral wound gaskets take m of 3.0 and y of 69, while ring type joints take 6.5 and 179."}},
+{"@type":"Question","name":"What are Wm1 and Wm2 in ASME flange design?","acceptedAnswer":{"@type":"Answer","text":"Wm1 is the minimum required bolt load for the operating condition, made up of the hydrostatic end force plus the load needed to keep the gasket compressed against internal pressure. Wm2 is the minimum required bolt load for gasket seating, which applies at ambient conditions during assembly. The bolting must satisfy both, so the governing requirement is the larger of the two."}},
+{"@type":"Question","name":"Why does gasket seating often govern instead of operating pressure?","acceptedAnswer":{"@type":"Answer","text":"Seating load depends only on gasket geometry and the seating stress y, and takes no account of pressure. On low pressure services the operating requirement Wm1 is small while Wm2 stays fixed and large, so seating governs. This is why a flange on a two bar line can still need substantial bolt-up torque, and why hard gaskets such as ring type joints demand much more bolt load than soft ones."}},
+{"@type":"Question","name":"How accurate is torque-based flange bolt-up?","acceptedAnswer":{"@type":"Answer","text":"Torque control alone typically gives preload scatter of about plus or minus 30 percent, because the nut factor varies with lubrication, thread condition, surface finish and reuse. For critical joints use bolt tensioning, ultrasonic elongation measurement or turn-of-nut methods, and follow a documented cross-pattern tightening sequence in several passes rather than tightening each bolt fully in one go."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Flange Bolt Torque Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">ASME VIII Appendix 2 · ASME B16.5 · gasket m and y factors</span>
+    <h1>Flange Bolt Torque Calculator</h1>
+    <p class="lede">Convert flange bolt-up torque into preload per bolt and total flange load, then
+    check it against the ASME required bolt loads for the operating condition (W<sub>m1</sub>) and
+    for gasket seating (W<sub>m2</sub>) — with bolt stress and utilisation against the allowable.</p>
+    <div class="stdref">
+      <span>ASME VIII App 2</span>
+      <span>SWG · RTJ · flat · rubber</span>
+      <span>Grades 8.8 · 10.9 · B7</span>
+      <span>W<sub>m1</sub> / W<sub>m2</sub></span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Check a flange bolt-up</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">🔩</span>
+      <span class="card-hd-ttl">Bolting, Gasket &amp; Pressure</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="bf-nb">Number of bolts <span class="u">n<sub>b</sub></span></label>
+          <input id="bf-nb" type="number" step="1" min="1" value="8" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="bf-bd">Bolt diameter <span class="u">d, mm</span></label>
+          <input id="bf-bd" type="number" step="1" value="16" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="bf-grade">Bolt grade</label>
+          <select id="bf-grade">
+            <option value="8.8" selected>Grade 8.8 — S<sub>y</sub> 660 MPa</option>
+            <option value="10.9">Grade 10.9 — S<sub>y</sub> 940 MPa</option>
+            <option value="800">ASTM A193 B7 — S<sub>y</sub> 724 MPa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="bf-T">Bolt-up torque <span class="u">T</span></label>
+          <input id="bf-T" type="number" step="5" value="120" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="bf-T-u">Torque unit</label>
+          <select id="bf-T-u">
+            <option value="Nm" selected>N·m</option>
+            <option value="lbft">lb·ft</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="bf-K">Nut factor <span class="u">K</span></label>
+          <input id="bf-K" type="number" step="0.01" min="0.05" max="0.5" value="0.2" inputmode="decimal">
+          <div class="hint">0.10 lubricated · 0.20 dry · 0.40 rusty.</div>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="bf-gtype">Gasket type</label>
+          <select id="bf-gtype" onchange="updateGasketHint()">
+            <option value="swg" selected>Spiral wound — m 3.0, y 69</option>
+            <option value="rtj">Ring type joint — m 6.5, y 179</option>
+            <option value="flat">Flat / compressed fibre — m 4.75, y 62</option>
+            <option value="rubber">Rubber / elastomer — m 0.5, y 0</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="bf-god">Gasket outside dia <span class="u">mm</span></label>
+          <input id="bf-god" type="number" step="1" value="180" inputmode="decimal" onchange="updateGasketHint()">
+        </div>
+        <div class="field">
+          <label for="bf-gid">Gasket inside dia <span class="u">mm</span></label>
+          <input id="bf-gid" type="number" step="1" value="160" inputmode="decimal" onchange="updateGasketHint()">
+          <div class="hint" id="bf-gasket-hint">G = 170 mm, b = 5.0 mm.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="bf-P">Internal design pressure <span class="u">P</span></label>
+          <input id="bf-P" type="number" step="0.5" value="10" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="bf-P-u">Pressure unit</label>
+          <select id="bf-P-u">
+            <option value="bar" selected>bar</option>
+            <option value="MPa">MPa</option>
+            <option value="psi">psi</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="bf-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="bf-btn" onclick="calcFlange()">Calculate bolt load</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="bf-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="bf-share" onclick="shareCase()">Share this calculation</button>
+        <span id="bf-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="bf-verdict"></div>
+  <div class="results" id="bf-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="bf-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Flange bolt load formulas</h2>
+
+  <p>Two separate requirements must be met. The bolting has to compress the gasket enough to seal
+  it at assembly (<strong>W<sub>m2</sub></strong>), and it has to resist the hydrostatic end force
+  while keeping residual compression on the gasket in service
+  (<strong>W<sub>m1</sub></strong>). Whichever is larger governs.</p>
+
+  <div class="fbox">
+<span class="cm">— Achieved bolt load from torque —</span>
+<span class="ht">F<sub>i</sub></span> = T / (K · d)                <span class="cm">— preload per bolt, N</span>
+<span class="hi">W<sub>applied</sub></span> = F<sub>i</sub> × n<sub>b</sub>            <span class="cm">— total flange load, N</span>
+
+<span class="cm">— Gasket geometry —</span>
+<span class="ht">G</span> = (OD + ID) / 2               <span class="cm">— gasket reaction diameter, mm</span>
+<span class="ht">b</span> = (OD − ID) / 4               <span class="cm">— effective seating width, mm</span>
+
+<span class="cm">— ASME VIII Appendix 2 required loads —</span>
+<span class="hi">W<sub>m1</sub></span> = π·G·b·m·P + (π/4)·G²·P    <span class="cm">— operating condition</span>
+<span class="hi">W<sub>m2</sub></span> = π·G·b·y                 <span class="cm">— gasket seating</span>
+
+<span class="ht">σ<sub>bolt</sub></span> = F<sub>i</sub> / A<sub>t</sub>                <span class="cm">— bolt stress, MPa</span>
+<span class="ht">S<sub>all</sub></span> = 0.66 × S<sub>y</sub>              <span class="cm">— allowable bolt stress</span>
+
+Acceptable when  σ<sub>bolt</sub> &lt; S<sub>all</sub>  and  W<sub>applied</sub> &gt; max(W<sub>m1</sub>, W<sub>m2</sub>)
+  </div>
+
+  <p class="legend">
+    <code>T</code> torque (N·m) ·
+    <code>K</code> nut factor ·
+    <code>d</code> bolt diameter (mm) ·
+    <code>n<sub>b</sub></code> bolt count ·
+    <code>m</code> gasket factor ·
+    <code>y</code> seating stress (MPa) ·
+    <code>P</code> pressure (MPa) ·
+    <code>A<sub>t</sub></code> bolt tensile stress area (mm²)
+  </p>
+
+  <div class="note">
+    <strong>Seating usually governs on low-pressure lines.</strong> W<sub>m2</sub> depends only on
+    gasket geometry and the seating stress y — pressure doesn't enter it. So a flange on a 2 bar
+    line can still need heavy bolt-up, and swapping a spiral wound gasket for a ring type joint
+    nearly triples the seating requirement without changing the duty at all.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>Eight M16 grade 8.8 bolts, tightened dry to 120 N·m, on a spiral wound gasket 180 mm outside
+  by 160 mm inside, sealing 10 bar.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Bolting</dt><dd>8 × M16, grade 8.8 (S<sub>y</sub> 660 MPa)</dd>
+      <dt>Torque T</dt><dd>120 N·m, K = 0.20 (dry)</dd>
+      <dt>Gasket</dt><dd>Spiral wound — m = 3.0, y = 69 MPa</dd>
+      <dt>Gasket size</dt><dd>180 mm OD × 160 mm ID</dd>
+      <dt>Pressure P</dt><dd>10 bar = 1.0 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — achieved bolt load</div>
+    <dl>
+      <dt>F<sub>i</sub> = 120 / (0.20 × 0.016)</dt><dd>37.5 kN per bolt</dd>
+      <dt>W<sub>applied</sub> = 37.5 × 8</dt><dd>300 kN total</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — gasket geometry</div>
+    <dl>
+      <dt>G = (180 + 160) / 2</dt><dd>170 mm</dd>
+      <dt>b = (180 − 160) / 4</dt><dd>5.0 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — required loads</div>
+    <dl>
+      <dt>W<sub>m1</sub> = π(170)(5)(3.0)(1.0) + (π/4)(170²)(1.0)</dt><dd>30.71 kN</dd>
+      <dt>W<sub>m2</sub> = π(170)(5)(69)</dt><dd>184.25 kN — governs</dd>
+      <dt>300 kN &gt; 184.25 kN</dt><dd>✓ adequate</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 4 — bolt stress</div>
+    <dl>
+      <dt>A<sub>t</sub> for M16 (pitch 2.0)</dt><dd>156.7 mm²</dd>
+      <dt>σ<sub>bolt</sub> = 37 500 / 156.7</dt><dd>239.4 MPa</dd>
+      <dt>S<sub>all</sub> = 0.66 × 660</dt><dd>435.6 MPa — 54.9 % utilised</dd>
+    </dl>
+
+    <div class="ans">300 kN applied vs 184.25 kN required · bolts at 54.9 % of allowable → adequate</div>
+  </div>
+
+  <p>Seating governs by a factor of six over the operating requirement — typical at this pressure.
+  Change nothing but the gasket to a ring type joint and W<sub>m2</sub> rises to 478 kN, which
+  300 kN no longer satisfies: the same flange, the same torque, and the joint now leaks.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Number of bolts</td><td>n<sub>b</sub></td><td>—</td><td>≥ 1</td></tr>
+        <tr><td>Bolt diameter</td><td>d</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Bolt-up torque</td><td>T</td><td>N·m or lb·ft</td><td>&gt; 0</td></tr>
+        <tr><td>Nut factor</td><td>K</td><td>—</td><td>0.05 – 0.50</td></tr>
+        <tr><td>Gasket OD / ID</td><td>—</td><td>mm</td><td>OD &gt; ID</td></tr>
+        <tr><td>Internal pressure</td><td>P</td><td>bar, MPa or psi</td><td>≥ 0</td></tr>
+        <tr><td>Bolt preload</td><td>F<sub>i</sub></td><td>kN</td><td>output</td></tr>
+        <tr><td>Required loads</td><td>W<sub>m1</sub>, W<sub>m2</sub></td><td>kN</td><td>output</td></tr>
+        <tr><td>Bolt stress</td><td>σ<sub>bolt</sub></td><td>MPa</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Torque in lb·ft converts at 1.35582 N·m; pressure at 1 bar = 0.1 MPa and 1 psi = 0.00689476 MPa.
+  Bolt tensile stress area is derived from the ISO metric coarse pitch for the diameter entered.</p>
+
+  <h3>Gasket factors — ASME VIII Appendix 2 Table 2-5.1</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Gasket</th><th>m</th><th>y (MPa)</th><th>Relative seating demand</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Spiral wound</td><td>3.0</td><td>69</td><td>Moderate — the general-service default</td></tr>
+        <tr><td>Ring type joint</td><td>6.5</td><td>179</td><td>Highest — 2.6× spiral wound</td></tr>
+        <tr><td>Flat / compressed fibre</td><td>4.75</td><td>62</td><td>Slightly below spiral wound</td></tr>
+        <tr><td>Rubber / elastomer</td><td>0.5</td><td>0</td><td>Negligible — seals on contact</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Bolt material allowables</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Grade</th><th>S<sub>y</sub> (MPa)</th><th>S<sub>all</sub> = 0.66·S<sub>y</sub></th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Grade 8.8</td><td>660</td><td>435.6</td><td>General flanged joints</td></tr>
+        <tr><td>Grade 10.9</td><td>940</td><td>620.4</td><td>High-pressure service</td></tr>
+        <tr><td>ASTM A193 B7</td><td>724</td><td>477.8</td><td>Standard petrochemical stud bolt</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>On effective seating width.</strong> This calculator uses the basic width
+    b = (OD − ID)/4 throughout. ASME VIII Appendix 2 substitutes b = 2.5√b<sub>0</sub> once
+    b<sub>0</sub> exceeds 6.35 mm, which gives a <em>smaller</em> b and therefore a smaller
+    required load. Using the basic width on wide gaskets is conservative — it asks for more bolt
+    load than the code requires, not less — but it is not code-exact. Check wide-gasket cases
+    against Appendix 2 directly.
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How does flange bolt torque relate to preload?</summary>
+      <div class="faq-a"><p>Preload per bolt equals the applied torque divided by the nut factor ×
+      the bolt diameter. Total flange load is that figure multiplied by the number of bolts. The
+      nut factor bundles thread and under-head friction into one number, and it is the dominant
+      source of scatter: the same torque with a dry bolt at 0.20 and a lubricated bolt at 0.15
+      produces preloads differing by about a third.</p></div>
+    </details>
+
+    <details>
+      <summary>What are the gasket factors m and y?</summary>
+      <div class="faq-a"><p>They come from ASME Section VIII Appendix 2. The gasket factor m is a
+      multiplier on internal pressure that sets how much residual compression the gasket needs to
+      stay sealed under operating conditions. The minimum design seating stress y, in MPa, is the
+      compressive stress needed to make the gasket conform and seal initially. Spiral wound gaskets
+      take m = 3.0 and y = 69, while ring type joints take 6.5 and 179.</p></div>
+    </details>
+
+    <details>
+      <summary>What are Wm1 and Wm2 in ASME flange design?</summary>
+      <div class="faq-a"><p>W<sub>m1</sub> is the minimum required bolt load for the operating
+      condition, made up of the hydrostatic end force plus the load needed to keep the gasket
+      compressed against internal pressure. W<sub>m2</sub> is the minimum required bolt load for
+      gasket seating, which applies at ambient conditions during assembly. The bolting must satisfy
+      both, so the governing requirement is the larger of the two.</p></div>
+    </details>
+
+    <details>
+      <summary>Why does gasket seating often govern instead of operating pressure?</summary>
+      <div class="faq-a"><p>Seating load depends only on gasket geometry and the seating stress y,
+      and takes no account of pressure. On low-pressure services W<sub>m1</sub> is small while
+      W<sub>m2</sub> stays fixed and large, so seating governs. This is why a flange on a 2 bar
+      line can still need substantial bolt-up torque, and why hard gaskets such as ring type joints
+      demand much more bolt load than soft ones.</p></div>
+    </details>
+
+    <details>
+      <summary>How accurate is torque-based flange bolt-up?</summary>
+      <div class="faq-a"><p>Torque control alone typically gives preload scatter of about ±30 %,
+      because the nut factor varies with lubrication, thread condition, surface finish and reuse.
+      For critical joints use bolt tensioning, ultrasonic elongation measurement or turn-of-nut
+      methods, and follow a documented cross-pattern tightening sequence in several passes rather
+      than tightening each bolt fully in one go.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Single-bolt preload, stress and safety factor</span></a>
+    <a href="/pressure-vessel-thickness-calculator">Pressure Vessel Thickness Calculator
+      <span class="d">Shell and head thickness to ASME VIII</span></a>
+    <a href="/fillet-weld-size-calculator">Fillet Weld Size Calculator
+      <span class="d">Throat, combined stress and utilisation</span></a>
+    <a href="/shaft-design-calculator">Shaft Design Calculator
+      <span class="d">Combined bending, torsion and key stress</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. Flange ring stress, hub design,
+    bolt spacing and flange rotation are not checked — a complete ASME VIII Appendix 2 analysis
+    covers those. Verify against the governing code before bolt-up procedures are issued.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.gasket server-side — used only for the on-screen hint. */
+var GASKETS = { swg:{m:3.0,y:69}, rtj:{m:6.5,y:179}, flat:{m:4.75,y:62}, rubber:{m:0.5,y:0} };
+
+function updateGasketHint() {
+  var el = $('bf-gasket-hint');
+  if (!el) return;
+  var od = gv('bf-god'), id = gv('bf-gid');
+  if (isNaN(od) || isNaN(id) || od <= id) {
+    el.textContent = 'Outside diameter must exceed inside diameter.';
+    return;
+  }
+  el.textContent = 'G = ' + MC.fN((od + id) / 2, 1) + ' mm, b = ' + MC.fN((od - id) / 4, 2) + ' mm.';
+}
+
+async function calcFlange() {
+  var btn = $('bf-btn');
+
+  var v = validate([
+    { id: 'bf-nb',  label: 'Number of bolts',   required: true, gte: 1 },
+    { id: 'bf-bd',  label: 'Bolt diameter',     required: true, gt: 0 },
+    { id: 'bf-T',   label: 'Bolt-up torque',    required: true, gt: 0 },
+    { id: 'bf-K',   label: 'Nut factor',        required: true, gte: 0.05, lte: 0.5 },
+    { id: 'bf-god', label: 'Gasket outside diameter', required: true, gt: 0 },
+    { id: 'bf-gid', label: 'Gasket inside diameter',  required: true, gt: 0 },
+    { id: 'bf-P',   label: 'Internal pressure', required: true, gte: 0 }
+  ]);
+
+  var od = gv('bf-god'), id = gv('bf-gid');
+  if (v.ok && !isNaN(od) && !isNaN(id) && od <= id) {
+    v.ok = false;
+    v.errors.push({ id: 'bf-god', msg: 'Gasket outside diameter must be greater than the inside diameter' });
+  }
+
+  showValidation('bf-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('bf-pdf').disabled = true;
+    set('bf-verdict', '');
+    clearResults('bf-results', 'Correct the highlighted inputs and calculate again.');
+    set('bf-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('bf-results');
+  set('bf-verdict', '');
+  set('bf-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('bolt-flange', {
+      nb:     gv('bf-nb'),
+      bd:     gv('bf-bd'),
+      ba:     0,
+      T:      gv('bf-T'),
+      Tu:     gs('bf-T-u'),
+      K:      gv('bf-K'),
+      gtype:  gs('bf-gtype'),
+      gm:     0,
+      gy:     0,
+      god:    gv('bf-god'),
+      gid:    gv('bf-gid'),
+      P:      gv('bf-P'),
+      Pu:     gs('bf-P-u'),
+      bgrade: gs('bf-grade')
+    });
+
+    LAST = { r: r, gLabel: $('bf-gtype').selectedOptions[0].textContent.split('—')[0].trim(),
+             gradeLabel: $('bf-grade').selectedOptions[0].textContent.split('—')[0].trim(),
+             T_in: gs('bf-T') + ' ' + gs('bf-T-u'),
+             P_in: gs('bf-P') + ' ' + gs('bf-P-u'), at: new Date() };
+    $('bf-pdf').disabled = false;
+
+    var required = Math.max(r.Wm1_kN, r.Wm2_kN);
+    var governs  = r.Wm2_kN >= r.Wm1_kN ? 'Gasket seating (Wm2)' : 'Operating condition (Wm1)';
+    var governsLc = r.Wm2_kN >= r.Wm1_kN ? 'gasket seating (Wm2)' : 'the operating condition (Wm1)';
+    var loadShort = r.totalPreload_kN <= required;
+
+    var reason = loadShort
+        ? 'Applied ' + MC.fN(r.totalPreload_kN, 1) + ' kN is below the ' + MC.fN(required, 1) +
+          ' kN required by ' + governsLc + '. Increase torque, add bolts, or use a softer gasket.'
+      : r.boltStress >= r.Sall
+        ? 'Bolt stress ' + MC.fN(r.boltStress, 1) + ' MPa exceeds the ' + MC.fN(r.Sall, 1) +
+          ' MPa allowable. Reduce torque or move to a higher grade.'
+        : MC.fN(r.totalPreload_kN, 1) + ' kN applied against ' + MC.fN(required, 1) +
+          ' kN required. Bolts at ' + MC.fN(r.util, 1) + ' % of allowable.';
+
+    set('bf-verdict',
+      '<div class="note" style="' +
+      (r.ok ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (r.ok ? 'Bolt-up adequate' : 'Bolt-up not adequate') + '</strong> — ' + reason +
+      '</div>');
+
+    renderResults('bf-results', [
+      { label: 'Total flange load',  value: MC.fN(r.totalPreload_kN, 2), unit: 'kN',
+        tone: loadShort ? 'red' : 'main', big: true,
+        sub: 'Required ' + MC.fN(required, 2) + ' kN' },
+      { label: 'Preload per bolt',   value: MC.fN(r.Fi_kN, 2),      unit: 'kN',
+        tone: 'grn', big: true },
+      { label: 'Wm1 — operating',    value: MC.fN(r.Wm1_kN, 2),     unit: 'kN',
+        tone: r.Wm1_kN > r.Wm2_kN ? 'amb' : '' },
+      { label: 'Wm2 — gasket seating', value: MC.fN(r.Wm2_kN, 2),   unit: 'kN',
+        tone: r.Wm2_kN >= r.Wm1_kN ? 'amb' : '' },
+      { label: 'Bolt stress',        value: MC.fN(r.boltStress, 1), unit: 'MPa',
+        tone: r.boltStress >= r.Sall ? 'red' : 'grn',
+        sub: 'Allowable ' + MC.fN(r.Sall, 1) + ' MPa' },
+      { label: 'Bolt utilisation',   value: MC.fN(r.util, 1),       unit: '%',
+        tone: r.util > 100 ? 'red' : (r.util > 80 ? 'amb' : 'grn') },
+      { label: 'Gasket stress',      value: MC.fN(r.gasketStress, 1), unit: 'MPa', tone: 'blu',
+        sub: 'Seating y = ' + MC.fN(r.gy, 0) + ' MPa' },
+      { label: 'Bolt stress area',   value: MC.fN(r.At, 1),         unit: 'mm²',
+        sub: 'M' + MC.fN(r.bd, 0) + ' coarse thread' }
+    ]);
+
+    set('bf-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Bolting</td><td>' + MC.fN(r.nb, 0) + ' × M' + MC.fN(r.bd, 0) + ', ' +
+        esc(LAST.gradeLabel) + '</td></tr>' +
+      '<tr><td>Torque applied</td><td>' + esc(LAST.T_in) + '  (' + MC.fN(r.T_Nm, 1) +
+        ' N·m) at K = ' + r.K + '</td></tr>' +
+      '<tr><td>Gasket</td><td>' + esc(LAST.gLabel) + ' — m ' + r.gm + ', y ' + r.gy + ' MPa</td></tr>' +
+      '<tr><td>Design pressure</td><td>' + esc(LAST.P_in) + '  (' + MC.fN(r.P_bar, 2) + ' bar)</td></tr>' +
+      '<tr><td>Governing requirement</td><td>' + governs + ' — ' + MC.fN(required, 2) + ' kN</td></tr>' +
+      '<tr><td>Margin over requirement</td><td>' +
+        MC.fN(r.totalPreload_kN / Math.max(required, 1e-9), 2) + '×</td></tr>' +
+      '<tr class="hl"><td>Preload spread at K 0.10 – 0.40</td><td>' +
+        MC.fN(r.preloadRange.high_kN, 0) + ' kN down to ' +
+        MC.fN(r.preloadRange.low_kN, 0) + ' kN</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="note" style="font-size:.84rem"><strong>Nut factor.</strong> ' +
+      esc(r.kUncertaintyNote) + ' At the extremes of that range this same torque would give ' +
+      MC.fN(r.preloadRange.low_kN, 0) + '–' + MC.fN(r.preloadRange.high_kN, 0) +
+      ' kN total, against a requirement of ' + MC.fN(required, 1) + ' kN.</div>');
+
+  } catch (err) {
+    LAST = null;
+    $('bf-pdf').disabled = true;
+    set('bf-verdict', '');
+    MC.showError('bf-results', err);
+    set('bf-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { nb:'bf-nb', bd:'bf-bd', grade:'bf-grade', T:'bf-T', Tu:'bf-T-u', K:'bf-K',
+               gtype:'bf-gtype', god:'bf-god', gid:'bf-gid', P:'bf-P', Pu:'bf-P-u' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  updateGasketHint();
+  calcFlange();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Flange Bolt Torque Calculator — multicalci.com';
+  var text = LAST
+    ? gs('bf-nb') + ' × M' + gs('bf-bd') + ' at ' + gs('bf-T') + ' N\u00b7m \u2192 ' +
+      MC.fN(LAST.r.totalPreload_kN, 0) + ' kN vs ' +
+      MC.fN(Math.max(LAST.r.Wm1_kN, LAST.r.Wm2_kN), 0) + ' kN required'
+    : 'Flange bolt load and ASME gasket seating calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('bf-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+  var required = Math.max(r.Wm1_kN, r.Wm2_kN);
+  var governs = r.Wm2_kN >= r.Wm1_kN ? 'Gasket seating (Wm2)' : 'Operating condition (Wm1)';
+  var governsLc = r.Wm2_kN >= r.Wm1_kN ? 'gasket seating (Wm2)' : 'the operating condition (Wm1)';
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Number of bolts',    MC.fN(r.nb, 0)],
+    ['Bolt size / grade',  'M' + MC.fN(r.bd, 0) + ' ' + esc(LAST.gradeLabel)],
+    ['Bolt-up torque',     esc(LAST.T_in) + '  (' + MC.fN(r.T_Nm, 1) + ' N.m)'],
+    ['Nut factor K',       r.K],
+    ['Gasket type',        esc(LAST.gLabel) + '  (m = ' + r.gm + ', y = ' + r.gy + ' MPa)'],
+    ['Gasket OD / ID',     MC.fN(gv('bf-god'), 1) + ' / ' + MC.fN(gv('bf-gid'), 1) + ' mm'],
+    ['Design pressure',    esc(LAST.P_in) + '  (' + MC.fN(r.P_bar, 2) + ' bar)']
+  ]);
+
+  var outRows = rows([
+    ['Preload per bolt',      MC.fN(r.Fi_kN, 2) + ' kN', true],
+    ['Total flange load',     MC.fN(r.totalPreload_kN, 2) + ' kN', true],
+    ['Wm1 - operating',       MC.fN(r.Wm1_kN, 2) + ' kN'],
+    ['Wm2 - gasket seating',  MC.fN(r.Wm2_kN, 2) + ' kN'],
+    ['Governing requirement', governs + ' = ' + MC.fN(required, 2) + ' kN', true],
+    ['Margin over requirement', MC.fN(r.totalPreload_kN / Math.max(required, 1e-9), 2) + 'x'],
+    ['Bolt stress area At',   MC.fN(r.At, 1) + ' mm2'],
+    ['Bolt stress',           MC.fN(r.boltStress, 1) + ' MPa'],
+    ['Allowable 0.66 x Sy',   MC.fN(r.Sall, 1) + ' MPa'],
+    ['Bolt utilisation',      MC.fN(r.util, 1) + ' %', true],
+    ['Gasket stress achieved', MC.fN(r.gasketStress, 1) + ' MPa'],
+    ['Preload spread K 0.10-0.40', MC.fN(r.preloadRange.high_kN, 0) + ' down to ' +
+                                   MC.fN(r.preloadRange.low_kN, 0) + ' kN']
+  ]);
+
+  var verdict = r.ok
+    ? 'ADEQUATE \u2014 ' + MC.fN(r.totalPreload_kN, 1) + ' kN applied against ' +
+      MC.fN(required, 1) + ' kN required by ' + governsLc +
+      '. Bolts at ' + MC.fN(r.util, 1) + ' % of allowable.'
+    : 'NOT ADEQUATE \u2014 ' + (r.totalPreload_kN <= required
+        ? 'applied load ' + MC.fN(r.totalPreload_kN, 1) + ' kN is below the ' +
+          MC.fN(required, 1) + ' kN required by ' + governsLc + '.'
+        : 'bolt stress ' + MC.fN(r.boltStress, 1) + ' MPa exceeds the ' +
+          MC.fN(r.Sall, 1) + ' MPa allowable.');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (r.ok ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'Fi = T / (K x d)                 W_applied = Fi x nb\n' +
+    'G  = (OD + ID) / 2               b = (OD - ID) / 4\n' +
+    'Wm1 = pi G b m P + (pi/4) G^2 P        [operating]\n' +
+    'Wm2 = pi G b y                         [gasket seating]\n' +
+    'sigma_bolt = Fi / At             Sall = 0.66 x Sy\n' +
+    'Acceptable when sigma_bolt < Sall AND W_applied > max(Wm1, Wm2)';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Flange Bolt Load Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Flange Bolt Load Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'ASME Section VIII Division 1 Appendix 2 required bolt loads.\n' +
+    'Effective seating width uses the BASIC width b = (OD - ID)/4 throughout.\n' +
+    'Appendix 2 substitutes b = 2.5 x sqrt(b0) once b0 exceeds 6.35 mm, which\n' +
+    'gives a smaller b and a smaller required load. The basic width is therefore\n' +
+    'CONSERVATIVE on wide gaskets, but not code-exact - check those cases directly.\n' +
+    esc(r.kUncertaintyNote) + '\n' +
+    'NOT covered: flange ring and hub stress, flange rotation, bolt spacing and\n' +
+    'bolt circle limits, thermal transients, bolt relaxation and creep, and\n' +
+    'tightening sequence. A full Appendix 2 analysis addresses these.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify against the governing code</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['bf-nb', 'bf-bd', 'bf-T', 'bf-K', 'bf-god', 'bf-gid', 'bf-P'], calcFlange);
+ready(function () { updateGasketHint(); loadFromURL(); });
+</script>
+
+</body>
+</html>
