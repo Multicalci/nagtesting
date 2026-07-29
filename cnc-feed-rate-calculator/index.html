@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>CNC Feed Rate Calculator — Spindle Speed, Chip Load &amp; Cutting Power | multicalci.com</title>
+<meta name="description" content="Free CNC speeds and feeds calculator for milling. Enter tool diameter, flutes, chip load and depth of cut to get spindle speed in rpm, feed rate in mm/min, material removal rate, spindle power and cycle time. Recommended cutting speeds for steel, stainless, aluminium and titanium.">
+<link rel="canonical" href="https://www.multicalci.com/cnc-feed-rate-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/cnc-feed-rate-calculator">
+<meta property="og:title" content="CNC Feed Rate Calculator — Spindle Speed, Chip Load &amp; Cutting Power">
+<meta property="og:description" content="Spindle speed, feed rate, material removal rate and cutting power for CNC milling.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"CNC Feed Rate Calculator","description":"Calculates CNC milling spindle speed, table feed rate, material removal rate, spindle cutting power and cycle time from tool diameter, flute count, chip load, cutting speed and depth of cut.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/cnc-feed-rate-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"CNC Feed Rate Calculator","item":"https://www.multicalci.com/cnc-feed-rate-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How do you calculate CNC spindle speed?","acceptedAnswer":{"@type":"Answer","text":"Spindle speed in revolutions per minute equals 1000 times the cutting speed in metres per minute divided by pi times the tool diameter in millimetres. A 10 millimetre cutter running at 200 metres per minute needs 6366 rpm. Cutting speed is a property of the workpiece and tool material combination, so the same cutter runs at very different speeds in aluminium and titanium."}},
+{"@type":"Question","name":"What is chip load or feed per tooth?","acceptedAnswer":{"@type":"Answer","text":"Chip load is the thickness of material each cutting edge removes per revolution, written as fz in millimetres per tooth. Table feed rate is chip load multiplied by the number of flutes and the spindle speed. Running too light rubs rather than cuts and work hardens the surface, especially in stainless steel, while running too heavy overloads the edge and chips it."}},
+{"@type":"Question","name":"What is material removal rate and why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Material removal rate is the volume of material cut per minute, calculated as radial depth times axial depth times feed rate. It is the honest measure of productivity, because a high spindle speed with a light cut can remove less material than a slower, heavier one. It also drives spindle power demand, so it is the number to watch when deciding whether a cut is within a machine's capability."}},
+{"@type":"Question","name":"How do I know if my machine has enough power?","acceptedAnswer":{"@type":"Answer","text":"Cutting power is the specific cutting force of the material multiplied by the material removal rate. Specific cutting force ranges from about 700 newtons per square millimetre for aluminium to 3000 for titanium, which is why titanium demands far more power for the same volume removed. Compare the calculated figure against the spindle rating, allowing for drive efficiency, and leave headroom rather than running at the limit."}},
+{"@type":"Question","name":"What cutting speed should I use?","acceptedAnswer":{"@type":"Answer","text":"Cutting speed depends on the workpiece material and the tool material. For carbide tooling typical starting points are 600 metres per minute in aluminium, 200 in mild steel, 180 in cast iron, 150 in alloy steel, 120 in stainless and only 50 in titanium. High speed steel tooling runs at roughly a quarter of these figures. Always check the tooling manufacturer's data for the specific grade and coating."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">CNC Feed Rate Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">Milling speeds and feeds · MRR · spindle power</span>
+    <h1>CNC Feed Rate Calculator</h1>
+    <p class="lede">Spindle speed, table feed rate, material removal rate, cutting power and cycle
+    time for CNC milling. Enter your own cutting speed or let the calculator pick a starting value
+    from the workpiece and tool material.</p>
+    <div class="stdref">
+      <span>7 workpiece materials</span>
+      <span>Carbide &amp; HSS</span>
+      <span>m/min or SFM</span>
+      <span>Power from k<sub>c</sub></span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate speeds and feeds</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">🔧</span>
+      <span class="card-hd-ttl">Tool, Material &amp; Cut</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="c-work">Workpiece material</label>
+          <select id="c-work" onchange="updateVcHint()">
+            <option value="mild-steel" selected>Mild steel</option>
+            <option value="alloy-steel">Alloy steel</option>
+            <option value="ss">Stainless steel</option>
+            <option value="alum">Aluminium</option>
+            <option value="cast-iron">Cast iron</option>
+            <option value="copper">Copper</option>
+            <option value="titanium">Titanium</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-tool">Tool material</label>
+          <select id="c-tool" onchange="updateVcHint()">
+            <option value="carbide" selected>Carbide</option>
+            <option value="hss">High speed steel (HSS)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="c-vcmode">Cutting speed source</label>
+          <select id="c-vcmode" onchange="toggleVcMode()">
+            <option value="manual" selected>Enter my own</option>
+            <option value="auto">Use recommended for material</option>
+          </select>
+        </div>
+        <div class="field" id="c-vc-wrap">
+          <label for="c-Vc">Cutting speed <span class="u">V<sub>c</sub></span></label>
+          <input id="c-Vc" type="number" step="10" value="200" inputmode="decimal">
+          <div class="hint" id="c-vc-hint">Recommended 200 m/min for this combination.</div>
+        </div>
+        <div class="field">
+          <label for="c-Vc-u">Speed unit</label>
+          <select id="c-Vc-u">
+            <option value="m/min" selected>m/min</option>
+            <option value="sfm">SFM (ft/min)</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="c-D">Tool diameter <span class="u">D, mm</span></label>
+          <input id="c-D" type="number" step="0.5" value="10" inputmode="decimal" onchange="updateAeHint()">
+        </div>
+        <div class="field">
+          <label for="c-z">Number of flutes <span class="u">z</span></label>
+          <input id="c-z" type="number" step="1" min="1" value="4" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="c-fz">Chip load <span class="u">f<sub>z</sub>, mm/tooth</span></label>
+          <input id="c-fz" type="number" step="0.01" value="0.05" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="c-ap">Axial depth of cut <span class="u">a<sub>p</sub>, mm</span></label>
+          <input id="c-ap" type="number" step="0.5" value="2" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="c-ae">Radial depth of cut <span class="u">a<sub>e</sub>, mm</span></label>
+          <input id="c-ae" type="number" step="0.5" value="5" inputmode="decimal">
+          <div class="hint" id="c-ae-hint">Must not exceed the tool diameter (10 mm).</div>
+        </div>
+      </div>
+
+      <div id="c-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="c-btn" onclick="calcCnc()">Calculate speeds and feeds</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="c-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="c-share" onclick="shareCase()">Share this calculation</button>
+        <span id="c-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="c-verdict"></div>
+  <div class="results" id="c-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="c-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Speeds and feeds formulas</h2>
+
+  <p>Cutting speed is a property of the material pair, not of the machine. Everything else follows
+  from it: spindle speed comes from the tool diameter, feed rate from the chip load and flute
+  count, and power from how fast material is actually being removed.</p>
+
+  <div class="fbox">
+<span class="ht">n</span> = 1000 × V<sub>c</sub> / (π × D)          <span class="cm">— spindle speed, rpm</span>
+<span class="ht">f</span> = f<sub>z</sub> × z × n                  <span class="cm">— table feed rate, mm/min</span>
+
+<span class="hi">MRR</span> = a<sub>e</sub> × a<sub>p</sub> × f / 1000        <span class="cm">— material removal rate, cm³/min</span>
+<span class="hi">P<sub>c</sub></span>  = k<sub>c</sub> × a<sub>e</sub> × a<sub>p</sub> × f / (60 × 10⁶)  <span class="cm">— cutting power, kW</span>
+
+<span class="ht">t<sub>c</sub></span> = 100 / (f / 60)               <span class="cm">— seconds per 100 mm of path</span>
+  </div>
+
+  <p class="legend">
+    <code>V<sub>c</sub></code> cutting speed (m/min) ·
+    <code>D</code> tool diameter (mm) ·
+    <code>z</code> number of flutes ·
+    <code>f<sub>z</sub></code> chip load (mm/tooth) ·
+    <code>a<sub>p</sub></code> axial depth (mm) ·
+    <code>a<sub>e</sub></code> radial depth (mm) ·
+    <code>k<sub>c</sub></code> specific cutting force (N/mm²)
+  </p>
+
+  <div class="note">
+    <strong>Power follows removal rate, not spindle speed.</strong> A fast spindle taking a light
+    cut can draw less power than a slow one taking a heavy cut. Per cubic centimetre removed,
+    titanium needs about four times the energy of aluminium — specific cutting force 3 000 N/mm²
+    against 700 — but because it also has to be cut far more slowly, the instantaneous spindle
+    power can still come out lower.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A 10 mm four-flute carbide end mill slotting mild steel at 5 mm radial and 2 mm axial depth,
+  0.05 mm/tooth chip load.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Tool</dt><dd>10 mm diameter, 4 flutes, carbide</dd>
+      <dt>Workpiece</dt><dd>Mild steel — V<sub>c</sub> 200 m/min, k<sub>c</sub> 1500 N/mm²</dd>
+      <dt>Chip load f<sub>z</sub></dt><dd>0.05 mm/tooth</dd>
+      <dt>Depth of cut</dt><dd>a<sub>p</sub> 2 mm axial, a<sub>e</sub> 5 mm radial</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — spindle speed and feed</div>
+    <dl>
+      <dt>n = 1000 × 200 / (π × 10)</dt><dd>6 366 rpm</dd>
+      <dt>f = 0.05 × 4 × 6366</dt><dd>1 273 mm/min</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — removal rate and power</div>
+    <dl>
+      <dt>MRR = 5 × 2 × 1273 / 1000</dt><dd>12.73 cm³/min</dd>
+      <dt>P<sub>c</sub> = 1500 × 5 × 2 × 1273 / (60 × 10⁶)</dt><dd>0.318 kW</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — cycle time</div>
+    <dl>
+      <dt>t<sub>c</sub> = 100 / (1273 / 60)</dt><dd>4.7 s per 100 mm of path</dd>
+    </dl>
+
+    <div class="ans">6 366 rpm · 1 273 mm/min · MRR 12.73 cm³/min · 0.318 kW spindle</div>
+  </div>
+
+  <p>At 0.32 kW this is a light cut for any industrial spindle. Running the same geometry in
+  titanium is instructive: cutting speed drops from 200 to 50 m/min, so spindle speed falls to
+  1 592 rpm and feed to 318 mm/min. Material removal rate drops to 3.18 cm³/min — a quarter — while
+  specific cutting force doubles to 3 000 N/mm². Net cutting power comes out at 0.159 kW, <em>half</em>
+  that of mild steel. Titanium is not power-hungry per minute; it is slow. The cost is cycle time,
+  not spindle load.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Cutting speed</td><td>V<sub>c</sub></td><td>m/min or SFM</td><td>&gt; 0</td></tr>
+        <tr><td>Tool diameter</td><td>D</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Number of flutes</td><td>z</td><td>—</td><td>≥ 1</td></tr>
+        <tr><td>Chip load</td><td>f<sub>z</sub></td><td>mm/tooth</td><td>&gt; 0</td></tr>
+        <tr><td>Axial depth</td><td>a<sub>p</sub></td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Radial depth</td><td>a<sub>e</sub></td><td>mm</td><td>&gt; 0 and ≤ D</td></tr>
+        <tr><td>Spindle speed</td><td>n</td><td>rpm</td><td>output, flagged above 30 000</td></tr>
+        <tr><td>Feed rate</td><td>f</td><td>mm/min</td><td>output</td></tr>
+        <tr><td>Cutting power</td><td>P<sub>c</sub></td><td>kW</td><td>output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Surface feet per minute is converted at 1 SFM = 0.3048 m/min. Radial depth above 75 % of tool
+  diameter raises a high-engagement warning, and radial depth greater than the tool diameter is
+  rejected.</p>
+
+  <h3>Recommended cutting speed and specific cutting force</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Workpiece</th><th>V<sub>c</sub> carbide (m/min)</th><th>V<sub>c</sub> HSS (m/min)</th><th>k<sub>c</sub> (N/mm²)</th></tr></thead>
+      <tbody>
+        <tr><td>Aluminium</td><td>600</td><td>150</td><td>700</td></tr>
+        <tr><td>Copper</td><td>300</td><td>75</td><td>900</td></tr>
+        <tr class="hl"><td>Mild steel</td><td>200</td><td>50</td><td>1 500</td></tr>
+        <tr><td>Cast iron</td><td>180</td><td>45</td><td>1 100</td></tr>
+        <tr><td>Alloy steel</td><td>150</td><td>38</td><td>2 200</td></tr>
+        <tr><td>Stainless steel</td><td>120</td><td>30</td><td>2 500</td></tr>
+        <tr><td>Titanium</td><td>50</td><td>13</td><td>3 000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>These are starting points, not specifications.</strong> Real cutting speed depends on
+    the carbide grade, coating, coolant, tool overhang, machine rigidity and whether the cut is
+    roughing or finishing. Always check the tooling manufacturer's data for the specific insert or
+    end mill you're running.
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How do you calculate CNC spindle speed?</summary>
+      <div class="faq-a"><p>Spindle speed in rpm equals 1000 × cutting speed in m/min ÷ (π × tool
+      diameter in mm). A 10 mm cutter running at 200 m/min needs 6 366 rpm. Cutting speed is a
+      property of the workpiece and tool material combination, so the same cutter runs at very
+      different speeds in aluminium and titanium.</p></div>
+    </details>
+
+    <details>
+      <summary>What is chip load or feed per tooth?</summary>
+      <div class="faq-a"><p>Chip load is the thickness of material each cutting edge removes per
+      revolution, written as f<sub>z</sub> in mm per tooth. Table feed rate is chip load × number
+      of flutes × spindle speed. Running too light rubs rather than cuts and work-hardens the
+      surface, especially in stainless steel, while running too heavy overloads the edge and chips
+      it.</p></div>
+    </details>
+
+    <details>
+      <summary>What is material removal rate and why does it matter?</summary>
+      <div class="faq-a"><p>Material removal rate is the volume of material cut per minute,
+      calculated as radial depth × axial depth × feed rate. It is the honest measure of
+      productivity, because a high spindle speed with a light cut can remove less material than a
+      slower, heavier one. It also drives spindle power demand, so it is the number to watch when
+      deciding whether a cut is within a machine's capability.</p></div>
+    </details>
+
+    <details>
+      <summary>How do I know if my machine has enough power?</summary>
+      <div class="faq-a"><p>Cutting power is the specific cutting force of the material multiplied
+      by the material removal rate. Specific cutting force ranges from about 700 N/mm² for
+      aluminium to 3 000 for titanium, which is why titanium demands far more power for the same
+      volume removed. Compare the calculated figure against the spindle rating, allowing for drive
+      efficiency, and leave headroom rather than running at the limit.</p></div>
+    </details>
+
+    <details>
+      <summary>What cutting speed should I use?</summary>
+      <div class="faq-a"><p>Cutting speed depends on the workpiece material and the tool material.
+      For carbide tooling typical starting points are 600 m/min in aluminium, 200 in mild steel,
+      180 in cast iron, 150 in alloy steel, 120 in stainless and only 50 in titanium. High speed
+      steel tooling runs at roughly a quarter of these figures. Always check the tooling
+      manufacturer's data for the specific grade and coating.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/bend-allowance-calculator">Bend Allowance Calculator
+      <span class="d">K-factor, flat pattern and springback</span></a>
+    <a href="/spur-gear-calculator">Spur Gear Calculator
+      <span class="d">Ratio, torque and AGMA bending stress</span></a>
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection for 7 load cases</span></a>
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary planning only. Cutting data varies with tool grade,
+    coating, coolant, rigidity and machine condition — always confirm against the tooling
+    manufacturer's recommendations before committing to a production cut.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.cncVc and cncKc server-side. Used only for the on-screen
+   hints — the backend supplies the values actually used. */
+var VC = { 'mild-steel': 200, 'alloy-steel': 150, 'ss': 120, 'alum': 600,
+           'cast-iron': 180, 'copper': 300, 'titanium': 50 };
+var KC = { 'mild-steel': 1500, 'alloy-steel': 2200, 'ss': 2500, 'alum': 700,
+           'cast-iron': 1100, 'copper': 900, 'titanium': 3000 };
+
+function recommendedVc() {
+  var base = VC[gs('c-work')] || 200;
+  return gs('c-tool') === 'hss' ? Math.round(base / 4) : base;
+}
+
+function updateVcHint() {
+  var el = $('c-vc-hint');
+  if (el) el.textContent = 'Recommended ' + recommendedVc() + ' m/min for this combination.';
+}
+
+/* When "use recommended" is selected the backend fills Vc itself if we send
+   a falsy value, so the input is hidden and Vc: 0 is posted. */
+function toggleVcMode() {
+  var auto = gs('c-vcmode') === 'auto';
+  $('c-vc-wrap').style.display = auto ? 'none' : 'block';
+  updateVcHint();
+}
+
+function updateAeHint() {
+  var D = gv('c-D');
+  var el = $('c-ae-hint');
+  if (!el) return;
+  el.textContent = isNaN(D) || D <= 0
+    ? 'Must not exceed the tool diameter.'
+    : 'Must not exceed the tool diameter (' + MC.fN(D, 1) + ' mm).';
+}
+
+async function calcCnc() {
+  var btn = $('c-btn');
+  var auto = gs('c-vcmode') === 'auto';
+
+  var rules = [
+    { id: 'c-D',  label: 'Tool diameter',     required: true, gt: 0 },
+    { id: 'c-z',  label: 'Number of flutes',  required: true, gte: 1 },
+    { id: 'c-fz', label: 'Chip load',         required: true, gt: 0 },
+    { id: 'c-ap', label: 'Axial depth',       required: true, gt: 0 },
+    { id: 'c-ae', label: 'Radial depth',      required: true, gt: 0 }
+  ];
+  if (!auto) rules.push({ id: 'c-Vc', label: 'Cutting speed', required: true, gt: 0 });
+
+  var v = validate(rules);
+
+  // Mirror the backend's ae <= D guard so the user gets a field-level message.
+  var D = gv('c-D'), ae = gv('c-ae');
+  if (v.ok && !isNaN(D) && !isNaN(ae) && ae > D) {
+    v.ok = false;
+    v.errors.push({ id: 'c-ae', msg: 'Radial depth cannot exceed the tool diameter (' + MC.fN(D, 1) + ' mm)' });
+  }
+
+  showValidation('c-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('c-pdf').disabled = true;
+    set('c-verdict', '');
+    clearResults('c-results', 'Correct the highlighted inputs and calculate again.');
+    set('c-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('c-results');
+  set('c-verdict', '');
+  set('c-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('cnc', {
+      D:       gv('c-D'),
+      Vc:      auto ? 0 : gv('c-Vc'),
+      Vc_u:    auto ? 'm/min' : gs('c-Vc-u'),
+      fz:      gv('c-fz'),
+      z:       gv('c-z'),
+      ap:      gv('c-ap'),
+      ae:      gv('c-ae'),
+      workMat: gs('c-work'),
+      toolMat: gs('c-tool')
+    });
+
+    LAST = { r: r, workLabel: $('c-work').selectedOptions[0].textContent,
+             toolLabel: $('c-tool').selectedOptions[0].textContent,
+             auto: auto, at: new Date() };
+    $('c-pdf').disabled = false;
+
+    var warn = r.highSpindleWarn || r.aeWarn;
+    set('c-verdict',
+      '<div class="note" style="' +
+      (warn ? 'background:#fefce8;border-color:#fde047;color:#a16207'
+            : 'background:#ecfdf5;border-color:#6ee7b7;color:#047857') + '">' +
+      '<strong>' + MC.fN(r.n, 0) + ' rpm at ' + MC.fN(r.f, 0) + ' mm/min</strong> — ' +
+      'removing ' + MC.fN(r.MRR, 2) + ' cm³/min at ' + MC.fN(r.Pc, 3) + ' kW.' +
+      (r.highSpindleWarn ? ' ' + esc(r.highSpindleWarn) : '') +
+      (r.aeWarn ? ' ' + esc(r.aeWarn) : '') +
+      '</div>');
+
+    renderResults('c-results', [
+      { label: 'Spindle speed',    value: MC.fN(r.n, 0), unit: 'rpm',
+        tone: r.highSpindleWarn ? 'red' : 'main', big: true },
+      { label: 'Feed rate',        value: MC.fN(r.f, 0), unit: 'mm/min',
+        tone: 'grn', big: true },
+      { label: 'Material removal rate', value: MC.fN(r.MRR, 2), unit: 'cm³/min' },
+      { label: 'Cutting power',    value: MC.fN(r.Pc, 3),  unit: 'kW', tone: 'amb' },
+      { label: 'Cutting speed used', value: MC.fN(r.Vc, 1), unit: 'm/min', tone: 'blu',
+        sub: LAST.auto ? 'Recommended for this material' : 'As entered' },
+      { label: 'Cycle time',       value: MC.fN(r.tc_per_100mm, 1), unit: 's',
+        sub: 'per 100 mm of tool path' },
+      { label: 'Chip load',        value: MC.fN(r.fz, 3),  unit: 'mm/tooth' },
+      { label: 'Radial engagement', value: MC.fN(r.ae / r.D * 100, 0), unit: '%',
+        tone: r.aeWarn ? 'amb' : '', sub: 'a\u2091 / D' }
+    ]);
+
+    set('c-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Workpiece</td><td>' + esc(LAST.workLabel) + '</td></tr>' +
+      '<tr><td>Tool material</td><td>' + esc(LAST.toolLabel) + '</td></tr>' +
+      '<tr><td>Tool</td><td>' + MC.fN(r.D, 1) + ' mm diameter, ' + r.z + ' flutes</td></tr>' +
+      '<tr><td>Depth of cut</td><td>a\u209a ' + MC.fN(r.ap, 2) + ' mm axial · a\u2091 ' +
+        MC.fN(r.ae, 2) + ' mm radial</td></tr>' +
+      '<tr><td>Cutting speed</td><td>' + MC.fN(r.Vc, 1) + ' m/min' +
+        (LAST.auto ? ' (recommended)' : ' (entered)') + '</td></tr>' +
+      '<tr><td>Specific cutting force k<sub>c</sub></td><td>' + MC.fN(r.kc_val, 0) + ' N/mm²</td></tr>' +
+      '<tr><td>Feed per revolution</td><td>' + MC.fN(r.fz * r.z, 3) + ' mm/rev</td></tr>' +
+      '<tr class="hl"><td>Programme</td><td>S' + MC.fN(r.n, 0) + ' F' + MC.fN(r.f, 0) + '</td></tr>' +
+      '</tbody></table></div>');
+
+  } catch (err) {
+    LAST = null;
+    $('c-pdf').disabled = true;
+    set('c-verdict', '');
+    MC.showError('c-results', err);
+    set('c-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { work:'c-work', tool:'c-tool', vcmode:'c-vcmode', Vc:'c-Vc', Vcu:'c-Vc-u',
+               D:'c-D', z:'c-z', fz:'c-fz', ap:'c-ap', ae:'c-ae' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  toggleVcMode();
+  updateAeHint();
+  calcCnc();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'CNC Feed Rate Calculator — multicalci.com';
+  var text = LAST
+    ? gs('c-D') + ' mm ' + gs('c-z') + '-flute in ' + LAST.workLabel.toLowerCase() +
+      ' \u2192 S' + MC.fN(LAST.r.n, 0) + ' F' + MC.fN(LAST.r.f, 0)
+    : 'CNC milling speeds, feeds, MRR and cutting power calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('c-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Workpiece material',   esc(LAST.workLabel)],
+    ['Tool material',        esc(LAST.toolLabel)],
+    ['Tool diameter D',      MC.fN(r.D, 1) + ' mm'],
+    ['Number of flutes z',   r.z],
+    ['Chip load fz',         MC.fN(r.fz, 3) + ' mm/tooth'],
+    ['Axial depth ap',       MC.fN(r.ap, 2) + ' mm'],
+    ['Radial depth ae',      MC.fN(r.ae, 2) + ' mm  (' + MC.fN(r.ae / r.D * 100, 0) + ' % of D)'],
+    ['Cutting speed Vc',     MC.fN(r.Vc, 1) + ' m/min' + (LAST.auto ? '  (recommended)' : '  (entered)')],
+    ['Specific cutting force', MC.fN(r.kc_val, 0) + ' N/mm2']
+  ]);
+
+  var outRows = rows([
+    ['Spindle speed n',      MC.fN(r.n, 0) + ' rpm', true],
+    ['Table feed rate f',    MC.fN(r.f, 0) + ' mm/min', true],
+    ['Feed per revolution',  MC.fN(r.fz * r.z, 3) + ' mm/rev'],
+    ['Material removal rate', MC.fN(r.MRR, 2) + ' cm3/min', true],
+    ['Cutting power Pc',     MC.fN(r.Pc, 3) + ' kW', true],
+    ['Cycle time',           MC.fN(r.tc_per_100mm, 1) + ' s per 100 mm of path'],
+    ['Programme line',       'S' + MC.fN(r.n, 0) + ' F' + MC.fN(r.f, 0)]
+  ]);
+
+  var warn = (r.highSpindleWarn ? r.highSpindleWarn + ' ' : '') + (r.aeWarn || '');
+  var verdict = warn
+    ? 'CHECK BEFORE RUNNING \u2014 ' + warn
+    : MC.fN(r.n, 0) + ' rpm at ' + MC.fN(r.f, 0) + ' mm/min, removing ' +
+      MC.fN(r.MRR, 2) + ' cm3/min at ' + MC.fN(r.Pc, 3) + ' kW.';
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (warn ? '#fefce8;border:1px solid #fde047;color:#a16207' : '#ecfdf5;border:1px solid #6ee7b7;color:#047857') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'n   = 1000 x Vc / (pi x D)              [rpm]\n' +
+    'f   = fz x z x n                        [mm/min]\n' +
+    'MRR = ae x ap x f / 1000                [cm3/min]\n' +
+    'Pc  = kc x ae x ap x f / (60 x 1e6)     [kW]\n' +
+    'tc  = 100 / (f / 60)                    [s per 100 mm]';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>CNC Speeds and Feeds Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>CNC Speeds and Feeds Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Summary</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'Cutting speed and specific cutting force are generic starting values for the\n' +
+    'material class, not values for a specific tool grade or coating.\n' +
+    'Cutting power is the power at the cut; add drive and spindle losses.\n' +
+    'NOT covered: tool deflection and chatter, chip thinning at low radial\n' +
+    'engagement, tool life and wear, coolant strategy, machine rigidity,\n' +
+    'workholding, and surface finish. Confirm against the tooling supplier data.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify with the tooling manufacturer</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['c-Vc', 'c-D', 'c-z', 'c-fz', 'c-ap', 'c-ae'], calcCnc);
+ready(function () { toggleVcMode(); updateAeHint(); loadFromURL(); });
+</script>
+
+</body>
+</html>
