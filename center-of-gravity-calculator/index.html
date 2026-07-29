@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Center of Gravity Calculator — Multi-Component Assemblies | multicalci.com</title>
+<meta name="description" content="Free center of gravity calculator for assemblies. Enter each component's mass and X-Y position to get the combined centre of mass, total weight and a percentage contribution breakdown. Supports negative mass for holes and cut-outs.">
+<link rel="canonical" href="https://www.multicalci.com/center-of-gravity-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/center-of-gravity-calculator">
+<meta property="og:title" content="Center of Gravity Calculator — Multi-Component Assemblies">
+<meta property="og:description" content="Combined centre of mass, total weight and contribution breakdown for any number of components.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<style>
+/* Component table — the only page here with editable rows */
+.cg-tbl{width:100%;border-collapse:collapse;font-size:.86rem;min-width:520px}
+.cg-tbl th{background:var(--ink);color:rgba(255,255,255,.85);font-size:.68rem;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;text-align:left;padding:8px 10px;white-space:nowrap}
+.cg-tbl th:first-child{border-top-left-radius:var(--r2)}
+.cg-tbl th:last-child{border-top-right-radius:var(--r2)}
+.cg-tbl td{padding:5px 6px;border-bottom:1px solid var(--rule)}
+.cg-tbl tr:nth-child(even) td{background:var(--surface2)}
+.cg-tbl input{width:100%;padding:7px 9px;font-family:var(--mono);font-size:.83rem;
+  font-variant-numeric:tabular-nums slashed-zero;color:var(--ink);background:var(--surface);
+  border:1.5px solid var(--rule2);border-radius:4px;transition:border-color .13s,box-shadow .13s}
+.cg-tbl input.cg-name{font-family:var(--body)}
+.cg-tbl input:hover{border-color:var(--ink3)}
+.cg-tbl input:focus{outline:none;border-color:var(--cobalt2);box-shadow:0 0 0 3px rgba(37,99,235,.13)}
+.cg-del{padding:5px 10px;font-family:var(--mono);font-size:.9rem;font-weight:600;line-height:1;
+  color:var(--red);background:var(--surface);border:1.5px solid var(--rule2);border-radius:4px;cursor:pointer}
+.cg-del:hover{background:var(--red-bg);border-color:var(--red-bd)}
+.cg-del:disabled{opacity:.35;cursor:not-allowed}
+</style>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Center of Gravity Calculator","description":"Calculates the combined centre of gravity of a multi-component assembly from each component's mass and X-Y coordinates, returning total mass, weight and a percentage contribution breakdown. Negative masses may be used to represent holes and cut-outs.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/center-of-gravity-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Center of Gravity Calculator","item":"https://www.multicalci.com/center-of-gravity-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How do you calculate the center of gravity of an assembly?","acceptedAnswer":{"@type":"Answer","text":"Multiply each component's mass by its coordinate, add those products together, and divide by the total mass. Doing this separately for the X and Y directions gives the coordinates of the combined centre of gravity. The result is a mass-weighted average position, so heavy components pull the answer toward themselves far more strongly than light ones."}},
+{"@type":"Question","name":"Can I use negative mass for holes and cut-outs?","acceptedAnswer":{"@type":"Answer","text":"Yes. Entering a negative mass at the position of a hole, pocket or cut-out subtracts that material from the calculation, which is the standard composite-body method. Model the part as if it were solid, then add a negative entry for each removed volume at the centroid of that volume. The total mass must remain positive or the calculation has no physical meaning."}},
+{"@type":"Question","name":"What is the difference between center of gravity, centroid and center of mass?","acceptedAnswer":{"@type":"Answer","text":"Centre of mass is the mass-weighted average position of a body. Centre of gravity is where the resultant weight acts, and it coincides with centre of mass whenever the gravitational field is uniform, which it effectively is for anything of engineering size. Centroid is the purely geometric average position of a volume or area, and it equals the centre of mass only when density is uniform throughout."}},
+{"@type":"Question","name":"Why does center of gravity matter for lifting and transport?","acceptedAnswer":{"@type":"Answer","text":"Lifting points must straddle the centre of gravity or the load will tilt and swing when it leaves the ground. For road transport the position determines axle loading and the height determines rollover threshold. For a machine skid or a vessel the centre of gravity sets the tipping angle and governs how anchor bolts and supports are loaded."}},
+{"@type":"Question","name":"What coordinate origin should I use?","acceptedAnswer":{"@type":"Answer","text":"Any origin works because the calculation is a weighted average, but choosing a physically meaningful datum makes the result easier to act on. Common choices are the bottom left corner of a baseframe, the centreline of a shaft, or a machined reference face. Use the same origin and the same length unit for every component, and record which datum you used alongside the answer."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Center of Gravity Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">Composite body method · mass-weighted average</span>
+    <h1>Center of Gravity Calculator</h1>
+    <p class="lede">Find the combined centre of gravity of an assembly from each component's mass
+    and position. Returns total mass, weight, X and Y coordinates and a percentage contribution
+    breakdown — with negative masses supported for holes and cut-outs.</p>
+    <div class="stdref">
+      <span>Any number of components</span>
+      <span>2D X–Y</span>
+      <span>Negative mass for cut-outs</span>
+      <span>Contribution breakdown</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Calculate assembly center of gravity</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">⚖</span>
+      <span class="card-hd-ttl">Component Masses &amp; Positions</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="tbl-wrap">
+        <table class="cg-tbl">
+          <thead>
+            <tr>
+              <th style="width:34%">Component</th>
+              <th style="width:20%">Mass (kg)</th>
+              <th style="width:20%">X (mm)</th>
+              <th style="width:20%">Y (mm)</th>
+              <th style="width:6%"></th>
+            </tr>
+          </thead>
+          <tbody id="cg-rows">
+            <tr>
+              <td><input type="text" class="cg-name" value="Motor" aria-label="Component name"></td>
+              <td><input type="number" class="cg-m" value="120" step="0.1" inputmode="decimal" aria-label="Mass"></td>
+              <td><input type="number" class="cg-x" value="300" step="1" inputmode="decimal" aria-label="X position"></td>
+              <td><input type="number" class="cg-y" value="450" step="1" inputmode="decimal" aria-label="Y position"></td>
+              <td><button class="cg-del" onclick="removeRow(this)" aria-label="Remove row">×</button></td>
+            </tr>
+            <tr>
+              <td><input type="text" class="cg-name" value="Gearbox" aria-label="Component name"></td>
+              <td><input type="number" class="cg-m" value="85" step="0.1" inputmode="decimal" aria-label="Mass"></td>
+              <td><input type="number" class="cg-x" value="750" step="1" inputmode="decimal" aria-label="X position"></td>
+              <td><input type="number" class="cg-y" value="400" step="1" inputmode="decimal" aria-label="Y position"></td>
+              <td><button class="cg-del" onclick="removeRow(this)" aria-label="Remove row">×</button></td>
+            </tr>
+            <tr>
+              <td><input type="text" class="cg-name" value="Pump" aria-label="Component name"></td>
+              <td><input type="number" class="cg-m" value="60" step="0.1" inputmode="decimal" aria-label="Mass"></td>
+              <td><input type="number" class="cg-x" value="1150" step="1" inputmode="decimal" aria-label="X position"></td>
+              <td><input type="number" class="cg-y" value="380" step="1" inputmode="decimal" aria-label="Y position"></td>
+              <td><button class="cg-del" onclick="removeRow(this)" aria-label="Remove row">×</button></td>
+            </tr>
+            <tr>
+              <td><input type="text" class="cg-name" value="Baseframe" aria-label="Component name"></td>
+              <td><input type="number" class="cg-m" value="210" step="0.1" inputmode="decimal" aria-label="Mass"></td>
+              <td><input type="number" class="cg-x" value="700" step="1" inputmode="decimal" aria-label="X position"></td>
+              <td><input type="number" class="cg-y" value="100" step="1" inputmode="decimal" aria-label="Y position"></td>
+              <td><button class="cg-del" onclick="removeRow(this)" aria-label="Remove row">×</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn-pdf" onclick="addRow()">+ Add component</button>
+        <span class="hint" style="margin:0">Enter a negative mass for a hole or cut-out.</span>
+      </div>
+
+      <div id="cg-validation" style="display:none;margin:12px 0"></div>
+
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn-calc" id="cg-btn" onclick="calcCog()">Calculate centre of gravity</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="cg-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="cg-share" onclick="shareCase()">Share this calculation</button>
+        <span id="cg-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="cg-verdict"></div>
+  <div class="results" id="cg-results">
+    <div class="rc-empty">Enter your components and select Calculate.</div>
+  </div>
+  <div id="cg-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Center of gravity formula</h2>
+
+  <p>The centre of gravity of a group of bodies is the <strong>mass-weighted average</strong> of
+  their positions. Each component's coordinate is weighted by how much mass it contributes, so a
+  heavy part near the origin pulls the answer far more than a light part far away.</p>
+
+  <div class="fbox">
+<span class="ht">M</span> = Σ m<sub>i</sub>                        <span class="cm">— total mass, kg</span>
+
+<span class="hi">X̄</span> = Σ (m<sub>i</sub> · x<sub>i</sub>) / M              <span class="cm">— centre of gravity, X</span>
+<span class="hi">Ȳ</span> = Σ (m<sub>i</sub> · y<sub>i</sub>) / M              <span class="cm">— centre of gravity, Y</span>
+
+<span class="ht">W</span> = M × 9.81                     <span class="cm">— total weight, N</span>
+<span class="ht">%<sub>i</sub></span> = m<sub>i</sub> / M × 100                <span class="cm">— contribution of each component</span>
+  </div>
+
+  <p class="legend">
+    <code>m<sub>i</sub></code> mass of component i (kg) ·
+    <code>x<sub>i</sub></code>, <code>y<sub>i</sub></code> its coordinates ·
+    <code>M</code> total mass ·
+    <code>X̄</code>, <code>Ȳ</code> combined centre of gravity
+  </p>
+
+  <div class="note">
+    <strong>Holes are negative mass.</strong> To handle a pocket, bore or cut-out, model the part
+    as if solid and then add a second entry with negative mass at the centroid of the removed
+    volume. This is the standard composite-body method and it works for any number of subtractions,
+    provided the total mass stays positive.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A pump skid carries a motor, gearbox and pump on a fabricated baseframe. Coordinates are
+  measured from the bottom-left corner of the frame.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Motor</dt><dd>120 kg at (300, 450)</dd>
+      <dt>Gearbox</dt><dd>85 kg at (750, 400)</dd>
+      <dt>Pump</dt><dd>60 kg at (1150, 380)</dd>
+      <dt>Baseframe</dt><dd>210 kg at (700, 100)</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — total mass</div>
+    <dl>
+      <dt>M = 120 + 85 + 60 + 210</dt><dd>475 kg</dd>
+      <dt>W = 475 × 9.81</dt><dd>4 659.8 N</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — first moments</div>
+    <dl>
+      <dt>Σ m·x = 36 000 + 63 750 + 69 000 + 147 000</dt><dd>315 750 kg·mm</dd>
+      <dt>Σ m·y = 54 000 + 34 000 + 22 800 + 21 000</dt><dd>131 800 kg·mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — centre of gravity</div>
+    <dl>
+      <dt>X̄ = 315 750 / 475</dt><dd>664.74 mm</dd>
+      <dt>Ȳ = 131 800 / 475</dt><dd>277.47 mm</dd>
+    </dl>
+
+    <div class="ans">CoG at (664.74, 277.47) mm · 475 kg · 4 659.8 N</div>
+  </div>
+
+  <p>The baseframe is 44 % of the mass and sits low at Y = 100, which is what pulls the combined
+  height down to 277 mm despite the machinery sitting at 380–450 mm. Lifting lugs should straddle
+  X = 665 mm, not the geometric middle of the frame — a common and expensive mistake when a skid
+  tilts on first lift.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and conventions</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Component mass</td><td>m<sub>i</sub></td><td>kg</td><td>Negative for cut-outs</td></tr>
+        <tr><td>X position</td><td>x<sub>i</sub></td><td>mm</td><td>Any consistent length unit</td></tr>
+        <tr><td>Y position</td><td>y<sub>i</sub></td><td>mm</td><td>Any consistent length unit</td></tr>
+        <tr><td>Total mass</td><td>M</td><td>kg</td><td>Must be non-zero</td></tr>
+        <tr><td>Total weight</td><td>W</td><td>N</td><td>M × 9.81</td></tr>
+        <tr><td>Centre of gravity</td><td>X̄, Ȳ</td><td>mm</td><td>Same unit as inputs</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Coordinates are unit-agnostic — millimetres, metres or inches all work, provided every
+  component uses the same unit and the same origin. The result comes back in that unit. Weight is
+  the only output tied to a specific unit, since it assumes mass in kilograms.</p>
+
+  <h3>Choosing a datum</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Application</th><th>Suggested origin</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>Machine skid</td><td>Bottom-left of baseframe</td><td>Matches fabrication drawings and lifting layout</td></tr>
+        <tr><td>Rotating assembly</td><td>Shaft centreline</td><td>Radial offset is the imbalance</td></tr>
+        <tr><td>Vessel or tank</td><td>Bottom tangent line</td><td>Height above support governs overturning</td></tr>
+        <tr><td>Transport load</td><td>Front axle or trailer kingpin</td><td>Determines axle load distribution</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How do you calculate the center of gravity of an assembly?</summary>
+      <div class="faq-a"><p>Multiply each component's mass by its coordinate, add those products
+      together, and divide by the total mass. Doing this separately for the X and Y directions
+      gives the coordinates of the combined centre of gravity. The result is a mass-weighted
+      average position, so heavy components pull the answer toward themselves far more strongly
+      than light ones.</p></div>
+    </details>
+
+    <details>
+      <summary>Can I use negative mass for holes and cut-outs?</summary>
+      <div class="faq-a"><p>Yes. Entering a negative mass at the position of a hole, pocket or
+      cut-out subtracts that material from the calculation, which is the standard composite-body
+      method. Model the part as if it were solid, then add a negative entry for each removed volume
+      at the centroid of that volume. The total mass must remain positive or the calculation has no
+      physical meaning.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the difference between center of gravity, centroid and center of mass?</summary>
+      <div class="faq-a"><p>Centre of mass is the mass-weighted average position of a body. Centre
+      of gravity is where the resultant weight acts, and it coincides with centre of mass whenever
+      the gravitational field is uniform — which it effectively is for anything of engineering
+      size. Centroid is the purely geometric average position of a volume or area, and it equals
+      the centre of mass only when density is uniform throughout.</p></div>
+    </details>
+
+    <details>
+      <summary>Why does center of gravity matter for lifting and transport?</summary>
+      <div class="faq-a"><p>Lifting points must straddle the centre of gravity or the load will
+      tilt and swing when it leaves the ground. For road transport the position determines axle
+      loading and the height determines rollover threshold. For a machine skid or a vessel the
+      centre of gravity sets the tipping angle and governs how anchor bolts and supports are
+      loaded.</p></div>
+    </details>
+
+    <details>
+      <summary>What coordinate origin should I use?</summary>
+      <div class="faq-a"><p>Any origin works because the calculation is a weighted average, but
+      choosing a physically meaningful datum makes the result easier to act on. Common choices are
+      the bottom-left corner of a baseframe, the centreline of a shaft, or a machined reference
+      face. Use the same origin and the same length unit for every component, and record which
+      datum you used alongside the answer.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/shaft-design-calculator">Shaft Design Calculator
+      <span class="d">Combined bending, torsion and key stress</span></a>
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection for 7 load cases</span></a>
+    <a href="/compression-spring-calculator">Compression Spring Calculator
+      <span class="d">Rate, deflection and Wahl-corrected stress</span></a>
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. This calculator works in two
+    dimensions — for lifting or transport analysis the Z coordinate and the height of the centre of
+    gravity above the support plane must also be established.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+function rows() {
+  return Array.prototype.slice.call(document.querySelectorAll('#cg-rows tr'));
+}
+
+function refreshDeleteState() {
+  var rs = rows();
+  rs.forEach(function (tr) {
+    var b = tr.querySelector('.cg-del');
+    if (b) b.disabled = rs.length <= 1;
+  });
+}
+
+function addRow(name, m, x, y) {
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><input type="text" class="cg-name" value="' + esc(name || '') + '" aria-label="Component name"></td>' +
+    '<td><input type="number" class="cg-m" value="' + esc(m === undefined ? '' : m) + '" step="0.1" inputmode="decimal" aria-label="Mass"></td>' +
+    '<td><input type="number" class="cg-x" value="' + esc(x === undefined ? '' : x) + '" step="1" inputmode="decimal" aria-label="X position"></td>' +
+    '<td><input type="number" class="cg-y" value="' + esc(y === undefined ? '' : y) + '" step="1" inputmode="decimal" aria-label="Y position"></td>' +
+    '<td><button class="cg-del" onclick="removeRow(this)" aria-label="Remove row">\u00d7</button></td>';
+  $('cg-rows').appendChild(tr);
+  refreshDeleteState();
+  var f = tr.querySelector('.cg-name');
+  if (f) f.focus();
+}
+
+function removeRow(btn) {
+  if (rows().length <= 1) return;
+  var tr = btn.closest('tr');
+  if (tr) tr.remove();
+  refreshDeleteState();
+}
+
+/* Read the table into the shape mech_cog expects. */
+function readComponents() {
+  var out = [], errors = [];
+  rows().forEach(function (tr, i) {
+    var name = (tr.querySelector('.cg-name').value || '').trim() || ('Component ' + (i + 1));
+    var m = parseFloat(tr.querySelector('.cg-m').value);
+    var x = parseFloat(tr.querySelector('.cg-x').value);
+    var y = parseFloat(tr.querySelector('.cg-y').value);
+    if (isNaN(m) || isNaN(x) || isNaN(y)) {
+      errors.push({ id: '', msg: 'Row ' + (i + 1) + ' (' + name + ') needs a mass, X and Y' });
+      return;
+    }
+    out.push({ name: name, m: m, x: x, y: y });
+  });
+  return { components: out, errors: errors };
+}
+
+async function calcCog() {
+  var btn = $('cg-btn');
+  var read = readComponents();
+  var v = { ok: read.errors.length === 0, errors: read.errors, warns: [] };
+
+  if (v.ok && read.components.length === 0) {
+    v.ok = false;
+    v.errors.push({ id: '', msg: 'Add at least one component' });
+  }
+  // Mirror the backend's zero-total guard with a clearer message.
+  if (v.ok) {
+    var tot = read.components.reduce(function (a, c) { return a + c.m; }, 0);
+    if (tot === 0) {
+      v.ok = false;
+      v.errors.push({ id: '', msg: 'Total mass is zero — the centre of gravity is undefined' });
+    } else if (tot < 0) {
+      v.ok = false;
+      v.errors.push({ id: '', msg: 'Total mass is negative — check the signs on your cut-outs' });
+    }
+  }
+
+  showValidation('cg-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('cg-pdf').disabled = true;
+    set('cg-verdict', '');
+    clearResults('cg-results', 'Correct the highlighted rows and calculate again.');
+    set('cg-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('cg-results');
+  set('cg-verdict', '');
+  set('cg-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('cog', { components: read.components });
+
+    LAST = { r: r, n: read.components.length, at: new Date() };
+    $('cg-pdf').disabled = false;
+
+    var heaviest = r.breakdown.reduce(function (a, b) {
+      return Math.abs(b.m) > Math.abs(a.m) ? b : a;
+    }, r.breakdown[0]);
+
+    set('cg-verdict',
+      '<div class="note" style="background:#ecfdf5;border-color:#6ee7b7;color:#047857">' +
+      '<strong>Centre of gravity at (' + MC.fN(r.cogX, 2) + ', ' + MC.fN(r.cogY, 2) + ') mm</strong> — ' +
+      MC.fN(r.totalM, 2) + ' kg across ' + LAST.n + ' component' + (LAST.n === 1 ? '' : 's') +
+      '. Heaviest is ' + esc(heaviest.name) + ' at ' + MC.fN(heaviest.pct, 1) + ' % of total mass.' +
+      '</div>');
+
+    renderResults('cg-results', [
+      { label: 'Centre of gravity X', value: MC.fN(r.cogX, 2), unit: 'mm', tone: 'main', big: true },
+      { label: 'Centre of gravity Y', value: MC.fN(r.cogY, 2), unit: 'mm', tone: 'main', big: true },
+      { label: 'Total mass',   value: MC.fN(r.totalM, 3),   unit: 'kg',   tone: 'grn' },
+      { label: 'Total weight', value: MC.fN(r.weight_N, 1), unit: 'N',    tone: 'blu',
+        sub: MC.fN(r.weight_N / 1000, 3) + ' kN' },
+      { label: 'Components',   value: MC.fN(LAST.n, 0),     unit: '' },
+      { label: 'Heaviest item', value: esc(heaviest.name),  unit: '',
+        sub: MC.fN(heaviest.m, 2) + ' kg — ' + MC.fN(heaviest.pct, 1) + ' %' }
+    ]);
+
+    var bodyRows = r.breakdown.map(function (c) {
+      return '<tr' + (c.m < 0 ? ' class="hl"' : '') + '>' +
+             '<td>' + esc(c.name) + '</td>' +
+             '<td>' + MC.fN(c.m, 2) + '</td>' +
+             '<td>' + MC.fN(c.x, 1) + '</td>' +
+             '<td>' + MC.fN(c.y, 1) + '</td>' +
+             '<td>' + MC.fN(c.pct, 1) + ' %</td>' +
+             '<td>' + MC.fN(c.m * c.x, 0) + '</td>' +
+             '<td>' + MC.fN(c.m * c.y, 0) + '</td></tr>';
+    }).join('');
+
+    set('cg-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Component</th><th>Mass (kg)</th><th>X</th><th>Y</th>' +
+      '<th>Share</th><th>m·x</th><th>m·y</th></tr></thead><tbody>' + bodyRows +
+      '<tr class="hl"><td>TOTAL</td><td>' + MC.fN(r.totalM, 2) + '</td>' +
+      '<td>' + MC.fN(r.cogX, 2) + '</td><td>' + MC.fN(r.cogY, 2) + '</td>' +
+      '<td>100 %</td><td>' + MC.fN(r.totalM * r.cogX, 0) + '</td>' +
+      '<td>' + MC.fN(r.totalM * r.cogY, 0) + '</td></tr>' +
+      '</tbody></table></div>' +
+      (r.breakdown.some(function (c) { return c.m < 0; })
+        ? '<div class="note" style="font-size:.84rem"><strong>Cut-outs included.</strong> ' +
+          'Negative-mass rows are highlighted. Percentage shares exceed 100 % for solid parts ' +
+          'because the subtractions carry a negative share.</div>'
+        : ''));
+
+  } catch (err) {
+    LAST = null;
+    $('cg-pdf').disabled = true;
+    set('cg-verdict', '');
+    MC.showError('cg-results', err);
+    set('cg-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+   Components are encoded as name~m~x~y, rows separated by |
+══════════════════════════════ */
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  var c = q.get('c');
+  if (!c) return;
+  var parsed = c.split('|').map(function (s) { return s.split('~'); })
+                .filter(function (p) { return p.length === 4; });
+  if (!parsed.length) return;
+  $('cg-rows').innerHTML = '';
+  parsed.forEach(function (p) { addRow(p[0], p[1], p[2], p[3]); });
+  refreshDeleteState();
+  calcCog();
+}
+
+function caseURL() {
+  var enc = rows().map(function (tr) {
+    return [tr.querySelector('.cg-name').value.replace(/[~|]/g, '-'),
+            tr.querySelector('.cg-m').value,
+            tr.querySelector('.cg-x').value,
+            tr.querySelector('.cg-y').value].join('~');
+  }).join('|');
+  return location.origin + location.pathname + '?c=' + encodeURIComponent(enc);
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Center of Gravity Calculator — multicalci.com';
+  var text = LAST
+    ? LAST.n + ' components, ' + MC.fN(LAST.r.totalM, 1) + ' kg \u2192 CoG (' +
+      MC.fN(LAST.r.cogX, 1) + ', ' + MC.fN(LAST.r.cogY, 1) + ') mm'
+    : 'Assembly centre of gravity calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('cg-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+
+  var compRows = r.breakdown.map(function (c) {
+    return '<tr' + (c.m < 0 ? ' class="hl"' : '') + '><td>' + esc(c.name) + '</td>' +
+           '<td>' + MC.fN(c.m, 2) + '</td><td>' + MC.fN(c.x, 1) + '</td>' +
+           '<td>' + MC.fN(c.y, 1) + '</td><td>' + MC.fN(c.pct, 1) + ' %</td>' +
+           '<td>' + MC.fN(c.m * c.x, 0) + '</td><td>' + MC.fN(c.m * c.y, 0) + '</td></tr>';
+  }).join('') +
+  '<tr class="hl"><td>TOTAL</td><td>' + MC.fN(r.totalM, 2) + '</td>' +
+  '<td>' + MC.fN(r.cogX, 2) + '</td><td>' + MC.fN(r.cogY, 2) + '</td><td>100 %</td>' +
+  '<td>' + MC.fN(r.totalM * r.cogX, 0) + '</td><td>' + MC.fN(r.totalM * r.cogY, 0) + '</td></tr>';
+
+  var outRows = [
+    ['Centre of gravity X', MC.fN(r.cogX, 2) + ' mm', true],
+    ['Centre of gravity Y', MC.fN(r.cogY, 2) + ' mm', true],
+    ['Total mass',          MC.fN(r.totalM, 3) + ' kg', true],
+    ['Total weight',        MC.fN(r.weight_N, 1) + ' N  (' + MC.fN(r.weight_N / 1000, 3) + ' kN)'],
+    ['Number of components', MC.fN(LAST.n, 0)]
+  ].map(function (x) {
+    return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+  }).join('');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:#ecfdf5;border:1px solid #6ee7b7;color:#047857}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'M  = sum( m_i )\n' +
+    'X  = sum( m_i x_i ) / M\n' +
+    'Y  = sum( m_i y_i ) / M\n' +
+    'W  = M x 9.81\n' +
+    'Negative mass represents a hole or cut-out (composite body method).';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Centre of Gravity Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Centre of Gravity Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Result</h2><div class="vd">Centre of gravity at (' + MC.fN(r.cogX, 2) + ', ' +
+      MC.fN(r.cogY, 2) + ') mm \u2014 ' + MC.fN(r.totalM, 2) + ' kg, ' +
+      MC.fN(r.weight_N, 1) + ' N total.</div>' +
+    '<h2>Summary</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Component breakdown</h2><table>' +
+    '<tr><th>Component</th><th>Mass (kg)</th><th>X</th><th>Y</th><th>Share</th><th>m.x</th><th>m.y</th></tr>' +
+    compRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'Two-dimensional X-Y analysis only. For lifting, transport or overturning\n' +
+    'assessment the Z coordinate and the height of the centre of gravity above\n' +
+    'the support plane must also be established.\n' +
+    'Coordinates are unit-agnostic; weight assumes mass in kilograms at g = 9.81.\n' +
+    'Component positions are assumed to be the centre of gravity of each item.\n' +
+    'Record the datum used alongside this result.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify against the assembly drawing</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+ready(function () { refreshDeleteState(); loadFromURL(); });
+</script>
+
+</body>
+</html>
