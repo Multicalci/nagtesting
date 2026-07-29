@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Shaft Design Calculator — Combined Bending &amp; Torsion, Key Sizing | multicalci.com</title>
+<meta name="description" content="Free shaft design calculator. Check a shaft under combined bending, torsion and axial load with von Mises stress and safety factor, plus fatigue margin, critical speed and key shear and bearing stress for C45, 4140 and stainless steel.">
+<link rel="canonical" href="https://www.multicalci.com/shaft-design-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/shaft-design-calculator">
+<meta property="og:title" content="Shaft Design Calculator — Combined Bending &amp; Torsion, Key Sizing">
+<meta property="og:description" content="Von Mises stress, fatigue margin, critical speed and key stresses for a shaft under combined loading.">
+<meta property="og:site_name" content="multicalci.com">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"SoftwareApplication","name":"Shaft Design Calculator","description":"Checks a solid circular shaft under combined bending, torsion and axial load. Returns bending, torsional and axial stress, von Mises equivalent stress, static safety factor, simplified fatigue margin, first critical speed, and key shear and bearing stress.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/shaft-design-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Mechanical Engineering Calculators","item":"https://www.multicalci.com/mechanical-engineering-calculators"},
+{"@type":"ListItem","position":3,"name":"Shaft Design Calculator","item":"https://www.multicalci.com/shaft-design-calculator"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"How is a shaft checked under combined bending and torsion?","acceptedAnswer":{"@type":"Answer","text":"Bending produces a normal stress of 32 times the moment divided by pi times diameter cubed, and torsion produces a shear stress of 16 times the torque divided by pi times diameter cubed. Because both act at the same point on the surface, they must be combined rather than checked separately. The von Mises equivalent stress is the square root of the normal stress squared plus three times the shear stress squared, and that combined figure is compared against yield."}},
+{"@type":"Question","name":"Why use von Mises stress for shafts?","acceptedAnswer":{"@type":"Answer","text":"Von Mises is the distortion energy criterion, which predicts yielding of ductile metals more accurately than maximum shear or maximum normal stress. A shaft carrying both bending and torsion has a biaxial stress state at its surface, and von Mises reduces that to a single equivalent number that can be compared directly against the uniaxial yield strength from a tensile test."}},
+{"@type":"Question","name":"What is critical speed and why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Critical speed is the rotational speed at which the shaft's natural bending frequency is excited once per revolution, causing resonance and large whirl amplitudes. It is estimated from the static deflection under self weight using the Rayleigh relation. Operating speed is normally kept below about 70 percent of the first critical speed, or well above it if the shaft is designed to run supercritically."}},
+{"@type":"Question","name":"How is a shaft key sized?","acceptedAnswer":{"@type":"Answer","text":"Key width is conventionally about one quarter of the shaft diameter, with height equal to width for a square key. The key must be checked twice: for shear across its width, where the force is twice the torque divided by the shaft diameter spread over width times length, and for bearing on the half of its height that engages the hub. Bearing usually governs, and the fix is to lengthen the key rather than widen it."}},
+{"@type":"Question","name":"What safety factor should a shaft have?","acceptedAnswer":{"@type":"Answer","text":"For static loading a safety factor of 1.5 to 2 against yield is common in general machinery, rising to 3 or more where loads are uncertain or the consequences of failure are severe. Rotating shafts under bending experience fully reversed stress every revolution, so fatigue rather than yield usually governs, and the fatigue margin should be checked separately against the endurance limit."}}]}]}
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a href="/" class="brand">MULTICALCI</a>
+    <nav>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/mechanical-engineering-calculators">Mechanical Engineering Calculators</a>
+    <span class="sep">›</span>
+    <span aria-current="page">Shaft Design Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <span class="eyebrow">Combined loading · von Mises · critical speed · key stress</span>
+    <h1>Shaft Design Calculator</h1>
+    <p class="lede">Check a solid circular shaft under combined bending, torsion and axial load.
+    Returns von Mises equivalent stress with safety factor against yield, a fatigue margin, the
+    first critical speed, and shear and bearing stress in the key.</p>
+    <div class="stdref">
+      <span>von Mises</span>
+      <span>Se = 0.504·S<sub>u</sub></span>
+      <span>Rayleigh critical speed</span>
+      <span>Square key check</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════ CALCULATOR ══════════ -->
+  <h2>Check a shaft under combined loading</h2>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico" aria-hidden="true">⚙</span>
+      <span class="card-hd-ttl">Geometry, Loading &amp; Material</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="sh-d">Shaft diameter <span class="u">d</span></label>
+          <input id="sh-d" type="number" step="1" value="50" inputmode="decimal" onchange="updateKeyHint()">
+        </div>
+        <div class="field">
+          <label for="sh-d-u">Diameter unit</label>
+          <select id="sh-d-u" onchange="updateKeyHint()">
+            <option value="mm" selected>mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sh-L">Bearing span <span class="u">L, mm</span></label>
+          <input id="sh-L" type="number" step="10" value="600" inputmode="decimal">
+          <div class="hint">Used for the critical speed estimate.</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="sh-M">Bending moment <span class="u">M, N·m</span></label>
+          <input id="sh-M" type="number" step="10" value="500" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sh-T">Torque <span class="u">T, N·m</span></label>
+          <input id="sh-T" type="number" step="10" value="800" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sh-Fa">Axial force <span class="u">F<sub>a</sub>, N</span></label>
+          <input id="sh-Fa" type="number" step="100" value="0" inputmode="decimal">
+          <div class="hint">Enter 0 if there is no thrust.</div>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="sh-mat">Shaft material</label>
+          <select id="sh-mat" onchange="applyMaterial()">
+            <option value="c45" selected>C45 steel — S<sub>y</sub> 390 MPa</option>
+            <option value="4140">4140 alloy — S<sub>y</sub> 655 MPa</option>
+            <option value="stainless">Stainless — S<sub>y</sub> 207 MPa</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sh-Sy">Yield strength <span class="u">S<sub>y</sub>, MPa</span></label>
+          <input id="sh-Sy" type="number" step="5" value="390" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sh-Su">Tensile strength <span class="u">S<sub>u</sub>, MPa</span></label>
+          <input id="sh-Su" type="number" step="5" value="620" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="sh-SF">Required safety factor <span class="u">SF</span></label>
+          <input id="sh-SF" type="number" step="0.1" min="1" value="2" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="sh-Lk">Key length <span class="u">L<sub>k</sub>, mm</span></label>
+          <input id="sh-Lk" type="number" step="5" value="40" inputmode="decimal">
+          <div class="hint" id="sh-key-hint">Key width will be 13 mm (d/4).</div>
+        </div>
+      </div>
+
+      <div id="sh-validation" style="display:none;margin-bottom:12px"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" id="sh-btn" onclick="calcShaft()">Check shaft</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn-pdf" id="sh-pdf" onclick="downloadReport()" disabled>Download PDF report</button>
+        <button class="btn-pdf" id="sh-share" onclick="shareCase()">Share this calculation</button>
+        <span id="sh-share-msg" class="hint" style="margin:0"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sh-verdict"></div>
+  <div class="results" id="sh-results">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+  <div id="sh-summary"></div>
+
+
+  <!-- ══════════ FORMULA ══════════ -->
+  <h2>Shaft stress formulas</h2>
+
+  <p>Bending and torsion act at the same point on the shaft surface, so they must be combined
+  rather than checked separately. The <strong>von Mises</strong> criterion reduces the biaxial
+  state to one equivalent stress comparable with the uniaxial yield strength.</p>
+
+  <div class="fbox">
+<span class="ht">σ<sub>b</sub></span> = 32·M / (π·d³)              <span class="cm">— bending stress, Pa</span>
+<span class="ht">τ<sub>t</sub></span> = 16·T / (π·d³)              <span class="cm">— torsional shear stress, Pa</span>
+<span class="ht">σ<sub>a</sub></span> = 4·F<sub>a</sub> / (π·d²)             <span class="cm">— axial stress, Pa</span>
+
+<span class="hi">σ<sub>vm</sub></span> = √( (σ<sub>b</sub> + σ<sub>a</sub>)² + 3·τ<sub>t</sub>² )
+<span class="hi">SF</span> = S<sub>y</sub> / σ<sub>vm</sub>
+
+<span class="cm">— Fatigue (simplified) —</span>
+<span class="ht">S<sub>e</sub></span> = 0.504 × S<sub>u</sub>               <span class="cm">— endurance limit estimate</span>
+<span class="hi">SF<sub>fat</sub></span> = 1 / ( σ<sub>b</sub>/S<sub>e</sub> + τ<sub>t</sub>/(0.577·S<sub>e</sub>) )
+
+<span class="cm">— Critical speed (Rayleigh, self weight) —</span>
+δ = 5·w·L⁴ / (384·E·I)                <span class="cm">w = ρ·A·g</span>
+<span class="hi">N<sub>c</sub></span> = (30/π) · √(g / δ)             <span class="cm">— rpm</span>
+
+<span class="cm">— Square key, width w = d/4 —</span>
+<span class="hi">τ<sub>key</sub></span>  = 2·T / (d · w · L<sub>k</sub>)        <span class="cm">— shear across the key</span>
+<span class="hi">σ<sub>bear</sub></span> = 4·T / (d · (w/2) · L<sub>k</sub>)    <span class="cm">— bearing on the hub</span>
+  </div>
+
+  <p class="legend">
+    <code>M</code> bending moment (N·m) ·
+    <code>T</code> torque (N·m) ·
+    <code>F<sub>a</sub></code> axial force (N) ·
+    <code>d</code> diameter ·
+    <code>L</code> bearing span ·
+    <code>L<sub>k</sub></code> key length ·
+    <code>S<sub>y</sub></code> yield ·
+    <code>S<sub>u</sub></code> tensile strength
+  </p>
+
+  <div class="note">
+    <strong>Check the key, not just the shaft.</strong> A generously sized shaft with a short key
+    fails at the key long before the shaft yields. Bearing stress on the key is four times the
+    shear stress for a square key, so bearing almost always governs — and the remedy is a longer
+    key, not a wider one.
+  </div>
+
+
+  <!-- ══════════ WORKED EXAMPLE ══════════ -->
+  <h2>Worked example</h2>
+
+  <p>A 50 mm C45 steel shaft on a 600 mm bearing span carrying 500 N·m bending and 800 N·m torque,
+  with a 40 mm long key.</p>
+
+  <div class="wex">
+    <div class="wex-hd">Given</div>
+    <dl>
+      <dt>Diameter d</dt><dd>50 mm</dd>
+      <dt>Bearing span L</dt><dd>600 mm</dd>
+      <dt>Bending moment M</dt><dd>500 N·m</dd>
+      <dt>Torque T</dt><dd>800 N·m</dd>
+      <dt>Material</dt><dd>C45 — S<sub>y</sub> 390 MPa, S<sub>u</sub> 620 MPa</dd>
+      <dt>Key length L<sub>k</sub></dt><dd>40 mm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 1 — component stresses</div>
+    <dl>
+      <dt>σ<sub>b</sub> = 32 × 500 / (π × 0.05³)</dt><dd>40.744 MPa</dd>
+      <dt>τ<sub>t</sub> = 16 × 800 / (π × 0.05³)</dt><dd>32.595 MPa</dd>
+      <dt>σ<sub>a</sub> (no thrust)</dt><dd>0 MPa</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 2 — combined stress</div>
+    <dl>
+      <dt>σ<sub>vm</sub> = √(40.744² + 3 × 32.595²)</dt><dd>69.623 MPa</dd>
+      <dt>SF = 390 / 69.623</dt><dd>5.602 — target was 2</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 3 — fatigue and speed</div>
+    <dl>
+      <dt>S<sub>e</sub> = 0.504 × 620</dt><dd>312 MPa</dd>
+      <dt>SF<sub>fatigue</sub></dt><dd>3.214</dd>
+      <dt>First critical speed N<sub>c</sub></dt><dd>14 667 rpm</dd>
+    </dl>
+
+    <div class="wex-hd" style="margin-top:16px">Step 4 — key</div>
+    <dl>
+      <dt>Key width = 50 / 4</dt><dd>13 mm square</dd>
+      <dt>τ<sub>key</sub> = 2 × 800 / (0.05 × 0.013 × 0.04)</dt><dd>61.54 MPa vs 225 allowable</dd>
+      <dt>σ<sub>bearing</sub> = 4 × 800 / (0.05 × 0.0065 × 0.04)</dt><dd>246.15 MPa vs 390</dd>
+    </dl>
+
+    <div class="ans">σ<sub>vm</sub> 69.62 MPa · SF 5.60 · fatigue 3.21 · key bearing 246 MPa → shaft adequate</div>
+  </div>
+
+  <p>The shaft is comfortable, but notice the margins are uneven: static SF is 5.60 while the key
+  bearing stress sits at 63 % of yield. Shorten the key to 20 mm and bearing stress doubles to
+  492 MPa — the key would fail while the shaft still shows SF 5.60. The key is the weak link long
+  before the shaft is.</p>
+
+
+  <!-- ══════════ UNITS ══════════ -->
+  <h2>Units and input ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Accepted range</th></tr></thead>
+      <tbody>
+        <tr><td>Shaft diameter</td><td>d</td><td>mm or in</td><td>&gt; 0</td></tr>
+        <tr><td>Bearing span</td><td>L</td><td>mm</td><td>&gt; 0</td></tr>
+        <tr><td>Bending moment</td><td>M</td><td>N·m</td><td>≥ 0</td></tr>
+        <tr><td>Torque</td><td>T</td><td>N·m</td><td>≥ 0</td></tr>
+        <tr><td>Axial force</td><td>F<sub>a</sub></td><td>N</td><td>any</td></tr>
+        <tr><td>Yield strength</td><td>S<sub>y</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Tensile strength</td><td>S<sub>u</sub></td><td>MPa</td><td>&gt; 0</td></tr>
+        <tr><td>Required safety factor</td><td>SF</td><td>—</td><td>≥ 1</td></tr>
+        <tr><td>Key length</td><td>L<sub>k</sub></td><td>mm</td><td>&gt; 0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Diameters in inches are converted at 25.4 mm. Key width is derived as d/4, rounded to the
+  nearest millimetre with a 4 mm floor, and the key is assumed square.</p>
+
+  <h3>Shaft material properties</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Material</th><th>S<sub>y</sub> (MPa)</th><th>S<sub>u</sub> (MPa)</th><th>S<sub>e</sub> = 0.504·S<sub>u</sub></th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>C45 steel</td><td>390</td><td>620</td><td>312</td><td>General machine shafts</td></tr>
+        <tr><td>4140 alloy</td><td>655</td><td>1 020</td><td>514</td><td>High-duty, heat-treated</td></tr>
+        <tr><td>Stainless</td><td>207</td><td>517</td><td>261</td><td>Corrosive and hygienic service</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>The fatigue figure is simplified.</strong> S<sub>e</sub> = 0.504·S<sub>u</sub> is the
+    unmodified endurance limit for steel. A full assessment applies Marin factors for surface
+    finish, size, loading type, temperature and reliability, plus a fatigue stress concentration
+    factor at every shoulder, keyway and groove. Those reductions are typically substantial, so
+    treat the figure here as an upper bound rather than a design value.
+  </div>
+
+
+  <!-- ══════════ FAQ ══════════ -->
+  <h2>Frequently asked questions</h2>
+
+  <div class="faq">
+    <details>
+      <summary>How is a shaft checked under combined bending and torsion?</summary>
+      <div class="faq-a"><p>Bending produces a normal stress of 32M/πd³ and torsion produces a
+      shear stress of 16T/πd³. Because both act at the same point on the surface, they must be
+      combined rather than checked separately. The von Mises equivalent stress is
+      √(σ² + 3τ²), and that combined figure is compared against yield.</p></div>
+    </details>
+
+    <details>
+      <summary>Why use von Mises stress for shafts?</summary>
+      <div class="faq-a"><p>Von Mises is the distortion energy criterion, which predicts yielding
+      of ductile metals more accurately than maximum shear or maximum normal stress. A shaft
+      carrying both bending and torsion has a biaxial stress state at its surface, and von Mises
+      reduces that to a single equivalent number that can be compared directly against the
+      uniaxial yield strength from a tensile test.</p></div>
+    </details>
+
+    <details>
+      <summary>What is critical speed and why does it matter?</summary>
+      <div class="faq-a"><p>Critical speed is the rotational speed at which the shaft's natural
+      bending frequency is excited once per revolution, causing resonance and large whirl
+      amplitudes. It is estimated from the static deflection under self weight using the Rayleigh
+      relation. Operating speed is normally kept below about 70 % of the first critical speed, or
+      well above it if the shaft is designed to run supercritically.</p></div>
+    </details>
+
+    <details>
+      <summary>How is a shaft key sized?</summary>
+      <div class="faq-a"><p>Key width is conventionally about one quarter of the shaft diameter,
+      with height equal to width for a square key. The key must be checked twice: for shear across
+      its width, where the force is 2T/d spread over width × length, and for bearing on the half of
+      its height that engages the hub. Bearing usually governs, and the fix is to lengthen the key
+      rather than widen it.</p></div>
+    </details>
+
+    <details>
+      <summary>What safety factor should a shaft have?</summary>
+      <div class="faq-a"><p>For static loading a safety factor of 1.5 to 2 against yield is common
+      in general machinery, rising to 3 or more where loads are uncertain or the consequences of
+      failure are severe. Rotating shafts under bending experience fully reversed stress every
+      revolution, so fatigue rather than yield usually governs, and the fatigue margin should be
+      checked separately against the endurance limit.</p></div>
+    </details>
+  </div>
+
+
+  <!-- ══════════ RELATED ══════════ -->
+  <h2>Related mechanical calculators</h2>
+
+  <div class="related">
+    <a href="/compression-spring-calculator">Compression Spring Calculator
+      <span class="d">Rate, deflection and Wahl-corrected stress</span></a>
+    <a href="/spur-gear-calculator">Spur Gear Calculator
+      <span class="d">Ratio, torque and AGMA bending stress</span></a>
+    <a href="/beam-deflection-calculator">Beam Deflection Calculator
+      <span class="d">Moment, stress and deflection for 7 load cases</span></a>
+    <a href="/bolt-torque-calculator">Bolt Torque Calculator
+      <span class="d">Preload, stress and safety factor</span></a>
+  </div>
+
+  <a class="hublink" href="/mechanical-engineering-calculators">← All mechanical engineering calculators</a>
+
+  <footer class="foot">
+    <p>Results are estimates for preliminary engineering only. Stress concentration at shoulders,
+    keyways and grooves is not applied, and the fatigue figure omits Marin modifying factors.
+    Verify against a full fatigue assessment before committing a rotating design.
+    <a href="/mechanical-engineering-calculators">Mechanical calculators</a> ·
+    <a href="/">multicalci.com</a></p>
+  </footer>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+'use strict';
+
+var LAST = null;
+
+/* Mirrors MECH_MAT.shaft server-side. The backend overrides Sy and Su from
+   materialKey, so this only keeps the visible fields in step. */
+var MATS = {
+  c45:       { Sy: 390, Su: 620 },
+  '4140':    { Sy: 655, Su: 1020 },
+  stainless: { Sy: 207, Su: 517 }
+};
+
+function applyMaterial() {
+  var m = MATS[gs('sh-mat')];
+  if (!m) return;
+  $('sh-Sy').value = m.Sy;
+  $('sh-Su').value = m.Su;
+}
+
+/* Key width is derived server-side as max(4, round(d_mm/4)). */
+function updateKeyHint() {
+  var el = $('sh-key-hint');
+  if (!el) return;
+  var d = gv('sh-d');
+  if (gs('sh-d-u') === 'in') d *= 25.4;
+  if (isNaN(d) || d <= 0) { el.textContent = 'Enter a diameter to see the key width.'; return; }
+  el.textContent = 'Key width will be ' + Math.max(4, Math.round(d / 4)) + ' mm (d/4), square section.';
+}
+
+async function calcShaft() {
+  var btn = $('sh-btn');
+
+  var v = validate([
+    { id: 'sh-d',  label: 'Shaft diameter',  required: true, gt: 0 },
+    { id: 'sh-L',  label: 'Bearing span',    required: true, gt: 0 },
+    { id: 'sh-M',  label: 'Bending moment',  required: true, gte: 0 },
+    { id: 'sh-T',  label: 'Torque',          required: true, gte: 0 },
+    { id: 'sh-Sy', label: 'Yield strength',  required: true, gt: 0 },
+    { id: 'sh-Su', label: 'Tensile strength', required: true, gt: 0 },
+    { id: 'sh-SF', label: 'Required safety factor', required: true, gte: 1 },
+    { id: 'sh-Lk', label: 'Key length',      required: true, gt: 0 }
+  ]);
+  showValidation('sh-validation', v);
+  if (!v.ok) {
+    LAST = null;
+    $('sh-pdf').disabled = true;
+    set('sh-verdict', '');
+    clearResults('sh-results', 'Correct the highlighted inputs and calculate again.');
+    set('sh-summary', '');
+    return;
+  }
+
+  busy(btn, true);
+  setLoading('sh-results');
+  set('sh-verdict', '');
+  set('sh-summary', '');
+
+  try {
+    var r = await MC.api.mechanical('shaft', {
+      M:           gv('sh-M'),
+      T:           gv('sh-T'),
+      Fa:          gvOr('sh-Fa', 0),
+      d:           gv('sh-d'),
+      d_u:         gs('sh-d-u'),
+      L:           gv('sh-L'),
+      Sy:          gv('sh-Sy'),
+      Su:          gv('sh-Su'),
+      SF:          gv('sh-SF'),
+      Lk:          gv('sh-Lk'),
+      materialKey: gs('sh-mat')
+    });
+
+    LAST = { r: r, matLabel: $('sh-mat').selectedOptions[0].textContent.split('—')[0].trim(),
+             d_in: gs('sh-d') + ' ' + gs('sh-d-u'), at: new Date() };
+    $('sh-pdf').disabled = false;
+
+    /* The backend's ok flag is sf_vm > SF only — it does not include the key
+       shear or key bearing checks. A shaft with an overstressed key is not
+       acceptable however comfortable the shaft itself is. */
+    var keyFail = r.keyShearFail || r.keyBearFail;
+    var pass = r.ok && !keyFail;
+
+    var reason = r.vmFail
+        ? 'von Mises stress ' + MC.fN(r.sigma_vm, 1) + ' MPa exceeds yield. Increase the diameter.'
+      : !r.ok
+        ? 'Safety factor ' + MC.fN(r.sf_vm, 2) + ' is below the required ' + MC.fN(r.SF, 1) + '.'
+      : r.keyBearFail
+        ? 'The shaft passes but key bearing stress ' + MC.fN(r.key_bearing, 0) +
+          ' MPa exceeds yield. Lengthen the key.'
+      : r.keyShearFail
+        ? 'The shaft passes but key shear stress ' + MC.fN(r.key_shear, 0) +
+          ' MPa exceeds the ' + MC.fN(0.577 * r.Sy_MPa, 0) + ' MPa allowable. Lengthen the key.'
+        : 'Safety factor ' + MC.fN(r.sf_vm, 2) + ' against yield, fatigue margin ' +
+          MC.fN(r.sf_fatigue, 2) + ', critical speed ' + MC.fN(r.Nc_rpm, 0) + ' rpm.';
+
+    set('sh-verdict',
+      '<div class="note" style="' +
+      (pass ? 'background:#ecfdf5;border-color:#6ee7b7;color:#047857'
+            : 'background:#fef2f2;border-color:#fca5a5;color:#b91c1c') + '">' +
+      '<strong>' + (pass ? 'Shaft adequate' : 'Shaft not adequate') + '</strong> — ' + reason +
+      '</div>');
+
+    renderResults('sh-results', [
+      { label: 'von Mises stress',  value: MC.fN(r.sigma_vm, 2), unit: 'MPa',
+        tone: r.vmFail ? 'red' : 'main', big: true, sub: 'Yield ' + MC.fN(r.Sy_MPa, 0) + ' MPa' },
+      { label: 'Safety factor',     value: MC.fN(r.sf_vm, 3),    unit: '',
+        tone: r.ok ? 'grn' : 'red', big: true, sub: 'Required ' + MC.fN(r.SF, 1) },
+      { label: 'Bending stress σb', value: MC.fN(r.sigma_b, 3),  unit: 'MPa' },
+      { label: 'Torsional shear τt', value: MC.fN(r.tau_t, 3),   unit: 'MPa' },
+      { label: 'Axial stress σa',   value: MC.fN(r.sigma_a, 3),  unit: 'MPa' },
+      { label: 'Fatigue margin',    value: MC.fN(r.sf_fatigue, 3), unit: '',
+        tone: r.sf_fatigue < 1 ? 'red' : (r.sf_fatigue < 1.5 ? 'amb' : 'grn'),
+        sub: 'Se ' + MC.fN(r.Se_MPa, 0) + ' MPa, unmodified' },
+      { label: 'Critical speed',    value: MC.fN(r.Nc_rpm, 0),   unit: 'rpm', tone: 'blu',
+        sub: 'Keep below ~70 %: ' + MC.fN(r.Nc_rpm * 0.7, 0) + ' rpm' },
+      { label: 'Key shear stress',  value: MC.fN(r.key_shear, 2), unit: 'MPa',
+        tone: r.keyShearFail ? 'red' : 'grn',
+        sub: 'Allowable ' + MC.fN(0.577 * r.Sy_MPa, 0) + ' MPa' },
+      { label: 'Key bearing stress', value: MC.fN(r.key_bearing, 2), unit: 'MPa',
+        tone: r.keyBearFail ? 'red' : 'grn',
+        sub: 'Allowable ' + MC.fN(r.Sy_MPa, 0) + ' MPa' }
+    ]);
+
+    set('sh-summary',
+      '<div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Basis</th><th>Value</th></tr></thead><tbody>' +
+      '<tr><td>Shaft</td><td>' + esc(LAST.d_in) + ' diameter (' + MC.fN(r.d_mm, 0) +
+        ' mm) over ' + MC.fN(r.L_mm, 0) + ' mm span</td></tr>' +
+      '<tr><td>Material</td><td>' + esc(LAST.matLabel) + ' — S<sub>y</sub> ' + MC.fN(r.Sy_MPa, 0) +
+        ' MPa, S<sub>e</sub> ' + MC.fN(r.Se_MPa, 0) + ' MPa</td></tr>' +
+      '<tr><td>Loading</td><td>M ' + MC.fN(gv('sh-M'), 1) + ' N·m · T ' + MC.fN(gv('sh-T'), 1) +
+        ' N·m · F<sub>a</sub> ' + MC.fN(r.Fa_N, 0) + ' N</td></tr>' +
+      '<tr><td>Polar moment J</td><td>' + MC.fN(r.J_mm4, 0) + ' mm⁴</td></tr>' +
+      '<tr><td>Key section</td><td>' + r.kw + ' × ' + r.kh + ' mm square, ' +
+        MC.fN(gv('sh-Lk'), 0) + ' mm long</td></tr>' +
+      '<tr><td>Bearing / shear ratio</td><td>' + MC.fN(r.key_bearing / Math.max(r.key_shear, 1e-9), 1) +
+        '× — bearing governs</td></tr>' +
+      '<tr class="hl"><td>Governing check</td><td>' +
+        (r.keyBearFail ? 'Key bearing' : r.keyShearFail ? 'Key shear'
+          : (r.sf_fatigue < r.sf_vm ? 'Fatigue' : 'Static von Mises')) + '</td></tr>' +
+      '</tbody></table></div>');
+
+  } catch (err) {
+    LAST = null;
+    $('sh-pdf').disabled = true;
+    set('sh-verdict', '');
+    MC.showError('sh-results', err);
+    set('sh-summary', '');
+  } finally {
+    busy(btn, false);
+  }
+}
+
+
+/* ══════════════════════════════
+   SHAREABLE CASE
+══════════════════════════════ */
+var FIELDS = { d:'sh-d', du:'sh-d-u', L:'sh-L', M:'sh-M', T:'sh-T', Fa:'sh-Fa',
+               mat:'sh-mat', Sy:'sh-Sy', Su:'sh-Su', SF:'sh-SF', Lk:'sh-Lk' };
+
+function loadFromURL() {
+  var q = new URLSearchParams(location.search);
+  if (!Object.keys(FIELDS).some(function (k) { return q.has(k); })) return;
+  Object.keys(FIELDS).forEach(function (k) {
+    if (!q.has(k)) return;
+    var el = $(FIELDS[k]);
+    if (el) el.value = q.get(k);
+  });
+  updateKeyHint();
+  calcShaft();
+}
+
+function caseURL() {
+  var q = new URLSearchParams();
+  Object.keys(FIELDS).forEach(function (k) { q.set(k, gs(FIELDS[k])); });
+  return location.origin + location.pathname + '?' + q.toString();
+}
+
+async function shareCase() {
+  var url = caseURL();
+  var title = 'Shaft Design Calculator — multicalci.com';
+  var text = LAST
+    ? gs('sh-d') + ' mm shaft, M ' + gs('sh-M') + ' T ' + gs('sh-T') + ' N\u00b7m \u2192 \u03c3vm ' +
+      MC.fN(LAST.r.sigma_vm, 1) + ' MPa, SF ' + MC.fN(LAST.r.sf_vm, 2)
+    : 'Shaft combined stress, fatigue and key sizing calculator';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: title, text: text, url: url }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareMsg('Link copied to clipboard');
+  } catch (e) {
+    window.prompt('Copy this link:', url);
+  }
+}
+
+function shareMsg(m) {
+  var el = $('sh-share-msg');
+  if (!el) return;
+  el.textContent = m;
+  setTimeout(function () { el.textContent = ''; }, 3000);
+}
+
+
+/* ══════════════════════════════
+   PDF REPORT
+══════════════════════════════ */
+function downloadReport() {
+  if (!LAST) { shareMsg('Run a calculation first'); return; }
+  var r = LAST.r;
+  var dt = LAST.at.toLocaleString();
+  var keyFail = r.keyShearFail || r.keyBearFail;
+  var pass = r.ok && !keyFail;
+
+  function rows(list) {
+    return list.map(function (x) {
+      return '<tr' + (x[2] ? ' class="hl"' : '') + '><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>';
+    }).join('');
+  }
+
+  var inRows = rows([
+    ['Shaft diameter',        esc(LAST.d_in) + '  (' + MC.fN(r.d_mm, 0) + ' mm)'],
+    ['Bearing span L',        MC.fN(r.L_mm, 0) + ' mm'],
+    ['Bending moment M',      MC.fN(gv('sh-M'), 1) + ' N.m'],
+    ['Torque T',              MC.fN(gv('sh-T'), 1) + ' N.m'],
+    ['Axial force Fa',        MC.fN(r.Fa_N, 0) + ' N'],
+    ['Material',              esc(LAST.matLabel)],
+    ['Yield strength Sy',     MC.fN(r.Sy_MPa, 0) + ' MPa'],
+    ['Endurance limit Se',    MC.fN(r.Se_MPa, 0) + ' MPa  (0.504 x Su, unmodified)'],
+    ['Required safety factor', MC.fN(r.SF, 1)],
+    ['Key length Lk',         MC.fN(gv('sh-Lk'), 0) + ' mm']
+  ]);
+
+  var outRows = rows([
+    ['Bending stress sigma_b', MC.fN(r.sigma_b, 3) + ' MPa'],
+    ['Torsional shear tau_t',  MC.fN(r.tau_t, 3) + ' MPa'],
+    ['Axial stress sigma_a',   MC.fN(r.sigma_a, 3) + ' MPa'],
+    ['von Mises stress',       MC.fN(r.sigma_vm, 3) + ' MPa', true],
+    ['Static safety factor',   MC.fN(r.sf_vm, 3), true],
+    ['Fatigue margin',         MC.fN(r.sf_fatigue, 3), true],
+    ['First critical speed',   MC.fN(r.Nc_rpm, 0) + ' rpm  (70% = ' + MC.fN(r.Nc_rpm * 0.7, 0) + ')'],
+    ['Polar moment J',         MC.fN(r.J_mm4, 0) + ' mm4'],
+    ['Key section',            r.kw + ' x ' + r.kh + ' mm square'],
+    ['Key shear stress',       MC.fN(r.key_shear, 2) + ' MPa  (allowable ' + MC.fN(0.577 * r.Sy_MPa, 0) + ')', true],
+    ['Key bearing stress',     MC.fN(r.key_bearing, 2) + ' MPa  (allowable ' + MC.fN(r.Sy_MPa, 0) + ')', true]
+  ]);
+
+  var verdict = pass
+    ? 'ADEQUATE \u2014 von Mises ' + MC.fN(r.sigma_vm, 2) + ' MPa, safety factor ' +
+      MC.fN(r.sf_vm, 2) + ' against a required ' + MC.fN(r.SF, 1) + '.'
+    : 'NOT ADEQUATE \u2014 ' + (r.vmFail ? 'von Mises stress exceeds yield.'
+        : !r.ok ? 'safety factor ' + MC.fN(r.sf_vm, 2) + ' is below the required ' + MC.fN(r.SF, 1) + '.'
+        : r.keyBearFail ? 'key bearing stress ' + MC.fN(r.key_bearing, 0) + ' MPa exceeds yield.'
+        : 'key shear stress ' + MC.fN(r.key_shear, 0) + ' MPa exceeds the allowable.');
+
+  var w = window.open('', '_blank', 'width=880,height=760');
+  if (!w) { shareMsg('Allow pop-ups to export the report'); return; }
+
+  var css =
+    "*{box-sizing:border-box;margin:0;padding:0}" +
+    "body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#fff;color:#0f2044;font-size:12px}" +
+    ".hdr{background:#0f2044;color:#fff;padding:20px 30px}" +
+    ".hdr h1{font-family:'Saira',sans-serif;font-size:19px;font-weight:700;margin-bottom:3px}" +
+    ".hdr .sub{font-size:10px;color:rgba(255,255,255,.55)}" +
+    ".acnt{height:3px;background:linear-gradient(90deg,#b45309,#1e4db7)}" +
+    ".body{padding:20px 30px}" +
+    "h2{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;" +
+      "letter-spacing:.09em;border-bottom:2px solid #b45309;padding-bottom:4px;margin:16px 0 9px}" +
+    "table{width:100%;border-collapse:collapse;margin-bottom:4px}" +
+    "th{background:#0f2044;color:rgba(255,255,255,.85);padding:7px 11px;font-size:9.5px;" +
+      "font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left}" +
+    "td{padding:6px 11px;border-bottom:1px solid #d6dced;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:10.5px;font-variant-numeric:tabular-nums slashed-zero}" +
+    "td:first-child{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;color:#0f2044}" +
+    "tr:nth-child(even) td{background:#f4f6fb}" +
+    "tr.hl td{background:#fffbeb;color:#92400e;font-weight:700}" +
+    ".vd{padding:10px 14px;border-radius:6px;font-weight:700;font-size:11.5px;margin-bottom:4px;" +
+      "background:" + (pass ? '#ecfdf5;border:1px solid #6ee7b7;color:#047857' : '#fef2f2;border:1px solid #fca5a5;color:#b91c1c') + "}" +
+    ".fml{background:#0f2044;border-radius:6px;padding:11px 15px;font-family:'IBM Plex Mono',monospace;" +
+      "font-size:9.5px;color:rgba(255,255,255,.68);line-height:1.95;margin-top:6px;white-space:pre-wrap}" +
+    ".foot{text-align:center;font-size:9px;color:#7a8fb5;margin-top:22px;padding-top:9px;border-top:1px solid #d6dced}" +
+    "@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}";
+
+  var formula =
+    'sigma_b = 32 M / (pi d^3)        tau_t = 16 T / (pi d^3)\n' +
+    'sigma_a = 4 Fa / (pi d^2)\n' +
+    'sigma_vm = sqrt( (sigma_b + sigma_a)^2 + 3 tau_t^2 )\n' +
+    'SF = Sy / sigma_vm\n' +
+    'Se = 0.504 x Su\n' +
+    'SF_fatigue = 1 / ( sigma_b/Se + tau_t/(0.577 Se) )\n' +
+    'Nc = (30/pi) x sqrt(g / delta_selfweight)\n' +
+    'tau_key = 2T / (d x w x Lk)      sigma_bear = 4T / (d x (w/2) x Lk)';
+
+  var doc =
+    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+    '<title>Shaft Design Report \u2014 multicalci.com</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Saira:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">' +
+    '<style>' + css + '</style></head><body>' +
+    '<div class="hdr"><h1>Shaft Design Calculation Report</h1>' +
+    '<div class="sub">MULTICALCI.COM \u2014 Mechanical Engineering Suite &nbsp;|&nbsp; Generated: ' + dt + '</div></div>' +
+    '<div class="acnt"></div><div class="body">' +
+    '<h2>Verdict</h2><div class="vd">' + verdict + '</div>' +
+    '<h2>Inputs</h2><table><tr><th>Parameter</th><th>Value</th></tr>' + inRows + '</table>' +
+    '<h2>Results</h2><table><tr><th>Quantity</th><th>Value</th></tr>' + outRows + '</table>' +
+    '<h2>Formulae used</h2><div class="fml">' + formula + '</div>' +
+    '<h2>Basis and limitations</h2><div class="fml">' +
+    'Solid circular shaft, static combined loading, von Mises yield criterion.\n' +
+    'The fatigue margin uses an UNMODIFIED endurance limit Se = 0.504 x Su.\n' +
+    'A full assessment applies Marin factors for surface finish, size, loading,\n' +
+    'temperature and reliability, plus fatigue stress concentration at every\n' +
+    'shoulder, keyway and groove. Those reductions are usually substantial.\n' +
+    'Critical speed is a self-weight Rayleigh estimate on a simply supported span;\n' +
+    'it ignores attached masses such as gears, pulleys and couplings, which lower\n' +
+    'it considerably.\n' +
+    'NOT covered: bearing selection and life, shaft deflection and slope limits,\n' +
+    'torsional vibration, press fits, and spline or coupling capacity.' +
+    '</div>' +
+    '<div class="foot">multicalci.com &nbsp;|&nbsp; ' + dt +
+    ' &nbsp;|&nbsp; Preliminary estimate only \u2014 verify with a full fatigue assessment</div>' +
+    '</div><script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>' +
+    '</body></html>';
+
+  w.document.write(doc);
+  w.document.close();
+}
+
+enterToCalc(['sh-d', 'sh-L', 'sh-M', 'sh-T', 'sh-Fa', 'sh-Sy', 'sh-Su', 'sh-SF', 'sh-Lk'], calcShaft);
+ready(function () { updateKeyHint(); loadFromURL(); });
+</script>
+
+</body>
+</html>
