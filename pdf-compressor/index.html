@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PDF Compressor — Free Online Tool | MultiCalci</title>
+<meta name="description" content="Compress PDF files up to 200MB directly in your browser. No upload to a server, no watermark, no account. Powered by Ghostscript." />
+<link rel="canonical" href="https://multicalci.com/pdf-compressor" />
+<meta name="robots" content="index, follow" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="PDF Compressor — Free Online Tool | MultiCalci" />
+<meta property="og:description" content="Compress PDF files up to 200MB directly in your browser. No upload to a server, no watermark, no account." />
+<meta property="og:url" content="https://multicalci.com/pdf-compressor" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "PDF Compressor",
+  "url": "https://multicalci.com/pdf-compressor",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any (runs in browser)",
+  "description": "Free browser-based tool to compress PDF files up to 200MB. Processing happens entirely on-device using Ghostscript compiled to WebAssembly, files are never uploaded to a server.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Client-side PDF compression, no file upload",
+    "Supports files up to 200MB",
+    "Three quality presets (screen, ebook, prepress)",
+    "No account or watermark"
+  ],
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "MultiCalci",
+    "url": "https://multicalci.com"
+  }
+}
+</script>
+<style>
+  :root {
+    --ink: #10181f;
+    --paper: #f6f7f5;
+    --panel: #ffffff;
+    --line: #d7dcd7;
+    --accent: #1f6f5c;
+    --accent-dim: #e6efec;
+    --warn: #b3541e;
+    --mono: "JetBrains Mono", "Courier New", monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  header.tool-header {
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: #4b5a52;
+    font-size: 15px;
+    max-width: 60ch;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 28px;
+    margin-top: 24px;
+  }
+  .dropzone {
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .dropzone p {
+    margin: 6px 0;
+  }
+  .dropzone .primary {
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .dropzone .limit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #6b7770;
+  }
+  input[type="file"] { display: none; }
+
+  .file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--accent-dim);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .file-row .name { font-weight: 600; word-break: break-all; }
+  .file-row .size { color: #4b5a52; white-space: nowrap; }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--warn);
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: underline;
+  }
+
+  .quality-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .quality-option {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .quality-option.selected {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .quality-option .label { font-weight: 600; display: block; margin-bottom: 2px; }
+  .quality-option .hint { font-size: 11px; color: #6b7770; }
+
+  button.run {
+    width: 100%;
+    margin-top: 22px;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.run:disabled {
+    background: #9aa39c;
+    cursor: not-allowed;
+  }
+
+  .status-block {
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .progress-track {
+    height: 6px;
+    background: var(--accent-dim);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 30%;
+    background: var(--accent);
+    animation: indeterminate 1.4s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+  .progress-track { position: relative; }
+  .progress-fill { position: absolute; left: 0; top: 0; }
+
+  .result {
+    margin-top: 22px;
+    padding: 18px;
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    border-radius: 8px;
+  }
+  .result .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .result .savings {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  a.download-btn {
+    display: inline-block;
+    margin-top: 14px;
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .error-block {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--warn);
+    background: #fbeee3;
+    color: #7a3510;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .note {
+    margin-top: 28px;
+    font-size: 12.5px;
+    color: #6b7770;
+  }
+  .note strong { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="tool-header">
+    <div class="eyebrow">Free Tool · Runs in your browser</div>
+    <h1>PDF Compressor</h1>
+    <p class="sub">
+      Shrink PDF file size without uploading it anywhere. Compression runs
+      entirely on your device using Ghostscript compiled to WebAssembly —
+      your file never leaves your browser. Supports files up to 200 MB.
+    </p>
+  </header>
+
+  <div class="panel">
+
+    <div id="dropzone" class="dropzone">
+      <p class="primary">Drop a PDF here, or click to choose a file</p>
+      <p class="limit">Maximum file size: 200 MB</p>
+      <input type="file" id="fileInput" accept="application/pdf" />
+    </div>
+
+    <div id="fileRow" class="file-row" style="display:none; margin-top:16px;">
+      <span class="name" id="fileName"></span>
+      <span class="size" id="fileSize"></span>
+      <button class="remove-btn" id="removeFile">remove</button>
+    </div>
+
+    <div class="quality-group">
+      <div class="quality-option" data-quality="low">
+        <span class="label">Small file</span>
+        <span class="hint">~72dpi images</span>
+      </div>
+      <div class="quality-option selected" data-quality="medium">
+        <span class="label">Balanced</span>
+        <span class="hint">~150dpi images</span>
+      </div>
+      <div class="quality-option" data-quality="high">
+        <span class="label">High quality</span>
+        <span class="hint">~300dpi images</span>
+      </div>
+    </div>
+
+    <button class="run" id="runBtn" disabled>Compress PDF</button>
+
+    <div id="statusBlock" class="status-block" style="display:none;">
+      <div id="statusText">Starting…</div>
+      <div class="progress-track"><div class="progress-fill"></div></div>
+    </div>
+
+    <div id="errorBlock" class="error-block" style="display:none;"></div>
+
+    <div id="resultBlock" class="result" style="display:none;">
+      <div class="stat-row"><span>Original size</span><span id="origSize"></span></div>
+      <div class="stat-row"><span>Compressed size</span><span id="compSize"></span></div>
+      <div class="stat-row savings"><span>Reduction</span><span id="savingsPct"></span></div>
+      <a id="downloadLink" class="download-btn" href="#" download>Download compressed PDF</a>
+    </div>
+
+  </div>
+
+  <p class="note">
+    <strong>Note on large files:</strong> compression happens using your
+    device's own memory. A 200 MB PDF can briefly need 600&nbsp;MB–1&nbsp;GB
+    of RAM in your browser tab. On phones or older/low-memory computers,
+    very large files may fail — try the "Small file" quality setting first,
+    or use a desktop browser for files over ~100 MB.
+  </p>
+
+</div>
+
+<script>
+(function () {
+  const MAX_BYTES = 200 * 1024 * 1024; // 200 MB
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const fileRow = document.getElementById("fileRow");
+  const fileNameEl = document.getElementById("fileName");
+  const fileSizeEl = document.getElementById("fileSize");
+  const removeFileBtn = document.getElementById("removeFile");
+  const runBtn = document.getElementById("runBtn");
+  const statusBlock = document.getElementById("statusBlock");
+  const statusText = document.getElementById("statusText");
+  const errorBlock = document.getElementById("errorBlock");
+  const resultBlock = document.getElementById("resultBlock");
+  const origSizeEl = document.getElementById("origSize");
+  const compSizeEl = document.getElementById("compSize");
+  const savingsPctEl = document.getElementById("savingsPct");
+  const downloadLink = document.getElementById("downloadLink");
+  const qualityOptions = document.querySelectorAll(".quality-option");
+
+  let selectedFile = null;
+  let selectedQuality = "medium";
+  let worker = null;
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    const units = ["KB", "MB", "GB"];
+    let val = bytes;
+    let i = -1;
+    do {
+      val /= 1024;
+      i++;
+    } while (val >= 1024 && i < units.length - 1);
+    return val.toFixed(val < 10 ? 2 : 1) + " " + units[i];
+  }
+
+  function resetOutputPanels() {
+    statusBlock.style.display = "none";
+    errorBlock.style.display = "none";
+    resultBlock.style.display = "none";
+  }
+
+  function setFile(file) {
+    resetOutputPanels();
+
+    if (!file) return;
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      showError("That doesn't look like a PDF file.");
+      return;
+    }
+
+    if (file.size > MAX_BYTES) {
+      showError(
+        "File is " + formatBytes(file.size) + ". The limit for this tool is 200 MB."
+      );
+      return;
+    }
+
+    selectedFile = file;
+    fileNameEl.textContent = file.name;
+    fileSizeEl.textContent = formatBytes(file.size);
+    fileRow.style.display = "flex";
+    runBtn.disabled = false;
+  }
+
+  function showError(message) {
+    resetOutputPanels();
+    errorBlock.textContent = message;
+    errorBlock.style.display = "block";
+  }
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", (e) => setFile(e.target.files[0]));
+
+  ["dragenter", "dragover"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("drag-over");
+    })
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+    })
+  );
+  dropzone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer.files[0];
+    setFile(file);
+  });
+
+  removeFileBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    selectedFile = null;
+    fileInput.value = "";
+    fileRow.style.display = "none";
+    runBtn.disabled = true;
+    resetOutputPanels();
+  });
+
+  qualityOptions.forEach((opt) => {
+    opt.addEventListener("click", () => {
+      qualityOptions.forEach((o) => o.classList.remove("selected"));
+      opt.classList.add("selected");
+      selectedQuality = opt.dataset.quality;
+    });
+  });
+
+  runBtn.addEventListener("click", () => {
+    if (!selectedFile) return;
+    resetOutputPanels();
+    statusBlock.style.display = "block";
+    statusText.textContent = "Reading file…";
+    runBtn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (!worker) {
+        worker = new Worker("gs-worker.js");
+      }
+
+      worker.onmessage = (e) => {
+        const msg = e.data;
+        if (msg.type === "status") {
+          statusText.textContent = msg.message;
+        } else if (msg.type === "log") {
+          // Ghostscript diagnostic output; useful for debugging, not shown to user.
+          console.debug("[ghostscript]", msg.message);
+        } else if (msg.type === "done") {
+          statusBlock.style.display = "none";
+          runBtn.disabled = false;
+
+          const blob = new Blob([msg.buffer], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const origSize = selectedFile.size;
+          const compSize = blob.size;
+          const pct = Math.max(0, Math.round((1 - compSize / origSize) * 100));
+
+          origSizeEl.textContent = formatBytes(origSize);
+          compSizeEl.textContent = formatBytes(compSize);
+          savingsPctEl.textContent =
+            pct > 0 ? "-" + pct + "%" : "no reduction at this setting";
+
+          downloadLink.href = url;
+          downloadLink.download =
+            selectedFile.name.replace(/\.pdf$/i, "") + "-compressed.pdf";
+
+          resultBlock.style.display = "block";
+        } else if (msg.type === "error") {
+          statusBlock.style.display = "none";
+          runBtn.disabled = false;
+          showError(msg.message);
+        }
+      };
+
+      worker.onerror = (err) => {
+        statusBlock.style.display = "none";
+        runBtn.disabled = false;
+        showError("Compression failed: " + err.message);
+      };
+
+      statusText.textContent = "Compressing… this can take a while for large files.";
+      worker.postMessage(
+        {
+          fileBuffer: reader.result,
+          fileName: selectedFile.name,
+          quality: selectedQuality,
+        },
+        [reader.result]
+      );
+    };
+
+    reader.onerror = () => {
+      statusBlock.style.display = "none";
+      runBtn.disabled = false;
+      showError("Could not read the file from disk.");
+    };
+
+    reader.readAsArrayBuffer(selectedFile);
+  });
+})();
+</script>
+
+</body>
+</html>
