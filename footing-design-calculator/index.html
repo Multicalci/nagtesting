@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Footing Design Calculator — IS 456 Isolated Footing, Punching Shear | multicalci.com</title>
+<meta name="description" content="Free isolated footing design calculator to IS 456. Checks bearing pressure, punching shear, one-way shear and flexural steel, and detects when eccentricity lifts the base off the soil.">
+<link rel="canonical" href="https://www.multicalci.com/footing-design-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Footing Design Calculator — IS 456 Isolated Footing">
+<meta property="og:description" content="Bearing pressure, punching shear, one-way shear and reinforcement for an isolated pad footing, with exact partial-contact pressures when the resultant leaves the kern.">
+<meta property="og:url" content="https://www.multicalci.com/footing-design-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Footing Design Calculator — IS 456 Isolated Footing">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Footing Design Calculator","description":"Isolated pad footing design calculator to IS 456. Computes bearing pressure, punching shear, one-way shear, factored moments and flexural reinforcement, including exact partial-contact pressures when the resultant falls outside the kern.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/footing-design-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Footing Design Calculator","item":"https://www.multicalci.com/footing-design-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you design an isolated footing as per IS 456?","acceptedAnswer":{"@type":"Answer","text":"You size the plan area first, from the service column load divided by the safe bearing capacity of the soil. You then pick a trial depth and check it against punching shear on a perimeter half the effective depth from the column face, and against one-way shear on a section one effective depth from the column face. Finally you calculate the cantilever moment at the column face and provide flexural steel for it, subject to the minimum reinforcement percentage. Depth is almost always governed by shear rather than by moment."}},{"@type":"Question","name":"What is the difference between one-way shear and punching shear in a footing?","acceptedAnswer":{"@type":"Answer","text":"One-way shear treats the footing as a wide beam and checks a full-width vertical section taken one effective depth from the column face. Punching shear, also called two-way shear, checks a closed perimeter drawn half an effective depth out from all four column faces, where the column tries to punch a cone through the slab. Punching almost always governs for a square column on a square footing, because the same load is resisted by a much shorter critical length."}},{"@type":"Question","name":"Why does my footing fail when the eccentricity exceeds B/6?","acceptedAnswer":{"@type":"Answer","text":"Beyond B/6 the resultant leaves the middle third of the base and the soil would have to pull down on the footing to keep the pressure diagram linear, which soil cannot do. The base lifts off over part of its length, contact becomes partial and the peak pressure rises above what the standard q = P/A times one plus six e over B expression predicts. This calculator detects that condition and switches to the exact partial-contact expression instead of reporting the invalid linear value."}},{"@type":"Question","name":"What is the minimum reinforcement for a footing slab?","acceptedAnswer":{"@type":"Answer","text":"IS 456 clause 26.5.2.1 sets the minimum reinforcement in a slab at 0.12 percent of the gross cross-sectional area for high yield strength deformed bars of grade Fe500, and 0.15 percent for mild steel. The percentage applies to the overall depth of the section, not the effective depth, so a footing with 450 mm effective depth and 50 mm cover is checked against a 500 mm overall depth."}},{"@type":"Question","name":"How do you find the effective depth of an isolated footing?","acceptedAnswer":{"@type":"Answer","text":"Effective depth is the distance from the compression face down to the centroid of the tension reinforcement, so it equals the overall depth less the cover and less half the bar diameter. In practice you assume a trial depth, test it against punching shear first because that usually governs, then against one-way shear, and increase it until both pass. Overall depth is normally taken as effective depth plus about 50 to 75 mm depending on the cover required for the exposure class."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Footing Design Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Footing Design Calculator</h1>
+    <p>Design an isolated pad footing to IS 456. Enter the column load, footing plan size, effective depth and safe bearing capacity, and this calculator returns the bearing pressure distribution, the punching shear check on the critical perimeter, the one-way shear check, the factored cantilever moments and the flexural steel required in both directions. Where the load is eccentric it also works out whether the base stays in full contact with the soil, and switches to the exact partial-contact pressure when it does not.</p>
+    <div class="stdref">IS 456:2000 Cl.34 &middot; Cl.31.6.3 punching &middot; Cl.26.5.2.1 minimum steel</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128296;</span>
+      <span class="card-hd-ttl">Footing Inputs</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; kN, m, mm, kN/m&sup2;</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; kip, ft, in, ksf</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="ftP">Service Column Load P <span class="u-kN">(kN)</span></label>
+          <input type="number" id="ftP" value="1000" step="50" min="0.01">
+        </div>
+        <div class="field">
+          <label for="ftQa">Safe Bearing Capacity q<sub>a</sub> <span class="u-kPa">(kN/m&sup2;)</span></label>
+          <input type="number" id="ftQa" value="150" step="10" min="0.01">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ftColB">Column Width c<sub>b</sub> <span class="u-mm">(mm)</span></label>
+          <input type="number" id="ftColB" value="400" step="25" min="0.01">
+        </div>
+        <div class="field">
+          <label for="ftColD">Column Depth c<sub>d</sub> <span class="u-mm">(mm)</span></label>
+          <input type="number" id="ftColD" value="400" step="25" min="0.01">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="ftB">Footing Width B <span class="u-m">(m)</span></label>
+          <input type="number" id="ftB" value="3" step="0.1" min="0.01">
+        </div>
+        <div class="field">
+          <label for="ftL">Footing Length L <span class="u-m">(m)</span></label>
+          <input type="number" id="ftL" value="3" step="0.1" min="0.01">
+        </div>
+        <div class="field">
+          <label for="ftD">Effective Depth d <span class="u-mm">(mm)</span></label>
+          <input type="number" id="ftD" value="450" step="25" min="0.01">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ftEx">Eccentricity e<sub>x</sub> about B <span class="u-m">(m)</span></label>
+          <input type="number" id="ftEx" value="0" step="0.05">
+          <div class="hint">Leave at 0 for a concentrically loaded pad.</div>
+        </div>
+        <div class="field">
+          <label for="ftEy">Eccentricity e<sub>y</sub> about L <span class="u-m">(m)</span></label>
+          <input type="number" id="ftEy" value="0" step="0.05">
+          <div class="hint">Both non-zero gives biaxial bending &mdash; read the caveat below.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ftGrade">Concrete Grade f<sub>ck</sub></label>
+          <select id="ftGrade">
+            <option value="20">M20 &mdash; 20 MPa</option>
+            <option value="25" selected>M25 &mdash; 25 MPa</option>
+            <option value="30">M30 &mdash; 30 MPa</option>
+            <option value="35">M35 &mdash; 35 MPa</option>
+            <option value="40">M40 &mdash; 40 MPa</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ftFy">Steel Grade f<sub>y</sub></label>
+          <select id="ftFy">
+            <option value="415">Fe415 &mdash; 415 MPa</option>
+            <option value="500" selected>Fe500 &mdash; 500 MPa</option>
+            <option value="550">Fe550 &mdash; 550 MPa</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="ftErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Design Footing</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Design Checks</span>
+    </div>
+    <div class="card-bd">
+      <div id="ftVerdict"></div>
+      <div id="ftSummary" class="note" style="display:none"></div>
+      <div id="ftGroups">
+        <div class="rc-empty">Press <strong>Design Footing</strong> to run the checks.</div>
+      </div>
+      <div id="ftWarns"></div>
+      <div class="note" id="ftUnitNote" style="display:none">Results are reported in SI regardless of the input units: pressures in kN/m&sup2;, moments in kN&middot;m per metre width, reinforcement in mm&sup2; per metre width and shear stresses in MPa.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Bearing pressure, resultant inside the kern</strong></p>
+      <div class="fbox">
+        q<sub>avg</sub> = P / (B &middot; L)<br>
+        q<sub>max</sub> = q<sub>avg</sub> &middot; (1 + 6e<sub>x</sub>/B + 6e<sub>y</sub>/L)<br>
+        q<sub>min</sub> = q<sub>avg</sub> &middot; (1 &minus; 6e<sub>x</sub>/B &minus; 6e<sub>y</sub>/L)
+      </div>
+
+      <p><strong>Bearing pressure, resultant outside the kern (uniaxial)</strong></p>
+      <div class="fbox">
+        valid only while&nbsp; 6e<sub>x</sub>/B + 6e<sub>y</sub>/L &le; 1<br>
+        beyond that:&nbsp; q<sub>max</sub> = 2P / [ 3L (B/2 &minus; e<sub>x</sub>) ]<br>
+        contact length = 3 (B/2 &minus; e<sub>x</sub>)
+      </div>
+
+      <p><strong>Punching (two-way) shear &mdash; IS 456 Cl.31.6</strong></p>
+      <div class="fbox">
+        b<sub>0</sub> = 2 [ (c<sub>b</sub> + d) + (c<sub>d</sub> + d) ]<br>
+        V<sub>punch</sub> = 1.5P &minus; 1.5 q<sub>avg</sub> (c<sub>b</sub> + d)(c<sub>d</sub> + d)<br>
+        &tau;<sub>v</sub> = V<sub>punch</sub> / (b<sub>0</sub> &middot; d)<br>
+        k<sub>s</sub> = min(1.0, 0.5 + &beta;<sub>c</sub>)&nbsp;&nbsp;&beta;<sub>c</sub> = short side / long side of column<br>
+        &tau;<sub>c</sub> = k<sub>s</sub> &middot; 0.25 &radic;f<sub>ck</sub>
+      </div>
+
+      <p><strong>Flexure and one-way shear</strong></p>
+      <div class="fbox">
+        M<sub>u</sub> = 1.5 &middot; q<sub>max</sub> &middot; a&sup2; / 2&nbsp;&nbsp;&nbsp;a = (B &minus; c<sub>b</sub>) / 2<br>
+        A<sub>st</sub> = M<sub>u</sub> / (0.87 f<sub>y</sub> &middot; 0.9d)<br>
+        A<sub>st,min</sub> = p<sub>t,min</sub> &middot; D&nbsp;&nbsp;&nbsp;p<sub>t,min</sub> = 0.12% for f<sub>y</sub> &ge; 500, else 0.15%<br>
+        &tau;<sub>v,one-way</sub> = 1.5 q<sub>max</sub> (a &minus; d) / d
+      </div>
+
+      <div class="legend">
+        <p><strong>P</strong> &mdash; service (unfactored) axial load from the column</p>
+        <p><strong>B, L</strong> &mdash; footing plan dimensions; B is the direction e<sub>x</sub> acts about</p>
+        <p><strong>c<sub>b</sub>, c<sub>d</sub></strong> &mdash; column plan dimensions</p>
+        <p><strong>d</strong> &mdash; effective depth to the centroid of tension steel</p>
+        <p><strong>D</strong> &mdash; overall depth, taken here as d + 50 mm</p>
+        <p><strong>q<sub>a</sub></strong> &mdash; safe (allowable) bearing capacity of the soil, a service-level value</p>
+        <p><strong>a</strong> &mdash; cantilever projection from the column face to the footing edge</p>
+        <p><strong>&tau;<sub>v</sub>, &tau;<sub>c</sub></strong> &mdash; applied and permissible shear stress</p>
+        <p><strong>1.5</strong> &mdash; partial load factor applied to the service load for the strength checks; bearing is checked unfactored</p>
+      </div>
+
+      <div class="note">
+        <strong>Assumptions built into this calculation.</strong> The lever arm is taken as 0.9d rather than solved from the stress block, which is slightly conservative for lightly reinforced sections. Overall depth is effective depth plus 50 mm, so change your effective depth if your cover differs. Self-weight of the footing and the soil above it is <em>not</em> added to P &mdash; add it yourself if your bearing check needs it, typically 10 to 15 percent of the column load. Permissible one-way shear stress follows the IS 456 Table 19 expression using the steel actually provided.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; Concentric Pad Footing</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 400 &times; 400 mm column carrying a service load of 1000 kN on soil with a safe bearing capacity of 150 kN/m&sup2;. Trial footing 3.0 &times; 3.0 m with 450 mm effective depth, M25 concrete and Fe500 reinforcement, load applied concentrically.</p>
+
+        <div class="wex-hd">Step 1 &mdash; plan area and bearing pressure</div>
+        <p>Area required = 1000 / 150 = 6.67 m&sup2;, and 3.0 &times; 3.0 provides <strong>9.00 m&sup2;</strong>.<br>
+        q = 1000 / 9 = <strong>111.11 kN/m&sup2;</strong>, comfortably under the 150 kN/m&sup2; allowable. With no eccentricity q<sub>max</sub> and q<sub>min</sub> are equal and the base is in full contact.</p>
+
+        <div class="wex-hd">Step 2 &mdash; punching shear on the critical perimeter</div>
+        <p>The perimeter sits d/2 = 225 mm from each column face, so the punched area is 0.85 &times; 0.85 m and<br>
+        b<sub>0</sub> = 2 &times; (0.85 + 0.85) = <strong>3400 mm</strong><br>
+        V<sub>punch</sub> = 1.5 &times; 1000 &minus; 1.5 &times; 111.11 &times; 0.85 &times; 0.85 = 1379.6 kN<br>
+        &tau;<sub>v</sub> = 1379.6 / (3.400 &times; 0.450 &times; 1000) = <strong>0.902 MPa</strong><br>
+        The column is square so &beta;<sub>c</sub> = 1.0 and k<sub>s</sub> = 1.0, giving &tau;<sub>c</sub> = 1.0 &times; 0.25&radic;25 = <strong>1.250 MPa</strong>. Punching passes at 72 percent utilisation.</p>
+
+        <div class="wex-hd">Step 3 &mdash; flexure at the column face</div>
+        <p>Cantilever a = (3.0 &minus; 0.4) / 2 = 1.30 m<br>
+        M<sub>u</sub> = 1.5 &times; 111.11 &times; 1.30&sup2; / 2 = <strong>140.83 kN&middot;m/m</strong><br>
+        A<sub>st</sub> = 140.83 &times; 10<sup>6</sup> / (0.87 &times; 500 &times; 0.9 &times; 450) = <strong>799 mm&sup2;/m</strong><br>
+        Minimum steel = 0.12% &times; 500 mm overall depth = 600 mm&sup2;/m, so the calculated area governs.</p>
+
+        <div class="wex-hd">Step 4 &mdash; one-way shear</div>
+        <p>The critical section is d from the column face, leaving 1.30 &minus; 0.45 = 0.85 m of overhang.<br>
+        &tau;<sub>v</sub> = 1.5 &times; 111.11 &times; 0.85 / (0.450 &times; 1000) = <strong>0.315 MPa</strong> against a permissible <strong>0.918 MPa</strong>. Passes with a wide margin, as expected &mdash; punching governs.</p>
+
+        <div class="ans">
+          <p><strong>Bearing</strong> q<sub>max</sub> = 111.11 kN/m&sup2; &le; 150 &mdash; PASS</p>
+          <p><strong>Punching shear</strong> 0.902 &le; 1.250 MPa &mdash; PASS</p>
+          <p><strong>One-way shear</strong> 0.315 &le; 0.918 MPa &mdash; PASS</p>
+          <p><strong>Reinforcement</strong> 799 mm&sup2;/m each way, above the 600 mm&sup2;/m minimum</p>
+          <p><strong>Overall verdict</strong> &mdash; PASS, full contact on the base</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Design Footing</strong> without changing anything and you should get exactly these figures back. Note the pattern: punching runs at 72 percent while one-way shear sits at 34 percent, which is the usual signature of a square column on a square pad. If you need to trim the depth, punching is the check to watch.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; When the Base Lifts Off</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>The same 3.0 &times; 3.0 m footing and 400 mm column, 1000 kN service load, but now with a moment at the base giving an eccentricity e<sub>x</sub> = 0.90 m. Soil this time is stiffer, q<sub>a</sub> = 350 kN/m&sup2;.</p>
+
+        <div class="wex-hd">Step 1 &mdash; is the resultant inside the kern?</div>
+        <p>The kern limit is B/6 = 3.0 / 6 = 0.500 m. With e<sub>x</sub> = 0.90 m, 6e<sub>x</sub>/B = 1.80, which is greater than 1. <strong>The resultant is outside the middle third.</strong> The linear pressure diagram would require the soil to pull down on the heel, which it cannot do, so contact is partial.</p>
+
+        <div class="wex-hd">Step 2 &mdash; the pressure the linear formula would report</div>
+        <p>q<sub>avg</sub>(1 + 6e/B) = 111.11 &times; 2.80 = <strong>311.11 kN/m&sup2;</strong>, with a fictitious q<sub>min</sub> of &minus;88.89 kN/m&sup2;. Against q<sub>a</sub> = 350 this reads as a comfortable pass.</p>
+
+        <div class="wex-hd">Step 3 &mdash; the pressure that actually develops</div>
+        <p>q<sub>max</sub> = 2 &times; 1000 / [3 &times; 3.0 &times; (1.5 &minus; 0.9)] = 2000 / 5.4 = <strong>370.37 kN/m&sup2;</strong><br>
+        Contact length = 3 &times; (1.5 &minus; 0.9) = <strong>1.800 m</strong> of the 3.000 m base &mdash; 40 percent of the footing is off the ground.</p>
+
+        <div class="ans">
+          <p><strong>The linear formula under-predicts the peak pressure by 19 percent.</strong></p>
+          <p>Bearing: 370.37 &gt; 350 kN/m&sup2; &mdash; <strong>FAILS</strong>, where the linear value said pass</p>
+          <p>Flexural moment rises from 394.33 to <strong>469.44 kN&middot;m/m</strong></p>
+          <p>Reinforcement rises from 2238 to <strong>2665 mm&sup2;/m</strong> &mdash; 19 percent more steel</p>
+          <p>One-way shear goes from 0.881 MPa (passing) to <strong>1.049 MPa against 0.918 permissible &mdash; FAILS</strong></p>
+        </div>
+
+        <div class="wex-hd">What to do about it</div>
+        <p>Widen the footing until B/6 exceeds the eccentricity, shift the footing so the centroid moves under the resultant, or tie the footing to adjacent foundations with a strap or plinth beam so the moment is shared. Simply accepting the linear number is not one of the options.</p>
+      </div>
+
+      <div class="note">
+        <strong>Biaxial eccentricity is a special case.</strong> When both e<sub>x</sub> and e<sub>y</sub> put the resultant outside the kern, the partial contact area is a triangle or trapezoid with no closed-form solution, and this calculator says so explicitly rather than quoting a number it cannot stand behind. It reports the linear value, flags it as under-predicting, and fails the verdict. For that case use a numerical contact-area solution or enlarge the footing until the resultant comes back inside the kern.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Service column load P</td><td>kN</td><td>kip</td><td>&gt; 0</td><td>Unfactored; footing self-weight not included</td></tr>
+            <tr><td>Safe bearing capacity q<sub>a</sub></td><td>kN/m&sup2;</td><td>ksf</td><td>&gt; 0</td><td>Service-level allowable value, not ultimate</td></tr>
+            <tr><td>Column c<sub>b</sub>, c<sub>d</sub></td><td>mm</td><td>in</td><td>&gt; 0, less than B and L</td><td>Sets &beta;<sub>c</sub> and therefore k<sub>s</sub></td></tr>
+            <tr><td>Footing B, L</td><td>m</td><td>ft</td><td>&gt; 0, greater than the column</td><td>B is the direction e<sub>x</sub> acts about</td></tr>
+            <tr><td>Effective depth d</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Overall depth assumed as d + 50 mm</td></tr>
+            <tr><td>Eccentricity e<sub>x</sub>, e<sub>y</sub></td><td>m</td><td>ft</td><td>|e<sub>x</sub>| &lt; B/2, |e<sub>y</sub>| &lt; L/2</td><td>Beyond B/2 the footing overturns and is rejected</td></tr>
+            <tr><td>Concrete grade f<sub>ck</sub></td><td>MPa</td><td>&mdash;</td><td>M20 &ndash; M40</td><td>Drives the permissible punching stress</td></tr>
+            <tr><td>Steel grade f<sub>y</sub></td><td>MPa</td><td>&mdash;</td><td>Fe415, Fe500, Fe550</td><td>Fe500 and above use 0.12% minimum steel, Fe415 uses 0.15%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Permissible punching shear stress &tau;<sub>c</sub> = k<sub>s</sub> &middot; 0.25&radic;f<sub>ck</sub></strong> &mdash; IS 456 Cl.31.6.3, shown for a square column where k<sub>s</sub> = 1.0</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Concrete grade</th><th>&radic;f<sub>ck</sub></th><th>&tau;<sub>c</sub> at k<sub>s</sub> = 1.0, MPa</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>M20</td><td>4.472</td><td>1.118</td></tr>
+            <tr><td>M25</td><td>5.000</td><td>1.250</td></tr>
+            <tr><td>M30</td><td>5.477</td><td>1.369</td></tr>
+            <tr><td>M35</td><td>5.916</td><td>1.479</td></tr>
+            <tr><td>M40</td><td>6.325</td><td>1.581</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">For a rectangular column, k<sub>s</sub> = 0.5 + &beta;<sub>c</sub> capped at 1.0, where &beta;<sub>c</sub> is the ratio of the short side to the long side. A 300 &times; 900 column gives &beta;<sub>c</sub> = 0.333 and k<sub>s</sub> = 0.833, cutting the permissible stress by a sixth.</div>
+
+      <hr class="dv">
+
+      <p><strong>Indicative safe bearing capacities &mdash; IS 1904 / IS 6403 order of magnitude</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Soil</th><th>Typical SBC, kN/m&sup2;</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Soft clay</td><td>50 &ndash; 100</td><td>Settlement usually governs, not bearing</td></tr>
+            <tr><td>Medium clay</td><td>100 &ndash; 150</td><td>Check long-term consolidation</td></tr>
+            <tr><td>Stiff clay</td><td>150 &ndash; 250</td><td>Watch shrink&ndash;swell in black cotton soil</td></tr>
+            <tr><td>Loose sand</td><td>100 &ndash; 150</td><td>Sensitive to water table position</td></tr>
+            <tr><td>Medium to dense sand</td><td>200 &ndash; 450</td><td>Bearing rarely governs at this range</td></tr>
+            <tr><td>Soft rock / weathered rock</td><td>450 &ndash; 900</td><td>Depends heavily on RQD and jointing</td></tr>
+            <tr><td>Hard rock</td><td>&gt; 1500</td><td>Concrete bearing may govern instead</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Indicative only. Use the value from your own geotechnical investigation report; these figures are for sanity-checking an input, not for design.</div>
+
+      <hr class="dv">
+
+      <p><strong>Minimum reinforcement &mdash; IS 456 Cl.26.5.2.1, applied to the overall depth D</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Steel grade</th><th>p<sub>t,min</sub></th><th>A<sub>st,min</sub> at D = 500 mm</th><th>A<sub>st,min</sub> at D = 750 mm</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Mild steel / Fe415</td><td>0.15 %</td><td>750 mm&sup2;/m</td><td>1125 mm&sup2;/m</td></tr>
+            <tr><td>Fe500 and above</td><td>0.12 %</td><td>600 mm&sup2;/m</td><td>900 mm&sup2;/m</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Which check governs the depth</strong> &mdash; typical utilisation for a square column on a square pad</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Check</th><th>Critical section</th><th>Typical utilisation</th><th>Governs when</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Bearing pressure</td><td>Whole plan area</td><td>60 &ndash; 90 %</td><td>Weak soil; sets the plan size, not the depth</td></tr>
+            <tr><td>Punching shear</td><td>Perimeter at d/2 from column face</td><td>60 &ndash; 90 %</td><td>Almost always &mdash; sets the depth</td></tr>
+            <tr><td>One-way shear</td><td>Full width at d from column face</td><td>25 &ndash; 45 %</td><td>Long narrow footings, large projections</td></tr>
+            <tr><td>Flexure</td><td>Column face</td><td>Sets steel, not depth</td><td>Rarely governs depth in pad footings</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you design an isolated footing as per IS 456?</summary>
+        <div class="faq-a">You size the plan area first, from the service column load divided by the safe bearing capacity of the soil. You then pick a trial depth and check it against punching shear on a perimeter half the effective depth from the column face, and against one-way shear on a section one effective depth from the column face. Finally you calculate the cantilever moment at the column face and provide flexural steel for it, subject to the minimum reinforcement percentage. Depth is almost always governed by shear rather than by moment.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between one-way shear and punching shear in a footing?</summary>
+        <div class="faq-a">One-way shear treats the footing as a wide beam and checks a full-width vertical section taken one effective depth from the column face. Punching shear, also called two-way shear, checks a closed perimeter drawn half an effective depth out from all four column faces, where the column tries to punch a cone through the slab. Punching almost always governs for a square column on a square footing, because the same load is resisted by a much shorter critical length.</div>
+      </details>
+
+      <details>
+        <summary>Why does my footing fail when the eccentricity exceeds B/6?</summary>
+        <div class="faq-a">Beyond B/6 the resultant leaves the middle third of the base and the soil would have to pull down on the footing to keep the pressure diagram linear, which soil cannot do. The base lifts off over part of its length, contact becomes partial and the peak pressure rises above what the standard q = P/A times one plus six e over B expression predicts. This calculator detects that condition and switches to the exact partial-contact expression instead of reporting the invalid linear value.</div>
+      </details>
+
+      <details>
+        <summary>What is the minimum reinforcement for a footing slab?</summary>
+        <div class="faq-a">IS 456 clause 26.5.2.1 sets the minimum reinforcement in a slab at 0.12 percent of the gross cross-sectional area for high yield strength deformed bars of grade Fe500, and 0.15 percent for mild steel. The percentage applies to the overall depth of the section, not the effective depth, so a footing with 450 mm effective depth and 50 mm cover is checked against a 500 mm overall depth.</div>
+      </details>
+
+      <details>
+        <summary>How do you find the effective depth of an isolated footing?</summary>
+        <div class="faq-a">Effective depth is the distance from the compression face down to the centroid of the tension reinforcement, so it equals the overall depth less the cover and less half the bar diameter. In practice you assume a trial depth, test it against punching shear first because that usually governs, then against one-way shear, and increase it until both pass. Overall depth is normally taken as effective depth plus about 50 to 75 mm depending on the cover required for the exposure class.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/concrete-mix-design-calculator">Concrete Mix Design Calculator<span>Proportion the M25 or M30 mix this footing is cast from</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Turn footing concrete and steel into a costed bill</span></a>
+        <a href="/unit-converter/pressure">Pressure Converter<span>kN/m&sup2;, kPa, ksf, psf and bar</span></a>
+        <a href="/unit-converter/force">Force Converter<span>kN, kip, tonne-force and lbf</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Footing Design Calculator &mdash; multicalci.com. Results follow IS 456:2000 with the assumptions stated above and are indicative only. Footing self-weight and soil surcharge are not included in the bearing check. All foundation design must be checked by a qualified structural engineer against a site-specific geotechnical report.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  // Result rows grouped for display. 18 flat cards is unreadable; these are the
+  // four questions an engineer actually asks of a footing, in the order asked.
+  var GROUPS = [
+    ['Bearing Pressure and Base Contact', [
+      ['Max Bearing Pressure q_max', 'c-main', true ],
+      ['Bearing Check',              'c-grn',  false],
+      ['Min Bearing Pressure q_min', 'c-blu',  false],
+      ['Base Contact',               'c-cyn',  false],
+      ['Required Area',              'c-blu',  false],
+      ['Provided Area',              'c-blu',  false]
+    ]],
+    ['Punching (Two-Way) Shear', [
+      ['Applied \u03C4_v',                'c-main', true ],
+      ['Allowable \u03C4_c',              'c-grn',  false],
+      ['Punching Check',                  'c-grn',  false],
+      ['Punch Perimeter b0',              'c-blu',  false],
+      ['k_s (IS 456 Cl.31.6.3)',          'c-pur',  false]
+    ]],
+    ['Flexure and Reinforcement', [
+      ['Factored Mu (B-dir)', 'c-amb', false],
+      ['Factored Mu (L-dir)', 'c-amb', false],
+      ['Ast B-dir',           'c-main', true ],
+      ['Ast L-dir',           'c-main', true ],
+      ['Ast_min',             'c-pur',  false]
+    ]],
+    ['One-Way (Beam) Shear', [
+      ['One-way Shear B', 'c-blu', false],
+      ['One-way Shear L', 'c-blu', false]
+    ]]
+  ];
+
+  function isSI() { return US === 'SI'; }
+
+  function params() {
+    return {
+      P:     E('ftP').value,     P_u:  isSI() ? 'kN'  : 'kip',
+      qa:    E('ftQa').value,    qa_u: isSI() ? 'kPa' : 'ksf',
+      cb:    E('ftColB').value,
+      cd:    E('ftColD').value,  dim_u: isSI() ? 'mm' : 'in',
+      B:     E('ftB').value,
+      L:     E('ftL').value,     L_u:  isSI() ? 'm'   : 'ft',
+      d:     E('ftD').value,
+      ex:    E('ftEx').value,
+      ey:    E('ftEy').value,
+      fck:   E('ftGrade').value,
+      fy_s:  E('ftFy').value
+    };
+  }
+
+  // Mirror the backend's input guards so the user gets a field-level message
+  // instead of a 422. Everything here is dimensional bookkeeping — no design
+  // formulas are duplicated client-side.
+  function localGuard() {
+    var n = function (id) { return parseFloat(E(id).value); };
+    var toM  = isSI() ? 1 : 0.3048;      // m or ft  -> m
+    var toMm = isSI() ? 0.001 : 0.0254;  // mm or in -> m
+
+    var P = n('ftP'), qa = n('ftQa'), d = n('ftD');
+    var cb = n('ftColB'), cd = n('ftColD');
+    var B = n('ftB'), L = n('ftL');
+    var ex = parseFloat(E('ftEx').value), ey = parseFloat(E('ftEy').value);
+
+    if (!isFinite(P)  || P  <= 0) return ['ftP',    'Column load P must be a number greater than 0.'];
+    if (!isFinite(qa) || qa <= 0) return ['ftQa',   'Safe bearing capacity must be a number greater than 0.'];
+    if (!isFinite(B)  || B  <= 0) return ['ftB',    'Footing width B must be a number greater than 0.'];
+    if (!isFinite(L)  || L  <= 0) return ['ftL',    'Footing length L must be a number greater than 0.'];
+    if (!isFinite(d)  || d  <= 0) return ['ftD',    'Effective depth d must be a number greater than 0.'];
+    if (!isFinite(cb) || cb <= 0) return ['ftColB', 'Column width must be a number greater than 0.'];
+    if (!isFinite(cd) || cd <= 0) return ['ftColD', 'Column depth must be a number greater than 0.'];
+
+    var Bm = B * toM, Lm = L * toM, cbm = cb * toMm, cdm = cd * toMm;
+    if (cbm >= Bm) return ['ftColB', 'Column width is not smaller than footing width B.'];
+    if (cdm >= Lm) return ['ftColD', 'Column depth is not smaller than footing length L.'];
+
+    if (!isFinite(ex)) ex = 0;
+    if (!isFinite(ey)) ey = 0;
+    if (Math.abs(ex * toM) >= Bm / 2)
+      return ['ftEx', 'Eccentricity e\u2093 must be less than B/2 \u2014 beyond that the footing overturns.'];
+    if (Math.abs(ey * toM) >= Lm / 2)
+      return ['ftEy', 'Eccentricity e\u1D67 must be less than L/2 \u2014 beyond that the footing overturns.'];
+
+    return null;
+  }
+
+  function clear() {
+    E('ftGroups').innerHTML = '<div class="rc-empty">Press <strong>Design Footing</strong> to run the checks.</div>';
+    E('ftVerdict').innerHTML = '';
+    E('ftWarns').innerHTML = '';
+    E('ftSummary').style.display = 'none';
+    E('ftUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('ftErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    if (s.indexOf(' vs ') > 0)
+      return [s.slice(0, s.indexOf(' vs ')).trim(), 'permissible ' + s.slice(s.indexOf(' vs ') + 4).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Long prose rows (Base Contact) read badly squeezed into a value slot.
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('ftErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '';
+      g[1].forEach(function (row) {
+        var r = byLabel[row[0]];
+        if (!r) return;
+        delete byLabel[row[0]];
+        body += card(row[0], r, row[1], row[2]);
+      });
+      if (!body) return;
+      var groupWarn = g[1].some(function (row) {
+        var r = d.results.find(function (x) { return x.label === row[0]; });
+        return r && r.warn;
+      });
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    // Anything the backend adds later still surfaces rather than vanishing.
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('ftGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('ftVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Footing satisfies bearing, punching shear, one-way shear and minimum steel</div>'
+      : '<div class="badge c-red">\u26A0 One or more checks failed \u2014 the flagged rows below show which</div>';
+
+    if (d.summary) {
+      E('ftSummary').textContent = d.summary;
+      E('ftSummary').style.display = 'block';
+    }
+
+    E('ftWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('ftUnitNote').style.display = US === 'SI' ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var p = params();
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Designing\u2026';
+
+    MC.api.civil('footing', p).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { p: 'ftP', qa: 'ftQa', cb: 'ftColB', cd: 'ftColD', b: 'ftB',
+               l: 'ftL', d: 'ftD', ex: 'ftEx', ey: 'ftEy', fck: 'ftGrade', fy: 'ftFy' };
+
+  function writeUrl() {
+    var q = new URLSearchParams();
+    Object.keys(QMAP).forEach(function (k) { q.set(k, E(QMAP[k]).value); });
+    q.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + q.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var q = new URLSearchParams(location.search);
+    if (!q.toString()) return;
+    if (q.get('u') === 'IMP') setUnits('IMP', true);
+    Object.keys(QMAP).forEach(function (k) {
+      if (q.has(k)) { var el = E(QMAP[k]); if (el) el.value = q.get(k); }
+    });
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Footing Design Calculator',
+                        text: 'Isolated footing design on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  // kN->kip, kN/m2->ksf, mm->in, m->ft. Values convert so the physical
+  // footing is unchanged; the backend does the same conversion server-side
+  // from the *_u flags, so a round trip must reproduce identical results.
+  var FIELDS = [
+    ['ftP',    1 / 4.44822],
+    ['ftQa',   1 / 47.88],
+    ['ftColB', 1 / 25.4],
+    ['ftColD', 1 / 25.4],
+    ['ftB',    1 / 0.3048],
+    ['ftL',    1 / 0.3048],
+    ['ftD',    1 / 25.4],
+    ['ftEx',   1 / 0.3048],
+    ['ftEy',   1 / 0.3048]
+  ];
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits that field. Converting the *displayed* (rounded) number on every
+  // toggle drifts: 1000 kN -> 224.809 kip -> 999.9999 kN. Reading from the
+  // canonical value instead makes the round trip exact.
+  var CANON = {};
+
+  function seedCanon() {
+    FIELDS.forEach(function (f) { noteEdit(f[0]); });
+  }
+
+  function noteEdit(id) {
+    for (var i = 0; i < FIELDS.length; i++) {
+      if (FIELDS[i][0] !== id) continue;
+      var v = parseFloat(E(id).value);
+      CANON[id] = isFinite(v) ? (US === 'IMP' ? v / FIELDS[i][1] : v) : NaN;
+      return;
+    }
+  }
+
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-kN': ['(kN)', '(kip)'], 'u-kPa': ['(kN/m\u00B2)', '(ksf)'],
+              'u-mm': ['(mm)', '(in)'],  'u-m':   ['(m)', '(ft)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var p = params();
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lb = isSI() ? ['kN', 'kN/m\u00B2', 'mm', 'm'] : ['kip', 'ksf', 'in', 'ft'];
+    var inRows = [
+      ['Service column load P', p.P + ' ' + lb[0]],
+      ['Safe bearing capacity', p.qa + ' ' + lb[1]],
+      ['Column size', p.cb + ' \u00D7 ' + p.cd + ' ' + lb[2]],
+      ['Footing plan size', p.B + ' \u00D7 ' + p.L + ' ' + lb[3]],
+      ['Effective depth d', p.d + ' ' + lb[2]],
+      ['Eccentricity ex / ey', p.ex + ' / ' + p.ey + ' ' + lb[3]],
+      ['Concrete grade', 'M' + p.fck],
+      ['Steel grade', 'Fe' + p.fy_s]
+    ].map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Isolated Footing Design Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Isolated Footing Design Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">IS 456:2000 \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 all checks satisfied' : 'REVIEW \u2014 one or more checks failed') + '</div>'
+      + '<h2>Design Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Design Checks</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 indicative only. Footing self-weight and soil surcharge '
+      + 'are not included in the bearing check. All foundation design must be verified by a qualified '
+      + 'structural engineer against a site-specific geotechnical report.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    ['ftP', 'ftQa', 'ftColB', 'ftColD', 'ftB', 'ftL', 'ftD', 'ftEx', 'ftEy', 'ftGrade', 'ftFy']
+      .forEach(function (id) {
+        var el = E(id);
+        if (!el) return;
+        el.addEventListener('input',  function () { noteEdit(id); });
+        el.addEventListener('change', function () { noteEdit(id); clear(); });
+        el.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+        });
+      });
+
+    readUrl();
+    seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
