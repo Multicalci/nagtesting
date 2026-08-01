@@ -161,6 +161,12 @@ function calcBeam(p) {
   const LD_lt  = def_lt > 0 ? L / def_lt : Infinity;
   const LD     = def > 0 ? L / def : Infinity;
   const ok = sigma <= fy;
+  // FIX: status previously tracked the stress check alone, so a beam that
+  // failed serviceability by a wide margin still reported PASS. The L/delta
+  // limits and the unrealistic-E guard now reach the verdict.
+  const deflOK   = LD >= 250 && LD_lt >= 250;
+  const inputsOK = !(E_GPa > 500);
+  const allOK    = ok && deflOK && inputsOK;
 
   if (E_GPa >= 15 && E_GPa <= 50)
     warns.push('⚠ Concrete detected — long-term deflection multiplied by θ=' + creepTheta + ' (IS 456 Cl.23.2 simplified)');
@@ -168,7 +174,7 @@ function calcBeam(p) {
     warns.push('⚠ L/δ = ' + LD.toFixed(0) + ' < 250 — serviceability deflection may be excessive');
 
   return {
-    status: ok ? 'PASS' : 'WARN',
+    status: allOK ? 'PASS' : 'WARN',
     warns,
     summary: `Type: ${type} | Section: ${sec} | Formula: ${formula}`,
     results: [
@@ -178,7 +184,7 @@ function calcBeam(p) {
       { label: 'Max Bending Moment M', value: fN(M, 3, 'kN·m'),               warn: false },
       { label: 'Max Shear Force V',    value: fN(V, 3, 'kN'),                  warn: false },
       { label: 'Max Deflection δ',     value: fN(def*1000, 3, 'mm'),           warn: false },
-      { label: 'Long-term Deflection', value: fN(def_lt*1000, 3, 'mm') + (isConcrete ? ' (×'+creepTheta+' creep IS 456)' : ' (no creep)'), warn: isConcrete },
+      { label: 'Long-term Deflection', value: fN(def_lt*1000, 3, 'mm') + (isConcrete ? ' (×'+creepTheta+' creep IS 456)' : ' (no creep)'), warn: LD_lt < 250 },
       { label: 'L/δ (short-term)',     value: LD === Infinity ? '∞' : fN(LD, 0), warn: LD < 250 },
       { label: 'L/δ (long-term)',      value: LD_lt === Infinity ? '∞' : fN(LD_lt, 0), warn: LD_lt < 250 },
       { label: 'Bending Stress σ',     value: fN(sigma, 2, 'MPa'),             warn: !ok },
@@ -264,12 +270,17 @@ function calcCol(p) {
   const demandOK  = N <= Pd;
   const SF        = N > 0 ? safeDiv(Pd, N) : Infinity;
   const curveLabel = {0.21:'a (α=0.21)', 0.34:'b (α=0.34)', 0.49:'c (α=0.49)'}[alpha] || 'b';
+  // FIX: status previously tracked the demand check alone, so a column at
+  // KL/r = 208 still reported PASS. Slenderness and squash stress now reach it.
+  const slenderOK = KL_r <= 180;
+  const stressOK  = !(sigma_act > fy_kPa);
+  const allOK     = demandOK && slenderOK && stressOK;
   const warns = [];
   if (KL_r > 180) warns.push('⚠ KL/r > 180 — very slender column, consider stiffening');
   if (!demandOK)  warns.push('⚠ Applied load N exceeds design resistance Pd');
 
   return {
-    status: demandOK ? 'PASS' : 'WARN',
+    status: allOK ? 'PASS' : 'WARN',
     warns,
     summary: `Section: ${sec} | KL/r = ${fN(KL_r,1)} | ${formula_note} | IS 800 curve ${curveLabel}`,
     results: [
@@ -283,7 +294,7 @@ function calcCol(p) {
       { label: 'Pd (IS 800 design)',        value: fN(Pd, 2, 'kN'),                  warn: !demandOK },
       { label: 'Applied Load N',            value: fN(N, 2, 'kN'),                   warn: !demandOK },
       { label: 'Demand Check N ≤ Pd',       value: demandOK ? '✓ Adequate' : '✗ N > Pd — overstressed', warn: !demandOK },
-      { label: 'Safety Factor Pd/N',        value: SF === Infinity ? '∞' : fN(SF, 2) + (SF>=2?' ✓ Adequate':SF>=1?' ⚠ Marginal':' ✗ Inadequate'), warn: SF < 1.5 },
+      { label: 'Safety Factor Pd/N',        value: SF === Infinity ? '∞' : fN(SF, 2) + (SF>=2?' ✓ Adequate':SF>=1?' ⚠ Marginal':' ✗ Inadequate'), warn: SF < 1.0 },
       { label: 'Critical Stress σcr',       value: fN(sigma_cr/1000, 2, 'MPa'),      warn: false },
       { label: 'Axial Stress σ',            value: fN(sigma_act/1000, 2, 'MPa'),     warn: sigma_act > fy_kPa },
     ]
@@ -311,8 +322,33 @@ function calcFooting(p) {
   if (cb>=B||cd>=L) throw new Error('Column larger than footing');
 
   const q_avg = P / (B*L);
-  const q_max = q_avg * (1 + 6*Math.abs(ex)/B + 6*Math.abs(ey)/L);
-  const q_min = q_avg * (1 - 6*Math.abs(ex)/B - 6*Math.abs(ey)/L);
+  // FIX: the linear q = q_avg(1 +/- 6e/B) distribution is only valid while the
+  // resultant stays inside the kern. Outside it the base lifts off, contact is
+  // partial, and the linear formula UNDER-predicts the real peak pressure --
+  // so the bearing check could pass on a footing that is actually overstressed.
+  if (Math.abs(ex) >= B/2) throw new Error('Eccentricity ex >= B/2 — footing overturns');
+  if (Math.abs(ey) >= L/2) throw new Error('Eccentricity ey >= L/2 — footing overturns');
+  const kern    = 6*Math.abs(ex)/B + 6*Math.abs(ey)/L;
+  const kernOK  = kern <= 1 + 1e-9;
+  const q_max_lin = q_avg * (1 + kern);
+  const q_min_lin = q_avg * (1 - kern);
+  let q_max, q_min, contactNote;
+  if (kernOK) {
+    q_max = q_max_lin; q_min = q_min_lin;
+    contactNote = 'Full contact — resultant inside kern (6e/B + 6e/L = ' + fN(kern,3) + ' <= 1)';
+  } else if (Math.abs(ey) < 1e-12) {
+    q_max = 2*P/(3*L*(B/2 - Math.abs(ex))); q_min = 0;
+    contactNote = 'PARTIAL contact — uniaxial, q_max = 2P/3L(B/2-e) over ' +
+                  fN(3*(B/2 - Math.abs(ex)),3,'m') + ' of ' + fN(B,3,'m');
+  } else if (Math.abs(ex) < 1e-12) {
+    q_max = 2*P/(3*B*(L/2 - Math.abs(ey))); q_min = 0;
+    contactNote = 'PARTIAL contact — uniaxial, q_max = 2P/3B(L/2-e) over ' +
+                  fN(3*(L/2 - Math.abs(ey)),3,'m') + ' of ' + fN(L,3,'m');
+  } else {
+    q_max = q_max_lin; q_min = q_min_lin;
+    contactNote = 'PARTIAL contact under BIAXIAL eccentricity — no closed form. ' +
+                  'Value shown is the linear figure and UNDER-predicts the true peak. Do not rely on it.';
+  }
   const A_req = P / qa;
   const A_prov = B * L;
   const bearOK = q_max <= qa;
@@ -342,8 +378,9 @@ function calcFooting(p) {
   const pt_B = Math.min(Ast_B/(1000*d*1000),0.03), pt_L = Math.min(Ast_L/(1000*d*1000),0.03);
   const tau_c_ow_B = tauC_IS456(pt_B*100,fck), tau_c_ow_L = tauC_IS456(pt_L*100,fck);
   const owOK_B = tau_ow_B <= tau_c_ow_B, owOK_L = tau_ow_L <= tau_c_ow_L;
-  const allOK = bearOK && punchOK && owOK_B && owOK_L;
+  const allOK = bearOK && punchOK && owOK_B && owOK_L && kernOK && A_prov >= A_req;
   const warns = [];
+  if (!kernOK)  warns.push('⚠ Resultant outside the kern (e > B/6) — base lifts off. Full contact is required; enlarge the footing or reduce eccentricity.');
   if (!bearOK)  warns.push('⚠ Max bearing pressure q_max exceeds allowable SBC');
   if (!punchOK) warns.push('⚠ Punching shear fails — increase d or fck');
   if (!owOK_B)  warns.push('⚠ One-way shear fails in B-direction — increase effective depth');
@@ -357,7 +394,8 @@ function calcFooting(p) {
     results: [
       { label: 'Max Bearing Pressure q_max', value: fN(q_max,2,'kN/m²'), warn: !bearOK },
       { label: 'Bearing Check',              value: bearOK ? '✓ q_max ≤ qa' : '✗ Exceeds qa='+qa.toFixed(0)+' kN/m²', warn: !bearOK },
-      { label: 'Min Bearing Pressure q_min', value: fN(q_min,2,'kN/m²'), warn: q_min<0 },
+      { label: 'Min Bearing Pressure q_min', value: fN(q_min,2,'kN/m²') + (kernOK ? '' : ' — base lifts off'), warn: !kernOK },
+      { label: 'Base Contact',               value: contactNote,          warn: !kernOK },
       { label: 'Required Area',              value: fN(A_req,2,'m²'),     warn: false },
       { label: 'Provided Area',              value: fN(A_prov,2,'m²') + (A_prov>=A_req?' ✓':' ✗'), warn: A_prov<A_req },
       { label: 'Factored Mu (B-dir)',        value: fN(Mu_B,2,'kN·m/m'), warn: false },
@@ -380,7 +418,7 @@ function calcFooting(p) {
 function calcConc(p) {
   const grade  = parseInt(p.grade);
   const wc     = parseFloat(p.wc);
-  let   vol    = parseFloat(p.vol_u) === 'yd3' ? parseFloat(p.vol)*0.7646 : parseFloat(p.vol);
+  let   vol    = p.vol_u === 'yd3' ? parseFloat(p.vol)*0.7646 : parseFloat(p.vol);
   if (vol <= 0) vol = 1;
   const slump  = parseInt(p.slump);
   const aggSz  = parseInt(p.aggSz);
@@ -395,6 +433,8 @@ function calcConc(p) {
   };
   const expData = expMap[exp] || expMap['moderate'];
 
+  if (!isFinite(wc) || wc <= 0) throw new Error('W/C ratio must be > 0');
+
   let W = 175;
   if (aggSz===10) W+=15; if (aggSz===40) W-=15;
   if (slump===25) W-=15; if (slump===150) W+=20;
@@ -406,17 +446,22 @@ function calcConc(p) {
   const rho_cem = cem==='PPC' ? 2900 : (cem==='SRPC' ? 3200 : 3150);
   const vol_cem = C/rho_cem, vol_w = W/1000, vol_air = 0.015;
   const vol_agg = 1 - vol_cem - vol_w - vol_air;
+  if (vol_agg <= 0)
+    throw new Error('Cement + water paste volume exceeds 1 m3 — no room for aggregate. Raise W/C or lower cement.');
   const FA = vol_agg * FA_pct * 2650;
   const CA = vol_agg * (1-FA_pct) * 2700;
   const density = C+W+FA+CA;
   const bags = C/50;
   const rFA = FA/C, rCA = CA/C, rW = W/C;
-  const wcOK = WC_actual <= expData.maxWC;
+  const wcOK  = WC_actual <= expData.maxWC;
+  const cemOK = C <= 500;
+  const allOK = wcOK && cemOK;
   const warns = [];
+  if (!cemOK) warns.push('⚠ Cement content ' + fN(C,0) + ' kg/m³ exceeds 500 kg/m³ (IS 456 Cl.8.2.4.2) — shrinkage and heat of hydration risk');
   if (!wcOK) warns.push('⚠ W/C ratio ' + WC_actual.toFixed(3) + ' exceeds durability limit ' + expData.maxWC + ' for ' + exp + ' exposure');
 
   return {
-    status: wcOK ? 'PASS' : 'WARN',
+    status: allOK ? 'PASS' : 'WARN',
     warns,
     summary: `M${grade} | fm=${fN(fm,1)} MPa | W/C=${WC_actual.toFixed(3)} | ρ=${fN(density,0)} kg/m³`,
     results: [
@@ -438,6 +483,21 @@ function calcSteel(p) {
   const type = p.type;
   const fy_s = parseFloat(p.fy_s);
   if (!isFinite(fy_s) || fy_s <= 0) throw new Error('fy must be a positive number');
+
+  // FIX: this function previously ignored p.dim_u and treated every linear
+  // dimension as mm. A caller sending inches (the hub does, in Imperial mode)
+  // got a section 25.4x too small in every dimension with no warning.
+  // Normalise all linear dimensions to mm once, here, so every branch below
+  // and the classification block all see consistent units.
+  {
+    const LIN = ['H','Bf','Tf','Tw','La','ta','Bs','ts','Dc','tc'];
+    const q = Object.assign({}, p);
+    for (const k of LIN) {
+      if (q[k] !== undefined && q[k] !== null && q[k] !== '')
+        q[k] = civil_toMm(parseFloat(q[k]), p.dim_u);
+    }
+    p = q;
+  }
 
   let Ixx=0, Iyy=0, A=0, Zpx=0, Zpy=0, yc=0, yt=0, yb=0, zt=0, zb=0;
   let zpxLabel='', zpyLabel='';
@@ -599,12 +659,15 @@ function calcPipe(p) {
     const vH = v*v/(2*g);
     const hfOK = hf <= Hlim;
     const regime = Re<2300?'Laminar':Re<4000?'Transitional':'Turbulent';
+    // FIX: transitional flow means f is unreliable; that now reaches the verdict.
+    const regimeOK = !(Re>=2300 && Re<4000);
+    const allOK    = hfOK && regimeOK;
     const warns = [];
     if (!hfOK) warns.push('⚠ Head loss ' + fN(hf,3) + ' m exceeds limit ' + fN(Hlim,3) + ' m');
     if (Re>=2300&&Re<4000) warns.push('⚠ Transitional flow (Re=' + Re.toFixed(0) + ') — friction factor uncertain');
 
     return {
-      status: hfOK ? 'PASS' : 'WARN',
+      status: allOK ? 'PASS' : 'WARN',
       warns,
       summary: `Pressure pipe | D=${fN(D_mm,0)} mm | Q=${fN(Q_ls,2)} L/s | v=${fN(v,2)} m/s | ${regime}`,
       results: [
@@ -649,12 +712,17 @@ function calcPipe(p) {
     const S_min = Math.pow(0.6*n/Math.pow(R_h,2/3),2);
     const Fr    = v_full/Math.sqrt(g*y_eff);
     const frLabel = Fr<1?'Subcritical':Fr>1?'Supercritical':'Critical';
+    // FIX: self-cleansing velocity and supercritical flow now reach the verdict.
+    const vOK     = v_full >= 0.6;
+    const frOK    = Fr <= 1;
+    const allOK   = capOK && vOK && frOK;
     const warns = [];
+    if (!frOK)  warns.push('⚠ Fr > 1 — supercritical full-bore flow; check for hydraulic jump and invert erosion');
     if (!capOK) warns.push('⚠ Full-flow capacity insufficient — increase D, slope, or reduce n');
     if (v_full < 0.6) warns.push('⚠ v < 0.6 m/s — below self-cleaning velocity');
 
     return {
-      status: capOK ? 'PASS' : 'WARN',
+      status: allOK ? 'PASS' : 'WARN',
       warns,
       summary: `Gravity | D=${fN(D_mm,0)} mm | S=${fN(S,5)} | n=${fN(n,4)} | Q_full=${fN(Q_full*1000,2)} L/s`,
       results: [
@@ -703,10 +771,24 @@ function calcRetWall(p) {
   const Mr = W_stem*(stem/2) + W_base*(B/2) + W_soil*(stem+(B-stem)/2);
   const FSOvt = Mr/Mo, FSsl = mu*W/Pa;
   const e  = B/2 - (Mr-Mo)/W;
-  const q_max = (W/B)*(1+6*e/B), q_min = (W/B)*(1-6*e/B);
+  // FIX: same kern problem as the footing. |e| > B/6 means the heel lifts off,
+  // the linear trapezoid is invalid, and q_max is under-reported -- so the
+  // bearing check could read green on a wall that is not in full contact.
+  if (Math.abs(e) >= B/2) throw new Error('Resultant falls outside the base (|e| >= B/2) — wall overturns');
+  const kernOK = Math.abs(e) <= B/6 + 1e-9;
+  let q_max, q_min, contactNote;
+  if (kernOK) {
+    q_max = (W/B)*(1+6*Math.abs(e)/B); q_min = (W/B)*(1-6*Math.abs(e)/B);
+    contactNote = 'Full contact — |e| = ' + fN(Math.abs(e),3,'m') + ' <= B/6 = ' + fN(B/6,3,'m');
+  } else {
+    q_max = 2*W/(3*(B/2 - Math.abs(e))); q_min = 0;
+    contactNote = 'PARTIAL contact — q_max = 2W/3(B/2-e) over ' +
+                  fN(3*(B/2 - Math.abs(e)),3,'m') + ' of ' + fN(B,3,'m') + ' base';
+  }
   const otOK = FSOvt>=1.5, slOK = FSsl>=1.5, qOK = q_max<=qa;
-  const allOK = otOK && slOK && qOK;
+  const allOK = otOK && slOK && qOK && kernOK;
   const warns = [];
+  if (!kernOK) warns.push('⚠ Resultant outside the middle third (|e| = ' + fN(Math.abs(e),3) + ' m > B/6 = ' + fN(B/6,3) + ' m) — heel lifts off, widen the base');
   if (!otOK) warns.push('⚠ Overturning FS=' + FSOvt.toFixed(2) + ' < 1.5 — redesign required');
   if (!slOK) warns.push('⚠ Sliding FS=' + FSsl.toFixed(2) + ' < 1.5 — add shear key or increase base');
   if (!qOK)  warns.push('⚠ Foundation pressure q_max exceeds allowable bearing capacity');
@@ -724,9 +806,10 @@ function calcRetWall(p) {
       { label: 'Stabilising Moment Mr',  value: fN(Mr,2,'kN·m/m'),       warn: false },
       { label: 'FS Overturning (≥1.5)',  value: fN(FSOvt,2) + (otOK?' ✓ OK':' ✗ Fails'), warn: !otOK },
       { label: 'FS Sliding (≥1.5)',      value: fN(FSsl,2)  + (slOK?' ✓ OK':' ✗ Fails — add shear key'), warn: !slOK },
-      { label: 'Eccentricity e',         value: fN(e,3,'m'),              warn: e>B/6 },
+      { label: 'Eccentricity e',         value: fN(e,3,'m') + ' (B/6 = ' + fN(B/6,3,'m') + ')', warn: !kernOK },
       { label: 'Max Foundation Pressure',value: fN(q_max,2,'kN/m²'),     warn: !qOK },
-      { label: 'Min Foundation Pressure',value: fN(q_min,2,'kN/m²'),     warn: q_min<0 },
+      { label: 'Min Foundation Pressure',value: fN(q_min,2,'kN/m²') + (kernOK ? '' : ' — heel lifts off'), warn: !kernOK },
+      { label: 'Base Contact',           value: contactNote,              warn: !kernOK },
       { label: 'Bearing Check',          value: qOK ? '✓ q_max ≤ qa' : '✗ Exceeds qa=' + qa.toFixed(0) + ' kN/m²', warn: !qOK },
     ]
   };
@@ -741,9 +824,16 @@ function calcEarth(p) {
   let L  = toM(parseFloat(p.L),   p.L_u);
   const sw    = parseFloat(p.sw)/100;
   const sh    = parseFloat(p.sh)/100;
-  const densB = parseFloat(p.densB);
-  const densL = parseFloat(p.densL);
-  const truck = parseFloat(p.truck);
+  // FIX: densities and truck capacity were read raw while A1/A2/Am/L were
+  // converted, so an Imperial caller got the right volume with a 62x wrong
+  // mass and a wrong truck count. Explicit optional flags, SI by default.
+  //   dens_u  : 'tm3' (default) | 'pcf'
+  //   truck_u : 'm3'  (default) | 'yd3'
+  const dens_u  = p.dens_u  || 'tm3';
+  const truck_u = p.truck_u || 'm3';
+  const densB = parseFloat(p.densB) * (dens_u  === 'pcf' ? 0.0160185 : 1);
+  const densL = parseFloat(p.densL) * (dens_u  === 'pcf' ? 0.0160185 : 1);
+  const truck = parseFloat(p.truck) * (truck_u === 'yd3' ? 0.7646    : 1);
 
   if (A1<0||A2<0)        throw new Error('Cross-section areas must be ≥ 0');
   if (L<=0)              throw new Error('Distance L must be > 0');
@@ -797,10 +887,27 @@ function calcSurvey(p) {
   const Rmin  = V*V/(127*(e+f_fr));
   const RminOK= R >= Rmin;
   const A_grade = Math.abs(G1-G2);
-  const VCL_crest = A_grade>0 ? A_grade*SSD*SSD/658 : 0;
-  const VCL_sag   = A_grade>0 ? (A_grade*SSD/3.5+SSD) : 0;
-  const VCL = G2<G1 ? VCL_crest : VCL_sag;
-  const RC  = VCL>0 ? A_grade*1000/VCL : 0;
+  // FIX: the sag length was A*S/3.5 + S -- dimensionally inconsistent and about
+  // 2.4x the standard value. Both curve types now use the AASHTO/IRC stopping
+  // sight distance forms, with the S > L branch that the old code omitted:
+  //   crest  L = A.S^2/658            (h1 = 1.08 m, h2 = 0.60 m)
+  //   sag    L = A.S^2/(120 + 3.5.S)  (headlight, 0.6 m / 1 deg upward beam)
+  //   S > L  L = 2S - k/A             for the same k
+  const isCrest = G2 < G1;
+  const kDen    = isCrest ? 658 : (120 + 3.5*SSD);
+  let VCL = 0, vclCase = 'A = 0 — grades equal, no vertical curve';
+  if (A_grade > 0) {
+    const L_SL = A_grade*SSD*SSD/kDen;
+    if (L_SL >= SSD) { VCL = L_SL; vclCase = (isCrest?'Crest':'Sag') + ', S < L'; }
+    else {
+      VCL = Math.max(0, 2*SSD - kDen/A_grade);
+      vclCase = (isCrest?'Crest':'Sag') + (VCL>0 ? ', S > L' : ' — S > L, no curve required');
+    }
+  }
+  // RC was A*1000/VCL labelled %/m, i.e. 1000x too large. Report %/m properly
+  // and add the K value (L/A), which is what design tables are indexed on.
+  const RC   = VCL>0 ? A_grade/VCL : 0;
+  const Kval = A_grade>0 ? VCL/A_grade : 0;
   const warns = [];
   if (!RminOK) warns.push('⚠ R=' + fN(R,1) + ' m < Rmin=' + fN(Rmin,1) + ' m for V=' + fN(V,0) + ' km/h — unsafe speed');
 
@@ -818,8 +925,9 @@ function calcSurvey(p) {
       { label: 'Min Radius Rmin',       value: fN(Rmin,1,'m'), warn: !RminOK },
       { label: 'Speed Check R ≥ Rmin',  value: RminOK ? '✓ R ≥ Rmin — safe' : '✗ R < Rmin — unsafe', warn: !RminOK },
       { label: 'Grade Difference A',    value: fN(A_grade,3,'%'), warn: false },
-      { label: 'Vertical Curve Length', value: fN(VCL,1,'m'),  warn: false },
-      { label: 'Rate of Change RC',     value: fN(RC,4,'%/m'), warn: false },
+      { label: 'Vertical Curve Length', value: fN(VCL,1,'m') + ' (' + vclCase + ')', warn: false },
+      { label: 'Rate of Change RC',     value: fN(RC,5,'%/m'), warn: false },
+      { label: 'K Value (L/A)',         value: fN(Kval,2,'m per %'), warn: false },
     ]
   };
 }
