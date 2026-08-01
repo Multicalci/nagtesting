@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Concrete Mix Design Calculator — IS 10262 M20 to M50 | multicalci.com</title>
+<meta name="description" content="Free concrete mix design calculator to IS 10262 and IS 456. Enter grade, W/C ratio and exposure to get cement, water, fine and coarse aggregate per cubic metre, mix ratio and cement bags.">
+<link rel="canonical" href="https://www.multicalci.com/concrete-mix-design-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Concrete Mix Design Calculator — IS 10262 M20 to M50">
+<meta property="og:description" content="Cement, water, fine and coarse aggregate quantities per cubic metre by the absolute volume method, with IS 456 durability checks.">
+<meta property="og:url" content="https://www.multicalci.com/concrete-mix-design-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Concrete Mix Design Calculator — IS 10262 M20 to M50">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Concrete Mix Design Calculator","description":"Concrete mix design calculator to IS 10262 and IS 456. Computes cement, water, fine aggregate and coarse aggregate quantities per cubic metre by the absolute volume method, with durability checks on water-cement ratio and minimum cement content.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/concrete-mix-design-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Concrete Mix Design Calculator","item":"https://www.multicalci.com/concrete-mix-design-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you calculate a concrete mix design as per IS 10262?","acceptedAnswer":{"@type":"Answer","text":"You fix the water content from the maximum aggregate size and the required workability, divide it by the chosen water-cement ratio to get the cement content, then raise that cement content if it falls below the durability minimum for the exposure class. The remaining volume in one cubic metre, after subtracting the volumes of cement, water and entrapped air, is filled with fine and coarse aggregate in the proportion you select. That last step is the absolute volume method and it is what this calculator performs."}},{"@type":"Question","name":"What is the difference between nominal mix and design mix concrete?","acceptedAnswer":{"@type":"Answer","text":"A nominal mix uses fixed volumetric proportions such as 1:1.5:3 for M20, taken straight from a table without regard to the specific materials. A design mix is proportioned by calculation from the target mean strength, the actual water demand of the aggregates and the durability limits for the exposure condition. IS 456 restricts nominal mixes to M20 and below; anything above that must be a design mix."}},{"@type":"Question","name":"Why is my actual water-cement ratio lower than the value I entered?","acceptedAnswer":{"@type":"Answer","text":"Because the durability minimum cement content overrode your input. If the water content divided by your entered ratio produces less cement than the exposure class permits, the cement is raised to that minimum while the water stays fixed, so the actual ratio drops. The calculator reports the actual ratio rather than the one you typed, because that is the value the concrete will be built to."}},{"@type":"Question","name":"How many bags of cement are needed for 1 cubic metre of M25 concrete?","acceptedAnswer":{"@type":"Answer","text":"For a typical M25 mix at a water-cement ratio of 0.50 with 20 mm aggregate and medium workability, the cement content works out at 350 kg per cubic metre, which is 7.0 bags of 50 kg. This figure moves with the water-cement ratio, the aggregate size and the exposure class, so it should be read from the calculation rather than assumed."}},{"@type":"Question","name":"What is target mean strength and why is it higher than the grade?","acceptedAnswer":{"@type":"Answer","text":"Target mean strength is the average strength the mix must be proportioned for so that the characteristic strength is still met after normal production variability. It equals the characteristic strength plus 1.65 times the standard deviation, the factor 1.65 corresponding to a 5 percent failure rate. IS 10262 assumes a standard deviation of 4 MPa for M20 and M25 and 5 MPa for M30 and above."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Concrete Mix Design Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Concrete Mix Design Calculator</h1>
+    <p>Proportion a concrete mix by the absolute volume method. Enter the grade, water-cement ratio, aggregate size, workability and exposure class, and this calculator returns the cement, water, fine aggregate and coarse aggregate required for one cubic metre, together with the mix ratio, the fresh density and the number of cement bags. Durability limits on water-cement ratio and minimum cement content are checked against the exposure class as you go.</p>
+    <div class="stdref">IS 10262:2019 &middot; IS 456:2000 Table 5 &middot; absolute volume method</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#129522;</span>
+      <span class="card-hd-ttl">Mix Inputs</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="ccGrade">Concrete Grade</label>
+          <select id="ccGrade">
+            <option value="20">M20 &mdash; f<sub>ck</sub> = 20 MPa</option>
+            <option value="25" selected>M25 &mdash; f<sub>ck</sub> = 25 MPa</option>
+            <option value="30">M30 &mdash; f<sub>ck</sub> = 30 MPa</option>
+            <option value="35">M35 &mdash; f<sub>ck</sub> = 35 MPa</option>
+            <option value="40">M40 &mdash; f<sub>ck</sub> = 40 MPa</option>
+            <option value="45">M45 &mdash; f<sub>ck</sub> = 45 MPa</option>
+            <option value="50">M50 &mdash; f<sub>ck</sub> = 50 MPa</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ccWC">Water&ndash;Cement Ratio (by mass)</label>
+          <input type="number" id="ccWC" value="0.50" step="0.01" min="0.25" max="0.80">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ccAgg">Max Aggregate Size</label>
+          <select id="ccAgg">
+            <option value="10">10 mm</option>
+            <option value="20" selected>20 mm</option>
+            <option value="40">40 mm</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ccSlump">Workability (Slump)</label>
+          <select id="ccSlump">
+            <option value="25">Stiff &mdash; 10&ndash;25 mm</option>
+            <option value="75" selected>Medium &mdash; 50&ndash;100 mm</option>
+            <option value="150">High &mdash; 100&ndash;175 mm</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ccExp">Exposure Condition (IS 456 Table 5)</label>
+        <select id="ccExp">
+          <option value="mild">Mild &mdash; min 300 kg/m&sup3;, W/C &le; 0.65</option>
+          <option value="moderate" selected>Moderate &mdash; min 320 kg/m&sup3;, W/C &le; 0.55</option>
+          <option value="severe">Severe &mdash; min 340 kg/m&sup3;, W/C &le; 0.50</option>
+          <option value="very_severe">Very Severe &mdash; min 360 kg/m&sup3;, W/C &le; 0.45</option>
+        </select>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ccCem">Cement Type</label>
+          <select id="ccCem">
+            <option value="OPC" selected>OPC &mdash; &rho; = 3150 kg/m&sup3;</option>
+            <option value="PPC">PPC / Blended &mdash; &rho; = 2900 kg/m&sup3;</option>
+            <option value="SRPC">SRPC &mdash; &rho; = 3200 kg/m&sup3;</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ccFA">Fine Aggregate Fraction (% of total aggregate volume)</label>
+          <input type="number" id="ccFA" value="35" step="1" min="25" max="50">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ccVol">Batch Volume <span id="volUnitLbl">(m&sup3;)</span></label>
+        <input type="number" id="ccVol" value="1" step="0.5" min="0.01">
+        <div class="utog" role="group" aria-label="Batch volume unit">
+          <button type="button" class="ubtn on" id="btnM3" data-vu="m3">m&sup3;</button>
+          <button type="button" class="ubtn" id="btnYd3" data-vu="yd3">yd&sup3;</button>
+        </div>
+        <div class="hint">Per-cubic-metre quantities are unaffected by this; it only scales the batch column.</div>
+      </div>
+
+      <div id="ccErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Mix</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Mix Proportions</span>
+    </div>
+    <div class="card-bd">
+      <div id="ccVerdict"></div>
+      <div id="ccSummary" class="note" style="display:none"></div>
+      <div class="results" id="ccResults">
+        <div class="rc-empty">Press <strong>Calculate Mix</strong> to proportion the mix.</div>
+      </div>
+      <div id="ccWarns"></div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="fbox">
+        f<sub>m</sub> = f<sub>ck</sub> + 1.65 &middot; s<br>
+        C = W / (w/c)&nbsp;&nbsp;&nbsp;subject to&nbsp;&nbsp;C &ge; C<sub>min,exposure</sub><br>
+        (w/c)<sub>actual</sub> = W / C<br>
+        V<sub>agg</sub> = 1 &minus; C/&rho;<sub>c</sub> &minus; W/1000 &minus; V<sub>air</sub><br>
+        FA = V<sub>agg</sub> &middot; p &middot; &rho;<sub>fa</sub><br>
+        CA = V<sub>agg</sub> &middot; (1 &minus; p) &middot; &rho;<sub>ca</sub><br>
+        &rho;<sub>fresh</sub> = C + W + FA + CA
+      </div>
+
+      <div class="legend">
+        <p><strong>f<sub>m</sub></strong> &mdash; target mean compressive strength, MPa</p>
+        <p><strong>f<sub>ck</sub></strong> &mdash; characteristic (grade) strength, MPa</p>
+        <p><strong>s</strong> &mdash; assumed standard deviation: 4 MPa for M20&ndash;M25, 5 MPa for M30 and above (IS 10262 Table 2)</p>
+        <p><strong>W</strong> &mdash; free water content, litres per cubic metre, set by aggregate size and slump</p>
+        <p><strong>C</strong> &mdash; cement content, kg per cubic metre</p>
+        <p><strong>w/c</strong> &mdash; free water&ndash;cement ratio by mass</p>
+        <p><strong>C<sub>min</sub></strong> &mdash; minimum cement content for the exposure class, IS 456 Table 5</p>
+        <p><strong>&rho;<sub>c</sub></strong> &mdash; cement particle density: 3150 (OPC), 2900 (PPC), 3200 (SRPC) kg/m&sup3;</p>
+        <p><strong>V<sub>air</sub></strong> &mdash; entrapped air volume, taken as 0.015 m&sup3; per cubic metre</p>
+        <p><strong>p</strong> &mdash; fine aggregate fraction of total aggregate volume</p>
+        <p><strong>&rho;<sub>fa</sub>, &rho;<sub>ca</sub></strong> &mdash; saturated surface-dry particle densities, taken as 2650 and 2700 kg/m&sup3;</p>
+      </div>
+
+      <div class="note">
+        <strong>Two assumptions worth knowing.</strong> The aggregate particle densities are fixed at 2.65 and 2.70 in this implementation; if your material certificate gives different specific gravities the aggregate masses will shift by roughly the same percentage, though the volumes will not. Entrapped air is taken as a flat 1.5 percent, which suits 20 mm aggregate in non-air-entrained concrete. For air-entrained mixes in freeze&ndash;thaw service, the air volume is far larger and this calculation will over-state the aggregate.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example &mdash; M25, Moderate Exposure</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>M25 concrete, water&ndash;cement ratio 0.50, 20 mm maximum aggregate, medium workability (50&ndash;100 mm slump), moderate exposure, ordinary Portland cement, fine aggregate 35 percent of total aggregate volume, one cubic metre batch.</p>
+
+        <div class="wex-hd">Step 1 &mdash; target mean strength</div>
+        <p>M25 falls below M30, so the assumed standard deviation is 4 MPa.<br>
+        f<sub>m</sub> = 25 + 1.65 &times; 4 = <strong>31.6 MPa</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; water content</div>
+        <p>The base water content for 20 mm aggregate is 175 litres per cubic metre. Medium workability needs no correction, so W = <strong>175 L/m&sup3;</strong>.</p>
+
+        <div class="wex-hd">Step 3 &mdash; cement content and the durability check</div>
+        <p>C = 175 / 0.50 = 350 kg/m&sup3;. Moderate exposure requires at least 320 kg/m&sup3;, and 350 clears it, so the entered ratio governs and the actual water&ndash;cement ratio stays at <strong>0.500</strong>, inside the 0.55 durability limit.</p>
+
+        <div class="wex-hd">Step 4 &mdash; absolute volumes</div>
+        <p>V<sub>cement</sub> = 350 / 3150 = 0.1111 m&sup3;<br>
+        V<sub>water</sub> = 175 / 1000 = 0.1750 m&sup3;<br>
+        V<sub>air</sub> = 0.0150 m&sup3;<br>
+        V<sub>agg</sub> = 1 &minus; 0.1111 &minus; 0.1750 &minus; 0.0150 = <strong>0.6989 m&sup3;</strong></p>
+
+        <div class="wex-hd">Step 5 &mdash; aggregate masses</div>
+        <p>FA = 0.6989 &times; 0.35 &times; 2650 = 648 kg/m&sup3;<br>
+        CA = 0.6989 &times; 0.65 &times; 2700 = 1227 kg/m&sup3;</p>
+
+        <div class="ans">
+          <p><strong>Cement</strong> 350 kg/m&sup3; &mdash; 7.0 bags of 50 kg</p>
+          <p><strong>Water</strong> 175 L/m&sup3;</p>
+          <p><strong>Fine aggregate</strong> 648 kg/m&sup3;</p>
+          <p><strong>Coarse aggregate</strong> 1227 kg/m&sup3;</p>
+          <p><strong>Mix ratio C : FA : CA : W</strong> = 1 : 1.85 : 3.50 : 0.50</p>
+          <p><strong>Fresh density</strong> 2400 kg/m&sup3;</p>
+          <p><strong>Target mean strength</strong> 31.6 MPa &mdash; verdict PASS</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Mix</strong> without changing anything and you should get exactly these figures back. A fresh density landing on 2400 kg/m&sup3; is a useful sanity check &mdash; a normal-weight mix that comes out below about 2300 or above about 2500 usually means the fine aggregate fraction or a specific gravity is wrong.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>Unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Concrete grade f<sub>ck</sub></td><td>MPa</td><td>M20 &ndash; M50</td><td>Sets the standard deviation used for target mean strength</td></tr>
+            <tr><td>Water&ndash;cement ratio</td><td>&mdash;</td><td>&gt; 0, practically 0.25 &ndash; 0.80</td><td>Must be greater than zero; very low values leave no room for aggregate and are rejected</td></tr>
+            <tr><td>Max aggregate size</td><td>mm</td><td>10, 20, 40</td><td>Only these three are offered because they are the only sizes the water table covers</td></tr>
+            <tr><td>Workability (slump)</td><td>mm</td><td>25, 75, 150</td><td>Discrete bands; intermediate slumps are not interpolated</td></tr>
+            <tr><td>Exposure condition</td><td>&mdash;</td><td>mild, moderate, severe, very severe</td><td>Sets the minimum cement content and the maximum permitted water&ndash;cement ratio</td></tr>
+            <tr><td>Cement type</td><td>&mdash;</td><td>OPC, PPC, SRPC</td><td>Changes particle density only, not strength or water demand</td></tr>
+            <tr><td>Fine aggregate fraction p</td><td>%</td><td>25 &ndash; 50 typical</td><td>Fraction of total aggregate volume, not of total mix volume</td></tr>
+            <tr><td>Batch volume</td><td>m&sup3; or yd&sup3;</td><td>&gt; 0</td><td>Scales the batch column only; per-cubic-metre figures do not change</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Durability requirements for normal-weight concrete &mdash; IS 456:2000 Table 5</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Exposure</th><th>Min cement, kg/m&sup3;</th><th>Max free W/C</th><th>Min grade</th><th>Typical service</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Mild</td><td>300</td><td>0.65</td><td>M20</td><td>Protected interior, dry conditions</td></tr>
+            <tr><td>Moderate</td><td>320</td><td>0.55</td><td>M25</td><td>Sheltered exterior, buried, non-aggressive water</td></tr>
+            <tr><td>Severe</td><td>340</td><td>0.50</td><td>M30</td><td>Alternate wetting and drying, seawater splash</td></tr>
+            <tr><td>Very severe</td><td>360</td><td>0.45</td><td>M35</td><td>Seawater tidal zone, aggressive sulphates</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Free water content and the corrections applied &mdash; IS 10262</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Condition</th><th>Water, L/m&sup3;</th><th>Correction applied</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>20 mm aggregate, medium slump (base case)</td><td>175</td><td>none</td></tr>
+            <tr><td>10 mm aggregate</td><td>190</td><td>+15</td></tr>
+            <tr><td>40 mm aggregate</td><td>160</td><td>&minus;15</td></tr>
+            <tr><td>Stiff, 10&ndash;25 mm slump</td><td>&minus;</td><td>&minus;15</td></tr>
+            <tr><td>High, 100&ndash;175 mm slump</td><td>&minus;</td><td>+20</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Corrections are cumulative. A 10 mm aggregate mix at high slump takes 175 + 15 + 20 = 210 L/m&sup3;.</div>
+
+      <hr class="dv">
+
+      <p><strong>Particle densities used in the absolute volume calculation</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Material</th><th>Density, kg/m&sup3;</th><th>Specific gravity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>OPC 43 / 53 grade cement</td><td>3150</td><td>3.15</td></tr>
+            <tr><td>PPC / blended cement</td><td>2900</td><td>2.90</td></tr>
+            <tr><td>Sulphate-resisting Portland cement</td><td>3200</td><td>3.20</td></tr>
+            <tr><td>Fine aggregate (natural sand, SSD)</td><td>2650</td><td>2.65</td></tr>
+            <tr><td>Coarse aggregate (crushed stone, SSD)</td><td>2700</td><td>2.70</td></tr>
+            <tr><td>Water</td><td>1000</td><td>1.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Indicative cement content by grade</strong> &mdash; 20 mm aggregate, medium slump, moderate exposure</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Grade</th><th>Std deviation s, MPa</th><th>Target mean f<sub>m</sub>, MPa</th><th>Typical W/C</th><th>Cement, kg/m&sup3;</th><th>50 kg bags</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>M20</td><td>4</td><td>26.6</td><td>0.55</td><td>320</td><td>6.4</td></tr>
+            <tr><td>M25</td><td>4</td><td>31.6</td><td>0.50</td><td>350</td><td>7.0</td></tr>
+            <tr><td>M30</td><td>5</td><td>38.3</td><td>0.45</td><td>389</td><td>7.8</td></tr>
+            <tr><td>M35</td><td>5</td><td>43.3</td><td>0.42</td><td>417</td><td>8.3</td></tr>
+            <tr><td>M40</td><td>5</td><td>48.3</td><td>0.40</td><td>438</td><td>8.8</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Cement figures follow from C = 175 / (w/c) at the tabulated ratio, then the moderate-exposure floor of 320 kg/m&sup3;. Run the calculator for your own exposure class rather than reading these off directly.</div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you calculate a concrete mix design as per IS 10262?</summary>
+        <div class="faq-a">You fix the water content from the maximum aggregate size and the required workability, divide it by the chosen water-cement ratio to get the cement content, then raise that cement content if it falls below the durability minimum for the exposure class. The remaining volume in one cubic metre, after subtracting the volumes of cement, water and entrapped air, is filled with fine and coarse aggregate in the proportion you select. That last step is the absolute volume method and it is what this calculator performs.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between nominal mix and design mix concrete?</summary>
+        <div class="faq-a">A nominal mix uses fixed volumetric proportions such as 1:1.5:3 for M20, taken straight from a table without regard to the specific materials. A design mix is proportioned by calculation from the target mean strength, the actual water demand of the aggregates and the durability limits for the exposure condition. IS 456 restricts nominal mixes to M20 and below; anything above that must be a design mix.</div>
+      </details>
+
+      <details>
+        <summary>Why is my actual water-cement ratio lower than the value I entered?</summary>
+        <div class="faq-a">Because the durability minimum cement content overrode your input. If the water content divided by your entered ratio produces less cement than the exposure class permits, the cement is raised to that minimum while the water stays fixed, so the actual ratio drops. The calculator reports the actual ratio rather than the one you typed, because that is the value the concrete will be built to.</div>
+      </details>
+
+      <details>
+        <summary>How many bags of cement are needed for 1 cubic metre of M25 concrete?</summary>
+        <div class="faq-a">For a typical M25 mix at a water-cement ratio of 0.50 with 20 mm aggregate and medium workability, the cement content works out at 350 kg per cubic metre, which is 7.0 bags of 50 kg. This figure moves with the water-cement ratio, the aggregate size and the exposure class, so it should be read from the calculation rather than assumed.</div>
+      </details>
+
+      <details>
+        <summary>What is target mean strength and why is it higher than the grade?</summary>
+        <div class="faq-a">Target mean strength is the average strength the mix must be proportioned for so that the characteristic strength is still met after normal production variability. It equals the characteristic strength plus 1.65 times the standard deviation, the factor 1.65 corresponding to a 5 percent failure rate. IS 10262 assumes a standard deviation of 4 MPa for M20 and M25 and 5 MPa for M30 and above.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Turn concrete quantities into a costed bill of quantities</span></a>
+        <a href="/unit-converter/density">Density Converter<span>kg/m&sup3;, g/cm&sup3;, lb/ft&sup3; and pcf</span></a>
+        <a href="/unit-converter/volume">Volume Converter<span>Cubic metres, cubic yards, litres and cubic feet</span></a>
+        <a href="/material-of-construction">Material of Construction Selector<span>Material selection for process and civil service</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Concrete Mix Design Calculator &mdash; multicalci.com. Results are indicative and follow IS 10262 and IS 456 with the stated assumptions. Trial mixes and cube tests remain mandatory before any mix is used in construction.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var VU = 'm3';
+  var LAST = null;
+
+  // Result label -> [card id suffix, tone class, is-headline]
+  var CARDS = [
+    ['Cement Content',           'c-main', true ],
+    ['Water Content',            'c-blu',  false],
+    ['Fine Aggregate FA',        'c-amb',  false],
+    ['Coarse Aggregate CA',      'c-amb',  false],
+    ['Mix Ratio C:FA:CA:W',      'c-pur',  true ],
+    ['W/C Ratio (actual)',       'c-cyn',  false],
+    ['Target Mean Strength fm',  'c-grn',  false],
+    ['Fresh Density (computed)', 'c-blu',  false],
+    ['Cement Bags',              'c-grn',  false]
+  ];
+
+  function params() {
+    return {
+      grade:  E('ccGrade').value,
+      wc:     E('ccWC').value,
+      vol:    E('ccVol').value,
+      vol_u:  VU,
+      slump:  E('ccSlump').value,
+      aggSz:  E('ccAgg').value,
+      FA_pct: E('ccFA').value,
+      exp:    E('ccExp').value,
+      cem:    E('ccCem').value
+    };
+  }
+
+  // Mirror the backend's own input guards so the user gets a field-level
+  // message instead of a 422. Formula-bearing guards (paste volume) stay
+  // server-side and surface through the catch below.
+  function localGuard(p) {
+    var wc = parseFloat(p.wc), vol = parseFloat(p.vol), fa = parseFloat(p.FA_pct);
+    if (!isFinite(wc) || wc <= 0)  return 'Water\u2013cement ratio must be a number greater than 0.';
+    if (!isFinite(vol) || vol <= 0) return 'Batch volume must be a number greater than 0.';
+    if (!isFinite(fa) || fa <= 0 || fa >= 100) return 'Fine aggregate fraction must be between 0 and 100 percent.';
+    return null;
+  }
+
+  function clear() {
+    E('ccResults').innerHTML = '<div class="rc-empty">Press <strong>Calculate Mix</strong> to proportion the mix.</div>';
+    E('ccVerdict').innerHTML = '';
+    E('ccWarns').innerHTML = '';
+    E('ccSummary').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg) {
+    clear();
+    E('ccErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+  }
+
+  function render(d) {
+    E('ccErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    CARDS.forEach(function (c) {
+      var r = byLabel[c[0]];
+      if (!r) return;
+      delete byLabel[c[0]];
+      // The civil backend uses two sub-line separators: ' | ' for batch
+      // quantities and ' = ' for the formula annotation on fm. Split on
+      // whichever is present so the headline value stays a bare number.
+      var val = String(r.value), main = val, sub = '';
+      if (val.indexOf('|') > -1) {
+        main = val.slice(0, val.indexOf('|')).trim();
+        sub  = val.slice(val.indexOf('|') + 1).trim();
+      } else if (val.indexOf(' = ') > 0) {
+        main = val.slice(0, val.indexOf(' = ')).trim();
+        sub  = val.slice(val.indexOf(' = ') + 3).trim();
+      }
+      html += '<div class="rc ' + (r.warn ? 'c-red' : c[1]) + (c[2] ? ' sp2' : '') + '">'
+           +    '<div class="rl">' + esc(c[0]) + '</div>'
+           +    '<div class="rv' + (c[2] ? ' big' : '') + '">' + esc(main) + '</div>'
+           +    (sub ? '<div class="rsub">' + esc(sub) + '</div>' : '')
+           +  '</div>';
+    });
+
+    // Anything the backend adds later still shows up rather than vanishing.
+    Object.keys(byLabel).forEach(function (k) {
+      var r = byLabel[k];
+      html += '<div class="rc ' + (r.warn ? 'c-red' : 'c-blu') + '">'
+           +    '<div class="rl">' + esc(k) + '</div>'
+           +    '<div class="rv">' + esc(r.value) + '</div>'
+           +  '</div>';
+    });
+
+    E('ccResults').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('ccVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Mix satisfies the durability limits for this exposure class</div>'
+      : '<div class="badge c-red">\u26A0 Mix does not satisfy every check \u2014 see the flagged rows below</div>';
+
+    if (d.summary) {
+      E('ccSummary').textContent = d.summary;
+      E('ccSummary').style.display = 'block';
+    } else {
+      E('ccSummary').style.display = 'none';
+    }
+
+    E('ccWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var p = params();
+    var g = localGuard(p);
+    if (g) { fail(g); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('conc', p).then(function (d) {
+      render(d);
+      writeUrl(p);
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { grade: 'ccGrade', wc: 'ccWC', vol: 'ccVol', slump: 'ccSlump',
+               agg: 'ccAgg', fa: 'ccFA', exp: 'ccExp', cem: 'ccCem' };
+
+  function writeUrl(p) {
+    var q = new URLSearchParams({
+      grade: p.grade, wc: p.wc, vol: p.vol, vu: p.vol_u,
+      slump: p.slump, agg: p.aggSz, fa: p.FA_pct, exp: p.exp, cem: p.cem
+    });
+    try { history.replaceState(null, '', location.pathname + '?' + q.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var q = new URLSearchParams(location.search);
+    if (!q.toString()) return false;
+    var touched = false;
+    Object.keys(QMAP).forEach(function (k) {
+      if (q.has(k)) {
+        var el = E(QMAP[k]);
+        if (el) { el.value = q.get(k); touched = true; }
+      }
+    });
+    if (q.get('vu') === 'yd3') { setVol('yd3'); touched = true; }
+    return touched;
+  }
+
+  function share() {
+    var url = location.href;
+    var data = { title: 'Concrete Mix Design Calculator', text: 'Concrete mix design on multicalci.com', url: url };
+    if (navigator.share) {
+      navigator.share(data).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit toggle (batch volume only) ─────────────────────────
+  function setVol(u) {
+    if (u === VU) return;
+    var el = E('ccVol'), v = parseFloat(el.value);
+    if (isFinite(v)) {
+      el.value = (u === 'yd3' ? v / 0.7646 : v * 0.7646).toFixed(3).replace(/\.?0+$/, '');
+    }
+    VU = u;
+    E('btnM3').classList.toggle('on', u === 'm3');
+    E('btnYd3').classList.toggle('on', u === 'yd3');
+    E('volUnitLbl').innerHTML = u === 'yd3' ? '(yd\u00B3)' : '(m\u00B3)';
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var p = params();
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var inRows = [
+      ['Concrete grade', 'M' + p.grade],
+      ['Water\u2013cement ratio (entered)', p.wc],
+      ['Max aggregate size', p.aggSz + ' mm'],
+      ['Workability (slump)', p.slump + ' mm band'],
+      ['Exposure condition', p.exp.replace('_', ' ')],
+      ['Cement type', p.cem],
+      ['Fine aggregate fraction', p.FA_pct + ' %'],
+      ['Batch volume', p.vol + ' ' + (p.vol_u === 'yd3' ? 'yd\u00B3' : 'm\u00B3')]
+    ].map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Concrete Mix Design Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Concrete Mix Design Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">IS 10262 / IS 456 \u2014 absolute volume method \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 satisfies durability limits' : 'REVIEW \u2014 one or more checks flagged') + '</div>'
+      + '<h2>Design Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Mix Proportions</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 indicative only. '
+      + 'Trial mixes and cube tests are mandatory before any mix is used in construction.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnM3').addEventListener('click', function () { setVol('m3'); });
+    E('btnYd3').addEventListener('click', function () { setVol('yd3'); });
+
+    ['ccGrade', 'ccWC', 'ccVol', 'ccSlump', 'ccAgg', 'ccFA', 'ccExp', 'ccCem'].forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('change', clear);
+      el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); calc(); } });
+    });
+
+    readUrl();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
