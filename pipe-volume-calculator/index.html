@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipe Volume Calculator — Internal Volume & Liquid Fill Capacity | multicalci.com</title>
+<link rel="canonical" href="https://www.multicalci.com/pipe-volume-calculator">
+<meta name="description" content="Free pipe volume calculator. Enter pipe inside diameter and length, or select NPS and schedule, to get internal volume in litres, US gallons, m³ and barrels — plus liquid weight for a given density.">
+<meta property="og:title" content="Pipe Volume Calculator — Internal Volume & Fill Capacity">
+<meta property="og:description" content="Internal pipe volume from ID and length, or from NPS/Schedule. Litres, gallons, m³, barrels, and contained liquid weight.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/pipe-volume-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b2430; --sub:#5b6472;
+  --line:#e1e5ea; --accent:#0b5fa5; --accent-ink:#083f6e; --mono:'SF Mono',SFMono-Regular,Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+header.site{background:var(--accent-ink);color:#fff;padding:14px 20px}
+header.site nav{max-width:1000px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header.site a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+header.site a.brand{font-weight:700;letter-spacing:.5px;opacity:1;font-size:15px}
+main{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+.crumb{font-size:13px;color:var(--sub);margin-bottom:10px}
+.crumb a{color:var(--sub)}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.badge{background:#eaf2fb;color:var(--accent-ink);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+h1{font-size:28px;margin:0 0 8px;letter-spacing:-.3px}
+p.lede{color:var(--sub);font-size:16px;max-width:760px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.panel h2{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.hint{font-size:12px;color:var(--sub);margin-top:2px}
+select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fbfcfd}
+.row-span2{grid-column:1/-1}
+button.calc{margin-top:16px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button.calc:hover{background:var(--accent-ink)}
+.results{margin-top:18px;display:none}
+.results.show{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:640px){.results.show{grid-template-columns:1fr 1fr}}
+.stat{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:12px 14px}
+.stat .v{font-size:19px;font-weight:700;color:var(--accent-ink);font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.formula-block{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;white-space:pre}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:600;font-size:12px;text-transform:uppercase}
+.faq h3{font-size:15px;margin:16px 0 4px}
+.faq p{margin:0 0 4px;color:var(--sub)}
+.related{display:flex;flex-wrap:wrap;gap:10px}
+.related a{background:#f2f6fb;border:1px solid #dbe6f2;color:var(--accent-ink);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:8px}
+footer.note{margin-top:26px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<header class="site"><nav>
+  <a class="brand" href="https://www.multicalci.com/">MULTICALCI</a>
+  <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+  <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+  <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+  <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+</nav></header>
+
+<main>
+  <div class="crumb"><a href="https://www.multicalci.com/">Home</a> › <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical Engineering Calculators</a> › Pipe Volume Calculator</div>
+  <div class="badges"><span class="badge">NPS & Schedule or custom ID</span><span class="badge">Litres · gal · m³ · bbl</span><span class="badge">Contained liquid weight</span></div>
+  <h1>Pipe Volume Calculator</h1>
+  <p class="lede">Get the internal (bore) volume of a pipe run from its inside diameter and length — for line fill volume, purge/flush volume, chemical dosing, or pigging and hydrotest water volume estimates.</p>
+
+  <div class="panel">
+    <h2>Pipe Inputs</h2>
+    <div class="grid">
+      <div class="row-span2">
+        <label>Input method</label>
+        <select id="method" onchange="toggleMethod()">
+          <option value="table">NPS & Schedule (ASME B36.10 table)</option>
+          <option value="custom">Custom inside diameter</option>
+        </select>
+      </div>
+
+      <div id="tableInputs" class="row-span2" style="display:contents">
+        <div>
+          <label>Nominal pipe size (NPS)</label>
+          <select id="nps" onchange="updateSchedules()"></select>
+        </div>
+        <div>
+          <label>Schedule</label>
+          <select id="sched"></select>
+        </div>
+      </div>
+
+      <div id="customInputs" style="display:none">
+        <label>Inside diameter (ID)</label>
+        <input id="customID" type="number" step="any" placeholder="e.g. 154.1">
+      </div>
+      <div id="customIDUnitWrap" style="display:none">
+        <label>ID unit</label>
+        <select id="customIDUnit">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="in">inch</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Pipe length</label>
+        <input id="length" type="number" step="any" value="100">
+      </div>
+      <div>
+        <label>Length unit</label>
+        <select id="lengthUnit">
+          <option value="mm">millimetres</option>
+          <option value="m" selected>metres (SI)</option>
+          <option value="ft">feet (imperial)</option>
+          <option value="in">inches (imperial)</option>
+          <option value="yd">yards (imperial)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Liquid density (optional, for fill weight)</label>
+        <input id="density" type="number" step="any" value="1000">
+      </div>
+      <div>
+        <label>Density unit</label>
+        <select id="densityUnit">
+          <option value="kgm3" selected>kg/m³ (SI)</option>
+          <option value="gcm3">g/cm³ (metric)</option>
+          <option value="lbft3">lb/ft³ (imperial)</option>
+          <option value="sg">specific gravity (× water)</option>
+        </select>
+      </div>
+    </div>
+    <button class="calc" onclick="calc()">Calculate volume</button>
+
+    <div id="results" class="results">
+      <div class="stat"><div class="v" id="rID">–</div><div class="l">Inside diameter, mm</div></div>
+      <div class="stat"><div class="v" id="rM3">–</div><div class="l">Volume, m³</div></div>
+      <div class="stat"><div class="v" id="rL">–</div><div class="l">Volume, litres</div></div>
+      <div class="stat"><div class="v" id="rGal">–</div><div class="l">Volume, US gallons</div></div>
+      <div class="stat"><div class="v" id="rBbl">–</div><div class="l">Volume, barrels (42 US gal)</div></div>
+      <div class="stat"><div class="v" id="rWeight">–</div><div class="l">Contained liquid weight</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Formula</h2>
+    <div class="formula-block">V = (π/4) × ID² × L
+
+Litres  = V(m³) × 1000
+US gal  = V(m³) × 264.172
+Barrels = US gal / 42
+Weight  = V(m³) × ρ(kg/m³)</div>
+  </div>
+
+  <div class="panel">
+    <h2>Worked example</h2>
+    <p>8″ NPS Schedule 40 pipeline, 250 m long, full of water.</p>
+    <table>
+      <tr><th>Step</th><th>Calculation</th></tr>
+      <tr><td>ID (8″ Sch 40)</td><td>219.1 − 2×8.18 = 202.74 mm = 0.20274 m</td></tr>
+      <tr><td>Volume</td><td>(π/4)(0.20274²)(250) = 8.071 m³</td></tr>
+      <tr><td>Litres</td><td>8.071 × 1000 = <b>8,071 L</b></td></tr>
+      <tr><td>US gallons</td><td>8.071 × 264.172 = <b>2,132 gal</b></td></tr>
+      <tr><td>Water weight (ρ=1000 kg/m³)</td><td>8.071 × 1000 = <b>8,071 kg</b></td></tr>
+    </table>
+  </div>
+
+  <div class="panel faq">
+    <h2>Frequently asked questions</h2>
+    <h3>Does this account for fittings, valves or vessel volume?</h3>
+    <p>No — this is straight-run pipe bore volume only (π/4 × ID² × L). For a full system fill volume, add fitting/valve internal volumes and any in-line equipment volume separately.</p>
+    <h3>Why use inside diameter instead of nominal size?</h3>
+    <p>Inside diameter, not NPS, determines the actual bore volume, and it changes with schedule — an 8″ Sch 40 pipe (ID 202.7 mm) holds noticeably more than an 8″ Sch 80 pipe (ID 193.7 mm) over the same length.</p>
+    <h3>What is this useful for in plant engineering?</h3>
+    <p>Common uses include hydrotest water volume, chemical/nitrogen purge volume, pigging displacement volume, batch transfer line hold-up, and line-fill weight for pipe support and stress calculations.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Related mechanical calculators</h2>
+    <div class="related">
+      <a href="https://www.multicalci.com/pipe-weight-calculator">Pipe Weight Calculator</a>
+      <a href="https://www.multicalci.com/pipe-velocity-calculator">Pipe Velocity / Sizing Calculator</a>
+      <a href="https://www.multicalci.com/pump-power-calculator">Pump Power Calculator</a>
+    </div>
+  </div>
+
+  <footer class="note">
+    Results are estimates for preliminary engineering only. Confirm actual pipe ID against the mill certificate or governing dimensional standard before hydrotest, dosing or fill-weight calculations.
+    <br><a href="https://www.multicalci.com/mechanical-engineering-calculators">← All mechanical engineering calculators</a> · <a href="https://www.multicalci.com/">multicalci.com</a>
+  </footer>
+</main>
+
+<script>
+const PIPES = {
+ "1/2":  {od:21.3,  sch:{"10":2.11,"40/STD":2.77,"80/XS":3.73,"160":4.78,"XXS":7.47}},
+ "3/4":  {od:26.7,  sch:{"10":2.11,"40/STD":2.87,"80/XS":3.91,"160":5.56,"XXS":7.82}},
+ "1":    {od:33.4,  sch:{"10":2.77,"40/STD":3.38,"80/XS":4.55,"160":6.35,"XXS":9.09}},
+ "1 1/4":{od:42.2,  sch:{"10":2.77,"40/STD":3.56,"80/XS":4.85,"160":6.35,"XXS":9.70}},
+ "1 1/2":{od:48.3,  sch:{"10":2.77,"40/STD":3.68,"80/XS":5.08,"160":7.14,"XXS":10.15}},
+ "2":    {od:60.3,  sch:{"10":2.77,"40/STD":3.91,"80/XS":5.54,"160":8.74,"XXS":11.07}},
+ "2 1/2":{od:73.0,  sch:{"10":3.05,"40/STD":5.16,"80/XS":7.01,"160":9.53,"XXS":14.02}},
+ "3":    {od:88.9,  sch:{"10":3.05,"40/STD":5.49,"80/XS":7.62,"160":11.13,"XXS":15.24}},
+ "4":    {od:114.3, sch:{"10":3.05,"40/STD":6.02,"80/XS":8.56,"120":11.13,"160":13.49,"XXS":17.12}},
+ "5":    {od:141.3, sch:{"10":3.40,"40/STD":6.55,"80/XS":9.53,"120":12.70,"160":15.88,"XXS":19.05}},
+ "6":    {od:168.3, sch:{"10":3.40,"40/STD":7.11,"80/XS":10.97,"120":14.27,"160":18.26,"XXS":21.95}},
+ "8":    {od:219.1, sch:{"10":3.76,"20":6.35,"40/STD":8.18,"60":10.31,"80/XS":12.70,"120":18.26,"160":23.01,"XXS":22.23}},
+ "10":   {od:273.1, sch:{"10":4.19,"20":6.35,"40/STD":9.27,"60":12.70,"80/XS":12.70,"100":15.09,"120":18.26,"160":28.58,"XXS":25.40}},
+ "12":   {od:323.9, sch:{"10":4.57,"20":6.35,"STD":9.53,"40":10.31,"XS":12.70,"60":14.27,"80":17.48,"100":21.44,"120":25.40,"160":33.32,"XXS":25.40}},
+ "14":   {od:355.6, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":9.53,"40":11.13,"XS":12.70,"60":15.09,"80":19.05,"100":23.83,"120":27.79,"160":35.71}},
+ "16":   {od:406.4, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":9.53,"40":12.70,"XS":12.70,"60":16.66,"80":21.44,"100":26.19,"120":30.96,"160":40.49}},
+ "18":   {od:457.2, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":11.13,"40":14.27,"XS":12.70,"60":19.05,"80":23.83,"100":29.36,"120":34.93,"160":45.24}},
+ "20":   {od:508.0, sch:{"10":6.35,"STD":9.53,"20":9.53,"30":12.70,"40":15.09,"XS":12.70,"60":20.62,"80":26.19,"100":32.54,"120":38.10,"160":50.01}},
+ "24":   {od:610.0, sch:{"10":6.35,"STD":9.53,"20":9.53,"30":14.27,"40":17.48,"XS":12.70,"60":24.61,"80":30.96,"100":38.89,"120":46.02,"160":59.54}}
+};
+function populateNPS(){
+  const npsSel = document.getElementById('nps');
+  Object.keys(PIPES).forEach(k=>{
+    const o=document.createElement('option'); o.value=k; o.textContent=k+'″'; npsSel.appendChild(o);
+  });
+  npsSel.value="8";
+  updateSchedules();
+}
+function updateSchedules(){
+  const nps = document.getElementById('nps').value;
+  const schSel = document.getElementById('sched');
+  schSel.innerHTML='';
+  Object.keys(PIPES[nps].sch).forEach(s=>{
+    const o=document.createElement('option'); o.value=s; o.textContent='Sch '+s; schSel.appendChild(o);
+  });
+}
+function toggleMethod(){
+  const m = document.getElementById('method').value;
+  document.getElementById('tableInputs').style.display = (m==='table') ? 'contents' : 'none';
+  document.getElementById('customInputs').style.display = (m==='custom') ? 'block' : 'none';
+  document.getElementById('customIDUnitWrap').style.display = (m==='custom') ? 'block' : 'none';
+}
+function lengthToM(v, unit){
+  if(unit==='mm') return v/1000;
+  if(unit==='ft') return v*0.3048;
+  if(unit==='in') return v*0.0254;
+  if(unit==='yd') return v*0.9144;
+  return v;
+}
+function densityToKgm3(v, unit){
+  if(unit==='gcm3') return v*1000;
+  if(unit==='lbft3') return v*16.0185;
+  if(unit==='sg') return v*1000;
+  return v;
+}
+function calc(){
+  const method = document.getElementById('method').value;
+  let idMm;
+  if(method==='table'){
+    const nps = document.getElementById('nps').value;
+    const sch = document.getElementById('sched').value;
+    const od = PIPES[nps].od;
+    const wt = PIPES[nps].sch[sch];
+    idMm = od - 2*wt;
+  } else {
+    const raw = parseFloat(document.getElementById('customID').value);
+    const idUnit = document.getElementById('customIDUnit').value;
+    idMm = (idUnit==='cm') ? raw*10 : (idUnit==='in') ? raw*25.4 : raw;
+  }
+  if(!idMm || idMm<=0){ alert('Enter a valid inside diameter.'); return; }
+
+  let L = parseFloat(document.getElementById('length').value) || 0;
+  const lengthUnit = document.getElementById('lengthUnit').value;
+  const Lm = lengthToM(L, lengthUnit);
+  if(Lm<=0){ alert('Enter a valid length.'); return; }
+
+  const idM = idMm/1000;
+  const volM3 = Math.PI/4 * idM*idM * Lm;
+  const volL = volM3*1000;
+  const volGal = volM3*264.172;
+  const volBbl = volGal/42;
+
+  let density = parseFloat(document.getElementById('density').value) || 0;
+  const densityUnit = document.getElementById('densityUnit').value;
+  const densityKgm3 = densityToKgm3(density, densityUnit);
+  const weightKg = volM3*densityKgm3;
+
+  document.getElementById('rID').textContent = idMm.toFixed(1);
+  document.getElementById('rM3').textContent = volM3.toFixed(4);
+  document.getElementById('rL').textContent = volL.toFixed(1);
+  document.getElementById('rGal').textContent = volGal.toFixed(1);
+  document.getElementById('rBbl').textContent = volBbl.toFixed(2);
+  document.getElementById('rWeight').textContent = weightKg.toFixed(1)+' kg';
+  document.getElementById('results').classList.add('show');
+}
+populateNPS();
+</script>
+</body>
+</html>
