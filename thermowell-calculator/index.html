@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>Thermowell Calculator — ASME PTC 19.3 Wake Frequency | multicalci.com</title>
+<meta name="description" content="Free thermowell wake frequency calculator per ASME PTC 19.3. Enter insertion length, tip OD and process velocity to check resonance risk against natural frequency.">
+<link rel="canonical" href="https://www.multicalci.com/thermowell-calculator">
+<meta property="og:title" content="Thermowell Calculator — ASME PTC 19.3 Wake Frequency | multicalci.com">
+<meta property="og:description" content="Free thermowell wake frequency calculator per ASME PTC 19.3. Check resonance risk from insertion length, tip OD and process velocity.">
+<meta property="og:url" content="https://www.multicalci.com/thermowell-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Thermowell Calculator — ASME PTC 19.3 Wake Frequency | multicalci.com">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Thermowell Calculator","description":"Wake frequency and resonance risk calculator for thermowells per ASME PTC 19.3, from insertion length, tip OD, process velocity and fluid density.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/thermowell-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Instrumentation Calculators","item":"https://www.multicalci.com/instrumentation-calculators"},
+{"@type":"ListItem","position":3,"name":"Thermowell Calculator","item":"https://www.multicalci.com/thermowell-calculator"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is a thermowell wake frequency calculation?","acceptedAnswer":{"@type":"Answer","text":"As fluid flows past a thermowell, it sheds vortices behind the rod at a frequency that depends on velocity, tip diameter and the fluid's Reynolds number. If that shedding frequency gets close to the thermowell's own natural (mechanical) frequency, the thermowell resonates and can fail by fatigue. The wake frequency calculation compares the two frequencies to flag that risk before installation."}},
+{"@type":"Question","name":"What is ASME PTC 19.3 TW and why does it matter?","acceptedAnswer":{"@type":"Answer","text":"ASME PTC 19.3 TW is the industry standard for thermowell mechanical design, covering wake-frequency resonance, static and dynamic stress, and pressure rating. This calculator performs the first-pass wake frequency screen from that standard; a full PTC 19.3 TW calculation also checks Scruton number, static stress, and stepped/tapered geometry, which this simplified tool does not model."}},
+{"@type":"Question","name":"What frequency ratio (fs/fn) is considered safe for a thermowell?","acceptedAnswer":{"@type":"Answer","text":"A shedding-to-natural frequency ratio below 0.6 is generally considered acceptable. A ratio between 0.6 and 0.8 is marginal and warrants a full ASME PTC 19.3 TW calculation before finalizing the design. A ratio of 0.8 or above indicates high resonance risk and typically requires a shorter insertion length, larger tip OD, or reduced process velocity."}},
+{"@type":"Question","name":"What material and geometry does this calculator assume?","acceptedAnswer":{"@type":"Answer","text":"This calculator assumes a solid, uniform 316 stainless steel rod (E = 193 GPa, density 7950 kg/m\u00b3) with a constant diameter over the full insertion length. Real thermowells are often stepped or tapered, which raises the natural frequency compared with this simplified straight-rod model \u2014 treat results here as a conservative first-pass screen, not a final design sign-off."}},
+{"@type":"Question","name":"How accurate is the default fluid density value?","acceptedAnswer":{"@type":"Answer","text":"If you don't enter a density, the calculator defaults to 1000 kg/m\u00b3 for liquids (water) or 10 kg/m\u00b3 for gases as a rough placeholder. Actual gas density depends heavily on pressure and temperature, and liquid hydrocarbons or oils differ substantially from water \u2014 for an accurate result, select \"Custom\" and enter your process fluid's actual density."}}
+]}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="topbar-logo">multicalci.com</a>
+    <nav class="topbar-nav">
+      <a href="/instrumentation-calculators">Instrumentation</a>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+    </nav>
+  </div>
+
+  <div class="crumb">
+    <a href="/">Home</a> &rsaquo; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &rsaquo; Thermowell Calculator
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Instrumentation &middot; Mechanical Integrity</div>
+    <h1>Thermowell Calculator</h1>
+    <p>Check thermowell wake-frequency resonance risk per ASME PTC 19.3 — enter insertion length, tip OD and process velocity to compare vortex shedding frequency against the thermowell's natural frequency.</p>
+    <div class="stdref">ASME PTC 19.3 TW</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#127777;</span><span class="card-hd-ttl">Wake Frequency Analyser</span></div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="tw-ins">Insertion length U</label>
+          <div class="iw">
+            <input type="number" id="tw-ins" value="250" step="1" min="1" placeholder="e.g. 250" required>
+            <select id="tw-len-unit">
+              <option value="mm" selected>mm</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="tw-od">Tip OD d</label>
+          <div class="iw">
+            <input type="number" id="tw-od" value="11" step="0.1" min="0.1" placeholder="e.g. 11" required>
+            <select id="tw-od-unit">
+              <option value="mm" selected>mm</option>
+              <option value="in">in</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="tw-vel">Process velocity</label>
+          <div class="iw">
+            <input type="number" id="tw-vel" value="3.0" step="0.01" min="0.001" placeholder="e.g. 3.0" required>
+            <select id="tw-vel-unit">
+              <option value="ms" selected>m/s</option>
+              <option value="fts">ft/s</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="tw-fluid">Fluid type</label>
+          <select class="fd" id="tw-fluid" onchange="onFluidChange()">
+            <option value="liquid" selected>Liquid (default &rho; = 1000 kg/m&sup3;)</option>
+            <option value="gas">Gas (default &rho; = 10 kg/m&sup3;)</option>
+            <option value="custom">Custom density</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" id="tw-rho-row" style="display:none">
+        <label for="tw-rho">Fluid density (kg/m&sup3;)</label>
+        <input type="number" id="tw-rho" step="0.1" placeholder="e.g. 850">
+      </div>
+
+      <div id="tw-err" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" onclick="calculate()">Calculate</button>
+        <button class="btn-pdf" id="pdfBtn" disabled onclick="downloadPDF()">Download PDF report</button>
+        <button class="btn-share" id="shareBtn" onclick="shareCalc()">Share</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="rc-empty">Enter values and press Calculate to see the wake frequency analysis.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card wex">
+    <div class="wex-hd">Worked example</div>
+    <div class="card-bd">
+      <p>A thermowell is inserted <strong>250 mm</strong> into a pipe carrying water, with a tip OD of <strong>11 mm</strong> and a process velocity of <strong>3.0 m/s</strong>.</p>
+      <div class="ans">
+        Re = 3.30 &times; 10<sup>4</sup> &rarr; St = 0.22 (subcritical) &rarr; f<sub>s</sub> = 60.000 Hz, f<sub>n</sub> = 121.454 Hz &rarr; f<sub>s</sub>/f<sub>n</sub> = <strong>0.494 &mdash; ACCEPTABLE</strong>
+      </div>
+      <p>The form above is pre-filled with these exact numbers — press Calculate to reproduce this result, or change the inputs for your own installation.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#8721;</span><span class="card-hd-ttl">Formula &amp; variable legend</span></div>
+    <div class="card-bd">
+      <div class="fbox">Re = &rho; &middot; v &middot; d / &mu;</div>
+      <div class="fbox">f<sub>s</sub> = St &middot; v / d</div>
+      <div class="fbox">f<sub>n</sub> = (3.52 / (2&pi;U&sup2;)) &times; &radic;(E&middot;I / (&rho;<sub>mat</sub>&middot;A))</div>
+      <div class="fbox">Frequency ratio = f<sub>s</sub> / f<sub>n</sub></div>
+      <div class="legend">
+        <div><strong>U</strong> — insertion (unsupported) length, m</div>
+        <div><strong>d</strong> — tip outer diameter, m</div>
+        <div><strong>v</strong> — process velocity, m/s</div>
+        <div><strong>&rho;</strong> — fluid density, kg/m&sup3;</div>
+        <div><strong>&mu;</strong> — fluid viscosity (estimated from fluid type), Pa&middot;s</div>
+        <div><strong>St</strong> — Strouhal number, from Reynolds-number regime</div>
+        <div><strong>E, &rho;<sub>mat</sub></strong> — rod material modulus (193 GPa) and density (7950 kg/m&sup3;), fixed at 316SS</div>
+        <div><strong>I, A</strong> — second moment of area and cross-sectional area of the rod tip</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128203;</span><span class="card-hd-ttl">Accepted inputs</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Accepted range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Insertion length U</td><td>&gt; 0</td><td>mm or in</td></tr>
+          <tr><td>Tip OD d</td><td>&gt; 0</td><td>mm or in</td></tr>
+          <tr><td>Process velocity</td><td>&gt; 0</td><td>m/s or ft/s</td></tr>
+          <tr><td>Fluid density</td><td>&gt; 0 (custom only)</td><td>Required only when fluid type is Custom; liquid/gas use a built-in default if left blank</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#127754;</span><span class="card-hd-ttl">Reynolds number &rarr; Strouhal number</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Reynolds number range</th><th>Regime</th><th>Strouhal number St</th></tr></thead>
+        <tbody>
+          <tr><td>Re &lt; 10&sup3;</td><td>Sub-critical</td><td>0.21</td></tr>
+          <tr><td>10&sup3; &le; Re &lt; 2&times;10&#8309;</td><td>Subcritical</td><td>0.22</td></tr>
+          <tr><td>2&times;10&#8309; &le; Re &lt; 5&times;10&#8309;</td><td>Critical / drag-crisis</td><td>0.19</td></tr>
+          <tr><td>Re &ge; 5&times;10&#8309;</td><td>Supercritical</td><td>0.27</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9888;</span><span class="card-hd-ttl">Frequency-ratio status bands</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>f<sub>s</sub>/f<sub>n</sub></th><th>Status</th><th>Example (U / d / v)</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 0.6</td><td class="badge tone-grn">ACCEPTABLE</td><td>250mm / 11mm / 3.0 m/s &rarr; 0.494</td></tr>
+          <tr><td>0.6 &ndash; 0.8</td><td class="badge tone-amb">MARGINAL</td><td>250mm / 9mm / 3.2 m/s &rarr; 0.787</td></tr>
+          <tr><td>&ge; 0.8</td><td class="badge tone-red">CRITICAL</td><td>400mm / 8mm / 4.0 m/s &rarr; 3.188</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What is a thermowell wake frequency calculation?</summary>
+      <div class="faq-a">As fluid flows past a thermowell, it sheds vortices behind the rod at a frequency that depends on velocity, tip diameter and the fluid's Reynolds number. If that shedding frequency gets close to the thermowell's own natural (mechanical) frequency, the thermowell resonates and can fail by fatigue. The wake frequency calculation compares the two frequencies to flag that risk before installation.</div>
+    </details>
+    <details>
+      <summary>What is ASME PTC 19.3 TW and why does it matter?</summary>
+      <div class="faq-a">ASME PTC 19.3 TW is the industry standard for thermowell mechanical design, covering wake-frequency resonance, static and dynamic stress, and pressure rating. This calculator performs the first-pass wake frequency screen from that standard; a full PTC 19.3 TW calculation also checks Scruton number, static stress, and stepped/tapered geometry, which this simplified tool does not model.</div>
+    </details>
+    <details>
+      <summary>What frequency ratio (fs/fn) is considered safe for a thermowell?</summary>
+      <div class="faq-a">A shedding-to-natural frequency ratio below 0.6 is generally considered acceptable. A ratio between 0.6 and 0.8 is marginal and warrants a full ASME PTC 19.3 TW calculation before finalizing the design. A ratio of 0.8 or above indicates high resonance risk and typically requires a shorter insertion length, larger tip OD, or reduced process velocity.</div>
+    </details>
+    <details>
+      <summary>What material and geometry does this calculator assume?</summary>
+      <div class="faq-a">This calculator assumes a solid, uniform 316 stainless steel rod (E = 193 GPa, density 7950 kg/m&sup3;) with a constant diameter over the full insertion length. Real thermowells are often stepped or tapered, which raises the natural frequency compared with this simplified straight-rod model — treat results here as a conservative first-pass screen, not a final design sign-off.</div>
+    </details>
+    <details>
+      <summary>How accurate is the default fluid density value?</summary>
+      <div class="faq-a">If you don't enter a density, the calculator defaults to 1000 kg/m&sup3; for liquids (water) or 10 kg/m&sup3; for gases as a rough placeholder. Actual gas density depends heavily on pressure and temperature, and liquid hydrocarbons or oils differ substantially from water — for an accurate result, select "Custom" and enter your process fluid's actual density.</div>
+    </details>
+  </div>
+
+  <div class="related">
+    <h2>Related instrumentation calculators</h2>
+    <div class="related-grid">
+      <a class="hublink" href="/4-20ma-calculator">4-20mA Calculator</a>
+      <a class="hublink" href="/instrumentation-calculators#ts1">Square Root Extractor (DP flow)</a>
+      <a class="hublink" href="/instrumentation-calculators#ts2">Instrument Loop Calculator</a>
+      <a class="hublink" href="/instrumentation-calculators#ts4">Loop Power Supply Calculator</a>
+    </div>
+    <a class="hublink" href="/instrumentation-calculators">&larr; Back to all Instrumentation Calculators</a>
+  </div>
+
+  <div class="foot">
+    Thermowell Calculator &nbsp;|&nbsp; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &nbsp;|&nbsp; multicalci.com
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+const API_TOOL = 'thermowell';
+
+function onFluidChange() {
+  $('tw-rho-row').style.display = gs('tw-fluid') === 'custom' ? 'block' : 'none';
+  clearResults();
+}
+
+function clearResults() {
+  set('results', '<div class="rc-empty">Enter values and press Calculate to see the wake frequency analysis.</div>');
+  $('pdfBtn').disabled = true;
+  hideErr();
+}
+
+function hideErr() { $('tw-err').style.display = 'none'; }
+function showErr(msg) { const e = $('tw-err'); e.textContent = msg; e.style.display = 'block'; }
+
+function validateInputs(U, d, vel, fluid, rho) {
+  if (isNaN(U) || isNaN(d) || isNaN(vel)) return 'Fill insertion length, tip OD and velocity';
+  if (U   <= 0) return 'Insertion length must be > 0';
+  if (d   <= 0) return 'Tip OD must be > 0';
+  if (vel <= 0) return 'Velocity must be > 0';
+  if (fluid === 'custom' && (isNaN(rho) || rho <= 0)) return 'Enter custom fluid density';
+  return null;
+}
+
+let lastResult = null, lastInputs = null;
+
+function toneForLevel(level) {
+  if (level === 'ok')   return 'grn';
+  if (level === 'warn') return 'amb';
+  return 'red';
+}
+
+function stripEmoji(s) {
+  return String(s).replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, '').trim();
+}
+
+function renderCards(r) {
+  const tone = toneForLevel(r.statusLevel);
+  let html = '';
+  html += `<div class="rc c-${tone} sp2"><div class="rl">Frequency ratio f\u209B/f\u2099</div><div class="rv big">${r.fr_str}</div><div class="rsub">${esc(r.status)}</div></div>`;
+  html += `<div class="rc c-blu"><div class="rl">Shedding frequency f\u209B</div><div class="rv">${r.fs_str} Hz</div></div>`;
+  html += `<div class="rc c-blu"><div class="rl">Natural frequency f\u2099</div><div class="rv">${r.fn_str} Hz</div></div>`;
+  html += `<div class="rc c-cyn"><div class="rl">Reynolds number</div><div class="rv">${r.Re_str}</div><div class="rsub">${esc(r.regime)}</div></div>`;
+  html += `<div class="rc c-cyn"><div class="rl">Strouhal number St</div><div class="rv">${r.St}</div></div>`;
+  html += `<div class="rc"><div class="rl">Geometry (converted)</div><div class="rv">U ${r.U_mm} mm, d ${r.d_mm} mm</div><div class="rsub">v ${r.vel_ms} m/s, &rho; ${r.rho} kg/m&sup3;, &mu; ${r.mu_str} Pa&middot;s</div></div>`;
+  set('results', html);
+
+  if (r.warns && r.warns.length) {
+    html += `<div class="note">${r.warns.map(w => esc(w)).join('<br><br>')}</div>`;
+    set('results', html);
+  }
+}
+
+async function calculate() {
+  hideErr();
+  const U    = gv('tw-ins');
+  const d    = gv('tw-od');
+  const vel  = gv('tw-vel');
+  const fluid = gs('tw-fluid');
+  const rho  = gv('tw-rho');
+  const lenU = gs('tw-len-unit');
+  const odU  = gs('tw-od-unit');
+  const velU = gs('tw-vel-unit');
+
+  const errMsg = validateInputs(U, d, vel, fluid, rho);
+  if (errMsg) { showErr(errMsg); $('pdfBtn').disabled = true; return; }
+
+  setLoading('results');
+  try {
+    const inputs = { U, d, vel, lenU, odU, velU, fluid, rho };
+    const r = await MC.api.instrumentation(API_TOOL, inputs);
+    lastResult = r;
+    lastInputs = inputs;
+    renderCards(r);
+    $('pdfBtn').disabled = false;
+  } catch (e) {
+    showError('results', e.message || 'Calculation failed');
+    $('pdfBtn').disabled = true;
+  }
+}
+
+function downloadPDF() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const rows = `
+    <tr><td>Insertion length U</td><td>${r.U_mm} mm</td></tr>
+    <tr><td>Tip OD d</td><td>${r.d_mm} mm</td></tr>
+    <tr><td>Velocity</td><td>${r.vel_ms} m/s</td></tr>
+    <tr><td>Fluid density</td><td>${r.rho} kg/m&sup3;</td></tr>
+    <tr><td>Reynolds number</td><td>${r.Re_str} (${r.regime})</td></tr>
+    <tr><td>Strouhal number St</td><td>${r.St}</td></tr>
+    <tr><td>Shedding frequency fs</td><td>${r.fs_str} Hz</td></tr>
+    <tr><td>Natural frequency fn</td><td>${r.fn_str} Hz</td></tr>
+    <tr><td>Frequency ratio fs/fn</td><td>${r.fr_str}</td></tr>
+    <tr><td>Status</td><td>${stripEmoji(r.status)}</td></tr>
+  `;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Thermowell Calculation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#0f2044;padding:32px;}
+    h1{font-size:20px;border-bottom:3px solid #0f2044;padding-bottom:8px;}
+    table{border-collapse:collapse;width:100%;margin-top:16px;}
+    td{padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;}
+    td:first-child{color:#555;width:45%;}
+    .foot{margin-top:24px;font-size:11px;color:#888;}
+  <\/style></head><body>
+    <h1>Thermowell Calculator Report \u2014 multicalci.com</h1>
+    <table>${rows}</table>
+    <div class="foot">Generated by multicalci.com/thermowell-calculator \u2014 ASME PTC 19.3 TW screening calculation, 316SS solid rod assumed. Not a substitute for a full PTC 19.3 TW sign-off.</div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function shareCalc() {
+  if (!lastInputs) return;
+  const params = new URLSearchParams(lastInputs);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Thermowell Calculator result', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('shareBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+}
+
+function loadFromQuery() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('U')) return false;
+  if (p.has('U'))     $('tw-ins').value = p.get('U');
+  if (p.has('d'))     $('tw-od').value = p.get('d');
+  if (p.has('vel'))   $('tw-vel').value = p.get('vel');
+  if (p.has('lenU'))  $('tw-len-unit').value = p.get('lenU');
+  if (p.has('odU'))   $('tw-od-unit').value = p.get('odU');
+  if (p.has('velU'))  $('tw-vel-unit').value = p.get('velU');
+  if (p.has('fluid')) $('tw-fluid').value = p.get('fluid');
+  if (p.has('rho'))   $('tw-rho').value = p.get('rho');
+  onFluidChange();
+  return true;
+}
+
+ready(() => {
+  loadFromQuery();
+  calculate();
+  enterToCalc(['tw-ins', 'tw-od', 'tw-vel', 'tw-rho'], calculate);
+});
+</script>
+</body>
+</html>
