@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASME B16.5 Flange Rating Calculator — Pressure-Temperature Class Lookup | multicalci.com</title>
+<link rel="canonical" href="https://www.multicalci.com/flange-rating-calculator">
+<meta name="description" content="ASME B16.5 flange pressure-temperature rating calculator. Select flange class (150–2500) and material group, enter design temperature, and get the interpolated allowable working pressure for reference.">
+<meta property="og:title" content="ASME B16.5 Flange Rating Calculator">
+<meta property="og:description" content="Interpolated pressure-temperature rating by flange class and material group, for preliminary reference against ASME B16.5.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/flange-rating-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b2430; --sub:#5b6472;
+  --line:#e1e5ea; --accent:#0b5fa5; --accent-ink:#083f6e; --mono:'SF Mono',SFMono-Regular,Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+header.site{background:var(--accent-ink);color:#fff;padding:14px 20px}
+header.site nav{max-width:1000px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header.site a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+header.site a.brand{font-weight:700;letter-spacing:.5px;opacity:1;font-size:15px}
+main{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+.crumb{font-size:13px;color:var(--sub);margin-bottom:10px}
+.crumb a{color:var(--sub)}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.badge{background:#eaf2fb;color:var(--accent-ink);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+h1{font-size:28px;margin:0 0 8px;letter-spacing:-.3px}
+p.lede{color:var(--sub);font-size:16px;max-width:760px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.panel h2{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.hint{font-size:12px;color:var(--sub);margin-top:2px}
+select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fbfcfd}
+button.calc{margin-top:16px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button.calc:hover{background:var(--accent-ink)}
+.results{margin-top:18px;display:none}
+.results.show{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:640px){.results.show{grid-template-columns:1fr 1fr}}
+.stat{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:12px 14px}
+.stat .v{font-size:20px;font-weight:700;color:var(--accent-ink);font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.formula-block{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;white-space:pre}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:600;font-size:11.5px;text-transform:uppercase}
+.faq h3{font-size:15px;margin:16px 0 4px}
+.faq p{margin:0 0 4px;color:var(--sub)}
+.related{display:flex;flex-wrap:wrap;gap:10px}
+.related a{background:#f2f6fb;border:1px solid #dbe6f2;color:var(--accent-ink);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:8px}
+footer.note{margin-top:26px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:16px}
+.warn{background:#fff6e9;border:1px solid #f0d9a6;border-radius:8px;padding:14px 16px;font-size:13.5px;margin:16px 0}
+.warn b{color:#8a5a10}
+</style>
+</head>
+<body>
+<header class="site"><nav>
+  <a class="brand" href="https://www.multicalci.com/">MULTICALCI</a>
+  <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+  <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+  <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+  <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+</nav></header>
+
+<main>
+  <div class="crumb"><a href="https://www.multicalci.com/">Home</a> › <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical Engineering Calculators</a> › ASME B16.5 Flange Rating Calculator</div>
+  <div class="badges"><span class="badge">Class 150 – 2500</span><span class="badge">Group 1.1 & 2.1 materials</span><span class="badge">Linear interpolation</span></div>
+  <h1>ASME B16.5 Flange Rating Calculator</h1>
+  <p class="lede">Look up the allowable working pressure for a flange class at a given design temperature, interpolated between standard rating-table points, for two of the most common ASME B16.5 material groups.</p>
+
+  <div class="warn">
+    <b>Reference data notice.</b> The pressure-temperature values used here are typical, widely published reference figures for Group 1.1 (carbon steel, e.g. A105/A216 WCB) and Group 2.1 (austenitic stainless, e.g. A182 F304/A351 CF8) materials, reproduced from memory for preliminary estimating. <b>Do not use these figures for final flange selection, procurement or code compliance.</b> Always confirm the exact rating against your current, purchased edition of ASME B16.5 Table 2, cross-checked with the specific material grade and any applicable bolting/gasket derating in your specification.
+  </div>
+
+  <div class="panel">
+    <h2>Rating Lookup</h2>
+    <div class="grid">
+      <div>
+        <label>Flange class</label>
+        <select id="flClass">
+          <option value="150">Class 150</option>
+          <option value="300" selected>Class 300</option>
+          <option value="600">Class 600</option>
+          <option value="900">Class 900</option>
+          <option value="1500">Class 1500</option>
+          <option value="2500">Class 2500</option>
+        </select>
+      </div>
+      <div>
+        <label>Material group</label>
+        <select id="matGroup">
+          <option value="g11">Group 1.1 — Carbon steel (A105 / A216 WCB)</option>
+          <option value="g21">Group 2.1 — Austenitic SS (A182 F304 / A351 CF8)</option>
+        </select>
+      </div>
+      <div>
+        <label>Design temperature</label>
+        <input id="temp" type="number" step="any" value="300">
+      </div>
+      <div>
+        <label>Temperature unit</label>
+        <select id="tUnit">
+          <option value="F" selected>°F (imperial)</option>
+          <option value="C">°C (metric)</option>
+          <option value="K">K (SI)</option>
+        </select>
+      </div>
+    </div>
+    <button class="calc" onclick="calc()">Look up rating</button>
+
+    <div id="results" class="results">
+      <div class="stat"><div class="v" id="rPsig">–</div><div class="l">Allowable pressure, psig</div></div>
+      <div class="stat"><div class="v" id="rBar">–</div><div class="l">Allowable pressure, bar(g)</div></div>
+      <div class="stat"><div class="v" id="rMpa">–</div><div class="l">Allowable pressure, MPa</div></div>
+      <div class="stat"><div class="v" id="rKgcm2">–</div><div class="l">Allowable pressure, kg/cm²</div></div>
+    </div>
+    <div id="rangeNote" class="hint" style="margin-top:10px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>How the lookup works</h2>
+    <div class="formula-block">1. Convert design temperature to °F if entered in °C.
+2. Find the two tabulated temperature points bracketing the design temperature.
+3. Linearly interpolate allowable pressure between those two points.
+4. Convert psig result to bar(g): bar = psig × 0.0689476</div>
+    <p class="hint">ASME B16.5 itself uses linear interpolation between listed temperature points and does not permit extrapolation beyond the table — this calculator follows the same convention and will flag values outside the tabulated range.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Reference table — typical ratings, psig (rating at upper temperature bound of range)</h2>
+    <table id="refTable">
+      <tr><th>Temp, °F</th><th>150</th><th>300</th><th>600</th><th>900</th><th>1500</th><th>2500</th></tr>
+    </table>
+    <p class="hint">Table shown reflects the material group currently selected above.</p>
+  </div>
+
+  <div class="panel faq">
+    <h2>Frequently asked questions</h2>
+    <h3>Why does allowable pressure drop as temperature rises?</h3>
+    <p>Material yield and tensile strength both decrease with temperature, so the same flange class supports less internal pressure at higher design temperature. This is why the rating is always expressed as a pressure-temperature pair, not a single pressure number.</p>
+    <h3>What's the difference between Group 1.1 and Group 2.1?</h3>
+    <p>Group 1.1 covers common carbon and low-alloy steel forgings and castings (A105, A216 WCB) used in general hydrocarbon and utility service. Group 2.1 covers austenitic stainless steels (304/304L family) used where corrosion resistance is required. Different material groups have different rating curves even for the identical flange class and dimensions.</p>
+    <h3>Can I use this instead of the actual ASME B16.5 standard?</h3>
+    <p>No. This is a preliminary estimating tool. Final flange class selection for procurement, fabrication or code-stamped documentation must reference the current purchased edition of ASME B16.5 Table 2, the exact material specification and grade (not just the material group), and any project-specific derating.</p>
+    <h3>Does this account for gasket or bolting limits?</h3>
+    <p>No — this is the flange body pressure-temperature rating only. Gasket seating and bolt load are separate checks; see the Flange Bolt Torque Calculator for Wm1/Wm2 gasket and bolt-load verification on a specific flange.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Related mechanical calculators</h2>
+    <div class="related">
+      <a href="https://www.multicalci.com/flange-bolt-torque-calculator">Flange Bolt Torque Calculator</a>
+      <a href="https://www.multicalci.com/bolt-torque-calculator">Bolt Torque Calculator</a>
+      <a href="https://www.multicalci.com/pipe-weight-calculator">Pipe Weight Calculator</a>
+    </div>
+  </div>
+
+  <footer class="note">
+    Reference values only — reproduced from memory, not sourced from a live copy of the standard. Verify every figure against the current ASME B16.5 edition and the specific material grade before any design, procurement or code-compliance decision. This calculator does not account for gasket, bolting, or project-specific derating.
+    <br><a href="https://www.multicalci.com/mechanical-engineering-calculators">← All mechanical engineering calculators</a> · <a href="https://www.multicalci.com/">multicalci.com</a>
+  </footer>
+</main>
+
+<script>
+// Typical reference ratings (psig) — Group 1.1 (A105/WCB) and Group 2.1 (F304/CF8)
+// Temperature points in °F. NOT a substitute for the licensed ASME B16.5 table.
+const RATINGS = {
+  g11: {
+    label: "Group 1.1 — Carbon steel (A105 / A216 WCB)",
+    points: [
+      {t:100,  c:{150:285, 300:740, 600:1480, 900:2220, 1500:3705, 2500:6170}},
+      {t:200,  c:{150:260, 300:675, 600:1350, 900:2025, 1500:3375, 2500:5625}},
+      {t:300,  c:{150:230, 300:655, 600:1315, 900:1970, 1500:3280, 2500:5470}},
+      {t:400,  c:{150:200, 300:635, 600:1270, 900:1900, 1500:3170, 2500:5280}},
+      {t:500,  c:{150:170, 300:605, 600:1210, 900:1815, 1500:3025, 2500:5040}},
+      {t:600,  c:{150:140, 300:570, 600:1140, 900:1710, 1500:2850, 2500:4750}},
+      {t:700,  c:{150:110, 300:530, 600:1065, 900:1595, 1500:2660, 2500:4430}},
+      {t:800,  c:{150:80,  300:410, 600:825,  900:1235, 1500:2060, 2500:3430}},
+      {t:900,  c:{150:35,  300:270, 600:530,  900:805,  1500:1330, 2500:2220}}
+    ]
+  },
+  g21: {
+    label: "Group 2.1 — Austenitic SS (A182 F304 / A351 CF8)",
+    points: [
+      {t:100,  c:{150:275, 300:720, 600:1440, 900:2160, 1500:3600, 2500:6000}},
+      {t:200,  c:{150:235, 300:615, 600:1230, 900:1845, 1500:3075, 2500:5125}},
+      {t:300,  c:{150:215, 300:560, 600:1120, 900:1685, 1500:2805, 2500:4675}},
+      {t:400,  c:{150:195, 300:515, 600:1030, 900:1545, 1500:2575, 2500:4290}},
+      {t:500,  c:{150:180, 300:480, 600:960,  900:1435, 1500:2390, 2500:3985}},
+      {t:600,  c:{150:170, 300:450, 600:900,  900:1345, 1500:2245, 2500:3740}},
+      {t:700,  c:{150:165, 300:430, 600:855,  900:1285, 1500:2140, 2500:3570}},
+      {t:800,  c:{150:155, 300:410, 600:825,  900:1235, 1500:2060, 2500:3430}},
+      {t:900,  c:{150:140, 300:375, 600:750,  900:1125, 1500:1875, 2500:3125}}
+    ]
+  }
+};
+
+function buildTable(){
+  const g = document.getElementById('matGroup').value;
+  const data = RATINGS[g];
+  const table = document.getElementById('refTable');
+  table.innerHTML = '<tr><th>Temp, °F</th><th>150</th><th>300</th><th>600</th><th>900</th><th>1500</th><th>2500</th></tr>';
+  data.points.forEach(p=>{
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${p.t}</td><td>${p.c[150]}</td><td>${p.c[300]}</td><td>${p.c[600]}</td><td>${p.c[900]}</td><td>${p.c[1500]}</td><td>${p.c[2500]}</td>`;
+    table.appendChild(row);
+  });
+}
+document.getElementById('matGroup').addEventListener('change', buildTable);
+buildTable();
+
+function calc(){
+  const cls = parseInt(document.getElementById('flClass').value);
+  const g = document.getElementById('matGroup').value;
+  let temp = parseFloat(document.getElementById('temp').value);
+  const tUnit = document.getElementById('tUnit').value;
+  if(isNaN(temp)){ alert('Enter a valid temperature.'); return; }
+  let tempF;
+  if(tUnit==='C') tempF = temp*9/5+32;
+  else if(tUnit==='K') tempF = (temp-273.15)*9/5+32;
+  else tempF = temp;
+
+  const pts = RATINGS[g].points;
+  const rangeNote = document.getElementById('rangeNote');
+
+  if(tempF < pts[0].t || tempF > pts[pts.length-1].t){
+    rangeNote.textContent = `Design temperature (${tempF.toFixed(0)}°F) is outside the ${pts[0].t}–${pts[pts.length-1].t}°F reference range used here. ASME B16.5 does not permit extrapolation — consult the full standard table for this temperature.`;
+    document.getElementById('results').classList.remove('show');
+    return;
+  }
+
+  let lower=pts[0], upper=pts[pts.length-1];
+  for(let i=0;i<pts.length-1;i++){
+    if(tempF>=pts[i].t && tempF<=pts[i+1].t){ lower=pts[i]; upper=pts[i+1]; break; }
+  }
+  let psig;
+  if(upper.t===lower.t){
+    psig = lower.c[cls];
+  } else {
+    const frac = (tempF - lower.t)/(upper.t - lower.t);
+    psig = lower.c[cls] + frac*(upper.c[cls]-lower.c[cls]);
+  }
+  const bar = psig*0.0689476;
+  const mpa = psig*0.00689476;
+  const kgcm2 = psig*0.0703070;
+
+  document.getElementById('rPsig').textContent = psig.toFixed(0);
+  document.getElementById('rBar').textContent = bar.toFixed(1);
+  document.getElementById('rMpa').textContent = mpa.toFixed(2);
+  document.getElementById('rKgcm2').textContent = kgcm2.toFixed(1);
+  rangeNote.textContent = `Interpolated between ${lower.t}°F (${lower.c[cls]} psig) and ${upper.t}°F (${upper.c[cls]} psig) for Class ${cls}, ${RATINGS[g].label}.`;
+  document.getElementById('results').classList.add('show');
+}
+</script>
+</body>
+</html>
