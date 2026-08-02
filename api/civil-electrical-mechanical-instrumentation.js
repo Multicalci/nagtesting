@@ -99,7 +99,15 @@ function toLS(val, u)  { return u === 'gpm' ? val * 0.0630902 : val; }
 // ── CALC: BEAM BENDING ────────────────────────────────────────
 function calcBeam(p) {
   let L  = toM(parseFloat(p.L),  p.L_u);
-  let w  = p.w_u === 'kipft' ? parseFloat(p.w) * 14.5939 : parseFloat(p.w);
+  // FIX: w doubles as a UDL (kN/m) and as a point load (kN), but a single
+  // kip/ft factor of 14.5939 was applied to both. For a point load the correct
+  // factor is kip -> kN = 4.44822, so an imperial point load came out 3.28x
+  // (i.e. 1/0.3048) too large: P = 22.4809 kip over 19.685 ft gave M = 492.1
+  // kN.m where the correct answer is 150.0 kN.m.
+  const _isPtLoad = (p.type === 'ss_pt' || p.type === 'cant_pt');
+  let w  = p.w_u === 'kipft'
+             ? parseFloat(p.w) * (_isPtLoad ? 4.44822 : 14.5939)
+             : parseFloat(p.w);
   let b  = civil_toMm(parseFloat(p.b), p.dim_u) / 1000;
   let d  = civil_toMm(parseFloat(p.d), p.dim_u) / 1000;
   let tw = civil_toMm(parseFloat(p.tw)||0, p.dim_u) / 1000;
@@ -559,14 +567,26 @@ function calcSteel(p) {
     const Ixx1=ta*La*La*La/12+A1*(y1c-yc)*(y1c-yc);
     const Ixx2=(La-ta)*ta*ta*ta/12+A2*(y2c-yc)*(y2c-yc);
     Ixx=Ixx1+Ixx2; Iyy=Ixx;
-    const Ixy=A1*(La/2-yc)*(y1c-yc)+A2*((La+ta)/2-yc)*(y2c-yc);
+    // FIX: the product of inertia used La/2 as the z-arm of the VERTICAL leg.
+    // That leg is ta wide, so its z-centroid is ta/2, not La/2. The error made
+    // |Ixy| ten times too small and left the principal inertias almost equal:
+    // for ISA 100x100x10 it gave Imin = 1.693e6 where the true value is
+    // 0.734e6, so r_min came out 29.85 mm against a published 19.4 mm -- a 52%
+    // overestimate of the weak-axis radius of gyration, which is exactly the
+    // quantity that governs an angle used as a compression member.
+    // By symmetry zc = yc for an equal angle.
+    const Ixy=A1*(ta/2-yc)*(y1c-yc)+A2*((La+ta)/2-yc)*(y2c-yc);
     const Imin=Ixx-Math.abs(Ixy); const Imax=Ixx+Math.abs(Ixy);
     function areaAboveAngle(y){ return ta*Math.max(0,La-y)+(La-ta)*Math.max(0,ta-y); }
     const y_pna=findPNA(areaAboveAngle,0,La);
     function fmAbove(y_p){ let S=0; if(y_p<ta){S+=La*(ta-y_p)*(ta-y_p)/2;S+=ta*((La-y_p)*(La-y_p)-(ta-y_p)*(ta-y_p))/2;}else{S=ta*(La-y_p)*(La-y_p)/2;} return S; }
     function fmBelow(y_p){ const lo_end=Math.min(y_p,ta); let S=La*(y_p*lo_end-lo_end*lo_end/2); if(y_p>ta)S+=ta*(y_p-ta)*(y_p-ta)/2; return S; }
     Zpx=fmAbove(y_pna)+fmBelow(y_pna); Zpy=Zpx;
-    Ixx=Imin; Iyy=Imax;
+    // FIX: these were assigned the wrong way round for the labels they are
+    // reported under. 'Ixx (major)' held the MINIMUM principal inertia and
+    // 'Iyy (minor)' held the maximum, so rx reported the weak-axis radius and
+    // ry the strong-axis one.
+    Ixx=Imax; Iyy=Imin;
     zpxLabel='Exact — bisection PNA (equal angle)'; zpyLabel='Exact (= Zpx)';
 
   } else if (type === 'SHS') {
@@ -638,8 +658,13 @@ function calcSteel(p) {
 function calcPipe(p) {
   const mode  = p.mode;
   let D_mm    = civil_toMm(parseFloat(p.D), p.D_u);
-  if (D_mm <= 0) throw new Error('Diameter must be > 0');
-  const D = D_mm / 1000;
+  // FIX: this guard used to run for every shape, so a fully specified
+  // rectangular or trapezoidal channel was rejected with 'Diameter must be > 0'
+  // even though those branches never use D. Only demand a diameter where one
+  // is actually needed: pressure mode, and circular gravity sections.
+  const needsD = (p.mode === 'pressure') || (p.shape === 'circ') || (p.shape === undefined);
+  if (needsD && !(D_mm > 0)) throw new Error('Diameter must be > 0');
+  const D = (isFinite(D_mm) ? D_mm : 0) / 1000;
 
   if (mode === 'pressure') {
     let L   = toM(parseFloat(p.L),   p.L_u);
@@ -1303,8 +1328,12 @@ function calcLLA(raw) {
 
 async function handle_instrumentation(body, res) {
   const { tool, inputs } = body || {};
-  if (!tool)   return res.status(400).json({ ok: false, error: 'Missing tool' });
-  if (!inputs) return res.status(400).json({ ok: false, error: 'Missing inputs' });
+  // FIX-API-10: these three guards used to return 400, which made the client's
+  // `if (!res.ok) throw new Error('Server error ' + res.status)` fire before
+  // data.error was ever read, swallowing the real message. Now consistent
+  // with every other error path in this handler (200, ok:false, real message).
+  if (!tool)   return res.status(200).json({ ok: false, error: 'Missing tool' });
+  if (!inputs) return res.status(200).json({ ok: false, error: 'Missing inputs' });
   try {
     let result;
     switch (tool) {
@@ -1313,7 +1342,7 @@ async function handle_instrumentation(body, res) {
       case 'loop':       result = calcLoop(inputs);       break;
       case 'thermowell': result = calcThermowell(inputs); break;
       case 'lla':        result = calcLLA(inputs);        break;
-      default: return res.status(400).json({ ok: false, error: `Unknown tool: ${tool}` });
+      default: return res.status(200).json({ ok: false, error: `Unknown tool: ${tool}` });
     }
     return res.status(200).json({ ok: true, result });
   } catch(e) {
