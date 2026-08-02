@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipe Weight Calculator — Steel Pipe Weight per ASME B36.10 | multicalci.com</title>
+<link rel="canonical" href="https://www.multicalci.com/pipe-weight-calculator">
+<meta name="description" content="Free pipe weight calculator. Enter NPS and schedule, or custom OD and wall thickness, to get pipe weight per foot/metre and total weight for carbon steel, stainless and other pipe materials. ASME B36.10 / B36.19 dimensions.">
+<meta property="og:title" content="Pipe Weight Calculator — Steel Pipe Weight per ASME B36.10">
+<meta property="og:description" content="Weight per unit length and total pipe weight from NPS/Schedule or custom OD/wall thickness. ASME B36.10 dimensions, any pipe material.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/pipe-weight-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b2430; --sub:#5b6472;
+  --line:#e1e5ea; --accent:#0b5fa5; --accent-ink:#083f6e;
+  --warn-bg:#fff6e9; --warn-line:#f0d9a6; --mono:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+header.site{background:var(--accent-ink);color:#fff;padding:14px 20px}
+header.site nav{max-width:1000px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header.site a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+header.site a.brand{font-weight:700;letter-spacing:.5px;opacity:1;font-size:15px}
+main{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+.crumb{font-size:13px;color:var(--sub);margin-bottom:10px}
+.crumb a{color:var(--sub)}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.badge{background:#eaf2fb;color:var(--accent-ink);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+h1{font-size:28px;margin:0 0 8px;letter-spacing:-.3px}
+p.lede{color:var(--sub);font-size:16px;max-width:760px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.panel h2{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.hint{font-size:12px;color:var(--sub);margin-top:2px}
+select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fbfcfd}
+.row-span2{grid-column:1/-1}
+button.calc{margin-top:16px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button.calc:hover{background:var(--accent-ink)}
+.results{margin-top:18px;display:none}
+.results.show{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:640px){.results.show{grid-template-columns:1fr 1fr}}
+.stat{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:12px 14px}
+.stat .v{font-size:20px;font-weight:700;color:var(--accent-ink);font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+code, .formula{font-family:var(--mono)}
+.formula-block{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;white-space:pre}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:600;font-size:12px;text-transform:uppercase}
+.faq h3{font-size:15px;margin:16px 0 4px}
+.faq p{margin:0 0 4px;color:var(--sub)}
+.related{display:flex;flex-wrap:wrap;gap:10px}
+.related a{background:#f2f6fb;border:1px solid #dbe6f2;color:var(--accent-ink);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:8px}
+footer.note{margin-top:26px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:16px}
+.tag{display:inline-block;background:#eef1f4;border-radius:5px;padding:2px 7px;font-size:11.5px;color:var(--sub);margin-right:6px}
+</style>
+</head>
+<body>
+<header class="site"><nav>
+  <a class="brand" href="https://www.multicalci.com/">MULTICALCI</a>
+  <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+  <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+  <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+  <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+</nav></header>
+
+<main>
+  <div class="crumb"><a href="https://www.multicalci.com/">Home</a> › <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical Engineering Calculators</a> › Pipe Weight Calculator</div>
+  <div class="badges"><span class="badge">ASME B36.10 / B36.19</span><span class="badge">NPS ½″ – 24″</span><span class="badge">Any material density</span></div>
+  <h1>Pipe Weight Calculator</h1>
+  <p class="lede">Get pipe weight per unit length and total weight for a run of pipe. Pick a standard NPS and schedule for exact ASME B36.10 dimensions, or enter custom OD and wall thickness for any pipe, tube or material.</p>
+
+  <div class="panel">
+    <h2>Pipe & Material Inputs</h2>
+    <div class="grid">
+      <div class="row-span2">
+        <label>Input method</label>
+        <select id="method" onchange="toggleMethod()">
+          <option value="table">NPS & Schedule (ASME B36.10 table)</option>
+          <option value="custom">Custom OD & wall thickness</option>
+        </select>
+      </div>
+
+      <div id="tableInputs" class="row-span2" style="display:contents">
+        <div>
+          <label>Nominal pipe size (NPS)</label>
+          <select id="nps" onchange="updateSchedules()"></select>
+        </div>
+        <div>
+          <label>Schedule</label>
+          <select id="sched"></select>
+        </div>
+      </div>
+
+      <div id="customInputs" style="display:none">
+        <label>Outside diameter (OD)</label>
+        <input id="customOD" type="number" step="any" placeholder="e.g. 219.1">
+      </div>
+      <div id="customODUnitWrap" style="display:none">
+        <label>OD unit</label>
+        <select id="customODUnit">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="m">m</option>
+          <option value="in">inch</option>
+        </select>
+      </div>
+      <div id="customWTwrap" style="display:none">
+        <label>Wall thickness</label>
+        <input id="customWT" type="number" step="any" placeholder="e.g. 8.18">
+      </div>
+      <div id="customWTUnitWrap" style="display:none">
+        <label>Wall thickness unit</label>
+        <select id="customWTUnit">
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+          <option value="in">inch</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Material</label>
+        <select id="material" onchange="onMaterialChange()">
+          <option value="7850">Carbon / low-alloy steel — 7850 kg/m³</option>
+          <option value="8000">Austenitic stainless (304/316) — 8000 kg/m³</option>
+          <option value="8940">Copper — 8940 kg/m³</option>
+          <option value="2700">Aluminium (6061) — 2700 kg/m³</option>
+          <option value="8830">Cupro-nickel 90/10 — 8830 kg/m³</option>
+          <option value="custom">Custom density</option>
+        </select>
+      </div>
+      <div id="customDensityWrap" style="display:none">
+        <label>Density</label>
+        <input id="customDensity" type="number" step="any" placeholder="e.g. 7750">
+      </div>
+      <div id="customDensityUnitWrap" style="display:none">
+        <label>Density unit</label>
+        <select id="customDensityUnit">
+          <option value="kgm3">kg/m³ (SI)</option>
+          <option value="gcm3">g/cm³ (metric)</option>
+          <option value="lbft3">lb/ft³ (imperial)</option>
+          <option value="sg">specific gravity (× water)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Pipe length</label>
+        <input id="length" type="number" step="any" value="1">
+      </div>
+      <div>
+        <label>Length unit</label>
+        <select id="lengthUnit">
+          <option value="mm">millimetres</option>
+          <option value="m">metres (SI)</option>
+          <option value="ft">feet</option>
+          <option value="in">inches</option>
+          <option value="yd">yards</option>
+        </select>
+      </div>
+    </div>
+    <button class="calc" onclick="calc()">Calculate weight</button>
+
+    <div id="results" class="results">
+      <div class="stat"><div class="v" id="rOD">–</div><div class="l">OD, mm</div></div>
+      <div class="stat"><div class="v" id="rID">–</div><div class="l">ID, mm</div></div>
+      <div class="stat"><div class="v" id="rWT">–</div><div class="l">Wall thickness, mm</div></div>
+      <div class="stat"><div class="v" id="rUnitKg">–</div><div class="l">Weight, kg/m</div></div>
+      <div class="stat"><div class="v" id="rUnitLb">–</div><div class="l">Weight, lb/ft</div></div>
+      <div class="stat"><div class="v" id="rTotal">–</div><div class="l">Total weight</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Formula</h2>
+    <div class="formula-block">ID = OD − 2·WT
+A  = (π/4) × (OD² − ID²)         cross-sectional metal area, mm²
+w  = A × ρ × 10⁻⁶                weight per metre, kg/m   (ρ in kg/m³)
+W  = w × L                        total weight, kg</div>
+    <p class="hint">Weight per metre in lb/ft is obtained by converting kg/m × 0.6720. This is exact metal cross-section × density — it does not include weld reinforcement, coating, or lining weight.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Worked example</h2>
+    <p>6″ NPS, Schedule 40 carbon steel pipe, 12 m long.</p>
+    <table>
+      <tr><th>Quantity</th><th>Value</th></tr>
+      <tr><td>OD</td><td>168.3 mm</td></tr>
+      <tr><td>Wall thickness (Sch 40)</td><td>7.11 mm</td></tr>
+      <tr><td>ID</td><td>168.3 − 2×7.11 = 154.08 mm</td></tr>
+      <tr><td>Metal area A</td><td>(π/4)(168.3² − 154.08²) = 3,600.5 mm²</td></tr>
+      <tr><td>Weight per metre</td><td>3,600.5 × 7850 × 10⁻⁶ = 28.26 kg/m</td></tr>
+      <tr><td>Total weight, 12 m</td><td>28.26 × 12 = <b>339.2 kg</b></td></tr>
+    </table>
+    <p class="hint">Cross-check: ASME B36.10 tabulates 6″ Sch 40 at 18.97 lb/ft = 28.22 kg/m; the geometric calculation here (28.26 kg/m) is within the normal ~0.1–0.2% rounding difference between nominal tabulated weights and computed metal cross-section, and matches standard engineering references.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Common NPS outside diameters (ASME B36.10 / B36.19)</h2>
+    <table>
+      <tr><th>NPS</th><th>OD, mm</th><th>NPS</th><th>OD, mm</th></tr>
+      <tr><td>½″</td><td>21.3</td><td>6″</td><td>168.3</td></tr>
+      <tr><td>¾″</td><td>26.7</td><td>8″</td><td>219.1</td></tr>
+      <tr><td>1″</td><td>33.4</td><td>10″</td><td>273.1</td></tr>
+      <tr><td>1½″</td><td>48.3</td><td>12″</td><td>323.9</td></tr>
+      <tr><td>2″</td><td>60.3</td><td>16″</td><td>406.4</td></tr>
+      <tr><td>3″</td><td>88.9</td><td>20″</td><td>508.0</td></tr>
+      <tr><td>4″</td><td>114.3</td><td>24″</td><td>610.0</td></tr>
+    </table>
+  </div>
+
+  <div class="panel faq">
+    <h2>Frequently asked questions</h2>
+    <h3>Does this include the weight of fittings, flanges or coating?</h3>
+    <p>No. This calculates bare pipe metal weight only, from OD, wall thickness and density. Add fitting, flange, insulation and coating weight separately for a full BOQ or lifting weight.</p>
+    <h3>Why does my calculated weight differ slightly from the ASME B36.10 tabulated weight?</h3>
+    <p>Tabulated weights in B36.10 use a slightly different nominal steel density (0.2836 lb/in³) and rounding conventions. The geometric calculation here is exact for the entered OD/WT/density and will typically be within 1–2% of the tabulated value.</p>
+    <h3>What density should I use for stainless steel?</h3>
+    <p>8000 kg/m³ is the standard reference density for austenitic stainless (304/304L/316/316L) used in ASME and most vendor weight tables.</p>
+    <h3>Can I use this for tube (not pipe) sizes?</h3>
+    <p>Yes — switch to custom OD & wall thickness and enter the actual tube dimensions; the same area × density formula applies to any tubular section.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Related mechanical calculators</h2>
+    <div class="related">
+      <a href="https://www.multicalci.com/pipe-volume-calculator">Pipe Volume Calculator</a>
+      <a href="https://www.multicalci.com/pipe-velocity-calculator">Pipe Velocity / Sizing Calculator</a>
+      <a href="https://www.multicalci.com/bolt-torque-calculator">Bolt Torque Calculator</a>
+      <a href="https://www.multicalci.com/flange-bolt-torque-calculator">Flange Bolt Torque Calculator</a>
+      <a href="https://www.multicalci.com/flange-rating-calculator">ASME B16.5 Flange Rating Calculator</a>
+    </div>
+  </div>
+
+  <footer class="note">
+    Results are estimates for preliminary engineering and take-off use only. Verify against ASME B36.10/B36.19 tabulated weights and project material specifications before procurement or lifting-plan use.
+    <br><a href="https://www.multicalci.com/mechanical-engineering-calculators">← All mechanical engineering calculators</a> · <a href="https://www.multicalci.com/">multicalci.com</a>
+  </footer>
+</main>
+
+<script>
+// ASME B36.10 wall thickness (mm) by NPS and common schedule. OD (mm) fixed per NPS.
+const PIPES = {
+ "1/2":  {od:21.3,  sch:{"10":2.11,"40/STD":2.77,"80/XS":3.73,"160":4.78,"XXS":7.47}},
+ "3/4":  {od:26.7,  sch:{"10":2.11,"40/STD":2.87,"80/XS":3.91,"160":5.56,"XXS":7.82}},
+ "1":    {od:33.4,  sch:{"10":2.77,"40/STD":3.38,"80/XS":4.55,"160":6.35,"XXS":9.09}},
+ "1 1/4":{od:42.2,  sch:{"10":2.77,"40/STD":3.56,"80/XS":4.85,"160":6.35,"XXS":9.70}},
+ "1 1/2":{od:48.3,  sch:{"10":2.77,"40/STD":3.68,"80/XS":5.08,"160":7.14,"XXS":10.15}},
+ "2":    {od:60.3,  sch:{"10":2.77,"40/STD":3.91,"80/XS":5.54,"160":8.74,"XXS":11.07}},
+ "2 1/2":{od:73.0,  sch:{"10":3.05,"40/STD":5.16,"80/XS":7.01,"160":9.53,"XXS":14.02}},
+ "3":    {od:88.9,  sch:{"10":3.05,"40/STD":5.49,"80/XS":7.62,"160":11.13,"XXS":15.24}},
+ "4":    {od:114.3, sch:{"10":3.05,"40/STD":6.02,"80/XS":8.56,"120":11.13,"160":13.49,"XXS":17.12}},
+ "5":    {od:141.3, sch:{"10":3.40,"40/STD":6.55,"80/XS":9.53,"120":12.70,"160":15.88,"XXS":19.05}},
+ "6":    {od:168.3, sch:{"10":3.40,"40/STD":7.11,"80/XS":10.97,"120":14.27,"160":18.26,"XXS":21.95}},
+ "8":    {od:219.1, sch:{"10":3.76,"20":6.35,"40/STD":8.18,"60":10.31,"80/XS":12.70,"120":18.26,"160":23.01,"XXS":22.23}},
+ "10":   {od:273.1, sch:{"10":4.19,"20":6.35,"40/STD":9.27,"60":12.70,"80/XS":12.70,"100":15.09,"120":18.26,"160":28.58,"XXS":25.40}},
+ "12":   {od:323.9, sch:{"10":4.57,"20":6.35,"STD":9.53,"40":10.31,"XS":12.70,"60":14.27,"80":17.48,"100":21.44,"120":25.40,"160":33.32,"XXS":25.40}},
+ "14":   {od:355.6, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":9.53,"40":11.13,"XS":12.70,"60":15.09,"80":19.05,"100":23.83,"120":27.79,"160":35.71}},
+ "16":   {od:406.4, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":9.53,"40":12.70,"XS":12.70,"60":16.66,"80":21.44,"100":26.19,"120":30.96,"160":40.49}},
+ "18":   {od:457.2, sch:{"10":6.35,"STD":9.53,"20":7.92,"30":11.13,"40":14.27,"XS":12.70,"60":19.05,"80":23.83,"100":29.36,"120":34.93,"160":45.24}},
+ "20":   {od:508.0, sch:{"10":6.35,"STD":9.53,"20":9.53,"30":12.70,"40":15.09,"XS":12.70,"60":20.62,"80":26.19,"100":32.54,"120":38.10,"160":50.01}},
+ "24":   {od:610.0, sch:{"10":6.35,"STD":9.53,"20":9.53,"30":14.27,"40":17.48,"XS":12.70,"60":24.61,"80":30.96,"100":38.89,"120":46.02,"160":59.54}}
+};
+
+function populateNPS(){
+  const npsSel = document.getElementById('nps');
+  Object.keys(PIPES).forEach(k=>{
+    const o=document.createElement('option'); o.value=k; o.textContent=k+'″'; npsSel.appendChild(o);
+  });
+  npsSel.value="6";
+  updateSchedules();
+}
+function updateSchedules(){
+  const nps = document.getElementById('nps').value;
+  const schSel = document.getElementById('sched');
+  schSel.innerHTML='';
+  Object.keys(PIPES[nps].sch).forEach(s=>{
+    const o=document.createElement('option'); o.value=s; o.textContent='Sch '+s; schSel.appendChild(o);
+  });
+}
+function toggleMethod(){
+  const m = document.getElementById('method').value;
+  document.getElementById('tableInputs').style.display = (m==='table') ? 'contents' : 'none';
+  document.getElementById('customInputs').style.display = (m==='custom') ? 'block' : 'none';
+  document.getElementById('customODUnitWrap').style.display = (m==='custom') ? 'block' : 'none';
+  document.getElementById('customWTwrap').style.display = (m==='custom') ? 'block' : 'none';
+  document.getElementById('customWTUnitWrap').style.display = (m==='custom') ? 'block' : 'none';
+}
+function onMaterialChange(){
+  document.getElementById('customDensityWrap').style.display = (document.getElementById('material').value==='custom') ? 'block':'none';
+  document.getElementById('customDensityUnitWrap').style.display = (document.getElementById('material').value==='custom') ? 'block':'none';
+}
+function toMm(v, unit){
+  if(unit==='cm') return v*10;
+  if(unit==='m') return v*1000;
+  if(unit==='in') return v*25.4;
+  return v;
+}
+function densityToKgm3(v, unit){
+  if(unit==='gcm3') return v*1000;
+  if(unit==='lbft3') return v*16.0185;
+  if(unit==='sg') return v*1000;
+  return v;
+}
+function lengthToM(v, unit){
+  if(unit==='mm') return v/1000;
+  if(unit==='ft') return v*0.3048;
+  if(unit==='in') return v*0.0254;
+  if(unit==='yd') return v*0.9144;
+  return v;
+}
+function calc(){
+  const method = document.getElementById('method').value;
+  let od, wt;
+  if(method==='table'){
+    const nps = document.getElementById('nps').value;
+    const sch = document.getElementById('sched').value;
+    od = PIPES[nps].od;
+    wt = PIPES[nps].sch[sch];
+  } else {
+    od = toMm(parseFloat(document.getElementById('customOD').value), document.getElementById('customODUnit').value);
+    wt = toMm(parseFloat(document.getElementById('customWT').value), document.getElementById('customWTUnit').value);
+  }
+  if(!od || !wt || od<=0 || wt<=0 || wt*2>=od){ alert('Enter valid OD and wall thickness (wall thickness must be less than OD/2).'); return; }
+
+  const matSel = document.getElementById('material').value;
+  const density = (matSel==='custom')
+    ? densityToKgm3(parseFloat(document.getElementById('customDensity').value), document.getElementById('customDensityUnit').value)
+    : parseFloat(matSel);
+  if(!density || density<=0){ alert('Enter a valid density.'); return; }
+
+  const id = od - 2*wt;
+  const area = Math.PI/4 * (od*od - id*id); // mm^2
+  const kgPerM = area * density * 1e-6;
+  const lbPerFt = kgPerM * 0.671969;
+
+  let L = parseFloat(document.getElementById('length').value) || 0;
+  const lengthUnit = document.getElementById('lengthUnit').value;
+  const Lm = lengthToM(L, lengthUnit);
+  const totalKg = kgPerM * Lm;
+  const totalLb = totalKg * 2.20462;
+
+  document.getElementById('rOD').textContent = od.toFixed(1);
+  document.getElementById('rID').textContent = id.toFixed(1);
+  document.getElementById('rWT').textContent = wt.toFixed(2);
+  document.getElementById('rUnitKg').textContent = kgPerM.toFixed(2);
+  document.getElementById('rUnitLb').textContent = lbPerFt.toFixed(2);
+  document.getElementById('rTotal').textContent = totalKg.toFixed(1)+' kg / '+totalLb.toFixed(1)+' lb';
+  document.getElementById('results').classList.add('show');
+}
+populateNPS();
+</script>
+</body>
+</html>
