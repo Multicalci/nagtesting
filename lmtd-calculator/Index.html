@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LMTD Calculator — Log Mean Temperature Difference for Heat Exchangers | multicalci.com</title>
+<link rel="canonical" href="https://www.multicalci.com/lmtd-calculator">
+<meta name="description" content="Free LMTD calculator for heat exchangers. Enter hot and cold fluid inlet/outlet temperatures for counter-current or co-current flow to get the log mean temperature difference, with optional correction factor F for multi-pass exchangers.">
+<meta property="og:title" content="LMTD Calculator — Log Mean Temperature Difference">
+<meta property="og:description" content="LMTD for counter-current or parallel (co-current) flow heat exchangers, with optional F correction factor for multi-pass shell-and-tube units.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/lmtd-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b2430; --sub:#5b6472;
+  --line:#e1e5ea; --accent:#0b5fa5; --accent-ink:#083f6e; --mono:'SF Mono',SFMono-Regular,Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+header.site{background:var(--accent-ink);color:#fff;padding:14px 20px}
+header.site nav{max-width:1000px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header.site a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+header.site a.brand{font-weight:700;letter-spacing:.5px;opacity:1;font-size:15px}
+main{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+.crumb{font-size:13px;color:var(--sub);margin-bottom:10px}
+.crumb a{color:var(--sub)}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.badge{background:#eaf2fb;color:var(--accent-ink);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+h1{font-size:28px;margin:0 0 8px;letter-spacing:-.3px}
+p.lede{color:var(--sub);font-size:16px;max-width:760px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.panel h2{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 16px}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{padding:8px 16px;border-radius:6px;border:1px solid var(--line);background:#fbfcfd;cursor:pointer;font-size:13px;font-weight:600;color:var(--sub)}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.hint{font-size:12px;color:var(--sub);margin-top:2px}
+select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fbfcfd}
+button.calc{margin-top:16px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button.calc:hover{background:var(--accent-ink)}
+.results{margin-top:18px;display:none}
+.results.show{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:640px){.results.show{grid-template-columns:1fr 1fr}}
+.stat{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:12px 14px}
+.stat .v{font-size:19px;font-weight:700;color:var(--accent-ink);font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.formula-block{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;white-space:pre}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:600;font-size:12px;text-transform:uppercase}
+.faq h3{font-size:15px;margin:16px 0 4px}
+.faq p{margin:0 0 4px;color:var(--sub)}
+.related{display:flex;flex-wrap:wrap;gap:10px}
+.related a{background:#f2f6fb;border:1px solid #dbe6f2;color:var(--accent-ink);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:8px}
+footer.note{margin-top:26px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:16px}
+.warn{background:#fff6e9;border:1px solid #f0d9a6;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<header class="site"><nav>
+  <a class="brand" href="https://www.multicalci.com/">MULTICALCI</a>
+  <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+  <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+  <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+  <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+</nav></header>
+
+<main>
+  <div class="crumb"><a href="https://www.multicalci.com/">Home</a> › <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical Engineering Calculators</a> › LMTD Calculator</div>
+  <div class="badges"><span class="badge">Counter-current</span><span class="badge">Co-current (parallel)</span><span class="badge">Optional F correction</span></div>
+  <h1>LMTD Calculator</h1>
+  <p class="lede">Calculate the log mean temperature difference for a heat exchanger from the four terminal temperatures, for counter-current or co-current (parallel) flow, with an optional correction factor for multi-pass shell-and-tube units.</p>
+
+  <div class="panel">
+    <h2>Flow arrangement</h2>
+    <div class="tabs">
+      <div class="tab active" id="tabCounter" onclick="setMode('counter')">Counter-current</div>
+      <div class="tab" id="tabCo" onclick="setMode('co')">Co-current (parallel)</div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <label>Hot fluid inlet, Th,in</label>
+        <input id="thin" type="number" step="any" value="150">
+      </div>
+      <div>
+        <label>Hot fluid outlet, Th,out</label>
+        <input id="thout" type="number" step="any" value="90">
+      </div>
+      <div>
+        <label>Cold fluid inlet, Tc,in</label>
+        <input id="tcin" type="number" step="any" value="25">
+      </div>
+      <div>
+        <label>Cold fluid outlet, Tc,out</label>
+        <input id="tcout" type="number" step="any" value="80">
+      </div>
+      <div>
+        <label>Temperature unit</label>
+        <select id="tUnit">
+          <option value="C" selected>°C (metric)</option>
+          <option value="F">°F (imperial)</option>
+          <option value="K">K (SI)</option>
+        </select>
+      </div>
+      <div>
+        <label>Correction factor F (1.0 for true counter-current)</label>
+        <input id="fFactor" type="number" step="any" value="1.0" min="0" max="1">
+      </div>
+    </div>
+    <button class="calc" onclick="calc()">Calculate LMTD</button>
+
+    <div id="results" class="results">
+      <div class="stat"><div class="v" id="rDT1">–</div><div class="l">ΔT1</div></div>
+      <div class="stat"><div class="v" id="rDT2">–</div><div class="l">ΔT2</div></div>
+      <div class="stat"><div class="v" id="rLMTD">–</div><div class="l">LMTD</div></div>
+      <div class="stat"><div class="v" id="rCorrected">–</div><div class="l">Corrected MTD (F × LMTD)</div></div>
+    </div>
+    <div id="warnBox" class="warn" style="display:none"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Formula</h2>
+    <div class="formula-block">Counter-current:   ΔT1 = Th,in − Tc,out       ΔT2 = Th,out − Tc,in
+Co-current:         ΔT1 = Th,in − Tc,in        ΔT2 = Th,out − Tc,out
+
+LMTD = (ΔT1 − ΔT2) / ln(ΔT1 / ΔT2)
+
+Corrected MTD = F × LMTD      (F = 1.0 for true counter-current; F &lt; 1 for
+                                multi-pass shell-and-tube, read from TEMA/Bowman charts
+                                for the actual pass configuration)</div>
+    <p class="hint">If ΔT1 equals ΔT2 (a balanced, symmetric temperature approach), the ln term is undefined — in that special case LMTD simply equals ΔT1 (=ΔT2), which this calculator handles automatically.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Worked example</h2>
+    <p>Counter-current exchanger: hot fluid 150 °C → 90 °C, cold fluid 25 °C → 80 °C.</p>
+    <table>
+      <tr><th>Step</th><th>Calculation</th></tr>
+      <tr><td>ΔT1 (hot in − cold out)</td><td>150 − 80 = 70 °C</td></tr>
+      <tr><td>ΔT2 (hot out − cold in)</td><td>90 − 25 = 65 °C</td></tr>
+      <tr><td>LMTD</td><td>(70 − 65) / ln(70/65) = 5 / 0.0741 = <b>67.5 °C</b></td></tr>
+    </table>
+    <p class="hint">For a 1 shell-pass, 2 tube-pass exchanger doing this same duty, F is typically in the range 0.85–0.95 depending on the dimensionless temperature ratios — read the exact value from a TEMA/Bowman F chart for the specific pass arrangement, then multiply: corrected MTD = F × 67.5 °C.</p>
+  </div>
+
+  <div class="panel faq">
+    <h2>Frequently asked questions</h2>
+    <h3>When do I need the correction factor F?</h3>
+    <p>F = 1.0 only for true counter-current or true co-current (single-pass) flow. Any multi-pass shell-and-tube, cross-flow, or multi-shell arrangement needs F &lt; 1, read from the standard Bowman/TEMA charts for that specific pass configuration (1-2, 2-4, cross-flow, etc.) using the dimensionless ratios P and R.</p>
+    <h3>Why is counter-current LMTD usually higher than co-current for the same four temperatures?</h3>
+    <p>Counter-current flow maintains a more even temperature difference along the exchanger length, avoiding the "temperature cross" problem, so it delivers a higher LMTD — and therefore requires less heat transfer area — for the same duty and terminal temperatures.</p>
+    <h3>What if the calculator shows a warning about temperature cross?</h3>
+    <p>A temperature cross (cold outlet warmer than hot outlet, or similar) is only physically achievable in true counter-current flow, and even then it constrains F sharply in multi-pass units — sometimes making the required duty impossible in a 1-2 pass configuration. This calculator flags where the entered temperatures imply that condition.</p>
+    <h3>Can I use this for condensing or evaporating service?</h3>
+    <p>Only if one side has a genuinely constant temperature (isothermal condensation/evaporation) — LMTD in that special case reduces to using the constant temperature at both ends of that side. For sensible-heat-only duties (both streams changing temperature), the standard LMTD formula above applies directly.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Related mechanical calculators</h2>
+    <div class="related">
+      <a href="https://www.multicalci.com/pump-power-calculator">Pump Power Calculator</a>
+      <a href="https://www.multicalci.com/psychrometric-calculator">Psychrometric Calculator</a>
+      <a href="https://www.multicalci.com/pipe-velocity-calculator">Pipe Velocity / Sizing Calculator</a>
+    </div>
+  </div>
+
+  <footer class="note">
+    Results are estimates for preliminary engineering only. For multi-pass exchangers, obtain the correction factor F from the applicable TEMA/Bowman chart for the actual pass configuration before sizing heat transfer area.
+    <br><a href="https://www.multicalci.com/mechanical-engineering-calculators">← All mechanical engineering calculators</a> · <a href="https://www.multicalci.com/">multicalci.com</a>
+  </footer>
+</main>
+
+<script>
+let mode = 'counter';
+function setMode(m){
+  mode = m;
+  document.getElementById('tabCounter').classList.toggle('active', m==='counter');
+  document.getElementById('tabCo').classList.toggle('active', m==='co');
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('warnBox').style.display='none';
+}
+function calc(){
+  const thin = parseFloat(document.getElementById('thin').value);
+  const thout = parseFloat(document.getElementById('thout').value);
+  const tcin = parseFloat(document.getElementById('tcin').value);
+  const tcout = parseFloat(document.getElementById('tcout').value);
+  const F = parseFloat(document.getElementById('fFactor').value);
+  const unit = document.getElementById('tUnit').value;
+
+  if([thin,thout,tcin,tcout,F].some(v=>isNaN(v))){ alert('Enter valid values for all temperatures and F.'); return; }
+  if(thin<=thout){ alert('Hot fluid inlet must be greater than hot fluid outlet.'); return; }
+  if(tcout<=tcin){ alert('Cold fluid outlet must be greater than cold fluid inlet.'); return; }
+
+  let dT1, dT2;
+  if(mode==='counter'){
+    dT1 = thin - tcout;
+    dT2 = thout - tcin;
+  } else {
+    dT1 = thin - tcin;
+    dT2 = thout - tcout;
+  }
+
+  const warnBox = document.getElementById('warnBox');
+  if(dT1<=0 || dT2<=0){
+    warnBox.style.display='block';
+    warnBox.textContent = 'Warning: one of the terminal temperature differences is zero or negative. This implies a temperature cross that is not physically valid for this flow arrangement, or the streams are configured incorrectly — check your inputs.';
+    document.getElementById('results').classList.remove('show');
+    return;
+  } else {
+    warnBox.style.display='none';
+  }
+
+  let lmtd;
+  if(Math.abs(dT1-dT2) < 1e-9){
+    lmtd = dT1;
+  } else {
+    lmtd = (dT1 - dT2) / Math.log(dT1/dT2);
+  }
+  const corrected = F*lmtd;
+  const suffix = unit==='F' ? ' °F' : (unit==='K' ? ' K' : ' °C');
+
+  document.getElementById('rDT1').textContent = dT1.toFixed(2)+suffix;
+  document.getElementById('rDT2').textContent = dT2.toFixed(2)+suffix;
+  document.getElementById('rLMTD').textContent = lmtd.toFixed(2)+suffix;
+  document.getElementById('rCorrected').textContent = corrected.toFixed(2)+suffix;
+  document.getElementById('results').classList.add('show');
+}
+</script>
+</body>
+</html>
