@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>4-20mA Calculator — Convert Current to Engineering Units | multicalci.com</title>
+<meta name="description" content="Convert 4-20mA transmitter current to engineering units (or back) with live NAMUR NE43 fault detection. Free, instant, no signup — IEC 60381-1 loop conversion.">
+<link rel="canonical" href="https://www.multicalci.com/4-20ma-calculator">
+<meta property="og:title" content="4-20mA Calculator — Convert Current to Engineering Units | multicalci.com">
+<meta property="og:description" content="Convert 4-20mA transmitter current to engineering units (or back) with live NAMUR NE43 fault detection. Free, instant, no signup.">
+<meta property="og:url" content="https://www.multicalci.com/4-20ma-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="4-20mA Calculator — Convert Current to Engineering Units | multicalci.com">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"4-20mA Calculator","description":"Convert 4-20mA transmitter current to engineering units, or engineering units back to milliamps, with live NAMUR NE43 fault-zone detection.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/4-20ma-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Instrumentation Calculators","item":"https://www.multicalci.com/instrumentation-calculators"},
+{"@type":"ListItem","position":3,"name":"4-20mA Calculator","item":"https://www.multicalci.com/4-20ma-calculator"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is the 4-20 mA current loop standard?","acceptedAnswer":{"@type":"Answer","text":"IEC 60381-1 defines 4-20 mA as the standard analog transmission range for process instrumentation. 4 mA represents 0% of the measured range and 20 mA represents 100%. Current, not voltage, is transmitted because current stays constant along a wire regardless of cable resistance or run length, so a receiver 1 km away reads the same value as one sitting next to the transmitter."}},
+{"@type":"Question","name":"How do I convert a 4-20 mA signal to engineering units?","acceptedAnswer":{"@type":"Answer","text":"Subtract 4 from the current reading, divide by 16 (the span of the signal), multiply by the engineering-unit span (range max minus range min), then add the range min. This calculator does that math for you and also checks the reading against NAMUR NE43 fault zones."}},
+{"@type":"Question","name":"What do NAMUR NE43 fault zones mean?","acceptedAnswer":{"@type":"Answer","text":"NAMUR NE43 reserves the area just outside 4-20 mA for diagnostics: below 3.6 mA or above 21 mA signals a failed transmitter or broken wiring, while 3.6-4.0 mA and 20-21 mA flag a fault condition such as an out-of-range process value. A healthy loop stays within 4-20 mA at all times."}},
+{"@type":"Question","name":"Why is current used instead of voltage for transmitter signals?","acceptedAnswer":{"@type":"Answer","text":"Voltage drops along a cable in proportion to its resistance, so a receiver far from the transmitter would see a different voltage than one nearby. A current loop forces the same current through every point in the series circuit, so cable length and resistance do not affect the reading at the receiving end (within the loop's voltage budget)."}},
+{"@type":"Question","name":"Can this calculator convert engineering units back to milliamps?","acceptedAnswer":{"@type":"Answer","text":"Yes. Switch the direction selector to \u201cEngineering Units \u2192 mA\u201d, enter the process value and the range, and the calculator returns the corresponding loop current. The value must fall within the range min and max to produce a valid current output."}}
+]}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="topbar-logo">multicalci.com</a>
+    <nav class="topbar-nav">
+      <a href="/instrumentation-calculators">Instrumentation</a>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+    </nav>
+  </div>
+
+  <div class="crumb">
+    <a href="/">Home</a> &rsaquo; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &rsaquo; 4-20mA Calculator
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Instrumentation &middot; Signal Conversion</div>
+    <h1>4-20mA Calculator</h1>
+    <p>Convert a 4-20 mA transmitter current to engineering units, or an engineering-unit process value back to milliamps — with NAMUR NE43 fault-zone checking on every result.</p>
+    <div class="stdref">IEC 60381-1 &middot; NAMUR NE43</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128225;</span><span class="card-hd-ttl">Signal Converter</span></div>
+    <div class="card-bd">
+
+      <div class="field">
+        <label for="sig-dir">Conversion direction</label>
+        <select class="fd" id="sig-dir" onchange="onDirChange()">
+          <option value="ma2eu" selected>Current (mA) &rarr; Engineering Units</option>
+          <option value="eu2ma">Engineering Units &rarr; Current (mA)</option>
+        </select>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="sig-v" id="sig-v-lbl">Loop current (mA)</label>
+          <input type="number" id="sig-v" value="14.4" step="0.01" placeholder="e.g. 12.0" required>
+        </div>
+        <div class="field">
+          <label for="sig-v-hint" id="sig-v-hint">Valid range 4&ndash;20 mA. Values outside 3.6&ndash;21 mA show a NAMUR fault instead of a calculated result.</label>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="sig-mn">Range min (EU)</label>
+          <input type="number" id="sig-mn" value="0" step="any" placeholder="e.g. 0">
+        </div>
+        <div class="field">
+          <label for="sig-mx">Range max (EU)</label>
+          <input type="number" id="sig-mx" value="10" step="any" placeholder="e.g. 10">
+        </div>
+      </div>
+
+      <div id="sig-err" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" onclick="calculate()">Calculate</button>
+        <button class="btn-pdf" id="pdfBtn" disabled onclick="downloadPDF()">Download PDF report</button>
+        <button class="btn-share" id="shareBtn" onclick="shareCalc()">Share</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="rc-empty">Enter values and press Calculate to see the converted result.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card wex">
+    <div class="wex-hd">Worked example</div>
+    <div class="card-bd">
+      <p>A pressure transmitter is ranged <strong>0&ndash;10 barg</strong>. The DCS shows a loop reading of <strong>14.4 mA</strong>. What is the actual process pressure?</p>
+      <div class="ans">
+        EU = 0 + ((14.4 &minus; 4) / 16) &times; (10 &minus; 0) = <strong>6.5 barg</strong> (65% of span)
+      </div>
+      <p>The form above is pre-filled with these exact numbers — press Calculate to reproduce this result, or change the inputs for your own loop.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#8721;</span><span class="card-hd-ttl">Formula &amp; variable legend</span></div>
+    <div class="card-bd">
+      <div class="fbox">EU = EU<sub>min</sub> + ((I &minus; 4) / 16) &times; (EU<sub>max</sub> &minus; EU<sub>min</sub>)</div>
+      <div class="fbox">I = 4 + ((EU &minus; EU<sub>min</sub>) / (EU<sub>max</sub> &minus; EU<sub>min</sub>)) &times; 16</div>
+      <div class="legend">
+        <div><strong>I</strong> — loop current, mA</div>
+        <div><strong>EU</strong> — process value, engineering units</div>
+        <div><strong>EU<sub>min</sub> / EU<sub>max</sub></strong> — transmitter range low / high, engineering units</div>
+        <div><strong>16</strong> — signal span (20 mA &minus; 4 mA), fixed by the 4-20 mA standard</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128203;</span><span class="card-hd-ttl">Accepted inputs</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Accepted range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Loop current</td><td>0 &ndash; 24 mA</td><td>3.6&ndash;21 mA computes a result; outside that, a NAMUR fault status is shown instead</td></tr>
+          <tr><td>Range min / max</td><td>Any real number</td><td>Min must not equal max (zero span is rejected)</td></tr>
+          <tr><td>EU &rarr; mA input</td><td>Must fall within [min, max]</td><td>Values outside the range are rejected — a current loop cannot represent an out-of-range value</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9888;</span><span class="card-hd-ttl">NAMUR NE43 fault zones</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Current</th><th>Zone</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 3.6 mA</td><td class="badge tone-red">FAIL &ndash; LOW</td><td>Failed transmitter, broken wiring, or short</td></tr>
+          <tr><td>3.6 &ndash; 3.8 mA</td><td class="badge tone-amb">FAULT &ndash; LOW</td><td>Diagnostic low-fault band</td></tr>
+          <tr><td>3.8 &ndash; 4.0 mA</td><td class="badge tone-amb">BELOW LIVE-ZERO</td><td>Under-range process value</td></tr>
+          <tr><td>4.0 &ndash; 20.0 mA</td><td class="badge tone-grn">VALID</td><td>Normal operating signal</td></tr>
+          <tr><td>20.0 &ndash; 21.0 mA</td><td class="badge tone-amb">FAULT &ndash; HIGH</td><td>Over-range process value</td></tr>
+          <tr><td>&gt; 21.0 mA</td><td class="badge tone-red">FAIL &ndash; HIGH</td><td>Failed transmitter or short</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What is the 4-20 mA current loop standard?</summary>
+      <div class="faq-a">IEC 60381-1 defines 4-20 mA as the standard analog transmission range for process instrumentation. 4 mA represents 0% of the measured range and 20 mA represents 100%. Current, not voltage, is transmitted because current stays constant along a wire regardless of cable resistance or run length, so a receiver 1 km away reads the same value as one sitting next to the transmitter.</div>
+    </details>
+    <details>
+      <summary>How do I convert a 4-20 mA signal to engineering units?</summary>
+      <div class="faq-a">Subtract 4 from the current reading, divide by 16 (the span of the signal), multiply by the engineering-unit span (range max minus range min), then add the range min. This calculator does that math for you and also checks the reading against NAMUR NE43 fault zones.</div>
+    </details>
+    <details>
+      <summary>What do NAMUR NE43 fault zones mean?</summary>
+      <div class="faq-a">NAMUR NE43 reserves the area just outside 4-20 mA for diagnostics: below 3.6 mA or above 21 mA signals a failed transmitter or broken wiring, while 3.6-4.0 mA and 20-21 mA flag a fault condition such as an out-of-range process value. A healthy loop stays within 4-20 mA at all times.</div>
+    </details>
+    <details>
+      <summary>Why is current used instead of voltage for transmitter signals?</summary>
+      <div class="faq-a">Voltage drops along a cable in proportion to its resistance, so a receiver far from the transmitter would see a different voltage than one nearby. A current loop forces the same current through every point in the series circuit, so cable length and resistance do not affect the reading at the receiving end (within the loop's voltage budget).</div>
+    </details>
+    <details>
+      <summary>Can this calculator convert engineering units back to milliamps?</summary>
+      <div class="faq-a">Yes. Switch the direction selector to "Engineering Units &rarr; mA", enter the process value and the range, and the calculator returns the corresponding loop current. The value must fall within the range min and max to produce a valid current output.</div>
+    </details>
+  </div>
+
+  <div class="related">
+    <h2>Related instrumentation calculators</h2>
+    <div class="related-grid">
+      <a class="hublink" href="/instrumentation-calculators#ts1">Square Root Extractor (DP flow)</a>
+      <a class="hublink" href="/instrumentation-calculators#ts2">Instrument Loop Calculator</a>
+      <a class="hublink" href="/instrumentation-calculators#ts3">Thermowell Calculator (ASME PTC 19.3)</a>
+      <a class="hublink" href="/instrumentation-calculators#ts4">Loop Power Supply Calculator</a>
+    </div>
+    <a class="hublink" href="/instrumentation-calculators">&larr; Back to all Instrumentation Calculators</a>
+  </div>
+
+  <div class="foot">
+    4-20mA Calculator &nbsp;|&nbsp; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &nbsp;|&nbsp; multicalci.com
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+const API_TOOL = 'signal';
+
+function onDirChange() {
+  const dir = gs('sig-dir');
+  const lbl = $('sig-v-lbl');
+  const hint = $('sig-v-hint');
+  const inp = $('sig-v');
+  if (dir === 'eu2ma') {
+    lbl.textContent = 'Process value (EU)';
+    hint.textContent = 'Must fall within Range min and Range max below.';
+    inp.value = '6.5';
+  } else {
+    lbl.textContent = 'Loop current (mA)';
+    hint.textContent = 'Valid range 4\u201320 mA. Values outside 3.6\u201321 mA show a NAMUR fault instead of a calculated result.';
+    inp.value = '14.4';
+  }
+  clearResults();
+}
+
+function clearResults() {
+  set('results', '<div class="rc-empty">Enter values and press Calculate to see the converted result.</div>');
+  $('pdfBtn').disabled = true;
+  hideErr();
+}
+
+function hideErr() { $('sig-err').style.display = 'none'; }
+function showErr(msg) { const e = $('sig-err'); e.textContent = msg; e.style.display = 'block'; }
+
+function validateInputs(v, mn, mx, dir) {
+  if (isNaN(v))  return dir === 'ma2eu' ? 'Please enter an input value' : 'Please enter a process value';
+  if (isNaN(mn) || isNaN(mx)) return 'Enter valid Range Min and Max';
+  if (mn === mx) return 'Range Min and Max cannot be equal (zero span)';
+  if (dir === 'eu2ma') {
+    const lo = Math.min(mn, mx), hi = Math.max(mn, mx);
+    if (v < lo || v > hi) return `Value must be within range [${lo} \u2026 ${hi}]`;
+  }
+  return null;
+}
+
+let lastResult = null, lastInputs = null;
+
+function toneFor(nz) {
+  if (nz.color === 'green') return 'grn';
+  if (nz.color === 'orange') return 'amb';
+  return 'red';
+}
+
+function renderCards(r) {
+  let html = '';
+  if (r.type === 'fault') {
+    html += `<div class="rc c-${toneFor(r.nz)} sp2"><div class="rl">NAMUR status</div><div class="rv big">${esc(r.nz.label)}</div><div class="rsub">Signal reads ${r.mA} mA \u2014 outside the valid 4\u201320 mA span, so no engineering-unit value is calculated.</div></div>`;
+  } else if (r.type === 'ma2eu') {
+    html += `<div class="rc c-main sp2"><div class="rl">Engineering value</div><div class="rv big">${fN(r.result)} EU</div><div class="rsub">${r.pct}% of span</div></div>`;
+    html += `<div class="rc c-${toneFor(r.nz)}"><div class="rl">Signal</div><div class="rv">${r.mA} mA</div><div class="rsub">${esc(r.nz.label)}</div></div>`;
+    html += `<div class="rc c-blu"><div class="rl">Span</div><div class="rv">${fN(r.span)} EU</div><div class="rsub">Range ${r.mn} \u2013 ${r.mx}</div></div>`;
+  } else {
+    html += `<div class="rc c-main sp2"><div class="rl">Current output</div><div class="rv big">${fN(r.result)} mA</div><div class="rsub">${r.pct}% of span</div></div>`;
+    html += `<div class="rc c-blu"><div class="rl">Process value</div><div class="rv">${r.eu} EU</div><div class="rsub">Range ${r.mn} \u2013 ${r.mx}</div></div>`;
+    html += `<div class="rc c-${toneFor(r.nz)}"><div class="rl">NAMUR status</div><div class="rv">${esc(r.nz.label)}</div></div>`;
+  }
+  set('results', html);
+}
+
+function fN(x) {
+  const n = Number(x);
+  if (isNaN(n)) return x;
+  return (Math.round(n * 10000) / 10000).toString();
+}
+
+async function calculate() {
+  hideErr();
+  const dir = gs('sig-dir');
+  const v   = gv('sig-v');
+  const mn  = gv('sig-mn');
+  const mx  = gv('sig-mx');
+
+  const errMsg = validateInputs(v, mn, mx, dir);
+  if (errMsg) { showErr(errMsg); $('pdfBtn').disabled = true; return; }
+
+  setLoading('results');
+  try {
+    const inputs = { v, mn, mx, dir };
+    const r = await MC.api.instrumentation(API_TOOL, inputs);
+    lastResult = r;
+    lastInputs = inputs;
+    renderCards(r);
+    $('pdfBtn').disabled = false;
+  } catch (e) {
+    showError('results', e.message || 'Calculation failed');
+    $('pdfBtn').disabled = true;
+  }
+}
+
+function downloadPDF() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const dirLabel = lastInputs.dir === 'ma2eu' ? 'Current \u2192 Engineering Units' : 'Engineering Units \u2192 Current';
+  let bodyRows = '';
+  if (r.type === 'fault') {
+    bodyRows = `<tr><td>Signal</td><td>${r.mA} mA</td></tr><tr><td>NAMUR status</td><td>${r.nz.label.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()}</td></tr>`;
+  } else if (r.type === 'ma2eu') {
+    bodyRows = `<tr><td>Signal</td><td>${r.mA} mA</td></tr><tr><td>Range</td><td>${r.mn} \u2013 ${r.mx}</td></tr><tr><td>Engineering value</td><td>${fN(r.result)}</td></tr><tr><td>% of span</td><td>${r.pct}%</td></tr><tr><td>NAMUR status</td><td>${r.nz.label.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()}</td></tr>`;
+  } else {
+    bodyRows = `<tr><td>Process value</td><td>${r.eu} EU</td></tr><tr><td>Range</td><td>${r.mn} \u2013 ${r.mx}</td></tr><tr><td>Current output</td><td>${fN(r.result)} mA</td></tr><tr><td>% of span</td><td>${r.pct}%</td></tr><tr><td>NAMUR status</td><td>${r.nz.label.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,'').trim()}</td></tr>`;
+  }
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>4-20mA Calculation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#0f2044;padding:32px;}
+    h1{font-size:20px;border-bottom:3px solid #0f2044;padding-bottom:8px;}
+    table{border-collapse:collapse;width:100%;margin-top:16px;}
+    td{padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;}
+    td:first-child{color:#555;width:45%;}
+    .foot{margin-top:24px;font-size:11px;color:#888;}
+  <\/style></head><body>
+    <h1>4-20mA Calculator Report \u2014 multicalci.com</h1>
+    <p><strong>Direction:</strong> ${dirLabel}</p>
+    <table>${bodyRows}</table>
+    <div class="foot">Generated by multicalci.com/4-20ma-calculator \u2014 IEC 60381-1 / NAMUR NE43</div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function shareCalc() {
+  if (!lastInputs) return;
+  const params = new URLSearchParams({
+    v: lastInputs.v, mn: lastInputs.mn, mx: lastInputs.mx, dir: lastInputs.dir
+  });
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  if (navigator.share) {
+    navigator.share({ title: '4-20mA Calculator result', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('shareBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+}
+
+function loadFromQuery() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('v')) return false;
+  const dir = p.get('dir') === 'eu2ma' ? 'eu2ma' : 'ma2eu';
+  $('sig-dir').value = dir;
+  onDirChange();
+  if (p.has('v'))  $('sig-v').value  = p.get('v');
+  if (p.has('mn')) $('sig-mn').value = p.get('mn');
+  if (p.has('mx')) $('sig-mx').value = p.get('mx');
+  return true;
+}
+
+ready(() => {
+  loadFromQuery();
+  calculate();
+  enterToCalc(['sig-v', 'sig-mn', 'sig-mx'], calculate);
+});
+</script>
+</body>
+</html>
