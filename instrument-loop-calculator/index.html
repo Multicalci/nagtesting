@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>Instrument Loop Calculator — 4-20mA Cable Voltage Drop | multicalci.com</title>
+<meta name="description" content="Free instrument loop calculator. Check cable voltage drop, transmitter headroom and 4-20mA loop integrity from cable length, CSA, supply and burden.">
+<link rel="canonical" href="https://www.multicalci.com/instrument-loop-calculator">
+<meta property="og:title" content="Instrument Loop Calculator — 4-20mA Cable Voltage Drop | multicalci.com">
+<meta property="og:description" content="Check cable voltage drop, transmitter headroom and 4-20mA loop integrity from cable length, CSA, supply and burden.">
+<meta property="og:url" content="https://www.multicalci.com/instrument-loop-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Instrument Loop Calculator — 4-20mA Cable Voltage Drop | multicalci.com">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Instrument Loop Calculator","description":"Cable voltage drop and 4-20mA loop integrity calculator, checking transmitter headroom at 20 mA and 22 mA HART diagnostic current from cable length, CSA, supply voltage and loop burden.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/instrument-loop-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Instrumentation Calculators","item":"https://www.multicalci.com/instrumentation-calculators"},
+{"@type":"ListItem","position":3,"name":"Instrument Loop Calculator","item":"https://www.multicalci.com/instrument-loop-calculator"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is an instrument loop voltage drop calculation?","acceptedAnswer":{"@type":"Answer","text":"A 4-20 mA loop is a series circuit: the power supply, the cable resistance, and the transmitter's own burden all share the same current and each drop some voltage. This calculator adds up the cable and burden voltage drops at worst-case 20 mA and checks whether enough voltage is still left over (headroom) for the transmitter to operate correctly."}},
+{"@type":"Question","name":"Why does cable temperature affect the loop calculation?","acceptedAnswer":{"@type":"Answer","text":"Copper's resistivity rises with temperature (about 0.393% per \u00b0C above 20\u00b0C). A cable run through a hot area or outdoors in summer has measurably higher resistance than its rated value at 20\u00b0C, which increases the voltage drop and reduces headroom at the transmitter. Enter the expected cable temperature to get a realistic worst-case number rather than a 20\u00b0C best case."}},
+{"@type":"Question","name":"What headroom should I target at the transmitter?","acceptedAnswer":{"@type":"Answer","text":"Most transmitter manufacturers specify a minimum operating voltage; anything above that is headroom. Industry practice is to keep at least 2 V of headroom at 20 mA and to size the supply at 1.3 \u00d7 the transmitter's minimum voltage plus loop drop for a comfortable safety margin \u2014 tight headroom leaves no room for supply sag, connector resistance, or added devices later."}},
+{"@type":"Question","name":"Why check the loop at 22 mA as well as 20 mA?","acceptedAnswer":{"@type":"Answer","text":"Smart (HART) transmitters can briefly output up to 22-24 mA during diagnostics or alarm conditions, above the nominal 20 mA full-scale signal. A loop that just barely passes at 20 mA can collapse when the transmitter tries to signal a diagnostic fault at 22 mA \u2014 this calculator checks both currents so a diagnostic event doesn't take the loop down."}},
+{"@type":"Question","name":"What's the difference between this calculator and the Loop Power Supply Calculator?","acceptedAnswer":{"@type":"Answer","text":"This calculator works from physical cable properties \u2014 length, cross-sectional area, and temperature \u2014 to derive cable resistance and voltage drop. The Loop Power Supply Calculator instead works from a component budget \u2014 barrier, isolator, and other fixed resistances you already know \u2014 to check the same headroom question without needing cable geometry."}}
+]}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="topbar-logo">multicalci.com</a>
+    <nav class="topbar-nav">
+      <a href="/instrumentation-calculators">Instrumentation</a>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+    </nav>
+  </div>
+
+  <div class="crumb">
+    <a href="/">Home</a> &rsaquo; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &rsaquo; Instrument Loop Calculator
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Instrumentation &middot; Loop Integrity</div>
+    <h1>Instrument Loop Calculator</h1>
+    <p>Check cable voltage drop and transmitter headroom on a 4-20 mA current loop — worst case at 20 mA and at the 22 mA HART diagnostic peak.</p>
+    <div class="stdref">4-20 mA &middot; IEC 60381-1</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128268;</span><span class="card-hd-ttl">Loop Integrity Calculator</span></div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="loop-len">Cable length</label>
+          <div class="iw">
+            <input type="number" id="loop-len" value="500" step="1" min="0.001" required>
+            <select id="loop-len-unit">
+              <option value="m" selected>m</option>
+              <option value="km">km</option>
+              <option value="ft">ft</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="loop-csa">Cable cross-section</label>
+          <div class="iw">
+            <input type="number" id="loop-csa" value="1.5" step="0.1" min="0.001" required>
+            <select id="loop-csa-unit">
+              <option value="mm2" selected>mm&sup2;</option>
+              <option value="awg">AWG</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="loop-supply">Supply voltage (V)</label>
+          <input type="number" id="loop-supply" value="24" step="0.1">
+        </div>
+        <div class="field">
+          <label for="loop-txmin">Transmitter min voltage (V)</label>
+          <input type="number" id="loop-txmin" value="12" step="0.1">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="loop-load">Loop burden (&Omega;)</label>
+          <input type="number" id="loop-load" value="250" step="1" min="0">
+        </div>
+        <div class="field">
+          <label for="loop-cable-temp">Cable temperature (&deg;C)</label>
+          <input type="number" id="loop-cable-temp" value="20" step="1" min="-50" max="200" placeholder="20">
+        </div>
+      </div>
+
+      <div id="loop-err" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" onclick="calculate()">Calculate</button>
+        <button class="btn-pdf" id="pdfBtn" disabled onclick="downloadPDF()">Download PDF report</button>
+        <button class="btn-share" id="shareBtn" onclick="shareCalc()">Share</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="rc-empty">Enter values and press Calculate to see the loop analysis.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card wex">
+    <div class="wex-hd">Worked example</div>
+    <div class="card-bd">
+      <p>A transmitter sits <strong>500 m</strong> from the marshalling cabinet on <strong>1.5 mm&sup2;</strong> twisted-pair cable at 20&deg;C. Supply is <strong>24 V</strong>, the transmitter needs at least <strong>12 V</strong>, and the receiving instrument burden is <strong>250 &Omega;</strong>.</p>
+      <div class="ans">
+        Cable R = 11.2 &Omega; &rarr; Total loop Z = 261.2 &Omega; &rarr; V at Tx (20 mA) = 18.776 V &rarr; Headroom = <strong>6.776 V &mdash; PASS</strong>
+      </div>
+      <p>The form above is pre-filled with these exact numbers — press Calculate to reproduce this result, or change the inputs for your own loop.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#8721;</span><span class="card-hd-ttl">Formula &amp; variable legend</span></div>
+    <div class="card-bd">
+      <div class="fbox">R<sub>cable</sub> = &rho;<sub>Cu</sub>(T) &times; 2L / A</div>
+      <div class="fbox">&rho;<sub>Cu</sub>(T) = 0.0168 &times; (1 + 0.00393 &times; (T &minus; 20))</div>
+      <div class="fbox">V<sub>Tx</sub> = V<sub>supply</sub> &minus; (R<sub>cable</sub> + R<sub>burden</sub>) &times; I</div>
+      <div class="fbox">Headroom = V<sub>Tx</sub> &minus; V<sub>Tx,min</sub></div>
+      <div class="legend">
+        <div><strong>L</strong> — one-way cable length, m (doubled in the formula for the return conductor)</div>
+        <div><strong>A</strong> — conductor cross-sectional area, mm&sup2;</div>
+        <div><strong>T</strong> — cable temperature, &deg;C (20&deg;C reference)</div>
+        <div><strong>I</strong> — loop current: 0.020 A worst-case, 0.022 A at HART diagnostic peak</div>
+        <div><strong>R<sub>burden</sub></strong> — receiving instrument / loop burden resistance, &Omega;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128203;</span><span class="card-hd-ttl">Accepted inputs</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Accepted range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Cable length</td><td>&gt; 0</td><td>m, km or ft</td></tr>
+          <tr><td>Cable cross-section</td><td>&gt; 0</td><td>mm&sup2; or AWG (10&ndash;28 tabulated, other gauges computed)</td></tr>
+          <tr><td>Supply voltage</td><td>&gt; 0</td><td>V</td></tr>
+          <tr><td>Transmitter min voltage</td><td>&gt; 0, &lt; supply</td><td>V</td></tr>
+          <tr><td>Loop burden</td><td>&ge; 0</td><td>&Omega;</td></tr>
+          <tr><td>Cable temperature</td><td>&minus;50 to 200&deg;C</td><td>Defaults to 20&deg;C if left blank</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9888;</span><span class="card-hd-ttl">Headroom status examples</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Cable / CSA</th><th>Headroom @ 20 mA</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>500 m / 1.5 mm&sup2;</td><td>6.78 V</td><td class="badge tone-grn">PASS at 20 mA and 22 mA</td></tr>
+          <tr><td>5000 m / 0.5 mm&sup2;</td><td>0.28 V</td><td class="badge tone-amb">PASSES 20 mA, FAILS 22 mA diagnostic</td></tr>
+          <tr><td>6000 m / 0.5 mm&sup2;</td><td>&minus;1.06 V</td><td class="badge tone-red">FAILS at 20 mA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What is an instrument loop voltage drop calculation?</summary>
+      <div class="faq-a">A 4-20 mA loop is a series circuit: the power supply, the cable resistance, and the transmitter's own burden all share the same current and each drop some voltage. This calculator adds up the cable and burden voltage drops at worst-case 20 mA and checks whether enough voltage is still left over (headroom) for the transmitter to operate correctly.</div>
+    </details>
+    <details>
+      <summary>Why does cable temperature affect the loop calculation?</summary>
+      <div class="faq-a">Copper's resistivity rises with temperature (about 0.393% per &deg;C above 20&deg;C). A cable run through a hot area or outdoors in summer has measurably higher resistance than its rated value at 20&deg;C, which increases the voltage drop and reduces headroom at the transmitter. Enter the expected cable temperature to get a realistic worst-case number rather than a 20&deg;C best case.</div>
+    </details>
+    <details>
+      <summary>What headroom should I target at the transmitter?</summary>
+      <div class="faq-a">Most transmitter manufacturers specify a minimum operating voltage; anything above that is headroom. Industry practice is to keep at least 2 V of headroom at 20 mA and to size the supply at 1.3 &times; the transmitter's minimum voltage plus loop drop for a comfortable safety margin — tight headroom leaves no room for supply sag, connector resistance, or added devices later.</div>
+    </details>
+    <details>
+      <summary>Why check the loop at 22 mA as well as 20 mA?</summary>
+      <div class="faq-a">Smart (HART) transmitters can briefly output up to 22-24 mA during diagnostics or alarm conditions, above the nominal 20 mA full-scale signal. A loop that just barely passes at 20 mA can collapse when the transmitter tries to signal a diagnostic fault at 22 mA — this calculator checks both currents so a diagnostic event doesn't take the loop down.</div>
+    </details>
+    <details>
+      <summary>What's the difference between this calculator and the Loop Power Supply Calculator?</summary>
+      <div class="faq-a">This calculator works from physical cable properties — length, cross-sectional area, and temperature — to derive cable resistance and voltage drop. The Loop Power Supply Calculator instead works from a component budget — barrier, isolator, and other fixed resistances you already know — to check the same headroom question without needing cable geometry.</div>
+    </details>
+  </div>
+
+  <div class="related">
+    <h2>Related instrumentation calculators</h2>
+    <div class="related-grid">
+      <a class="hublink" href="/4-20ma-calculator">4-20mA Calculator</a>
+      <a class="hublink" href="/thermowell-calculator">Thermowell Calculator</a>
+      <a class="hublink" href="/instrumentation-calculators#ts1">Square Root Extractor (DP flow)</a>
+      <a class="hublink" href="/instrumentation-calculators#ts4">Loop Power Supply Calculator</a>
+    </div>
+    <a class="hublink" href="/instrumentation-calculators">&larr; Back to all Instrumentation Calculators</a>
+  </div>
+
+  <div class="foot">
+    Instrument Loop Calculator &nbsp;|&nbsp; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &nbsp;|&nbsp; multicalci.com
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+const API_TOOL = 'loop';
+
+function clearResults() {
+  set('results', '<div class="rc-empty">Enter values and press Calculate to see the loop analysis.</div>');
+  $('pdfBtn').disabled = true;
+  hideErr();
+}
+
+function hideErr() { $('loop-err').style.display = 'none'; }
+function showErr(msg) { const e = $('loop-err'); e.textContent = msg; e.style.display = 'block'; }
+
+function validateInputs(len, csaRaw, supply, txmin, load) {
+  if ([len, csaRaw, supply, txmin, load].some(isNaN)) return 'Fill all fields';
+  if (len    <= 0) return 'Cable length must be > 0';
+  if (csaRaw <= 0) return 'Cable cross-section must be > 0';
+  if (supply <= 0) return 'Supply voltage must be > 0';
+  if (txmin  <= 0) return 'Transmitter min voltage must be > 0';
+  if (load   <  0) return 'Loop burden cannot be negative';
+  if (txmin >= supply) return 'Transmitter min voltage must be less than supply voltage';
+  return null;
+}
+
+let lastResult = null, lastInputs = null;
+
+function toneForHeadroom(h) {
+  if (h < 0) return 'red';
+  if (h < 2) return 'amb';
+  return 'grn';
+}
+
+function renderCards(r) {
+  const tone20 = toneForHeadroom(r.headroom);
+  const tone22 = toneForHeadroom(r.headroom_diag);
+  const loadTone = parseFloat(r.loadUsed) < 80 ? 'grn' : 'amb';
+  let html = '';
+  html += `<div class="rc c-${tone20} sp2"><div class="rl">Headroom @ 20 mA (worst case)</div><div class="rv big">${r.headroom} V</div><div class="rsub">V at Tx: ${r.vAtTx} V</div></div>`;
+  html += `<div class="rc c-${tone22}"><div class="rl">Headroom @ 22 mA (diagnostic)</div><div class="rv">${r.headroom_diag} V</div></div>`;
+  html += `<div class="rc c-blu"><div class="rl">Cable resistance (2-way, ${r.T}&deg;C)</div><div class="rv">${r.cable_r} &Omega;</div></div>`;
+  html += `<div class="rc c-blu"><div class="rl">Total loop impedance</div><div class="rv">${r.total_r} &Omega;</div></div>`;
+  html += `<div class="rc c-cyn"><div class="rl">Max allowable load</div><div class="rv">${r.maxLoad} &Omega;</div></div>`;
+  html += `<div class="rc c-${loadTone}"><div class="rl">Load used</div><div class="rv">${r.loadUsed}%</div></div>`;
+  set('results', html);
+
+  if (r.warns && r.warns.length) {
+    html += `<div class="note">${r.warns.map(w => esc(w)).join('<br><br>')}</div>`;
+    set('results', html);
+  }
+}
+
+async function calculate() {
+  hideErr();
+  const len      = gv('loop-len');
+  const lenU     = gs('loop-len-unit');
+  const csaRaw   = gv('loop-csa');
+  const csaU     = gs('loop-csa-unit');
+  const supply   = gv('loop-supply');
+  const txmin    = gv('loop-txmin');
+  const load     = gv('loop-load');
+  const cableTemp = gv('loop-cable-temp');
+
+  const errMsg = validateInputs(len, csaRaw, supply, txmin, load);
+  if (errMsg) { showErr(errMsg); $('pdfBtn').disabled = true; return; }
+
+  setLoading('results');
+  try {
+    const inputs = { len, lenU, csaRaw, csaU, supply, txmin, load, cableTemp };
+    const r = await MC.api.instrumentation(API_TOOL, inputs);
+    lastResult = r;
+    lastInputs = inputs;
+    renderCards(r);
+    $('pdfBtn').disabled = false;
+  } catch (e) {
+    showError('results', e.message || 'Calculation failed');
+    $('pdfBtn').disabled = true;
+  }
+}
+
+function downloadPDF() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const rows = `
+    <tr><td>Cable resistance (2-way)</td><td>${r.cable_r} &Omega; @ ${r.T}&deg;C</td></tr>
+    <tr><td>Total loop impedance</td><td>${r.total_r} &Omega;</td></tr>
+    <tr><td>Voltage drop &mdash; cable</td><td>${r.vDrop_cable} V</td></tr>
+    <tr><td>Voltage drop &mdash; load</td><td>${r.vDrop_load} V</td></tr>
+    <tr><td>Voltage at transmitter (20 mA)</td><td>${r.vAtTx} V</td></tr>
+    <tr><td>Headroom @ 20 mA</td><td>${r.headroom} V</td></tr>
+    <tr><td>Headroom @ 22 mA (diagnostic)</td><td>${r.headroom_diag} V</td></tr>
+    <tr><td>Max allowable load</td><td>${r.maxLoad} &Omega;</td></tr>
+    <tr><td>Load used</td><td>${r.loadUsed}%</td></tr>
+    <tr><td>Safe supply voltage (recommended)</td><td>&ge; ${r.vRequired_safe} V</td></tr>
+  `;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Instrument Loop Calculation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#0f2044;padding:32px;}
+    h1{font-size:20px;border-bottom:3px solid #0f2044;padding-bottom:8px;}
+    table{border-collapse:collapse;width:100%;margin-top:16px;}
+    td{padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;}
+    td:first-child{color:#555;width:45%;}
+    .foot{margin-top:24px;font-size:11px;color:#888;}
+  <\/style></head><body>
+    <h1>Instrument Loop Calculator Report \u2014 multicalci.com</h1>
+    <table>${rows}</table>
+    <div class="foot">Generated by multicalci.com/instrument-loop-calculator</div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function shareCalc() {
+  if (!lastInputs) return;
+  const params = new URLSearchParams(lastInputs);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Instrument Loop Calculator result', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('shareBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+}
+
+function loadFromQuery() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('len')) return false;
+  if (p.has('len'))        $('loop-len').value = p.get('len');
+  if (p.has('lenU'))       $('loop-len-unit').value = p.get('lenU');
+  if (p.has('csaRaw'))     $('loop-csa').value = p.get('csaRaw');
+  if (p.has('csaU'))       $('loop-csa-unit').value = p.get('csaU');
+  if (p.has('supply'))     $('loop-supply').value = p.get('supply');
+  if (p.has('txmin'))      $('loop-txmin').value = p.get('txmin');
+  if (p.has('load'))       $('loop-load').value = p.get('load');
+  if (p.has('cableTemp'))  $('loop-cable-temp').value = p.get('cableTemp');
+  return true;
+}
+
+ready(() => {
+  loadFromQuery();
+  calculate();
+  enterToCalc(['loop-len', 'loop-csa', 'loop-supply', 'loop-txmin', 'loop-load', 'loop-cable-temp'], calculate);
+});
+</script>
+</body>
+</html>
