@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>Square Root Flow Calculator — DP Transmitter Linearization | multicalci.com</title>
+<meta name="description" content="Free square root flow calculator for differential pressure transmitters. Convert DP% to flow with low-flow cutoff and hysteresis, per orifice-plate flow theory.">
+<link rel="canonical" href="https://www.multicalci.com/square-root-flow-calculator">
+<meta property="og:title" content="Square Root Flow Calculator — DP Transmitter Linearization | multicalci.com">
+<meta property="og:description" content="Convert DP% to flow with low-flow cutoff and hysteresis, per orifice-plate flow theory.">
+<meta property="og:url" content="https://www.multicalci.com/square-root-flow-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Square Root Flow Calculator — DP Transmitter Linearization | multicalci.com">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Square Root Flow Calculator","description":"Differential pressure to flow calculator for orifice-plate and DP-transmitter flow measurement, applying the square root relationship with configurable low-flow cutoff and hysteresis.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/square-root-flow-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Instrumentation Calculators","item":"https://www.multicalci.com/instrumentation-calculators"},
+{"@type":"ListItem","position":3,"name":"Square Root Flow Calculator","item":"https://www.multicalci.com/square-root-flow-calculator"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is a square root flow calculator for DP transmitters?","acceptedAnswer":{"@type":"Answer","text":"A differential-pressure transmitter reading across an orifice plate or venturi is proportional to the square of flow rate, not flow itself. This calculator applies the square root relationship to convert a DP% reading back into actual flow, and applies a low-flow cutoff so near-zero DP noise doesn't get reported as spurious flow."}},
+{"@type":"Question","name":"Why does flow follow the square root of differential pressure?","acceptedAnswer":{"@type":"Answer","text":"For flow through a fixed restriction like an orifice plate, Bernoulli's equation shows that pressure drop is proportional to the square of velocity, and therefore to the square of volumetric flow. Flow is recovered from the pressure signal by taking the square root, which is why raw DP transmitter output must be square-root extracted before it represents flow linearly."}},
+{"@type":"Question","name":"What is the low-flow cutoff and why is it needed?","acceptedAnswer":{"@type":"Answer","text":"Near zero flow, the DP signal is tiny and dominated by transmitter noise and turbulence, which the square root function amplifies into wildly fluctuating flow readings. A low-flow cutoff forces the output to a clean zero below a configured DP% threshold, avoiding a jumpy near-zero flow display when the process is essentially shut in."}},
+{"@type":"Question","name":"Why does the cutoff use hysteresis instead of a single threshold?","acceptedAnswer":{"@type":"Answer","text":"A single on/off threshold can \"chatter\" \u2014 rapidly switching between zero and a calculated value \u2014 if the DP signal sits right at the cutoff point. Reactivating flow calculation slightly above the cutoff (rather than exactly at it) gives a small dead band that prevents this chatter, which is why this calculator reports both the cutoff and a distinct reactivation point."}},
+{"@type":"Question","name":"Does this calculator convert between flow units?","acceptedAnswer":{"@type":"Answer","text":"No \u2014 the calculated flow is reported in whatever unit you select for the Max Flow Span, since that span defines the transmitter's calibrated 100% point. If you need to convert the result into a different flow unit afterward, use a separate flow unit converter."}}
+]}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="topbar-logo">multicalci.com</a>
+    <nav class="topbar-nav">
+      <a href="/instrumentation-calculators">Instrumentation</a>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+    </nav>
+  </div>
+
+  <div class="crumb">
+    <a href="/">Home</a> &rsaquo; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &rsaquo; Square Root Flow Calculator
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Instrumentation &middot; Flow Measurement</div>
+    <h1>Square Root Flow Calculator</h1>
+    <p>Convert a differential pressure transmitter's DP% reading to flow, with a configurable low-flow cutoff and hysteresis to suppress near-zero noise.</p>
+    <div class="stdref">Orifice / DP Flow &middot; ISO 5167</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128260;</span><span class="card-hd-ttl">Square Root Extractor</span></div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="sqrt-dp">Differential pressure (% of span)</label>
+          <input type="number" id="sqrt-dp" value="64" step="0.01" min="0" max="100" required>
+        </div>
+        <div class="field">
+          <label for="sqrt-cutoff">Low-flow cutoff (%)</label>
+          <input type="number" id="sqrt-cutoff" value="1" step="0.1" min="0" max="100">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="sqrt-maxflow">Max flow span</label>
+        <div class="iw">
+          <input type="number" id="sqrt-maxflow" value="500" step="any" min="0.0001" required>
+          <select id="sqrt-flow-unit">
+            <option value="m3h" selected>m&sup3;/h</option>
+            <option value="lpm">L/min</option>
+            <option value="ls">L/s</option>
+            <option value="kgs">kg/s</option>
+            <option value="gpm">gal/min</option>
+            <option value="cfm">ft&sup3;/min</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="sqrt-err" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" onclick="calculate()">Calculate</button>
+        <button class="btn-pdf" id="pdfBtn" disabled onclick="downloadPDF()">Download PDF report</button>
+        <button class="btn-share" id="shareBtn" onclick="shareCalc()">Share</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="rc-empty">Enter values and press Calculate to see the flow result.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card wex">
+    <div class="wex-hd">Worked example</div>
+    <div class="card-bd">
+      <p>A DP transmitter is ranged to a <strong>500 m&sup3;/h</strong> flow span. It currently reads <strong>64%</strong> of its differential-pressure scale, with a low-flow cutoff of <strong>1%</strong>.</p>
+      <div class="ans">
+        &radic;(64/100) = 0.8000 &rarr; Flow = 500 &times; 0.8000 = <strong>400.0000 m&sup3;/h</strong> (80.00% of span)
+      </div>
+      <p>The form above is pre-filled with these exact numbers — press Calculate to reproduce this result, or change the inputs for your own transmitter.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#8721;</span><span class="card-hd-ttl">Formula &amp; variable legend</span></div>
+    <div class="card-bd">
+      <div class="fbox">Flow = Q<sub>max</sub> &times; &radic;(DP% / 100)</div>
+      <div class="fbox">Flow = 0, if DP% &lt; cutoff</div>
+      <div class="legend">
+        <div><strong>DP%</strong> — differential pressure signal, as a percentage of transmitter span</div>
+        <div><strong>Q<sub>max</sub></strong> — flow at 100% DP (the transmitter's calibrated full-scale flow)</div>
+        <div><strong>cutoff</strong> — low-flow DP% threshold below which flow is forced to zero</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128203;</span><span class="card-hd-ttl">Accepted inputs</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Accepted range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Differential pressure</td><td>0 &ndash; 100%</td><td>Percentage of transmitter DP span</td></tr>
+          <tr><td>Max flow span</td><td>&gt; 0</td><td>Flow at 100% DP, in the selected unit</td></tr>
+          <tr><td>Low-flow cutoff</td><td>0 &ndash; 100%</td><td>Defaults to 1% if left blank; values outside 0&ndash;100 are clamped</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9888;</span><span class="card-hd-ttl">Result examples across the range</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>DP%</th><th>Cutoff</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>0.5%</td><td>1%</td><td class="badge tone-amb">Below cutoff &rarr; flow forced to 0</td></tr>
+          <tr><td>1.0%</td><td>1%</td><td class="badge tone-grn">At cutoff &rarr; 50.0 m&sup3;/h (10.0% of span)</td></tr>
+          <tr><td>64.0%</td><td>1%</td><td class="badge tone-grn">400.0 m&sup3;/h (80.0% of span)</td></tr>
+          <tr><td>100.0%</td><td>1%</td><td class="badge tone-grn">500.0 m&sup3;/h (100.0% of span, full scale)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What is a square root flow calculator for DP transmitters?</summary>
+      <div class="faq-a">A differential-pressure transmitter reading across an orifice plate or venturi is proportional to the square of flow rate, not flow itself. This calculator applies the square root relationship to convert a DP% reading back into actual flow, and applies a low-flow cutoff so near-zero DP noise doesn't get reported as spurious flow.</div>
+    </details>
+    <details>
+      <summary>Why does flow follow the square root of differential pressure?</summary>
+      <div class="faq-a">For flow through a fixed restriction like an orifice plate, Bernoulli's equation shows that pressure drop is proportional to the square of velocity, and therefore to the square of volumetric flow. Flow is recovered from the pressure signal by taking the square root, which is why raw DP transmitter output must be square-root extracted before it represents flow linearly.</div>
+    </details>
+    <details>
+      <summary>What is the low-flow cutoff and why is it needed?</summary>
+      <div class="faq-a">Near zero flow, the DP signal is tiny and dominated by transmitter noise and turbulence, which the square root function amplifies into wildly fluctuating flow readings. A low-flow cutoff forces the output to a clean zero below a configured DP% threshold, avoiding a jumpy near-zero flow display when the process is essentially shut in.</div>
+    </details>
+    <details>
+      <summary>Why does the cutoff use hysteresis instead of a single threshold?</summary>
+      <div class="faq-a">A single on/off threshold can "chatter" — rapidly switching between zero and a calculated value — if the DP signal sits right at the cutoff point. Reactivating flow calculation slightly above the cutoff (rather than exactly at it) gives a small dead band that prevents this chatter, which is why this calculator reports both the cutoff and a distinct reactivation point.</div>
+    </details>
+    <details>
+      <summary>Does this calculator convert between flow units?</summary>
+      <div class="faq-a">No — the calculated flow is reported in whatever unit you select for the Max Flow Span, since that span defines the transmitter's calibrated 100% point. If you need to convert the result into a different flow unit afterward, use a separate flow unit converter.</div>
+    </details>
+  </div>
+
+  <div class="related">
+    <h2>Related instrumentation calculators</h2>
+    <div class="related-grid">
+      <a class="hublink" href="/4-20ma-calculator">4-20mA Calculator</a>
+      <a class="hublink" href="/thermowell-calculator">Thermowell Calculator</a>
+      <a class="hublink" href="/instrument-loop-calculator">Instrument Loop Calculator</a>
+      <a class="hublink" href="/loop-power-supply-calculator">Loop Power Supply Calculator</a>
+    </div>
+    <a class="hublink" href="/instrumentation-calculators">&larr; Back to all Instrumentation Calculators</a>
+  </div>
+
+  <div class="foot">
+    Square Root Flow Calculator &nbsp;|&nbsp; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &nbsp;|&nbsp; multicalci.com
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+const API_TOOL = 'sqrt';
+
+const UNIT_LABEL = { m3h: 'm\u00b3/h', lpm: 'L/min', ls: 'L/s', kgs: 'kg/s', gpm: 'gal/min', cfm: 'ft\u00b3/min' };
+
+function clearResults() {
+  set('results', '<div class="rc-empty">Enter values and press Calculate to see the flow result.</div>');
+  $('pdfBtn').disabled = true;
+  hideErr();
+}
+
+function hideErr() { $('sqrt-err').style.display = 'none'; }
+function showErr(msg) { const e = $('sqrt-err'); e.textContent = msg; e.style.display = 'block'; }
+
+function validateInputs(dp, qmax) {
+  if (isNaN(dp) || dp < 0 || dp > 100) return 'DP% must be 0 \u2013 100';
+  if (isNaN(qmax) || qmax <= 0) return 'Enter a valid Max Flow span (> 0)';
+  return null;
+}
+
+let lastResult = null, lastInputs = null;
+
+function renderCards(r) {
+  const unit = UNIT_LABEL[r.funit] || r.funit;
+  let html = '';
+  if (r.cutoffActive) {
+    html += `<div class="rc c-amb sp2"><div class="rl">Flow</div><div class="rv big">0.0000 ${unit}</div><div class="rsub">DP (${r.dp}%) is below the ${r.cutoff}% cutoff \u2014 flow forced to zero</div></div>`;
+    html += `<div class="rc c-blu"><div class="rl">Reactivates above</div><div class="rv">${r.hysteresisHigh}% DP</div></div>`;
+  } else {
+    html += `<div class="rc c-main sp2"><div class="rl">Flow</div><div class="rv big">${r.flow.toFixed(4)} ${unit}</div><div class="rsub">${r.pct}% of span</div></div>`;
+    html += `<div class="rc c-blu"><div class="rl">&radic;(DP/100)</div><div class="rv">${r.sqrtVal}</div></div>`;
+    html += `<div class="rc c-cyn"><div class="rl">Cutoff / reactivation</div><div class="rv">${r.cutoff}% / ${r.hysteresisHigh}%</div></div>`;
+  }
+  set('results', html);
+}
+
+async function calculate() {
+  hideErr();
+  const dp     = gv('sqrt-dp');
+  const qmax   = gv('sqrt-maxflow');
+  const cutoff = gv('sqrt-cutoff');
+  const funit  = gs('sqrt-flow-unit');
+
+  const errMsg = validateInputs(dp, qmax);
+  if (errMsg) { showErr(errMsg); $('pdfBtn').disabled = true; return; }
+
+  setLoading('results');
+  try {
+    const inputs = { dp, qmax, cutoff, funit };
+    const r = await MC.api.instrumentation(API_TOOL, inputs);
+    lastResult = r;
+    lastInputs = inputs;
+    renderCards(r);
+    $('pdfBtn').disabled = false;
+  } catch (e) {
+    showError('results', e.message || 'Calculation failed');
+    $('pdfBtn').disabled = true;
+  }
+}
+
+function downloadPDF() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const unit = UNIT_LABEL[r.funit] || r.funit;
+  let rows;
+  if (r.cutoffActive) {
+    rows = `
+      <tr><td>DP%</td><td>${r.dp}%</td></tr>
+      <tr><td>Max flow span</td><td>${r.qmax} ${unit}</td></tr>
+      <tr><td>Cutoff</td><td>${r.cutoff}%</td></tr>
+      <tr><td>Result</td><td>0.0000 ${unit} (below cutoff)</td></tr>
+      <tr><td>Reactivates above</td><td>${r.hysteresisHigh}% DP</td></tr>
+    `;
+  } else {
+    rows = `
+      <tr><td>DP%</td><td>${r.dp}%</td></tr>
+      <tr><td>Max flow span</td><td>${r.qmax} ${unit}</td></tr>
+      <tr><td>&radic;(DP/100)</td><td>${r.sqrtVal}</td></tr>
+      <tr><td>Flow</td><td>${r.flow.toFixed(4)} ${unit}</td></tr>
+      <tr><td>% of span</td><td>${r.pct}%</td></tr>
+      <tr><td>Cutoff / reactivation</td><td>${r.cutoff}% / ${r.hysteresisHigh}%</td></tr>
+    `;
+  }
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Square Root Flow Calculation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#0f2044;padding:32px;}
+    h1{font-size:20px;border-bottom:3px solid #0f2044;padding-bottom:8px;}
+    table{border-collapse:collapse;width:100%;margin-top:16px;}
+    td{padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;}
+    td:first-child{color:#555;width:45%;}
+    .foot{margin-top:24px;font-size:11px;color:#888;}
+  <\/style></head><body>
+    <h1>Square Root Flow Calculator Report \u2014 multicalci.com</h1>
+    <table>${rows}</table>
+    <div class="foot">Generated by multicalci.com/square-root-flow-calculator</div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function shareCalc() {
+  if (!lastInputs) return;
+  const params = new URLSearchParams(lastInputs);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Square Root Flow Calculator result', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('shareBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+}
+
+function loadFromQuery() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('dp')) return false;
+  if (p.has('dp'))     $('sqrt-dp').value = p.get('dp');
+  if (p.has('qmax'))   $('sqrt-maxflow').value = p.get('qmax');
+  if (p.has('cutoff')) $('sqrt-cutoff').value = p.get('cutoff');
+  if (p.has('funit'))  $('sqrt-flow-unit').value = p.get('funit');
+  return true;
+}
+
+ready(() => {
+  loadFromQuery();
+  calculate();
+  enterToCalc(['sqrt-dp', 'sqrt-maxflow', 'sqrt-cutoff'], calculate);
+});
+</script>
+</body>
+</html>
