@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pump Power Calculator — Hydraulic, Brake & Motor Power | multicalci.com</title>
+<link rel="canonical" href="https://www.multicalci.com/pump-power-calculator">
+<meta name="description" content="Free pump power calculator. Enter flow rate, head, specific gravity, pump efficiency and motor efficiency to get hydraulic power, brake (shaft) power and motor input power in kW and hp.">
+<meta property="og:title" content="Pump Power Calculator — Hydraulic, Brake & Motor Power">
+<meta property="og:description" content="Hydraulic power, brake power and motor input power from flow, head, SG and efficiencies. kW and hp.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.multicalci.com/pump-power-calculator">
+<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b2430; --sub:#5b6472;
+  --line:#e1e5ea; --accent:#0b5fa5; --accent-ink:#083f6e; --mono:'SF Mono',SFMono-Regular,Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.55}
+header.site{background:var(--accent-ink);color:#fff;padding:14px 20px}
+header.site nav{max-width:1000px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+header.site a{color:#fff;text-decoration:none;font-size:14px;opacity:.9}
+header.site a.brand{font-weight:700;letter-spacing:.5px;opacity:1;font-size:15px}
+main{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+.crumb{font-size:13px;color:var(--sub);margin-bottom:10px}
+.crumb a{color:var(--sub)}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+.badge{background:#eaf2fb;color:var(--accent-ink);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+h1{font-size:28px;margin:0 0 8px;letter-spacing:-.3px}
+p.lede{color:var(--sub);font-size:16px;max-width:760px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.panel h2{font-size:15px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.hint{font-size:12px;color:var(--sub);margin-top:2px}
+select,input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:#fbfcfd}
+.row-span2{grid-column:1/-1}
+button.calc{margin-top:16px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+button.calc:hover{background:var(--accent-ink)}
+.results{margin-top:18px;display:none}
+.results.show{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:640px){.results.show{grid-template-columns:1fr 1fr}}
+.stat{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:12px 14px}
+.stat .v{font-size:19px;font-weight:700;color:var(--accent-ink);font-family:var(--mono)}
+.stat .l{font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.formula-block{background:#f2f6fb;border:1px solid #dbe6f2;border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;white-space:pre}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:600;font-size:12px;text-transform:uppercase}
+.faq h3{font-size:15px;margin:16px 0 4px}
+.faq p{margin:0 0 4px;color:var(--sub)}
+.related{display:flex;flex-wrap:wrap;gap:10px}
+.related a{background:#f2f6fb;border:1px solid #dbe6f2;color:var(--accent-ink);text-decoration:none;font-size:13px;padding:8px 12px;border-radius:8px}
+footer.note{margin-top:26px;font-size:12.5px;color:var(--sub);border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<header class="site"><nav>
+  <a class="brand" href="https://www.multicalci.com/">MULTICALCI</a>
+  <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+  <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+  <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+  <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+</nav></header>
+
+<main>
+  <div class="crumb"><a href="https://www.multicalci.com/">Home</a> › <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical Engineering Calculators</a> › Pump Power Calculator</div>
+  <div class="badges"><span class="badge">Hydraulic power</span><span class="badge">Brake power</span><span class="badge">Motor input power</span></div>
+  <h1>Pump Power Calculator</h1>
+  <p class="lede">Convert flow rate and total head into hydraulic power, pump brake (shaft) power, and motor input power — with pump and motor efficiency, and specific gravity for any liquid.</p>
+
+  <div class="panel">
+    <h2>Duty Point Inputs</h2>
+    <div class="grid">
+      <div>
+        <label>Flow rate Q</label>
+        <input id="flow" type="number" step="any" value="100">
+      </div>
+      <div>
+        <label>Flow unit</label>
+        <select id="flowUnit">
+          <option value="m3s">m³/s (SI)</option>
+          <option value="m3h" selected>m³/h (metric)</option>
+          <option value="lps">L/s (metric)</option>
+          <option value="lpm">L/min (metric)</option>
+          <option value="gpm">US gpm (imperial)</option>
+          <option value="ukgpm">UK (Imperial) gpm</option>
+          <option value="cfm">ft³/min (imperial)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Total head H</label>
+        <input id="head" type="number" step="any" value="40">
+      </div>
+      <div>
+        <label>Head unit</label>
+        <select id="headUnit">
+          <option value="m" selected>metres (SI)</option>
+          <option value="ft">feet (imperial)</option>
+          <option value="kpa">kPa (metric, via SG)</option>
+          <option value="bar">bar (metric, via SG)</option>
+          <option value="mpa">MPa (SI, via SG)</option>
+          <option value="psi">psi (imperial, via SG)</option>
+          <option value="kgcm2">kg/cm² (metric, via SG)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Specific gravity (SG)</label>
+        <input id="sg" type="number" step="any" value="1.0">
+      </div>
+      <div>
+        <label>Pump (hydraulic) efficiency, %</label>
+        <input id="effPump" type="number" step="any" value="72">
+      </div>
+
+      <div>
+        <label>Motor efficiency, %</label>
+        <input id="effMotor" type="number" step="any" value="93">
+      </div>
+      <div>
+        <label>Drive / VFD derating (optional), %</label>
+        <input id="effDrive" type="number" step="any" value="100">
+      </div>
+    </div>
+    <button class="calc" onclick="calc()">Calculate power</button>
+
+    <div id="results" class="results">
+      <div class="stat"><div class="v" id="rHyd">–</div><div class="l">Hydraulic power</div></div>
+      <div class="stat"><div class="v" id="rBrake">–</div><div class="l">Brake (shaft) power</div></div>
+      <div class="stat"><div class="v" id="rMotor">–</div><div class="l">Motor input power</div></div>
+      <div class="stat"><div class="v" id="rHydHp">–</div><div class="l">Hydraulic power, hp</div></div>
+      <div class="stat"><div class="v" id="rBrakeHp">–</div><div class="l">Brake power, hp</div></div>
+      <div class="stat"><div class="v" id="rMotorHp">–</div><div class="l">Motor power, hp</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Formula</h2>
+    <div class="formula-block">Ph  = ρ · g · Q · H / 1000              hydraulic (fluid) power, kW
+Pb  = Ph / ηpump                        brake / shaft power, kW
+Pm  = Pb / (ηmotor · ηdrive)            motor electrical input power, kW
+
+ρ  = 1000 × SG      (kg/m³)      Q in m³/s      H in m      g = 9.81 m/s²</div>
+    <p class="hint">Hydraulic power is the useful work done on the fluid. Brake power accounts for pump hydraulic and mechanical losses (impeller, bearing, seal). Motor input power adds motor and, if applicable, VFD/drive losses — this is the number to size the electrical supply and motor nameplate against.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Worked example</h2>
+    <p>Centrifugal pump: 100 m³/h of water (SG 1.0) at 40 m head, pump efficiency 72%, motor efficiency 93%.</p>
+    <table>
+      <tr><th>Step</th><th>Calculation</th></tr>
+      <tr><td>Q</td><td>100 m³/h = 0.02778 m³/s</td></tr>
+      <tr><td>Hydraulic power Ph</td><td>1000 × 9.81 × 0.02778 × 40 / 1000 = 10.90 kW</td></tr>
+      <tr><td>Brake power Pb</td><td>10.90 / 0.72 = 15.13 kW (20.29 hp)</td></tr>
+      <tr><td>Motor input power Pm</td><td>15.13 / 0.93 = 16.27 kW (21.82 hp)</td></tr>
+    </table>
+    <p class="hint">A standard 18.5 kW (25 hp) motor would be selected here, giving roughly 12% service margin above the calculated input power — check against your plant's motor sizing margin standard (commonly 10–20%).</p>
+  </div>
+
+  <div class="panel faq">
+    <h2>Frequently asked questions</h2>
+    <h3>What's the difference between hydraulic power, brake power and motor power?</h3>
+    <p>Hydraulic power is the ideal work delivered to the fluid. Brake power is what the pump shaft actually needs, once pump internal losses are included — it's always higher than hydraulic power. Motor power is what the electrical supply must deliver, once motor (and drive, if used) losses are added on top of brake power.</p>
+    <h3>What pump efficiency should I assume if I don't have a curve?</h3>
+    <p>Small end-suction centrifugal pumps typically run 50–70% efficient; larger, well-matched centrifugal pumps 70–85%; positive displacement pumps often 85–95%. Always use the manufacturer's certified curve at the actual duty point once one is available — assumed efficiency is only for preliminary sizing.</p>
+    <h3>How do I convert head in kPa or bar to metres?</h3>
+    <p>H(m) = P(kPa) × 101.97 / (1000 × SG), or H(m) = P(bar) × 10197 / (1000 × SG). This calculator does that conversion automatically when you select kPa or bar as the head unit.</p>
+    <h3>Should I include a motor service factor margin?</h3>
+    <p>This calculator gives the calculated duty-point power only. Standard practice adds a margin (commonly 10–20%, or per API 610 sizing tables for centrifugal process pumps) before selecting the nameplate motor rating.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Related mechanical calculators</h2>
+    <div class="related">
+      <a href="https://www.multicalci.com/pipe-velocity-calculator">Pipe Velocity / Sizing Calculator</a>
+      <a href="https://www.multicalci.com/pipe-weight-calculator">Pipe Weight Calculator</a>
+      <a href="https://www.multicalci.com/pipe-volume-calculator">Pipe Volume Calculator</a>
+      <a href="https://www.multicalci.com/lmtd-calculator">LMTD Calculator</a>
+    </div>
+  </div>
+
+  <footer class="note">
+    Results are estimates for preliminary engineering only. Confirm against the manufacturer's certified pump curve, motor datasheet and applicable API 610 / plant sizing standard before procurement.
+    <br><a href="https://www.multicalci.com/mechanical-engineering-calculators">← All mechanical engineering calculators</a> · <a href="https://www.multicalci.com/">multicalci.com</a>
+  </footer>
+</main>
+
+<script>
+function toM3s(q, unit){
+  if(unit==='m3s') return q;
+  if(unit==='m3h') return q/3600;
+  if(unit==='lps') return q/1000;
+  if(unit==='lpm') return q/60000;
+  if(unit==='gpm') return q*0.0000630902;
+  if(unit==='ukgpm') return q*0.00007576682;
+  if(unit==='cfm') return q*0.000471947;
+  return q;
+}
+function toMetres(h, unit, sg){
+  if(unit==='m') return h;
+  if(unit==='ft') return h*0.3048;
+  if(unit==='kpa') return h*101.97/(1000*sg);
+  if(unit==='bar') return h*10197/(1000*sg);
+  if(unit==='mpa') return h*101972/(1000*sg);
+  if(unit==='psi') return h*0.702829/sg; // 1 psi ≈ 0.702829 m water column at SG 1 (6894.757 Pa / (9.81*1000))
+  if(unit==='kgcm2') return h*10/sg;
+  return h;
+}
+function calc(){
+  const Qraw = parseFloat(document.getElementById('flow').value);
+  const Hraw = parseFloat(document.getElementById('head').value);
+  const sg = parseFloat(document.getElementById('sg').value);
+  const effPump = parseFloat(document.getElementById('effPump').value)/100;
+  const effMotor = parseFloat(document.getElementById('effMotor').value)/100;
+  const effDrive = parseFloat(document.getElementById('effDrive').value)/100;
+
+  if(!Qraw || !Hraw || !sg || effPump<=0 || effMotor<=0 || effDrive<=0){
+    alert('Enter valid, positive values for all fields.'); return;
+  }
+
+  const Qm3s = toM3s(Qraw, document.getElementById('flowUnit').value);
+  const Hm = toMetres(Hraw, document.getElementById('headUnit').value, sg);
+  const rho = 1000*sg;
+  const g = 9.81;
+
+  const Ph = rho*g*Qm3s*Hm/1000;         // kW
+  const Pb = Ph/effPump;                  // kW
+  const Pm = Pb/(effMotor*effDrive);      // kW
+
+  const kwToHp = 1.34102;
+
+  document.getElementById('rHyd').textContent = Ph.toFixed(2)+' kW';
+  document.getElementById('rBrake').textContent = Pb.toFixed(2)+' kW';
+  document.getElementById('rMotor').textContent = Pm.toFixed(2)+' kW';
+  document.getElementById('rHydHp').textContent = (Ph*kwToHp).toFixed(2)+' hp';
+  document.getElementById('rBrakeHp').textContent = (Pb*kwToHp).toFixed(2)+' hp';
+  document.getElementById('rMotorHp').textContent = (Pm*kwToHp).toFixed(2)+' hp';
+  document.getElementById('results').classList.add('show');
+}
+</script>
+</body>
+</html>
