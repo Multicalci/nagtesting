@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0">
+<title>Loop Power Supply Calculator — 4-20mA Component Load Budget | multicalci.com</title>
+<meta name="description" content="Free loop power supply calculator. Budget AI card, isolator, IS barrier and cable resistances against supply voltage to check 4-20mA transmitter headroom.">
+<link rel="canonical" href="https://www.multicalci.com/loop-power-supply-calculator">
+<meta property="og:title" content="Loop Power Supply Calculator — 4-20mA Component Load Budget | multicalci.com">
+<meta property="og:description" content="Budget AI card, isolator, IS barrier and cable resistances against supply voltage to check 4-20mA transmitter headroom.">
+<meta property="og:url" content="https://www.multicalci.com/loop-power-supply-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Loop Power Supply Calculator — 4-20mA Component Load Budget | multicalci.com">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="robots" content="index, follow">
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Loop Power Supply Calculator","description":"4-20mA loop power budget calculator summing AI card, isolator, IS barrier, cable and other component resistances against supply voltage to check transmitter headroom at 20 mA and 22 mA.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/loop-power-supply-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},
+{"@type":"ListItem","position":2,"name":"Instrumentation Calculators","item":"https://www.multicalci.com/instrumentation-calculators"},
+{"@type":"ListItem","position":3,"name":"Loop Power Supply Calculator","item":"https://www.multicalci.com/loop-power-supply-calculator"}
+]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What is a loop power supply calculation?","acceptedAnswer":{"@type":"Answer","text":"Every component wired in series on a 4-20 mA loop \u2014 the analog input card, an isolator, an intrinsic-safety barrier, cable, and any other burden \u2014 adds resistance that drops voltage as current flows. This calculator sums those component resistances into a total load, then checks whether the supply voltage still leaves enough headroom for the transmitter to operate at 20 mA and at the 22 mA HART diagnostic peak."}},
+{"@type":"Question","name":"What resistance values go into the AI card, isolator, and barrier fields?","acceptedAnswer":{"@type":"Answer","text":"Use the input impedance figures from each device's datasheet: a typical PLC or DCS analog input card is around 250 \u03a9, signal isolators commonly run 250\u2013300 \u03a9, and Zener or galvanic IS barriers vary by model but are often in the 300\u2013600 \u03a9 range. Leave a field at 0 if that component isn't in your loop."}},
+{"@type":"Question","name":"Why does the calculator check maximum load at 22 mA as well as 20 mA?","acceptedAnswer":{"@type":"Answer","text":"Smart (HART) transmitters can briefly drive up to 22-24 mA during diagnostics or alarm conditions, above the nominal 20 mA full-scale signal. A component budget that just clears headroom at 20 mA can still collapse when the transmitter signals a diagnostic fault at 22 mA \u2014 the maximum allowable load at 22 mA is always lower than at 20 mA, so both are checked."}},
+{"@type":"Question","name":"How is this different from the Instrument Loop Calculator?","acceptedAnswer":{"@type":"Answer","text":"This calculator works from a component budget \u2014 the fixed resistances of an AI card, isolator, barrier and other devices you already know from datasheets. The Instrument Loop Calculator instead derives cable resistance from physical properties \u2014 length, cross-sectional area, and temperature \u2014 for the cable-run part of the same headroom question."}},
+{"@type":"Question","name":"What's a safe supply voltage margin for an intrinsically safe loop?","acceptedAnswer":{"@type":"Answer","text":"Industrial practice is to size the supply at least 1.3 times the transmitter's minimum operating voltage plus the loop's voltage drop at 20 mA, rather than the bare minimum. That margin absorbs supply sag, connector and terminal resistance, and any components added to the loop later without pushing headroom negative."}}
+]}
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="topbar-logo">multicalci.com</a>
+    <nav class="topbar-nav">
+      <a href="/instrumentation-calculators">Instrumentation</a>
+      <a href="/mechanical-engineering-calculators">Mechanical</a>
+      <a href="/electrical-engineering-calculators">Electrical</a>
+      <a href="/civil-engineering-calculators">Civil</a>
+    </nav>
+  </div>
+
+  <div class="crumb">
+    <a href="/">Home</a> &rsaquo; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &rsaquo; Loop Power Supply Calculator
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Instrumentation &middot; Loop Integrity</div>
+    <h1>Loop Power Supply Calculator</h1>
+    <p>Budget AI card, isolator, IS barrier, cable and other component resistances against your supply voltage to check 4-20&nbsp;mA transmitter headroom at 20&nbsp;mA and the 22&nbsp;mA HART diagnostic peak.</p>
+    <div class="stdref">4-20 mA &middot; HART</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9889;</span><span class="card-hd-ttl">Loop Load Analyzer</span></div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="lla-supply">Supply voltage (V)</label>
+          <input type="number" id="lla-supply" value="24" step="0.1" required>
+        </div>
+        <div class="field">
+          <label for="lla-txmin">Transmitter min voltage (V)</label>
+          <input type="number" id="lla-txmin" value="12" step="0.1" required>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="lla-ai">AI card (&Omega;)</label>
+          <input type="number" id="lla-ai" value="250" step="1" min="0" placeholder="250">
+        </div>
+        <div class="field">
+          <label for="lla-iso">Isolator (&Omega;)</label>
+          <input type="number" id="lla-iso" value="0" step="1" min="0" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="lla-barrier">IS barrier (&Omega;)</label>
+          <input type="number" id="lla-barrier" value="0" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="lla-cable">Cable resistance (&Omega;)</label>
+          <input type="number" id="lla-cable" value="0" step="0.1" min="0" placeholder="e.g. 20">
+        </div>
+        <div class="field">
+          <label for="lla-other">Other loads (&Omega;)</label>
+          <input type="number" id="lla-other" value="0" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <div id="lla-err" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button class="btn-calc" onclick="calculate()">Calculate</button>
+        <button class="btn-pdf" id="pdfBtn" disabled onclick="downloadPDF()">Download PDF report</button>
+        <button class="btn-share" id="shareBtn" onclick="shareCalc()">Share</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="rc-empty">Enter values and press Calculate to see the loop power budget.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card wex">
+    <div class="wex-hd">Worked example</div>
+    <div class="card-bd">
+      <p>A transmitter loop has a <strong>24 V</strong> supply, a <strong>12 V</strong> minimum transmitter voltage, and a single <strong>250 &Omega;</strong> DCS analog input card &mdash; no isolator, barrier, or extra cable resistance.</p>
+      <div class="ans">
+        Total load = 250 &Omega; &rarr; Max allowable = 600 &Omega; &rarr; V at Tx = 19 V &rarr; Headroom = <strong>7.000 V &mdash; PASS</strong> (41.7% of budget used)
+      </div>
+      <p>The form above is pre-filled with these exact numbers — press Calculate to reproduce this result, or change the inputs for your own loop.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#8721;</span><span class="card-hd-ttl">Formula &amp; variable legend</span></div>
+    <div class="card-bd">
+      <div class="fbox">R<sub>total</sub> = R<sub>AI</sub> + R<sub>iso</sub> + R<sub>barrier</sub> + R<sub>cable</sub> + R<sub>other</sub></div>
+      <div class="fbox">R<sub>max</sub> = (V<sub>supply</sub> &minus; V<sub>Tx,min</sub>) / I</div>
+      <div class="fbox">V<sub>Tx</sub> = V<sub>supply</sub> &minus; R<sub>total</sub> &times; I</div>
+      <div class="fbox">Headroom = V<sub>Tx</sub> &minus; V<sub>Tx,min</sub></div>
+      <div class="legend">
+        <div><strong>R<sub>AI</sub>, R<sub>iso</sub>, R<sub>barrier</sub>, R<sub>cable</sub>, R<sub>other</sub></strong> — component resistances, &Omega;, from device datasheets</div>
+        <div><strong>I</strong> — loop current: 0.020 A worst-case, 0.022 A at HART diagnostic peak</div>
+        <div><strong>R<sub>max</sub></strong> — maximum total load the supply can drive at the given current</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#128203;</span><span class="card-hd-ttl">Accepted inputs</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Field</th><th>Accepted range</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Supply voltage</td><td>&gt; 0</td><td>V</td></tr>
+          <tr><td>Transmitter min voltage</td><td>&gt; 0, &lt; supply</td><td>V</td></tr>
+          <tr><td>AI card / Isolator / Barrier / Cable / Other</td><td>&ge; 0 (each optional)</td><td>&Omega;, defaults to 0 if left blank</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="card-hd-ico">&#9888;</span><span class="card-hd-ttl">Headroom status examples</span></div>
+    <div class="card-bd tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Load budget</th><th>Total load</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>AI card only</td><td>250 &Omega;</td><td class="badge tone-grn">PASS at 20 mA and 22 mA (7.0 V headroom)</td></tr>
+          <tr><td>AI + isolator + barrier + cable</td><td>600 &Omega;</td><td class="badge tone-amb">PASSES 20 mA (0.0 V), FAILS 22 mA diagnostic</td></tr>
+          <tr><td>AI + isolator + barrier + cable</td><td>870 &Omega;</td><td class="badge tone-red">FAILS at 20 mA (&minus;5.4 V)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="faq">
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>What is a loop power supply calculation?</summary>
+      <div class="faq-a">Every component wired in series on a 4-20 mA loop — the analog input card, an isolator, an intrinsic-safety barrier, cable, and any other burden — adds resistance that drops voltage as current flows. This calculator sums those component resistances into a total load, then checks whether the supply voltage still leaves enough headroom for the transmitter to operate at 20 mA and at the 22 mA HART diagnostic peak.</div>
+    </details>
+    <details>
+      <summary>What resistance values go into the AI card, isolator, and barrier fields?</summary>
+      <div class="faq-a">Use the input impedance figures from each device's datasheet: a typical PLC or DCS analog input card is around 250 &Omega;, signal isolators commonly run 250&ndash;300 &Omega;, and Zener or galvanic IS barriers vary by model but are often in the 300&ndash;600 &Omega; range. Leave a field at 0 if that component isn't in your loop.</div>
+    </details>
+    <details>
+      <summary>Why does the calculator check maximum load at 22 mA as well as 20 mA?</summary>
+      <div class="faq-a">Smart (HART) transmitters can briefly drive up to 22-24 mA during diagnostics or alarm conditions, above the nominal 20 mA full-scale signal. A component budget that just clears headroom at 20 mA can still collapse when the transmitter signals a diagnostic fault at 22 mA — the maximum allowable load at 22 mA is always lower than at 20 mA, so both are checked.</div>
+    </details>
+    <details>
+      <summary>How is this different from the Instrument Loop Calculator?</summary>
+      <div class="faq-a">This calculator works from a component budget — the fixed resistances of an AI card, isolator, barrier and other devices you already know from datasheets. The Instrument Loop Calculator instead derives cable resistance from physical properties — length, cross-sectional area, and temperature — for the cable-run part of the same headroom question.</div>
+    </details>
+    <details>
+      <summary>What's a safe supply voltage margin for an intrinsically safe loop?</summary>
+      <div class="faq-a">Industrial practice is to size the supply at least 1.3 times the transmitter's minimum operating voltage plus the loop's voltage drop at 20 mA, rather than the bare minimum. That margin absorbs supply sag, connector and terminal resistance, and any components added to the loop later without pushing headroom negative.</div>
+    </details>
+  </div>
+
+  <div class="related">
+    <h2>Related instrumentation calculators</h2>
+    <div class="related-grid">
+      <a class="hublink" href="/4-20ma-calculator">4-20mA Calculator</a>
+      <a class="hublink" href="/thermowell-calculator">Thermowell Calculator</a>
+      <a class="hublink" href="/instrument-loop-calculator">Instrument Loop Calculator</a>
+      <a class="hublink" href="/instrumentation-calculators#ts1">Square Root Extractor (DP flow)</a>
+    </div>
+    <a class="hublink" href="/instrumentation-calculators">&larr; Back to all Instrumentation Calculators</a>
+  </div>
+
+  <div class="foot">
+    Loop Power Supply Calculator &nbsp;|&nbsp; <a href="/instrumentation-calculators">Instrumentation Calculators</a> &nbsp;|&nbsp; multicalci.com
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+const API_TOOL = 'lla';
+
+function clearResults() {
+  set('results', '<div class="rc-empty">Enter values and press Calculate to see the loop power budget.</div>');
+  $('pdfBtn').disabled = true;
+  hideErr();
+}
+
+function hideErr() { $('lla-err').style.display = 'none'; }
+function showErr(msg) { const e = $('lla-err'); e.textContent = msg; e.style.display = 'block'; }
+
+function validateInputs(supply, txmin) {
+  if (isNaN(supply) || isNaN(txmin)) return 'Enter supply and Tx min voltages';
+  if (supply <= 0) return 'Supply voltage must be > 0';
+  if (txmin  <= 0) return 'Transmitter min voltage must be > 0';
+  if (txmin >= supply) return 'Tx min voltage must be less than supply voltage';
+  return null;
+}
+
+let lastResult = null, lastInputs = null;
+
+function toneForHeadroom(h) {
+  if (h < 0) return 'red';
+  if (h < 2) return 'amb';
+  return 'grn';
+}
+
+function renderCards(r) {
+  const tone20 = toneForHeadroom(r.headroom);
+  const tone22 = toneForHeadroom(r.headroom_diag);
+  const loadTone = parseFloat(r.usedPct) < 80 ? 'grn' : 'amb';
+  let html = '';
+  html += `<div class="rc c-${tone20} sp2"><div class="rl">Headroom @ 20 mA</div><div class="rv big">${r.headroom} V</div><div class="rsub">V at Tx: ${r.vAtTx} V</div></div>`;
+  html += `<div class="rc c-${tone22}"><div class="rl">Headroom @ 22 mA (diagnostic)</div><div class="rv">${r.headroom_diag} V</div></div>`;
+  html += `<div class="rc c-blu"><div class="rl">Total load</div><div class="rv">${r.total} &Omega;</div></div>`;
+  html += `<div class="rc c-cyn"><div class="rl">Max allowable @ 20 mA</div><div class="rv">${r.maxLoad} &Omega;</div></div>`;
+  html += `<div class="rc c-cyn"><div class="rl">Max allowable @ 22 mA</div><div class="rv">${r.maxLoad_diag} &Omega;</div></div>`;
+  html += `<div class="rc c-${loadTone}"><div class="rl">Budget used</div><div class="rv">${r.usedPct}%</div></div>`;
+  set('results', html);
+
+  if (r.warns && r.warns.length) {
+    html += `<div class="note">${r.warns.map(w => esc(w)).join('<br><br>')}</div>`;
+    set('results', html);
+  }
+}
+
+async function calculate() {
+  hideErr();
+  const supply  = gv('lla-supply');
+  const txmin   = gv('lla-txmin');
+  const ai      = gv('lla-ai');
+  const iso     = gv('lla-iso');
+  const barrier = gv('lla-barrier');
+  const cable   = gv('lla-cable');
+  const other   = gv('lla-other');
+
+  const errMsg = validateInputs(supply, txmin);
+  if (errMsg) { showErr(errMsg); $('pdfBtn').disabled = true; return; }
+
+  setLoading('results');
+  try {
+    const inputs = { supply, txmin, ai, iso, barrier, cable, other };
+    const r = await MC.api.instrumentation(API_TOOL, inputs);
+    lastResult = r;
+    lastInputs = inputs;
+    renderCards(r);
+    $('pdfBtn').disabled = false;
+  } catch (e) {
+    showError('results', e.message || 'Calculation failed');
+    $('pdfBtn').disabled = true;
+  }
+}
+
+function downloadPDF() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const rows = `
+    <tr><td>AI card</td><td>${r.ai} &Omega;</td></tr>
+    <tr><td>Isolator</td><td>${r.iso} &Omega;</td></tr>
+    <tr><td>IS barrier</td><td>${r.barrier} &Omega;</td></tr>
+    <tr><td>Cable resistance</td><td>${r.cable} &Omega;</td></tr>
+    <tr><td>Other loads</td><td>${r.other} &Omega;</td></tr>
+    <tr><td>Total load</td><td>${r.total} &Omega;</td></tr>
+    <tr><td>Max allowable @ 20 mA</td><td>${r.maxLoad} &Omega;</td></tr>
+    <tr><td>Max allowable @ 22 mA</td><td>${r.maxLoad_diag} &Omega;</td></tr>
+    <tr><td>Voltage at transmitter (20 mA)</td><td>${r.vAtTx} V</td></tr>
+    <tr><td>Headroom @ 20 mA</td><td>${r.headroom} V</td></tr>
+    <tr><td>Headroom @ 22 mA (diagnostic)</td><td>${r.headroom_diag} V</td></tr>
+    <tr><td>Budget used</td><td>${r.usedPct}%</td></tr>
+    <tr><td>Safe supply voltage (recommended)</td><td>&ge; ${r.vRequired_safe} V</td></tr>
+  `;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Loop Power Supply Calculation Report</title>
+  <style>
+    body{font-family:Arial,sans-serif;color:#0f2044;padding:32px;}
+    h1{font-size:20px;border-bottom:3px solid #0f2044;padding-bottom:8px;}
+    table{border-collapse:collapse;width:100%;margin-top:16px;}
+    td{padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;}
+    td:first-child{color:#555;width:45%;}
+    .foot{margin-top:24px;font-size:11px;color:#888;}
+  <\/style></head><body>
+    <h1>Loop Power Supply Calculator Report \u2014 multicalci.com</h1>
+    <table>${rows}</table>
+    <div class="foot">Generated by multicalci.com/loop-power-supply-calculator</div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
+function shareCalc() {
+  if (!lastInputs) return;
+  const params = new URLSearchParams(lastInputs);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Loop Power Supply Calculator result', url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = $('shareBtn');
+      const orig = btn.textContent;
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+}
+
+function loadFromQuery() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('supply')) return false;
+  if (p.has('supply'))  $('lla-supply').value  = p.get('supply');
+  if (p.has('txmin'))   $('lla-txmin').value   = p.get('txmin');
+  if (p.has('ai'))      $('lla-ai').value      = p.get('ai');
+  if (p.has('iso'))     $('lla-iso').value     = p.get('iso');
+  if (p.has('barrier')) $('lla-barrier').value = p.get('barrier');
+  if (p.has('cable'))   $('lla-cable').value   = p.get('cable');
+  if (p.has('other'))   $('lla-other').value   = p.get('other');
+  return true;
+}
+
+ready(() => {
+  loadFromQuery();
+  calculate();
+  enterToCalc(['lla-supply', 'lla-txmin', 'lla-ai', 'lla-iso', 'lla-barrier', 'lla-cable', 'lla-other'], calculate);
+});
+</script>
+</body>
+</html>
