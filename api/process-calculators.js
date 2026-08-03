@@ -1595,8 +1595,13 @@ function computeCd_ISO(Re, beta, tapType, D_mm) {
 }
 
   const M2 = 2 * L2 / (1 - b);
-  Cd += (0.0390 - 0.0337 * Math.pow(b,7)) * L1 * b4 / (1 - 4*b4);
-  Cd -= 0.0116 * M2 * Math.pow(b, 1.3) * Math.pow(1 - 0.23*Math.pow(b, 5.5), -1) * (1 - 0.14*A);
+
+  // FIX 2026-08: tap-correction terms restored to ISO 5167-2 Clause 5.3.2.1.
+  // The previous expressions were not the RHG tap terms and carried a
+  // (1 - 4*b4) denominator; error reached +8.3% at beta 0.70 and -7.1% at 0.75.
+  Cd += (0.043 + 0.080 * Math.exp(-10 * L1) - 0.123 * Math.exp(-7 * L1))
+        * (1 - 0.11 * A) * b4 / (1 - b4);
+  Cd -= 0.031 * (M2 - 0.8 * Math.pow(M2, 1.1)) * Math.pow(b, 1.3);
 
   // Small pipe correction
   if ((D_mm || 100) < 71.12) {
@@ -1707,6 +1712,20 @@ function waterPsat_Pa(T_K) {
 function waterLiquidViscosity(T_K) {
   const mu = 2.414e-5 * Math.pow(10, 247.8 / Math.max(T_K - 140, 10));
   return Math.max(5e-5, Math.min(2e-3, mu));
+}
+
+// ── LIQUID VISCOSITY ─ Andrade / Vogel ────────────────────────
+// FIX 2026-08: liquids previously used a fixed user-entered mu (default 1e-3
+// Pa·s = water @20 °C) regardless of temperature. Reynolds number was therefore
+// wrong by up to ~3x on hot service, which corrupts Cd and the Re-range check.
+//   Water            → Vogel correlation (waterLiquidViscosity)
+//   Other liquids    → Andrade:  log10(mu_cP) = mu_A + mu_B / T_K
+function liquidViscosity(f, T_K) {
+  if (!f || f.t !== 'l') return null;
+  if (f.rhoModel === 'poly_water') return waterLiquidViscosity(T_K);
+  if (f.mu_A === undefined || f.mu_B === undefined) return null;
+  const mu_cP = Math.pow(10, f.mu_A + f.mu_B / Math.max(T_K, 100));
+  return Math.max(5e-5, Math.min(50, mu_cP * 1e-3));   // Pa·s, clamped
 }
 
 // ── SUTHERLAND VISCOSITY ──────────────────────────────────────────────
@@ -1846,35 +1865,35 @@ const FLUID_DB_orifice = {
 // ── Liquids ── rho0=kg/m³ at T0°C, beta_T=thermal expansion coefficient /°C
   // ρ(T) = rho0 / (1 + beta_T*(T - T0));  Tb_C = normal boiling point (mixtures: IBP, conservative)
   'Water':             {t:'l', rhoModel:'poly_water'},
-  'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4,  Tb_C:100.6},
-  'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4,  Tb_C:35},
-  'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4,  Tb_C:180},
-  'Kerosene':          {t:'l', rho0:800.0,  T0:15, beta_T:8.0e-4,  Tb_C:150},
-  'Gasoline':          {t:'l', rho0:720.0,  T0:15, beta_T:9.5e-4,  Tb_C:35},
-  'Methanol':          {t:'l', rho0:791.0,  T0:20, beta_T:1.19e-3, Tb_C:64.7},
-  'Ethanol':           {t:'l', rho0:789.0,  T0:20, beta_T:1.08e-3, Tb_C:78.4},
-  'Toluene':           {t:'l', rho0:867.0,  T0:20, beta_T:1.07e-3, Tb_C:110.6},
-  'Benzene':           {t:'l', rho0:879.0,  T0:20, beta_T:1.21e-3, Tb_C:80.1},
-  'Acetone':           {t:'l', rho0:791.0,  T0:20, beta_T:1.46e-3, Tb_C:56.1},
-  'Sulfuric Acid 98%': {t:'l', rho0:1836.0, T0:20, beta_T:5.5e-4,  Tb_C:310},
-  'HCl 32%':           {t:'l', rho0:1157.0, T0:20, beta_T:4.5e-4,  Tb_C:84},
-  'NaOH 50%':          {t:'l', rho0:1525.0, T0:20, beta_T:5.0e-4,  Tb_C:145},
-  'MEA':               {t:'l', rho0:1018.0, T0:20, beta_T:8.0e-4,  Tb_C:170},
-  'Glycerol':          {t:'l', rho0:1261.0, T0:20, beta_T:5.0e-4,  Tb_C:290},
-  'Ethylene Glycol':   {t:'l', rho0:1113.0, T0:20, beta_T:6.0e-4,  Tb_C:197.3},
+  'Seawater':          {t:'l', rho0:1025.0, T0:20, beta_T:2.0e-4,  Tb_C:100.6, mu_A:-2.5055, mu_B:744.3},
+  'Crude Oil (30API)': {t:'l', rho0:876.0,  T0:15, beta_T:7.0e-4,  Tb_C:35, mu_A:-2.5436, mu_B:1038.8},
+  'Diesel / Gas Oil':  {t:'l', rho0:840.0,  T0:15, beta_T:7.0e-4,  Tb_C:180, mu_A:-3.0383, mu_B:1050.2},
+  'Kerosene':          {t:'l', rho0:800.0,  T0:15, beta_T:8.0e-4,  Tb_C:150, mu_A:-2.0838, mu_B:670.7},
+  'Gasoline':          {t:'l', rho0:720.0,  T0:15, beta_T:9.5e-4,  Tb_C:35, mu_A:-1.7926, mu_B:449.4},
+  'Methanol':          {t:'l', rho0:791.0,  T0:20, beta_T:1.19e-3, Tb_C:64.7, mu_A:-2.123, mu_B:556.0},
+  'Ethanol':           {t:'l', rho0:789.0,  T0:20, beta_T:1.08e-3, Tb_C:78.4, mu_A:-2.4423, mu_B:739.2},
+  'Toluene':           {t:'l', rho0:867.0,  T0:20, beta_T:1.07e-3, Tb_C:110.6, mu_A:-1.8205, mu_B:466.5},
+  'Benzene':           {t:'l', rho0:879.0,  T0:20, beta_T:1.21e-3, Tb_C:80.1, mu_A:-2.0446, mu_B:544.9},
+  'Acetone':           {t:'l', rho0:791.0,  T0:20, beta_T:1.46e-3, Tb_C:56.1, mu_A:-1.7779, mu_B:377.7},
+  'Sulfuric Acid 98%': {t:'l', rho0:1836.0, T0:20, beta_T:5.5e-4,  Tb_C:310, mu_A:-2.6592, mu_B:1186.8},
+  'HCl 32%':           {t:'l', rho0:1157.0, T0:20, beta_T:4.5e-4,  Tb_C:84, mu_A:-2.2519, mu_B:735.0},
+  'NaOH 50%':          {t:'l', rho0:1525.0, T0:20, beta_T:5.0e-4,  Tb_C:145, mu_A:-3.8379, mu_B:1679.7},
+  'MEA':               {t:'l', rho0:1018.0, T0:20, beta_T:8.0e-4,  Tb_C:170, mu_A:-3.6342, mu_B:1470.0},
+  'Glycerol':          {t:'l', rho0:1261.0, T0:20, beta_T:5.0e-4,  Tb_C:290, mu_A:-7.1891, mu_B:3030.8},
+  'Ethylene Glycol':   {t:'l', rho0:1113.0, T0:20, beta_T:6.0e-4,  Tb_C:197.3, mu_A:-4.039, mu_B:1571.0},
   // Liquefied gases: ant=[A,B,C] Antoine (log10 P_mmHg, T °C) — used for Pv since T ≫ Tb
-  'Ammonia (liquid)':  {t:'l', rho0:610.0,  T0:20, beta_T:2.4e-3,  Tb_C:-33.3, ant:[7.36050, 926.132, 240.17]},
-  'Propane (liquid)':  {t:'l', rho0:500.0,  T0:20, beta_T:3.0e-3,  Tb_C:-42.1, ant:[6.80338, 803.810, 246.99]},
-  'Butane (liquid)':   {t:'l', rho0:579.0,  T0:20, beta_T:2.0e-3,  Tb_C:-0.5,  ant:[6.80896, 935.860, 238.73]},
-  'Naphtha':           {t:'l', rho0:700.0,  T0:15, beta_T:1.0e-3,  Tb_C:35},
-  'Condensate (HC)':   {t:'l', rho0:750.0,  T0:15, beta_T:9.0e-4,  Tb_C:30},
-  'Fuel Oil (HFO)':    {t:'l', rho0:985.0,  T0:15, beta_T:6.4e-4,  Tb_C:250},
-  'Lube Oil (VG46)':   {t:'l', rho0:870.0,  T0:15, beta_T:7.0e-4,  Tb_C:300},
-  'Aqua Ammonia 25%':  {t:'l', rho0:907.0,  T0:20, beta_T:6.0e-4,  Tb_C:38},
-  'Urea Solution 32.5%':{t:'l',rho0:1090.0, T0:20, beta_T:4.0e-4,  Tb_C:104},
-  'MDEA 50%':          {t:'l', rho0:1040.0, T0:20, beta_T:6.0e-4,  Tb_C:110},
-  'Hot Pot. Carbonate 30%':{t:'l',rho0:1270.0,T0:20,beta_T:4.5e-4, Tb_C:105},
-  'Nitric Acid 60%':   {t:'l', rho0:1367.0, T0:20, beta_T:6.0e-4,  Tb_C:120},
+  'Ammonia (liquid)':  {t:'l', rho0:610.0,  T0:20, beta_T:2.4e-3,  Tb_C:-33.3, ant:[7.36050, 926.132, 240.17], mu_A:-1.8363, mu_B:298.5},
+  'Propane (liquid)':  {t:'l', rho0:500.0,  T0:20, beta_T:3.0e-3,  Tb_C:-42.1, ant:[6.80338, 803.810, 246.99], mu_A:-2.1638, mu_B:338.6},
+  'Butane (liquid)':   {t:'l', rho0:579.0,  T0:20, beta_T:2.0e-3,  Tb_C:-0.5,  ant:[6.80896, 935.860, 238.73], mu_A:-2.1784, mu_B:405.3},
+  'Naphtha':           {t:'l', rho0:700.0,  T0:15, beta_T:1.0e-3,  Tb_C:35, mu_A:-1.6885, mu_B:429.9},
+  'Condensate (HC)':   {t:'l', rho0:750.0,  T0:15, beta_T:9.0e-4,  Tb_C:30, mu_A:-1.7531, mu_B:468.5},
+  'Fuel Oil (HFO)':    {t:'l', rho0:985.0,  T0:15, beta_T:6.4e-4,  Tb_C:250, mu_A:-5.7146, mu_B:2678.1},
+  'Lube Oil (VG46)':   {t:'l', rho0:870.0,  T0:15, beta_T:7.0e-4,  Tb_C:300, mu_A:-3.6605, mu_B:1648.0},
+  'Aqua Ammonia 25%':  {t:'l', rho0:907.0,  T0:20, beta_T:6.0e-4,  Tb_C:38, mu_A:-2.9975, mu_B:912.1},
+  'Urea Solution 32.5%':{t:'l',rho0:1090.0, T0:20, beta_T:4.0e-4,  Tb_C:104, mu_A:-2.9187, mu_B:898.4},
+  'MDEA 50%':          {t:'l', rho0:1040.0, T0:20, beta_T:6.0e-4,  Tb_C:110, mu_A:-4.1989, mu_B:1483.9},
+  'Hot Pot. Carbonate 30%':{t:'l',rho0:1270.0,T0:20,beta_T:4.5e-4, Tb_C:105, mu_A:-2.6796, mu_B:902.2},
+  'Nitric Acid 60%':   {t:'l', rho0:1367.0, T0:20, beta_T:6.0e-4,  Tb_C:120, mu_A:-2.6308, mu_B:852.9},
 };
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1943,7 +1962,10 @@ function calculate(params) {
       // Fallback: SG is dimensionless, multiply by water reference density (1000 kg/m³)
       rho_op = Math.max(100, Math.min(1500, sg * 1000));
     }
-    mu     = mu_input;
+    // FIX 2026-08: temperature-dependent liquid viscosity (was: fixed mu_input)
+    const mu_liq = liquidViscosity(f_liq, T_K);
+    if (mu_liq != null) { mu = mu_liq; mu_auto = mu_liq; }
+    else                { mu = mu_input; }
     Z_used = 1;
   } else {
     // Gas
@@ -2305,12 +2327,21 @@ async function orificeFlow_handler(req, res) {
         mu_out = sres.mu;
       } else if (cat === 'liquid') {
         const f = FLUID_DB_orifice[fluidKey] || null;
-        if (f?.t === 'l' && f.rho0 && f.beta_T !== undefined) {
+        if (f?.t === 'l' && f.rhoModel === 'poly_water') {
+          // FIX 2026-08: water now uses the same IF97 polynomial as calculate();
+          // it previously fell through to sg*1000 and reported a flat 1000 kg/m³.
+          const T = Math.max(0, Math.min(360, T_c));
+          const T2 = T*T, T3 = T2*T, T4 = T3*T, T5 = T4*T, T6 = T5*T;
+          rho = -3.430583e-12*T6 + 3.305509e-09*T5 - 1.216454e-06*T4
+                + 2.120305e-04*T3 - 2.009065e-02*T2 + 4.039409e-01*T + 998.117618;
+          rho = Math.max(100, Math.min(1005, rho));
+        } else if (f?.t === 'l' && f.rho0 && f.beta_T !== undefined) {
           rho = f.rho0 / (1 + f.beta_T * (T_c - f.T0));
           rho = Math.max(100, rho);
         } else {
           rho = sg_input * 1000;
         }
+        mu_out = liquidViscosity(f, T_K);   // FIX 2026-08
       } else {
         // Gas
         const f = FLUID_DB_orifice[fluidKey] || null;
