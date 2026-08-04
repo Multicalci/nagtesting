@@ -1042,7 +1042,7 @@ async function npsh_handler(req, res) {
 
 const CT_ALLOWED_ORIGINS = [
   'https://www.multicalci.com',
-  'https://www.multicalci.com'
+  'https://multicalci.com'
 ];
 
 function coolingTower_handler(req, res) {
@@ -1289,15 +1289,34 @@ function ct_kavl(cwt_C, hwt_C, wb_C, P_kPa, method) {
 // KaV/L that varied from 0.90 to 5.05 for the same tower — the tower
 // characteristic is supposed to be constant along that sweep.
 
+// Saturation temperature at a given pressure (inverse of ct_psat_kPa).
+// Needed because the upper search bracket must stay below the site boiling
+// point — at 1600 m (83.5 kPa) water boils at 94.7 C, so a hard-coded 95 C
+// bracket evaluated the integrand above saturation and the solver wrongly
+// reported the duty as unreachable.
+function ct_Tsat_C(P_kPa) {
+  let lo = 0, hi = 200;
+  for (let i = 0; i < 120; i++) {
+    const m = (lo + hi) / 2;
+    const p = ct_psat_kPa(m);
+    if (!isFinite(p) || p < P_kPa) lo = m; else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
 function ct_solveCWT_fixedRange(target_kavl, range_C, wb_C, P_kPa) {
   if (!(target_kavl > 0) || !isFinite(target_kavl)) return { cwt: null, converged: false };
-  let lo = wb_C + 1e-5;   // KaV/L → ∞ here
-  let hi = 95;            // KaV/L → small here
-  if (hi <= lo) return { cwt: null, converged: false };
 
+  const Tsat = ct_Tsat_C(P_kPa);
+  let lo = wb_C + 1e-5;                       // KaV/L -> infinity here
+  let hi = Math.min(90, Tsat - range_C - 1);  // hot end must stay sub-saturation
+  if (!(hi > lo)) return { cwt: null, converged: false };
+
+  // null means the hot end went above saturation -> treat as "too hot", not
+  // as an infinite Merkel number.
   const K = c => {
     const v = ct_kavl_exact(c, c + range_C, wb_C, P_kPa);
-    return v === null ? Infinity : v;
+    return v === null ? -Infinity : v;
   };
   if (K(hi) > target_kavl) return { cwt: null, converged: false }; // unreachable
 
@@ -1308,7 +1327,7 @@ function ct_solveCWT_fixedRange(target_kavl, range_C, wb_C, P_kPa) {
   }
   const cwt = (lo + hi) / 2;
   const k = K(cwt);
-  const converged = isFinite(k) && Math.abs(k - target_kavl) / target_kavl < 1e-4;
+  const converged = isFinite(k) && k > 0 && Math.abs(k - target_kavl) / target_kavl < 1e-4;
   return { cwt, converged };
 }
 
@@ -1771,6 +1790,7 @@ function runPredictCWT(p) {
 }
 
 // ── End of Section C: Cooling Tower (v2) ─────────────────────────────────────
+
 
 
 
