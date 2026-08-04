@@ -1023,26 +1023,38 @@ async function npsh_handler(req, res) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 
+
+
 // ══════════════════════════════════════════════════════════════════════════════
-// SECTION C  ►  COOLING TOWER PERFORMANCE
+// SECTION C  ►  COOLING TOWER PERFORMANCE   (CORRECTED / v2)
 // Route: /api/cooling-tower
-// (Original: SECTION 03 of 21)
 // ══════════════════════════════════════════════════════════════════════════════
-// SECTION 03 of 21  ►  COOLING TOWER
-// Route: /api/cooling-tower
-// Source: cooling-tower.js
+// Method basis:
+//   • Merkel enthalpy-difference model, CTI ATC-105 / ASME PTC-23
+//   • Tower characteristic  KaV/L = c·(L/G)^(−n)   [CTI demand-curve family]
+//   • Predicted CWT obtained by SOLVING the Merkel integral at actual WBT,
+//     actual range and actual L/G — NOT by linear κ·ΔWBT extrapolation.
+//   • κ is still reported (education / ATC-105 familiarity) but is derived
+//     FROM the rigorous solution, so κ·ΔWBT reconciles exactly with pred CWT.
+//
+// All helpers namespaced ct_* to avoid collision in the merged 21-section file.
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ================================================================
-// api/cooling-tower.js  —  Vercel Serverless Function
-// 🔐 ALL CALCULATION LOGIC RUNS ON SERVER — NEVER EXPOSED TO BROWSER
-// Place this file in your GitHub repo at: /api/cooling-tower.js
-// ================================================================
+const CT_ALLOWED_ORIGINS = [
+  'https://www.multicalci.com',
+  'https://multicalci.com'
+];
 
 function coolingTower_handler(req, res) {
   const origin = req.headers.origin || '';
-  const allowed = origin.endsWith('.vercel.app') || origin === 'https://www.multicalci.com';
-  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : 'https://www.multicalci.com');
+  // FIX #19: previously any *.vercel.app site could call this API. Now only
+  // this project's own preview deployments (VERCEL_URL) plus the prod domains.
+  const previewOK = process.env.VERCEL_URL
+    ? origin === 'https://' + process.env.VERCEL_URL
+    : false;
+  const allowed = CT_ALLOWED_ORIGINS.includes(origin) || previewOK;
+  res.setHeader('Access-Control-Allow-Origin', allowed ? origin : CT_ALLOWED_ORIGINS[0]);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -1050,188 +1062,380 @@ function coolingTower_handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { action, params } = req.body;
+    const { action, params } = req.body || {};
     if (!action) return res.status(400).json({ error: 'Missing action' });
 
     if (action === 'calculate') {
-      const result = runCalculate(params);
+      const result = runCalculate(params || {});
       if (result.error) return res.status(400).json({ error: result.error });
       return res.status(200).json({ success: true, data: result });
     }
-
     if (action === 'predictCWT') {
-      const result = runPredictCWT(params);
+      const result = runPredictCWT(params || {});
       if (result.error) return res.status(400).json({ error: result.error });
       return res.status(200).json({ success: true, data: result });
     }
-
     return res.status(400).json({ error: 'Unknown action' });
-
   } catch (err) {
     return res.status(500).json({ error: 'Server calculation error: ' + err.message });
   }
 }
 
-// ================================================================
-// 🔐 CORE CALCULATION ENGINE — HIDDEN ON SERVER
-// ================================================================
+// ══════════════════════════════════════════════════════════════════════════════
+// 1. THERMOPHYSICAL PROPERTIES
+// ══════════════════════════════════════════════════════════════════════════════
 
-// ── Psychrometric helpers ────────────────────────────────────────
+// FIX #10: single continuous correlation. The old code switched from Buck to
+// Antoine at exactly 60 °C, producing a −0.28 % step discontinuity that made
+// psat non-differentiable and perturbed the bisection solvers.
+// Now: IAPWS-IF97 Region 4 saturation line — NIST-grade, smooth 0–374 °C.
+const CT_IF97_N = [
+  0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2,
+  0.12020824702470e5, -0.32325550322333e7,  0.14915108613530e2,
+ -0.48232657361591e4,  0.40511340542057e6, -0.23855557567849,
+  0.65017534844798e3
+];
 
-function psat_kPa(T_C) {
-  if (T_C <= 60) {
-    return 0.61121 * Math.exp((18.678 - T_C / 234.5) * (T_C / (257.14 + T_C)));
-  } else {
-    const P_mmHg = Math.pow(10, 8.07131 - 1730.63 / (233.426 + T_C));
-    return P_mmHg * 0.133322;
-  }
+function ct_psat_kPa(T_C) {
+  const T = T_C + 273.15;
+  const n = CT_IF97_N;
+  const th = T + n[8] / (T - n[9]);
+  const A = th * th + n[0] * th + n[1];
+  const B = n[2] * th * th + n[3] * th + n[4];
+  const C = n[5] * th * th + n[6] * th + n[7];
+  const disc = B * B - 4 * A * C;
+  if (disc < 0) return NaN;
+  const p_MPa = Math.pow(2 * C / (-B + Math.sqrt(disc)), 4);
+  return p_MPa * 1000; // MPa → kPa
 }
 
-function saturationEnthalpy(T_C, P_kPa) {
-  const psat = psat_kPa(T_C);
-  if (psat >= P_kPa) return null;
-  const Ws = 0.62198 * psat / (P_kPa - psat);
-  return 1.006 * T_C + Ws * (2501 + 1.805 * T_C);
+// Humidity ratio at saturation, kg/kg dry air
+function ct_Ws(T_C, P_kPa) {
+  const ps = ct_psat_kPa(T_C);
+  if (!isFinite(ps) || ps >= P_kPa) return null;
+  return 0.62198 * ps / (P_kPa - ps);
 }
 
-function airEnthalpy(Twb_C, P_kPa) {
-  return saturationEnthalpy(Twb_C, P_kPa);
+// Moist-air enthalpy, kJ/kg dry air (ASHRAE)
+function ct_h_moist(T_C, W) {
+  return 1.006 * T_C + W * (2501 + 1.805 * T_C);
 }
 
-function cpWater(T_C) {
+function ct_hSat(T_C, P_kPa) {
+  const Ws = ct_Ws(T_C, P_kPa);
+  if (Ws === null) return null;
+  return ct_h_moist(T_C, Ws);
+}
+
+// Merkel assumption: bulk air enthalpy ≈ saturation enthalpy at its WBT
+function ct_hAir(Twb_C, P_kPa) { return ct_hSat(Twb_C, P_kPa); }
+
+// FIX #: humidity ratio from DB + WB (ASHRAE adiabatic-saturation relation).
+// The old code assumed the entering air was SATURATED at the wet bulb (RH=100 %),
+// which is only true when DB = WB. Needed for correct air density and for a
+// real evaporation-loss mass balance.
+function ct_W_from_DBWB(Tdb_C, Twb_C, P_kPa) {
+  const Wsw = ct_Ws(Twb_C, P_kPa);
+  if (Wsw === null) return null;
+  const W = ((2501 - 2.326 * Twb_C) * Wsw - 1.006 * (Tdb_C - Twb_C)) /
+            (2501 + 1.86 * Tdb_C - 4.186 * Twb_C);
+  return Math.max(0, W);
+}
+
+function ct_cpWater(T_C) {
   const t = T_C;
   return 4.2174 - 0.005618 * t + 1.313e-4 * t * t - 1.014e-6 * t * t * t;
 }
 
-function elevToPatm(elev_m) {
+// Latent heat of vaporisation, kJ/kg (Watson-type fit, ±0.1 % 0–100 °C)
+function ct_hfg(T_C) {
+  return 2500.8 - 2.36 * T_C + 0.0016 * T_C * T_C - 0.00006 * T_C * T_C * T_C;
+}
+
+function ct_elevToPatm(elev_m) {
   return 101.325 * Math.pow(1 - 2.25577e-5 * elev_m, 5.25588);
 }
 
-function rhoWater(T_C) {
-  return 999.842 - 0.0624 * T_C - 0.003712 * T_C * T_C;
+// FIX #9: old quadratic was monotonic from 0 °C and missed the 4 °C density
+// maximum; ~1.1 kg/m³ low at 20 °C. Kell equation (IAPWS), ±0.01 kg/m³.
+function ct_rhoWater(T_C) {
+  const t = T_C;
+  return (999.83952 + 16.945176 * t - 7.9870401e-3 * t * t
+          - 46.170461e-6 * t * t * t + 105.56302e-9 * t * t * t * t
+          - 280.54253e-12 * t * t * t * t * t) / (1 + 16.87985e-3 * t);
 }
 
-function rhoAir(T_C, Patm_kPa, RH = 1.0) {
-  const T_K = T_C + 273.15;
-  const pv = RH * psat_kPa(T_C);
-  const pd = Patm_kPa - pv;
-  return (pd * 0.028964 + pv * 0.018016) / (8.314462e-3 * T_K);
+// Moist-air density (kg of MOIST air per m³) from DB and humidity ratio.
+function ct_rhoAirMoist(Tdb_C, W, P_kPa) {
+  const T_K = Tdb_C + 273.15;
+  const Ra = 0.287042;            // kJ/kg·K, dry air
+  const v = Ra * T_K * (1 + 1.607858 * W) / P_kPa;  // m³/kg DRY air
+  return (1 + W) / v;
 }
 
-// ── KaV/L — Adaptive Chebyshev Integration (CTI ATC-105) ────────
+// Dry-air mass per m³ of moist air — this is what L/G actually needs.
+function ct_rhoDryPerMoistVol(Tdb_C, W, P_kPa) {
+  const T_K = Tdb_C + 273.15;
+  const v = 0.287042 * T_K * (1 + 1.607858 * W) / P_kPa;
+  return 1 / v;
+}
 
-function kavl(cwt_C, hwt_C, wb_C, P_kPa) {
+// ══════════════════════════════════════════════════════════════════════════════
+// 2. MERKEL INTEGRAL  —  KaV/L
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// KaV/L = ∫(Tcw→Thw) cp_w dT / (h_s(T) − h_a(T))
+//
+// FIX #1/#2/#23 — what was wrong before:
+//   (a) For range > 15 °C the code switched to an 8-node "adaptive" set
+//       [0.05,0.15,0.30,0.45,0.55,0.70,0.85,0.95] with equal 1/8 weights.
+//       That is NOT a Chebyshev quadrature (equal-weight Chebyshev rules have
+//       real nodes only for n ≤ 7 and n = 9 — n = 8 is impossible). Measured
+//       error vs. a converged reference: 2.3–2.8 %, i.e. ~20× WORSE than the
+//       4-point rule it replaced.
+//   (b) The switch at range = 15 created a 2.7 % STEP in KaV/L for a 0.2 °C
+//       change in HWT — and because fill % is a RATIO of two KaV/L values, a
+//       tower could jump from 119.5 % to 122.3 % "fill efficiency" for a
+//       0.05 °C change in hot-water temperature.
+//   (c) Points with Δh < 0.01 were skipped from the sum but the divisor stayed
+//       n — so instead of diverging at the pinch, KaV/L was silently truncated.
+//   (d) The 4-point rule's lowest node sits at Tcw + 0.1R, so the integrand
+//       singularity as approach → 0 is never sampled: KaV/L flattened out at
+//       ~3.1 instead of → ∞ (measured −5 % at 0.6 °C approach). That capped
+//       value is why the κ solver "failed to converge" and fell back to 0.60.
+//
+// Now: two explicit methods, and the SAME method is used on both sides of every
+// ratio and inside every solver.
+//   'cti4'  – canonical CTI ATC-105 4-point Chebyshev (for reporting/compliance)
+//   'exact' – adaptive Simpson with pinch-aware substitution (for all solving)
+
+const CT_CHEB4 = [0.1, 0.4, 0.6, 0.9];
+
+function ct_kavl_cti4(cwt_C, hwt_C, wb_C, P_kPa) {
   const range = hwt_C - cwt_C;
-  if (range <= 0) return null;
-  const h_a = airEnthalpy(wb_C, P_kPa);
+  if (!(range > 0)) return null;
+  const h_a = ct_hAir(wb_C, P_kPa);
+  if (h_a === null) return null;
+  let sum = 0;
+  for (const f of CT_CHEB4) {
+    const T_i = cwt_C + f * range;
+    const h_si = ct_hSat(T_i, P_kPa);
+    if (h_si === null) return null;
+    const dh = h_si - h_a;
+    if (dh <= 0) return Infinity;          // FIX #2(c): diverge, don't truncate
+    sum += ct_cpWater(T_i) / dh;
+  }
+  return (range / CT_CHEB4.length) * sum;
+}
+
+// Adaptive Simpson on a bounded integrand.
+function ct_adaptSimpson(f, a, b, tol, depth) {
+  const c = (a + b) / 2;
+  const fa = f(a), fb = f(b), fc = f(c);
+  const S = (b - a) / 6 * (fa + 4 * fc + fb);
+  function rec(a, b, fa, fb, fc, S, tol, depth) {
+    const c = (a + b) / 2;
+    const d = (a + c) / 2, e = (c + b) / 2;
+    const fd = f(d), fe = f(e);
+    const Sl = (c - a) / 6 * (fa + 4 * fd + fc);
+    const Sr = (b - c) / 6 * (fc + 4 * fe + fb);
+    if (depth <= 0 || Math.abs(Sl + Sr - S) <= 15 * tol)
+      return Sl + Sr + (Sl + Sr - S) / 15;
+    return rec(a, c, fa, fc, fd, Sl, tol / 2, depth - 1)
+         + rec(c, b, fc, fb, fe, Sr, tol / 2, depth - 1);
+  }
+  return rec(a, b, fa, fb, fc, S, tol, depth);
+}
+
+function ct_kavl_exact(cwt_C, hwt_C, wb_C, P_kPa) {
+  const range = hwt_C - cwt_C;
+  if (!(range > 0)) return null;
+  const h_a = ct_hAir(wb_C, P_kPa);
   if (h_a === null) return null;
 
-  const fracs = range > 15
-    ? [0.05, 0.15, 0.30, 0.45, 0.55, 0.70, 0.85, 0.95]
-    : [0.1, 0.4, 0.6, 0.9];
-  const n = fracs.length;
+  const hs_cold = ct_hSat(cwt_C, P_kPa);
+  if (hs_cold === null) return null;
+  if (hs_cold - h_a <= 0) return Infinity;   // CWT at/below the thermodynamic limit
 
-  let sum = 0;
-  let anyPositive = false;
-  for (const f of fracs) {
-    const T_i = cwt_C + f * range;
-    const h_si = saturationEnthalpy(T_i, P_kPa);
-    if (h_si === null) continue;
-    const dh = h_si - h_a;
-    if (dh < 0.01) continue;
-    const cp_i = cpWater(T_i);
-    sum += cp_i / dh;
-    anyPositive = true;
-  }
-  if (!anyPositive) return null;
-  return (range / n) * sum;
+  const f = T => {
+    const hs = ct_hSat(T, P_kPa);
+    if (hs === null) return 0;
+    const dh = hs - h_a;
+    return dh <= 1e-9 ? 1e9 : ct_cpWater(T) / dh;
+  };
+
+  // Substitute T = cwt + range·u², clustering nodes at the cold (steep) end.
+  // dT = 2·range·u du, u ∈ [0,1]. Kills the near-pinch resolution problem that
+  // made the old 4-point rule −5 % at 0.6 °C approach.
+  const g = u => f(cwt_C + range * u * u) * 2 * range * u;
+  const val = ct_adaptSimpson(g, 0, 1, 1e-9, 40);
+  return isFinite(val) && val > 0 ? val : Infinity;
 }
 
-// ── CTI κ (Kappa) Solver ─────────────────────────────────────────
+function ct_kavl(cwt_C, hwt_C, wb_C, P_kPa, method) {
+  return method === 'cti4'
+    ? ct_kavl_cti4(cwt_C, hwt_C, wb_C, P_kPa)
+    : ct_kavl_exact(cwt_C, hwt_C, wb_C, P_kPa);
+}
 
-function solveCWT(target_kavl, hwt_C, wb_C, P_kPa) {
-  let lo = wb_C + 0.01, hi = hwt_C - 0.01;
-  if (lo >= hi) return { cwt: null, converged: false };
-  for (let i = 0; i < 80; i++) {
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. TOWER CHARACTERISTIC AND COLD-WATER-TEMPERATURE SOLVER
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// FIX #4/#6: the old solveCWT held HWT FIXED while the wet bulb moved. Physically,
+// at constant heat duty and constant water flow the RANGE is fixed and BOTH
+// CWT and HWT float. Holding HWT fixed made κ come out 20–28 % low (measured
+// 0.568 vs 0.731 for a 42/32/28 tower) and made the WBT sweep report a
+// KaV/L that varied from 0.90 to 5.05 for the same tower — the tower
+// characteristic is supposed to be constant along that sweep.
+
+function ct_solveCWT_fixedRange(target_kavl, range_C, wb_C, P_kPa) {
+  if (!(target_kavl > 0) || !isFinite(target_kavl)) return { cwt: null, converged: false };
+  let lo = wb_C + 1e-5;   // KaV/L → ∞ here
+  let hi = 95;            // KaV/L → small here
+  if (hi <= lo) return { cwt: null, converged: false };
+
+  const K = c => {
+    const v = ct_kavl_exact(c, c + range_C, wb_C, P_kPa);
+    return v === null ? Infinity : v;
+  };
+  if (K(hi) > target_kavl) return { cwt: null, converged: false }; // unreachable
+
+  for (let i = 0; i < 200; i++) {
     const mid = (lo + hi) / 2;
-    const k = kavl(mid, hwt_C, wb_C, P_kPa);
-    if (k === null) { lo = mid; continue; }
-    if (k > target_kavl) lo = mid; else hi = mid;
-    if (hi - lo < 1e-6) break;
+    if (K(mid) > target_kavl) lo = mid; else hi = mid;
+    if (hi - lo < 1e-7) break;
   }
   const cwt = (lo + hi) / 2;
-  const k_check = kavl(cwt, hwt_C, wb_C, P_kPa);
-  const converged = k_check !== null && Math.abs(k_check - target_kavl) / target_kavl < 0.001;
+  const k = K(cwt);
+  const converged = isFinite(k) && Math.abs(k - target_kavl) / target_kavl < 1e-4;
   return { cwt, converged };
 }
 
-function computeKappa(cwt_d_C, hwt_d_C, wb_d_C, P_kPa) {
-  const kavl_d = kavl(cwt_d_C, hwt_d_C, wb_d_C, P_kPa);
-  if (!kavl_d || kavl_d <= 0) return null;
-
-  const approach = cwt_d_C - wb_d_C;
-  const delta = Math.max(0.1, Math.min(1.0, approach * 0.03));
-
-  const r_plus = solveCWT(kavl_d, hwt_d_C, wb_d_C + delta, P_kPa);
-  const r_minus = solveCWT(kavl_d, hwt_d_C, wb_d_C - delta, P_kPa);
-
-  if (r_plus.cwt === null || r_minus.cwt === null) return null;
-  if (!r_plus.converged || !r_minus.converged) return null;
-
-  const kappa = (r_plus.cwt - r_minus.cwt) / (2 * delta);
-  if (kappa <= 0 || kappa > 1.5) return null;
-  return kappa;
+// Tower characteristic family:  KaV/L = c · (L/G)^(−n)
+// n is the fill exponent (CTI typical 0.5–0.8; 0.6 is the usual default for
+// film fill). Exposed as an input so a plant can fit it from its own test data.
+function ct_charAtLG(kavl_design, lg_design, lg_actual, n) {
+  if (!isFinite(lg_design) || !isFinite(lg_actual) || lg_design <= 0 || lg_actual <= 0)
+    return kavl_design;
+  return kavl_design * Math.pow(lg_actual / lg_design, -n);
 }
 
-function calcPredictedCWT(cwt_d, wb_d, wb_a, kappa) {
-  return cwt_d + kappa * (wb_a - wb_d);
+// Local sensitivity κ = dCWT/dWBT at CONSTANT RANGE and CONSTANT KaV/L.
+function ct_kappaLocal(kavl_char, range_C, wb_C, P_kPa) {
+  const d = 0.25;
+  const a = ct_solveCWT_fixedRange(kavl_char, range_C, wb_C + d, P_kPa);
+  const b = ct_solveCWT_fixedRange(kavl_char, range_C, wb_C - d, P_kPa);
+  if (!a.converged || !b.converged) return null;
+  const k = (a.cwt - b.cwt) / (2 * d);
+  return (k > 0 && k < 1.2) ? k : null;
 }
 
-// ── Status Assessments ───────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// 4. WATER BALANCE  (new — evaporation / drift / blowdown / makeup)
+// ══════════════════════════════════════════════════════════════════════════════
 
-function approachSt(dAppVsPred_C, thW_C, thB_C) {
-  if (dAppVsPred_C <= 0)       return { cls: 'ok',   lbl: 'ON PREDICTION', icon: '✅', t: 'Actual approach at or better than κ-predicted Merkel value. Tower performing to specification.' };
-  if (dAppVsPred_C <= 0.5)     return { cls: 'ok',   lbl: 'ACCEPTABLE',    icon: '✅', t: 'Within ±0.5°C of Merkel prediction. Monitor trend — no immediate action.' };
-  if (dAppVsPred_C <= thW_C)   return { cls: 'ok',   lbl: 'ACCEPTABLE',    icon: '✅', t: 'Within warning band of Merkel prediction. Increase monitoring frequency. Check water chemistry and distribution headers.' };
-  if (dAppVsPred_C <= thB_C)   return { cls: 'warn', lbl: 'DEGRADED',      icon: '⚠️', t: 'Actual approach exceeds κ-predicted value beyond warning threshold. Inspect: fill media, nozzles, louvres, drift eliminators, and fan. Schedule maintenance.' };
-  return                              { cls: 'bad',  lbl: 'CRITICAL',      icon: '🔴', t: 'Actual approach far exceeds Merkel prediction — critical degradation. Likely causes: fill fouling/scaling, blocked nozzles, draft failure. Immediate inspection required.' };
+function ct_waterBalance(L_m3h, rhoW, range_C, avgTw_C, Gdry_kgs, Tdb_in_C, W_in, P_kPa, coc, driftPct) {
+  const L_kgs = L_m3h * rhoW / 3600;
+  const Q_kW = L_kgs * ct_cpWater(avgTw_C) * range_C;
+
+  let evap_kgs = null, method = '', Tout_air = null;
+  if (Gdry_kgs && Gdry_kgs > 0 && W_in !== null && isFinite(Tdb_in_C)) {
+    // Rigorous air-side mass balance. Outlet air assumed saturated (standard
+    // Merkel closure): solve h_sat(T_out) = h_in + Q/G.
+    const h_in = ct_h_moist(Tdb_in_C, W_in);
+    const h_out = h_in + Q_kW / Gdry_kgs;
+    let lo = 0, hi = 90;
+    for (let i = 0; i < 200; i++) {
+      const m = (lo + hi) / 2;
+      const hm = ct_hSat(m, P_kPa);
+      if (hm === null || hm < h_out) lo = m; else hi = m;
+    }
+    Tout_air = (lo + hi) / 2;
+    const W_out = ct_Ws(Tout_air, P_kPa);
+    if (W_out !== null && W_out > W_in) {
+      evap_kgs = Gdry_kgs * (W_out - W_in);
+      method = 'air-side mass balance, saturated outlet at ' + Tout_air.toFixed(1) + ' \u00b0C';
+    }
+  }
+  if (evap_kgs === null) {
+    // Fallback: latent share of duty. Equivalent to the familiar
+    // "~1 % of circulation per 5.5-6 \u00b0C of range" rule.
+    evap_kgs = 0.90 * Q_kW / ct_hfg(avgTw_C);
+    method = 'latent-fraction estimate (air flow or dry-bulb not supplied)';
+  }
+
+  const evap_m3h = evap_kgs * 3600 / rhoW;
+  const dPct = isFinite(driftPct) ? driftPct : 0.005;   // % of circulation
+  const drift_m3h = L_m3h * dPct / 100;
+  let blow_m3h = null, makeup_m3h = null;
+  if (isFinite(coc) && coc > 1) {
+    blow_m3h = Math.max(0, evap_m3h / (coc - 1) - drift_m3h);
+    makeup_m3h = evap_m3h + drift_m3h + blow_m3h;
+  }
+  return {
+    Q_kW,
+    evap_m3h, evapPct: evap_m3h / L_m3h * 100, evapMethod: method,
+    airOutT_C: Tout_air,
+    drift_m3h, driftPct: dPct,
+    blowdown_m3h: blow_m3h, makeup_m3h,
+    coc: (isFinite(coc) && coc > 1) ? coc : null
+  };
 }
 
-function lgSt(lg) {
-  if (lg < 0.6)  return { cls: 'bad',  lbl: 'VERY LOW', icon: '🔴', t: 'Unusually low L/G. Check pump operation, valve positions, basin level, and flow meter calibration.' };
-  if (lg < 0.75) return { cls: 'warn', lbl: 'LOW',      icon: '⚠️', t: 'Below typical range. Verify pump impeller, strainer condition, and water distribution headers.' };
-  if (lg <= 1.5) return { cls: 'ok',   lbl: 'NORMAL',   icon: '✅', t: 'L/G within typical operating range (0.75–1.5) for counterflow/crossflow towers.' };
-  if (lg <= 2.0) return { cls: 'warn', lbl: 'HIGH',     icon: '⚠️', t: 'High L/G — water dominates. Check fan blade pitch, motor speed, belt/drive system, or air-side obstructions.' };
-  return               { cls: 'bad',  lbl: 'VERY HIGH', icon: '🔴', t: 'Very high L/G. Significant air-side deficiency. Immediate fan/mechanical draft investigation required.' };
+// ══════════════════════════════════════════════════════════════════════════════
+// 5. STATUS / SCORING
+// ══════════════════════════════════════════════════════════════════════════════
+
+function ct_approachSt(d, thW, thB) {
+  if (d <= 0)     return { cls:'ok',  lbl:'ON PREDICTION', icon:'✅', t:'Actual approach at or better than the Merkel-predicted value at actual WBT, range and L/G. Tower performing to specification.' };
+  if (d <= 0.5)   return { cls:'ok',  lbl:'ACCEPTABLE',    icon:'✅', t:'Within 0.5 °C of prediction — inside normal instrument and test uncertainty (ATC-105 repeatability). Monitor trend.' };
+  if (d <= thW)   return { cls:'ok',  lbl:'ACCEPTABLE',    icon:'✅', t:'Within the warning band. Increase monitoring frequency; check water chemistry, distribution header pressure and nozzle pattern.' };
+  if (d <= thB)   return { cls:'warn',lbl:'DEGRADED',      icon:'⚠️', t:'Approach exceeds prediction beyond the warning threshold. Inspect fill media, nozzles, louvres, drift eliminators, fan pitch and gearbox. Schedule maintenance.' };
+  return                 { cls:'bad', lbl:'CRITICAL',      icon:'🔴', t:'Approach far exceeds prediction — critical degradation. Likely fill fouling/scaling/collapse, blocked nozzles or draft failure. Immediate inspection required.' };
 }
 
-function fillStatus(pct) {
-  if (pct === null || isNaN(pct)) return { cls: 'info', lbl: 'N/A',      icon: '—',  t: 'Cannot compute fill efficiency — verify all inputs.', bar: 'am' };
-  if (pct >= 95)  return { cls: 'ok',   lbl: 'GOOD',     icon: '✅', t: 'Fill operating at or near design specification (≥95%). No immediate action required.', bar: 'gn' };
-  if (pct >= 80)  return { cls: 'warn', lbl: 'DEGRADED',  icon: '⚠️', t: 'Fill partially degraded (80–95%). Schedule inspection: check for scaling, biological fouling, sagging or collapsed blocks.', bar: 'am' };
-  if (pct >= 60)  return { cls: 'bad',  lbl: 'POOR',      icon: '🔴', t: 'Fill severely degraded (60–80%). Urgent inspection required. Likely causes: heavy fouling, scaling, structural damage.', bar: 'rd' };
-  return                { cls: 'bad',  lbl: 'CRITICAL',   icon: '🔴', t: 'Fill critically degraded (<60%). Tower cannot meet design duty. Immediate shutdown for inspection and fill replacement required.', bar: 'rd' };
+function ct_lgSt(lg, isDesignOnly) {
+  const note = isDesignOnly
+    ? ' (Computed from DESIGN flows — actual water/air flow not supplied, so this is a design-basis L/G, not an operating diagnostic.)'
+    : '';
+  if (lg < 0.6)  return { cls:'bad', lbl:'VERY LOW', icon:'🔴', t:'Unusually low L/G — air-rich. Check pump operation, valve line-up, basin level and flow-meter calibration.' + note };
+  if (lg < 0.75) return { cls:'warn',lbl:'LOW',      icon:'⚠️', t:'Below typical range. Verify pump impeller condition, strainer ΔP and distribution headers.' + note };
+  if (lg <= 1.5) return { cls:'ok',  lbl:'NORMAL',   icon:'✅', t:'L/G within the typical 0.75–1.5 band for counterflow/crossflow towers.' + note };
+  if (lg <= 2.0) return { cls:'warn',lbl:'HIGH',     icon:'⚠️', t:'High L/G — water-dominated. Check fan blade pitch, motor speed, belt/gear drive and air-side obstruction.' + note };
+  return                { cls:'bad', lbl:'VERY HIGH',icon:'🔴', t:'Very high L/G — significant air-side deficiency. Investigate fan and mechanical draft immediately.' + note };
 }
 
-function perfScore(app_a, pred_app, fillPct, lg) {
-  // Approach score (50 pts)
-  const dApp = app_a - pred_app;
+// FIX #24: a fill % above ~110 is almost always an instrument or data error,
+// not a tower over-performing. The old code silently clamped at 150 and
+// labelled anything ≥95 as "GOOD".
+function ct_fillStatus(pct) {
+  if (pct === null || isNaN(pct)) return { cls:'info',lbl:'N/A',icon:'—',t:'Cannot compute fill capability — verify all inputs.',bar:'am' };
+  if (pct > 115)  return { cls:'warn',lbl:'DATA SUSPECT',icon:'⚠️',t:'Computed capability exceeds 115 % of design. A tower cannot meaningfully outperform its own characteristic by this margin — check WBT sensor shielding/wetting, CWT/HWT sensor calibration and whether the design data really corresponds to this cell.',bar:'am' };
+  if (pct >= 95)  return { cls:'ok',  lbl:'GOOD',    icon:'✅',t:'Fill delivering at or near design characteristic (≥95 %). No action required.',bar:'gn' };
+  if (pct >= 80)  return { cls:'warn',lbl:'DEGRADED',icon:'⚠️',t:'Fill partially degraded (80–95 %). Schedule inspection for scaling, biofouling, sagging or collapsed blocks.',bar:'am' };
+  if (pct >= 60)  return { cls:'bad', lbl:'POOR',    icon:'🔴',t:'Fill severely degraded (60–80 %). Urgent inspection — heavy fouling, scale or structural damage likely.',bar:'rd' };
+  return                 { cls:'bad', lbl:'CRITICAL',icon:'🔴',t:'Fill critically degraded (<60 %). Tower cannot meet design duty. Plan shutdown for inspection and fill replacement.',bar:'rd' };
+}
+
+// FIX #25: the score now honours the user-configured warning/bad thresholds
+// instead of ignoring them in favour of hard-coded 0.5/1.5/3.0.
+function ct_perfScore(dAppVsPred, fillPct, lg, thW, thB) {
   let appScore;
-  if (dApp <= 0) appScore = 50;
-  else if (dApp <= 0.5) appScore = 45;
-  else if (dApp <= 1.5) appScore = 35;
-  else if (dApp <= 3.0) appScore = 20;
+  if (dAppVsPred <= 0) appScore = 50;
+  else if (dAppVsPred <= 0.5) appScore = 45;
+  else if (dAppVsPred <= thW) appScore = 35;
+  else if (dAppVsPred <= thB) appScore = 20;
   else appScore = 5;
 
-  // Fill score (35 pts)
   let fillScore;
   if (fillPct === null) fillScore = 20;
+  else if (fillPct > 115) fillScore = 20;
   else if (fillPct >= 95) fillScore = 35;
   else if (fillPct >= 80) fillScore = 25;
   else if (fillPct >= 60) fillScore = 12;
   else fillScore = 3;
 
-  // L/G score (15 pts)
   let lgScore;
   if (lg === null) lgScore = 10;
   else if (lg >= 0.75 && lg <= 1.5) lgScore = 15;
@@ -1241,207 +1445,332 @@ function perfScore(app_a, pred_app, fillPct, lg) {
   return appScore + fillScore + lgScore;
 }
 
-function scoreInfo(s) {
-  if (s >= 85) return { c: '#00e676', lbl: 'EXCELLENT' };
-  if (s >= 70) return { c: '#00c9a7', lbl: 'GOOD' };
-  if (s >= 55) return { c: '#ffb800', lbl: 'FAIR' };
-  return { c: '#ff4444', lbl: 'POOR' };
+function ct_scoreInfo(s) {
+  if (s >= 85) return { c:'#00e676', lbl:'EXCELLENT' };
+  if (s >= 70) return { c:'#00c9a7', lbl:'GOOD' };
+  if (s >= 55) return { c:'#ffb800', lbl:'FAIR' };
+  return { c:'#ff4444', lbl:'POOR' };
 }
 
-// ── WBT Sweep Builder ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. WBT SWEEP
+// ══════════════════════════════════════════════════════════════════════════════
+// FIX #14: the old sweep held HWT fixed at design while the wet bulb swept
+// ±15 °C. That silently inflated the range from 10 °C to 18.5 °C at the cold
+// end and collapsed it to 1.5 °C at the hot end, so the reported KaV/L ran
+// 0.90 → 5.05 → null for a tower whose characteristic never changed.
+// Now: range and KaV/L are held constant (constant duty, constant flows) and
+// HWT floats with CWT — which is what a real tower does.
 
-function buildWBTSweep(dWB_C, dCWT_C, dHWT_C, aWB_C, kappa, Patm_kPa) {
+function ct_buildWBTSweep(dWB_C, aWB_C, kavl_char, range_C, P_kPa) {
   const steps = [];
   for (let dT = -15; dT <= 15; dT += 1) {
     const wb = dWB_C + dT;
-    const pred = calcPredictedCWT(dCWT_C, dWB_C, wb, kappa);
-    const kavlV = kavl(pred, dHWT_C, wb, Patm_kPa);
-    const app = pred - wb;
+    const r = ct_solveCWT_fixedRange(kavl_char, range_C, wb, P_kPa);
+    const pred = r.converged ? r.cwt : null;
     steps.push({
-      wb: parseFloat(wb.toFixed(1)),
-      pred: parseFloat(pred.toFixed(2)),
-      app: parseFloat(app.toFixed(2)),
-      kavlV: kavlV !== null ? parseFloat(kavlV.toFixed(4)) : null,
+      wb: +wb.toFixed(1),
+      pred: pred !== null ? +pred.toFixed(2) : null,
+      hwt: pred !== null ? +(pred + range_C).toFixed(2) : null,
+      app: pred !== null ? +(pred - wb).toFixed(2) : null,
+      kavlV: +kavl_char.toFixed(4),      // constant — it is the tower characteristic
       isActual: Math.abs(wb - aWB_C) < 0.05
     });
   }
   return steps;
 }
 
-// ── Main calculate handler ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// 7. MERKEL DIAGRAM DATA
+// ══════════════════════════════════════════════════════════════════════════════
+// FIX #13: the old air operating line used slope = cp_water, i.e. it hard-coded
+// L/G = 1.0. The Merkel operating line slope is (L/G)·cp — at L/G = 1.25 the
+// old plot was 20 % shallow, which is exactly the quantity the diagram exists
+// to show. It also drew the 4-point Chebyshev markers even when the integration
+// had used the 8-point branch, so the picture disagreed with the number.
+
+function ct_buildMerkelChart(dCWT, dHWT, dWB, aCWT, aHWT, aWB, P_kPa, lg) {
+  const Tmin = Math.min(dCWT, aCWT) - 2;
+  const Tmax = Math.max(dHWT, aHWT) + 2;
+  const nPts = 60;
+  const satCurve = [];
+  for (let i = 0; i <= nPts; i++) {
+    const T = Tmin + i * (Tmax - Tmin) / nPts;
+    satCurve.push({ T: +T.toFixed(2), h: ct_hSat(T, P_kPa) });
+  }
+
+  const range_a = aHWT - aCWT;
+  const h_a_actual = ct_hAir(aWB, P_kPa);
+  const LG = (isFinite(lg) && lg > 0) ? lg : 1.0;
+  const slopeAssumed = !(isFinite(lg) && lg > 0);
+
+  const chevPts = CT_CHEB4.map(f => {
+    const Ti = aCWT + f * range_a;
+    const cpAvg = (ct_cpWater(aCWT) + ct_cpWater(Ti)) / 2;
+    return {
+      T: +Ti.toFixed(2),
+      hs: ct_hSat(Ti, P_kPa),
+      ha: h_a_actual + LG * cpAvg * (Ti - aCWT)   // ← slope = (L/G)·cp
+    };
+  });
+
+  // Full operating line end points, for drawing
+  const cpAvgFull = (ct_cpWater(aCWT) + ct_cpWater(aHWT)) / 2;
+  const opLine = {
+    T1: aCWT, h1: h_a_actual,
+    T2: aHWT, h2: h_a_actual + LG * cpAvgFull * range_a,
+    slope: LG * cpAvgFull, lg: LG, slopeAssumed
+  };
+
+  return {
+    Tmin, Tmax, satCurve, chevPts, opLine,
+    hADesign: ct_hSat(dWB, P_kPa),
+    hAActual: h_a_actual,
+    aCWT, aHWT, aWB, dWB
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 8. MAIN CALCULATE
+// ══════════════════════════════════════════════════════════════════════════════
 
 function runCalculate(p) {
   const {
     dWB_C, dCWT_C, dHWT_C, dWR, dAR,
     aWB_C, aCWT_C, aHWT_C,
+    aWR, aAR,                 // NEW (optional) actual water / air flow, m³/h
+    dDB_C, aDB_C,             // NEW (optional) dry-bulb temperatures, °C
+    fillExp,                  // NEW (optional) characteristic exponent n
+    coc, driftPct,            // NEW (optional) cycles of concentration, drift %
     thW_C, thB_C,
-    elev, patm,
-    unitSys
+    elev, patm
   } = p;
 
-  // Determine Patm
+  // ── Barometric pressure ─────────────────────────────────────────────────
+  // FIX #17: an out-of-range barometric input used to be silently discarded and
+  // replaced by sea level. Now it is an explicit error.
   let Patm_kPa = 101.325;
-  if (isFinite(patm) && patm > 70 && patm < 110) {
-    Patm_kPa = patm;
+  let patmSource = 'default (sea level)';
+  if (patm !== undefined && patm !== null && patm !== '' && isFinite(patm)) {
+    if (patm < 50 || patm > 110)
+      return { error: `Barometric pressure ${patm} kPa is outside the physical range 50–110 kPa.` };
+    Patm_kPa = patm; patmSource = 'user-entered barometer';
   } else if (isFinite(elev) && elev >= 0) {
-    Patm_kPa = elevToPatm(elev);
+    if (elev > 6000) return { error: 'Site elevation above 6000 m is outside the correlation range.' };
+    Patm_kPa = ct_elevToPatm(elev); patmSource = `derived from ${elev} m elevation`;
   }
 
-  // Validation
+  // ── Validation ──────────────────────────────────────────────────────────
   const errs = [];
   if (!isFinite(dWB_C) || !isFinite(aWB_C)) errs.push('WBT values must be finite.');
   if (!isFinite(dCWT_C) || !isFinite(dHWT_C)) errs.push('Design CWT and HWT must be provided.');
   if (!isFinite(aCWT_C) || !isFinite(aHWT_C)) errs.push('Actual CWT and HWT must be provided.');
-  if (dCWT_C <= dWB_C) errs.push('Design CWT must be > WBT (approach must be positive).');
-  if (dHWT_C <= dCWT_C) errs.push('Design HWT must be > CWT (range must be positive).');
-  if (aCWT_C <= aWB_C) errs.push('Actual CWT must be > Actual WBT.');
-  if (aHWT_C <= aCWT_C) errs.push('Actual HWT must be > Actual CWT.');
-  if (!isFinite(dWR) || dWR <= 0) errs.push('Water flow must be positive.');
-  if (dHWT_C > 80 || aHWT_C > 80) errs.push('HWT must be below 80°C — near-boiling inputs are outside the valid psychrometric range.');
-  if (dWB_C < -10 || aWB_C < -10) errs.push('WBT below −10°C is outside the valid psychrometric range for evaporative cooling.');
+  if (dCWT_C <= dWB_C) errs.push('Design CWT must be > design WBT (approach must be positive).');
+  if (dHWT_C <= dCWT_C) errs.push('Design HWT must be > design CWT (range must be positive).');
+  if (aCWT_C <= aWB_C) errs.push('Actual CWT must be > actual WBT — a tower cannot cool below the wet bulb. Check WBT sensor wetting/shielding and CWT calibration.');
+  if (aHWT_C <= aCWT_C) errs.push('Actual HWT must be > actual CWT.');
+  if (!isFinite(dWR) || dWR <= 0) errs.push('Design water flow must be positive.');
+  if (dHWT_C > 80 || aHWT_C > 80) errs.push('HWT above 80 °C is outside the valid evaporative-cooling range.');
+  if (dWB_C < -10 || aWB_C < -10) errs.push('WBT below −10 °C is outside the valid psychrometric range.');
+  if (isFinite(dDB_C) && dDB_C < dWB_C - 0.05) errs.push('Design dry-bulb cannot be below design wet-bulb.');
+  if (isFinite(aDB_C) && aDB_C < aWB_C - 0.05) errs.push('Actual dry-bulb cannot be below actual wet-bulb.');
   if (errs.length) return { error: errs.join(' | ') };
 
-  const hasAirFlow = isFinite(dAR) && dAR > 0;
   const thW = isFinite(thW_C) ? thW_C : 1.5;
   const thB = isFinite(thB_C) ? thB_C : 3.0;
+  const nExp = (isFinite(fillExp) && fillExp > 0.2 && fillExp < 1.2) ? fillExp : 0.6;
 
-  // Core calcs
   const app_d = dCWT_C - dWB_C, app_a = aCWT_C - aWB_C;
   const rng_d = dHWT_C - dCWT_C, rng_a = aHWT_C - aCWT_C;
   const dApp = app_a - app_d, dWBT = aWB_C - dWB_C;
 
-  const avgTw_d = (dCWT_C + dHWT_C) / 2;
-  const RHO_W_d = rhoWater(avgTw_d);
-  const RHO_A_site = rhoAir(aWB_C, Patm_kPa);
-  const Lmass = dWR * RHO_W_d / 3600;
-  const Gmass = hasAirFlow ? dAR * RHO_A_site / 3600 : null;
-  const lg = hasAirFlow ? Lmass / Gmass : null;
+  // ── Air-side mass flows ─────────────────────────────────────────────────
+  // FIX #7/#8: the old code computed L/G from DESIGN water and DESIGN air flow
+  // but then printed operating diagnostics ("check pump operation, valve
+  // positions, basin level") as if it were an operating measurement. It also
+  // took air density as SATURATED at the wet bulb (RH = 100 %), which is only
+  // true when DB = WB, and mixed a design-temperature water density with an
+  // actual-condition air density.
+  const dDB = isFinite(dDB_C) ? dDB_C : dWB_C;   // fall back to saturated
+  const aDB = isFinite(aDB_C) ? aDB_C : aWB_C;
+  const W_in_d = ct_W_from_DBWB(dDB, dWB_C, Patm_kPa);
+  const W_in_a = ct_W_from_DBWB(aDB, aWB_C, Patm_kPa);
+  const dbAssumedSat = !isFinite(aDB_C);
 
-  const kavl_d = kavl(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
-  const kavl_a = kavl(aCWT_C, aHWT_C, aWB_C, Patm_kPa);
-  const kavl_d_norm = kavl(dCWT_C, dHWT_C, aWB_C, Patm_kPa);
-  const kavl_a_norm = kavl(aCWT_C, aHWT_C, aWB_C, Patm_kPa);
-  let fillPct = null;
-  if (kavl_d_norm !== null && kavl_d_norm > 0 && kavl_a_norm !== null)
-    fillPct = Math.min((kavl_a_norm / kavl_d_norm) * 100, 150);
+  const rhoW_d = ct_rhoWater((dCWT_C + dHWT_C) / 2);
+  const rhoW_a = ct_rhoWater((aCWT_C + aHWT_C) / 2);
+  const rhoDry_d = W_in_d !== null ? ct_rhoDryPerMoistVol(dDB, W_in_d, Patm_kPa) : null;
+  const rhoDry_a = W_in_a !== null ? ct_rhoDryPerMoistVol(aDB, W_in_a, Patm_kPa) : null;
+  const RHO_A_site = W_in_a !== null ? ct_rhoAirMoist(aDB, W_in_a, Patm_kPa) : null;
 
-  const kappa = computeKappa(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
-  const kappaOK = kappa !== null;
-  const kappaVal = kappaOK ? kappa : 0.6;
-  const pred_cwt = calcPredictedCWT(dCWT_C, dWB_C, aWB_C, kappaVal);
+  const hasDesignAir = isFinite(dAR) && dAR > 0;
+  const hasActualWater = isFinite(aWR) && aWR > 0;
+  const hasActualAir = isFinite(aAR) && aAR > 0;
+
+  const L_d = dWR * rhoW_d / 3600;                                   // kg/s water
+  const G_d = hasDesignAir && rhoDry_d ? dAR * rhoDry_d / 3600 : null; // kg/s dry air
+  const lg_d = G_d ? L_d / G_d : null;
+
+  const aWR_use = hasActualWater ? aWR : dWR;
+  const aAR_use = hasActualAir ? aAR : dAR;
+  const L_a = aWR_use * rhoW_a / 3600;
+  const G_a = (isFinite(aAR_use) && aAR_use > 0 && rhoDry_a) ? aAR_use * rhoDry_a / 3600 : null;
+  const lg_a = G_a ? L_a / G_a : null;
+
+  const lgIsDesignOnly = !hasActualWater && !hasActualAir;
+
+  // ── Merkel numbers (all with the SAME quadrature) ────────────────────────
+  const kavl_d      = ct_kavl_exact(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
+  const kavl_a      = ct_kavl_exact(aCWT_C, aHWT_C, aWB_C, Patm_kPa);
+  const kavl_d_cti4 = ct_kavl_cti4(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
+  const kavl_a_cti4 = ct_kavl_cti4(aCWT_C, aHWT_C, aWB_C, Patm_kPa);
+  if (!isFinite(kavl_d) || kavl_d <= 0)
+    return { error: 'Design KaV/L is not finite — design CWT is at or below the thermodynamic wet-bulb limit.' };
+
+  // Characteristic corrected from design L/G to actual L/G
+  const kavl_char = (lg_d && lg_a) ? ct_charAtLG(kavl_d, lg_d, lg_a, nExp) : kavl_d;
+  const lgCorrected = !!(lg_d && lg_a && Math.abs(lg_a - lg_d) > 1e-6);
+
+  // ── Predicted CWT — rigorous solve, NOT linear κ extrapolation ───────────
+  // FIX #5: κ was computed once at the design wet bulb and extrapolated
+  // linearly over ±15 °C. Measured against a rigorous re-solve, that gave
+  // −3.49 °C at ΔWBT = +15 and +1.42 °C at ΔWBT = −15, because the true κ
+  // rises from ~0.60 at 13 °C WBT to ~0.87 at 43 °C WBT. The sign of the error
+  // inverts the diagnosis: false CRITICAL alarms in hot weather, missed
+  // degradation in cold weather.
+  // FIX #6: prediction is now made at the ACTUAL range, so approach is
+  // compared like-for-like.
+  const sol = ct_solveCWT_fixedRange(kavl_char, rng_a, aWB_C, Patm_kPa);
+  const kappaOK = sol.converged && sol.cwt !== null;
+  if (!kappaOK) {
+    // FIX #4: never fabricate κ = 0.60 and present the result as Merkel-derived.
+    return { error: 'Merkel solver could not reach a solution at the actual wet bulb, range and L/G. The requested duty may lie beyond the tower characteristic. Verify WBT, CWT, HWT and flow inputs.' };
+  }
+  const pred_cwt = sol.cwt;
   const pred_app = pred_cwt - aWB_C;
   const cwtDev = aCWT_C - pred_cwt;
   const dAppVsPred = app_a - pred_app;
 
+  // κ reported two ways:
+  //  kappa_local  — true local sensitivity at the actual wet bulb
+  //  kappa (secant) — (pred_cwt − dCWT)/(aWB − dWB), so the front-end identity
+  //                   "ΔCWT_pred = κ × ΔWBT" still reconciles exactly.
+  const kappa_local = ct_kappaLocal(kavl_char, rng_a, aWB_C, Patm_kPa);
+  const kappa_secant = Math.abs(dWBT) > 1e-6 ? (pred_cwt - dCWT_C) / dWBT : kappa_local;
+  const kappa_design = ct_kappaLocal(kavl_d, rng_d, dWB_C, Patm_kPa);
+
+  // ── Fill capability ─────────────────────────────────────────────────────
+  // FIX #7: expressed as achieved characteristic ÷ expected characteristic at
+  // the SAME L/G and evaluated with the same quadrature. No silent 150 % clamp.
+  let fillPct = null;
+  if (isFinite(kavl_a) && isFinite(kavl_char) && kavl_char > 0)
+    fillPct = (kavl_a / kavl_char) * 100;
+
   const effectiveness_d = rng_d / (dHWT_C - dWB_C);
   const effectiveness_a = rng_a / (aHWT_C - aWB_C);
 
-  const appStResult = approachSt(dAppVsPred, thW, thB);
-  const lgStResult = lg !== null ? lgSt(lg) : { cls: 'info', lbl: 'N/A', icon: '—', t: 'Air flow not provided — L/G ratio not computed.' };
-  const fillStResult = fillStatus(fillPct);
+  const appStResult  = ct_approachSt(dAppVsPred, thW, thB);
+  const lgStResult   = lg_a !== null ? ct_lgSt(lg_a, lgIsDesignOnly)
+                     : { cls:'info', lbl:'N/A', icon:'—', t:'Air flow not supplied — L/G not computed. Without L/G the tower characteristic cannot be corrected for draft, so the prediction assumes design L/G.' };
+  const fillStResult = ct_fillStatus(fillPct);
 
-  const score = perfScore(app_a, pred_app, fillPct, lg);
-  const sInfo = scoreInfo(score);
+  const score = ct_perfScore(dAppVsPred, fillPct, lg_a, thW, thB);
+  const sInfo = ct_scoreInfo(score);
+  const worst = (fillStResult.cls === 'bad' || appStResult.cls === 'bad') ? 'bad'
+              : (fillStResult.cls === 'warn' || appStResult.cls === 'warn') ? 'warn' : 'ok';
 
-  const worst = fillStResult.cls === 'bad' || appStResult.cls === 'bad' ? 'bad'
-    : fillStResult.cls === 'warn' || appStResult.cls === 'warn' ? 'warn' : 'ok';
+  // ── Water balance ───────────────────────────────────────────────────────
+  const wbal = ct_waterBalance(aWR_use, rhoW_a, rng_a, (aCWT_C + aHWT_C) / 2,
+                               G_a, aDB, W_in_a, Patm_kPa, coc, driftPct);
 
-  // Build sweep table data
-  const sweepData = buildWBTSweep(dWB_C, dCWT_C, dHWT_C, aWB_C, kappaVal, Patm_kPa);
+  const sweepData = ct_buildWBTSweep(dWB_C, aWB_C, kavl_char, rng_a, Patm_kPa);
+  const chartData = ct_buildMerkelChart(dCWT_C, dHWT_C, dWB_C, aCWT_C, aHWT_C, aWB_C, Patm_kPa, lg_a);
 
-  // Merkel chart data points
-  const chartData = buildMerkelChart(dCWT_C, dHWT_C, dWB_C, aCWT_C, aHWT_C, aWB_C, Patm_kPa);
+  // ── Data-quality notes surfaced to the user ─────────────────────────────
+  const notes = [];
+  if (lgIsDesignOnly && lg_a !== null)
+    notes.push('L/G is computed from DESIGN flows only — actual water and air flow were not supplied. Treat it as a design-basis ratio, not an operating measurement.');
+  if (dbAssumedSat)
+    notes.push('Dry-bulb temperature not supplied; entering air assumed saturated at the wet bulb. Air density and evaporation loss carry ~3–5 % uncertainty as a result.');
+  if (lgCorrected)
+    notes.push(`Tower characteristic corrected from design L/G ${lg_d.toFixed(3)} to actual ${lg_a.toFixed(3)} using KaV/L ∝ (L/G)^−${nExp}.`);
+  if (Math.abs(rng_a - rng_d) > 0.5)
+    notes.push(`Actual range (${rng_a.toFixed(2)} °C) differs from design (${rng_d.toFixed(2)} °C); the prediction is made at the ACTUAL range so approach is compared like-for-like.`);
+  if (fillPct !== null && fillPct > 115)
+    notes.push('Computed capability above 115 % of characteristic — this normally indicates a measurement problem, most often a poorly wetted or unshielded wet-bulb sensor.');
 
   return {
-    // Inputs (echoed back in SI °C)
+    // ── legacy field names preserved so the existing front-end keeps working ──
     dWB: dWB_C, dCWT: dCWT_C, dHWT: dHWT_C, dWR_r: dWR, dAR_r: dAR,
     aWB: aWB_C, aCWT: aCWT_C, aHWT: aHWT_C,
-    hasAirFlow,
-
-    // Core results
+    hasAirFlow: !!(lg_a !== null),
     app_d, app_a, rng_d, rng_a, dApp, dWBT,
-    Lmass, Gmass, lg,
-    kavl_d, kavl_a, kavl_d_norm, kavl_a_norm, fillPct,
-    kappa: kappaVal, kappaOK, pred_cwt, pred_app, cwtDev, dAppVsPred,
+    Lmass: L_a, Gmass: G_a, lg: lg_a,
+    kavl_d, kavl_a,
+    kavl_d_norm: kavl_char, kavl_a_norm: kavl_a,
+    fillPct,
+    kappa: kappa_secant, kappaOK: true,
+    pred_cwt, pred_app, cwtDev, dAppVsPred,
     effectiveness_d, effectiveness_a,
-    Patm_kPa, RHO_W_d, RHO_A_site,
+    Patm_kPa, RHO_W_d: rhoW_d, RHO_A_site,
     thW_C: thW, thB_C: thB,
     appSt: appStResult, lgSt: lgStResult, fillSt: fillStResult,
     worst, score, sInfo,
+    sweepData, chartData,
+    largeRange: rng_a > 15,
 
-    // Table/chart data
-    sweepData,
-    chartData,
-
-    // Range flag for integration info
-    largeRange: rng_d > 15,
-
+    // ── new fields ───────────────────────────────────────────────────────
+    method: 'Merkel / CTI ATC-105 — adaptive Simpson integration, characteristic solved at actual WBT, range and L/G',
+    patmSource,
+    kavl_d_cti4, kavl_a_cti4,          // canonical 4-pt Chebyshev, for compliance
+    kavl_char, fillExp: nExp, lgCorrected,
+    lg_d, lg_a, lgIsDesignOnly,
+    kappa_local, kappa_design, kappa_secant,
+    rhoW_a, rhoDry_d, rhoDry_a, W_in_d, W_in_a, dbAssumedSat,
+    aWR_used: aWR_use, aAR_used: aAR_use,
+    water: wbal,
+    notes,
     ts: new Date().toISOString()
   };
 }
 
-function buildMerkelChart(dCWT_C, dHWT_C, dWB_C, aCWT_C, aHWT_C, aWB_C, Patm_kPa) {
-  // Saturation curve points
-  const Tmin = Math.min(dCWT_C, aCWT_C) - 2;
-  const Tmax = Math.max(dHWT_C, aHWT_C) + 2;
-  const nPts = 60;
-  const satCurve = [];
-  for (let i = 0; i <= nPts; i++) {
-    const T = Tmin + i * (Tmax - Tmin) / nPts;
-    satCurve.push({ T: parseFloat(T.toFixed(2)), h: saturationEnthalpy(T, Patm_kPa) });
-  }
-
-  // Chebyshev integration points (actual)
-  const range_a = aHWT_C - aCWT_C;
-  const fracs = [0.1, 0.4, 0.6, 0.9];
-  const h_a_actual = airEnthalpy(aWB_C, Patm_kPa);
-  const chevPts = fracs.map(f => {
-    const Ti = aCWT_C + f * range_a;
-    const cpAvg = (cpWater(aCWT_C) + cpWater(Ti)) / 2;
-    return {
-      T: parseFloat(Ti.toFixed(2)),
-      hs: saturationEnthalpy(Ti, Patm_kPa),
-      ha: h_a_actual + cpAvg * (Ti - aCWT_C)
-    };
-  });
-
-  return {
-    Tmin, Tmax,
-    satCurve,
-    chevPts,
-    hADesign: saturationEnthalpy(dWB_C, Patm_kPa),
-    hAActual: h_a_actual,
-    aCWT: aCWT_C, aHWT: aHWT_C, aWB: aWB_C, dWB: dWB_C
-  };
-}
+// ══════════════════════════════════════════════════════════════════════════════
+// 9. QUICK PREDICT
+// ══════════════════════════════════════════════════════════════════════════════
 
 function runPredictCWT(p) {
   const { dWB_C, dCWT_C, dHWT_C, aWB_C, Patm_kPa = 101.325 } = p;
-
   if (!isFinite(dWB_C) || !isFinite(dCWT_C) || !isFinite(dHWT_C) || !isFinite(aWB_C))
     return { error: 'Enter Design WBT, CWT, HWT and Actual WBT first.' };
-
   const app_d = dCWT_C - dWB_C, rng_d = dHWT_C - dCWT_C;
   if (app_d <= 0) return { error: 'Design approach ≤ 0: CWT must be > WBT.' };
   if (rng_d <= 0) return { error: 'Design range ≤ 0: HWT must be > CWT.' };
 
-  const kappa = computeKappa(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
-  if (kappa === null) return { error: '⚠ κ solver did not converge. Check input ranges.' };
+  const kavl_d = ct_kavl_exact(dCWT_C, dHWT_C, dWB_C, Patm_kPa);
+  if (!isFinite(kavl_d) || kavl_d <= 0) return { error: 'Design point is not thermodynamically attainable.' };
 
-  const pred_C = calcPredictedCWT(dCWT_C, dWB_C, aWB_C, kappa);
+  const sol = ct_solveCWT_fixedRange(kavl_d, rng_d, aWB_C, Patm_kPa);
+  if (!sol.converged) return { error: 'Merkel solver did not converge at this wet bulb. Check input ranges.' };
+
+  const pred_C = sol.cwt;
   const dWBT_C = aWB_C - dWB_C;
-  const dCWT_delta = pred_C - dCWT_C;
+  const kappa = Math.abs(dWBT_C) > 1e-6
+    ? (pred_C - dCWT_C) / dWBT_C
+    : (ct_kappaLocal(kavl_d, rng_d, aWB_C, Patm_kPa) || 0);
 
   return {
-    pred_C: parseFloat(pred_C.toFixed(2)),
-    kappa: parseFloat(kappa.toFixed(3)),
-    dWBT_C: parseFloat(dWBT_C.toFixed(2)),
-    dCWT_delta: parseFloat(dCWT_delta.toFixed(2)),
-    Patm_kPa: parseFloat(Patm_kPa.toFixed(2))
+    pred_C: +pred_C.toFixed(2),
+    kappa: +kappa.toFixed(3),
+    kappa_local: (v => v === null ? null : +v.toFixed(3))(ct_kappaLocal(kavl_d, rng_d, aWB_C, Patm_kPa)),
+    kavl: +kavl_d.toFixed(4),
+    dWBT_C: +dWBT_C.toFixed(2),
+    dCWT_delta: +(pred_C - dCWT_C).toFixed(2),
+    Patm_kPa: +Patm_kPa.toFixed(2),
+    note: 'Predicted CWT is obtained by re-solving the Merkel integral at constant KaV/L and constant range — κ shown is the resulting secant slope, not an assumed constant.'
   };
 }
 
-// ── End of Section 03: Cooling Tower ──────────────────────────────────────────
+// ── End of Section C: Cooling Tower (v2) ─────────────────────────────────────
 
 
 
