@@ -1042,7 +1042,7 @@ async function npsh_handler(req, res) {
 
 const CT_ALLOWED_ORIGINS = [
   'https://www.multicalci.com',
-  'https://multicalci.com'
+  'https://www.multicalci.com'
 ];
 
 function coolingTower_handler(req, res) {
