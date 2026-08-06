@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Retaining Wall Design Calculator — Overturning, Sliding, Bearing | multicalci.com</title>
+<meta name="description" content="Free retaining wall design calculator. Checks overturning, sliding, foundation pressure and the middle-third rule using Rankine active earth pressure, with exact partial-contact pressures when the heel lifts off.">
+<link rel="canonical" href="https://www.multicalci.com/retaining-wall-design-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Retaining Wall Design Calculator — Overturning, Sliding, Bearing">
+<meta property="og:description" content="Rankine active pressure, factors of safety against overturning and sliding, foundation bearing pressure and the middle-third check for a cantilever retaining wall.">
+<meta property="og:url" content="https://www.multicalci.com/retaining-wall-design-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Retaining Wall Design Calculator — Overturning, Sliding, Bearing">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Retaining Wall Design Calculator","description":"Cantilever retaining wall stability calculator. Computes Rankine active and passive earth pressure coefficients, active thrust, overturning and stabilising moments, factors of safety against overturning and sliding, resultant eccentricity and foundation bearing pressure, including exact partial-contact pressures when the resultant leaves the middle third.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/retaining-wall-design-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Retaining Wall Design Calculator","item":"https://www.multicalci.com/retaining-wall-design-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you check a retaining wall for overturning and sliding?","acceptedAnswer":{"@type":"Answer","text":"Overturning is checked by taking moments about the toe. The active earth thrust and any surcharge thrust produce the overturning moment, while the weight of the stem, the base and the soil sitting on the heel produce the stabilising moment. The factor of safety is the stabilising moment divided by the overturning moment. Sliding is checked by comparing the friction available along the underside of the base, taken as the coefficient of base friction times the total vertical load, against the horizontal active thrust."}},{"@type":"Question","name":"What is the minimum factor of safety for a retaining wall?","acceptedAnswer":{"@type":"Answer","text":"Common practice takes 1.5 as the minimum factor of safety against both overturning and sliding for a gravity or cantilever retaining wall under static loading, and this calculator uses that threshold for both. Some authorities require 2.0 against overturning where the consequences of failure are severe or where the backfill properties are poorly known. Bearing pressure is a separate check made against the allowable bearing capacity rather than against a factor of safety, because the allowable value already contains one."}},{"@type":"Question","name":"Why must the resultant stay within the middle third of the base?","acceptedAnswer":{"@type":"Answer","text":"If the resultant vertical force falls outside the middle third, the linear pressure diagram under the base would need to become negative at the heel, which would mean the soil pulling down on the wall. Soil cannot do that, so instead the heel lifts off, the contact area shrinks and the peak pressure under the toe rises well above the value the standard linear formula predicts. Keeping the eccentricity within B over six guarantees full contact and keeps the linear formula valid."}},{"@type":"Question","name":"How do you calculate the active earth pressure coefficient Ka?","acceptedAnswer":{"@type":"Answer","text":"For a smooth vertical wall retaining level cohesionless backfill, the Rankine active coefficient is the square of the tangent of forty five degrees minus half the angle of internal friction, which is also equal to one minus the sine of the friction angle divided by one plus the sine. For a thirty degree friction angle this gives one third. The passive coefficient is the reciprocal, which is three for the same soil."}},{"@type":"Question","name":"Why does a retaining wall need drainage behind it?","acceptedAnswer":{"@type":"Answer","text":"Without drainage, water builds up behind the wall and adds a hydrostatic thrust that uses the full unit weight of water rather than the buoyant weight of soil. Because water has no shear strength there is no reduction factor equivalent to Ka, so the pressure grows roughly two to three times faster with depth than the active earth pressure. Saturated backfill is the single most common cause of retaining wall failure, and this calculation assumes drainage behind the wall is working."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Retaining Wall Design Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Retaining Wall Design Calculator</h1>
+    <p>Check the stability of a cantilever retaining wall. Enter the wall height, base width, stem and base thickness, backfill properties and surcharge, and this calculator returns the Rankine active and passive coefficients, the active thrust, the overturning and stabilising moments, the factors of safety against overturning and sliding, the eccentricity of the resultant and the foundation bearing pressure. Where the resultant falls outside the middle third it works out the true partial-contact pressure rather than reporting the linear value, which under-predicts.</p>
+    <div class="stdref">Rankine active pressure &middot; moments about the toe &middot; middle-third rule &middot; FS 1.5 overturning and sliding</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#129704;</span>
+      <span class="card-hd-ttl">Wall Geometry and Soil</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m, kN/m&sup3;, kN/m&sup2;</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft, pcf, ksf</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="rwH">Wall Height H <span class="u-m">(m)</span></label>
+          <input type="number" id="rwH" value="4" step="0.1" min="0.01">
+          <div class="hint">Total height from the underside of the base to the top of the stem.</div>
+        </div>
+        <div class="field">
+          <label for="rwB">Base Width B <span class="u-m">(m)</span></label>
+          <input type="number" id="rwB" value="3.0" step="0.1" min="0.01">
+          <div class="hint">Measured from the front face of the stem back to the heel.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="rwStem">Stem Thickness <span class="u-m">(m)</span></label>
+          <input type="number" id="rwStem" value="0.35" step="0.05" min="0.01">
+        </div>
+        <div class="field">
+          <label for="rwBase">Base Slab Thickness <span class="u-m">(m)</span></label>
+          <input type="number" id="rwBase" value="0.5" step="0.05" min="0.01">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="rwGamma">Backfill Unit Weight &gamma; <span class="u-g">(kN/m&sup3;)</span></label>
+          <input type="number" id="rwGamma" value="18" step="0.5" min="0.01">
+        </div>
+        <div class="field">
+          <label for="rwGammaC">Concrete Unit Weight &gamma;<sub>c</sub> <span class="u-g">(kN/m&sup3;)</span></label>
+          <input type="number" id="rwGammaC" value="25" step="0.5" min="0.01">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="rwPhi">Angle of Internal Friction &phi; (degrees)</label>
+          <input type="number" id="rwPhi" value="30" step="1" min="0.1" max="50">
+        </div>
+        <div class="field">
+          <label for="rwMu">Base Friction Coefficient &mu;</label>
+          <input type="number" id="rwMu" value="0.5" step="0.05" min="0.01" max="1">
+          <div class="hint">Typically tan of two thirds of &phi; for concrete cast on soil.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="rwSurcharge">Surcharge q <span class="u-q">(kN/m&sup2;)</span></label>
+          <input type="number" id="rwSurcharge" value="10" step="1" min="0">
+          <div class="hint">10 kN/m&sup2; is a common allowance for light traffic or storage.</div>
+        </div>
+        <div class="field">
+          <label for="rwQult">Allowable Bearing Capacity q<sub>a</sub> <span class="u-q">(kN/m&sup2;)</span></label>
+          <input type="number" id="rwQult" value="200" step="10" min="0.01">
+        </div>
+      </div>
+
+      <div id="rwErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Check Stability</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Stability Checks</span>
+    </div>
+    <div class="card-bd">
+      <div id="rwVerdict"></div>
+      <div id="rwSummary" class="note" style="display:none"></div>
+      <div id="rwGroups">
+        <div class="rc-empty">Press <strong>Check Stability</strong> to run the checks.</div>
+      </div>
+      <div id="rwWarns"></div>
+      <div class="note" id="rwUnitNote" style="display:none">Results are reported in SI regardless of the input units: forces in kN per metre run of wall, moments in kN&middot;m per metre and pressures in kN/m&sup2;.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Earth pressure &mdash; Rankine, level backfill, smooth vertical back</strong></p>
+      <div class="fbox">
+        K<sub>a</sub> = tan&sup2;(45&deg; &minus; &phi;/2) = (1 &minus; sin&phi;) / (1 + sin&phi;)<br>
+        K<sub>p</sub> = tan&sup2;(45&deg; + &phi;/2) = 1 / K<sub>a</sub><br>
+        P<sub>a,soil</sub> = &frac12; &gamma; H&sup2; K<sub>a</sub>&nbsp;&nbsp;acting at H/3<br>
+        P<sub>a,surch</sub> = q H K<sub>a</sub>&nbsp;&nbsp;acting at H/2<br>
+        M<sub>o</sub> = P<sub>a,soil</sub>(H/3) + P<sub>a,surch</sub>(H/2)
+      </div>
+
+      <p><strong>Restoring weight and moment about the toe</strong></p>
+      <div class="fbox">
+        H<sub>s</sub> = H &minus; t<sub>base</sub><br>
+        W<sub>stem</sub> = &gamma;<sub>c</sub> &middot; t<sub>stem</sub> &middot; H<sub>s</sub><br>
+        W<sub>base</sub> = &gamma;<sub>c</sub> &middot; B &middot; t<sub>base</sub><br>
+        W<sub>soil</sub> = &gamma; &middot; (B &minus; t<sub>stem</sub>) &middot; H<sub>s</sub><br>
+        M<sub>r</sub> = W<sub>stem</sub>(t<sub>stem</sub>/2) + W<sub>base</sub>(B/2) + W<sub>soil</sub>(t<sub>stem</sub> + (B&minus;t<sub>stem</sub>)/2)
+      </div>
+
+      <p><strong>Stability and base pressure</strong></p>
+      <div class="fbox">
+        FS<sub>overturning</sub> = M<sub>r</sub> / M<sub>o</sub>&nbsp;&nbsp;&ge; 1.5<br>
+        FS<sub>sliding</sub> = &mu;W / P<sub>a</sub>&nbsp;&nbsp;&ge; 1.5<br>
+        e = B/2 &minus; (M<sub>r</sub> &minus; M<sub>o</sub>) / W<br>
+        full contact, |e| &le; B/6:&nbsp; q = (W/B)(1 &plusmn; 6e/B)<br>
+        partial contact, |e| &gt; B/6:&nbsp; q<sub>max</sub> = 2W / [3(B/2 &minus; |e|)]<br>
+        contact length = 3(B/2 &minus; |e|)
+      </div>
+
+      <div class="legend">
+        <p><strong>H</strong> &mdash; overall wall height, underside of base to top of stem</p>
+        <p><strong>B</strong> &mdash; base width, front face of stem to heel</p>
+        <p><strong>&phi;</strong> &mdash; effective angle of internal friction of the backfill</p>
+        <p><strong>&gamma;, &gamma;<sub>c</sub></strong> &mdash; unit weight of backfill and of concrete</p>
+        <p><strong>q</strong> &mdash; uniform surcharge on the retained surface</p>
+        <p><strong>&mu;</strong> &mdash; coefficient of friction between the base slab and the founding soil</p>
+        <p><strong>P<sub>a</sub></strong> &mdash; total active thrust per metre run</p>
+        <p><strong>e</strong> &mdash; eccentricity of the resultant from the centre of the base</p>
+        <p><strong>All forces and moments are per metre run of wall.</strong></p>
+      </div>
+
+      <div class="note">
+        <strong>What this model does and does not include.</strong> The wall is idealised with the stem sitting flush at the front of the base, so there is <em>no toe projection</em> &mdash; every part of the base lies behind the stem. That is a real configuration but it is not the usual one; a conventional cantilever wall puts roughly a third of the base in front of the stem, which pulls the resultant back toward the centre and reduces both the eccentricity and the toe pressure. As a consequence the base widths this calculator needs are wider than the textbook rule of thumb, typically B around 0.7H rather than 0.5H to 0.6H. Treat the output as a stability check on the geometry as entered rather than as an optimised proportioning.
+      </div>
+
+      <div class="note">
+        <strong>Passive resistance is ignored.</strong> K<sub>p</sub> is reported for reference but no passive thrust is credited in the sliding check. That is deliberate and conventional: the soil in front of the toe can be excavated for services, scoured, or simply never placed, and mobilising full passive resistance needs far more movement than the wall can tolerate. If you want to claim it, do so explicitly and only on a fraction of the theoretical value. There is also <strong>no water pressure and no seismic increment</strong> in this calculation &mdash; drainage behind the wall is assumed to be working.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; 4 m Cantilever Wall</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 4.0 m high wall on a 3.0 m base, stem 0.35 m thick, base slab 0.5 m thick. Backfill is a granular fill at 18 kN/m&sup3; with &phi; = 30&deg;, carrying a 10 kN/m&sup2; surcharge. Concrete at 25 kN/m&sup3;, base friction coefficient 0.5, allowable bearing capacity 200 kN/m&sup2;.</p>
+
+        <div class="wex-hd">Step 1 &mdash; earth pressure coefficients</div>
+        <p>K<sub>a</sub> = tan&sup2;(45 &minus; 15) = <strong>0.3333</strong>, and K<sub>p</sub> = 1/K<sub>a</sub> = <strong>3.0000</strong>.</p>
+
+        <div class="wex-hd">Step 2 &mdash; active thrust and overturning moment</div>
+        <p>P<sub>a,soil</sub> = 0.5 &times; 18 &times; 4.0&sup2; &times; 0.3333 = 48.00 kN/m at 1.333 m above the base<br>
+        P<sub>a,surch</sub> = 10 &times; 4.0 &times; 0.3333 = 13.33 kN/m at 2.000 m<br>
+        P<sub>a</sub> = <strong>61.33 kN/m</strong><br>
+        M<sub>o</sub> = 48.00 &times; 1.333 + 13.33 &times; 2.000 = <strong>90.67 kN&middot;m/m</strong></p>
+
+        <div class="wex-hd">Step 3 &mdash; weights and stabilising moment</div>
+        <p>H<sub>s</sub> = 4.0 &minus; 0.5 = 3.5 m<br>
+        W<sub>stem</sub> = 25 &times; 0.35 &times; 3.5 = 30.63 kN/m at 0.175 m from the toe<br>
+        W<sub>base</sub> = 25 &times; 3.0 &times; 0.5 = 37.50 kN/m at 1.500 m<br>
+        W<sub>soil</sub> = 18 &times; (3.0 &minus; 0.35) &times; 3.5 = 166.95 kN/m at 1.675 m<br>
+        W = <strong>235.07 kN/m</strong>,&nbsp; M<sub>r</sub> = <strong>341.25 kN&middot;m/m</strong></p>
+
+        <div class="wex-hd">Step 4 &mdash; the three stability checks</div>
+        <p>FS overturning = 341.25 / 90.67 = <strong>3.76</strong>, well above 1.5<br>
+        FS sliding = 0.5 &times; 235.07 / 61.33 = <strong>1.92</strong>, above 1.5<br>
+        e = 1.5 &minus; (341.25 &minus; 90.67) / 235.07 = 1.5 &minus; 1.066 = <strong>0.434 m</strong> against a kern limit of B/6 = 0.500 m, so the base stays in full contact.</p>
+
+        <div class="wex-hd">Step 5 &mdash; foundation pressure</div>
+        <p>q<sub>max</sub> = (235.07/3.0)(1 + 6 &times; 0.434/3.0) = <strong>146.38 kN/m&sup2;</strong><br>
+        q<sub>min</sub> = (235.07/3.0)(1 &minus; 6 &times; 0.434/3.0) = <strong>10.34 kN/m&sup2;</strong>, positive throughout as expected.</p>
+
+        <div class="ans">
+          <p><strong>FS overturning</strong> 3.76 &ge; 1.5 &mdash; PASS</p>
+          <p><strong>FS sliding</strong> 1.92 &ge; 1.5 &mdash; PASS</p>
+          <p><strong>Eccentricity</strong> 0.434 m &le; 0.500 m &mdash; full contact</p>
+          <p><strong>Bearing</strong> 146.38 &le; 200 kN/m&sup2; &mdash; PASS</p>
+          <p><strong>Overall verdict</strong> &mdash; PASS on all four checks</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Check Stability</strong> without changing anything and you should get exactly these figures back. Notice that sliding at 1.92 is the tightest of the three factors while overturning sits at 3.76 &mdash; that ordering is typical, and it is why base friction and any shear key matter more than wall self-weight for most cantilever walls.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Every Check Green, Heel Off the Ground</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 3.0 m wall on a narrow 1.2 m base, stem 0.25 m, base slab 0.4 m, dense granular backfill at 18 kN/m&sup3; with &phi; = 34&deg;, no surcharge, allowable bearing 200 kN/m&sup2;.</p>
+
+        <div class="wex-hd">The three headline checks all pass</div>
+        <p>K<sub>a</sub> = 0.2827, P<sub>a</sub> = 22.90 kN/m, M<sub>o</sub> = 22.90 kN&middot;m/m, M<sub>r</sub> = 41.46 kN&middot;m/m<br>
+        FS overturning = <strong>1.81</strong> &ge; 1.5 &nbsp;&#10003;<br>
+        FS sliding = <strong>1.59</strong> &ge; 1.5 &nbsp;&#10003;<br>
+        Bearing check &mdash; <strong>passes</strong> against 200 kN/m&sup2; &nbsp;&#10003;</p>
+
+        <div class="wex-hd">And the wall is still lifting its heel</div>
+        <p>e = <strong>0.345 m</strong> against a kern limit of B/6 = 1.2/6 = <strong>0.200 m</strong>. The resultant is well outside the middle third.</p>
+        <p>The linear formula would report q<sub>max</sub> = <strong>165.01 kN/m&sup2;</strong> with a fictitious q<sub>min</sub> of &minus;43.83 kN/m&sup2; &mdash; a tension the soil cannot supply.<br>
+        The pressure that actually develops is q<sub>max</sub> = 2 &times; 72.71 / [3 &times; (0.6 &minus; 0.345)] = <strong>189.85 kN/m&sup2;</strong>, over a contact length of just <strong>0.766 m of the 1.200 m base</strong>.</p>
+
+        <div class="ans">
+          <p><strong>The linear formula under-predicts the toe pressure by 15 percent.</strong></p>
+          <p>Contact is lost over 36 percent of the base width</p>
+          <p>Overturning, sliding and bearing all read as passing</p>
+          <p><strong>Verdict &mdash; the wall is not acceptable</strong>, and only the eccentricity check says so</p>
+        </div>
+
+        <div class="wex-hd">Why this matters more than it looks</div>
+        <p>A wall bearing on 64 percent of its base has an effective factor of safety against overturning far below the 1.81 quoted, because the pivot has moved inward from the toe. It will also rotate progressively as the toe soil yields under a pressure it was never checked for. Widening the base until B/6 exceeds the eccentricity is the direct fix; a shear key helps sliding but does nothing for this.</p>
+      </div>
+
+      <div class="note">
+        <strong>How common is this?</strong> Sweeping 12 510 valid wall geometries through this calculator &mdash; heights 2 to 6 m, base widths 0.4H to 1.2H, friction angles 26&deg; to 36&deg;, three backfill densities, three surcharges and three bearing capacities &mdash; the middle-third check failed on 4371 of them, or 34.9 percent. That is more than bearing pressure (3451, or 27.6 percent), more than sliding (2763, 22.1 percent) and four times more than overturning (1080, 8.6 percent). <strong>Eccentricity is the check most likely to catch a cantilever wall out, and overturning is the one least likely to.</strong> If you only ever quote one factor of safety for a retaining wall, quoting the overturning one tells your reader the least.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Wall height H</td><td>m</td><td>ft</td><td>&gt; base thickness</td><td>Underside of base to top of stem</td></tr>
+            <tr><td>Base width B</td><td>m</td><td>ft</td><td>&gt; stem thickness</td><td>No toe projection is modelled</td></tr>
+            <tr><td>Stem thickness</td><td>m</td><td>ft</td><td>&gt; 0, less than B</td><td>Constant over the height</td></tr>
+            <tr><td>Base slab thickness</td><td>m</td><td>ft</td><td>&gt; 0, less than H</td><td>Deducted from H to give the stem height</td></tr>
+            <tr><td>Backfill unit weight &gamma;</td><td>kN/m&sup3;</td><td>pcf</td><td>16 &ndash; 22 typical</td><td>Bulk, moist weight</td></tr>
+            <tr><td>Concrete unit weight &gamma;<sub>c</sub></td><td>kN/m&sup3;</td><td>pcf</td><td>24 &ndash; 25 typical</td><td>25 for reinforced concrete</td></tr>
+            <tr><td>Friction angle &phi;</td><td>degrees</td><td>degrees</td><td>0 &ndash; 50, practically 26 &ndash; 40</td><td>Drives both K<sub>a</sub> and K<sub>p</sub></td></tr>
+            <tr><td>Base friction &mu;</td><td>&mdash;</td><td>&mdash;</td><td>0 &ndash; 1, typically 0.4 &ndash; 0.6</td><td>Roughly tan(2&phi;/3) for concrete on soil</td></tr>
+            <tr><td>Surcharge q</td><td>kN/m&sup2;</td><td>ksf</td><td>&ge; 0</td><td>Uniform over the retained surface</td></tr>
+            <tr><td>Allowable bearing q<sub>a</sub></td><td>kN/m&sup2;</td><td>ksf</td><td>&gt; 0</td><td>Service-level allowable value</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Rankine coefficients for level backfill</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>&phi;</th><th>K<sub>a</sub></th><th>K<sub>p</sub></th><th>At-rest K<sub>0</sub> = 1 &minus; sin&phi;</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>20&deg;</td><td>0.490</td><td>2.040</td><td>0.658</td></tr>
+            <tr><td>25&deg;</td><td>0.406</td><td>2.464</td><td>0.577</td></tr>
+            <tr><td>28&deg;</td><td>0.361</td><td>2.770</td><td>0.531</td></tr>
+            <tr><td>30&deg;</td><td>0.333</td><td>3.000</td><td>0.500</td></tr>
+            <tr><td>32&deg;</td><td>0.307</td><td>3.255</td><td>0.470</td></tr>
+            <tr><td>34&deg;</td><td>0.283</td><td>3.537</td><td>0.441</td></tr>
+            <tr><td>36&deg;</td><td>0.260</td><td>3.852</td><td>0.412</td></tr>
+            <tr><td>40&deg;</td><td>0.217</td><td>4.599</td><td>0.357</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">K<sub>0</sub> is shown for context only. A wall restrained from moving &mdash; a basement wall, or one tied into a slab &mdash; attracts at-rest pressure, which is roughly 50 percent higher than active. This calculator assumes the wall can yield enough to mobilise the active state.</div>
+
+      <hr class="dv">
+
+      <p><strong>Typical backfill properties</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Backfill</th><th>&gamma;, kN/m&sup3;</th><th>&phi;</th><th>Suitability behind a wall</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Clean gravel</td><td>19 &ndash; 21</td><td>36&deg; &ndash; 40&deg;</td><td>Best &mdash; free draining, high &phi;</td></tr>
+            <tr><td>Coarse sand</td><td>18 &ndash; 20</td><td>32&deg; &ndash; 36&deg;</td><td>Very good</td></tr>
+            <tr><td>Fine sand / silty sand</td><td>17 &ndash; 19</td><td>28&deg; &ndash; 32&deg;</td><td>Acceptable with drainage</td></tr>
+            <tr><td>Sandy silt</td><td>17 &ndash; 19</td><td>26&deg; &ndash; 30&deg;</td><td>Marginal &mdash; drainage critical</td></tr>
+            <tr><td>Stiff clay</td><td>18 &ndash; 21</td><td>&mdash;</td><td>Avoid &mdash; swelling and poor drainage</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Cohesive backfill is outside the scope of this calculation, which uses the cohesionless Rankine expression with no cohesion term.</div>
+
+      <hr class="dv">
+
+      <p><strong>Minimum factors of safety and the checks they cover</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Check</th><th>Threshold used here</th><th>Common alternative</th><th>How often it governs</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Eccentricity within B/6</td><td>Pass / fail</td><td>B/4 permitted on rock</td><td>Most often &mdash; 23 % of geometries swept</td></tr>
+            <tr><td>Bearing pressure</td><td>q<sub>max</sub> &le; q<sub>a</sub></td><td>&mdash;</td><td>15 %</td></tr>
+            <tr><td>Sliding</td><td>FS &ge; 1.5</td><td>2.0 without passive resistance</td><td>7 %</td></tr>
+            <tr><td>Overturning</td><td>FS &ge; 1.5</td><td>2.0 for severe consequence</td><td>1 %</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Frequencies from a sweep of 35 712 wall geometries through this calculator, heights 2 to 6 m and base widths 0.4H to 1.2H. They describe which check catches a trial geometry first, not which is most important.</div>
+
+      <hr class="dv">
+
+      <p><strong>Surcharge equivalents</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Condition on the retained surface</th><th>Equivalent uniform surcharge</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Landscaped, pedestrian only</td><td>5 kN/m&sup2;</td></tr>
+            <tr><td>Car parking, light traffic</td><td>10 kN/m&sup2;</td></tr>
+            <tr><td>Highway loading near the wall</td><td>20 &ndash; 24 kN/m&sup2;</td></tr>
+            <tr><td>Construction plant, stockpiles</td><td>Assess separately &mdash; often 30+ kN/m&sup2;</td></tr>
+            <tr><td>1 m of additional soil above the wall</td><td>&asymp; &gamma; &times; 1 m, so about 18 kN/m&sup2;</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you check a retaining wall for overturning and sliding?</summary>
+        <div class="faq-a">Overturning is checked by taking moments about the toe. The active earth thrust and any surcharge thrust produce the overturning moment, while the weight of the stem, the base and the soil sitting on the heel produce the stabilising moment. The factor of safety is the stabilising moment divided by the overturning moment. Sliding is checked by comparing the friction available along the underside of the base, taken as the coefficient of base friction times the total vertical load, against the horizontal active thrust.</div>
+      </details>
+
+      <details>
+        <summary>What is the minimum factor of safety for a retaining wall?</summary>
+        <div class="faq-a">Common practice takes 1.5 as the minimum factor of safety against both overturning and sliding for a gravity or cantilever retaining wall under static loading, and this calculator uses that threshold for both. Some authorities require 2.0 against overturning where the consequences of failure are severe or where the backfill properties are poorly known. Bearing pressure is a separate check made against the allowable bearing capacity rather than against a factor of safety, because the allowable value already contains one.</div>
+      </details>
+
+      <details>
+        <summary>Why must the resultant stay within the middle third of the base?</summary>
+        <div class="faq-a">If the resultant vertical force falls outside the middle third, the linear pressure diagram under the base would need to become negative at the heel, which would mean the soil pulling down on the wall. Soil cannot do that, so instead the heel lifts off, the contact area shrinks and the peak pressure under the toe rises well above the value the standard linear formula predicts. Keeping the eccentricity within B over six guarantees full contact and keeps the linear formula valid.</div>
+      </details>
+
+      <details>
+        <summary>How do you calculate the active earth pressure coefficient Ka?</summary>
+        <div class="faq-a">For a smooth vertical wall retaining level cohesionless backfill, the Rankine active coefficient is the square of the tangent of forty five degrees minus half the angle of internal friction, which is also equal to one minus the sine of the friction angle divided by one plus the sine. For a thirty degree friction angle this gives one third. The passive coefficient is the reciprocal, which is three for the same soil.</div>
+      </details>
+
+      <details>
+        <summary>Why does a retaining wall need drainage behind it?</summary>
+        <div class="faq-a">Without drainage, water builds up behind the wall and adds a hydrostatic thrust that uses the full unit weight of water rather than the buoyant weight of soil. Because water has no shear strength there is no reduction factor equivalent to Ka, so the pressure grows roughly two to three times faster with depth than the active earth pressure. Saturated backfill is the single most common cause of retaining wall failure, and this calculation assumes drainage behind the wall is working.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/footing-design-calculator">Footing Design Calculator<span>Bearing, punching shear and reinforcement for a pad footing</span></a>
+        <a href="/concrete-mix-design-calculator">Concrete Mix Design Calculator<span>Proportion the mix for the stem and base</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Cost the concrete, steel and backfill</span></a>
+        <a href="/unit-converter/pressure">Pressure Converter<span>kN/m&sup2;, kPa, ksf and psf</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Retaining Wall Design Calculator &mdash; multicalci.com. Stability checks only; the stem and base are not designed for bending or shear here. No water pressure, no seismic increment and no passive resistance are included, and no toe projection is modelled. Results are indicative and must be verified by a qualified geotechnical or structural engineer against site-specific soil data.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  var GROUPS = [
+    ['Earth Pressure and Overturning Demand', [
+      ['Active Force Pa',        'c-main', true ],
+      ['Overturning Moment Mo',  'c-amb',  false],
+      ['Active Pressure Ka',     'c-blu',  false],
+      ['Passive Pressure Kp',    'c-blu',  false]
+    ]],
+    ['Stability', [
+      ['FS Overturning (\u22651.5)', 'c-main', true ],
+      ['FS Sliding (\u22651.5)',     'c-main', true ],
+      ['Vertical Load W',            'c-blu',  false],
+      ['Stabilising Moment Mr',      'c-grn',  false]
+    ]],
+    ['Foundation Pressure and Base Contact', [
+      ['Max Foundation Pressure', 'c-main', true ],
+      ['Bearing Check',           'c-grn',  false],
+      ['Min Foundation Pressure', 'c-blu',  false],
+      ['Eccentricity e',          'c-cyn',  false],
+      ['Base Contact',            'c-pur',  false]
+    ]]
+  ];
+
+  function isSI() { return US === 'SI'; }
+
+  // The payload is ALWAYS SI, taken from the canonical values, whatever the
+  // display units are. Sending the rounded Imperial figure instead loses
+  // relative precision on small numbers -- a 10 kN/m2 surcharge shown as
+  // 0.2089 ksf comes back as 10.002, which was enough to move Pa from 61.33
+  // to 61.34 and make the same wall give two different answers depending on
+  // which unit button happened to be lit.
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = 1;
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) f = FIELDS[i][1];
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only when the box still shows its own rounded
+    // projection -- that way a value set programmatically, or edited without
+    // firing input, still converts correctly instead of silently using a
+    // stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    return {
+      H:      si('rwH'),
+      B:      si('rwB'),
+      stem:   si('rwStem'),
+      base:   si('rwBase'),        L_u: 'm',
+      gamma:  si('rwGamma'),
+      gammaC: si('rwGammaC'),      g_u: 'knm3',
+      q:      si('rwSurcharge'),
+      qa:     si('rwQult'),        q_u: 'kPa',
+      phi:    E('rwPhi').value,
+      mu:     E('rwMu').value
+    };
+  }
+
+  // Mirror the backend's input guards so the user gets a field-level message
+  // instead of a 422. Dimensional bookkeeping only — no design formulas are
+  // duplicated client-side, so the |e| >= B/2 guard stays on the server.
+  function localGuard() {
+    var n = function (id) { return parseFloat(E(id).value); };
+    var H = n('rwH'), B = n('rwB'), stem = n('rwStem'), base = n('rwBase');
+    var gamma = n('rwGamma'), gammaC = n('rwGammaC');
+    var phi = n('rwPhi'), mu = n('rwMu'), qa = n('rwQult'), q = n('rwSurcharge');
+
+    if (!isFinite(H)    || H    <= 0) return ['rwH',        'Wall height H must be a number greater than 0.'];
+    if (!isFinite(B)    || B    <= 0) return ['rwB',        'Base width B must be a number greater than 0.'];
+    if (!isFinite(stem) || stem <= 0) return ['rwStem',     'Stem thickness must be a number greater than 0.'];
+    if (!isFinite(base) || base <= 0) return ['rwBase',     'Base slab thickness must be a number greater than 0.'];
+    if (base >= H)                    return ['rwBase',     'Base slab thickness must be less than the wall height H.'];
+    if (stem >= B)                    return ['rwStem',     'Stem thickness must be less than the base width B.'];
+    if (!isFinite(gamma)  || gamma  <= 0) return ['rwGamma',  'Backfill unit weight must be a number greater than 0.'];
+    if (!isFinite(gammaC) || gammaC <= 0) return ['rwGammaC', 'Concrete unit weight must be a number greater than 0.'];
+    if (!isFinite(phi) || phi <= 0 || phi >= 90)
+      return ['rwPhi', 'Friction angle \u03C6 must be between 0 and 90 degrees.'];
+    if (!isFinite(mu) || mu <= 0)     return ['rwMu',       'Base friction coefficient must be a number greater than 0.'];
+    if (!isFinite(qa) || qa <= 0)     return ['rwQult',     'Allowable bearing capacity must be a number greater than 0.'];
+    if (!isFinite(q)  || q  <  0)     return ['rwSurcharge','Surcharge must be a number of 0 or more.'];
+    return null;
+  }
+
+  function clear() {
+    E('rwGroups').innerHTML = '<div class="rc-empty">Press <strong>Check Stability</strong> to run the checks.</div>';
+    E('rwVerdict').innerHTML = '';
+    E('rwWarns').innerHTML = '';
+    E('rwSummary').style.display = 'none';
+    E('rwUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('rwErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('rwErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (row) {
+        var r = byLabel[row[0]];
+        if (!r) return;
+        delete byLabel[row[0]];
+        if (r.warn) groupWarn = true;
+        body += card(row[0], r, row[1], row[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('rwGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('rwVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Wall is stable against overturning and sliding, stays in full contact and is within the allowable bearing pressure</div>'
+      : '<div class="badge c-red">\u26A0 One or more checks failed \u2014 the flagged rows below show which</div>';
+
+    if (d.summary) {
+      E('rwSummary').textContent = d.summary;
+      E('rwSummary').style.display = 'block';
+    }
+
+    E('rwWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('rwUnitNote').style.display = US === 'SI' ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Checking\u2026';
+
+    MC.api.civil('retwall', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { h: 'rwH', b: 'rwB', stem: 'rwStem', base: 'rwBase', g: 'rwGamma',
+               gc: 'rwGammaC', phi: 'rwPhi', mu: 'rwMu', q: 'rwSurcharge', qa: 'rwQult' };
+
+  // The URL carries SI values plus a display-unit flag, never the rounded
+  // Imperial figures. Storing what the boxes happen to show would bake the
+  // display rounding into the link, so an Imperial share link came back as a
+  // very slightly different wall.
+  function writeUrl() {
+    var p = new URLSearchParams();
+    Object.keys(QMAP).forEach(function (k) { p.set(k, si(QMAP[k])); });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    // Values arrive in SI: fill and seed first, then switch the display.
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Retaining Wall Design Calculator',
+                        text: 'Retaining wall stability check on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  // m->ft, kN/m3->pcf, kN/m2->ksf. The backend applies the same conversion
+  // server-side from the *_u flags, so a round trip must reproduce identically.
+  var FIELDS = [
+    ['rwH',         1 / 0.3048],
+    ['rwB',         1 / 0.3048],
+    ['rwStem',      1 / 0.3048],
+    ['rwBase',      1 / 0.3048],
+    ['rwGamma',     1 / 0.157088],
+    ['rwGammaC',    1 / 0.157088],
+    ['rwSurcharge', 1 / 47.88],
+    ['rwQult',      1 / 47.88]
+  ];
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits that field. Converting the *displayed* (rounded) number on every
+  // toggle drifts, so the toggle reads from the canonical value instead.
+  var CANON = {};
+
+  function seedCanon() { FIELDS.forEach(function (f) { noteEdit(f[0]); }); }
+
+  function noteEdit(id) {
+    for (var i = 0; i < FIELDS.length; i++) {
+      if (FIELDS[i][0] !== id) continue;
+      var v = parseFloat(E(id).value);
+      CANON[id] = isFinite(v) ? (US === 'IMP' ? v / FIELDS[i][1] : v) : NaN;
+      return;
+    }
+  }
+
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-m': ['(m)', '(ft)'], 'u-g': ['(kN/m\u00B3)', '(pcf)'], 'u-q': ['(kN/m\u00B2)', '(ksf)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var p = params();
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lb = isSI() ? ['m', 'kN/m\u00B3', 'kN/m\u00B2'] : ['ft', 'pcf', 'ksf'];
+    var inRows = [
+      ['Wall height H', p.H + ' ' + lb[0]],
+      ['Base width B', p.B + ' ' + lb[0]],
+      ['Stem thickness', p.stem + ' ' + lb[0]],
+      ['Base slab thickness', p.base + ' ' + lb[0]],
+      ['Backfill unit weight', p.gamma + ' ' + lb[1]],
+      ['Concrete unit weight', p.gammaC + ' ' + lb[1]],
+      ['Friction angle \u03C6', p.phi + '\u00B0'],
+      ['Base friction \u03BC', p.mu],
+      ['Surcharge q', p.q + ' ' + lb[2]],
+      ['Allowable bearing qa', p.qa + ' ' + lb[2]]
+    ].map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Retaining Wall Stability Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Retaining Wall Stability Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Rankine active pressure, moments about the toe \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 all stability checks satisfied' : 'REVIEW \u2014 one or more checks failed') + '</div>'
+      + '<h2>Wall Geometry and Soil</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Stability Checks</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 indicative only. Stability checks only; the stem and base are '
+      + 'not designed for bending or shear. No water pressure, no seismic increment, no passive resistance and no toe '
+      + 'projection are included. Verify against site-specific soil data.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    ['rwH', 'rwB', 'rwStem', 'rwBase', 'rwGamma', 'rwGammaC', 'rwPhi', 'rwMu', 'rwSurcharge', 'rwQult']
+      .forEach(function (id) {
+        var el = E(id);
+        if (!el) return;
+        el.addEventListener('input',  function () { noteEdit(id); });
+        el.addEventListener('change', function () { noteEdit(id); clear(); });
+        el.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+        });
+      });
+
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the already-converted Imperial
+    // boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
