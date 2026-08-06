@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Earthwork Volume Calculator — Average End Area and Prismoidal | multicalci.com</title>
+<meta name="description" content="Free earthwork volume calculator using the average end area and prismoidal formulae. Returns bank, loose and compacted volumes, mass, swell factor and the number of truck loads.">
+<link rel="canonical" href="https://www.multicalci.com/earthwork-volume-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Earthwork Volume Calculator — Average End Area and Prismoidal">
+<meta property="og:description" content="Bank, loose and compacted earthwork volumes with swell and shrinkage, mass, and truck loads required.">
+<meta property="og:url" content="https://www.multicalci.com/earthwork-volume-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Earthwork Volume Calculator — Average End Area and Prismoidal">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Earthwork Volume Calculator","description":"Earthwork volume calculator using the average end area and prismoidal formulae. Computes bank, loose and compacted volumes from cross-section areas, applies swell and shrinkage factors, and returns the mass of material, the swell factor and the number of truck loads required.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/earthwork-volume-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Earthwork Volume Calculator","item":"https://www.multicalci.com/earthwork-volume-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the difference between the average end area and prismoidal methods?","acceptedAnswer":{"@type":"Answer","text":"The average end area method takes the mean of the two end cross-section areas and multiplies by the distance between them, which assumes the section varies linearly along the length. The prismoidal formula weights the mid-section area four times against the two ends and divides by six, which is exact for any shape whose area varies as a quadratic. Average end area overestimates the volume whenever the ground is concave in the direction of the chainage, and the prismoidal correction is the difference between the two."}},{"@type":"Question","name":"What is the difference between bank, loose and compacted volume?","acceptedAnswer":{"@type":"Answer","text":"Bank volume is the material in place before excavation, and it is what you measure from cross-sections and what you are usually paid for. Loose volume is the same material after excavation, swollen by the void space introduced when it is broken up, and it is what determines how many truck loads you need. Compacted volume is the material after placement and rolling in a fill, which is smaller than bank volume for most soils. One cubic metre in the cut is not one cubic metre in the truck and not one cubic metre in the fill."}},{"@type":"Question","name":"What is the swell factor for common soils?","acceptedAnswer":{"@type":"Answer","text":"Sand and gravel typically swell by ten to fifteen percent, common earth and loam by about twenty to twenty five percent, clay by twenty five to forty percent, and blasted rock by fifty to eighty percent. Swell depends on how tightly the material was packed in place, so dense well graded soils swell more than loose ones. The corresponding load factor, which is bank volume divided by loose volume, runs from about zero point eight seven for sand down to around zero point six for rock."}},{"@type":"Question","name":"How do you calculate the number of truck loads for an excavation?","acceptedAnswer":{"@type":"Answer","text":"Divide the loose volume by the heaped capacity of the truck and round up, because trucks carry loose material rather than bank material. A frequent error is dividing the bank volume instead, which underestimates the haul by the swell percentage. Also check whether the payload mass rather than the volume governs, since a dense material can reach the axle limit of the truck before the body is full."}},{"@type":"Question","name":"Why does compacted volume come out less than bank volume?","acceptedAnswer":{"@type":"Answer","text":"Compaction by rolling forces the soil particles into a denser packing than they occupied in the natural ground, so a given mass of material occupies less space in the finished fill than it did in the cut. The reduction, called shrinkage, is typically five to ten percent for sand and gravel and ten to twenty percent for clay. It means the cut volume needed to build a given fill is larger than the fill volume, which is why a scheme that balances on paper often runs short of material."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Earthwork Volume Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Earthwork Volume Calculator</h1>
+    <p>Compute the volume of cut or fill between two cross-sections using either the average end area method or the prismoidal formula. Enter the two end areas, the distance between them, and the swell and shrinkage percentages, and this calculator returns the bank, loose and compacted volumes, the mass of material, the swell factor and the number of truck loads required for the haul.</p>
+    <div class="stdref">Average end area &middot; prismoidal formula &middot; swell and shrinkage factors</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128739;</span>
+      <span class="card-hd-ttl">Cross-Sections and Material</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m&sup2;, m, t/m&sup3;</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft&sup2;, ft, pcf</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="field">
+        <label for="ewMethod">Volume Method</label>
+        <select id="ewMethod">
+          <option value="avg" selected>Average end area &mdash; V = L(A&#8321; + A&#8322;)/2</option>
+          <option value="prism">Prismoidal &mdash; V = L(A&#8321; + 4A&#8344; + A&#8322;)/6</option>
+        </select>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ewA1">End Area A&#8321; <span class="u-a">(m&sup2;)</span></label>
+          <input type="number" id="ewA1" value="120" step="5" min="0">
+        </div>
+        <div class="field">
+          <label for="ewA2">End Area A&#8322; <span class="u-a">(m&sup2;)</span></label>
+          <input type="number" id="ewA2" value="60" step="5" min="0">
+        </div>
+      </div>
+
+      <div class="field" id="grpAm">
+        <label for="ewAm">Mid-Section Area A&#8344; <span class="u-a">(m&sup2;)</span></label>
+        <input type="number" id="ewAm" value="80" step="5" min="0">
+        <div class="hint">The area measured at the midpoint, not the average of the two ends. Only used by the prismoidal method.</div>
+      </div>
+
+      <div class="field">
+        <label for="ewL">Distance Between Sections L <span class="u-m">(m)</span></label>
+        <input type="number" id="ewL" value="50" step="5" min="0.01">
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ewSw">Swell <span class="u-pct">(%)</span></label>
+          <input type="number" id="ewSw" value="25" step="1" min="0">
+          <div class="hint">Bulking on excavation. See the soil table below.</div>
+        </div>
+        <div class="field">
+          <label for="ewSh">Shrinkage <span class="u-pct">(%)</span></label>
+          <input type="number" id="ewSh" value="12" step="1" min="0">
+          <div class="hint">Reduction on compaction in the fill.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ewDensB">Bank Density <span class="u-d">(t/m&sup3;)</span></label>
+          <input type="number" id="ewDensB" value="1.8" step="0.05" min="0.01">
+        </div>
+        <div class="field">
+          <label for="ewDensL">Loose Density <span class="u-d">(t/m&sup3;)</span></label>
+          <input type="number" id="ewDensL" value="1.44" step="0.05" min="0.01">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="ewTruck">Truck Capacity <span class="u-v">(m&sup3;)</span></label>
+        <input type="number" id="ewTruck" value="10" step="1" min="0.01">
+        <div class="hint">Heaped capacity. Trucks carry loose volume, not bank volume.</div>
+      </div>
+
+      <div id="ewErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Volumes</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Volumes and Haulage</span>
+    </div>
+    <div class="card-bd">
+      <div id="ewVerdict"></div>
+      <div id="ewSummary" class="note" style="display:none"></div>
+      <div id="ewGroups">
+        <div class="rc-empty">Press <strong>Calculate Volumes</strong> to compute the earthwork.</div>
+      </div>
+      <div id="ewWarns"></div>
+      <div class="note" id="ewUnitNote" style="display:none">Results are always reported in SI: volumes in m&sup3; and mass in tonnes, whatever units you enter.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Volume between two cross-sections</strong></p>
+      <div class="fbox">
+        <strong>Average end area</strong>&nbsp; V = L (A&#8321; + A&#8322;) / 2<br>
+        <strong>Prismoidal</strong>&nbsp; V = L (A&#8321; + 4A&#8344; + A&#8322;) / 6<br>
+        Prismoidal correction = V<sub>prismoidal</sub> &minus; V<sub>average</sub>
+      </div>
+
+      <p><strong>State conversions</strong></p>
+      <div class="fbox">
+        V<sub>loose</sub> = V<sub>bank</sub> (1 + swell)<br>
+        V<sub>compacted</sub> = V<sub>bank</sub> (1 &minus; shrinkage)<br>
+        mass = V<sub>bank</sub> &times; &rho;<sub>bank</sub><br>
+        swell factor = &rho;<sub>bank</sub> / &rho;<sub>loose</sub> = V<sub>loose</sub> / V<sub>bank</sub><br>
+        trucks = &lceil; V<sub>loose</sub> / truck capacity &rceil;
+      </div>
+
+      <div class="legend">
+        <p><strong>A&#8321;, A&#8322;</strong> &mdash; cross-section areas at the two ends of the length</p>
+        <p><strong>A&#8344;</strong> &mdash; area measured at the midpoint, not the mean of the ends</p>
+        <p><strong>L</strong> &mdash; distance along the chainage between the two sections</p>
+        <p><strong>V<sub>bank</sub></strong> &mdash; volume in place, before excavation</p>
+        <p><strong>V<sub>loose</sub></strong> &mdash; volume after excavation, once bulked</p>
+        <p><strong>V<sub>compacted</sub></strong> &mdash; volume after placement and rolling</p>
+        <p><strong>&rho;<sub>bank</sub>, &rho;<sub>loose</sub></strong> &mdash; density in place and in the loose state</p>
+      </div>
+
+      <div class="note">
+        <strong>The swell percentage and the two densities are separate inputs, and nothing forces them to agree.</strong> The loose volume is driven by the swell percentage alone; the densities only produce the mass and the swell factor. Since &rho;<sub>bank</sub>/&rho;<sub>loose</sub> is mathematically the same thing as V<sub>loose</sub>/V<sub>bank</sub>, entering a density pair that implies a different swell to the one you typed is a contradiction. This page cross-checks the two and warns you if they disagree by more than two percent, but the calculation itself will not stop.
+      </div>
+
+      <div class="note">
+        <strong>A&#8344; is a measured area, not an average.</strong> If you set the mid-section area to the mean of the two ends, the prismoidal formula collapses to exactly the average end area result and the correction reads zero &mdash; which tells you nothing. The whole value of the prismoidal method is that the real mid-section usually is <em>not</em> the mean, and the correction quantifies how much the linear assumption was costing you.
+      </div>
+
+      <div class="note">
+        <strong>What this does not cover.</strong> One pair of sections at a time &mdash; there is no chainage table, no mass-haul diagram, no free-haul or overhaul calculation, and no cut-and-fill balance across a scheme. Bulking of rock after blasting is highly variable and the single swell figure here is a crude stand-in. Truck loads are computed from volume alone, so where a dense material reaches the axle load limit before the body is full, the real count will be higher.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; Average End Area</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A cutting between two chainages 50 m apart. The cross-section area is 120 m&sup2; at the first and 60 m&sup2; at the second. The material is common earth with 25 percent swell and 12 percent shrinkage, a bank density of 1.8 t/m&sup3; and a loose density of 1.44 t/m&sup3;. Haulage is by 10 m&sup3; trucks.</p>
+
+        <div class="wex-hd">Step 1 &mdash; bank volume</div>
+        <p>V<sub>bank</sub> = 50 &times; (120 + 60) / 2 = 50 &times; 90 = <strong>4500.00 m&sup3;</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; loose volume for the haul</div>
+        <p>V<sub>loose</sub> = 4500 &times; 1.25 = <strong>5625.00 m&sup3;</strong><br>
+        This is the figure the trucks see. Using the bank volume here would undercount the haul by a quarter.</p>
+
+        <div class="wex-hd">Step 3 &mdash; compacted volume in the fill</div>
+        <p>V<sub>compacted</sub> = 4500 &times; 0.88 = <strong>3960.00 m&sup3;</strong><br>
+        So 4500 m&sup3; taken out of the cut builds only 3960 m&sup3; of finished fill.</p>
+
+        <div class="wex-hd">Step 4 &mdash; mass and haulage</div>
+        <p>mass = 4500 &times; 1.8 = <strong>8100.00 t</strong><br>
+        swell factor = 1.8 / 1.44 = <strong>1.250</strong>, which agrees with the 25 percent entered<br>
+        trucks = &lceil;5625 / 10&rceil; = <strong>563 loads</strong></p>
+
+        <div class="ans">
+          <p><strong>Bank volume</strong> 4500.00 m&sup3; &mdash; what you excavate and get paid for</p>
+          <p><strong>Loose volume</strong> 5625.00 m&sup3; &mdash; what you haul</p>
+          <p><strong>Compacted volume</strong> 3960.00 m&sup3; &mdash; what you build</p>
+          <p><strong>Mass</strong> 8100.00 t &nbsp;&middot;&nbsp; <strong>Swell factor</strong> 1.250</p>
+          <p><strong>Truck loads</strong> 563</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Volumes</strong> without changing anything and you should get exactly these figures back. Three different cubic metre figures for the same material is the whole point of the exercise &mdash; 4500 in the ground, 5625 in the truck, 3960 in the embankment.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; What the Prismoidal Correction Buys You</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>The same cutting, but the surveyor has also measured the section at the midpoint and found it to be 80 m&sup2;, not the 90 m&sup2; the average of the two ends would suggest. The ground is dished between the chainages.</p>
+
+        <div class="wex-hd">Step 1 &mdash; the prismoidal volume</div>
+        <p>V = 50 &times; (120 + 4 &times; 80 + 60) / 6 = 50 &times; 500 / 6 = <strong>4166.67 m&sup3;</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; the correction</div>
+        <p>Prismoidal correction = 4166.67 &minus; 4500.00 = <strong>&minus;333.33 m&sup3;</strong><br>
+        The average end area method overstated the cut by 7.4 percent.</p>
+
+        <div class="wex-hd">Step 3 &mdash; what that means downstream</div>
+        <p>Loose volume falls from 5625.00 to <strong>5208.33 m&sup3;</strong><br>
+        Truck loads fall from 563 to <strong>521</strong> &mdash; forty two fewer journeys<br>
+        Mass falls from 8100.00 to <strong>7500.00 t</strong></p>
+
+        <div class="ans">
+          <p><strong>Average end area</strong> 4500.00 m&sup3;, 563 loads</p>
+          <p><strong>Prismoidal</strong> 4166.67 m&sup3;, 521 loads</p>
+          <p><strong>Correction</strong> &minus;333.33 m&sup3;, a 7.4 percent overestimate avoided</p>
+        </div>
+
+        <div class="wex-hd">Which way does the error go?</div>
+        <p>Average end area overestimates whenever the mid-section is smaller than the mean of the ends, which is the usual case for a cutting through a rounded hill or a fill across a valley. It underestimates when the mid-section is larger. The error grows with the spacing of the sections and with how sharply the ground curves, so on rolling terrain surveyed at 50 m intervals the correction is well worth having. On flat ground with sections every 20 m it is negligible.</p>
+      </div>
+
+      <div class="note">
+        <strong>The mid-section area must be measured.</strong> Enter 80 here and you get a real correction; enter 90, the mean of the two ends, and the prismoidal formula returns exactly the average end area answer with a correction of zero. If A&#8344; is left at zero the volume comes out at one third of the correct value, so this page blocks that rather than letting it through silently.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Volume method</td><td>&mdash;</td><td>&mdash;</td><td>average end area, prismoidal</td><td>Prismoidal needs the mid-section area</td></tr>
+            <tr><td>End areas A&#8321;, A&#8322;</td><td>m&sup2;</td><td>ft&sup2;</td><td>&ge; 0</td><td>One may be zero where the section runs out</td></tr>
+            <tr><td>Mid-section area A&#8344;</td><td>m&sup2;</td><td>ft&sup2;</td><td>&gt; 0 for prismoidal</td><td>Measured at the midpoint, not averaged</td></tr>
+            <tr><td>Distance L</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Along the chainage between sections</td></tr>
+            <tr><td>Swell</td><td>%</td><td>%</td><td>&ge; 0, typically 10 &ndash; 80</td><td>Should agree with the density pair</td></tr>
+            <tr><td>Shrinkage</td><td>%</td><td>%</td><td>&ge; 0, typically 5 &ndash; 20</td><td>Values above 100 would give a negative volume</td></tr>
+            <tr><td>Bank density</td><td>t/m&sup3;</td><td>pcf</td><td>&gt; 0, typically 1.4 &ndash; 2.4</td><td>Density in place</td></tr>
+            <tr><td>Loose density</td><td>t/m&sup3;</td><td>pcf</td><td>&gt; 0, less than bank</td><td>Density after excavation</td></tr>
+            <tr><td>Truck capacity</td><td>m&sup3;</td><td>yd&sup3;</td><td>&gt; 0</td><td>Heaped capacity, loose measure</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Swell, shrinkage and density by material</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Material</th><th>Swell, %</th><th>Shrinkage, %</th><th>Bank density, t/m&sup3;</th><th>Loose density, t/m&sup3;</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Sand, dry</td><td>10 &ndash; 12</td><td>5 &ndash; 8</td><td>1.60</td><td>1.45</td></tr>
+            <tr><td>Sand and gravel</td><td>12 &ndash; 15</td><td>8 &ndash; 10</td><td>1.90</td><td>1.68</td></tr>
+            <tr><td>Common earth / loam</td><td>20 &ndash; 25</td><td>10 &ndash; 12</td><td>1.80</td><td>1.44</td></tr>
+            <tr><td>Clay, stiff</td><td>25 &ndash; 30</td><td>12 &ndash; 15</td><td>2.00</td><td>1.58</td></tr>
+            <tr><td>Clay, hard / shale</td><td>30 &ndash; 40</td><td>15 &ndash; 20</td><td>2.20</td><td>1.65</td></tr>
+            <tr><td>Rock, well blasted</td><td>50 &ndash; 60</td><td>&mdash;</td><td>2.60</td><td>1.70</td></tr>
+            <tr><td>Rock, poorly blasted</td><td>60 &ndash; 80</td><td>&mdash;</td><td>2.60</td><td>1.50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The density pairs in this table are consistent with the swell figures beside them &mdash; loose density is bank density divided by one plus the swell. Rock is not normally quoted a shrinkage because it is placed as rockfill rather than compacted to a soil density.</div>
+
+      <hr class="dv">
+
+      <p><strong>Swell factor and load factor</strong> &mdash; two names for reciprocal quantities</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Swell, %</th><th>Swell factor V<sub>loose</sub>/V<sub>bank</sub></th><th>Load factor V<sub>bank</sub>/V<sub>loose</sub></th><th>1 m&sup3; bank becomes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>10</td><td>1.10</td><td>0.909</td><td>1.10 m&sup3; loose</td></tr>
+            <tr><td>15</td><td>1.15</td><td>0.870</td><td>1.15 m&sup3; loose</td></tr>
+            <tr><td>20</td><td>1.20</td><td>0.833</td><td>1.20 m&sup3; loose</td></tr>
+            <tr><td>25</td><td>1.25</td><td>0.800</td><td>1.25 m&sup3; loose</td></tr>
+            <tr><td>30</td><td>1.30</td><td>0.769</td><td>1.30 m&sup3; loose</td></tr>
+            <tr><td>50</td><td>1.50</td><td>0.667</td><td>1.50 m&sup3; loose</td></tr>
+            <tr><td>80</td><td>1.80</td><td>0.556</td><td>1.80 m&sup3; loose</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The two are easily confused because both are called "factor". This calculator reports the swell factor, greater than one. If your reference quotes a load factor of 0.80, that is the same material as a swell factor of 1.25.</div>
+
+      <hr class="dv">
+
+      <p><strong>How much the prismoidal correction matters</strong> &mdash; A&#8321; = 120, A&#8322; = 60, L = 50 m</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Measured A&#8344;, m&sup2;</th><th>Prismoidal V, m&sup3;</th><th>Correction, m&sup3;</th><th>Error in average end area</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>70</td><td>3833.33</td><td>&minus;666.67</td><td>+17.4 % overestimate</td></tr>
+            <tr><td>80</td><td>4166.67</td><td>&minus;333.33</td><td>+8.0 % overestimate</td></tr>
+            <tr><td>90 (the mean)</td><td>4500.00</td><td>0.00</td><td>exact</td></tr>
+            <tr><td>100</td><td>4833.33</td><td>+333.33</td><td>&minus;6.9 % underestimate</td></tr>
+            <tr><td>110</td><td>5166.67</td><td>+666.67</td><td>&minus;12.9 % underestimate</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Typical truck and plant capacities</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Vehicle</th><th>Heaped capacity, m&sup3;</th><th>Heaped capacity, yd&sup3;</th><th>Loads for 5625 m&sup3; loose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Small tipper, 6 wheeler</td><td>6</td><td>7.8</td><td>938</td></tr>
+            <tr><td>Standard tipper, 10 wheeler</td><td>10</td><td>13.1</td><td>563</td></tr>
+            <tr><td>Large tipper, 12 wheeler</td><td>16</td><td>20.9</td><td>352</td></tr>
+            <tr><td>Articulated dump truck, 30 t</td><td>18</td><td>23.5</td><td>313</td></tr>
+            <tr><td>Rigid dump truck, 40 t</td><td>24</td><td>31.4</td><td>235</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Check the payload mass as well as the volume. At a loose density of 1.44 t/m&sup3; a 10 m&sup3; body carries 14.4 t, which is within a 10 wheeler's limit; the same body full of blasted rock at 1.70 t/m&sup3; carries 17 t and may not be.</div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>What is the difference between the average end area and prismoidal methods?</summary>
+        <div class="faq-a">The average end area method takes the mean of the two end cross-section areas and multiplies by the distance between them, which assumes the section varies linearly along the length. The prismoidal formula weights the mid-section area four times against the two ends and divides by six, which is exact for any shape whose area varies as a quadratic. Average end area overestimates the volume whenever the ground is concave in the direction of the chainage, and the prismoidal correction is the difference between the two.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between bank, loose and compacted volume?</summary>
+        <div class="faq-a">Bank volume is the material in place before excavation, and it is what you measure from cross-sections and what you are usually paid for. Loose volume is the same material after excavation, swollen by the void space introduced when it is broken up, and it is what determines how many truck loads you need. Compacted volume is the material after placement and rolling in a fill, which is smaller than bank volume for most soils. One cubic metre in the cut is not one cubic metre in the truck and not one cubic metre in the fill.</div>
+      </details>
+
+      <details>
+        <summary>What is the swell factor for common soils?</summary>
+        <div class="faq-a">Sand and gravel typically swell by ten to fifteen percent, common earth and loam by about twenty to twenty five percent, clay by twenty five to forty percent, and blasted rock by fifty to eighty percent. Swell depends on how tightly the material was packed in place, so dense well graded soils swell more than loose ones. The corresponding load factor, which is bank volume divided by loose volume, runs from about zero point eight seven for sand down to around zero point six for rock.</div>
+      </details>
+
+      <details>
+        <summary>How do you calculate the number of truck loads for an excavation?</summary>
+        <div class="faq-a">Divide the loose volume by the heaped capacity of the truck and round up, because trucks carry loose material rather than bank material. A frequent error is dividing the bank volume instead, which underestimates the haul by the swell percentage. Also check whether the payload mass rather than the volume governs, since a dense material can reach the axle limit of the truck before the body is full.</div>
+      </details>
+
+      <details>
+        <summary>Why does compacted volume come out less than bank volume?</summary>
+        <div class="faq-a">Compaction by rolling forces the soil particles into a denser packing than they occupied in the natural ground, so a given mass of material occupies less space in the finished fill than it did in the cut. The reduction, called shrinkage, is typically five to ten percent for sand and gravel and ten to twenty percent for clay. It means the cut volume needed to build a given fill is larger than the fill volume, which is why a scheme that balances on paper often runs short of material.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Price excavation, haulage and disposal</span></a>
+        <a href="/retaining-wall-design-calculator">Retaining Wall Design Calculator<span>Retain the cut face instead of battering it</span></a>
+        <a href="/unit-converter/volume">Volume Converter<span>m&sup3;, yd&sup3;, ft&sup3; and litres</span></a>
+        <a href="/unit-converter/density">Density Converter<span>t/m&sup3;, kg/m&sup3;, pcf and g/cm&sup3;</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Earthwork Volume Calculator &mdash; multicalci.com. Computes one pair of cross-sections at a time. No mass-haul diagram, no overhaul, no cut-and-fill balance. Swell, shrinkage and density figures vary widely with material and compaction, so use site-specific test values for a tender. Truck loads are computed from volume only and may be limited by payload mass instead.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+  var LOCAL_WARNS = [];
+
+  var GROUPS = [
+    ['Volumes', [
+      ['Bank Volume',      'c-main', true ],
+      ['Loose Volume',     'c-main', true ],
+      ['Compacted Volume', 'c-amb',  false]
+    ]],
+    ['Haulage', [
+      ['Truck Loads Required',        'c-main', true ],
+      ['Mass of Material',            'c-blu',  false],
+      ['Load Factor (Bank/Loose)',    'c-pur',  false]
+    ]],
+    ['Method', [
+      ['Prismoidal Correction', 'c-cyn', false]
+    ]]
+  ];
+
+  function isSI()    { return US === 'SI'; }
+  function methodOf(){ return E('ewMethod').value; }
+  function isPrism() { return methodOf() === 'prism'; }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending a rounded Imperial figure
+  // loses relative precision on small numbers, which would make the same job
+  // give two different answers depending on which unit button is lit.
+  var FIELDS = [
+    ['ewA1',    1 / 0.092903],   // m2 -> ft2
+    ['ewA2',    1 / 0.092903],
+    ['ewAm',    1 / 0.092903],
+    ['ewL',     1 / 0.3048],     // m  -> ft
+    ['ewDensB', 1 / 0.0160185],  // t/m3 -> pcf
+    ['ewDensL', 1 / 0.0160185],
+    ['ewTruck', 1 / 0.7646]      // m3 -> yd3
+  ];
+  var CANON = {};
+
+  function factorFor(id) {
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) return FIELDS[i][1];
+    return null;
+  }
+
+  function noteEdit(id) {
+    var f = factorFor(id);
+    if (f === null) return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v / f : v) : NaN;
+  }
+
+  function seedCanon() { FIELDS.forEach(function (f) { noteEdit(f[0]); }); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = factorFor(id);
+    if (f === null) return String(v);
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    return {
+      method: methodOf(),
+      A1: si('ewA1'),
+      A2: si('ewA2'),
+      Am: isPrism() ? si('ewAm') : '0',   A_u: 'm2',
+      L:  si('ewL'),                       L_u: 'm',
+      sw: E('ewSw').value,
+      sh: E('ewSh').value,
+      densB: si('ewDensB'),
+      densL: si('ewDensL'),                dens_u: 'tm3',
+      truck: si('ewTruck'),                truck_u: 'm3'
+    };
+  }
+
+  // Mirror the backend's guards, and add three checks it does not make.
+  function localGuard() {
+    var n = function (id) { return parseFloat(si(id)); };
+    var A1 = n('ewA1'), A2 = n('ewA2'), L = n('ewL');
+    var dB = n('ewDensB'), dL = n('ewDensL'), tr = n('ewTruck');
+    var sw = parseFloat(E('ewSw').value), sh = parseFloat(E('ewSh').value);
+
+    if (!isFinite(A1) || A1 < 0) return ['ewA1', 'End area A\u2081 must be a number of 0 or more.'];
+    if (!isFinite(A2) || A2 < 0) return ['ewA2', 'End area A\u2082 must be a number of 0 or more.'];
+    if (!isFinite(L)  || L  <= 0) return ['ewL',  'Distance L must be a number greater than 0.'];
+    if (!isFinite(sw) || sw < 0) return ['ewSw', 'Swell must be a number of 0 or more.'];
+    if (!isFinite(sh) || sh < 0) return ['ewSh', 'Shrinkage must be a number of 0 or more.'];
+    if (sh >= 100)               return ['ewSh', 'Shrinkage of 100 percent or more would leave no compacted volume.'];
+    if (!isFinite(dB) || dB <= 0) return ['ewDensB', 'Bank density must be a number greater than 0.'];
+    if (!isFinite(dL) || dL <= 0) return ['ewDensL', 'Loose density must be a number greater than 0.'];
+    if (!isFinite(tr) || tr <= 0) return ['ewTruck', 'Truck capacity must be a number greater than 0.'];
+
+    // The backend accepts Am = 0 for the prismoidal method and silently returns
+    // one third of the correct volume. Block it rather than let it through.
+    if (isPrism()) {
+      var Am = n('ewAm');
+      if (!isFinite(Am) || Am <= 0)
+        return ['ewAm', 'The prismoidal method needs a measured mid-section area \u2014 leaving it at zero would give one third of the correct volume.'];
+    }
+    if (A1 === 0 && A2 === 0) return ['ewA1', 'Both end areas are zero \u2014 there is no volume to compute.'];
+    return null;
+  }
+
+  // Non-blocking sanity checks, reported alongside the results.
+  function localWarns() {
+    var out = [];
+    var n = function (id) { return parseFloat(si(id)); };
+    var dB = n('ewDensB'), dL = n('ewDensL');
+    var sw = parseFloat(E('ewSw').value);
+
+    if (dL >= dB)
+      out.push('\u26A0 Loose density is not lower than bank density \u2014 excavated material should occupy more volume, not less.');
+    else {
+      // rho_bank/rho_loose is mathematically the same as V_loose/V_bank, so it
+      // must agree with the swell percentage entered.
+      var impliedSw = (dB / dL - 1) * 100;
+      if (isFinite(impliedSw) && Math.abs(impliedSw - sw) > 2)
+        out.push('\u26A0 The densities imply ' + impliedSw.toFixed(1) + ' % swell but ' + sw
+               + ' % was entered. Loose volume follows the percentage; the swell factor follows the densities, so the two figures below will not agree.');
+    }
+
+    if (isPrism()) {
+      var A1 = n('ewA1'), A2 = n('ewA2'), Am = n('ewAm');
+      var mean = (A1 + A2) / 2;
+      if (isFinite(Am) && Math.abs(Am - mean) < 1e-9)
+        out.push('\u2139 The mid-section area equals the mean of the two ends, so the prismoidal formula returns exactly the average end area result and the correction is zero.');
+      else if (isFinite(Am) && (Am > Math.max(A1, A2) * 1.5 || Am < Math.min(A1, A2) * 0.5))
+        out.push('\u26A0 The mid-section area sits well outside the range of the two end areas \u2014 worth re-checking the survey.');
+    }
+    return out;
+  }
+
+  function clear() {
+    E('ewGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Volumes</strong> to compute the earthwork.</div>';
+    E('ewVerdict').innerHTML = '';
+    E('ewWarns').innerHTML = '';
+    E('ewSummary').style.display = 'none';
+    E('ewUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+    LOCAL_WARNS = [];
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('ewErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    // The parenthetical form is tested before the em-dash form: some values
+    // carry a dash inside their brackets, and splitting on it first would cut
+    // the value open mid-bracket.
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  // The backend labels rho_bank/rho_loose as "Load Factor (Bank/Loose)", but
+  // that ratio is V_loose/V_bank -- the SWELL factor. Load factor is its
+  // reciprocal. Relabel rather than hand the visitor an inverted definition.
+  var ALIAS = { 'Load Factor (Bank/Loose)': 'Swell Factor (Loose/Bank)' };
+
+  function render(d) {
+    E('ewErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '';
+      g[1].forEach(function (rowDef) {
+        var r = byLabel[rowDef[0]];
+        if (!r) return;
+        delete byLabel[rowDef[0]];
+        body += card(ALIAS[rowDef[0]] || rowDef[0], r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2713</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(ALIAS[k] || k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('ewGroups').innerHTML = html;
+
+    // This calculator quantifies rather than checks, so there is no pass or
+    // fail to report -- a green tick would imply an approval it never gives.
+    E('ewVerdict').innerHTML = LOCAL_WARNS.length
+      ? '<div class="badge c-amb">\u26A0 Volumes computed \u2014 see the notes below before relying on them</div>'
+      : '<div class="badge c-blu">\u2139 Volumes computed \u2014 this tool quantifies earthwork, it does not check a design</div>';
+
+    if (d.summary) {
+      E('ewSummary').textContent = d.summary;
+      E('ewSummary').style.display = 'block';
+    }
+
+    var allW = (d.warns || []).concat(LOCAL_WARNS);
+    E('ewWarns').innerHTML = allW.length
+      ? allW.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('ewUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+    LOCAL_WARNS = localWarns();
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('earth', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── field visibility ────────────────────────────────────────
+  function applyMethod() {
+    E('grpAm').style.display = isPrism() ? 'block' : 'none';
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { a1: 'ewA1', a2: 'ewA2', am: 'ewAm', l: 'ewL',
+               db: 'ewDensB', dl: 'ewDensL', tr: 'ewTruck' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    p.set('m', methodOf());
+    p.set('sw', E('ewSw').value);
+    p.set('sh', E('ewSh').value);
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) { p.set(k, si(QMAP[k])); });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    if (p.has('m'))  E('ewMethod').value = p.get('m');
+    if (p.has('sw')) E('ewSw').value = p.get('sw');
+    if (p.has('sh')) E('ewSh').value = p.get('sh');
+    applyMethod();
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Earthwork Volume Calculator',
+                        text: 'Earthwork volumes on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-a': ['(m\u00B2)', '(ft\u00B2)'], 'u-m': ['(m)', '(ft)'],
+              'u-d': ['(t/m\u00B3)', '(pcf)'],    'u-v': ['(m\u00B3)', '(yd\u00B3)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var au = isSI() ? 'm\u00B2' : 'ft\u00B2', lu = isSI() ? 'm' : 'ft';
+    var du = isSI() ? 't/m\u00B3' : 'pcf',    vu = isSI() ? 'm\u00B3' : 'yd\u00B3';
+    var rows = [['Volume method', isPrism() ? 'Prismoidal' : 'Average end area'],
+                ['End area A1', E('ewA1').value + ' ' + au],
+                ['End area A2', E('ewA2').value + ' ' + au]];
+    if (isPrism()) rows.push(['Mid-section area Am', E('ewAm').value + ' ' + au]);
+    rows.push(['Distance L', E('ewL').value + ' ' + lu]);
+    rows.push(['Swell', E('ewSw').value + ' %']);
+    rows.push(['Shrinkage', E('ewSh').value + ' %']);
+    rows.push(['Bank density', E('ewDensB').value + ' ' + du]);
+    rows.push(['Loose density', E('ewDensL').value + ' ' + du]);
+    rows.push(['Truck capacity', E('ewTruck').value + ' ' + vu]);
+
+    var inRows = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr><td>' + esc(ALIAS[r.label] || r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var allW = (LAST.warns || []).concat(LOCAL_WARNS);
+    var warnHtml = allW.length
+      ? '<h2>Notes</h2><ul>' + allW.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Earthwork Volume Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px;'
+      + 'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Earthwork Volume Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">' + (isPrism() ? 'Prismoidal formula' : 'Average end area method')
+      + ' \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v">Quantities only \u2014 this report does not check a design</div>'
+      + '<h2>Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Volumes and Haulage</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 one pair of cross-sections only. No mass-haul diagram, no '
+      + 'overhaul, no cut-and-fill balance. Swell, shrinkage and density vary widely with material and compaction; '
+      + 'use site-specific test values for a tender. Truck loads are computed from volume and may be limited by '
+      + 'payload mass instead.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    E('ewMethod').addEventListener('change', function () { applyMethod(); clear(); });
+
+    ['ewA1', 'ewA2', 'ewAm', 'ewL', 'ewSw', 'ewSh', 'ewDensB', 'ewDensL', 'ewTruck']
+      .forEach(function (id) {
+        var el = E(id);
+        if (!el) return;
+        el.addEventListener('input',  function () { noteEdit(id); });
+        el.addEventListener('change', function () { noteEdit(id); clear(); });
+        el.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+        });
+      });
+
+    applyMethod();
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
