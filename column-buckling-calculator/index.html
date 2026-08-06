@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Column Buckling Calculator — Euler, Johnson and IS 800 Capacity | multicalci.com</title>
+<meta name="description" content="Free column buckling calculator. Computes slenderness ratio, Euler and Johnson critical stress, IS 800 buckling curve reduction factor and design compressive capacity for four section shapes.">
+<link rel="canonical" href="https://www.multicalci.com/column-buckling-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Column Buckling Calculator — Euler, Johnson and IS 800 Capacity">
+<meta property="og:description" content="Slenderness ratio, critical buckling stress and IS 800 design compressive resistance for rectangular, circular, I and hollow sections.">
+<meta property="og:url" content="https://www.multicalci.com/column-buckling-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Column Buckling Calculator — Euler, Johnson and IS 800 Capacity">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Column Buckling Calculator","description":"Column buckling calculator computing effective slenderness ratio, Euler and Johnson parabola critical stress, the IS 800 buckling curve reduction factor and the design compressive resistance for rectangular, solid circular, I-section and circular hollow columns.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/column-buckling-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Column Buckling Calculator","item":"https://www.multicalci.com/column-buckling-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you calculate the slenderness ratio of a column?","acceptedAnswer":{"@type":"Answer","text":"Slenderness ratio is the effective length divided by the least radius of gyration of the section. Effective length is the actual length multiplied by an end condition factor, which is 1.0 for pinned ends, about 0.65 for fixed ends and 2.0 for a column fixed at the base with a free top. The radius of gyration is the square root of the second moment of area divided by the cross-sectional area, and the smaller of the two principal axis values always governs because the column buckles about its weakest axis."}},{"@type":"Question","name":"What is the maximum slenderness ratio allowed for a steel column?","acceptedAnswer":{"@type":"Answer","text":"IS 800 limits members carrying compression resulting from dead and imposed loads to a slenderness ratio of 180. Members subject to compression from wind or seismic loading only are permitted 250, and tension members that could see stress reversal are limited to 350. This calculator flags any column above 180 as a failure regardless of how much apparent spare capacity the design equation reports, because the limit is a code requirement independent of the calculated resistance."}},{"@type":"Question","name":"What is the difference between the Euler and Johnson buckling formulae?","acceptedAnswer":{"@type":"Answer","text":"The Euler formula assumes purely elastic buckling and becomes unrealistic for short columns because it predicts a critical stress above the yield strength. The Johnson parabola replaces it below a transition slenderness, curving smoothly from the yield stress at zero slenderness to meet the Euler curve tangentially at the transition point. That transition occurs at a slenderness of pi times the square root of twice the elastic modulus divided by the yield stress, which is about 126 for mild steel."}},{"@type":"Question","name":"Why does a column buckle about its weaker axis?","acceptedAnswer":{"@type":"Answer","text":"Buckling capacity depends on the second moment of area, and a column will always fail in the direction that offers least resistance. For an I-section the second moment of area about the minor axis is far smaller than about the major axis, so an unrestrained I-section column buckles sideways out of the plane of its web. This is why the minimum radius of gyration is used in the slenderness calculation, and why adding lateral bracing about the weak axis is often the cheapest way to increase a column's capacity."}},{"@type":"Question","name":"What is the effective length factor K for different end conditions?","acceptedAnswer":{"@type":"Answer","text":"For a column pinned at both ends the theoretical factor is 1.0. Fixed at both ends gives a theoretical 0.5, though 0.65 is the recommended design value because perfect fixity is never achieved. One end fixed and one pinned gives a theoretical 0.7 with 0.8 recommended, and a cantilever column fixed at the base with a free top gives 2.0 theoretical and 2.1 recommended. Always use the recommended value rather than the theoretical one unless you can demonstrate the restraint really exists."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Column Buckling Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Column Buckling Calculator</h1>
+    <p>Check the compressive capacity of a column against buckling. Enter the section shape and dimensions, the unbraced length and the end condition factor, and this calculator returns the least radius of gyration, the effective slenderness ratio, the critical buckling stress from either the Euler formula or the Johnson parabola, the IS 800 buckling curve reduction factor and the design compressive resistance. Rectangular, solid circular, I-section and circular hollow sections are supported.</p>
+    <div class="stdref">Euler and Johnson parabola &middot; IS 800:2007 Cl.7.1.2 buckling curves &middot; KL/r limit 180</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#127983;</span>
+      <span class="card-hd-ttl">Column, Section and Load</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m, mm, kN</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft, in, kip</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="clLe">Unbraced Length L <span class="u-m">(m)</span></label>
+          <input type="number" id="clLe" value="4" step="0.1" min="0.01">
+          <div class="hint">Actual length between points of lateral restraint, before the K factor.</div>
+        </div>
+        <div class="field">
+          <label for="clK">Effective Length Factor K</label>
+          <select id="clK">
+            <option value="0.65">0.65 &mdash; fixed both ends (recommended)</option>
+            <option value="0.80">0.80 &mdash; fixed one end, pinned other (recommended)</option>
+            <option value="1.0" selected>1.00 &mdash; pinned both ends</option>
+            <option value="1.2">1.20 &mdash; fixed one end, sway permitted</option>
+            <option value="2.1">2.10 &mdash; fixed base, free top (recommended)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="clSec">Section Shape</label>
+        <select id="clSec">
+          <option value="I" selected>I-section &mdash; universal column</option>
+          <option value="rect">Rectangular &mdash; solid</option>
+          <option value="circ">Circular &mdash; solid</option>
+          <option value="hol">Circular hollow section &mdash; pipe</option>
+        </select>
+      </div>
+
+      <div id="grpRect">
+        <div class="g2">
+          <div class="field">
+            <label for="clB" id="lblB">Flange Width b <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clB" value="200" step="5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="clD">Overall Depth d <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clD" value="200" step="5" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div id="grpThk">
+        <div class="g2">
+          <div class="field">
+            <label for="clTw">Web Thickness t<sub>w</sub> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clTw" value="8" step="0.5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="clTf">Flange Thickness t<sub>f</sub> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clTf" value="12" step="0.5" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div id="grpCirc" style="display:none">
+        <div class="field">
+          <label for="clDiam">Diameter <span class="u-mm">(mm)</span></label>
+          <input type="number" id="clDiam" value="250" step="10" min="0.01">
+        </div>
+      </div>
+
+      <div id="grpHol" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label for="clOD">Outside Diameter OD <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clOD" value="219" step="5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="clT">Wall Thickness t <span class="u-mm">(mm)</span></label>
+            <input type="number" id="clT" value="8" step="0.5" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="clE">Elastic Modulus E (GPa)</label>
+          <input type="number" id="clE" value="200" step="5" min="0.01">
+        </div>
+        <div class="field">
+          <label for="clFy">Yield Stress f<sub>y</sub> (MPa)</label>
+          <input type="number" id="clFy" value="250" step="5" min="0.01">
+        </div>
+        <div class="field">
+          <label for="clN">Applied Load N <span class="u-kN">(kN)</span></label>
+          <input type="number" id="clN" value="600" step="25" min="0">
+        </div>
+      </div>
+
+      <div id="clErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Check Column</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Buckling Checks</span>
+    </div>
+    <div class="card-bd">
+      <div id="clVerdict"></div>
+      <div id="clSummary" class="note" style="display:none"></div>
+      <div id="clGroups">
+        <div class="rc-empty">Press <strong>Check Column</strong> to run the checks.</div>
+      </div>
+      <div id="clWarns"></div>
+      <div class="note" id="clUnitNote" style="display:none">Results are reported in SI regardless of the input units: areas in mm&sup2;, loads in kN and stresses in MPa.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Slenderness</strong></p>
+      <div class="fbox">
+        r<sub>min</sub> = &radic;(I<sub>min</sub> / A)&nbsp;&nbsp;&nbsp;I<sub>min</sub> = min(I<sub>x</sub>, I<sub>y</sub>)<br>
+        &lambda; = KL / r<sub>min</sub>&nbsp;&nbsp;&nbsp;limit 180
+      </div>
+
+      <p><strong>Critical stress &mdash; Euler above the transition, Johnson below it</strong></p>
+      <div class="fbox">
+        &lambda;<sub>c</sub> = &pi;&radic;(2E / f<sub>y</sub>)<br><br>
+        &lambda; &ge; &lambda;<sub>c</sub>:&nbsp; &sigma;<sub>cr</sub> = &pi;&sup2;E / &lambda;&sup2;&nbsp;&nbsp;(Euler)<br>
+        &lambda; &lt; &lambda;<sub>c</sub>:&nbsp; &sigma;<sub>cr</sub> = f<sub>y</sub>[1 &minus; f<sub>y</sub>&lambda;&sup2; / (4&pi;&sup2;E)]&nbsp;&nbsp;(Johnson)<br><br>
+        P<sub>cr</sub> = &sigma;<sub>cr</sub> &middot; A
+      </div>
+
+      <p><strong>IS 800 design resistance</strong></p>
+      <div class="fbox">
+        &sigma;<sub>e</sub> = &pi;&sup2;E / &lambda;&sup2;&nbsp;&nbsp;&nbsp;&lambda;&#772; = &radic;(f<sub>y</sub> / &sigma;<sub>e</sub>)<br>
+        &phi; = 0.5[1 + &alpha;(&lambda;&#772; &minus; 0.2) + &lambda;&#772;&sup2;]<br>
+        &chi; = 1 / [&phi; + &radic;(&phi;&sup2; &minus; &lambda;&#772;&sup2;)] &le; 1.0<br>
+        f<sub>cd</sub> = &chi; f<sub>y</sub> / &gamma;<sub>M0</sub>,&nbsp; &gamma;<sub>M0</sub> = 1.10<br>
+        P<sub>d</sub> = f<sub>cd</sub> &middot; A
+      </div>
+
+      <div class="legend">
+        <p><strong>L</strong> &mdash; unbraced length between points of lateral restraint</p>
+        <p><strong>K</strong> &mdash; effective length factor for the end conditions</p>
+        <p><strong>&lambda;</strong> &mdash; effective slenderness ratio KL/r</p>
+        <p><strong>&lambda;<sub>c</sub></strong> &mdash; Euler&ndash;Johnson transition slenderness, about 126 for mild steel</p>
+        <p><strong>&lambda;&#772;</strong> &mdash; non-dimensional slenderness used by the IS 800 buckling curves</p>
+        <p><strong>&alpha;</strong> &mdash; imperfection factor selecting the buckling curve</p>
+        <p><strong>&chi;</strong> &mdash; stress reduction factor, between 0 and 1</p>
+        <p><strong>&gamma;<sub>M0</sub></strong> &mdash; partial safety factor on material, 1.10</p>
+        <p><strong>P<sub>cr</sub></strong> &mdash; theoretical critical load, no safety factor, for comparison only</p>
+        <p><strong>P<sub>d</sub></strong> &mdash; design compressive resistance, the value to compare N against</p>
+      </div>
+
+      <div class="note">
+        <strong>Compare your load against P<sub>d</sub>, not P<sub>cr</sub>.</strong> The critical load is the theoretical elastic buckling load of a perfectly straight, perfectly centred column and carries no allowance for initial bow, residual stress, or accidental eccentricity. It is shown so you can see how far the design equation reduces it &mdash; typically to between 60 and 85 percent. Sizing a real column against P<sub>cr</sub> would be a serious error.
+      </div>
+
+      <div class="note">
+        <strong>How the buckling curve is chosen here.</strong> The imperfection factor is assigned by section shape alone: 0.21 for I-sections and solid circular, 0.34 for circular hollow sections, and 0.49 for rectangular. IS 800 Table 10 actually selects the curve from the section shape, the buckling axis, the fabrication route and the flange thickness &mdash; a rolled I-section buckling about its minor axis normally takes curve b or c, not curve a. The values used here are therefore a simplification that is optimistic for minor-axis buckling of I-sections. For a code-compliant design, look up the curve from Table 10 and compare.
+      </div>
+
+      <div class="note">
+        <strong>P<sub>d</sub>/N is a utilisation ratio, not a further safety factor.</strong> P<sub>d</sub> already carries the material partial factor &gamma;<sub>M0</sub> = 1.10 and the buckling reduction &chi;, so the load has been checked against a factored resistance by the time the ratio is formed. The words "Adequate" and "Marginal" attached to the ratio come from fixed thresholds of 2.0 and 1.0, which effectively ask for a second safety factor on top of the first. A column at a ratio of 1.2 has passed the code check; read the label as a rough measure of how much spare capacity you have, not as a verdict.
+      </div>
+
+      <div class="note">
+        <strong>What this calculation does not cover.</strong> Axial compression only &mdash; there is no combined axial and bending interaction, which governs most real columns in frames. No allowance is made for local buckling of slender plate elements, so a thin-walled section may fail locally well before the capacity shown. Torsional and flexural-torsional buckling are not checked, and these can govern for angles, tees and channels. Self-weight is not included, and the column is assumed prismatic and concentrically loaded.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; Pinned Steel I-Section Column</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 4.0 m steel column pinned at both ends, so K = 1.0. The section is a 200 mm square I-section with 200 mm flanges 12 mm thick and an 8 mm web. Steel with E = 200 GPa and f<sub>y</sub> = 250 MPa, carrying 600 kN.</p>
+
+        <div class="wex-hd">Step 1 &mdash; section properties</div>
+        <p>h<sub>w</sub> = 200 &minus; 2 &times; 12 = 176 mm<br>
+        A = 2 &times; 200 &times; 12 + 176 &times; 8 = <strong>6208.0 mm&sup2;</strong><br>
+        I<sub>x</sub> = [200 &times; 200&sup3; &minus; 192 &times; 176&sup3;] / 12 = 46.10 &times; 10&#8310; mm&#8308;<br>
+        I<sub>y</sub> = 2(12 &times; 200&sup3;/12) + 176 &times; 8&sup3;/12 = <strong>16.01 &times; 10&#8310; mm&#8308;</strong><br>
+        The minor axis governs, as it always does for an unbraced I-section.<br>
+        r<sub>min</sub> = &radic;(16.01 &times; 10&#8310; / 6208) = <strong>50.78 mm</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; slenderness</div>
+        <p>&lambda; = KL / r = 1.0 &times; 4000 / 50.78 = <strong>78.8</strong>, comfortably inside the limit of 180.<br>
+        &lambda;<sub>c</sub> = &pi;&radic;(2 &times; 200 000 / 250) = &pi; &times; 40 = <strong>126</strong><br>
+        Since 78.8 &lt; 126, the Johnson parabola applies rather than Euler.</p>
+
+        <div class="wex-hd">Step 3 &mdash; critical stress</div>
+        <p>&sigma;<sub>cr</sub> = 250[1 &minus; 250 &times; 78.8&sup2; / (4&pi;&sup2; &times; 200 000)] = <strong>200.88 MPa</strong><br>
+        P<sub>cr</sub> = 200.88 &times; 6208 = <strong>1247.08 kN</strong> &mdash; theoretical, not a design value.</p>
+
+        <div class="wex-hd">Step 4 &mdash; IS 800 design resistance</div>
+        <p>&sigma;<sub>e</sub> = &pi;&sup2; &times; 200 000 / 78.8&sup2; = 318.1 MPa<br>
+        &lambda;&#772; = &radic;(250 / 318.1) = <strong>0.887</strong><br>
+        An I-section takes &alpha; = 0.21 here, so<br>
+        &phi; = 0.5[1 + 0.21(0.887 &minus; 0.2) + 0.887&sup2;] = 0.965<br>
+        &chi; = 1 / [0.965 + &radic;(0.965&sup2; &minus; 0.887&sup2;)] = <strong>0.743</strong><br>
+        f<sub>cd</sub> = 0.743 &times; 250 / 1.10 = 168.8 MPa<br>
+        P<sub>d</sub> = 168.8 &times; 6208 = <strong>1047.97 kN</strong></p>
+
+        <div class="wex-hd">Step 5 &mdash; the check</div>
+        <p>N = 600 kN against P<sub>d</sub> = 1047.97 kN, so the ratio is <strong>1.75</strong> and the column is adequate. Axial stress is 600 000 / 6208 = <strong>96.65 MPa</strong>, well under yield.</p>
+
+        <div class="ans">
+          <p><strong>Slenderness</strong> KL/r = 78.8 against the limit of 180 &mdash; PASS</p>
+          <p><strong>Design resistance</strong> P<sub>d</sub> = 1047.97 kN against N = 600 kN &mdash; PASS</p>
+          <p><strong>Reduction factor</strong> &chi; = 0.743, so buckling costs about a quarter of the squash capacity</p>
+          <p><strong>P<sub>d</sub>/N</strong> = 1.75</p>
+          <p><strong>Overall verdict</strong> &mdash; PASS</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Check Column</strong> without changing anything and you should get exactly these figures back. Note how far apart P<sub>cr</sub> and P<sub>d</sub> sit: 1247 kN against 1048 kN, and the gap widens as the column gets more slender.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Safety Factor of 17, and Still Not Allowed</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 100 &times; 100 mm solid steel bar used as a 6.0 m column, pinned both ends, carrying a light load of just 20 kN. E = 200 GPa, f<sub>y</sub> = 250 MPa.</p>
+
+        <div class="wex-hd">Every capacity number looks excellent</div>
+        <p>A = 10 000 mm&sup2;, I<sub>min</sub> = 8.33 &times; 10&#8310; mm&#8308;, r = <strong>28.87 mm</strong><br>
+        P<sub>d</sub> = <strong>339.05 kN</strong> against an applied 20 kN<br>
+        P<sub>d</sub>/N = <strong>16.95</strong> &mdash; nearly seventeen times the load<br>
+        Axial stress = 2.00 MPa against 250 MPa yield &mdash; less than one percent utilised<br>
+        Demand check reads <strong>Adequate</strong>.</p>
+
+        <div class="wex-hd">And the column is not permitted</div>
+        <p>&lambda; = 1.0 &times; 6000 / 28.87 = <strong>207.8</strong>, against the IS 800 limit of <strong>180</strong>.<br>
+        &lambda;&#772; = 2.339 and &chi; has collapsed to <strong>0.149</strong> &mdash; buckling has already destroyed 85 percent of the squash capacity, which is exactly why the code stops you here.</p>
+
+        <div class="ans">
+          <p><strong>Demand check</strong> N = 20 kN &le; P<sub>d</sub> = 339 kN &mdash; passes</p>
+          <p><strong>Safety factor</strong> 16.95 &mdash; passes</p>
+          <p><strong>Axial stress</strong> 2.00 MPa &mdash; passes</p>
+          <p><strong>Slenderness</strong> 207.8 against 180 &mdash; <strong>FAILS</strong></p>
+          <p><strong>Verdict</strong> &mdash; not permitted, and only the slenderness limit says so</p>
+        </div>
+
+        <div class="wex-hd">Why the limit exists at all</div>
+        <p>A safety factor of 17 is meaningless for a member this slender. The design equation assumes an initial bow of roughly length over 1000; a very slender column is exquisitely sensitive to that assumption, and a real member with a slightly larger bow, or a load a few millimetres off centre, behaves nothing like the calculation. The limit of 180 is a blunt instrument, and it is there precisely because the capacity equation stops being trustworthy before it stops producing numbers. Brace the column at midheight and &lambda; halves to 104, which fixes the problem without changing the section.</p>
+      </div>
+
+      <div class="note">
+        This case is worth running because every intuition points the wrong way. The load is tiny, the stress is negligible, the reported safety factor is enormous &mdash; and the member is still inadmissible. A calculator that reported only the demand check would call this column fine.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Unbraced length L</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Between points of lateral restraint, before K</td></tr>
+            <tr><td>Effective length factor K</td><td>&mdash;</td><td>&mdash;</td><td>0.65 &ndash; 2.1</td><td>Use the recommended value, not the theoretical one</td></tr>
+            <tr><td>Flange width b</td><td>mm</td><td>in</td><td>&gt; 0, must exceed t<sub>w</sub></td><td>Overall width for a rectangular section</td></tr>
+            <tr><td>Overall depth d</td><td>mm</td><td>in</td><td>&gt; 0, must exceed 2t<sub>f</sub></td><td>Rectangular and I-sections</td></tr>
+            <tr><td>Web thickness t<sub>w</sub></td><td>mm</td><td>in</td><td>&gt; 0</td><td>I-section only</td></tr>
+            <tr><td>Flange thickness t<sub>f</sub></td><td>mm</td><td>in</td><td>&gt; 0</td><td>I-section only</td></tr>
+            <tr><td>Diameter</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Solid circular section only</td></tr>
+            <tr><td>Outside diameter OD</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Circular hollow section only</td></tr>
+            <tr><td>Wall thickness t</td><td>mm</td><td>in</td><td>&gt; 0, must be &lt; OD/2</td><td>Circular hollow section only</td></tr>
+            <tr><td>Elastic modulus E</td><td>GPa</td><td>GPa</td><td>&gt; 0</td><td>200 for steel &mdash; enter GPa, not MPa</td></tr>
+            <tr><td>Yield stress f<sub>y</sub></td><td>MPa</td><td>MPa</td><td>&gt; 0</td><td>250 for Fe410 mild steel, 345 for Fe490</td></tr>
+            <tr><td>Applied load N</td><td>kN</td><td>kip</td><td>&ge; 0</td><td>Factored axial compression; self-weight excluded</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The hollow section in this calculator is a <strong>circular</strong> pipe defined by OD and wall thickness. There is no square hollow section option &mdash; a square tube would need to be entered as a rectangular section with the wall subtracted manually, or checked elsewhere.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Effective length factor K &mdash; IS 800 Table 11</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>End conditions</th><th>Theoretical K</th><th>Recommended K</th><th>Effect on capacity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fixed both ends, no sway</td><td>0.50</td><td>0.65</td><td>Highest capacity</td></tr>
+            <tr><td>Fixed one end, pinned other</td><td>0.70</td><td>0.80</td><td>&mdash;</td></tr>
+            <tr><td>Pinned both ends</td><td>1.00</td><td>1.00</td><td>The reference case</td></tr>
+            <tr><td>Fixed both ends, sway permitted</td><td>1.00</td><td>1.20</td><td>&mdash;</td></tr>
+            <tr><td>Fixed base, free top (cantilever)</td><td>2.00</td><td>2.10</td><td>Lowest capacity</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Running the default column at each factor: K = 0.65 gives P<sub>d</sub> = 1268 kN, K = 1.0 gives 1048 kN and K = 2.1 gives 359 kN. The end restraint is worth more than three times the capacity, which is why it deserves more thought than it usually gets.</div>
+
+      <hr class="dv">
+
+      <p><strong>Slenderness limits &mdash; IS 800 Table 3</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Member</th><th>Max KL/r</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Compression from dead and imposed loads</td><td>180</td></tr>
+            <tr><td>Compression from wind or seismic only</td><td>250</td></tr>
+            <tr><td>Tension member liable to stress reversal</td><td>350</td></tr>
+            <tr><td>Member normally in tension, reversal under wind only</td><td>400</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">This calculator applies the 180 limit in all cases. If your member falls under one of the higher limits, read the reported KL/r value directly rather than relying on the pass or fail verdict.</div>
+
+      <hr class="dv">
+
+      <p><strong>Euler&ndash;Johnson transition slenderness &lambda;<sub>c</sub> = &pi;&radic;(2E/f<sub>y</sub>)</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Material</th><th>E, GPa</th><th>f<sub>y</sub>, MPa</th><th>&lambda;<sub>c</sub></th><th>Behaviour below &lambda;<sub>c</sub></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Mild steel Fe410</td><td>200</td><td>250</td><td>126</td><td>Johnson parabola, inelastic</td></tr>
+            <tr><td>High strength Fe490</td><td>200</td><td>345</td><td>107</td><td>Johnson parabola, inelastic</td></tr>
+            <tr><td>Fe540</td><td>200</td><td>410</td><td>98</td><td>Johnson parabola, inelastic</td></tr>
+            <tr><td>Aluminium 6061-T6</td><td>70</td><td>240</td><td>76</td><td>Johnson parabola, inelastic</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Higher strength steel lowers the transition slenderness, so a slender column made of stronger steel gains far less than a stub column does. Above &lambda;<sub>c</sub>, capacity depends on E alone &mdash; and E is the same for every grade of steel, so upgrading the grade of a slender column buys almost nothing.</div>
+
+      <hr class="dv">
+
+      <p><strong>Buckling curve imperfection factors used by this calculator</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Section in this tool</th><th>&alpha;</th><th>Curve</th><th>IS 800 Table 10 reality</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>I-section</td><td>0.21</td><td>a</td><td>Usually b about the major axis, c about the minor</td></tr>
+            <tr><td>Solid circular</td><td>0.21</td><td>a</td><td>Broadly reasonable</td></tr>
+            <tr><td>Circular hollow</td><td>0.34</td><td>b</td><td>a if hot-finished, b if cold-formed</td></tr>
+            <tr><td>Rectangular solid</td><td>0.49</td><td>c</td><td>Conservative</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The assignment here depends only on the shape. Real curve selection also depends on the buckling axis, whether the section is rolled or welded, and the flange thickness. Treat the I-section result as optimistic and check Table 10 for design.</div>
+
+      <hr class="dv">
+
+      <p><strong>Radius of gyration of common shapes</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Shape</th><th>r</th><th>At 200 mm overall size</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Solid rectangle, minor axis</td><td>b / &radic;12 = 0.289b</td><td>57.7 mm</td></tr>
+            <tr><td>Solid circle</td><td>D / 4</td><td>50.0 mm</td></tr>
+            <tr><td>Circular hollow, thin wall</td><td>&asymp; D / 2&radic;2 = 0.354D</td><td>70.7 mm</td></tr>
+            <tr><td>I-section, minor axis</td><td>&asymp; 0.22 to 0.25 b</td><td>&asymp; 50 mm</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">A hollow tube gives roughly 40 percent more radius of gyration than a solid circle of the same outside diameter, using a fraction of the material. That is why tubular sections dominate long compression members in trusses and towers.</div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you calculate the slenderness ratio of a column?</summary>
+        <div class="faq-a">Slenderness ratio is the effective length divided by the least radius of gyration of the section. Effective length is the actual length multiplied by an end condition factor, which is 1.0 for pinned ends, about 0.65 for fixed ends and 2.0 for a column fixed at the base with a free top. The radius of gyration is the square root of the second moment of area divided by the cross-sectional area, and the smaller of the two principal axis values always governs because the column buckles about its weakest axis.</div>
+      </details>
+
+      <details>
+        <summary>What is the maximum slenderness ratio allowed for a steel column?</summary>
+        <div class="faq-a">IS 800 limits members carrying compression resulting from dead and imposed loads to a slenderness ratio of 180. Members subject to compression from wind or seismic loading only are permitted 250, and tension members that could see stress reversal are limited to 350. This calculator flags any column above 180 as a failure regardless of how much apparent spare capacity the design equation reports, because the limit is a code requirement independent of the calculated resistance.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between the Euler and Johnson buckling formulae?</summary>
+        <div class="faq-a">The Euler formula assumes purely elastic buckling and becomes unrealistic for short columns because it predicts a critical stress above the yield strength. The Johnson parabola replaces it below a transition slenderness, curving smoothly from the yield stress at zero slenderness to meet the Euler curve tangentially at the transition point. That transition occurs at a slenderness of pi times the square root of twice the elastic modulus divided by the yield stress, which is about 126 for mild steel.</div>
+      </details>
+
+      <details>
+        <summary>Why does a column buckle about its weaker axis?</summary>
+        <div class="faq-a">Buckling capacity depends on the second moment of area, and a column will always fail in the direction that offers least resistance. For an I-section the second moment of area about the minor axis is far smaller than about the major axis, so an unrestrained I-section column buckles sideways out of the plane of its web. This is why the minimum radius of gyration is used in the slenderness calculation, and why adding lateral bracing about the weak axis is often the cheapest way to increase a column's capacity.</div>
+      </details>
+
+      <details>
+        <summary>What is the effective length factor K for different end conditions?</summary>
+        <div class="faq-a">For a column pinned at both ends the theoretical factor is 1.0. Fixed at both ends gives a theoretical 0.5, though 0.65 is the recommended design value because perfect fixity is never achieved. One end fixed and one pinned gives a theoretical 0.7 with 0.8 recommended, and a cantilever column fixed at the base with a free top gives 2.0 theoretical and 2.1 recommended. Always use the recommended value rather than the theoretical one unless you can demonstrate the restraint really exists.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/bending-moment-calculator">Bending Moment Calculator<span>Moment, shear and deflection for the beams above</span></a>
+        <a href="/footing-design-calculator">Footing Design Calculator<span>Pad footing under this column's reaction</span></a>
+        <a href="/steel-section-properties-calculator">Steel Section Properties Calculator<span>Area, inertia and classification for rolled sections</span></a>
+        <a href="/concrete-mix-design-calculator">Concrete Mix Design Calculator<span>Proportion the mix for a concrete column</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Column Buckling Calculator &mdash; multicalci.com. Axial compression only, prismatic concentrically loaded members. No combined axial and bending interaction, no local plate buckling, no torsional or flexural-torsional buckling, and buckling curves assigned by section shape alone. Results are indicative and must be verified by a qualified structural engineer against IS 800 Table 10.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  // Group definitions. The chi row's label embeds the curve name, which changes
+  // with the section, so it is matched by prefix rather than exact string.
+  var GROUPS = [
+    ['Slenderness', [
+      ['Slenderness KL/r',    'c-main', true,  false],
+      ['IS 800 \u03BB\u0304', 'c-blu',  false, false],
+      ['IS 800 \u03C7',       'c-pur',  false, true ]
+    ]],
+    ['Capacity and Demand', [
+      ['Pd (IS 800 design)',   'c-main', true,  false],
+      ['Applied Load N',       'c-blu',  false, false],
+      ['Demand Check N \u2264 Pd', 'c-grn', false, false],
+      ['Safety Factor Pd/N',   'c-grn',  false, false],
+      ['Pcr (elastic theoretical)', 'c-cyn', false, false]
+    ]],
+    ['Stresses', [
+      ['Critical Stress \u03C3cr', 'c-amb', false, false],
+      ['Axial Stress \u03C3',      'c-amb', false, false]
+    ]],
+    ['Section Properties', [
+      ['Area A',                     'c-blu', false, false],
+      ['Min. Inertia I_min',         'c-blu', false, false],
+      ['Min. Radius of Gyration r',  'c-blu', false, false]
+    ]]
+  ];
+
+  function isSI()  { return US === 'SI'; }
+  function secOf() { return E('clSec').value; }
+
+  function usesRect() { return secOf() === 'rect' || secOf() === 'I'; }
+  function usesThk()  { return secOf() === 'I'; }
+  function usesCirc() { return secOf() === 'circ'; }
+  function usesHol()  { return secOf() === 'hol'; }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending a rounded Imperial figure
+  // loses relative precision on small numbers, which would make the same column
+  // give two different answers depending on which unit button is lit.
+  var FIELDS = [
+    ['clLe',   1 / 0.3048],
+    ['clB',    1 / 25.4], ['clD',  1 / 25.4],
+    ['clTw',   1 / 25.4], ['clTf', 1 / 25.4],
+    ['clDiam', 1 / 25.4],
+    ['clOD',   1 / 25.4], ['clT',  1 / 25.4],
+    ['clN',    1 / 4.44822]
+  ];
+  var CANON = {};
+
+  function factorFor(id) {
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) return FIELDS[i][1];
+    return null;
+  }
+
+  function noteEdit(id) {
+    var f = factorFor(id);
+    if (f === null) return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v / f : v) : NaN;
+  }
+
+  function seedCanon() { FIELDS.forEach(function (f) { noteEdit(f[0]); }); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = factorFor(id);
+    if (f === null) return String(v);
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    return {
+      sec:   secOf(),
+      Le:    si('clLe'),   Le_u: 'm',
+      K:     E('clK').value,
+      b:     usesRect() ? si('clB')    : '0',
+      d:     usesRect() ? si('clD')    : '0',
+      tw:    usesThk()  ? si('clTw')   : '0',
+      tf:    usesThk()  ? si('clTf')   : '0',
+      diam:  usesCirc() ? si('clDiam') : '0',
+      OD:    usesHol()  ? si('clOD')   : '0',
+      t:     usesHol()  ? si('clT')    : '0',
+      dim_u: 'mm',
+      E_GPa: E('clE').value,
+      fy:    E('clFy').value,
+      N:     si('clN'),    N_u: 'kN'
+    };
+  }
+
+  // Mirror the backend's guards so the user gets a field-level message rather
+  // than a 422. Only the fields the chosen section actually uses are checked.
+  function localGuard() {
+    var n = function (id) { return parseFloat(si(id)); };
+    var Le = n('clLe'), N = n('clN');
+    var Eg = parseFloat(E('clE').value), fy = parseFloat(E('clFy').value);
+
+    if (!isFinite(Le) || Le <= 0) return ['clLe', 'Unbraced length L must be a number greater than 0.'];
+    if (!isFinite(Eg) || Eg <= 0) return ['clE',  'Elastic modulus E must be a number greater than 0.'];
+    if (!isFinite(fy) || fy <= 0) return ['clFy', 'Yield stress f\u1D67 must be a number greater than 0.'];
+    if (!isFinite(N)  || N  <  0) return ['clN',  'Applied load N must be a number of 0 or more.'];
+
+    if (usesCirc()) {
+      if (!isFinite(n('clDiam')) || n('clDiam') <= 0)
+        return ['clDiam', 'Diameter must be a number greater than 0.'];
+      return null;
+    }
+    if (usesHol()) {
+      var od = n('clOD'), t = n('clT');
+      if (!isFinite(od) || od <= 0) return ['clOD', 'Outside diameter must be a number greater than 0.'];
+      if (!isFinite(t)  || t  <= 0) return ['clT',  'Wall thickness must be a number greater than 0.'];
+      if (2 * t >= od) return ['clT', 'Wall thickness is not less than OD/2 \u2014 the section would be solid.'];
+      return null;
+    }
+
+    var b = n('clB'), d = n('clD');
+    if (!isFinite(b) || b <= 0) return ['clB', 'Width b must be a number greater than 0.'];
+    if (!isFinite(d) || d <= 0) return ['clD', 'Depth d must be a number greater than 0.'];
+    if (usesThk()) {
+      var tw = n('clTw'), tf = n('clTf');
+      if (!isFinite(tw) || tw <= 0) return ['clTw', 'Web thickness must be a number greater than 0.'];
+      if (!isFinite(tf) || tf <= 0) return ['clTf', 'Flange thickness must be a number greater than 0.'];
+      if (tw >= b)     return ['clTw', 'Web thickness is not less than the flange width b.'];
+      if (2 * tf >= d) return ['clTf', 'Twice the flange thickness is not less than d \u2014 no web remains.'];
+    }
+    return null;
+  }
+
+  function clear() {
+    E('clGroups').innerHTML = '<div class="rc-empty">Press <strong>Check Column</strong> to run the checks.</div>';
+    E('clVerdict').innerHTML = '';
+    E('clWarns').innerHTML = '';
+    E('clSummary').style.display = 'none';
+    E('clUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('clErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('clErr').innerHTML = '';
+
+    var remaining = d.results.slice();
+    var take = function (name, prefix) {
+      for (var i = 0; i < remaining.length; i++) {
+        var hit = prefix ? remaining[i].label.indexOf(name) === 0 : remaining[i].label === name;
+        if (hit) return remaining.splice(i, 1)[0];
+      }
+      return null;
+    };
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (rowDef) {
+        var r = take(rowDef[0], rowDef[3]);
+        if (!r) return;
+        if (r.warn) groupWarn = true;
+        body += card(r.label, r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    if (remaining.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  remaining.map(function (r) { return card(r.label, r, 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('clGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('clVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Column satisfies the demand check and the KL/r limit of 180</div>'
+      : '<div class="badge c-red">\u26A0 One or more checks failed \u2014 the flagged rows below show which</div>';
+
+    if (d.summary) {
+      E('clSummary').textContent = d.summary;
+      E('clSummary').style.display = 'block';
+    }
+
+    E('clWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('clUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Checking\u2026';
+
+    MC.api.civil('col', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── field visibility ────────────────────────────────────────
+  function applySection() {
+    E('grpRect').style.display = usesRect() ? 'block' : 'none';
+    E('grpThk').style.display  = usesThk()  ? 'block' : 'none';
+    E('grpCirc').style.display = usesCirc() ? 'block' : 'none';
+    E('grpHol').style.display  = usesHol()  ? 'block' : 'none';
+    E('lblB').innerHTML = (secOf() === 'I' ? 'Flange Width b ' : 'Overall Width b ')
+                        + '<span class="u-mm">' + (isSI() ? '(mm)' : '(in)') + '</span>';
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { le: 'clLe', b: 'clB', d: 'clD', tw: 'clTw', tf: 'clTf',
+               dia: 'clDiam', od: 'clOD', t: 'clT', e: 'clE', fy: 'clFy', n: 'clN' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    p.set('sec', secOf());
+    p.set('k', E('clK').value);
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) {
+      var id = QMAP[k];
+      p.set(k, (id === 'clE' || id === 'clFy') ? E(id).value : si(id));
+    });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    if (p.has('sec')) E('clSec').value = p.get('sec');
+    if (p.has('k'))   E('clK').value   = p.get('k');
+    applySection();
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Column Buckling Calculator',
+                        text: 'Column buckling check on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-m': ['(m)', '(ft)'], 'u-mm': ['(mm)', '(in)'], 'u-kN': ['(kN)', '(kip)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    applySection();
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var sName = { I: 'I-section', rect: 'Rectangular solid',
+                  circ: 'Circular solid', hol: 'Circular hollow (pipe)' }[secOf()];
+    var lu = isSI() ? 'm' : 'ft', du = isSI() ? 'mm' : 'in', nu = isSI() ? 'kN' : 'kip';
+    var kTxt = E('clK').options[E('clK').selectedIndex].text;
+
+    var rows = [['Section shape', sName],
+                ['Unbraced length L', E('clLe').value + ' ' + lu],
+                ['Effective length factor K', kTxt]];
+    if (usesCirc()) {
+      rows.push(['Diameter', E('clDiam').value + ' ' + du]);
+    } else if (usesHol()) {
+      rows.push(['Outside diameter OD', E('clOD').value + ' ' + du]);
+      rows.push(['Wall thickness t', E('clT').value + ' ' + du]);
+    } else {
+      rows.push(['Width b', E('clB').value + ' ' + du]);
+      rows.push(['Depth d', E('clD').value + ' ' + du]);
+      if (usesThk()) {
+        rows.push(['Web thickness tw', E('clTw').value + ' ' + du]);
+        rows.push(['Flange thickness tf', E('clTf').value + ' ' + du]);
+      }
+    }
+    rows.push(['Elastic modulus E', E('clE').value + ' GPa']);
+    rows.push(['Yield stress fy', E('clFy').value + ' MPa']);
+    rows.push(['Applied load N', E('clN').value + ' ' + nu]);
+
+    var inRows = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Column Buckling Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Column Buckling Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Euler / Johnson and IS 800:2007 \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 demand and slenderness checks satisfied' : 'REVIEW \u2014 one or more checks failed') + '</div>'
+      + '<h2>Design Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Buckling Checks</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 axial compression only. No combined axial and bending '
+      + 'interaction, no local plate buckling, no torsional or flexural-torsional buckling. Buckling curves are '
+      + 'assigned by section shape alone \u2014 verify against IS 800 Table 10.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    E('clSec').addEventListener('change', function () { applySection(); clear(); });
+    E('clK').addEventListener('change', clear);
+
+    ['clLe', 'clB', 'clD', 'clTw', 'clTf', 'clDiam', 'clOD', 'clT', 'clE', 'clFy', 'clN']
+      .forEach(function (id) {
+        var el = E(id);
+        if (!el) return;
+        el.addEventListener('input',  function () { noteEdit(id); });
+        el.addEventListener('change', function () { noteEdit(id); clear(); });
+        el.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+        });
+      });
+
+    applySection();
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
