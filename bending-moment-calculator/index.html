@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Bending Moment Calculator — Beam Moment, Shear and Deflection | multicalci.com</title>
+<meta name="description" content="Free bending moment calculator for simply supported, cantilever and fixed beams. Returns maximum moment, shear force, deflection, section modulus and bending stress for five load cases.">
+<link rel="canonical" href="https://www.multicalci.com/bending-moment-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Bending Moment Calculator — Beam Moment, Shear and Deflection">
+<meta property="og:description" content="Maximum bending moment, shear force, deflection and bending stress for simply supported, cantilever and fixed-end beams in rectangular, circular, hollow and I sections.">
+<meta property="og:url" content="https://www.multicalci.com/bending-moment-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bending Moment Calculator — Beam Moment, Shear and Deflection">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Bending Moment Calculator","description":"Beam bending moment calculator for simply supported, cantilever and fixed-end beams under uniformly distributed or point loading. Computes maximum bending moment, shear force, deflection, second moment of area, section modulus, radius of gyration and bending stress.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/bending-moment-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Bending Moment Calculator","item":"https://www.multicalci.com/bending-moment-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you calculate the maximum bending moment in a simply supported beam?","acceptedAnswer":{"@type":"Answer","text":"For a uniformly distributed load the maximum bending moment occurs at midspan and equals the load per unit length times the span squared divided by eight. For a single point load at midspan it is the load times the span divided by four, again at midspan. Both assume the beam is simply supported, meaning it is free to rotate at each end and only one support resists horizontal movement."}},{"@type":"Question","name":"Why does a cantilever have four times the moment of a simply supported beam?","acceptedAnswer":{"@type":"Answer","text":"Under the same uniformly distributed load the cantilever moment is the load times the span squared over two, against the span squared over eight for a simply supported beam, which is a factor of four. The cantilever has only one support, so the entire load has to be carried back to that single fixed end, and the moment builds all the way to it rather than being shared between two reactions. The deflection difference is even larger, at roughly nine and a half times."}},{"@type":"Question","name":"What is the difference between section modulus and moment of inertia?","acceptedAnswer":{"@type":"Answer","text":"The second moment of area, commonly called the moment of inertia, measures how the area of a section is distributed about its neutral axis and governs deflection through the product of elastic modulus and that value. Section modulus is the moment of inertia divided by the distance from the neutral axis to the extreme fibre, and it governs stress because bending stress is the moment divided by the section modulus. In short, use moment of inertia for stiffness and section modulus for strength."}},{"@type":"Question","name":"What deflection limit should a beam satisfy?","acceptedAnswer":{"@type":"Answer","text":"A span over deflection ratio of 250 is the common general limit for total deflection and is the value this calculator checks against. Members supporting brittle finishes such as plaster or masonry are often limited to span over 350 or span over 500 for the deflection occurring after the finish is applied. Deflection is a serviceability requirement rather than a strength one, so a beam can be perfectly safe against collapse and still be unacceptable because it sags, cracks finishes or feels bouncy underfoot."}},{"@type":"Question","name":"Why is long-term deflection larger for a concrete beam?","acceptedAnswer":{"@type":"Answer","text":"Concrete creeps under sustained load, continuing to deform for years after the load is first applied, and it also shrinks as it dries. IS 456 accounts for this by multiplying the immediate elastic deflection by a creep factor, and this calculator applies a simplified factor of 2.5 when the elastic modulus entered falls in the range typical of concrete. A concrete beam that satisfies the deflection limit on its short-term value can easily fail it once the long-term multiplier is applied."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Bending Moment Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Bending Moment Calculator</h1>
+    <p>Find the maximum bending moment, shear force and deflection in a beam. Choose one of five standard load cases &mdash; simply supported or cantilever under uniformly distributed or point load, or a fixed-end beam &mdash; enter the span, load and cross-section, and this calculator returns the moment and shear diagrams' peak values together with the second moment of area, section modulus, radius of gyration, bending stress and the span-to-deflection ratio. Concrete sections also get a long-term creep deflection.</p>
+    <div class="stdref">Elastic beam theory &middot; IS 456 Cl.23.2 creep &middot; L/&delta; &ge; 250 serviceability</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Beam, Load and Section</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m, mm, kN</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft, in, kip</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="field">
+        <label for="bmType">Load Case</label>
+        <select id="bmType">
+          <option value="ss_udl" selected>Simply supported &mdash; uniformly distributed load</option>
+          <option value="ss_pt">Simply supported &mdash; point load at midspan</option>
+          <option value="cant_udl">Cantilever &mdash; uniformly distributed load</option>
+          <option value="cant_pt">Cantilever &mdash; point load at free end</option>
+          <option value="fixed_udl">Fixed both ends &mdash; uniformly distributed load</option>
+        </select>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="bmL">Span L <span class="u-m">(m)</span></label>
+          <input type="number" id="bmL" value="6" step="0.5" min="0.01">
+        </div>
+        <div class="field">
+          <label for="bmW"><span id="bmWLabel">Distributed Load w</span> <span class="u-w">(kN/m)</span></label>
+          <input type="number" id="bmW" value="20" step="1" min="0">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="bmSec">Cross-Section</label>
+        <select id="bmSec">
+          <option value="rect">Rectangular &mdash; solid</option>
+          <option value="circ">Circular &mdash; solid</option>
+          <option value="hol">Hollow rectangular / box</option>
+          <option value="I" selected>I-section / universal beam</option>
+        </select>
+      </div>
+
+      <div id="grpBD">
+        <div class="g2">
+          <div class="field">
+            <label for="bmB"><span id="bmBLabel">Flange Width b</span> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="bmB" value="150" step="10" min="0.01">
+          </div>
+          <div class="field">
+            <label for="bmD">Overall Depth d <span class="u-mm">(mm)</span></label>
+            <input type="number" id="bmD" value="300" step="10" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div id="grpCirc" style="display:none">
+        <div class="field">
+          <label for="bmDia">Diameter <span class="u-mm">(mm)</span></label>
+          <input type="number" id="bmDia" value="250" step="10" min="0.01">
+        </div>
+      </div>
+
+      <div id="grpThk" style="display:block">
+        <div class="g2">
+          <div class="field">
+            <label for="bmTw"><span id="bmTwLabel">Web Thickness t<sub>w</sub></span> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="bmTw" value="8" step="1" min="0.01">
+          </div>
+          <div class="field">
+            <label for="bmTf"><span id="bmTfLabel">Flange Thickness t<sub>f</sub></span> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="bmTf" value="12" step="1" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="bmE">Elastic Modulus E (GPa)</label>
+          <input type="number" id="bmE" value="200" step="5" min="0.01">
+          <div class="hint">200 steel, 25&ndash;35 concrete, 70 aluminium, 10&ndash;12 timber.</div>
+        </div>
+        <div class="field">
+          <label for="bmFy">Yield / Permissible Stress f<sub>y</sub> (MPa)</label>
+          <input type="number" id="bmFy" value="250" step="10" min="0.01">
+        </div>
+      </div>
+
+      <div id="bmErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Beam</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Beam Results</span>
+    </div>
+    <div class="card-bd">
+      <div id="bmVerdict"></div>
+      <div id="bmSummary" class="note" style="display:none"></div>
+      <div id="bmGroups">
+        <div class="rc-empty">Press <strong>Calculate Beam</strong> to analyse the beam.</div>
+      </div>
+      <div id="bmWarns"></div>
+      <div class="note" id="bmUnitNote" style="display:none">Results are reported in SI regardless of the input units: moments in kN&middot;m, shear in kN, deflection in mm, stress in MPa and section properties in mm units.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Load cases</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Case</th><th>Max moment M</th><th>Max shear V</th><th>Max deflection &delta;</th><th>Location of M<sub>max</sub></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Simply supported, UDL</td><td>wL&sup2;/8</td><td>wL/2</td><td>5wL&#8308;/384EI</td><td>Midspan</td></tr>
+            <tr><td>Simply supported, point load</td><td>PL/4</td><td>P/2</td><td>PL&sup3;/48EI</td><td>Midspan</td></tr>
+            <tr><td>Cantilever, UDL</td><td>wL&sup2;/2</td><td>wL</td><td>wL&#8308;/8EI</td><td>Fixed end</td></tr>
+            <tr><td>Cantilever, point load</td><td>PL</td><td>P</td><td>PL&sup3;/3EI</td><td>Fixed end</td></tr>
+            <tr><td>Fixed both ends, UDL</td><td>wL&sup2;/12</td><td>wL/2</td><td>wL&#8308;/384EI</td><td>Supports (midspan is wL&sup2;/24)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><strong>Section properties</strong></p>
+      <div class="fbox">
+        <strong>Rectangular</strong>&nbsp;&nbsp;I = bd&sup3;/12&nbsp;&nbsp;A = bd<br>
+        <strong>Circular</strong>&nbsp;&nbsp;I = &pi;D&#8308;/64&nbsp;&nbsp;A = &pi;D&sup2;/4<br>
+        <strong>Hollow box</strong>&nbsp;&nbsp;I = (bd&sup3; &minus; b<sub>i</sub>d<sub>i</sub>&sup3;)/12,&nbsp;b<sub>i</sub> = b &minus; 2t<sub>w</sub>,&nbsp;d<sub>i</sub> = d &minus; 2t<sub>f</sub><br>
+        <strong>I-section</strong>&nbsp;&nbsp;I = [bd&sup3; &minus; (b &minus; t<sub>w</sub>)h<sub>w</sub>&sup3;]/12,&nbsp;h<sub>w</sub> = d &minus; 2t<sub>f</sub>
+      </div>
+
+      <p><strong>Stress, stiffness and serviceability</strong></p>
+      <div class="fbox">
+        Z = I / y&nbsp;&nbsp;&nbsp;y = d/2 (D/2 for circular)<br>
+        &sigma; = M / Z<br>
+        r = &radic;(I / A)<br>
+        &delta;<sub>long-term</sub> = &delta; &times; &theta;&nbsp;&nbsp;&theta; = 2.5 for concrete, 1.0 otherwise<br>
+        serviceability limit: L/&delta; &ge; 250
+      </div>
+
+      <div class="legend">
+        <p><strong>w</strong> &mdash; uniformly distributed load, kN per metre run</p>
+        <p><strong>P</strong> &mdash; concentrated point load, kN</p>
+        <p><strong>L</strong> &mdash; span, or projection for a cantilever</p>
+        <p><strong>I</strong> &mdash; second moment of area about the bending axis</p>
+        <p><strong>Z</strong> &mdash; elastic section modulus</p>
+        <p><strong>y</strong> &mdash; distance from neutral axis to extreme fibre</p>
+        <p><strong>r</strong> &mdash; radius of gyration, used for buckling checks elsewhere</p>
+        <p><strong>E</strong> &mdash; elastic modulus, entered in GPa</p>
+        <p><strong>f<sub>y</sub></strong> &mdash; yield or permissible bending stress</p>
+        <p><strong>&theta;</strong> &mdash; creep multiplier for sustained load on concrete</p>
+      </div>
+
+      <div class="note">
+        <strong>The stress check compares &sigma; directly against f<sub>y</sub>, with no factor of safety applied.</strong> That is a working-stress comparison against the yield value, so a beam reported as passing at &sigma; = 249 MPa against f<sub>y</sub> = 250 MPa has no margin whatsoever. If you want a design check, either enter a permissible stress that already includes your safety factor &mdash; 0.66f<sub>y</sub> for a compact section under allowable stress design, for example &mdash; or read the reported &sigma; and apply your own factor. This is the single most important thing to understand about the output on this page.
+      </div>
+
+      <div class="note">
+        <strong>Other assumptions.</strong> The theory is elastic and small-deflection throughout, so no plastic redistribution and no second-order effects. Sections are treated as symmetric about the bending axis, which means y is taken as half the depth. Self-weight of the beam is <em>not</em> added to the load &mdash; include it in w yourself. There is no check on lateral-torsional buckling, web crippling, shear stress in the web, or local flange buckling, any of which can govern before bending stress does in a slender steel section. Concrete is treated as a homogeneous elastic material, so the section properties take no account of reinforcement or of cracking, and the results for a concrete beam are indicative of stiffness trends rather than a code-compliant analysis.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; Simply Supported Steel I-Beam</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A simply supported steel I-beam spanning 6.0 m carrying a uniformly distributed load of 20 kN/m. The section is 150 mm wide by 300 mm deep with an 8 mm web and 12 mm flanges. Steel with E = 200 GPa and f<sub>y</sub> = 250 MPa.</p>
+
+        <div class="wex-hd">Step 1 &mdash; second moment of area</div>
+        <p>h<sub>w</sub> = 300 &minus; 2 &times; 12 = 276 mm<br>
+        I = [150 &times; 300&sup3; &minus; (150 &minus; 8) &times; 276&sup3;] / 12<br>
+        I = [4.050 &times; 10&#8313; &minus; 2.985 &times; 10&#8313;] / 12 = <strong>88.709 &times; 10&#8310; mm&#8308;</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; section modulus and radius of gyration</div>
+        <p>y = 300/2 = 150 mm, so Z = 88.709 &times; 10&#8310; / 150 = <strong>591.39 &times; 10&sup3; mm&sup3;</strong><br>
+        A = 2 &times; 150 &times; 12 + 276 &times; 8 = 5808 mm&sup2;<br>
+        r = &radic;(88.709 &times; 10&#8310; / 5808) = <strong>123.59 mm</strong></p>
+
+        <div class="wex-hd">Step 3 &mdash; moment and shear</div>
+        <p>M = wL&sup2;/8 = 20 &times; 6&sup2; / 8 = <strong>90.000 kN&middot;m</strong> at midspan<br>
+        V = wL/2 = 20 &times; 6 / 2 = <strong>60.000 kN</strong> at each support</p>
+
+        <div class="wex-hd">Step 4 &mdash; bending stress</div>
+        <p>&sigma; = M/Z = 90 &times; 10&#8310; N&middot;mm / 591 394 mm&sup3; = <strong>152.18 MPa</strong><br>
+        Against f<sub>y</sub> = 250 MPa that is 61 percent utilisation &mdash; but remember there is no safety factor in that comparison.</p>
+
+        <div class="wex-hd">Step 5 &mdash; deflection and serviceability</div>
+        <p>EI = 200 &times; 10&#8310; kN/m&sup2; &times; 88.709 &times; 10&#8315;&#8310; m&#8308; = <strong>17 742 kN&middot;m&sup2;</strong><br>
+        &delta; = 5wL&#8308;/384EI = 5 &times; 20 &times; 6&#8308; / (384 &times; 17 742) = <strong>19.023 mm</strong><br>
+        L/&delta; = 6000 / 19.023 = <strong>315</strong>, comfortably above the limit of 250</p>
+
+        <div class="ans">
+          <p><strong>Maximum bending moment</strong> 90.000 kN&middot;m at midspan</p>
+          <p><strong>Maximum shear force</strong> 60.000 kN at the supports</p>
+          <p><strong>Maximum deflection</strong> 19.023 mm, L/&delta; = 315</p>
+          <p><strong>Bending stress</strong> 152.18 MPa against 250 MPa &mdash; PASS</p>
+          <p><strong>Section properties</strong> I = 88.709 &times; 10&#8310; mm&#8308;, Z = 591.39 &times; 10&sup3; mm&sup3;, r = 123.59 mm</p>
+          <p><strong>Overall verdict</strong> &mdash; PASS on both strength and serviceability</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Beam</strong> without changing anything and you should get exactly these figures back. Try switching the load case to cantilever with the same span and load: the moment jumps from 90 to 360 kN&middot;m and the deflection from 19 to 183 mm, which is the clearest demonstration there is of what a second support buys you.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Strong Enough, Still Unacceptable</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A solid rectangular steel bar, 100 mm wide by 150 mm deep, spanning 8.0 m simply supported and carrying just 5 kN/m. E = 200 GPa, f<sub>y</sub> = 250 MPa.</p>
+
+        <div class="wex-hd">The strength check passes easily</div>
+        <p>I = 100 &times; 150&sup3; / 12 = 28.125 &times; 10&#8310; mm&#8308;, Z = 375.00 &times; 10&sup3; mm&sup3;<br>
+        M = 5 &times; 8&sup2; / 8 = <strong>40.000 kN&middot;m</strong><br>
+        &sigma; = 40 &times; 10&#8310; / 375 000 = <strong>106.67 MPa</strong> against 250 MPa &mdash; only 43 percent utilised</p>
+
+        <div class="wex-hd">And the beam is unusable</div>
+        <p>EI = 200 &times; 10&#8310; &times; 28.125 &times; 10&#8315;&#8310; = 5625 kN&middot;m&sup2;<br>
+        &delta; = 5 &times; 5 &times; 8&#8308; / (384 &times; 5625) = <strong>47.407 mm</strong><br>
+        L/&delta; = 8000 / 47.407 = <strong>169</strong>, well short of the 250 limit</p>
+
+        <div class="ans">
+          <p><strong>Bending stress</strong> 106.67 MPa against 250 &mdash; passes with 57 percent spare</p>
+          <p><strong>Deflection</strong> 47.4 mm, L/&delta; = 169 against 250 required &mdash; <strong>FAILS</strong></p>
+          <p><strong>Verdict</strong> &mdash; not acceptable, and only the serviceability check says so</p>
+        </div>
+
+        <div class="wex-hd">Why deflection governs long spans</div>
+        <p>Stress varies with L&sup2; but deflection varies with L&#8308;. Double the span and the stress goes up four times while the deflection goes up sixteen. That is why short heavily loaded members are usually governed by strength and long lightly loaded ones almost always by deflection, and why checking stress alone is not enough. The cure here is depth, not width: deflection depends on d&sup3;, so taking this section to 100 &times; 200 mm cuts the deflection by more than half while adding only a third to the material.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Load case</td><td>&mdash;</td><td>&mdash;</td><td>five standard cases</td><td>Sets whether the load is distributed or concentrated</td></tr>
+            <tr><td>Span L</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Clear span, or projection for a cantilever</td></tr>
+            <tr><td>Distributed load w</td><td>kN/m</td><td>kip/ft</td><td>&ge; 0</td><td>UDL cases; self-weight not added automatically</td></tr>
+            <tr><td>Point load P</td><td>kN</td><td>kip</td><td>&ge; 0</td><td>Point load cases; at midspan or the free end</td></tr>
+            <tr><td>Width b</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Flange width for I and box sections</td></tr>
+            <tr><td>Depth d</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Overall depth; must exceed 2t<sub>f</sub></td></tr>
+            <tr><td>Diameter</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Circular sections only</td></tr>
+            <tr><td>Web thickness t<sub>w</sub></td><td>mm</td><td>in</td><td>&gt; 0, less than b</td><td>I and box sections; box requires 2t<sub>w</sub> &lt; b</td></tr>
+            <tr><td>Flange thickness t<sub>f</sub></td><td>mm</td><td>in</td><td>&gt; 0, 2t<sub>f</sub> &lt; d</td><td>I and box sections</td></tr>
+            <tr><td>Elastic modulus E</td><td>GPa</td><td>GPa</td><td>&gt; 0, flagged above 500</td><td>Enter GPa, not MPa &mdash; a factor of 1000 error is common</td></tr>
+            <tr><td>Yield stress f<sub>y</sub></td><td>MPa</td><td>MPa</td><td>&gt; 0</td><td>Compared directly to &sigma; with no safety factor</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">A value of E between 15 and 50 GPa is taken as concrete and triggers the 2.5&times; long-term creep multiplier. If you are analysing a different material whose modulus happens to fall in that band, the long-term figure will not apply to it &mdash; read the short-term deflection instead.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Elastic modulus and typical yield stress</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Material</th><th>E, GPa</th><th>Typical f<sub>y</sub>, MPa</th><th>Creep applied here?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Structural steel, mild</td><td>200</td><td>250</td><td>No</td></tr>
+            <tr><td>Structural steel, high yield</td><td>200</td><td>350 &ndash; 450</td><td>No</td></tr>
+            <tr><td>Stainless steel, austenitic</td><td>193</td><td>205 &ndash; 275</td><td>No</td></tr>
+            <tr><td>Concrete M25</td><td>25</td><td>&mdash;</td><td>Yes, &theta; = 2.5</td></tr>
+            <tr><td>Concrete M30</td><td>27.4</td><td>&mdash;</td><td>Yes, &theta; = 2.5</td></tr>
+            <tr><td>Concrete M40</td><td>31.6</td><td>&mdash;</td><td>Yes, &theta; = 2.5</td></tr>
+            <tr><td>Aluminium alloy 6061-T6</td><td>69</td><td>240</td><td>No</td></tr>
+            <tr><td>Timber, softwood C24</td><td>11</td><td>24 (bending)</td><td>No</td></tr>
+            <tr><td>Timber, hardwood D40</td><td>13</td><td>40 (bending)</td><td>No</td></tr>
+            <tr><td>Cast iron, grey</td><td>100</td><td>150 (compression)</td><td>No</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Concrete modulus follows the IS 456 expression E = 5000&radic;f<sub>ck</sub>, so M25 gives 25 GPa and M40 gives 31.6 GPa.</div>
+
+      <hr class="dv">
+
+      <p><strong>Load case comparison</strong> &mdash; same span L, same total load, relative to the simply supported UDL case</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Case</th><th>Moment ratio</th><th>Deflection ratio</th><th>Comment</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Simply supported, UDL</td><td>1.00</td><td>1.00</td><td>Baseline</td></tr>
+            <tr><td>Simply supported, point load</td><td>2.00</td><td>1.60</td><td>Concentrating the load hurts moment most</td></tr>
+            <tr><td>Fixed both ends, UDL</td><td>0.67</td><td>0.20</td><td>End fixity is worth far more to stiffness than to strength</td></tr>
+            <tr><td>Cantilever, UDL</td><td>4.00</td><td>9.60</td><td>One support instead of two</td></tr>
+            <tr><td>Cantilever, point load</td><td>8.00</td><td>25.6</td><td>Worst case of the five by a wide margin</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Deflection ratios assume the same total load W = wL applied in each case. The fixed-end row is the one worth remembering: fixing both ends cuts the moment by a third but the deflection by five times.</div>
+
+      <hr class="dv">
+
+      <p><strong>Section modulus of common shapes</strong> &mdash; showing how efficiently each uses its material</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Section</th><th>Area, mm&sup2;</th><th>I, &times;10&#8310; mm&#8308;</th><th>Z, &times;10&sup3; mm&sup3;</th><th>Z per unit area</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>I-section 150 &times; 300, t<sub>w</sub> 8, t<sub>f</sub> 12</td><td>5808</td><td>88.71</td><td>591.4</td><td>101.8</td></tr>
+            <tr><td>Box 200 &times; 300, t 10</td><td>9600</td><td>120.72</td><td>804.8</td><td>83.8</td></tr>
+            <tr><td>Solid rectangle 200 &times; 400</td><td>80 000</td><td>1066.67</td><td>5333.3</td><td>66.7</td></tr>
+            <tr><td>Solid circle &oslash;250</td><td>49 087</td><td>191.75</td><td>1534.0</td><td>31.3</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The I-section delivers over three times the section modulus per unit of material that a solid circle does, because bending stress is proportional to distance from the neutral axis and an I-section puts its material where that distance is greatest.</div>
+
+      <hr class="dv">
+
+      <p><strong>Deflection limits in common use</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Situation</th><th>Limit</th><th>At L = 6 m</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>General total deflection (checked here)</td><td>L/250</td><td>24.0 mm</td></tr>
+            <tr><td>Members supporting brittle finishes</td><td>L/350</td><td>17.1 mm</td></tr>
+            <tr><td>Deflection after finishes applied</td><td>L/350 or 20 mm, lesser</td><td>17.1 mm</td></tr>
+            <tr><td>Cantilevers, general</td><td>L/180</td><td>33.3 mm</td></tr>
+            <tr><td>Crane gantry girders, vertical</td><td>L/750 to L/1000</td><td>6.0 &ndash; 8.0 mm</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you calculate the maximum bending moment in a simply supported beam?</summary>
+        <div class="faq-a">For a uniformly distributed load the maximum bending moment occurs at midspan and equals the load per unit length times the span squared divided by eight. For a single point load at midspan it is the load times the span divided by four, again at midspan. Both assume the beam is simply supported, meaning it is free to rotate at each end and only one support resists horizontal movement.</div>
+      </details>
+
+      <details>
+        <summary>Why does a cantilever have four times the moment of a simply supported beam?</summary>
+        <div class="faq-a">Under the same uniformly distributed load the cantilever moment is the load times the span squared over two, against the span squared over eight for a simply supported beam, which is a factor of four. The cantilever has only one support, so the entire load has to be carried back to that single fixed end, and the moment builds all the way to it rather than being shared between two reactions. The deflection difference is even larger, at roughly nine and a half times.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between section modulus and moment of inertia?</summary>
+        <div class="faq-a">The second moment of area, commonly called the moment of inertia, measures how the area of a section is distributed about its neutral axis and governs deflection through the product of elastic modulus and that value. Section modulus is the moment of inertia divided by the distance from the neutral axis to the extreme fibre, and it governs stress because bending stress is the moment divided by the section modulus. In short, use moment of inertia for stiffness and section modulus for strength.</div>
+      </details>
+
+      <details>
+        <summary>What deflection limit should a beam satisfy?</summary>
+        <div class="faq-a">A span over deflection ratio of 250 is the common general limit for total deflection and is the value this calculator checks against. Members supporting brittle finishes such as plaster or masonry are often limited to span over 350 or span over 500 for the deflection occurring after the finish is applied. Deflection is a serviceability requirement rather than a strength one, so a beam can be perfectly safe against collapse and still be unacceptable because it sags, cracks finishes or feels bouncy underfoot.</div>
+      </details>
+
+      <details>
+        <summary>Why is long-term deflection larger for a concrete beam?</summary>
+        <div class="faq-a">Concrete creeps under sustained load, continuing to deform for years after the load is first applied, and it also shrinks as it dries. IS 456 accounts for this by multiplying the immediate elastic deflection by a creep factor, and this calculator applies a simplified factor of 2.5 when the elastic modulus entered falls in the range typical of concrete. A concrete beam that satisfies the deflection limit on its short-term value can easily fail it once the long-term multiplier is applied.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/beam-deflection-calculator">Beam Deflection Calculator<span>The mechanical-discipline beam tool, deflection-focused</span></a>
+        <a href="/footing-design-calculator">Footing Design Calculator<span>Take the support reaction down into the ground</span></a>
+        <a href="/concrete-mix-design-calculator">Concrete Mix Design Calculator<span>Proportion the mix for a concrete beam</span></a>
+        <a href="/unit-converter/force">Force Converter<span>kN, kip, tonne-force and lbf</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Bending Moment Calculator &mdash; multicalci.com. Elastic small-deflection theory for symmetric sections. The stress check compares &sigma; against f<sub>y</sub> with no factor of safety. No allowance is made for self-weight, lateral-torsional buckling, web shear or crippling, or local buckling, and concrete sections are treated as homogeneous and uncracked. Results are indicative and must be verified by a qualified structural engineer.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  var GROUPS = [
+    ['Moment, Shear and Stress', [
+      ['Max Bending Moment M', 'c-main', true ],
+      ['Max Shear Force V',    'c-main', true ],
+      ['Bending Stress \u03C3', 'c-amb',  false],
+      ['Stress Check',          'c-grn',  false]
+    ]],
+    ['Deflection and Serviceability', [
+      ['Max Deflection \u03B4',  'c-main', true ],
+      ['L/\u03B4 (short-term)',  'c-cyn',  false],
+      ['Long-term Deflection',   'c-blu',  false],
+      ['L/\u03B4 (long-term)',   'c-cyn',  false]
+    ]],
+    ['Section Properties', [
+      ['Moment of Inertia I', 'c-blu', false],
+      ['Section Modulus Z',   'c-blu', false],
+      ['Radius of Gyration',  'c-pur', false],
+      ['EI Stiffness',        'c-pur', false]
+    ]]
+  ];
+
+  function isSI()  { return US === 'SI'; }
+  function type()  { return E('bmType').value; }
+  function sec()   { return E('bmSec').value; }
+  function isPoint() { return type() === 'ss_pt' || type() === 'cant_pt'; }
+
+  // Load conversion depends on the load case: kip/ft -> kN/m for a distributed
+  // load, kip -> kN for a point load. Everything else is a fixed factor.
+  function wFactor() { return isPoint() ? 1 / 4.44822 : 1 / 14.5939; }
+
+  var FIELDS = [
+    ['bmL',   1 / 0.3048],
+    ['bmB',   1 / 25.4],
+    ['bmD',   1 / 25.4],
+    ['bmDia', 1 / 25.4],
+    ['bmTw',  1 / 25.4],
+    ['bmTf',  1 / 25.4]
+  ];
+  function factorFor(id) {
+    if (id === 'bmW') return wFactor();
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) return FIELDS[i][1];
+    return 1;
+  }
+  function convIds() {
+    return FIELDS.map(function (f) { return f[0]; }).concat(['bmW']);
+  }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending the rounded Imperial
+  // figure loses relative precision on small numbers, which would make the same
+  // beam give two different answers depending on which unit button is lit.
+  var CANON = {};
+
+  function noteEdit(id) {
+    if (convIds().indexOf(id) === -1) return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v / factorFor(id) : v) : NaN;
+  }
+
+  function seedCanon() { convIds().forEach(noteEdit); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = factorFor(id);
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    // w_u is always 'knm' because the page converts the load itself. The
+    // backend only recognises 'kipft' and applies a kN/m-per-kip/ft factor to
+    // it, so a point load entered in kip would be silently mis-scaled there.
+    return {
+      type:  type(),
+      sec:   sec(),
+      L:     si('bmL'),   L_u: 'm',
+      w:     si('bmW'),   w_u: 'knm',
+      b:     si('bmB'),
+      d:     si('bmD'),
+      tw:    si('bmTw'),
+      tf:    si('bmTf'),
+      dia:   si('bmDia'), dim_u: 'mm',
+      E_GPa: E('bmE').value,
+      fy:    E('bmFy').value
+    };
+  }
+
+  // Mirror the backend's guards so the user gets a field-level message rather
+  // than a 422. Only the fields the chosen section actually uses are checked.
+  function localGuard() {
+    var n = function (id) { return parseFloat(E(id).value); };
+    var s = sec();
+
+    if (!isFinite(n('bmL')) || n('bmL') <= 0) return ['bmL', 'Span L must be a number greater than 0.'];
+    if (!isFinite(n('bmW')) || n('bmW') < 0)
+      return ['bmW', (isPoint() ? 'Point load' : 'Distributed load') + ' must be a number of 0 or more.'];
+    if (!isFinite(n('bmE')) || n('bmE') <= 0) return ['bmE', 'Elastic modulus E must be a number greater than 0.'];
+    if (!isFinite(n('bmFy')) || n('bmFy') <= 0) return ['bmFy', 'Yield stress fy must be a number greater than 0.'];
+
+    if (s === 'circ') {
+      if (!isFinite(n('bmDia')) || n('bmDia') <= 0) return ['bmDia', 'Diameter must be a number greater than 0.'];
+      return null;
+    }
+
+    if (!isFinite(n('bmB')) || n('bmB') <= 0) return ['bmB', 'Width b must be a number greater than 0.'];
+    if (!isFinite(n('bmD')) || n('bmD') <= 0) return ['bmD', 'Depth d must be a number greater than 0.'];
+    if (s === 'rect') return null;
+
+    if (!isFinite(n('bmTw')) || n('bmTw') <= 0) return ['bmTw', 'Web thickness must be a number greater than 0.'];
+    if (!isFinite(n('bmTf')) || n('bmTf') <= 0) return ['bmTf', 'Flange thickness must be a number greater than 0.'];
+    if (2 * n('bmTf') >= n('bmD'))
+      return ['bmTf', '2 \u00D7 flange thickness is not less than the depth \u2014 no web would remain.'];
+    if (s === 'hol' && 2 * n('bmTw') >= n('bmB'))
+      return ['bmTw', '2 \u00D7 wall thickness is not less than the width \u2014 the void disappears.'];
+    if (s === 'I' && n('bmTw') >= n('bmB'))
+      return ['bmTw', 'Web thickness is not less than the flange width.'];
+    return null;
+  }
+
+  function clear() {
+    E('bmGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Beam</strong> to analyse the beam.</div>';
+    E('bmVerdict').innerHTML = '';
+    E('bmWarns').innerHTML = '';
+    E('bmSummary').style.display = 'none';
+    E('bmUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('bmErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('bmErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (rowDef) {
+        var r = byLabel[rowDef[0]];
+        if (!r) return;
+        delete byLabel[rowDef[0]];
+        if (r.warn) groupWarn = true;
+        body += card(rowDef[0], r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('bmGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('bmVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Beam satisfies the stress check and the L/\u03B4 \u2265 250 deflection limit</div>'
+      : '<div class="badge c-red">\u26A0 One or more checks failed \u2014 the flagged rows below show which</div>';
+
+    if (d.summary) {
+      E('bmSummary').textContent = d.summary;
+      E('bmSummary').style.display = 'block';
+    }
+
+    E('bmWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('bmUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('beam', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── section and load-case dependent labels / visibility ─────
+  function applyShape() {
+    var s = sec();
+    E('grpBD').style.display   = (s === 'circ') ? 'none'  : 'block';
+    E('grpCirc').style.display = (s === 'circ') ? 'block' : 'none';
+    E('grpThk').style.display  = (s === 'I' || s === 'hol') ? 'block' : 'none';
+    E('bmBLabel').innerHTML  = (s === 'I') ? 'Flange Width b' : 'Width b';
+    E('bmTwLabel').innerHTML = (s === 'hol') ? 'Wall Thickness t<sub>w</sub>' : 'Web Thickness t<sub>w</sub>';
+    E('bmTfLabel').innerHTML = (s === 'hol') ? 'Top/Bottom Thickness t<sub>f</sub>' : 'Flange Thickness t<sub>f</sub>';
+  }
+
+  function applyLoadLabel() {
+    E('bmWLabel').innerHTML = isPoint() ? 'Point Load P' : 'Distributed Load w';
+    var nodes = document.getElementsByClassName('u-w');
+    var t = isPoint() ? (isSI() ? '(kN)' : '(kip)') : (isSI() ? '(kN/m)' : '(kip/ft)');
+    for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { l: 'bmL', w: 'bmW', b: 'bmB', d: 'bmD', dia: 'bmDia',
+               tw: 'bmTw', tf: 'bmTf', e: 'bmE', fy: 'bmFy' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    p.set('type', type());
+    p.set('sec', sec());
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) {
+      var id = QMAP[k];
+      p.set(k, (id === 'bmE' || id === 'bmFy') ? E(id).value : si(id));
+    });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    if (p.has('type')) E('bmType').value = p.get('type');
+    if (p.has('sec'))  E('bmSec').value  = p.get('sec');
+    applyShape();
+    applyLoadLabel();
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Bending Moment Calculator',
+                        text: 'Beam analysis on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    convIds().forEach(function (id) {
+      var c = CANON[id];
+      if (!isFinite(c)) return;
+      var f = factorFor(id);
+      E(id).value = String(+(sys === 'IMP' ? c * f : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-m': ['(m)', '(ft)'], 'u-mm': ['(mm)', '(in)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    applyLoadLabel();
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lm = isSI() ? 'm' : 'ft', lmm = isSI() ? 'mm' : 'in';
+    var lw = isPoint() ? (isSI() ? 'kN' : 'kip') : (isSI() ? 'kN/m' : 'kip/ft');
+    var tName = {
+      ss_udl: 'Simply supported, UDL', ss_pt: 'Simply supported, point load at midspan',
+      cant_udl: 'Cantilever, UDL', cant_pt: 'Cantilever, point load at free end',
+      fixed_udl: 'Fixed both ends, UDL'
+    }[type()];
+    var sName = { rect: 'Rectangular solid', circ: 'Circular solid',
+                  hol: 'Hollow rectangular / box', I: 'I-section' }[sec()];
+
+    var rows = [['Load case', tName], ['Cross-section', sName],
+                ['Span L', E('bmL').value + ' ' + lm],
+                [isPoint() ? 'Point load P' : 'Distributed load w', E('bmW').value + ' ' + lw]];
+    if (sec() === 'circ') {
+      rows.push(['Diameter', E('bmDia').value + ' ' + lmm]);
+    } else {
+      rows.push(['Width b', E('bmB').value + ' ' + lmm]);
+      rows.push(['Depth d', E('bmD').value + ' ' + lmm]);
+      if (sec() === 'I' || sec() === 'hol') {
+        rows.push(['Web / wall thickness', E('bmTw').value + ' ' + lmm]);
+        rows.push(['Flange thickness', E('bmTf').value + ' ' + lmm]);
+      }
+    }
+    rows.push(['Elastic modulus E', E('bmE').value + ' GPa']);
+    rows.push(['Yield stress fy', E('bmFy').value + ' MPa']);
+
+    var inRows = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Beam Analysis Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Beam Analysis Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Elastic beam theory \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 strength and serviceability satisfied' : 'REVIEW \u2014 one or more checks failed') + '</div>'
+      + '<h2>Design Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Beam Results</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 elastic small-deflection theory. The stress check compares '
+      + 'sigma against fy with NO factor of safety. Self-weight is not included, and there is no check on '
+      + 'lateral-torsional buckling, web shear or local buckling. Verify with a qualified structural engineer.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    E('bmSec').addEventListener('change', function () { applyShape(); clear(); });
+    E('bmType').addEventListener('change', function () {
+      // The load unit changes meaning between distributed and point cases:
+      // kip/ft -> kN/m is 14.5939, kip -> kN is 4.44822. Re-READING the box at
+      // the new factor would reinterpret the number and silently change the
+      // physical load (1.3704 kip/ft = 20 kN/m would become 1.3704 kip =
+      // 6.1 kN). Re-PROJECT the display from the unchanged canonical value
+      // instead, so the beam carries the same load either way.
+      applyLoadLabel();
+      if (US === 'IMP') {
+        var c = CANON['bmW'];
+        if (isFinite(c)) E('bmW').value = String(+(c * wFactor()).toFixed(4));
+      }
+      clear();
+    });
+
+    ['bmL', 'bmW', 'bmB', 'bmD', 'bmDia', 'bmTw', 'bmTf', 'bmE', 'bmFy'].forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('input',  function () { noteEdit(id); });
+      el.addEventListener('change', function () { noteEdit(id); clear(); });
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+      });
+    });
+
+    applyShape();
+    applyLoadLabel();
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
