@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Manning Equation Calculator — Gravity Sewer and Open Channel Flow | multicalci.com</title>
+<meta name="description" content="Free Manning equation calculator for gravity sewers and open channels. Computes full-bore capacity, velocity, hydraulic radius and Froude number for circular, rectangular and trapezoidal sections.">
+<link rel="canonical" href="https://www.multicalci.com/manning-equation-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Manning Equation Calculator — Gravity Sewer and Open Channel Flow">
+<meta property="og:description" content="Full-bore capacity, velocity, hydraulic radius, minimum self-cleansing slope and Froude number for circular, rectangular and trapezoidal channels.">
+<meta property="og:url" content="https://www.multicalci.com/manning-equation-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Manning Equation Calculator — Gravity Sewer and Open Channel Flow">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Manning Equation Calculator","description":"Manning equation calculator for gravity sewers and open channels. Computes full-bore discharge capacity, mean velocity, hydraulic radius, wetted perimeter, minimum self-cleansing slope and Froude number for circular, rectangular and trapezoidal sections.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/manning-equation-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Manning Equation Calculator","item":"https://www.multicalci.com/manning-equation-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the Manning equation and when is it used?","acceptedAnswer":{"@type":"Answer","text":"The Manning equation gives the mean velocity of steady uniform flow in an open channel as one over the roughness coefficient, times the hydraulic radius to the power two thirds, times the square root of the bed slope. It applies to gravity flow with a free surface, which covers sewers, culverts, drains and natural channels. It does not apply to pressurised pipe flow, where the Darcy-Weisbach equation should be used instead because the energy gradient is set by the pump rather than by the bed slope."}},{"@type":"Question","name":"What Manning roughness coefficient should I use for a concrete pipe?","acceptedAnswer":{"@type":"Answer","text":"A value of 0.013 is the usual design figure for a concrete sewer pipe and is what most drainage codes assume. New smooth precast pipe can be as low as 0.011, but designing on that leaves no allowance for the slime layer, joint irregularity and minor deposits that develop in service. PVC and HDPE are commonly taken as 0.010 to 0.011, vitrified clay as 0.012, and corrugated metal from 0.022 upward depending on the corrugation profile."}},{"@type":"Question","name":"What is the minimum velocity in a gravity sewer?","acceptedAnswer":{"@type":"Answer","text":"The usual self-cleansing requirement is 0.6 metres per second at full-bore or at the design peak flow, which is enough to keep grit and organic solids in suspension rather than letting them settle and build up. Some authorities require 0.75 metres per second for combined systems carrying road grit. This calculator flags any section falling below 0.6 metres per second and reports the minimum bed slope that would achieve it."}},{"@type":"Question","name":"How do you calculate the hydraulic radius of a pipe flowing full?","acceptedAnswer":{"@type":"Answer","text":"Hydraulic radius is the flow area divided by the wetted perimeter. For a circular pipe flowing exactly full the area is pi D squared over four and the wetted perimeter is pi D, so the hydraulic radius simplifies to D over four regardless of the diameter. For a rectangular channel it is width times depth divided by width plus twice the depth, and for a trapezoidal channel the side slopes lengthen the wetted perimeter by twice the depth times the square root of one plus the side slope squared."}},{"@type":"Question","name":"Why does a sewer carry more flow just below full than exactly full?","acceptedAnswer":{"@type":"Answer","text":"As the water surface rises above about ninety three percent of the diameter, the wetted perimeter grows faster than the flow area does, so the hydraulic radius falls and with it the velocity. Peak discharge in a circular pipe occurs at roughly ninety three or ninety four percent of full depth and is about seven percent higher than the exactly full value. Designing on the full-bore figure is therefore slightly conservative, which is why it remains standard practice."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Manning Equation Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Manning Equation Calculator</h1>
+    <p>Size a gravity sewer, culvert or open channel using the Manning equation. Enter the section shape and dimensions, the bed slope and the roughness coefficient, and this calculator returns the full-bore discharge capacity, the mean velocity, the hydraulic radius, the wetted perimeter, the Froude number and the minimum slope needed to hold the self-cleansing velocity. Circular, rectangular and trapezoidal sections are supported.</p>
+    <div class="stdref">Manning equation &middot; SI form, n in s/m<sup>1/3</sup> &middot; full-bore uniform flow</div>
+  </div>
+
+  <div class="note">
+    <strong>This page covers gravity flow only.</strong> If your pipe is pressurised &mdash; pumped mains, rising mains, distribution networks, anything where the energy gradient comes from a pump rather than the bed slope &mdash; the Manning equation is the wrong tool. Use the <a href="/pipe-pressure-drop">pipe pressure drop calculator</a> instead, which applies Darcy&ndash;Weisbach with a Colebrook friction factor.
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#127754;</span>
+      <span class="card-hd-ttl">Channel and Flow Inputs</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; mm, m, L/s</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; in, ft, gpm</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="field">
+        <label for="mnShape">Section Shape</label>
+        <select id="mnShape">
+          <option value="circ" selected>Circular &mdash; pipe or culvert flowing full</option>
+          <option value="rect">Rectangular &mdash; box culvert or lined channel</option>
+          <option value="trap">Trapezoidal &mdash; earth or lined channel</option>
+        </select>
+      </div>
+
+      <div id="grpCirc">
+        <div class="field">
+          <label for="mnD">Internal Diameter D <span class="u-mm">(mm)</span></label>
+          <input type="number" id="mnD" value="300" step="25" min="0.01">
+        </div>
+      </div>
+
+      <div id="grpOpen" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label for="mnWidth">Bed Width b <span class="u-m">(m)</span></label>
+            <input type="number" id="mnWidth" value="1.2" step="0.1" min="0.01">
+          </div>
+          <div class="field">
+            <label for="mnDepth">Flow Depth y <span class="u-m">(m)</span></label>
+            <input type="number" id="mnDepth" value="0.8" step="0.05" min="0.01">
+          </div>
+        </div>
+        <div class="field" id="grpZ" style="display:none">
+          <label for="mnZ">Side Slope z (horizontal : 1 vertical)</label>
+          <input type="number" id="mnZ" value="1.5" step="0.25" min="0">
+          <div class="hint">z = 1.5 means 1.5 m horizontal for every 1 m rise. Use 0 for vertical sides.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="mnS">Bed Slope S (m/m)</label>
+          <input type="number" id="mnS" value="0.005" step="0.0005" min="0.0000001">
+          <div class="hint">A slope of 1 in 200 is S = 0.005.</div>
+        </div>
+        <div class="field">
+          <label for="mnN">Manning Roughness n</label>
+          <input type="number" id="mnN" value="0.013" step="0.001" min="0.001">
+          <div class="hint">0.013 for concrete sewer pipe. See the table below.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="mnQdes">Design Flow Q<sub>design</sub> <span class="u-q">(L/s)</span></label>
+        <input type="number" id="mnQdes" value="30" step="5" min="0">
+        <div class="hint">The peak flow the section must carry. Set to 0 to skip the capacity check.</div>
+      </div>
+
+      <div id="mnErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Flow</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Hydraulic Results</span>
+    </div>
+    <div class="card-bd">
+      <div id="mnVerdict"></div>
+      <div id="mnSummary" class="note" style="display:none"></div>
+      <div id="mnGroups">
+        <div class="rc-empty">Press <strong>Calculate Flow</strong> to run the analysis.</div>
+      </div>
+      <div id="mnWarns"></div>
+      <div class="note" id="mnUnitNote" style="display:none">Results are reported in SI regardless of the input units: discharge in L/s, velocity in m/s, lengths in m and areas in m&sup2;.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Manning equation, SI form</strong></p>
+      <div class="fbox">
+        v = (1/n) &middot; R<sup>2/3</sup> &middot; S<sup>1/2</sup><br>
+        Q = A &middot; v<br>
+        R = A / P
+      </div>
+
+      <p><strong>Section properties</strong></p>
+      <div class="fbox">
+        <strong>Circular, flowing full</strong><br>
+        A = &pi;D&sup2;/4&nbsp;&nbsp;P = &pi;D&nbsp;&nbsp;R = D/4<br><br>
+        <strong>Rectangular</strong><br>
+        A = b&middot;y&nbsp;&nbsp;P = b + 2y&nbsp;&nbsp;R = by/(b + 2y)<br><br>
+        <strong>Trapezoidal</strong><br>
+        A = (b + zy)y&nbsp;&nbsp;P = b + 2y&radic;(1 + z&sup2;)
+      </div>
+
+      <p><strong>Derived checks</strong></p>
+      <div class="fbox">
+        S<sub>min</sub> = [ 0.6n / R<sup>2/3</sup> ]&sup2;&nbsp;&nbsp;(slope for v = 0.6 m/s)<br>
+        Fr = v / &radic;(g&middot;y<sub>eff</sub>)&nbsp;&nbsp;g = 9.81 m/s&sup2;
+      </div>
+
+      <div class="legend">
+        <p><strong>v</strong> &mdash; mean velocity of steady uniform flow, m/s</p>
+        <p><strong>n</strong> &mdash; Manning roughness coefficient, dimensionally s/m<sup>1/3</sup></p>
+        <p><strong>R</strong> &mdash; hydraulic radius, area divided by wetted perimeter, m</p>
+        <p><strong>S</strong> &mdash; bed slope, m fall per m run; equals the friction slope under uniform flow</p>
+        <p><strong>A, P</strong> &mdash; flow area and wetted perimeter</p>
+        <p><strong>D</strong> &mdash; internal diameter of a circular section</p>
+        <p><strong>b, y</strong> &mdash; bed width and flow depth of an open section</p>
+        <p><strong>z</strong> &mdash; side slope, horizontal run per unit vertical rise</p>
+        <p><strong>y<sub>eff</sub></strong> &mdash; depth used for the Froude number: the flow depth for open sections, the diameter for a full circular pipe</p>
+      </div>
+
+      <div class="note">
+        <strong>The 1/n coefficient is unit-bound.</strong> The form above is the SI version. In US customary units the same equation carries a leading 1.486, because the conversion is absorbed into the constant rather than into n &mdash; the roughness coefficient itself has the same numerical value in both systems. If you enter Imperial units on this page they are converted to SI before the calculation, so the SI form is always the one applied.
+      </div>
+
+      <div class="note">
+        <strong>What this calculation does and does not do.</strong> It solves the <em>full-section</em> case: the capacity of the pipe or channel when flowing at the stated depth, which for a circular section means exactly full. It does <em>not</em> solve for normal depth &mdash; that is, it will not tell you how deep the water sits for a given discharge, which needs an iterative solution. It assumes steady uniform flow, so it does not cover backwater curves, hydraulic jumps, entry and exit losses or surcharged conditions. The Froude number for a full circular pipe is reported using the diameter as the effective depth; a pipe flowing exactly full has no free surface, so treat that figure as an indicator of how energetic the flow is rather than a strict free-surface Froude number.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; 300 mm Concrete Foul Sewer</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A 300 mm internal diameter concrete sewer laid at 1 in 200, so S = 0.005, with a Manning roughness of n = 0.013. The peak design flow is 30 L/s.</p>
+
+        <div class="wex-hd">Step 1 &mdash; section properties at full bore</div>
+        <p>A = &pi; &times; 0.300&sup2; / 4 = <strong>0.0707 m&sup2;</strong><br>
+        P = &pi; &times; 0.300 = <strong>0.942 m</strong><br>
+        R = A/P = D/4 = <strong>0.0750 m</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; velocity from the Manning equation</div>
+        <p>R<sup>2/3</sup> = 0.0750<sup>2/3</sup> = 0.17785<br>
+        S<sup>1/2</sup> = 0.005<sup>1/2</sup> = 0.07071<br>
+        v = (1/0.013) &times; 0.17785 &times; 0.07071 = 76.923 &times; 0.012576 = <strong>0.967 m/s</strong></p>
+
+        <div class="wex-hd">Step 3 &mdash; discharge capacity</div>
+        <p>Q = A &times; v = 0.070686 &times; 0.96737 = 0.068378 m&sup3;/s = <strong>68.378 L/s</strong><br>
+        That is comfortably above the 30 L/s design flow, so the section has spare capacity.</p>
+
+        <div class="wex-hd">Step 4 &mdash; self-cleansing and flow character</div>
+        <p>v = 0.967 m/s is above the 0.6 m/s self-cleansing minimum, so grit will stay in suspension.<br>
+        S<sub>min</sub> = [0.6 &times; 0.013 / 0.17785]&sup2; = <strong>0.00192 m/m</strong>, roughly 1 in 520 &mdash; the flattest this pipe could be laid and still self-cleanse.<br>
+        Fr = 0.967 / &radic;(9.81 &times; 0.300) = 0.967 / 1.7155 = <strong>0.564</strong>, subcritical.</p>
+
+        <div class="ans">
+          <p><strong>Full-bore capacity</strong> 68.378 L/s against 30 L/s required &mdash; PASS</p>
+          <p><strong>Velocity</strong> 0.967 m/s, above the 0.6 m/s self-cleansing minimum</p>
+          <p><strong>Hydraulic radius</strong> 0.0750 m &nbsp;&middot;&nbsp; <strong>Area</strong> 0.0707 m&sup2; &nbsp;&middot;&nbsp; <strong>Wetted perimeter</strong> 0.942 m</p>
+          <p><strong>Minimum self-cleansing slope</strong> 0.00192 m/m</p>
+          <p><strong>Froude number</strong> 0.564 &mdash; subcritical</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Flow</strong> without changing anything and you should get exactly these figures back. Note that the hydraulic radius of any circular pipe flowing full is simply D/4 &mdash; the diameter cancels out of the area-over-perimeter ratio, which is why the same R appears whatever size of pipe you enter.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Enough Capacity, Wrong Answer</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>The same 300 mm concrete sewer and the same n = 0.013, but laid much flatter at S = 0.0008, about 1 in 1250, to follow a level site. Design flow is 20 L/s.</p>
+
+        <div class="wex-hd">The capacity check passes</div>
+        <p>v = (1/0.013) &times; 0.17785 &times; 0.0008<sup>1/2</sup> = <strong>0.387 m/s</strong><br>
+        Q = 0.070686 &times; 0.38693 = <strong>27.351 L/s</strong>, against 20 L/s required.<br>
+        On capacity alone this section is adequate, with 37 percent to spare.</p>
+
+        <div class="wex-hd">And the sewer will still silt up</div>
+        <p>At 0.387 m/s the flow is well below the 0.6 m/s needed to keep grit moving. Solids settle, the effective bore shrinks, roughness rises, velocity falls further, and the section blocks. The required slope is S<sub>min</sub> = 0.00192 m/m &mdash; <strong>two and a half times the slope actually provided</strong>.</p>
+
+        <div class="ans">
+          <p><strong>Capacity check</strong> 27.351 &ge; 20 L/s &mdash; passes</p>
+          <p><strong>Velocity</strong> 0.387 m/s against 0.6 m/s required &mdash; <strong>FAILS</strong></p>
+          <p><strong>Verdict</strong> &mdash; not acceptable, and only the velocity check says so</p>
+        </div>
+
+        <div class="wex-hd">What to do about it</div>
+        <p>Steepen the pipe to at least 1 in 520, or drop to a smaller diameter so the same flow occupies a greater proportion of the bore, or accept the flat gradient and add a pumping station. A smaller pipe is often the right answer and the least intuitive: reducing the diameter raises the velocity for a given flow even though it lowers the capacity.</p>
+      </div>
+
+      <div class="note">
+        This case is worth trying because the two checks pull in opposite directions. Capacity wants a big pipe on a flat grade; self-cleansing wants a small pipe on a steep one. Almost every gravity drainage problem is a negotiation between those two, and a design that satisfies only the first is the most common error in sewer sizing.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Section shape</td><td>&mdash;</td><td>&mdash;</td><td>circular, rectangular, trapezoidal</td><td>Sets which dimension fields apply</td></tr>
+            <tr><td>Diameter D</td><td>mm</td><td>in</td><td>&gt; 0</td><td>Circular sections only; internal bore</td></tr>
+            <tr><td>Bed width b</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Rectangular and trapezoidal only</td></tr>
+            <tr><td>Flow depth y</td><td>m</td><td>ft</td><td>&gt; 0</td><td>The depth analysed, not the channel height</td></tr>
+            <tr><td>Side slope z</td><td>&mdash;</td><td>&mdash;</td><td>&ge; 0, typically 1.0 &ndash; 2.0</td><td>Trapezoidal only; horizontal per 1 vertical</td></tr>
+            <tr><td>Bed slope S</td><td>m/m</td><td>ft/ft</td><td>&gt; 0</td><td>Dimensionless, so the same number in both systems</td></tr>
+            <tr><td>Manning n</td><td>&mdash;</td><td>&mdash;</td><td>&gt; 0, typically 0.010 &ndash; 0.035</td><td>Same numerical value in SI and US customary</td></tr>
+            <tr><td>Design flow Q<sub>design</sub></td><td>L/s</td><td>gpm (US)</td><td>&ge; 0</td><td>Enter 0 to skip the capacity comparison</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Manning roughness coefficient n</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Material</th><th>n, design</th><th>n, range</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>PVC, HDPE, GRP</td><td>0.011</td><td>0.009 &ndash; 0.012</td><td>Smooth bore; joints dominate the value</td></tr>
+            <tr><td>Vitrified clay</td><td>0.012</td><td>0.011 &ndash; 0.014</td><td>Traditional foul sewer material</td></tr>
+            <tr><td>Concrete pipe, precast</td><td>0.013</td><td>0.011 &ndash; 0.015</td><td>Standard design value for sewers</td></tr>
+            <tr><td>Concrete, cast in situ</td><td>0.014</td><td>0.012 &ndash; 0.017</td><td>Depends on formwork quality</td></tr>
+            <tr><td>Cast iron, ductile iron</td><td>0.013</td><td>0.011 &ndash; 0.015</td><td>Rises with tuberculation in old mains</td></tr>
+            <tr><td>Brickwork, well laid</td><td>0.015</td><td>0.012 &ndash; 0.018</td><td>Common in Victorian-era sewers</td></tr>
+            <tr><td>Corrugated metal</td><td>0.024</td><td>0.022 &ndash; 0.027</td><td>Strongly dependent on corrugation pitch</td></tr>
+            <tr><td>Earth channel, clean</td><td>0.022</td><td>0.018 &ndash; 0.025</td><td>Straight, uniform, no weed growth</td></tr>
+            <tr><td>Earth channel, weedy</td><td>0.030</td><td>0.025 &ndash; 0.035</td><td>Seasonal &mdash; check the summer condition</td></tr>
+            <tr><td>Natural stream, clean</td><td>0.030</td><td>0.025 &ndash; 0.040</td><td>Rises sharply with meanders and pools</td></tr>
+            <tr><td>Rock cut, jagged</td><td>0.040</td><td>0.035 &ndash; 0.050</td><td>Blasted section, irregular sides</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Use the design value, not the best-case value. A new smooth pipe reaches its design roughness within a few years of service, and a design based on 0.011 for concrete has no margin left for the slime layer that will certainly form.</div>
+
+      <hr class="dv">
+
+      <p><strong>Full-bore capacity of circular concrete pipe at n = 0.013</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>D, mm</th><th>R = D/4, m</th><th>A, m&sup2;</th><th>Q at 1 in 200, L/s</th><th>Q at 1 in 500, L/s</th><th>v at 1 in 200, m/s</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>150</td><td>0.0375</td><td>0.0177</td><td>10.8</td><td>6.8</td><td>0.609</td></tr>
+            <tr><td>225</td><td>0.0563</td><td>0.0398</td><td>31.8</td><td>20.1</td><td>0.798</td></tr>
+            <tr><td>300</td><td>0.0750</td><td>0.0707</td><td>68.4</td><td>43.3</td><td>0.967</td></tr>
+            <tr><td>375</td><td>0.0938</td><td>0.1104</td><td>123.9</td><td>78.4</td><td>1.122</td></tr>
+            <tr><td>450</td><td>0.1125</td><td>0.1590</td><td>201.6</td><td>127.5</td><td>1.268</td></tr>
+            <tr><td>600</td><td>0.1500</td><td>0.2827</td><td>434.3</td><td>274.7</td><td>1.536</td></tr>
+            <tr><td>750</td><td>0.1875</td><td>0.4418</td><td>787.6</td><td>498.2</td><td>1.783</td></tr>
+            <tr><td>900</td><td>0.2250</td><td>0.6362</td><td>1281.9</td><td>810.8</td><td>2.015</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Notice that a 150 mm pipe at 1 in 200 only just reaches the self-cleansing velocity. Small-diameter sewers on shallow gradients are where velocity, not capacity, governs.</div>
+
+      <hr class="dv">
+
+      <p><strong>Minimum self-cleansing slope for v = 0.6 m/s, concrete pipe at n = 0.013</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>D, mm</th><th>S<sub>min</sub>, m/m</th><th>Expressed as</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>150</td><td>0.00485</td><td>1 in 206</td></tr>
+            <tr><td>225</td><td>0.00283</td><td>1 in 354</td></tr>
+            <tr><td>300</td><td>0.00192</td><td>1 in 520</td></tr>
+            <tr><td>375</td><td>0.00143</td><td>1 in 700</td></tr>
+            <tr><td>450</td><td>0.00112</td><td>1 in 893</td></tr>
+            <tr><td>600</td><td>0.00076</td><td>1 in 1316</td></tr>
+            <tr><td>900</td><td>0.00045</td><td>1 in 2247</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">These are full-bore figures. A sewer running part full at low flow reaches self-cleansing at a steeper gradient than this table suggests, which is why many authorities apply a 1 in D rule of thumb for small foul sewers.</div>
+
+      <hr class="dv">
+
+      <p><strong>Design velocity limits</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Condition</th><th>Velocity, m/s</th><th>Consequence</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Below self-cleansing</td><td>&lt; 0.6</td><td>Grit and solids settle; progressive blockage</td></tr>
+            <tr><td>Self-cleansing minimum, foul</td><td>0.6</td><td>Standard design minimum</td></tr>
+            <tr><td>Self-cleansing minimum, combined</td><td>0.75</td><td>Higher grit load from road runoff</td></tr>
+            <tr><td>Normal design range</td><td>0.9 &ndash; 2.5</td><td>Comfortable operating band</td></tr>
+            <tr><td>Upper limit, concrete</td><td>3.0</td><td>Abrasion of the invert becomes significant</td></tr>
+            <tr><td>Supercritical, Fr &gt; 1</td><td>varies</td><td>Hydraulic jump risk at any downstream control</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>What is the Manning equation and when is it used?</summary>
+        <div class="faq-a">The Manning equation gives the mean velocity of steady uniform flow in an open channel as one over the roughness coefficient, times the hydraulic radius to the power two thirds, times the square root of the bed slope. It applies to gravity flow with a free surface, which covers sewers, culverts, drains and natural channels. It does not apply to pressurised pipe flow, where the Darcy-Weisbach equation should be used instead because the energy gradient is set by the pump rather than by the bed slope.</div>
+      </details>
+
+      <details>
+        <summary>What Manning roughness coefficient should I use for a concrete pipe?</summary>
+        <div class="faq-a">A value of 0.013 is the usual design figure for a concrete sewer pipe and is what most drainage codes assume. New smooth precast pipe can be as low as 0.011, but designing on that leaves no allowance for the slime layer, joint irregularity and minor deposits that develop in service. PVC and HDPE are commonly taken as 0.010 to 0.011, vitrified clay as 0.012, and corrugated metal from 0.022 upward depending on the corrugation profile.</div>
+      </details>
+
+      <details>
+        <summary>What is the minimum velocity in a gravity sewer?</summary>
+        <div class="faq-a">The usual self-cleansing requirement is 0.6 metres per second at full-bore or at the design peak flow, which is enough to keep grit and organic solids in suspension rather than letting them settle and build up. Some authorities require 0.75 metres per second for combined systems carrying road grit. This calculator flags any section falling below 0.6 metres per second and reports the minimum bed slope that would achieve it.</div>
+      </details>
+
+      <details>
+        <summary>How do you calculate the hydraulic radius of a pipe flowing full?</summary>
+        <div class="faq-a">Hydraulic radius is the flow area divided by the wetted perimeter. For a circular pipe flowing exactly full the area is pi D squared over four and the wetted perimeter is pi D, so the hydraulic radius simplifies to D over four regardless of the diameter. For a rectangular channel it is width times depth divided by width plus twice the depth, and for a trapezoidal channel the side slopes lengthen the wetted perimeter by twice the depth times the square root of one plus the side slope squared.</div>
+      </details>
+
+      <details>
+        <summary>Why does a sewer carry more flow just below full than exactly full?</summary>
+        <div class="faq-a">As the water surface rises above about ninety three percent of the diameter, the wetted perimeter grows faster than the flow area does, so the hydraulic radius falls and with it the velocity. Peak discharge in a circular pipe occurs at roughly ninety three or ninety four percent of full depth and is about seven percent higher than the exactly full value. Designing on the full-bore figure is therefore slightly conservative, which is why it remains standard practice.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/pipe-pressure-drop">Pipe Pressure Drop Calculator<span>Darcy&ndash;Weisbach for pressurised and pumped pipework</span></a>
+        <a href="/concrete-mix-design-calculator">Concrete Mix Design Calculator<span>Proportion the mix for pipe bedding and manholes</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Cost pipework, excavation and bedding</span></a>
+        <a href="/unit-converter/flow">Flow Rate Converter<span>L/s, m&sup3;/h, gpm, MLD and cusecs</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Manning Equation Calculator &mdash; multicalci.com. Solves steady uniform full-section flow. Does not solve for normal depth, and makes no allowance for backwater effects, hydraulic jumps, entry and exit losses or surcharged conditions. Results are indicative and must be verified against the relevant drainage authority's design standard.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  var GROUPS = [
+    ['Capacity and Velocity', [
+      ['Full-Flow Capacity Q', 'c-main', true ],
+      ['Capacity Check',       'c-grn',  false],
+      ['Full-Flow Velocity v', 'c-main', true ]
+    ]],
+    ['Section Properties', [
+      ['Hydraulic Radius R', 'c-blu', false],
+      ['Flow Area A',        'c-blu', false],
+      ['Wetted Perimeter P', 'c-blu', false]
+    ]],
+    ['Flow Character', [
+      ['Froude Number Fr',      'c-pur', false],
+      ['Min Slope (v=0.6m/s)',  'c-cyn', false]
+    ]]
+  ];
+
+  function isSI() { return US === 'SI'; }
+  function shape() { return E('mnShape').value; }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending the rounded Imperial
+  // figure loses relative precision on small numbers, which would make the same
+  // channel give two different answers depending on which unit button is lit.
+  var FIELDS = [
+    ['mnD',     1 / 25.4],
+    ['mnWidth', 1 / 0.3048],
+    ['mnDepth', 1 / 0.3048],
+    ['mnQdes',  1 / 0.0630902]
+  ];
+  var CANON = {};
+
+  function noteEdit(id) {
+    for (var i = 0; i < FIELDS.length; i++) {
+      if (FIELDS[i][0] !== id) continue;
+      var v = parseFloat(E(id).value);
+      CANON[id] = isFinite(v) ? (US === 'IMP' ? v / FIELDS[i][1] : v) : NaN;
+      return;
+    }
+  }
+
+  function seedCanon() { FIELDS.forEach(function (f) { noteEdit(f[0]); }); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = 1;
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) f = FIELDS[i][1];
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    // calcPipe validates the diameter BEFORE branching on shape, so a perfectly
+    // valid rectangular or trapezoidal channel is rejected with "Diameter must
+    // be > 0" if the hidden diameter box happens to be empty or zero. The
+    // gravity branch never uses D for those shapes. Rather than force the user
+    // to fill in an irrelevant hidden field, substitute a harmless positive
+    // value only when D is unusable and the shape does not need it.
+    var d = si('mnD');
+    if (shape() !== 'circ' && !(parseFloat(d) > 0)) d = '300';
+    return {
+      mode:  'gravity',
+      shape: shape(),
+      D:     d,              D_u: 'mm',
+      width: si('mnWidth'),
+      depth: si('mnDepth'),  L_u: 'm',
+      z:     E('mnZ').value,
+      S:     E('mnS').value,
+      n:     E('mnN').value,
+      Q_des: si('mnQdes'),   Q_u: 'ls'
+    };
+  }
+
+  // Mirror the backend's guards so the user gets a field-level message rather
+  // than a 422. Only the fields the chosen shape actually uses are checked.
+  function localGuard() {
+    var n = function (id) { return parseFloat(E(id).value); };
+    var S = n('mnS'), nm = n('mnN'), Qd = n('mnQdes');
+
+    if (shape() === 'circ') {
+      if (!isFinite(n('mnD')) || n('mnD') <= 0)
+        return ['mnD', 'Diameter must be a number greater than 0.'];
+    } else {
+      if (!isFinite(n('mnWidth')) || n('mnWidth') <= 0)
+        return ['mnWidth', 'Bed width must be a number greater than 0.'];
+      if (!isFinite(n('mnDepth')) || n('mnDepth') <= 0)
+        return ['mnDepth', 'Flow depth must be a number greater than 0.'];
+      if (shape() === 'trap' && (!isFinite(n('mnZ')) || n('mnZ') < 0))
+        return ['mnZ', 'Side slope z must be a number of 0 or more.'];
+    }
+    if (!isFinite(S)  || S  <= 0) return ['mnS', 'Bed slope S must be a number greater than 0.'];
+    if (!isFinite(nm) || nm <= 0) return ['mnN', 'Manning roughness n must be a number greater than 0.'];
+    if (!isFinite(Qd) || Qd <  0) return ['mnQdes', 'Design flow must be a number of 0 or more.'];
+    return null;
+  }
+
+  function clear() {
+    E('mnGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Flow</strong> to run the analysis.</div>';
+    E('mnVerdict').innerHTML = '';
+    E('mnWarns').innerHTML = '';
+    E('mnSummary').style.display = 'none';
+    E('mnUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('mnErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('mnErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (row) {
+        var r = byLabel[row[0]];
+        if (!r) return;
+        delete byLabel[row[0]];
+        if (r.warn) groupWarn = true;
+        body += card(row[0], r, row[1], row[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('mnGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('mnVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Section has adequate capacity and holds the self-cleansing velocity</div>'
+      : '<div class="badge c-red">\u26A0 One or more checks failed \u2014 the flagged rows below show which</div>';
+
+    if (d.summary) {
+      E('mnSummary').textContent = d.summary;
+      E('mnSummary').style.display = 'block';
+    }
+
+    E('mnWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('mnUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('pipe', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shape visibility ────────────────────────────────────────
+  function applyShape() {
+    var s = shape();
+    E('grpCirc').style.display = (s === 'circ') ? 'block' : 'none';
+    E('grpOpen').style.display = (s === 'circ') ? 'none'  : 'block';
+    E('grpZ').style.display    = (s === 'trap') ? 'block' : 'none';
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { d: 'mnD', w: 'mnWidth', y: 'mnDepth', z: 'mnZ',
+               s: 'mnS', n: 'mnN', q: 'mnQdes' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    p.set('shape', shape());
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) {
+      var id = QMAP[k];
+      p.set(k, (id === 'mnZ' || id === 'mnS' || id === 'mnN') ? E(id).value : si(id));
+    });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    if (p.has('shape')) { E('mnShape').value = p.get('shape'); applyShape(); }
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Manning Equation Calculator',
+                        text: 'Open channel flow calculation on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-mm': ['(mm)', '(in)'],
+              'u-m':  ['(m)', '(ft)'],
+              'u-q':  ['(L/s)', '(US gpm)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lb = isSI() ? ['mm', 'm', 'L/s'] : ['in', 'ft', 'US gpm'];
+    var sName = { circ: 'Circular (flowing full)', rect: 'Rectangular', trap: 'Trapezoidal' }[shape()];
+    var rows = [['Section shape', sName]];
+    if (shape() === 'circ') {
+      rows.push(['Internal diameter D', E('mnD').value + ' ' + lb[0]]);
+    } else {
+      rows.push(['Bed width b', E('mnWidth').value + ' ' + lb[1]]);
+      rows.push(['Flow depth y', E('mnDepth').value + ' ' + lb[1]]);
+      if (shape() === 'trap') rows.push(['Side slope z', E('mnZ').value + ' H : 1 V']);
+    }
+    rows.push(['Bed slope S', E('mnS').value + ' m/m']);
+    rows.push(['Manning roughness n', E('mnN').value]);
+    rows.push(['Design flow', E('mnQdes').value + ' ' + lb[2]]);
+
+    var inRows = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Manning Equation Flow Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Manning Equation Flow Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Steady uniform full-section flow \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 capacity and self-cleansing velocity satisfied' : 'REVIEW \u2014 one or more checks failed') + '</div>'
+      + '<h2>Design Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Hydraulic Results</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 steady uniform full-section flow. Does not solve for normal '
+      + 'depth, and makes no allowance for backwater effects, hydraulic jumps, entry and exit losses or surcharged '
+      + 'conditions. Verify against the relevant drainage authority standard.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    E('mnShape').addEventListener('change', function () { applyShape(); clear(); });
+
+    ['mnD', 'mnWidth', 'mnDepth', 'mnZ', 'mnS', 'mnN', 'mnQdes'].forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('input',  function () { noteEdit(id); });
+      el.addEventListener('change', function () { noteEdit(id); clear(); });
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+      });
+    });
+
+    applyShape();
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
