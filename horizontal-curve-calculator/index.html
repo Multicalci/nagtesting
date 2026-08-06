@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Horizontal Curve Calculator — Road Circular Curve Setting Out | multicalci.com</title>
+<meta name="description" content="Free horizontal curve calculator for roads and railways. Computes curve length, tangent length, mid-ordinate, external distance, chord, degree of curvature and the minimum safe radius.">
+<link rel="canonical" href="https://www.multicalci.com/horizontal-curve-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Horizontal Curve Calculator — Road Circular Curve Setting Out">
+<meta property="og:description" content="Curve length, tangent length, mid-ordinate, external distance, chord and degree of curvature, with a minimum radius check against design speed.">
+<meta property="og:url" content="https://www.multicalci.com/horizontal-curve-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Horizontal Curve Calculator — Road Circular Curve Setting Out">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Horizontal Curve Calculator","description":"Horizontal circular curve calculator for road and railway alignment. Computes curve length, tangent length, mid-ordinate, external distance, long chord and degree of curvature from radius and deflection angle, and checks the radius against the minimum required for the design speed, superelevation and side friction.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/horizontal-curve-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Horizontal Curve Calculator","item":"https://www.multicalci.com/horizontal-curve-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you calculate the elements of a horizontal circular curve?","acceptedAnswer":{"@type":"Answer","text":"Every element follows from the radius and the deflection angle between the two straights. Curve length is the radius times the deflection angle in radians. Tangent length, the distance from the intersection point back to the start of the curve, is the radius times the tangent of half the deflection angle. The long chord is twice the radius times the sine of half the angle, the mid-ordinate is the radius times one minus the cosine of half the angle, and the external distance is the radius times the secant of half the angle minus one."}},{"@type":"Question","name":"What is the minimum radius of a horizontal curve?","acceptedAnswer":{"@type":"Answer","text":"The minimum radius is the design speed squared divided by 127 times the sum of the superelevation and the coefficient of side friction, with speed in kilometres per hour and superelevation as a decimal. The constant 127 comes from converting kilometres per hour to metres per second and dividing by gravitational acceleration. At 80 kilometres per hour with 7 percent superelevation and a friction coefficient of 0.15 the minimum radius is 229 metres."}},{"@type":"Question","name":"What is the degree of curvature and how does it relate to radius?","acceptedAnswer":{"@type":"Answer","text":"Degree of curvature is the angle subtended at the centre by a standard length of arc, and it is simply another way of expressing sharpness. Indian and metric practice uses a 20 metre arc, so the degree equals 1145.92 divided by the radius in metres. North American practice uses a 100 foot arc, giving 5729.58 divided by the radius in feet. A larger degree means a sharper curve, which is the opposite convention to radius."}},{"@type":"Question","name":"What is the difference between mid-ordinate and external distance?","acceptedAnswer":{"@type":"Answer","text":"Both measure how far the curve departs from the straight lines, but in opposite directions from the mid-point of the curve. The mid-ordinate is the distance from the middle of the long chord out to the curve, and it tells you how much clearance the curve needs inside the chord. The external distance is measured from the curve outward to the point of intersection of the two tangents, and it tells you how much land is needed beyond the curve. For small deflection angles the two are nearly equal; they diverge as the angle grows."}},{"@type":"Question","name":"Why is superelevation limited to about 7 percent?","acceptedAnswer":{"@type":"Answer","text":"Superelevation is capped because a slow moving or stationary vehicle on a steeply banked curve tends to slide inward, and heavy vehicles with a high centre of gravity risk toppling toward the inside. IRC limits superelevation to 7 percent on plain and rolling terrain and 10 percent in hilly areas without snow, with 4 percent in urban areas where speeds vary widely. Once that cap is reached, any further increase in the safe radius has to come from a flatter curve rather than more banking."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Horizontal Curve Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Horizontal Curve Calculator</h1>
+    <p>Set out a simple circular curve between two straights. Enter the radius and the deflection angle and this calculator returns the curve length, the tangent length back to the intersection point, the long chord, the mid-ordinate, the external distance and the degree of curvature. It also checks the radius against the minimum needed for your design speed, superelevation and side friction factor.</p>
+    <div class="stdref">Simple circular curve &middot; IRC 38 minimum radius &middot; 20 m arc degree of curvature</div>
+  </div>
+
+  <div class="note">
+    Working on the profile rather than the plan? The <a href="/vertical-curve-calculator">vertical curve calculator</a> covers crest and sag curves, grade difference, K value and the sight-distance curve length.
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128506;</span>
+      <span class="card-hd-ttl">Curve Geometry and Design Speed</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m, km/h</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft, mph</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="hcR">Radius R <span class="u-m">(m)</span></label>
+          <input type="number" id="hcR" value="250" step="10" min="0.01">
+        </div>
+        <div class="field">
+          <label for="hcDelta">Deflection Angle &Delta; (degrees)</label>
+          <input type="number" id="hcDelta" value="35" step="1" min="0.01" max="179.99">
+          <div class="hint">The angle between the two straights, not the interior angle.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="hcV">Design Speed V <span class="u-v">(km/h)</span></label>
+        <input type="number" id="hcV" value="80" step="5" min="0.01">
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="hcE">Superelevation e <span class="u-pct">(%)</span></label>
+          <input type="number" id="hcE" value="7" step="0.5" min="0" max="12">
+          <div class="hint">IRC caps this at 7 % on plain terrain, 10 % in hills.</div>
+        </div>
+        <div class="field">
+          <label for="hcF">Side Friction Factor f</label>
+          <input type="number" id="hcF" value="0.15" step="0.01" min="0" max="0.5">
+          <div class="hint">IRC uses 0.15 for design.</div>
+        </div>
+      </div>
+
+      <div id="hcErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Curve</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Curve Elements</span>
+    </div>
+    <div class="card-bd">
+      <div id="hcVerdict"></div>
+      <div id="hcSummary" class="note" style="display:none"></div>
+      <div id="hcGroups">
+        <div class="rc-empty">Press <strong>Calculate Curve</strong> to compute the curve.</div>
+      </div>
+      <div id="hcWarns"></div>
+      <div class="note" id="hcUnitNote" style="display:none">Results are always reported in SI: lengths in metres and the minimum radius in metres, whatever units you enter.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Curve elements from radius and deflection angle</strong></p>
+      <div class="fbox">
+        L<sub>c</sub> = R &Delta;&nbsp;&nbsp;(&Delta; in radians)<br>
+        T = R tan(&Delta;/2)<br>
+        C = 2R sin(&Delta;/2)<br>
+        M = R [1 &minus; cos(&Delta;/2)]<br>
+        E = R [sec(&Delta;/2) &minus; 1]<br>
+        D = 1145.92 / R&nbsp;&nbsp;(20 m arc)
+      </div>
+
+      <p><strong>Minimum radius for the design speed</strong></p>
+      <div class="fbox">
+        R<sub>min</sub> = V&sup2; / [127 (e + f)]<br>
+        V in km/h, e as a decimal, R<sub>min</sub> in metres
+      </div>
+
+      <div class="legend">
+        <p><strong>R</strong> &mdash; radius of the circular curve</p>
+        <p><strong>&Delta;</strong> &mdash; deflection angle between the two straights</p>
+        <p><strong>L<sub>c</sub></strong> &mdash; length of curve, measured along the arc</p>
+        <p><strong>T</strong> &mdash; tangent length, from the tangent point to the intersection point</p>
+        <p><strong>C</strong> &mdash; long chord, straight line between the two tangent points</p>
+        <p><strong>M</strong> &mdash; mid-ordinate, from the middle of the long chord out to the curve</p>
+        <p><strong>E</strong> &mdash; external distance, from the curve out to the intersection point</p>
+        <p><strong>D</strong> &mdash; degree of curvature, the angle subtended by a 20 m arc</p>
+        <p><strong>e</strong> &mdash; superelevation, the crossfall banking the road into the curve</p>
+        <p><strong>f</strong> &mdash; coefficient of side friction developed between tyre and road</p>
+        <p><strong>127</strong> &mdash; combines the km/h to m/s conversion with g = 9.81 m/s&sup2;</p>
+      </div>
+
+      <div class="note">
+        <strong>The degree of curvature here uses a 20 metre arc.</strong> That is Indian and general metric practice, giving D = 1145.92/R. North American practice uses a 100 foot arc, D = 5729.58/R with R in feet, and railway work sometimes uses the chord definition rather than the arc definition. The three give different numbers for the same curve, so check which convention a drawing is using before comparing.
+      </div>
+
+      <div class="note">
+        <strong>This is a simple circular curve only.</strong> There is no transition or spiral curve &mdash; no clothoid length, no shift, no offset to the transition. A real road curve at speed needs a transition at each end so that superelevation and curvature build up gradually, and the tangent points move as a result. There is also no widening on curves, no check on sight distance around the inside of the curve, and no compound or reverse curve geometry. Use this for the circular portion and add the transition separately.
+      </div>
+
+      <div class="note">
+        <strong>R<sub>min</sub> is the absolute minimum, not a design target.</strong> It is the radius at which the full assumed side friction is being used up, leaving nothing in reserve. Design practice is to use a comfortably larger radius wherever the terrain allows, and IRC tabulates both an absolute minimum and a desirable minimum for each speed. A curve that only just passes this check is one where every vehicle is relying on the tyre friction assumption being right.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; 250 m Curve at 80 km/h</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>Two straights meeting at a deflection angle of 35&deg;, to be joined by a circular curve of 250 m radius. Design speed 80 km/h, superelevation 7 percent, side friction factor 0.15.</p>
+
+        <div class="wex-hd">Step 1 &mdash; curve and tangent lengths</div>
+        <p>&Delta; = 35&deg; = 0.610865 rad, so &Delta;/2 = 17.5&deg;<br>
+        L<sub>c</sub> = 250 &times; 0.610865 = <strong>152.72 m</strong><br>
+        T = 250 &times; tan 17.5&deg; = 250 &times; 0.315299 = <strong>78.82 m</strong><br>
+        The tangent points therefore sit 78.82 m back from the intersection point along each straight.</p>
+
+        <div class="wex-hd">Step 2 &mdash; chord and offsets</div>
+        <p>C = 2 &times; 250 &times; sin 17.5&deg; = 500 &times; 0.300706 = <strong>150.353 m</strong><br>
+        M = 250 &times; (1 &minus; cos 17.5&deg;) = 250 &times; 0.046283 = <strong>11.571 m</strong><br>
+        E = 250 &times; (sec 17.5&deg; &minus; 1) = 250 &times; 0.048527 = <strong>12.132 m</strong><br>
+        Note that the curve length exceeds the long chord by only 2.4 m over 150 m &mdash; a gentle curve.</p>
+
+        <div class="wex-hd">Step 3 &mdash; degree of curvature</div>
+        <p>D = 1145.92 / 250 = <strong>4.5837&deg;</strong> per 20 m of arc.</p>
+
+        <div class="wex-hd">Step 4 &mdash; the speed check</div>
+        <p>R<sub>min</sub> = 80&sup2; / [127 &times; (0.07 + 0.15)] = 6400 / 27.94 = <strong>229.1 m</strong><br>
+        The 250 m radius provided exceeds it, so the curve is safe at 80 km/h &mdash; though with only 9 percent in hand.</p>
+
+        <div class="ans">
+          <p><strong>Curve length L<sub>c</sub></strong> 152.72 m &nbsp;&middot;&nbsp; <strong>Tangent length T</strong> 78.82 m</p>
+          <p><strong>Long chord C</strong> 150.353 m</p>
+          <p><strong>Mid-ordinate M</strong> 11.571 m &nbsp;&middot;&nbsp; <strong>External distance E</strong> 12.132 m</p>
+          <p><strong>Degree of curvature</strong> 4.5837&deg; per 20 m arc</p>
+          <p><strong>R<sub>min</sub></strong> 229.1 m against 250 m provided &mdash; PASS</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Curve</strong> without changing anything and you should get exactly these figures back. The tangent length is the number you need first on site: it fixes where the curve begins relative to the intersection point you have already pegged.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9888;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; The Same Curve, 20 km/h Faster</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>Exactly the same 250 m curve, same 35&deg; deflection, same 7 percent superelevation and 0.15 friction factor. The only change is that the design speed is raised from 80 to 100 km/h.</p>
+
+        <div class="wex-hd">The geometry does not move at all</div>
+        <p>L<sub>c</sub> = 152.72 m, T = 78.82 m, C = 150.353 m, M = 11.571 m, E = 12.132 m, D = 4.5837&deg;.<br>
+        Every setting-out dimension is identical, because none of them depends on speed.</p>
+
+        <div class="wex-hd">And the curve is no longer safe</div>
+        <p>R<sub>min</sub> = 100&sup2; / [127 &times; 0.22] = 10 000 / 27.94 = <strong>357.9 m</strong><br>
+        Against the 250 m provided, that is a shortfall of 108 m, or 30 percent.</p>
+
+        <div class="ans">
+          <p><strong>At 80 km/h</strong> R<sub>min</sub> = 229.1 m &mdash; 250 m passes</p>
+          <p><strong>At 100 km/h</strong> R<sub>min</sub> = 357.9 m &mdash; <strong>250 m FAILS</strong></p>
+          <p>A 25 percent increase in speed demands a <strong>56 percent</strong> larger radius</p>
+        </div>
+
+        <div class="wex-hd">Why the penalty is so steep</div>
+        <p>Minimum radius goes with the <em>square</em> of speed, so raising the design speed by a quarter multiplies the required radius by 1.25&sup2; = 1.5625. Superelevation cannot rescue it either: even at the 10 percent hill-road maximum, R<sub>min</sub> would still be 315 m. The only way to run 100 km/h through this deflection is a flatter curve, which means moving the intersection point or accepting a longer alignment. This is the calculation that decides route corridors, and it is why speed limits and geometry have to be settled together rather than one after the other.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Radius R</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Radius of the circular arc</td></tr>
+            <tr><td>Deflection angle &Delta;</td><td>degrees</td><td>degrees</td><td>&gt; 0 and &lt; 180</td><td>At 180&deg; the straights are parallel and never meet</td></tr>
+            <tr><td>Design speed V</td><td>km/h</td><td>mph</td><td>&gt; 0</td><td>Drives the minimum radius only</td></tr>
+            <tr><td>Superelevation e</td><td>%</td><td>%</td><td>0 &ndash; 12, IRC caps at 7 or 10</td><td>Entered as a percentage, used as a decimal</td></tr>
+            <tr><td>Side friction f</td><td>&mdash;</td><td>&mdash;</td><td>0 &ndash; 0.5, IRC uses 0.15</td><td>e + f must be greater than zero</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Minimum radius by design speed</strong> &mdash; f = 0.15, computed as V&sup2;/[127(e+f)]</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>V, km/h</th><th>R<sub>min</sub> at e = 7 %</th><th>R<sub>min</sub> at e = 10 %</th><th>R<sub>min</sub> at e = 4 %</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>30</td><td>32.2 m</td><td>28.3 m</td><td>37.3 m</td></tr>
+            <tr><td>40</td><td>57.3 m</td><td>50.4 m</td><td>66.3 m</td></tr>
+            <tr><td>50</td><td>89.5 m</td><td>78.7 m</td><td>103.6 m</td></tr>
+            <tr><td>60</td><td>128.9 m</td><td>113.4 m</td><td>149.2 m</td></tr>
+            <tr><td>65</td><td>151.3 m</td><td>133.1 m</td><td>175.1 m</td></tr>
+            <tr><td>80</td><td>229.1 m</td><td>201.6 m</td><td>265.2 m</td></tr>
+            <tr><td>100</td><td>357.9 m</td><td>314.9 m</td><td>414.4 m</td></tr>
+            <tr><td>120</td><td>515.4 m</td><td>453.5 m</td><td>596.7 m</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">These are absolute minima. IRC also publishes a desirable minimum, typically 40 to 60 percent larger, and using the absolute value should be reserved for genuinely constrained locations.</div>
+
+      <hr class="dv">
+
+      <p><strong>Degree of curvature and radius</strong> &mdash; 20 m arc definition, D = 1145.92/R</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>R, m</th><th>D, degrees</th><th>Character</th><th>Suitable up to</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>50</td><td>22.92</td><td>Very sharp</td><td>~35 km/h</td></tr>
+            <tr><td>100</td><td>11.46</td><td>Sharp</td><td>~50 km/h</td></tr>
+            <tr><td>150</td><td>7.64</td><td>Moderate</td><td>~65 km/h</td></tr>
+            <tr><td>250</td><td>4.58</td><td>Gentle</td><td>~83 km/h</td></tr>
+            <tr><td>400</td><td>2.86</td><td>Flat</td><td>~105 km/h</td></tr>
+            <tr><td>600</td><td>1.91</td><td>Very flat</td><td>~129 km/h</td></tr>
+            <tr><td>1000</td><td>1.15</td><td>Near straight</td><td>~166 km/h</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Speeds shown are the maximum for which each radius meets the absolute minimum at e = 7 % and f = 0.15.</div>
+
+      <hr class="dv">
+
+      <p><strong>How the curve elements scale with deflection angle</strong> &mdash; R = 250 m throughout</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>&Delta;, degrees</th><th>L<sub>c</sub>, m</th><th>T, m</th><th>C, m</th><th>M, m</th><th>E, m</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>10</td><td>43.63</td><td>21.87</td><td>43.578</td><td>0.951</td><td>0.955</td></tr>
+            <tr><td>20</td><td>87.27</td><td>44.08</td><td>86.824</td><td>3.793</td><td>3.851</td></tr>
+            <tr><td>35</td><td>152.72</td><td>78.82</td><td>150.353</td><td>11.571</td><td>12.132</td></tr>
+            <tr><td>60</td><td>261.80</td><td>144.34</td><td>250.000</td><td>33.494</td><td>38.675</td></tr>
+            <tr><td>90</td><td>392.70</td><td>250.00</td><td>353.553</td><td>73.223</td><td>103.553</td></tr>
+            <tr><td>120</td><td>523.60</td><td>433.01</td><td>433.013</td><td>125.000</td><td>250.000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Mid-ordinate and external distance are nearly equal at small angles and diverge sharply beyond about 60&deg;. At 120&deg; the external distance is twice the mid-ordinate, and the tangent length has grown to nearly twice the radius.</div>
+
+      <hr class="dv">
+
+      <p><strong>IRC superelevation limits</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Terrain</th><th>Maximum e</th><th>Reason for the cap</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Plain and rolling</td><td>7 %</td><td>Slow vehicles sliding inward</td></tr>
+            <tr><td>Hilly, snow free</td><td>10 %</td><td>Steeper accepted where radii are constrained</td></tr>
+            <tr><td>Hilly, snow bound</td><td>7 %</td><td>Reduced friction under ice</td></tr>
+            <tr><td>Urban, built up</td><td>4 %</td><td>Wide range of vehicle speeds, frequent stops</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you calculate the elements of a horizontal circular curve?</summary>
+        <div class="faq-a">Every element follows from the radius and the deflection angle between the two straights. Curve length is the radius times the deflection angle in radians. Tangent length, the distance from the intersection point back to the start of the curve, is the radius times the tangent of half the deflection angle. The long chord is twice the radius times the sine of half the angle, the mid-ordinate is the radius times one minus the cosine of half the angle, and the external distance is the radius times the secant of half the angle minus one.</div>
+      </details>
+
+      <details>
+        <summary>What is the minimum radius of a horizontal curve?</summary>
+        <div class="faq-a">The minimum radius is the design speed squared divided by 127 times the sum of the superelevation and the coefficient of side friction, with speed in kilometres per hour and superelevation as a decimal. The constant 127 comes from converting kilometres per hour to metres per second and dividing by gravitational acceleration. At 80 kilometres per hour with 7 percent superelevation and a friction coefficient of 0.15 the minimum radius is 229 metres.</div>
+      </details>
+
+      <details>
+        <summary>What is the degree of curvature and how does it relate to radius?</summary>
+        <div class="faq-a">Degree of curvature is the angle subtended at the centre by a standard length of arc, and it is simply another way of expressing sharpness. Indian and metric practice uses a 20 metre arc, so the degree equals 1145.92 divided by the radius in metres. North American practice uses a 100 foot arc, giving 5729.58 divided by the radius in feet. A larger degree means a sharper curve, which is the opposite convention to radius.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between mid-ordinate and external distance?</summary>
+        <div class="faq-a">Both measure how far the curve departs from the straight lines, but in opposite directions from the mid-point of the curve. The mid-ordinate is the distance from the middle of the long chord out to the curve, and it tells you how much clearance the curve needs inside the chord. The external distance is measured from the curve outward to the point of intersection of the two tangents, and it tells you how much land is needed beyond the curve. For small deflection angles the two are nearly equal; they diverge as the angle grows.</div>
+      </details>
+
+      <details>
+        <summary>Why is superelevation limited to about 7 percent?</summary>
+        <div class="faq-a">Superelevation is capped because a slow moving or stationary vehicle on a steeply banked curve tends to slide inward, and heavy vehicles with a high centre of gravity risk toppling toward the inside. IRC limits superelevation to 7 percent on plain and rolling terrain and 10 percent in hilly areas without snow, with 4 percent in urban areas where speeds vary widely. Once that cap is reached, any further increase in the safe radius has to come from a flatter curve rather than more banking.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/vertical-curve-calculator">Vertical Curve Calculator<span>Crest and sag curves, K value and sight distance</span></a>
+        <a href="/earthwork-volume-calculator">Earthwork Volume Calculator<span>Cut and fill along the alignment</span></a>
+        <a href="/manning-equation-calculator">Manning Equation Calculator<span>Size the roadside drains and culverts</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Cost the road works</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Horizontal Curve Calculator &mdash; multicalci.com. Simple circular curve only &mdash; no transition or spiral, no curve widening, no sight distance check around the curve, and no compound or reverse curve geometry. The minimum radius is an absolute limit rather than a design target. Results are indicative and must be verified against IRC 38 or the relevant highway standard.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  var GROUPS = [
+    ['Curve Geometry', [
+      ['Curve Length Lc',     'c-main', true ],
+      ['Tangent Length T',    'c-main', true ],
+      ['Chord Length C',      'c-blu',  false],
+      ['Degree of Curvature', 'c-pur',  false]
+    ]],
+    ['Setting-Out Offsets', [
+      ['Mid-Ordinate M',      'c-amb', false],
+      ['External Distance E', 'c-amb', false]
+    ]],
+    ['Design Speed Check', [
+      ['Min Radius Rmin',      'c-main', true ],
+      ['Speed Check R \u2265 Rmin', 'c-grn', false]
+    ]]
+  ];
+
+  // calcSurvey answers horizontal AND vertical geometry in one response. These
+  // four rows belong to the vertical curve page and are dropped here rather
+  // than falling through to a generic renderer, where they would appear as
+  // meaningless zeros driven by the placeholder grades sent below.
+  var VERTICAL_ROWS = ['Grade Difference A', 'Vertical Curve Length',
+                       'Rate of Change RC', 'K Value (L/A)'];
+
+  function isSI() { return US === 'SI'; }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending a rounded Imperial figure
+  // loses relative precision on small numbers, which would make the same curve
+  // give two different answers depending on which unit button is lit.
+  var FIELDS = [
+    ['hcR', 1 / 0.3048],    // m    -> ft
+    ['hcV', 1 / 1.609344]   // km/h -> mph (exact)
+  ];
+  var CANON = {};
+
+  function factorFor(id) {
+    for (var i = 0; i < FIELDS.length; i++) if (FIELDS[i][0] === id) return FIELDS[i][1];
+    return null;
+  }
+
+  function noteEdit(id) {
+    var f = factorFor(id);
+    if (f === null) return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v / f : v) : NaN;
+  }
+
+  function seedCanon() { FIELDS.forEach(function (f) { noteEdit(f[0]); }); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var f = factorFor(id);
+    if (f === null) return String(v);
+    var direct = (US === 'IMP') ? v / f : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * f : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    // G1, G2 and SSD are required by the shared endpoint but affect only the
+    // vertical rows, which this page drops. Equal grades give A = 0 and no
+    // vertical curve; SSD just has to clear the > 0 guard. None of the eight
+    // horizontal rows, nor the status flag, depends on any of the three.
+    return {
+      R:     si('hcR'),
+      SSD:   '100',        L_u: 'm',
+      delta_deg: E('hcDelta').value,
+      V:     si('hcV'),    V_u: 'kmh',
+      e:     E('hcE').value,
+      f_fr:  E('hcF').value,
+      G1: '0', G2: '0'
+    };
+  }
+
+  // Mirror the backend's guards, plus two it does not make.
+  function localGuard() {
+    var R = parseFloat(si('hcR')), V = parseFloat(si('hcV'));
+    var d = parseFloat(E('hcDelta').value);
+    var e = parseFloat(E('hcE').value), f = parseFloat(E('hcF').value);
+
+    if (!isFinite(R) || R <= 0) return ['hcR', 'Radius R must be a number greater than 0.'];
+    if (!isFinite(d) || d <= 0) return ['hcDelta', 'Deflection angle must be a number greater than 0.'];
+    // Not guarded server-side: tan(90 deg) overflows and the tangent length
+    // comes back as about 4e18 m. At 180 deg the straights are parallel and
+    // the intersection point does not exist, so there is no curve to set out.
+    if (d >= 180) return ['hcDelta', 'Deflection angle must be less than 180\u00B0 \u2014 at 180\u00B0 the two straights are parallel and never meet.'];
+    if (!isFinite(V) || V <= 0) return ['hcV', 'Design speed must be a number greater than 0.'];
+    if (!isFinite(e) || e < 0)  return ['hcE', 'Superelevation must be a number of 0 or more.'];
+    if (!isFinite(f) || f < 0)  return ['hcF', 'Side friction factor must be a number of 0 or more.'];
+    // Not guarded server-side either: e + f = 0 divides by zero and the
+    // minimum radius renders as a dash.
+    if (e / 100 + f <= 0) return ['hcE', 'Superelevation and side friction cannot both be zero \u2014 the minimum radius would be infinite.'];
+    return null;
+  }
+
+  // Non-blocking sanity notes: things worth a second look that are not wrong
+  // enough to refuse. The backend raises none of these.
+  var LOCAL_WARNS = [];
+
+  function localWarns() {
+    var out = [];
+    var dlt = parseFloat(E('hcDelta').value);
+    var e = parseFloat(E('hcE').value);
+    if (isFinite(dlt) && dlt > 120)
+      out.push('\u26A0 A deflection angle of ' + dlt + '\u00B0 gives a tangent length longer than the radius '
+             + 'itself. Check this is the deflection between the straights, not the internal angle at the '
+             + 'intersection point.');
+    if (isFinite(e) && e > 10)
+      out.push('\u26A0 Superelevation of ' + e + ' % exceeds the IRC maximum of 10 % for hilly terrain and '
+             + '7 % for plain and rolling.');
+    return out;
+  }
+
+  function clear() {
+    E('hcGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Curve</strong> to compute the curve.</div>';
+    E('hcVerdict').innerHTML = '';
+    E('hcWarns').innerHTML = '';
+    E('hcSummary').style.display = 'none';
+    E('hcUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+    LOCAL_WARNS = [];
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('hcErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    // The parenthetical form is tested before the em-dash form: some values
+    // carry a dash inside their brackets, and splitting on it first would cut
+    // the value open mid-bracket.
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('hcErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) {
+      if (VERTICAL_ROWS.indexOf(r.label) === -1) byLabel[r.label] = r;
+    });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (rowDef) {
+        var r = byLabel[rowDef[0]];
+        if (!r) return;
+        delete byLabel[rowDef[0]];
+        if (r.warn) groupWarn = true;
+        body += card(rowDef[0], r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('hcGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too. Only
+    // the horizontal rows are considered, since the vertical ones are dropped.
+    var shown = d.results.filter(function (r) { return VERTICAL_ROWS.indexOf(r.label) === -1; });
+    var green = d.status === 'PASS' && !shown.some(function (r) { return r.warn; });
+    E('hcVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Radius meets the minimum for the design speed</div>'
+      : '<div class="badge c-red">\u26A0 Radius is below the minimum for this design speed \u2014 see the flagged rows</div>';
+
+    if (d.summary) {
+      E('hcSummary').textContent = d.summary;
+      E('hcSummary').style.display = 'block';
+    }
+
+    var allW = (d.warns || []).concat(LOCAL_WARNS);
+    E('hcWarns').innerHTML = allW.length
+      ? allW.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('hcUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+    LOCAL_WARNS = localWarns();
+
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('survey', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { r: 'hcR', d: 'hcDelta', v: 'hcV', e: 'hcE', f: 'hcF' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) {
+      var id = QMAP[k];
+      p.set(k, factorFor(id) === null ? E(id).value : si(id));
+    });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Horizontal Curve Calculator',
+                        text: 'Circular curve setting out on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (f) {
+      var c = CANON[f[0]];
+      if (!isFinite(c)) return;
+      E(f[0]).value = String(+(sys === 'IMP' ? c * f[1] : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var u = { 'u-m': ['(m)', '(ft)'], 'u-v': ['(km/h)', '(mph)'] };
+    Object.keys(u).forEach(function (cls) {
+      var t = u[cls][sys === 'SI' ? 0 : 1];
+      var nodes = document.getElementsByClassName(cls);
+      for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    });
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lu = isSI() ? 'm' : 'ft', vu = isSI() ? 'km/h' : 'mph';
+    var inRows = [
+      ['Radius R', E('hcR').value + ' ' + lu],
+      ['Deflection angle \u0394', E('hcDelta').value + '\u00B0'],
+      ['Design speed V', E('hcV').value + ' ' + vu],
+      ['Superelevation e', E('hcE').value + ' %'],
+      ['Side friction factor f', E('hcF').value]
+    ].map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    // Only the horizontal rows go into the report, matching the page.
+    var outRows = LAST.results.filter(function (r) {
+      return VERTICAL_ROWS.indexOf(r.label) === -1;
+    }).map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var allW = (LAST.warns || []).concat(LOCAL_WARNS);
+    var warnHtml = allW.length
+      ? '<h2>Warnings</h2><ul>' + allW.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var shown = LAST.results.filter(function (r) { return VERTICAL_ROWS.indexOf(r.label) === -1; });
+    var green = LAST.status === 'PASS' && !shown.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Horizontal Curve Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Horizontal Curve Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Simple circular curve \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'PASS \u2014 radius meets the minimum for the design speed'
+               : 'REVIEW \u2014 radius below the minimum for the design speed') + '</div>'
+      + '<h2>Curve Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Curve Elements</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 simple circular curve only. No transition or spiral curve, '
+      + 'no curve widening, no sight distance check around the curve, and no compound or reverse curve geometry. '
+      + 'The minimum radius is an absolute limit, not a design target. Verify against IRC 38.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    ['hcR', 'hcDelta', 'hcV', 'hcE', 'hcF'].forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('input',  function () { noteEdit(id); });
+      el.addEventListener('change', function () { noteEdit(id); clear(); });
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+      });
+    });
+
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
