@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Steel Section Properties Calculator — Area, Ixx, Zxx, Zp | multicalci.com</title>
+<meta name="description" content="Free steel section properties calculator. Computes area, second moment of area, elastic and plastic section modulus, radius of gyration, weight per metre and IS 800 section classification.">
+<link rel="canonical" href="https://www.multicalci.com/steel-section-properties-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Steel Section Properties Calculator — Area, Ixx, Zxx, Zp">
+<meta property="og:description" content="Section properties for I-sections, channels, equal angles, SHS and CHS, with IS 800 classification and moment capacity.">
+<meta property="og:url" content="https://www.multicalci.com/steel-section-properties-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Steel Section Properties Calculator — Area, Ixx, Zxx, Zp">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Steel Section Properties Calculator","description":"Steel section properties calculator computing cross-sectional area, second moment of area about both axes, elastic and plastic section modulus, radius of gyration, weight per metre, IS 800 section classification and design moment capacity for I-sections, channels, equal angles, square hollow sections and circular hollow sections.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/steel-section-properties-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Steel Section Properties Calculator","item":"https://www.multicalci.com/steel-section-properties-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the difference between elastic and plastic section modulus?","acceptedAnswer":{"@type":"Answer","text":"Elastic section modulus is the second moment of area divided by the distance to the extreme fibre, and it gives the moment at which the outermost fibre first reaches yield. Plastic section modulus is the first moment of area of the two halves of the section about the plastic neutral axis, and it gives the moment at which the whole section has yielded. The ratio between them is the shape factor, about 1.15 for a rolled I-section bent about its major axis and 1.5 for a solid rectangle."}},{"@type":"Question","name":"How do you classify a steel section as per IS 800?","acceptedAnswer":{"@type":"Answer","text":"Classification compares the width to thickness ratio of each compression element against limits that scale with the square root of 250 divided by the yield stress. A Class 1 plastic section can form a plastic hinge and rotate; Class 2 compact can reach the plastic moment but not rotate; Class 3 semi-compact can reach first yield only; and Class 4 slender buckles locally before yield and needs an effective section. This calculator classifies I-sections from the flange outstand and web depth ratios."}},{"@type":"Question","name":"Why does an angle buckle about an axis that is not horizontal or vertical?","acceptedAnswer":{"@type":"Answer","text":"An equal angle is symmetric about its diagonal, not about its horizontal and vertical axes, so its principal axes are rotated forty five degrees from the leg directions. The minimum second moment of area occurs about the axis running along the diagonal through the heel, conventionally called the v-v axis, and that is the axis a strut will buckle about. For an ISA 100 by 100 by 10 the radius of gyration about the legs is 30.5 millimetres but about the weak principal axis only 19.4, so using the wrong one overestimates buckling capacity substantially."}},{"@type":"Question","name":"How do you calculate the weight per metre of a steel section?","acceptedAnswer":{"@type":"Answer","text":"Multiply the cross-sectional area in square millimetres by the density of steel, 7850 kilograms per cubic metre, and divide by one million to get kilograms per metre. A section of 5536 square millimetres therefore weighs 43.5 kilograms per metre. Published tables for rolled sections give slightly higher figures than a calculation from nominal dimensions because they include the root fillet radii, which this calculator ignores."}},{"@type":"Question","name":"What is the shape factor of a steel section?","acceptedAnswer":{"@type":"Answer","text":"Shape factor is the ratio of plastic to elastic section modulus, and it measures how much extra moment a section carries between first yield and full plasticity. A rolled I-section bent about its major axis has a shape factor of about 1.13 to 1.15 because most of its material already sits near the extreme fibres. A solid rectangle reaches 1.5 and a solid circle 1.7, since material near the neutral axis contributes little elastically but fully once plastic."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Steel Section Properties Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Steel Section Properties Calculator</h1>
+    <p>Compute the geometric properties of a steel section from its dimensions. Enter an I-section, channel, equal angle, square hollow section or circular hollow section and this calculator returns the cross-sectional area, the second moment of area about both axes, the elastic and plastic section moduli, both radii of gyration, the weight per metre, the IS 800 section classification and the design moment capacity.</p>
+    <div class="stdref">IS 800:2007 Table 2 classification &middot; Cl.8.2.1.2 moment capacity &middot; &gamma;<sub>M0</sub> = 1.10</div>
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Section Dimensions</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; mm</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; in</button>
+      </div>
+      <div class="hint">Inputs convert when you switch. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="field">
+        <label for="stType">Section Type</label>
+        <select id="stType">
+          <option value="I" selected>I-section &mdash; ISMB, UB, UC</option>
+          <option value="C">Channel &mdash; ISMC, PFC</option>
+          <option value="angle">Equal angle &mdash; ISA</option>
+          <option value="SHS">Square hollow section &mdash; SHS</option>
+          <option value="CHS">Circular hollow section &mdash; CHS</option>
+        </select>
+      </div>
+
+      <div id="grpIC">
+        <div class="g2">
+          <div class="field">
+            <label for="stH">Overall Depth H <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stH" value="300" step="5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="stBf">Flange Width B<sub>f</sub> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stBf" value="140" step="5" min="0.01">
+          </div>
+        </div>
+        <div class="g2">
+          <div class="field">
+            <label for="stTf">Flange Thickness T<sub>f</sub> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stTf" value="12.4" step="0.1" min="0.01">
+          </div>
+          <div class="field">
+            <label for="stTw">Web Thickness T<sub>w</sub> <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stTw" value="7.5" step="0.1" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div id="grpAngle" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label for="stLa">Leg Length L <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stLa" value="100" step="5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="stTa">Leg Thickness t <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stTa" value="10" step="0.5" min="0.01">
+          </div>
+        </div>
+        <div class="hint">Equal angles only &mdash; both legs are taken as the same length.</div>
+      </div>
+
+      <div id="grpSHS" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label for="stBs">Outer Size B <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stBs" value="150" step="5" min="0.01">
+          </div>
+          <div class="field">
+            <label for="stTs">Wall Thickness t <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stTs" value="8" step="0.5" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div id="grpCHS" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label for="stDc">Outer Diameter D <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stDc" value="168.3" step="1" min="0.01">
+          </div>
+          <div class="field">
+            <label for="stTc">Wall Thickness t <span class="u-mm">(mm)</span></label>
+            <input type="number" id="stTc" value="8" step="0.5" min="0.01">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="stFy">Yield Stress f<sub>y</sub> (MPa)</label>
+        <select id="stFy">
+          <option value="250" selected>250 &mdash; Fe410 / E250 mild steel</option>
+          <option value="300">300 &mdash; E300</option>
+          <option value="345">345 &mdash; Fe490 / E350</option>
+          <option value="410">410 &mdash; Fe540 / E410</option>
+        </select>
+      </div>
+
+      <div id="stErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Properties</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Section Properties</span>
+    </div>
+    <div class="card-bd">
+      <div id="stVerdict"></div>
+      <div id="stSummary" class="note" style="display:none"></div>
+      <div id="stGroups">
+        <div class="rc-empty">Press <strong>Calculate Properties</strong> to compute the section.</div>
+      </div>
+      <div id="stWarns"></div>
+      <div class="note" id="stAngleNote" style="display:none"><strong>Reading the angle results.</strong> For an equal angle the values reported as I<sub>xx</sub> and I<sub>yy</sub> are the <em>principal</em> maximum and minimum, about the u-u and v-v axes at 45&deg; to the legs &mdash; not about the legs themselves. Use r<sub>y</sub> as the governing radius of gyration for strut buckling. The section moduli Z<sub>xx</sub> and Z<sub>yy</sub> divide those principal inertias by extreme-fibre distances measured to the <em>leg</em> axes, so treat them as indicative only and do not use them for a bending check.</div>
+      <div class="note" id="stUnitNote" style="display:none">Results are reported in SI regardless of the input units: areas in mm&sup2;, inertias in &times;10&#8310; mm&#8308; and moduli in &times;10&sup3; mm&sup3;.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>I-section and channel</strong></p>
+      <div class="fbox">
+        h<sub>w</sub> = H &minus; 2T<sub>f</sub><br>
+        A = 2B<sub>f</sub>T<sub>f</sub> + h<sub>w</sub>T<sub>w</sub><br>
+        I<sub>xx</sub> = [B<sub>f</sub>H&sup3; &minus; (B<sub>f</sub>&minus;T<sub>w</sub>)h<sub>w</sub>&sup3;] / 12<br>
+        I<sub>yy,I</sub> = 2(T<sub>f</sub>B<sub>f</sub>&sup3;/12) + h<sub>w</sub>T<sub>w</sub>&sup3;/12<br>
+        Z<sub>px</sub> = 2[B<sub>f</sub>T<sub>f</sub>(h<sub>w</sub>/2 + T<sub>f</sub>/2) + T<sub>w</sub>(h<sub>w</sub>/2)(h<sub>w</sub>/4)]
+      </div>
+      <div class="hint">For a channel, I<sub>yy</sub> is taken about the true centroid, which sits away from the web because the section is singly symmetric.</div>
+
+      <p><strong>Equal angle &mdash; principal axes</strong></p>
+      <div class="fbox">
+        A = Lt + (L&minus;t)t&nbsp;&nbsp;&nbsp;y&#772; = z&#772; by symmetry<br>
+        I<sub>xy</sub> = &Sigma; A<sub>i</sub>(y<sub>i</sub> &minus; y&#772;)(z<sub>i</sub> &minus; z&#772;)<br>
+        I<sub>max</sub> = I<sub>xx</sub> + |I<sub>xy</sub>|&nbsp;&nbsp;(u-u)<br>
+        I<sub>min</sub> = I<sub>xx</sub> &minus; |I<sub>xy</sub>|&nbsp;&nbsp;(v-v, governs buckling)
+      </div>
+
+      <p><strong>Hollow sections</strong></p>
+      <div class="fbox">
+        <strong>SHS</strong>&nbsp; A = B&sup2; &minus; B<sub>i</sub>&sup2;,&nbsp; I = (B&#8308; &minus; B<sub>i</sub>&#8308;)/12,&nbsp; Z<sub>p</sub> = (B&sup3; &minus; B<sub>i</sub>&sup3;)/4<br>
+        <strong>CHS</strong>&nbsp; A = &pi;(D&sup2; &minus; D<sub>i</sub>&sup2;)/4,&nbsp; I = &pi;(D&#8308; &minus; D<sub>i</sub>&#8308;)/64,&nbsp; Z<sub>p</sub> = (D&sup3; &minus; D<sub>i</sub>&sup3;)/6
+      </div>
+
+      <p><strong>Derived properties</strong></p>
+      <div class="fbox">
+        Z = I / y<sub>max</sub>&nbsp;&nbsp;&nbsp;r = &radic;(I / A)<br>
+        weight = A &times; 7850 / 10&#8310;&nbsp;&nbsp;kg/m<br>
+        &epsilon; = &radic;(250 / f<sub>y</sub>)<br>
+        M<sub>c</sub> = Z<sub>px</sub> f<sub>y</sub> / &gamma;<sub>M0</sub>,&nbsp; &gamma;<sub>M0</sub> = 1.10
+      </div>
+
+      <div class="legend">
+        <p><strong>H, B<sub>f</sub></strong> &mdash; overall depth and flange width</p>
+        <p><strong>T<sub>f</sub>, T<sub>w</sub></strong> &mdash; flange and web thickness</p>
+        <p><strong>h<sub>w</sub></strong> &mdash; clear web depth between flanges</p>
+        <p><strong>I<sub>xy</sub></strong> &mdash; product of inertia about the centroidal leg axes</p>
+        <p><strong>Z</strong> &mdash; elastic section modulus</p>
+        <p><strong>Z<sub>px</sub></strong> &mdash; plastic section modulus about the major axis</p>
+        <p><strong>&epsilon;</strong> &mdash; yield strength ratio used to scale the classification limits</p>
+        <p><strong>M<sub>c</sub></strong> &mdash; design plastic moment capacity of the bare section</p>
+      </div>
+
+      <div class="note">
+        <strong>Root radii are not included.</strong> Every section here is built from rectangles with sharp corners, so the area comes out a little below the published value for a rolled section &mdash; typically by half a percent to two percent, and the inertia by a similar margin. For an ISMB 300 this calculation gives 5536 mm&sup2; against a published 5626 mm&sup2;. Use published table values for a final design and this calculator for built-up plate girders, non-standard sections and quick comparisons.
+      </div>
+
+      <div class="note">
+        <strong>M<sub>c</sub> is the bare plastic capacity, not a design answer.</strong> It assumes the compression flange is fully restrained. There is no check on lateral torsional buckling, which usually governs an unrestrained beam and can reduce capacity by half or more, and no reduction for high coincident shear. For a Class 4 slender section the plastic modulus is not attainable at all and the value shown is unconservative &mdash; IS 800 requires an effective section for those.
+      </div>
+
+      <div class="note">
+        <strong>Classification is computed for I-sections only.</strong> Channels, angles and hollow sections report "N/A" and are not classified here, so a slender SHS or CHS will not be flagged. Check those against IS 800 Table 2 yourself.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; ISMB 300 I-Section</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>An ISMB 300 to nominal dimensions: overall depth 300 mm, flange width 140 mm, flange thickness 12.4 mm, web thickness 7.5 mm, in E250 steel with f<sub>y</sub> = 250 MPa.</p>
+
+        <div class="wex-hd">Step 1 &mdash; area</div>
+        <p>h<sub>w</sub> = 300 &minus; 2 &times; 12.4 = 275.2 mm<br>
+        A = 2 &times; 140 &times; 12.4 + 275.2 &times; 7.5 = 3472 + 2064 = <strong>5536 mm&sup2;</strong></p>
+
+        <div class="wex-hd">Step 2 &mdash; second moments of area</div>
+        <p>I<sub>xx</sub> = [140 &times; 300&sup3; &minus; (140 &minus; 7.5) &times; 275.2&sup3;] / 12 = <strong>84.866 &times; 10&#8310; mm&#8308;</strong><br>
+        I<sub>yy</sub> = 2(12.4 &times; 140&sup3;/12) + 275.2 &times; 7.5&sup3;/12 = <strong>5.681 &times; 10&#8310; mm&#8308;</strong><br>
+        The minor axis carries only 6.7 percent of the major-axis stiffness, which is why an I-section must be restrained laterally.</p>
+
+        <div class="wex-hd">Step 3 &mdash; moduli and radii of gyration</div>
+        <p>Z<sub>xx</sub> = I<sub>xx</sub> / 150 = <strong>565.78 &times; 10&sup3; mm&sup3;</strong><br>
+        Z<sub>yy</sub> = I<sub>yy</sub> / 70 = <strong>81.15 &times; 10&sup3; mm&sup3;</strong><br>
+        r<sub>x</sub> = &radic;(84.866 &times; 10&#8310; / 5536) = <strong>123.81 mm</strong><br>
+        r<sub>y</sub> = &radic;(5.681 &times; 10&#8310; / 5536) = <strong>32.03 mm</strong></p>
+
+        <div class="wex-hd">Step 4 &mdash; plastic modulus and shape factor</div>
+        <p>Z<sub>px</sub> = 2[140 &times; 12.4 &times; (137.6 + 6.2) + 7.5 &times; 137.6 &times; 68.8] = <strong>641.277 &times; 10&sup3; mm&sup3;</strong><br>
+        Shape factor = 641.277 / 565.78 = <strong>1.13</strong>, the usual value for a rolled I-section.</p>
+
+        <div class="wex-hd">Step 5 &mdash; classification and capacity</div>
+        <p>&epsilon; = &radic;(250/250) = 1.0<br>
+        Flange outstand ratio B<sub>f</sub>/2T<sub>f</sub> = 140 / 24.8 = 5.65, against the Class 1 limit of 9.4&epsilon;<br>
+        Web ratio h<sub>w</sub>/T<sub>w</sub> = 275.2 / 7.5 = 36.7, against the Class 1 limit of 84&epsilon;<br>
+        Both are comfortably inside, so the section is <strong>Class 1 &mdash; Plastic</strong>.<br>
+        M<sub>c</sub> = 641.277 &times; 10&sup3; &times; 250 / (1.10 &times; 10&#8310;) = <strong>145.74 kN&middot;m</strong><br>
+        Weight = 5536 &times; 7850 / 10&#8310; = <strong>43.46 kg/m</strong></p>
+
+        <div class="ans">
+          <p><strong>Area</strong> 5536 mm&sup2; &nbsp;&middot;&nbsp; <strong>Weight</strong> 43.46 kg/m</p>
+          <p><strong>I<sub>xx</sub></strong> 84.866 &times; 10&#8310; mm&#8308; &nbsp;&middot;&nbsp; <strong>I<sub>yy</sub></strong> 5.681 &times; 10&#8310; mm&#8308;</p>
+          <p><strong>Z<sub>xx</sub></strong> 565.78 &times; 10&sup3; mm&sup3; &nbsp;&middot;&nbsp; <strong>Z<sub>px</sub></strong> 641.277 &times; 10&sup3; mm&sup3;</p>
+          <p><strong>r<sub>x</sub></strong> 123.81 mm &nbsp;&middot;&nbsp; <strong>r<sub>y</sub></strong> 32.03 mm</p>
+          <p><strong>Classification</strong> Class 1 &mdash; Plastic &nbsp;&middot;&nbsp; <strong>M<sub>c</sub></strong> 145.74 kN&middot;m</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Properties</strong> without changing anything and you should get exactly these figures back. Published tables give A = 5626 mm&sup2; and I<sub>xx</sub> = 8603.6 cm&#8308; for ISMB 300; the small difference is the root fillet radius, which this calculation omits.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128260;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Why an Angle Buckles Diagonally</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>An ISA 100 &times; 100 &times; 10 equal angle used as a strut. Leg length 100 mm, thickness 10 mm.</p>
+
+        <div class="wex-hd">Step 1 &mdash; area and centroid</div>
+        <p>A = 100 &times; 10 + 90 &times; 10 = <strong>1900 mm&sup2;</strong><br>
+        The centroid sits <strong>28.68 mm</strong> from the back of each leg, published as 28.4 mm.</p>
+
+        <div class="wex-hd">Step 2 &mdash; inertia about the legs</div>
+        <p>About the horizontal leg axis, I<sub>xx</sub> = 1.800 &times; 10&#8310; mm&#8308;, and by symmetry I<sub>yy</sub> is identical. If you stopped here you would conclude the angle is equally stiff in both directions, and both radii of gyration come to 30.8 mm.</p>
+
+        <div class="wex-hd">Step 3 &mdash; and then the product of inertia</div>
+        <p>An equal angle is symmetric about its <em>diagonal</em>, not about its legs, so I<sub>xy</sub> is not zero:<br>
+        I<sub>xy</sub> = &minus;1.066 &times; 10&#8310; mm&#8308;<br>
+        I<sub>max</sub> = 1.800 + 1.066 = <strong>2.866 &times; 10&#8310; mm&#8308;</strong> about u-u<br>
+        I<sub>min</sub> = 1.800 &minus; 1.066 = <strong>0.734 &times; 10&#8310; mm&#8308;</strong> about v-v<br>
+        Published values are 2.80 and 0.729 &times; 10&#8310; mm&#8308;.</p>
+
+        <div class="ans">
+          <p><strong>r about the legs</strong> 30.8 mm &mdash; the number that looks right and is not</p>
+          <p><strong>r<sub>max</sub> (u-u)</strong> 38.84 mm, published 38.4</p>
+          <p><strong>r<sub>min</sub> (v-v)</strong> <strong>19.66 mm</strong>, published 19.4 &mdash; this is the one that governs</p>
+          <p>Using 30.8 instead of 19.66 overstates the radius of gyration by <strong>57 percent</strong></p>
+        </div>
+
+        <div class="wex-hd">What that costs you</div>
+        <p>Buckling capacity depends on slenderness KL/r, and the reduction factor falls away roughly with the square of it in the elastic range. A 2.0 m strut of this angle has KL/r = 65 on the leg axis but <strong>102</strong> on the true weak axis. Feed the wrong figure into a column check and you will believe the strut has a comfortable margin when it is close to its limit. This is the single most common error made with angle struts, and it is why every published angle table lists r<sub>vv</sub> separately.</p>
+      </div>
+
+      <div class="note">
+        Switch the section type to <strong>Equal angle</strong> and press Calculate to reproduce these figures. The results panel adds a note explaining that I<sub>xx</sub> and I<sub>yy</sub> are principal values for this section type, because the axis convention differs from the other four.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>Applies to</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Overall depth H</td><td>I-section, channel</td><td>mm</td><td>in</td><td>&gt; 2T<sub>f</sub></td></tr>
+            <tr><td>Flange width B<sub>f</sub></td><td>I-section, channel</td><td>mm</td><td>in</td><td>&gt; T<sub>w</sub></td></tr>
+            <tr><td>Flange thickness T<sub>f</sub></td><td>I-section, channel</td><td>mm</td><td>in</td><td>&gt; 0</td></tr>
+            <tr><td>Web thickness T<sub>w</sub></td><td>I-section, channel</td><td>mm</td><td>in</td><td>&gt; 0, &lt; B<sub>f</sub></td></tr>
+            <tr><td>Leg length L</td><td>Equal angle</td><td>mm</td><td>in</td><td>&gt; t</td></tr>
+            <tr><td>Leg thickness t</td><td>Equal angle</td><td>mm</td><td>in</td><td>&gt; 0, &lt; L</td></tr>
+            <tr><td>Outer size B</td><td>SHS</td><td>mm</td><td>in</td><td>&gt; 2t</td></tr>
+            <tr><td>Outer diameter D</td><td>CHS</td><td>mm</td><td>in</td><td>&gt; 2t</td></tr>
+            <tr><td>Wall thickness t</td><td>SHS, CHS</td><td>mm</td><td>in</td><td>&gt; 0, &lt; half the outer size</td></tr>
+            <tr><td>Yield stress f<sub>y</sub></td><td>All</td><td>MPa</td><td>MPa</td><td>250 &ndash; 410</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>IS 800 Table 2 &mdash; classification limits, scaled by &epsilon; = &radic;(250/f<sub>y</sub>)</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Class</th><th>Flange outstand B<sub>f</sub>/2T<sub>f</sub></th><th>Web h<sub>w</sub>/T<sub>w</sub></th><th>Behaviour</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1 &mdash; Plastic</td><td>&le; 9.4&epsilon;</td><td>&le; 84&epsilon;</td><td>Forms a plastic hinge and rotates</td></tr>
+            <tr><td>2 &mdash; Compact</td><td>&le; 10.5&epsilon;</td><td>&le; 105&epsilon;</td><td>Reaches M<sub>p</sub>, limited rotation</td></tr>
+            <tr><td>3 &mdash; Semi-compact</td><td>&le; 15.7&epsilon;</td><td>&le; 126&epsilon;</td><td>Reaches first yield only</td></tr>
+            <tr><td>4 &mdash; Slender</td><td>&gt; 15.7&epsilon;</td><td>&gt; 126&epsilon;</td><td>Buckles locally before yield</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>&epsilon; and the resulting limits by steel grade</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Grade</th><th>f<sub>y</sub>, MPa</th><th>&epsilon;</th><th>Class 1 flange limit</th><th>Class 1 web limit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fe410 / E250</td><td>250</td><td>1.000</td><td>9.40</td><td>84.0</td></tr>
+            <tr><td>E300</td><td>300</td><td>0.913</td><td>8.58</td><td>76.7</td></tr>
+            <tr><td>Fe490 / E350</td><td>345</td><td>0.851</td><td>8.00</td><td>71.5</td></tr>
+            <tr><td>Fe540 / E410</td><td>410</td><td>0.781</td><td>7.34</td><td>65.6</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Higher grade steel tightens the classification limits, so the same geometry can be Class 1 in E250 and Class 2 or 3 in E410. Strength gained at the material is partly given back at the section.</div>
+
+      <hr class="dv">
+
+      <p><strong>Shape factor Z<sub>p</sub>/Z &mdash; the reserve between first yield and full plasticity</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Section</th><th>Shape factor</th><th>Comment</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>I-section, major axis</td><td>1.13 &ndash; 1.15</td><td>Material already at the extreme fibres</td></tr>
+            <tr><td>I-section, minor axis</td><td>&asymp; 1.5</td><td>Behaves like a pair of rectangles</td></tr>
+            <tr><td>Channel, major axis</td><td>&asymp; 1.17</td><td>Similar to an I-section</td></tr>
+            <tr><td>SHS</td><td>&asymp; 1.19</td><td>Depends on wall slenderness</td></tr>
+            <tr><td>CHS</td><td>&asymp; 1.33</td><td>Thin wall approaches 1.27</td></tr>
+            <tr><td>Solid rectangle</td><td>1.50</td><td>Exactly bd&sup2;/4 over bd&sup2;/6</td></tr>
+            <tr><td>Solid circle</td><td>1.70</td><td>The highest of the common shapes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Equal angle principal properties &mdash; computed here against published ISA values</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>ISA size</th><th>A, mm&sup2;</th><th>r<sub>vv</sub> computed, mm</th><th>r<sub>vv</sub> published, mm</th><th>Difference</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>50 &times; 50 &times; 6</td><td>564</td><td>9.79</td><td>9.7</td><td>+0.9 %</td></tr>
+            <tr><td>65 &times; 65 &times; 6</td><td>744</td><td>12.80</td><td>12.7</td><td>+0.8 %</td></tr>
+            <tr><td>75 &times; 75 &times; 8</td><td>1136</td><td>14.72</td><td>14.5</td><td>+1.5 %</td></tr>
+            <tr><td>90 &times; 90 &times; 10</td><td>1700</td><td>17.65</td><td>17.5</td><td>+0.9 %</td></tr>
+            <tr><td>100 &times; 100 &times; 10</td><td>1900</td><td>19.66</td><td>19.4</td><td>+1.3 %</td></tr>
+            <tr><td>130 &times; 130 &times; 12</td><td>2976</td><td>25.61</td><td>25.5</td><td>+0.4 %</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The consistent small overestimate is the root radius, which rounds the heel and slightly reduces the true radius of gyration. Within about 1.5 percent across the range.</div>
+
+      <hr class="dv">
+
+      <p><strong>Weight per metre from area</strong> &mdash; steel at 7850 kg/m&sup3;</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Area, mm&sup2;</th><th>Weight, kg/m</th><th>Roughly equivalent to</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1000</td><td>7.85</td><td>ISA 75 &times; 75 &times; 8</td></tr>
+            <tr><td>2000</td><td>15.70</td><td>ISA 100 &times; 100 &times; 10</td></tr>
+            <tr><td>4000</td><td>31.40</td><td>ISMC 250 / CHS 168 &times; 8</td></tr>
+            <tr><td>5500</td><td>43.18</td><td>ISMB 300</td></tr>
+            <tr><td>9000</td><td>70.65</td><td>ISMB 450</td></tr>
+            <tr><td>13000</td><td>102.05</td><td>ISMB 550</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>What is the difference between elastic and plastic section modulus?</summary>
+        <div class="faq-a">Elastic section modulus is the second moment of area divided by the distance to the extreme fibre, and it gives the moment at which the outermost fibre first reaches yield. Plastic section modulus is the first moment of area of the two halves of the section about the plastic neutral axis, and it gives the moment at which the whole section has yielded. The ratio between them is the shape factor, about 1.15 for a rolled I-section bent about its major axis and 1.5 for a solid rectangle.</div>
+      </details>
+
+      <details>
+        <summary>How do you classify a steel section as per IS 800?</summary>
+        <div class="faq-a">Classification compares the width to thickness ratio of each compression element against limits that scale with the square root of 250 divided by the yield stress. A Class 1 plastic section can form a plastic hinge and rotate; Class 2 compact can reach the plastic moment but not rotate; Class 3 semi-compact can reach first yield only; and Class 4 slender buckles locally before yield and needs an effective section. This calculator classifies I-sections from the flange outstand and web depth ratios.</div>
+      </details>
+
+      <details>
+        <summary>Why does an angle buckle about an axis that is not horizontal or vertical?</summary>
+        <div class="faq-a">An equal angle is symmetric about its diagonal, not about its horizontal and vertical axes, so its principal axes are rotated forty five degrees from the leg directions. The minimum second moment of area occurs about the axis running along the diagonal through the heel, conventionally called the v-v axis, and that is the axis a strut will buckle about. For an ISA 100 by 100 by 10 the radius of gyration about the legs is 30.5 millimetres but about the weak principal axis only 19.4, so using the wrong one overestimates buckling capacity substantially.</div>
+      </details>
+
+      <details>
+        <summary>How do you calculate the weight per metre of a steel section?</summary>
+        <div class="faq-a">Multiply the cross-sectional area in square millimetres by the density of steel, 7850 kilograms per cubic metre, and divide by one million to get kilograms per metre. A section of 5536 square millimetres therefore weighs 43.5 kilograms per metre. Published tables for rolled sections give slightly higher figures than a calculation from nominal dimensions because they include the root fillet radii, which this calculator ignores.</div>
+      </details>
+
+      <details>
+        <summary>What is the shape factor of a steel section?</summary>
+        <div class="faq-a">Shape factor is the ratio of plastic to elastic section modulus, and it measures how much extra moment a section carries between first yield and full plasticity. A rolled I-section bent about its major axis has a shape factor of about 1.13 to 1.15 because most of its material already sits near the extreme fibres. A solid rectangle reaches 1.5 and a solid circle 1.7, since material near the neutral axis contributes little elastically but fully once plastic.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/column-buckling-calculator">Column Buckling Calculator<span>Feed r<sub>min</sub> straight into a strut check</span></a>
+        <a href="/bending-moment-calculator">Bending Moment Calculator<span>Moment, shear and deflection for a beam</span></a>
+        <a href="/engineering-standards-finder">Engineering Standards Finder<span>Look up IS 800, IS 808 and related standards</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Turn weight per metre into a steel tonnage cost</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Steel Section Properties Calculator &mdash; multicalci.com. Properties are computed from nominal dimensions with sharp corners; root fillet radii are not included, so results run slightly below published table values. Moment capacity assumes full lateral restraint and no coincident shear. Classification is provided for I-sections only. Results are indicative and must be verified against IS 808 tables and IS 800 for design.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+
+  var GROUPS = [
+    ['Area and Weight', [
+      ['Area A',            'c-main', true ],
+      ['Weight per metre',  'c-main', true ]
+    ]],
+    ['Second Moment of Area', [
+      ['Ixx (major)', 'c-blu', false],
+      ['Iyy (minor)', 'c-blu', false]
+    ]],
+    ['Section Moduli', [
+      ['Elastic Modulus Zxx', 'c-amb', false],
+      ['Elastic Modulus Zyy', 'c-amb', false],
+      ['Plastic Modulus Zpx', 'c-pur', false]
+    ]],
+    ['Radii of Gyration', [
+      ['Radius of Gyration rx', 'c-cyn', false],
+      ['Radius of Gyration ry', 'c-cyn', false]
+    ]],
+    ['Classification and Capacity', [
+      ['Section Classification', 'c-grn',  false],
+      ['Moment Capacity Mc',     'c-main', true ]
+    ]]
+  ];
+
+  function isSI()  { return US === 'SI'; }
+  function typeOf() { return E('stType').value; }
+
+  function usesIC()    { return typeOf() === 'I' || typeOf() === 'C'; }
+  function usesAngle() { return typeOf() === 'angle'; }
+  function usesSHS()   { return typeOf() === 'SHS'; }
+  function usesCHS()   { return typeOf() === 'CHS'; }
+
+  // Each convertible field keeps a canonical SI value, refreshed only when the
+  // user edits it. The payload is ALWAYS SI: sending a rounded Imperial figure
+  // loses relative precision on small numbers, which would make the same
+  // section give two different answers depending on which unit button is lit.
+  var FIELDS = ['stH', 'stBf', 'stTf', 'stTw', 'stLa', 'stTa', 'stBs', 'stTs', 'stDc', 'stTc'];
+  var MM_PER_IN = 25.4;
+  var CANON = {};
+
+  function noteEdit(id) {
+    if (FIELDS.indexOf(id) === -1) return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v * MM_PER_IN : v) : NaN;
+  }
+
+  function seedCanon() { FIELDS.forEach(noteEdit); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    var direct = (US === 'IMP') ? v * MM_PER_IN : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c / MM_PER_IN : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    var p = { type: typeOf(), fy_s: E('stFy').value, dim_u: 'mm' };
+    if (usesIC()) {
+      p.H = si('stH'); p.Bf = si('stBf'); p.Tf = si('stTf'); p.Tw = si('stTw');
+    } else if (usesAngle()) {
+      p.La = si('stLa'); p.ta = si('stTa');
+    } else if (usesSHS()) {
+      p.Bs = si('stBs'); p.ts = si('stTs');
+    } else {
+      p.Dc = si('stDc'); p.tc = si('stTc');
+    }
+    return p;
+  }
+
+  // Mirror the backend's guards so the user gets a field-level message rather
+  // than a 422. Only the fields the chosen type actually uses are checked.
+  function localGuard() {
+    var n = function (id) { return parseFloat(si(id)); };
+    if (usesIC()) {
+      var H = n('stH'), Bf = n('stBf'), Tf = n('stTf'), Tw = n('stTw');
+      if (!isFinite(H)  || H  <= 0) return ['stH',  'Overall depth H must be a number greater than 0.'];
+      if (!isFinite(Bf) || Bf <= 0) return ['stBf', 'Flange width must be a number greater than 0.'];
+      if (!isFinite(Tf) || Tf <= 0) return ['stTf', 'Flange thickness must be a number greater than 0.'];
+      if (!isFinite(Tw) || Tw <= 0) return ['stTw', 'Web thickness must be a number greater than 0.'];
+      if (H <= 2 * Tf) return ['stTf', 'Overall depth is not greater than twice the flange thickness \u2014 no web remains.'];
+      if (Tw >= Bf)    return ['stTw', 'Web thickness is not less than the flange width.'];
+      return null;
+    }
+    if (usesAngle()) {
+      var La = n('stLa'), ta = n('stTa');
+      if (!isFinite(La) || La <= 0) return ['stLa', 'Leg length must be a number greater than 0.'];
+      if (!isFinite(ta) || ta <= 0) return ['stTa', 'Leg thickness must be a number greater than 0.'];
+      if (ta >= La) return ['stTa', 'Leg thickness is not less than the leg length.'];
+      return null;
+    }
+    if (usesSHS()) {
+      var Bs = n('stBs'), ts = n('stTs');
+      if (!isFinite(Bs) || Bs <= 0) return ['stBs', 'Outer size must be a number greater than 0.'];
+      if (!isFinite(ts) || ts <= 0) return ['stTs', 'Wall thickness must be a number greater than 0.'];
+      if (2 * ts >= Bs) return ['stTs', 'Twice the wall thickness is not less than the outer size \u2014 no void remains.'];
+      return null;
+    }
+    var Dc = n('stDc'), tc = n('stTc');
+    if (!isFinite(Dc) || Dc <= 0) return ['stDc', 'Outer diameter must be a number greater than 0.'];
+    if (!isFinite(tc) || tc <= 0) return ['stTc', 'Wall thickness must be a number greater than 0.'];
+    if (2 * tc >= Dc) return ['stTc', 'Twice the wall thickness is not less than the outer diameter \u2014 no bore remains.'];
+    return null;
+  }
+
+  function clear() {
+    E('stGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Properties</strong> to compute the section.</div>';
+    E('stVerdict').innerHTML = '';
+    E('stWarns').innerHTML = '';
+    E('stSummary').style.display = 'none';
+    E('stAngleNote').style.display = 'none';
+    E('stUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('stErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    // The parenthetical form is tested FIRST. Several values carry an em-dash
+    // INSIDE the brackets -- "641.277 x10^3 mm^3 (Exact - doubly-symmetric I)"
+    // -- and splitting on the dash first would cut the value open mid-bracket.
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('stErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) { byLabel[r.label] = r; });
+
+    // For an angle the two inertia rows are principal values, not leg-axis
+    // values, so relabel them rather than leave the axis convention ambiguous.
+    var angle = usesAngle();
+    var alias = {
+      'Ixx (major)':            angle ? 'I_max (u-u principal)' : null,
+      'Iyy (minor)':            angle ? 'I_min (v-v principal)' : null,
+      'Radius of Gyration rx':  angle ? 'r_max (u-u)' : null,
+      'Radius of Gyration ry':  angle ? 'r_min (v-v) \u2014 governs buckling' : null
+    };
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '', groupWarn = false;
+      g[1].forEach(function (rowDef) {
+        var r = byLabel[rowDef[0]];
+        if (!r) return;
+        delete byLabel[rowDef[0]];
+        if (r.warn) groupWarn = true;
+        body += card(alias[rowDef[0]] || rowDef[0], r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">' + (groupWarn ? '\u26A0' : '\u2713') + '</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('stGroups').innerHTML = html;
+
+    // Verdict: the backend status alone has historically missed checks the same
+    // response already reports, so a warned row demotes the verdict too.
+    var green = d.status === 'PASS' && !d.results.some(function (r) { return r.warn; });
+    E('stVerdict').innerHTML = green
+      ? '<div class="badge c-grn">\u2713 Section properties computed \u2014 no slenderness issue flagged</div>'
+      : '<div class="badge c-red">\u26A0 Class 4 slender section \u2014 the plastic modulus is not attainable, see the flagged row</div>';
+
+    if (d.summary) {
+      E('stSummary').textContent = d.summary;
+      E('stSummary').style.display = 'block';
+    }
+
+    E('stWarns').innerHTML = (d.warns && d.warns.length)
+      ? d.warns.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('stAngleNote').style.display = angle ? 'block' : 'none';
+    E('stUnitNote').style.display  = isSI() ? 'none'  : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('steel', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── field visibility ────────────────────────────────────────
+  function applyType() {
+    E('grpIC').style.display    = usesIC()    ? 'block' : 'none';
+    E('grpAngle').style.display = usesAngle() ? 'block' : 'none';
+    E('grpSHS').style.display   = usesSHS()   ? 'block' : 'none';
+    E('grpCHS').style.display   = usesCHS()   ? 'block' : 'none';
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { h: 'stH', bf: 'stBf', tf: 'stTf', tw: 'stTw', la: 'stLa', ta: 'stTa',
+               bs: 'stBs', ts: 'stTs', dc: 'stDc', tc: 'stTc' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    p.set('type', typeOf());
+    p.set('fy', E('stFy').value);
+    // SI values only, never the rounded Imperial display figures.
+    Object.keys(QMAP).forEach(function (k) { p.set(k, si(QMAP[k])); });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    if (p.has('type')) E('stType').value = p.get('type');
+    if (p.has('fy'))   E('stFy').value   = p.get('fy');
+    applyType();
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Steel Section Properties Calculator',
+                        text: 'Section properties on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    FIELDS.forEach(function (id) {
+      var c = CANON[id];
+      if (!isFinite(c)) return;
+      E(id).value = String(+(sys === 'IMP' ? c / MM_PER_IN : c).toFixed(4));
+    });
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var t = sys === 'SI' ? '(mm)' : '(in)';
+    var nodes = document.getElementsByClassName('u-mm');
+    for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var tName = { I: 'I-section', C: 'Channel', angle: 'Equal angle',
+                  SHS: 'Square hollow section', CHS: 'Circular hollow section' }[typeOf()];
+    var du = isSI() ? 'mm' : 'in';
+    var rows = [['Section type', tName]];
+    if (usesIC()) {
+      rows.push(['Overall depth H', E('stH').value + ' ' + du]);
+      rows.push(['Flange width Bf', E('stBf').value + ' ' + du]);
+      rows.push(['Flange thickness Tf', E('stTf').value + ' ' + du]);
+      rows.push(['Web thickness Tw', E('stTw').value + ' ' + du]);
+    } else if (usesAngle()) {
+      rows.push(['Leg length L', E('stLa').value + ' ' + du]);
+      rows.push(['Leg thickness t', E('stTa').value + ' ' + du]);
+    } else if (usesSHS()) {
+      rows.push(['Outer size B', E('stBs').value + ' ' + du]);
+      rows.push(['Wall thickness t', E('stTs').value + ' ' + du]);
+    } else {
+      rows.push(['Outer diameter D', E('stDc').value + ' ' + du]);
+      rows.push(['Wall thickness t', E('stTc').value + ' ' + du]);
+    }
+    rows.push(['Yield stress fy', E('stFy').value + ' MPa']);
+
+    var inRows = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results.map(function (r) {
+      return '<tr' + (r.warn ? ' class="w"' : '') + '><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+    }).join('');
+
+    var warnHtml = (LAST.warns && LAST.warns.length)
+      ? '<h2>Warnings</h2><ul>' + LAST.warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var angleNote = usesAngle()
+      ? '<h2>Axis convention</h2><p style="font-size:11px">For an equal angle the reported Ixx and Iyy are the '
+        + 'PRINCIPAL maximum and minimum, about axes at 45 degrees to the legs, not about the legs themselves. '
+        + 'Use ry as the governing radius of gyration for strut buckling. The section moduli divide principal '
+        + 'inertias by leg-axis extreme-fibre distances and are indicative only.</p>'
+      : '';
+
+    var green = LAST.status === 'PASS' && !LAST.results.some(function (r) { return r.warn; });
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Steel Section Properties Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'tr.w td{background:#fff1f2;color:#9f1239;font-weight:bold}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px}'
+      + '.vg{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}'
+      + '.vr{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Steel Section Properties Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Nominal dimensions, root radii excluded \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v ' + (green ? 'vg' : 'vr') + '">'
+      + (green ? 'Computed \u2014 no slenderness issue flagged' : 'REVIEW \u2014 Class 4 slender section') + '</div>'
+      + '<h2>Section Dimensions</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Section Properties</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + (LAST.summary ? '<h2>Summary</h2><p style="font-size:11px">' + esc(LAST.summary) + '</p>' : '')
+      + angleNote
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 computed from nominal dimensions with sharp corners; root '
+      + 'fillet radii are excluded, so values run slightly below published tables. Moment capacity assumes full '
+      + 'lateral restraint and no coincident shear. Verify against IS 808 and IS 800 for design.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    E('stType').addEventListener('change', function () { applyType(); clear(); });
+    E('stFy').addEventListener('change', clear);
+
+    FIELDS.forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('input',  function () { noteEdit(id); });
+      el.addEventListener('change', function () { noteEdit(id); clear(); });
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+      });
+    });
+
+    applyType();
+    // readUrl seeds the canonical values itself, before switching the display
+    // units. Seeding again here would re-read the converted boxes and corrupt them.
+    if (!readUrl()) seedCanon();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
