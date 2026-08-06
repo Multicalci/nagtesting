@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Vertical Curve Calculator — Crest and Sag Curve Length, K Value | multicalci.com</title>
+<meta name="description" content="Free vertical curve calculator for road design. Computes crest and sag curve length from stopping sight distance, the grade difference A, the K value and the rate of grade change.">
+<link rel="canonical" href="https://www.multicalci.com/vertical-curve-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Vertical Curve Calculator — Crest and Sag Curve Length, K Value">
+<meta property="og:description" content="Crest and sag vertical curve lengths from stopping sight distance, with K value, grade difference and the S greater than L branch.">
+<meta property="og:url" content="https://www.multicalci.com/vertical-curve-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vertical Curve Calculator — Crest and Sag Curve Length, K Value">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Vertical Curve Calculator","description":"Vertical curve calculator for road and highway alignment. Computes the required length of crest and sag parabolic curves from the algebraic difference of grades and the stopping sight distance, using the AASHTO and IRC sight distance forms including the S greater than L branch, and reports the K value and rate of grade change.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/vertical-curve-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Civil Engineering Calculators","item":"https://www.multicalci.com/civil-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Vertical Curve Calculator","item":"https://www.multicalci.com/vertical-curve-calculator"}]}</script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do you calculate the length of a vertical curve?","acceptedAnswer":{"@type":"Answer","text":"Curve length comes from the algebraic difference of the two grades and the sight distance the curve must provide. For a crest curve where the sight distance is shorter than the curve, the length equals the grade difference times the sight distance squared divided by 658. For a sag curve the divisor is 120 plus 3.5 times the sight distance, which reflects headlight illumination rather than eye and object heights. Where the sight distance exceeds the curve length a different expression applies, and this calculator tests both and reports which one governed."}},{"@type":"Question","name":"What is the difference between a crest and a sag vertical curve?","acceptedAnswer":{"@type":"Answer","text":"A crest curve is convex, joining a rising grade to a falling one, and its length is governed by the driver being able to see over the hump, so the controlling factor is the height of the eye and of the object on the road. A sag curve is concave, joining a falling grade to a rising one, and daytime sight distance is rarely a problem because nothing blocks the view. The sag case is instead controlled by how far the headlight beam reaches at night, and secondarily by passenger comfort under the increased vertical acceleration."}},{"@type":"Question","name":"What is the K value of a vertical curve?","acceptedAnswer":{"@type":"Answer","text":"K is the curve length divided by the algebraic difference of grades, expressed as metres of curve per one percent of grade change. It is a convenient design parameter because it depends only on the design speed and the curve type, not on the particular grades, so highway standards tabulate a minimum K for each design speed and a designer can read the required length straight off by multiplying K by A. A K of 26.67 means the curve needs 26.67 metres of length for every one percent of grade change."}},{"@type":"Question","name":"Why does a sag curve need to be longer than a crest curve?","acceptedAnswer":{"@type":"Answer","text":"For the same grade difference and the same sight distance a sag curve usually comes out longer, because the headlight criterion that governs it is more demanding than the eye and object heights that govern a crest. A headlight sits about 0.6 metres above the road and its beam spreads only about one degree upward, so the illuminated distance grows slowly with curve length. At a six percent grade difference and 120 metres of sight distance a crest needs 131.3 metres of curve where a sag needs 160.0 metres."}},{"@type":"Question","name":"What happens when the sight distance is greater than the curve length?","acceptedAnswer":{"@type":"Answer","text":"The standard expression assumes the whole sight line falls within the curve, and it stops being valid once the sight distance exceeds the curve length. A second expression then applies, in which the required length equals twice the sight distance minus the relevant constant divided by the grade difference. This calculator computes the first form, checks whether the result really is longer than the sight distance, and switches to the second form if not, reporting which case governed. On small grade differences the second form can return zero or negative, meaning no vertical curve is needed for sight distance at all."}}]}</script>
+
+<link rel="stylesheet" href="/assets/calc-suite.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/">multicalci.com</a>
+    <a href="/civil-engineering-calculators">Civil Calculators</a>
+  </div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a> &rsaquo;
+    <a href="/civil-engineering-calculators">Civil Engineering Calculators</a> &rsaquo;
+    <span>Vertical Curve Calculator</span>
+  </nav>
+
+  <div class="hero">
+    <div class="eyebrow">Civil Engineering</div>
+    <h1>Vertical Curve Calculator</h1>
+    <p>Find the length of a crest or sag vertical curve from the two grades and the stopping sight distance it must provide. Enter the approach and departure grades as percentages and the required sight distance, and this calculator identifies whether the curve is a crest or a sag, applies the appropriate sight distance formula including the case where sight distance exceeds curve length, and returns the required curve length, the K value and the rate of grade change.</p>
+    <div class="stdref">AASHTO / IRC sight distance forms &middot; crest A&middot;S&sup2;/658 &middot; sag A&middot;S&sup2;/(120+3.5S)</div>
+  </div>
+
+  <div class="note">
+    Working on the plan alignment too? The <a href="/horizontal-curve-calculator">horizontal curve calculator</a> covers circular curve length, tangent, offsets and the minimum radius for a design speed.
+  </div>
+
+  <!-- ─────────────  INPUTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128200;</span>
+      <span class="card-hd-ttl">Grades and Sight Distance</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="utog" role="group" aria-label="Unit system">
+        <button type="button" class="ubtn on" id="btnSI">SI &mdash; m</button>
+        <button type="button" class="ubtn" id="btnIMP">Imperial &mdash; ft</button>
+      </div>
+      <div class="hint">Grades are percentages and do not convert. Results are always reported in SI &mdash; see the note under the results.</div>
+
+      <hr class="dv">
+
+      <div class="g2">
+        <div class="field">
+          <label for="vcG1">Approach Grade G&#8321; (%)</label>
+          <input type="number" id="vcG1" value="3.5" step="0.1">
+          <div class="hint">Positive uphill, negative downhill, in the direction of travel.</div>
+        </div>
+        <div class="field">
+          <label for="vcG2">Departure Grade G&#8322; (%)</label>
+          <input type="number" id="vcG2" value="-2.5" step="0.1">
+          <div class="hint">G&#8322; below G&#8321; gives a crest; above gives a sag.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="vcSSD">Stopping Sight Distance S <span class="u-m">(m)</span></label>
+        <input type="number" id="vcSSD" value="120" step="5" min="0.01">
+        <div class="hint">Read from the design speed &mdash; see the table below.</div>
+      </div>
+
+      <div id="vcCurveType" class="note" style="display:none"></div>
+
+      <div id="vcErr"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="btnCalc">&#9889; Calculate Curve Length</button>
+        <button type="button" class="btn-pdf" id="btnPdf" disabled>&#128196; PDF Report</button>
+        <button type="button" class="btn-pdf" id="btnShare">&#128279; Share</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RESULTS  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128202;</span>
+      <span class="card-hd-ttl">Vertical Curve</span>
+    </div>
+    <div class="card-bd">
+      <div id="vcVerdict"></div>
+      <div id="vcSummary" class="note" style="display:none"></div>
+      <div id="vcGroups">
+        <div class="rc-empty">Press <strong>Calculate Curve Length</strong> to size the curve.</div>
+      </div>
+      <div id="vcWarns"></div>
+      <div class="note" id="vcUnitNote" style="display:none">Results are always reported in SI: curve length in metres and the K value in metres per one percent of grade change, whatever units you enter.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  FORMULA  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#402;</span>
+      <span class="card-hd-ttl">Governing Formulae</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Grade difference</strong></p>
+      <div class="fbox">
+        A = |G&#8321; &minus; G&#8322;|&nbsp;&nbsp;&nbsp;crest if G&#8322; &lt; G&#8321;, sag if G&#8322; &gt; G&#8321;
+      </div>
+
+      <p><strong>Curve length, sight distance shorter than the curve (S &lt; L)</strong></p>
+      <div class="fbox">
+        <strong>Crest</strong>&nbsp; L = A&middot;S&sup2; / 658&nbsp;&nbsp;(h&#8321; = 1.08 m, h&#8322; = 0.60 m)<br>
+        <strong>Sag</strong>&nbsp;&nbsp;&nbsp; L = A&middot;S&sup2; / (120 + 3.5S)&nbsp;&nbsp;(headlight, 0.6 m, 1&deg; beam)
+      </div>
+
+      <p><strong>Curve length, sight distance longer than the curve (S &gt; L)</strong></p>
+      <div class="fbox">
+        L = 2S &minus; k / A&nbsp;&nbsp;&nbsp;where k is 658 for a crest<br>
+        and (120 + 3.5S) for a sag
+      </div>
+
+      <p><strong>Design parameters</strong></p>
+      <div class="fbox">
+        K = L / A&nbsp;&nbsp;metres of curve per 1 % of grade change<br>
+        RC = A / L&nbsp;&nbsp;percent of grade change per metre
+      </div>
+
+      <div class="legend">
+        <p><strong>G&#8321;, G&#8322;</strong> &mdash; approach and departure grades, percent, signed in the direction of travel</p>
+        <p><strong>A</strong> &mdash; algebraic difference of grades, always taken positive</p>
+        <p><strong>S</strong> &mdash; stopping sight distance the curve must provide</p>
+        <p><strong>L</strong> &mdash; required length of the parabolic vertical curve</p>
+        <p><strong>K</strong> &mdash; curve length per unit grade change, the parameter design tables are indexed on</p>
+        <p><strong>RC</strong> &mdash; rate of grade change per metre, the reciprocal of K</p>
+        <p><strong>h&#8321;, h&#8322;</strong> &mdash; driver eye height and object height assumed for the crest case</p>
+      </div>
+
+      <div class="note">
+        <strong>Both branches are tested, and the calculator tells you which one governed.</strong> The S &lt; L expression is only valid if the length it produces really does exceed the sight distance. This tool computes that form first, checks the condition, and falls back to the S &gt; L expression when it fails, reporting the outcome as "Crest, S &lt; L" or "Sag, S &gt; L" beside the length. On a small grade difference the S &gt; L form can come out zero or negative, which means no vertical curve is required to satisfy sight distance &mdash; a curve will still be needed for comfort and appearance.
+      </div>
+
+      <div class="note">
+        <strong>This is the sight distance criterion only.</strong> Three other criteria commonly govern a vertical curve and none of them is checked here. The <em>comfort</em> criterion limits the vertical acceleration on a sag, typically to 0.3 m/s&sup2;, and can govern at high design speeds. The <em>appearance</em> criterion sets a minimum length regardless of A, often taken as the distance travelled in two or three seconds at the design speed, which matters where A is very small. And <em>drainage</em> needs a minimum longitudinal gradient near the apex of a crest or the low point of a sag, usually 0.35 percent, to stop water ponding on the carriageway.
+      </div>
+
+      <div class="note">
+        <strong>Not included:</strong> no chainage or reduced-level table along the curve, no high or low point location, no elevation at intermediate stations, no overtaking sight distance case, and no unsymmetrical vertical curves. Headroom clearance under a structure on a sag, and the sight distance past an overbridge soffit, both need separate checks.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 1  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128221;</span>
+      <span class="card-hd-ttl">Worked Example 1 &mdash; Crest Curve</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A road rising at 3.5 percent meets a falling grade of 2.5 percent. The design speed calls for a stopping sight distance of 120 m.</p>
+
+        <div class="wex-hd">Step 1 &mdash; grade difference and curve type</div>
+        <p>A = |3.5 &minus; (&minus;2.5)| = <strong>6.000 %</strong><br>
+        G&#8322; is below G&#8321;, so the curve is a <strong>crest</strong> and the divisor is 658.</p>
+
+        <div class="wex-hd">Step 2 &mdash; try the S &lt; L expression</div>
+        <p>L = A&middot;S&sup2; / 658 = 6 &times; 120&sup2; / 658 = 86 400 / 658 = <strong>131.3 m</strong></p>
+
+        <div class="wex-hd">Step 3 &mdash; check the branch</div>
+        <p>Is L greater than S? 131.3 &gt; 120, so yes &mdash; the sight line does fall entirely within the curve and the expression used was the right one. The result is reported as <strong>Crest, S &lt; L</strong>.</p>
+
+        <div class="wex-hd">Step 4 &mdash; design parameters</div>
+        <p>K = L / A = 131.3 / 6 = <strong>21.88 m per %</strong><br>
+        RC = A / L = 6 / 131.3 = <strong>0.04569 %/m</strong></p>
+
+        <div class="ans">
+          <p><strong>Grade difference A</strong> 6.000 %</p>
+          <p><strong>Required curve length</strong> 131.3 m &mdash; Crest, S &lt; L</p>
+          <p><strong>K value</strong> 21.88 m per % &nbsp;&middot;&nbsp; <strong>Rate of change</strong> 0.04569 %/m</p>
+        </div>
+      </div>
+
+      <div class="note">
+        These are the calculator's default inputs. Press <strong>Calculate Curve Length</strong> without changing anything and you should get exactly these figures back. Once you have K, sizing any other curve at the same design speed is a multiplication: at K = 21.88 a 4 percent grade change needs 87.5 m and a 9 percent change needs 197 m.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 2  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128161;</span>
+      <span class="card-hd-ttl">Worked Example 2 &mdash; Sag Curve, and Why It Needs to Be Longer</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A valley: the road falls at 3.0 percent and then rises at 3.0 percent. The same 120 m stopping sight distance applies.</p>
+
+        <div class="wex-hd">Step 1 &mdash; same grade difference, different curve</div>
+        <p>A = |&minus;3.0 &minus; 3.0| = <strong>6.000 %</strong>, identical to the crest example.<br>
+        But G&#8322; is above G&#8321;, so this is a <strong>sag</strong> and the divisor becomes 120 + 3.5 &times; 120 = 540.</p>
+
+        <div class="wex-hd">Step 2 &mdash; curve length</div>
+        <p>L = 6 &times; 120&sup2; / 540 = 86 400 / 540 = <strong>160.0 m</strong><br>
+        160.0 &gt; 120, so the S &lt; L branch is correct: <strong>Sag, S &lt; L</strong>.</p>
+
+        <div class="wex-hd">Step 3 &mdash; compare</div>
+        <p>K = 160.0 / 6 = <strong>26.67 m per %</strong>, against 21.88 for the crest.<br>
+        The sag needs <strong>22 percent more curve</strong> for the same grade change and the same sight distance.</p>
+
+        <div class="ans">
+          <p><strong>Crest</strong> 131.3 m, K = 21.88</p>
+          <p><strong>Sag</strong> 160.0 m, K = 26.67</p>
+          <p>Same A, same S, 28.7 m more curve required in the valley</p>
+        </div>
+
+        <div class="wex-hd">Why the sag is the harder case</div>
+        <p>In daylight nothing obstructs the view across a sag, so sight distance is not the issue. The controlling condition is night driving: a headlight sits about 0.6 m above the road and its beam spreads only around one degree upward, so as the road curves away beneath it the illuminated length grows slowly. That is a more demanding geometry than a driver's eye at 1.08 m looking over a crest at a 0.6 m object, and it is why the sag divisor is smaller and the curve longer.</p>
+      </div>
+
+      <div class="note">
+        <strong>This formula was corrected recently.</strong> An earlier version of this calculator used L = A&middot;S/3.5 + S for the sag case, which is dimensionally inconsistent &mdash; it adds a length to a quantity that is not one. At A = 6 and S = 120 it returned <strong>325.7 m</strong> against the correct 160.0 m, roughly twice the required length. It was conservative rather than dangerous, but it would have added around 165 m of unnecessary curve to every sag on an alignment. The sag case now uses the standard headlight expression.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  WORKED EXAMPLE 3  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128207;</span>
+      <span class="card-hd-ttl">Worked Example 3 &mdash; When S Exceeds L</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="wex">
+        <div class="wex-hd">Given</div>
+        <p>A gentler crest: 3.0 percent rising to 2.0 percent falling, so A = 5.000 percent, with the same 120 m sight distance.</p>
+
+        <div class="wex-hd">Step 1 &mdash; the usual expression gives an invalid answer</div>
+        <p>L = 5 &times; 120&sup2; / 658 = <strong>109.4 m</strong><br>
+        But 109.4 is <em>less</em> than the 120 m sight distance, so the assumption behind that expression &mdash; that the whole sight line lies on the curve &mdash; is false. The answer cannot be used.</p>
+
+        <div class="wex-hd">Step 2 &mdash; switch branches</div>
+        <p>L = 2S &minus; 658/A = 240 &minus; 658/5 = 240 &minus; 131.6 = <strong>108.4 m</strong><br>
+        The calculator reports this as <strong>Crest, S &gt; L</strong>.</p>
+
+        <div class="ans">
+          <p><strong>S &lt; L form</strong> 109.4 m &mdash; invalid here, since 109.4 &lt; 120</p>
+          <p><strong>S &gt; L form</strong> 108.4 m &mdash; the governing answer</p>
+          <p><strong>K value</strong> 21.68 m per %</p>
+        </div>
+
+        <div class="wex-hd">Where this matters</div>
+        <p>The two forms cross over when A equals the constant divided by the sight distance &mdash; at S = 120 m that is A = 658/120 = 5.48 percent for a crest. Below that grade difference the S &gt; L branch governs, and the gap between the two widens as A falls. Push A low enough and 2S &minus; 658/A goes negative, meaning sight distance alone requires no vertical curve; the comfort and appearance criteria then take over, and this calculator does not check either.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  INPUT RANGES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128208;</span>
+      <span class="card-hd-ttl">Inputs, Units and Accepted Ranges</span>
+    </div>
+    <div class="card-bd">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Input</th><th>SI unit</th><th>Imperial unit</th><th>Accepted</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Approach grade G&#8321;</td><td>%</td><td>%</td><td>any sign, typically &minus;10 to +10</td><td>Positive uphill in the direction of travel</td></tr>
+            <tr><td>Departure grade G&#8322;</td><td>%</td><td>%</td><td>any sign, typically &minus;10 to +10</td><td>Below G&#8321; gives a crest, above gives a sag</td></tr>
+            <tr><td>Stopping sight distance S</td><td>m</td><td>ft</td><td>&gt; 0</td><td>Taken from the design speed &mdash; see the table below</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Radius, deflection angle, design speed and superelevation are not on this page &mdash; they belong to the plan alignment and do not affect any vertical curve result. Use the <a href="/horizontal-curve-calculator">horizontal curve calculator</a> for those.</div>
+    </div>
+  </div>
+
+  <!-- ─────────────  REFERENCE TABLES  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128218;</span>
+      <span class="card-hd-ttl">Reference Tables</span>
+    </div>
+    <div class="card-bd">
+
+      <p><strong>Stopping sight distance by design speed</strong> &mdash; IRC values, level road</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Design speed, km/h</th><th>SSD, m</th><th>Crest K at this S</th><th>Sag K at this S</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>30</td><td>30</td><td>1.37</td><td>4.00</td></tr>
+            <tr><td>40</td><td>45</td><td>3.08</td><td>7.30</td></tr>
+            <tr><td>50</td><td>60</td><td>5.47</td><td>10.91</td></tr>
+            <tr><td>60</td><td>80</td><td>9.73</td><td>16.00</td></tr>
+            <tr><td>65</td><td>90</td><td>12.31</td><td>18.62</td></tr>
+            <tr><td>80</td><td>120</td><td>21.88</td><td>26.67</td></tr>
+            <tr><td>100</td><td>180</td><td>49.24</td><td>43.20</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">K is the curve length per one percent of grade change, computed from the S &lt; L forms. Note the crossover: at lower speeds the sag needs the longer curve, but the crest overtakes it somewhere between 120 and 180 m of sight distance, because crest length grows with the square of S while the sag divisor also grows with S.</div>
+
+      <hr class="dv">
+
+      <p><strong>Crest and sag length for a range of grade differences</strong> &mdash; at S = 120 m</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>A, %</th><th>Crest L, m</th><th>Branch</th><th>Sag L, m</th><th>Branch</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>2</td><td>0.0</td><td>none required</td><td>0.0</td><td>none required</td></tr>
+            <tr><td>3</td><td>20.7</td><td>S &gt; L</td><td>60.0</td><td>S &gt; L</td></tr>
+            <tr><td>4</td><td>75.5</td><td>S &gt; L</td><td>105.0</td><td>S &gt; L</td></tr>
+            <tr><td>5</td><td>108.4</td><td>S &gt; L</td><td>133.3</td><td>S &lt; L</td></tr>
+            <tr><td>6</td><td>131.3</td><td>S &lt; L</td><td>160.0</td><td>S &lt; L</td></tr>
+            <tr><td>8</td><td>175.1</td><td>S &lt; L</td><td>213.3</td><td>S &lt; L</td></tr>
+            <tr><td>10</td><td>218.8</td><td>S &lt; L</td><td>266.7</td><td>S &lt; L</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">The crest switches branch at A = 658/120 = 5.48 %, and the sag at A = 540/120 = 4.50 %. Below those values the S &gt; L expression governs and the required length falls away sharply &mdash; and at A = 2 % it reaches zero, meaning sight distance alone calls for no vertical curve at all. The appearance and drainage criteria then decide the length, and neither is checked here.</div>
+
+      <hr class="dv">
+
+      <p><strong>Which criterion governs a vertical curve</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Criterion</th><th>Applies to</th><th>Governs when</th><th>Checked here?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Stopping sight distance</td><td>Crest and sag</td><td>Most of the time</td><td>Yes</td></tr>
+            <tr><td>Headlight sight distance</td><td>Sag</td><td>Built into the sag formula</td><td>Yes</td></tr>
+            <tr><td>Passenger comfort</td><td>Sag</td><td>High design speed, large A</td><td>No</td></tr>
+            <tr><td>Appearance / minimum length</td><td>Crest and sag</td><td>Very small A</td><td>No</td></tr>
+            <tr><td>Drainage near the apex</td><td>Crest and sag</td><td>Long flat curves, kerbed roads</td><td>No</td></tr>
+            <tr><td>Overtaking sight distance</td><td>Crest</td><td>Two-lane rural roads</td><td>No</td></tr>
+            <tr><td>Headroom under a structure</td><td>Sag</td><td>Bridge or gantry over a sag</td><td>No</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="dv">
+
+      <p><strong>Sign convention for the two grades</strong></p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>G&#8321;</th><th>G&#8322;</th><th>A = |G&#8321; &minus; G&#8322;|</th><th>Curve type</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>+3.5</td><td>&minus;2.5</td><td>6.0</td><td>Crest &mdash; over a hill</td></tr>
+            <tr><td>+4.0</td><td>+1.0</td><td>3.0</td><td>Crest &mdash; rise easing off</td></tr>
+            <tr><td>&minus;3.0</td><td>+3.0</td><td>6.0</td><td>Sag &mdash; through a valley</td></tr>
+            <tr><td>&minus;4.0</td><td>&minus;1.0</td><td>3.0</td><td>Sag &mdash; descent easing off</td></tr>
+            <tr><td>+2.0</td><td>+2.0</td><td>0.0</td><td>No curve &mdash; grades equal</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">A crest does not require the road to actually go over a hill &mdash; any case where the departure grade is algebraically lower than the approach grade is convex, including a climb that simply becomes gentler.</div>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  FAQ  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#10067;</span>
+      <span class="card-hd-ttl">Frequently Asked Questions</span>
+    </div>
+    <div class="card-bd faq">
+
+      <details>
+        <summary>How do you calculate the length of a vertical curve?</summary>
+        <div class="faq-a">Curve length comes from the algebraic difference of the two grades and the sight distance the curve must provide. For a crest curve where the sight distance is shorter than the curve, the length equals the grade difference times the sight distance squared divided by 658. For a sag curve the divisor is 120 plus 3.5 times the sight distance, which reflects headlight illumination rather than eye and object heights. Where the sight distance exceeds the curve length a different expression applies, and this calculator tests both and reports which one governed.</div>
+      </details>
+
+      <details>
+        <summary>What is the difference between a crest and a sag vertical curve?</summary>
+        <div class="faq-a">A crest curve is convex, joining a rising grade to a falling one, and its length is governed by the driver being able to see over the hump, so the controlling factor is the height of the eye and of the object on the road. A sag curve is concave, joining a falling grade to a rising one, and daytime sight distance is rarely a problem because nothing blocks the view. The sag case is instead controlled by how far the headlight beam reaches at night, and secondarily by passenger comfort under the increased vertical acceleration.</div>
+      </details>
+
+      <details>
+        <summary>What is the K value of a vertical curve?</summary>
+        <div class="faq-a">K is the curve length divided by the algebraic difference of grades, expressed as metres of curve per one percent of grade change. It is a convenient design parameter because it depends only on the design speed and the curve type, not on the particular grades, so highway standards tabulate a minimum K for each design speed and a designer can read the required length straight off by multiplying K by A. A K of 26.67 means the curve needs 26.67 metres of length for every one percent of grade change.</div>
+      </details>
+
+      <details>
+        <summary>Why does a sag curve need to be longer than a crest curve?</summary>
+        <div class="faq-a">For the same grade difference and the same sight distance a sag curve usually comes out longer, because the headlight criterion that governs it is more demanding than the eye and object heights that govern a crest. A headlight sits about 0.6 metres above the road and its beam spreads only about one degree upward, so the illuminated distance grows slowly with curve length. At a six percent grade difference and 120 metres of sight distance a crest needs 131.3 metres of curve where a sag needs 160.0 metres.</div>
+      </details>
+
+      <details>
+        <summary>What happens when the sight distance is greater than the curve length?</summary>
+        <div class="faq-a">The standard expression assumes the whole sight line falls within the curve, and it stops being valid once the sight distance exceeds the curve length. A second expression then applies, in which the required length equals twice the sight distance minus the relevant constant divided by the grade difference. This calculator computes the first form, checks whether the result really is longer than the sight distance, and switches to the second form if not, reporting which case governed. On small grade differences the second form can return zero or negative, meaning no vertical curve is needed for sight distance at all.</div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ─────────────  RELATED  ───────────── -->
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128279;</span>
+      <span class="card-hd-ttl">Related Tools</span>
+    </div>
+    <div class="card-bd">
+      <div class="related">
+        <a href="/horizontal-curve-calculator">Horizontal Curve Calculator<span>Circular curve length, tangent, offsets and minimum radius</span></a>
+        <a href="/earthwork-volume-calculator">Earthwork Volume Calculator<span>Cut and fill either side of the curve</span></a>
+        <a href="/manning-equation-calculator">Manning Equation Calculator<span>Drainage at the low point of a sag</span></a>
+        <a href="/boq-estimator">BOQ Capital Cost Estimator<span>Price the earthworks and pavement</span></a>
+      </div>
+      <a class="hublink" href="/civil-engineering-calculators">&larr; All Civil Engineering Calculators</a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Vertical Curve Calculator &mdash; multicalci.com. Sight distance criterion only. No check on passenger comfort, appearance minimum length, drainage gradient near the apex, overtaking sight distance or headroom under a structure. No chainage table, high or low point location, or unsymmetrical curves. Results are indicative and must be verified against IRC, AASHTO or the governing highway standard.</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var E = function (id) { return document.getElementById(id); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  var US = 'SI';
+  var LAST = null;
+  var LOCAL_WARNS = [];
+
+  var GROUPS = [
+    ['Curve Length', [
+      ['Vertical Curve Length', 'c-main', true ],
+      ['Grade Difference A',    'c-blu',  false]
+    ]],
+    ['Design Parameters', [
+      ['K Value (L/A)',     'c-main', true ],
+      ['Rate of Change RC', 'c-pur',  false]
+    ]]
+  ];
+
+  // calcSurvey serves this page and the horizontal curve page from one
+  // endpoint, so it demands a radius, deflection angle, design speed,
+  // superelevation and friction factor even though no vertical result depends
+  // on them. Verified invariant across sixteen combinations, so fixed valid
+  // placeholders are sent rather than asking for inputs that change nothing.
+  var HORIZ_PLACEHOLDER = { R: '300', delta_deg: '35', V: '80', e: '7', f_fr: '0.15' };
+
+  // Rows belonging to the horizontal curve page. Computed from the
+  // placeholders above, so they carry no meaning here and are dropped rather
+  // than allowed to fall through to a catch-all group.
+  var HORIZONTAL_ROWS = ['Curve Length Lc', 'Tangent Length T', 'Mid-Ordinate M',
+                         'External Distance E', 'Chord Length C', 'Degree of Curvature',
+                         'Min Radius Rmin', 'Speed Check R \u2265 Rmin'];
+
+  function isSI() { return US === 'SI'; }
+
+  // Only the sight distance converts; grades are percentages. Its canonical SI
+  // value is refreshed when the user edits it, and the payload is ALWAYS SI:
+  // sending a rounded Imperial figure loses relative precision and would make
+  // the same curve give two answers depending on which unit button is lit.
+  var MM = 1 / 0.3048;   // m -> ft
+  var CANON = {};
+
+  function noteEdit(id) {
+    if (id !== 'vcSSD') return;
+    var v = parseFloat(E(id).value);
+    CANON[id] = isFinite(v) ? (US === 'IMP' ? v / MM : v) : NaN;
+  }
+
+  function seedCanon() { noteEdit('vcSSD'); }
+
+  function si(id) {
+    var v = parseFloat(E(id).value);
+    if (!isFinite(v)) return '';
+    if (id !== 'vcSSD') return String(v);
+    var direct = (US === 'IMP') ? v / MM : v;
+    var c = CANON[id];
+    // Use the canonical value only while the box still shows its own rounded
+    // projection, so a value set programmatically still converts correctly
+    // instead of silently reusing a stale canonical figure.
+    if (isFinite(c)) {
+      var shown = +((US === 'IMP' ? c * MM : c).toFixed(4));
+      if (Math.abs(shown - v) < 1e-9) return String(c);
+    }
+    return String(direct);
+  }
+
+  function params() {
+    return {
+      G1:  E('vcG1').value,
+      G2:  E('vcG2').value,
+      SSD: si('vcSSD'),
+      L_u: 'm',
+      V_u: 'kmh',
+      R:         HORIZ_PLACEHOLDER.R,
+      delta_deg: HORIZ_PLACEHOLDER.delta_deg,
+      V:         HORIZ_PLACEHOLDER.V,
+      e:         HORIZ_PLACEHOLDER.e,
+      f_fr:      HORIZ_PLACEHOLDER.f_fr
+    };
+  }
+
+  function localGuard() {
+    var g1 = parseFloat(E('vcG1').value), g2 = parseFloat(E('vcG2').value);
+    var S = parseFloat(si('vcSSD'));
+    if (!isFinite(g1)) return ['vcG1', 'Approach grade G\u2081 must be a number.'];
+    if (!isFinite(g2)) return ['vcG2', 'Departure grade G\u2082 must be a number.'];
+    if (!isFinite(S) || S <= 0) return ['vcSSD', 'Stopping sight distance must be a number greater than 0.'];
+    return null;
+  }
+
+  // Non-blocking notes. The backend raises none of these.
+  function localWarns() {
+    var out = [];
+    var g1 = parseFloat(E('vcG1').value), g2 = parseFloat(E('vcG2').value);
+    var A = Math.abs(g1 - g2);
+    if (A === 0)
+      out.push('\u2139 The two grades are equal, so there is no grade change and no vertical curve is required.');
+    if (Math.abs(g1) > 12 || Math.abs(g2) > 12)
+      out.push('\u26A0 A grade steeper than 12 % is outside normal highway practice \u2014 check the value is a percentage and not a ratio.');
+    if (A > 0 && A < 0.5)
+      out.push('\u2139 With A below 0.5 % the sight distance criterion asks for very little curve. The appearance and drainage criteria will govern instead, and neither is checked here.');
+    return out;
+  }
+
+  function curveTypeLabel() {
+    var g1 = parseFloat(E('vcG1').value), g2 = parseFloat(E('vcG2').value);
+    if (!isFinite(g1) || !isFinite(g2)) return null;
+    var A = Math.abs(g1 - g2);
+    if (A === 0) return ['\u2139 Grades are equal \u2014 no vertical curve.', 'c-blu'];
+    return g2 < g1
+      ? ['\u25E0 Crest curve \u2014 G\u2082 is below G\u2081, so the alignment is convex. Divisor 658.', 'c-amb']
+      : ['\u25E1 Sag curve \u2014 G\u2082 is above G\u2081, so the alignment is concave. Headlight divisor 120 + 3.5S.', 'c-cyn'];
+  }
+
+  function showCurveType() {
+    var t = curveTypeLabel();
+    var el = E('vcCurveType');
+    if (!t) { el.style.display = 'none'; return; }
+    el.innerHTML = esc(t[0]);
+    el.style.display = 'block';
+  }
+
+  function clear() {
+    E('vcGroups').innerHTML = '<div class="rc-empty">Press <strong>Calculate Curve Length</strong> to size the curve.</div>';
+    E('vcVerdict').innerHTML = '';
+    E('vcWarns').innerHTML = '';
+    E('vcSummary').style.display = 'none';
+    E('vcUnitNote').style.display = 'none';
+    E('btnPdf').disabled = true;
+    LAST = null;
+    LOCAL_WARNS = [];
+  }
+
+  function fail(msg, focusId) {
+    clear();
+    E('vcErr').innerHTML = '<div class="validation-err">\u26D4 ' + esc(msg) + '</div>';
+    if (focusId && E(focusId)) { try { E(focusId).focus(); } catch (e) {} }
+  }
+
+  function splitVal(v) {
+    var s = String(v);
+    if (s.indexOf('|') > -1)
+      return [s.slice(0, s.indexOf('|')).trim(), s.slice(s.indexOf('|') + 1).trim()];
+    // The parenthetical form is tested before the em-dash form: some values
+    // carry a dash inside their brackets, and splitting on it first would cut
+    // the value open mid-bracket.
+    if (s.indexOf(' (') > 0 && s.charAt(s.length - 1) === ')')
+      return [s.slice(0, s.indexOf(' (')).trim(), s.slice(s.indexOf(' (') + 2, -1).trim()];
+    if (s.indexOf(' \u2014 ') > 0)
+      return [s.slice(0, s.indexOf(' \u2014 ')).trim(), s.slice(s.indexOf(' \u2014 ') + 3).trim()];
+    return [s, ''];
+  }
+
+  function card(label, r, tone, big) {
+    var p = splitVal(r.value);
+    // Measured on the WHOLE value: splitting first would hide a long tail
+    // behind a short head and defeat the check.
+    var isProse = String(r.value).length > 60;
+    return '<div class="rc ' + (r.warn ? 'c-red' : tone) + (big || isProse ? ' sp2' : '') + '">'
+         +   '<div class="rl">' + esc(label) + '</div>'
+         +   '<div class="rv' + (big && !isProse ? ' big' : '') + '">' + esc(isProse ? r.value : p[0]) + '</div>'
+         +   (!isProse && p[1] ? '<div class="rsub">' + esc(p[1]) + '</div>' : '')
+         + '</div>';
+  }
+
+  function render(d) {
+    E('vcErr').innerHTML = '';
+
+    var byLabel = {};
+    d.results.forEach(function (r) {
+      if (HORIZONTAL_ROWS.indexOf(r.label) === -1) byLabel[r.label] = r;
+    });
+
+    var html = '';
+    GROUPS.forEach(function (g) {
+      var body = '';
+      g[1].forEach(function (rowDef) {
+        var r = byLabel[rowDef[0]];
+        if (!r) return;
+        delete byLabel[rowDef[0]];
+        body += card(rowDef[0], r, rowDef[1], rowDef[2]);
+      });
+      if (!body) return;
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2713</span>'
+           +  '<span class="card-hd-ttl">' + esc(g[0]) + '</span></div>'
+           +  '<div class="results">' + body + '</div>';
+    });
+
+    var leftover = Object.keys(byLabel);
+    if (leftover.length) {
+      html += '<div class="card-hd"><span class="card-hd-ico">\u2139</span>'
+           +  '<span class="card-hd-ttl">Other Results</span></div><div class="results">'
+           +  leftover.map(function (k) { return card(k, byLabel[k], 'c-blu', false); }).join('')
+           +  '</div>';
+    }
+
+    E('vcGroups').innerHTML = html;
+
+    // This page sizes a curve against one criterion; it does not pass or fail a
+    // design. The backend's own status reflects the horizontal speed check,
+    // which is computed from placeholders here and must not leak into the
+    // verdict, so it is deliberately not used.
+    var branch = '';
+    var vcl = d.results.filter(function (r) { return r.label === 'Vertical Curve Length'; })[0];
+    if (vcl) { var p = splitVal(vcl.value); branch = p[1] || ''; }
+    E('vcVerdict').innerHTML = LOCAL_WARNS.length
+      ? '<div class="badge c-amb">\u26A0 Curve sized on sight distance' + (branch ? ' \u2014 ' + esc(branch) : '') + ' \u2014 see the notes below</div>'
+      : '<div class="badge c-blu">\u2139 Curve sized on sight distance only' + (branch ? ' \u2014 ' + esc(branch) : '') + '. Comfort, appearance and drainage are not checked.</div>';
+
+    if (d.summary) {
+      E('vcSummary').textContent = d.summary;
+      E('vcSummary').style.display = 'block';
+    }
+
+    E('vcWarns').innerHTML = LOCAL_WARNS.length
+      ? LOCAL_WARNS.map(function (w) { return '<div class="badge c-amb">' + esc(w) + '</div>'; }).join('')
+      : '';
+
+    E('vcUnitNote').style.display = isSI() ? 'none' : 'block';
+
+    LAST = d;
+    E('btnPdf').disabled = false;
+  }
+
+  function calc() {
+    var g = localGuard();
+    if (g) { fail(g[1], g[0]); return; }
+    LOCAL_WARNS = localWarns();
+
+    var btn = E('btnCalc');
+    var txt = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '\u23F3 Calculating\u2026';
+
+    MC.api.civil('survey', params()).then(function (d) {
+      render(d);
+      writeUrl();
+    }).catch(function (e) {
+      fail(e && e.message ? e.message : 'Calculation failed. Please check your inputs and try again.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = txt;
+    });
+  }
+
+  // ── shareable URL ───────────────────────────────────────────
+  var QMAP = { g1: 'vcG1', g2: 'vcG2', s: 'vcSSD' };
+
+  function writeUrl() {
+    var p = new URLSearchParams();
+    // SI values only, never the rounded Imperial display figure.
+    Object.keys(QMAP).forEach(function (k) { p.set(k, si(QMAP[k])); });
+    p.set('u', US);
+    try { history.replaceState(null, '', location.pathname + '?' + p.toString()); } catch (e) {}
+  }
+
+  function readUrl() {
+    var p = new URLSearchParams(location.search);
+    if (!p.toString()) return false;
+    Object.keys(QMAP).forEach(function (k) {
+      if (p.has(k)) { var el = E(QMAP[k]); if (el) el.value = p.get(k); }
+    });
+    // Values arrive in SI: seed first, then switch the display.
+    seedCanon();
+    if (p.get('u') === 'IMP') setUnits('IMP', true);
+    return true;
+  }
+
+  function share() {
+    var url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Vertical Curve Calculator',
+                        text: 'Vertical curve sizing on multicalci.com', url: url }).catch(function () {});
+      return;
+    }
+    var done = function () {
+      var b = E('btnShare'), t = b.textContent;
+      b.textContent = '\u2713 Link copied';
+      setTimeout(function () { b.textContent = t; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { window.prompt('Copy this link:', url); });
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  // ── unit system ─────────────────────────────────────────────
+  function setUnits(sys, silent) {
+    if (sys === US) return;
+    var c = CANON['vcSSD'];
+    if (isFinite(c)) E('vcSSD').value = String(+(sys === 'IMP' ? c * MM : c).toFixed(4));
+    US = sys;
+    E('btnSI').classList.toggle('on', sys === 'SI');
+    E('btnIMP').classList.toggle('on', sys === 'IMP');
+    var t = sys === 'SI' ? '(m)' : '(ft)';
+    var nodes = document.getElementsByClassName('u-m');
+    for (var i = 0; i < nodes.length; i++) nodes[i].innerHTML = t;
+    if (!silent) clear();
+  }
+
+  // ── PDF report ──────────────────────────────────────────────
+  function pdf() {
+    if (!LAST) return;
+    var w = window.open('', '_blank', 'width=900,height=780');
+    if (!w) { alert('Please allow pop-ups to generate the PDF report.'); return; }
+
+    var lu = isSI() ? 'm' : 'ft';
+    var t = curveTypeLabel();
+    var inRows = [
+      ['Approach grade G1', E('vcG1').value + ' %'],
+      ['Departure grade G2', E('vcG2').value + ' %'],
+      ['Stopping sight distance S', E('vcSSD').value + ' ' + lu],
+      ['Curve type', t ? t[0].replace(/^[^A-Za-z]+/, '').split(' \u2014 ')[0] : '\u2014']
+    ].map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+
+    var outRows = LAST.results
+      .filter(function (r) { return HORIZONTAL_ROWS.indexOf(r.label) === -1; })
+      .map(function (r) {
+        return '<tr><td>' + esc(r.label) + '</td><td>' + esc(r.value) + '</td></tr>';
+      }).join('');
+
+    var warnHtml = LOCAL_WARNS.length
+      ? '<h2>Notes</h2><ul>' + LOCAL_WARNS.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+
+    var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>Vertical Curve Report \u2014 multicalci.com</title><style>'
+      + '*{box-sizing:border-box;margin:0;padding:0}'
+      + 'body{font-family:Georgia,"Times New Roman",serif;color:#0f2044;font-size:12px;background:#fff}'
+      + '.hdr{background:#0f2044;color:#fff;padding:22px 32px}'
+      + '.hdr h1{font-size:19px;margin-bottom:4px}'
+      + '.hdr .s{font-size:10px;color:rgba(255,255,255,.6)}'
+      + '.bar{height:3px;background:linear-gradient(90deg,#1e4db7,#b45309)}'
+      + '.b{padding:20px 32px}'
+      + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid #1e4db7;padding-bottom:4px;margin:18px 0 10px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:11px}'
+      + 'th{background:#0f2044;color:#fff;padding:7px 12px;text-align:left;font-size:10px}'
+      + 'td{padding:7px 12px;border-bottom:1px solid #e5e7eb;font-family:"Courier New",monospace}'
+      + 'td:first-child{font-family:Georgia,serif;color:#1a3260}'
+      + 'tr:nth-child(even) td{background:#f8faff}'
+      + 'ul{margin:6px 0 0 20px;font-size:11px}'
+      + '.v{display:inline-block;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:bold;margin-top:8px;'
+      + 'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd}'
+      + '.f{text-align:center;font-size:9px;color:#9ba3b4;margin-top:26px;padding-top:10px;border-top:1px solid #e5e7eb}'
+      + '@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}'
+      + '</style></head><body>'
+      + '<div class="hdr"><h1>Vertical Curve Report</h1>'
+      + '<div class="s">MULTICALCI.COM \u2014 Civil Engineering Calculators</div>'
+      + '<div class="s">Sight distance criterion \u2014 generated ' + esc(new Date().toLocaleString()) + '</div></div>'
+      + '<div class="bar"></div><div class="b">'
+      + '<div class="v">Sized on sight distance only \u2014 comfort, appearance and drainage are not checked</div>'
+      + '<h2>Inputs</h2><table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>' + inRows + '</tbody></table>'
+      + '<h2>Vertical Curve</h2><table><thead><tr><th>Quantity</th><th>Result</th></tr></thead><tbody>' + outRows + '</tbody></table>'
+      + warnHtml
+      + '<div class="f">Generated by multicalci.com \u2014 sight distance criterion only. No check on passenger comfort, '
+      + 'appearance minimum length, drainage gradient near the apex, overtaking sight distance or headroom under a '
+      + 'structure. No chainage table, high or low point location, or unsymmetrical curves. Verify against IRC, '
+      + 'AASHTO or the governing standard.</div>'
+      + '</div><script>window.onload=function(){window.print();};<\/script></body></html>';
+
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+  }
+
+  // ── wire up ─────────────────────────────────────────────────
+  function init() {
+    E('btnCalc').addEventListener('click', calc);
+    E('btnPdf').addEventListener('click', pdf);
+    E('btnShare').addEventListener('click', share);
+    E('btnSI').addEventListener('click', function () { setUnits('SI'); });
+    E('btnIMP').addEventListener('click', function () { setUnits('IMP'); });
+
+    ['vcG1', 'vcG2', 'vcSSD'].forEach(function (id) {
+      var el = E(id);
+      if (!el) return;
+      el.addEventListener('input',  function () { noteEdit(id); showCurveType(); });
+      el.addEventListener('change', function () { noteEdit(id); showCurveType(); clear(); });
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); calc(); }
+      });
+    });
+
+    // readUrl seeds the canonical value itself, before switching the display
+    // units. Seeding again here would re-read the converted box and corrupt it.
+    if (!readUrl()) seedCanon();
+    showCurveType();
+    calc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
