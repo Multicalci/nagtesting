@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Transformer Calculator — Current, Efficiency, Regulation | multicalci.com</title>
+<meta name="description" content="Free transformer calculator. Find turns ratio, primary and secondary full load current, efficiency at any load, voltage regulation, maximum efficiency point and through-fault current.">
+<link rel="canonical" href="https://www.multicalci.com/transformer-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Transformer Calculator — Current, Efficiency, Regulation">
+<meta property="og:description" content="Calculate transformer turns ratio, full load currents, efficiency, voltage regulation and through-fault current from nameplate data.">
+<meta property="og:url" content="https://www.multicalci.com/transformer-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Transformer Calculator — Current, Efficiency, Regulation">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Transformer Calculator","description":"Calculates transformer turns ratio, primary and secondary full load current, efficiency at any load fraction, voltage regulation for lagging or leading power factor, the load point of maximum efficiency and the through-fault current from percentage impedance.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/transformer-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Transformer Calculator","item":"https://www.multicalci.com/transformer-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate transformer full load current?","acceptedAnswer":{"@type":"Answer","text":"For a three-phase transformer, divide the rating in volt-amperes by the square root of three times the line voltage on that side. A 1000 kVA unit at 11 kV draws 52.49 amperes on the primary and delivers 1391.21 amperes at 415 volts on the secondary. For a single-phase transformer the square root of three is omitted, which makes the current higher by a factor of 1.732 for the same rating and voltage. The kVA rating is the same on both windings, since apart from losses the power in equals the power out."}},{"@type":"Question","name":"What is transformer percentage impedance?","acceptedAnswer":{"@type":"Answer","text":"Percentage impedance is the percentage of rated voltage that must be applied to one winding, with the other short circuited, to drive full load current. A 5 percent impedance means 5 percent of rated voltage produces full load current, so a bolted fault at the terminals draws about 20 times full load current. Low impedance gives better voltage regulation and easier motor starting but higher fault current, which is why distribution transformers cluster between 4 and 6.25 percent."}},{"@type":"Question","name":"At what load is a transformer most efficient?","acceptedAnswer":{"@type":"Answer","text":"Maximum efficiency occurs where the variable copper loss equals the fixed iron loss, which happens at a load fraction equal to the square root of iron loss divided by copper loss at full load. For a unit with 1500 watts of iron loss and 9000 watts of copper loss the peak sits at 40.8 percent of rated kVA. This is deliberate: distribution transformers are designed to peak well below full load because they spend most of their life lightly loaded, so the average annual efficiency is what matters rather than the full load figure."}},{"@type":"Question","name":"What is voltage regulation in a transformer?","acceptedAnswer":{"@type":"Answer","text":"Voltage regulation is the drop in secondary voltage from no load to full load, expressed as a percentage of the no-load value. It is approximately the percentage resistance times the power factor plus the percentage reactance times the sine of the phase angle. At a lagging power factor both terms add and the voltage falls. At a leading power factor the reactive term subtracts and regulation can become negative, meaning the secondary voltage rises under load, which is a real effect on lightly loaded cable networks and capacitor-corrected installations."}},{"@type":"Question","name":"How do I calculate transformer short circuit current?","acceptedAnswer":{"@type":"Answer","text":"Divide the full load current by the per-unit impedance, so full load current divided by percentage impedance over one hundred. A 1000 kVA transformer at 5 percent impedance with a 52.49 ampere primary gives about 1049.73 amperes of primary fault current, equivalent to about 27824 amperes on the 415 volt secondary. This assumes an infinite source behind the transformer, so it is the maximum the transformer alone can pass. A full study adds the finite grid impedance, the cable to the fault and any motor back-feed, all of which change the answer."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Transformer Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Transformer Calculator</h1>
+    <p class="lede">Work out turns ratio, primary and secondary full load current, efficiency at any load fraction, voltage regulation for lagging or leading loads, the load point of maximum efficiency and the through-fault current — all from the nameplate. Handles both three-phase and single-phase units.</p>
+    <div class="stdref">
+      <span>IEC 60076</span>
+      <span>IS 2026</span>
+      <span>IEEE C57.12</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128260;</span>
+      <span class="card-hd-ttl">Transformer Nameplate</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="xPhase">Phase System</label>
+          <select id="xPhase">
+            <option value="3" selected>Three Phase</option>
+            <option value="1">Single Phase</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="xKVA">Rating <span class="u">kVA</span></label>
+          <input type="number" id="xKVA" value="1000" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="xV1">Primary Voltage V&#8321; <span class="u">V</span></label>
+          <input type="number" id="xV1" value="11000" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="xV2">Secondary Voltage V&#8322; <span class="u">V</span></label>
+          <input type="number" id="xV2" value="415" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="xZ">Impedance %Z</label>
+          <input type="number" id="xZ" value="5" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="xR">Resistance %R</label>
+          <input type="number" id="xR" value="1" step="any" min="0">
+          <div class="hint">Must not exceed %Z.</div>
+        </div>
+        <div class="field">
+          <label for="xLoad">Load Level <span class="u">% of rated</span></label>
+          <input type="number" id="xLoad" value="100" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="xFe">Iron Loss P<sub>Fe</sub> <span class="u">W</span></label>
+          <input type="number" id="xFe" value="1500" step="any" min="0">
+          <div class="hint">No-load loss, constant at all loads.</div>
+        </div>
+        <div class="field">
+          <label for="xCu">Copper Loss P<sub>Cu</sub> <span class="u">W</span></label>
+          <input type="number" id="xCu" value="9000" step="any" min="0">
+          <div class="hint">At full load. Varies with the square of load.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="xPF">Load Power Factor</label>
+          <input type="number" id="xPF" value="0.8" step="any" min="0" max="1">
+        </div>
+        <div class="field">
+          <label for="xPFType">Power Factor Type</label>
+          <select id="xPFType">
+            <option value="lag" selected>Lagging (inductive)</option>
+            <option value="lead">Leading (capacitive)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="xErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="xCalcBtn">Calculate</button>
+        <button type="button" class="btn-pdf" id="xPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="xShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="xResults">
+    <div class="rc-empty">Enter the nameplate data and select Calculate.</div>
+  </div>
+
+  <div id="xWarnings"></div>
+
+  <h2>Transformer Formulae</h2>
+
+  <div class="fbox">
+    a = V&#8321; / V&#8322; <span class="cm">// turns ratio</span><br>
+    I&#8321; = S / ( &#8730;3 &#183; V&#8321; ) &nbsp;&#183;&nbsp; I&#8322; = S / ( &#8730;3 &#183; V&#8322; ) <span class="cm">// three phase</span><br>
+    I = S / V <span class="cm">// single phase, no &#8730;3</span>
+  </div>
+  <div class="fbox">
+    %X = &#8730;( %Z&#178; &#8722; %R&#178; )<br>
+    Regulation = %R &#183; cos &#966; &#177; %X &#183; sin &#966; <span class="cm">// + lagging, &#8722; leading</span>
+  </div>
+  <div class="fbox">
+    P<sub>Cu,x</sub> = x&#178; &#183; P<sub>Cu</sub> <span class="cm">// copper loss at load fraction x</span><br>
+    &#951; = P<sub>out</sub> / ( P<sub>out</sub> + P<sub>Fe</sub> + P<sub>Cu,x</sub> ) &#215; 100<br>
+    x<sub>max&#951;</sub> = &#8730;( P<sub>Fe</sub> / P<sub>Cu</sub> ) <span class="cm">// load fraction of peak efficiency</span>
+  </div>
+  <div class="fbox">
+    I<sub>sc</sub> = I<sub>FL</sub> / ( %Z / 100 ) <span class="cm">// infinite source assumed</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>a</td><td>Turns ratio, primary over secondary</td><td>—</td></tr>
+        <tr><td>S</td><td>Rated apparent power</td><td>VA</td></tr>
+        <tr><td>I&#8321;, I&#8322;</td><td>Full load current, primary and secondary</td><td>A</td></tr>
+        <tr><td>%Z</td><td>Percentage impedance from the nameplate</td><td>%</td></tr>
+        <tr><td>%R, %X</td><td>Percentage resistance and reactance</td><td>%</td></tr>
+        <tr><td>x</td><td>Load fraction of rated kVA</td><td>—</td></tr>
+        <tr><td>P<sub>Fe</sub></td><td>Iron or no-load loss, constant</td><td>W</td></tr>
+        <tr><td>P<sub>Cu</sub></td><td>Copper loss at full load</td><td>W</td></tr>
+        <tr><td>&#951;</td><td>Efficiency at the stated load</td><td>%</td></tr>
+        <tr><td>I<sub>sc</sub></td><td>Through-fault current</td><td>A</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">1000 kVA, 11 kV / 415 V, 5 %Z, 1 %R, at full load and 0.8 lagging</div>
+
+    <p>A 1000 kVA distribution transformer steps 11 kV down to 415 V. The nameplate gives 5 % impedance, 1 % resistance, 1500 W iron loss and 9000 W copper loss at full load. It is loaded to 100 % at 0.8 power factor lagging.</p>
+
+    <dl>
+      <dt>Turns ratio</dt>
+      <dd>a = 11000 / 415 = 26.50602</dd>
+
+      <dt>Primary full load current</dt>
+      <dd>I&#8321; = 1 000 000 / (&#8730;3 × 11000) = 52.486 A</dd>
+
+      <dt>Secondary full load current</dt>
+      <dd>I&#8322; = 1 000 000 / (&#8730;3 × 415) = 1391.205 A</dd>
+
+      <dt>Percentage reactance</dt>
+      <dd>%X = &#8730;(5&#178; &#8722; 1&#178;) = &#8730;24 = 4.899 %</dd>
+
+      <dt>Output power at 100 % load</dt>
+      <dd>P<sub>out</sub> = 1.0 × 1 000 000 × 0.8 = 800 000 W</dd>
+
+      <dt>Copper loss at this load</dt>
+      <dd>P<sub>Cu</sub> = 1.0&#178; × 9000 = 9000 W</dd>
+
+      <dt>Efficiency</dt>
+      <dd>&#951; = 800000 / (800000 + 1500 + 9000) × 100 = 98.705 %</dd>
+
+      <dt>Voltage regulation</dt>
+      <dd>sin &#966; = 0.6 &#8594; VR = 1 × 0.8 + 4.899 × 0.6 = 3.739 %</dd>
+
+      <dt>Maximum efficiency load</dt>
+      <dd>x = &#8730;(1500 / 9000) = 0.4082 &#8594; 40.82 % of rated kVA</dd>
+
+      <dt>Through-fault current</dt>
+      <dd>I<sub>sc</sub> = 52.486 / 0.05 = 1049.728 A on the primary</dd>
+    </dl>
+
+    <div class="ans">a = 26.506 &#183; I&#8321; 52.486 A &#183; I&#8322; 1391.205 A &#183; &#951; 98.705 % &#183; VR 3.739 % &#183; peak &#951; at 40.82 %</div>
+  </div>
+
+  <div class="note">The peak efficiency sits at 40.82 % of rating, not at full load. That is deliberate design: a distribution transformer is energised continuously but loaded heavily for only part of the day, so minimising iron loss matters more to the annual energy bill than squeezing the full load figure.</div>
+
+  <h2>Efficiency Against Load</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Load</th><th>Output at 0.8 PF</th><th>Copper loss</th><th>Total loss</th><th>Efficiency</th></tr></thead>
+      <tbody>
+        <tr><td>10 %</td><td>80 kW</td><td>90 W</td><td>1590 W</td><td>98.051 %</td></tr>
+        <tr><td>25 %</td><td>200 kW</td><td>562.5 W</td><td>2062.5 W</td><td>98.979 %</td></tr>
+        <tr><td>40.82 %</td><td>326.6 kW</td><td>1499.6 W</td><td>2999.6 W</td><td>99.090 %</td></tr>
+        <tr><td>50 %</td><td>400 kW</td><td>2250 W</td><td>3750 W</td><td>99.071 %</td></tr>
+        <tr><td>75 %</td><td>600 kW</td><td>5062.5 W</td><td>6562.5 W</td><td>98.918 %</td></tr>
+        <tr><td>100 %</td><td>800 kW</td><td>9000 W</td><td>10500 W</td><td>98.705 %</td></tr>
+        <tr><td>125 %</td><td>1000 kW</td><td>14062.5 W</td><td>15562.5 W</td><td>98.468 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">For the worked-example unit: 1500 W iron loss and 9000 W copper loss at full load. Note the curve is flat near the peak — anywhere between 25 % and 75 % load the efficiency stays within 0.2 % of the best value.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Phase system</td><td>—</td><td>Single or three phase</td><td>Three phase</td></tr>
+        <tr><td>Rating</td><td>kVA</td><td>&gt; 0</td><td>1000</td></tr>
+        <tr><td>Primary voltage</td><td>V</td><td>&gt; 0</td><td>11000</td></tr>
+        <tr><td>Secondary voltage</td><td>V</td><td>&gt; 0</td><td>415</td></tr>
+        <tr><td>Impedance %Z</td><td>%</td><td>&gt; 0, typically 4–6.25</td><td>5</td></tr>
+        <tr><td>Resistance %R</td><td>%</td><td>&gt; 0 and &#8804; %Z</td><td>1</td></tr>
+        <tr><td>Load level</td><td>%</td><td>&gt; 0, up to 200</td><td>100</td></tr>
+        <tr><td>Iron loss</td><td>W</td><td>&gt; 0</td><td>1500</td></tr>
+        <tr><td>Copper loss</td><td>W</td><td>&gt; 0</td><td>9000</td></tr>
+        <tr><td>Power factor</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.8</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Typical Distribution Transformer Data</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Rating</th><th>%Z</th><th>Iron loss</th><th>Copper loss</th><th>Peak &#951; load</th><th>I&#8322; at 415 V</th></tr></thead>
+      <tbody>
+        <tr><td>100 kVA</td><td>4.0 %</td><td>260 W</td><td>1760 W</td><td>38.4 %</td><td>139 A</td></tr>
+        <tr><td>250 kVA</td><td>4.0 %</td><td>520 W</td><td>3300 W</td><td>39.7 %</td><td>348 A</td></tr>
+        <tr><td>500 kVA</td><td>4.5 %</td><td>900 W</td><td>5500 W</td><td>40.5 %</td><td>696 A</td></tr>
+        <tr><td>630 kVA</td><td>4.5 %</td><td>1100 W</td><td>6500 W</td><td>41.1 %</td><td>877 A</td></tr>
+        <tr><td>1000 kVA</td><td>5.0 %</td><td>1500 W</td><td>9000 W</td><td>40.8 %</td><td>1391 A</td></tr>
+        <tr><td>1600 kVA</td><td>6.0 %</td><td>2200 W</td><td>13000 W</td><td>41.1 %</td><td>2226 A</td></tr>
+        <tr><td>2000 kVA</td><td>6.0 %</td><td>2700 W</td><td>16000 W</td><td>41.1 %</td><td>2782 A</td></tr>
+        <tr><td>2500 kVA</td><td>6.25 %</td><td>3200 W</td><td>19500 W</td><td>40.5 %</td><td>3478 A</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Indicative values for oil-filled distribution units. Losses vary substantially between efficiency classes — a low-loss design can halve the iron loss at a higher purchase price, which pays back over the life of a continuously energised transformer.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate transformer full load current?</summary>
+      <div class="faq-a"><p>For a three-phase transformer, divide the rating in volt-amperes by &#8730;3 times the line voltage on that side. A 1000 kVA unit at 11 kV draws 52.49 A on the primary and delivers 1391.21 A at 415 V on the secondary. For a single-phase transformer the &#8730;3 is omitted, which makes the current higher by a factor of 1.732 for the same rating and voltage. The kVA rating is the same on both windings, since apart from losses the power in equals the power out.</p></div>
+    </details>
+
+    <details>
+      <summary>What is transformer percentage impedance?</summary>
+      <div class="faq-a"><p>Percentage impedance is the percentage of rated voltage that must be applied to one winding, with the other short circuited, to drive full load current. A 5 % impedance means 5 % of rated voltage produces full load current, so a bolted fault at the terminals draws about 20 times full load current. Low impedance gives better voltage regulation and easier motor starting but higher fault current, which is why distribution transformers cluster between 4 and 6.25 %.</p></div>
+    </details>
+
+    <details>
+      <summary>At what load is a transformer most efficient?</summary>
+      <div class="faq-a"><p>Maximum efficiency occurs where the variable copper loss equals the fixed iron loss, which happens at a load fraction equal to &#8730;(P<sub>Fe</sub>/P<sub>Cu</sub>). For a unit with 1500 W of iron loss and 9000 W of copper loss the peak sits at 40.8 % of rated kVA. This is deliberate: distribution transformers are designed to peak well below full load because they spend most of their life lightly loaded, so the average annual efficiency is what matters rather than the full load figure.</p></div>
+    </details>
+
+    <details>
+      <summary>What is voltage regulation in a transformer?</summary>
+      <div class="faq-a"><p>Voltage regulation is the drop in secondary voltage from no load to full load, expressed as a percentage of the no-load value. It is approximately %R &#215; cos &#966; + %X &#215; sin &#966;. At a lagging power factor both terms add and the voltage falls. At a leading power factor the reactive term subtracts and regulation can become negative, meaning the secondary voltage rises under load, which is a real effect on lightly loaded cable networks and capacitor-corrected installations.</p></div>
+    </details>
+
+    <details>
+      <summary>How do I calculate transformer short circuit current?</summary>
+      <div class="faq-a"><p>Divide the full load current by the per-unit impedance, so I<sub>FL</sub> &#247; (%Z/100). A 1000 kVA transformer at 5 % impedance with a 52.49 A primary gives about 1049.73 A of primary fault current, equivalent to about 27824 A on the 415 V secondary. This assumes an infinite source behind the transformer, so it is the maximum the transformer alone can pass. A full study adds the finite grid impedance, the cable to the fault and any motor back-feed, all of which change the answer.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/short-circuit-current-calculator">Short Circuit Current Calculator<span class="d">Full IEC 60909 study with grid and cable</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">Load kVA on the secondary</span></a>
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size the transformer feeder</span></a>
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">Motor load on the transformer</span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Drop downstream of the secondary</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. Through-fault current assumes an infinite source and ignores grid impedance. Verify against the transformer test certificate and a qualified engineer before construction.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('xResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var last = null;
+
+  function collect() {
+    var v = M.validate([
+      { id: 'xKVA',  label: 'Rating',            required: true, gt: 0 },
+      { id: 'xV1',   label: 'Primary voltage',   required: true, gt: 0 },
+      { id: 'xV2',   label: 'Secondary voltage', required: true, gt: 0 },
+      { id: 'xZ',    label: 'Impedance %Z',      required: true, gt: 0, lte: 30 },
+      { id: 'xR',    label: 'Resistance %R',     required: true, gt: 0, lte: 30 },
+      { id: 'xLoad', label: 'Load level',        required: true, gt: 0, lte: 200 },
+      { id: 'xFe',   label: 'Iron loss',         required: true, gt: 0 },
+      { id: 'xCu',   label: 'Copper loss',       required: true, gt: 0 },
+      { id: 'xPF',   label: 'Power factor',      required: true, gt: 0, lte: 1 }
+    ]);
+
+    // calcFault rejects %R above %Z; calcXfmr does not. Left unguarded it sets
+    // %X to zero through the sqrt(max(0, ...)) and returns a regulation figure
+    // with no reactive term at all, with no indication anything was wrong.
+    if (v.ok && M.gv('xR') > M.gv('xZ')) {
+      v = { ok: false, errors: [{ id: 'xR', msg: '%R (' + M.gv('xR') + ' %) cannot exceed %Z (' + M.gv('xZ') + ' %). The reactance would come out as zero and the regulation figure would lose its reactive term entirely.' }], warns: v.warns };
+    }
+
+    M.showValidation('xErrors', v);
+    if (!v.ok) return null;
+
+    return {
+      kVA: M.gv('xKVA'),
+      V1: M.gv('xV1'),
+      V2: M.gv('xV2'),
+      PF: M.gv('xPF'),
+      xLoad_pct: M.gv('xLoad'),
+      Pfe: M.gv('xFe'),
+      Pcu: M.gv('xCu'),
+      Zpct: M.gv('xZ'),
+      Rpct: M.gv('xR'),
+      pfType: M.gs('xPFType'),
+      phase: parseInt(M.gs('xPhase'), 10)
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function render(inp, r) {
+    var threePh = r.phase === 3;
+    var effTone = r.eff > 98 ? 'grn' : r.eff > 95 ? 'amb' : 'red';
+    var effLabel = r.eff > 98 ? 'Excellent' : r.eff > 95 ? 'Acceptable' : 'Low';
+    var iscSecondary = r.I2 / (inp.Zpct / 100);
+    var totalLoss = inp.Pfe + r.CuL_W;
+
+    var html = '';
+    html += cardHtml({
+      label: 'Turns Ratio a', value: M.fN(r.a, 5), unit: '',
+      tone: 'main', big: true, span: true,
+      sub: M.fN(inp.V1, 0, 'V') + ' / ' + M.fN(inp.V2, 0, 'V') + ' \u2014 ' +
+        (threePh ? 'three phase' : 'single phase') + ', ' + M.fN(inp.kVA, 0, 'kVA')
+    });
+    html += cardHtml({
+      label: 'Primary Full Load Current I\u2081', value: M.fN(r.I1, 3), unit: 'A',
+      tone: 'blu', sub: threePh ? 'S / (\u221A3 \u00D7 V\u2081)' : 'S / V\u2081'
+    });
+    html += cardHtml({
+      label: 'Secondary Full Load Current I\u2082', value: M.fN(r.I2, 3), unit: 'A',
+      tone: 'blu', sub: threePh ? 'S / (\u221A3 \u00D7 V\u2082)' : 'S / V\u2082'
+    });
+    html += cardHtml({
+      label: 'Efficiency at ' + M.fN(inp.xLoad_pct, 0, '%') + ' Load', value: M.fN(r.eff, 3), unit: '%',
+      tone: effTone,
+      subHtml: '<span class="badge ' + (effTone === 'grn' ? 'ok' : effTone === 'amb' ? 'warn' : 'err') + '">' +
+        M.esc(effLabel) + '</span> Losses ' + M.esc(M.fN(totalLoss, 0, 'W')) + ' against ' +
+        M.esc(M.fN(r.Pout_W / 1000, 1, 'kW')) + ' output'
+    });
+    html += cardHtml({
+      label: 'Voltage Regulation', value: M.fN(r.VR, 3), unit: '%',
+      tone: r.VR < 0 ? 'pur' : 'amb',
+      sub: r.VR < 0
+        ? 'Negative \u2014 secondary voltage rises under this leading load'
+        : '%R \u00D7 cos \u03C6 + %X \u00D7 sin \u03C6 at ' + (inp.pfType === 'lead' ? 'leading' : 'lagging') + ' power factor'
+    });
+    html += cardHtml({
+      label: 'Maximum Efficiency Load', value: M.fN(r.maxEff_pct_kva, 2), unit: '% of rated',
+      tone: 'grn', sub: '\u221A(P_Fe / P_Cu) \u2014 where copper loss equals iron loss'
+    });
+    html += cardHtml({
+      label: 'Percentage Reactance %X', value: M.fN(r.Xpct, 3), unit: '%',
+      tone: 'cyn', sub: '\u221A(%Z\u00B2 \u2212 %R\u00B2) from ' + M.fN(inp.Zpct, 2, '%') + ' and ' + M.fN(inp.Rpct, 2, '%')
+    });
+    html += cardHtml({
+      label: 'Copper Loss at Load', value: M.fN(r.CuL_W, 1), unit: 'W',
+      tone: 'cyn', sub: 'x\u00B2 \u00D7 P_Cu, with iron loss ' + M.fN(inp.Pfe, 0, 'W') + ' constant'
+    });
+    html += cardHtml({
+      label: 'Output Power', value: M.fN(r.Pout_W / 1000, 2), unit: 'kW',
+      tone: 'pur', sub: M.fN(inp.xLoad_pct, 0, '%') + ' of ' + M.fN(inp.kVA, 0, 'kVA') + ' at PF ' + M.fN(inp.PF, 2)
+    });
+    html += cardHtml({
+      label: 'Through-Fault Current', value: M.fN(r.Isc, 1), unit: 'A',
+      tone: 'red', span: true,
+      sub: 'Primary side, I\u2081 \u00F7 (%Z/100). Equivalent to ' + M.fN(iscSecondary, 0, 'A') +
+        ' on the secondary. Infinite source assumed \u2014 add grid and cable impedance for a real study.'
+    });
+
+    M.set('xResults', html);
+
+    var warns = '';
+    if (r.VR < 0) {
+      warns += '<div class="note">Voltage regulation is negative at ' + M.fN(r.VR, 3, '%') +
+        '. With a leading power factor the reactive term subtracts, so the secondary voltage rises as load increases. ' +
+        'Check that the resulting no-load voltage stays inside the equipment tolerance, particularly on a lightly loaded cable network with capacitor correction.</div>';
+    }
+    if (inp.xLoad_pct < r.maxEff_pct_kva * 0.5) {
+      warns += '<div class="note">The unit is running at ' + M.fN(inp.xLoad_pct, 0, '%') + ' of rating, well below the ' +
+        M.fN(r.maxEff_pct_kva, 2, '%') + ' peak efficiency point, giving ' + M.fN(r.eff, 3, '%') +
+        '. At this load the fixed iron loss of ' + M.fN(inp.Pfe, 0, 'W') +
+        ' dominates. If this is the typical loading, a smaller rating would spend more of its life near the peak.</div>';
+    }
+    if (inp.xLoad_pct > 100) {
+      warns += '<div class="note">Load above 100 % of rating. Copper loss rises with the square of load, so winding temperature and insulation ageing rise sharply. Continuous overload requires a loading study to IEC 60076-7.</div>';
+    }
+    M.set('xWarnings', warns);
+
+    document.getElementById('xPdfBtn').disabled = false;
+    last = { inp: inp, r: r, iscSecondary: iscSecondary, totalLoss: totalLoss };
+  }
+
+  function calculate() {
+    var inp = collect();
+    if (!inp) {
+      document.getElementById('xPdfBtn').disabled = true;
+      M.set('xWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('xCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('xResults', true);
+    return M.api.electrical('xfmr', inp).then(function (r) {
+      render(inp, r);
+    }).catch(function (err) {
+      M.showError('xResults', err);
+      M.set('xWarnings', '');
+      document.getElementById('xPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('ph', M.gs('xPhase'));
+    p.set('kva', M.gs('xKVA'));
+    p.set('v1', M.gs('xV1'));
+    p.set('v2', M.gs('xV2'));
+    p.set('z', M.gs('xZ'));
+    p.set('r', M.gs('xR'));
+    p.set('load', M.gs('xLoad'));
+    p.set('fe', M.gs('xFe'));
+    p.set('cu', M.gs('xCu'));
+    p.set('pf', M.gs('xPF'));
+    p.set('pft', M.gs('xPFType'));
+    return 'https://www.multicalci.com/transformer-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    var map = {
+      ph: 'xPhase', kva: 'xKVA', v1: 'xV1', v2: 'xV2', z: 'xZ', r: 'xR',
+      load: 'xLoad', fe: 'xFe', cu: 'xCu', pf: 'xPF', pft: 'xPFType'
+    };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any;
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Transformer Calculator', text: 'Transformer case on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('xShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var i = last.inp, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Phase system', r.phase === 3 ? 'Three phase' : 'Single phase'],
+      ['Rating', M.fN(i.kVA, 2, 'kVA')],
+      ['Primary voltage', M.fN(i.V1, 2, 'V')],
+      ['Secondary voltage', M.fN(i.V2, 2, 'V')],
+      ['Impedance %Z / %R', M.fN(i.Zpct, 2, '%') + ' / ' + M.fN(i.Rpct, 2, '%')],
+      ['Load level', M.fN(i.xLoad_pct, 2, '%')],
+      ['Iron loss', M.fN(i.Pfe, 1, 'W')],
+      ['Copper loss at full load', M.fN(i.Pcu, 1, 'W')],
+      ['Power factor', M.fN(i.PF, 3) + ' ' + (i.pfType === 'lead' ? 'leading' : 'lagging')]
+    ];
+    var outRows = [
+      ['Turns ratio', M.fN(r.a, 5)],
+      ['Primary full load current', M.fN(r.I1, 3, 'A')],
+      ['Secondary full load current', M.fN(r.I2, 3, 'A')],
+      ['Percentage reactance %X', M.fN(r.Xpct, 3, '%')],
+      ['Output power', M.fN(r.Pout_W / 1000, 2, 'kW')],
+      ['Copper loss at load', M.fN(r.CuL_W, 1, 'W')],
+      ['Total loss', M.fN(last.totalLoss, 1, 'W')],
+      ['Efficiency', M.fN(r.eff, 3, '%')],
+      ['Voltage regulation', M.fN(r.VR, 3, '%')],
+      ['Maximum efficiency load', M.fN(r.maxEff_pct_kva, 2, '% of rated')],
+      ['Through-fault current, primary', M.fN(r.Isc, 1, 'A')],
+      ['Through-fault current, secondary', M.fN(last.iscSecondary, 0, 'A')]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Transformer Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Transformer Calculation Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Nameplate', inRows) + table('Results', outRows) +
+      '<div class="f">Through-fault current assumes an infinite source behind the transformer and ignores grid ' +
+      'and cable impedance, so it is the maximum the transformer alone can pass. Voltage regulation is the ' +
+      'approximate expression %R cos(phi) +/- %X sin(phi). For estimation and preliminary design; verify ' +
+      'against the test certificate and a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  M.ready(function () {
+    document.getElementById('xCalcBtn').addEventListener('click', calculate);
+    document.getElementById('xPdfBtn').addEventListener('click', pdf);
+    document.getElementById('xShareBtn').addEventListener('click', share);
+
+    M.enterToCalc(['xKVA', 'xV1', 'xV2', 'xZ', 'xR', 'xLoad', 'xFe', 'xCu', 'xPF'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
