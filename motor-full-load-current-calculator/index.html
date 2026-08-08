@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Motor Full Load Current Calculator — FLC, Torque, Slip | multicalci.com</title>
+<meta name="description" content="Free motor full load current calculator. Find FLC, starting current for DOL, star-delta, auto-transformer, soft starter and VFD, plus torque, synchronous speed, slip and breaker size.">
+<link rel="canonical" href="https://www.multicalci.com/motor-full-load-current-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Motor Full Load Current Calculator — FLC, Torque, Slip">
+<meta property="og:description" content="Calculate motor FLC, starting current by starting method, full load torque, synchronous speed, slip and recommended breaker size.">
+<meta property="og:url" content="https://www.multicalci.com/motor-full-load-current-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Motor Full Load Current Calculator — FLC, Torque, Slip">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Motor Full Load Current Calculator","description":"Calculates induction motor full load current from rated power, voltage, power factor and efficiency, together with starting current for five starting methods, full load torque, synchronous speed, slip, reactive power and recommended breaker rating.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/motor-full-load-current-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Motor Full Load Current Calculator","item":"https://www.multicalci.com/motor-full-load-current-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate motor full load current?","acceptedAnswer":{"@type":"Answer","text":"For a three-phase motor, full load current equals the electrical input power divided by the square root of three times the line voltage times the power factor. The important step is that rated kW on the nameplate is shaft output, not electrical input, so it must first be divided by efficiency. A 75 kW motor at 94 percent efficiency draws 79.79 kW electrically, and at 415 volts with a power factor of 0.86 that gives 129.07 amperes. Using the shaft rating directly would under-read the current by about 6 percent."}},{"@type":"Question","name":"What is the starting current of a motor?","acceptedAnswer":{"@type":"Answer","text":"A direct-on-line induction motor draws roughly five to eight times full load current at the instant of starting, because at standstill the rotor acts as a short-circuited secondary. The exact multiple is the locked rotor current on the nameplate, often shown as the code letter or as an ISM value. Star-delta reduces this to one third, an auto-transformer at a 65 percent tap to about 42 percent, a soft starter to roughly two to three times full load current, and a variable frequency drive to about full load current."}},{"@type":"Question","name":"How do I calculate motor slip?","acceptedAnswer":{"@type":"Answer","text":"Slip is the difference between synchronous speed and actual rotor speed, expressed as a percentage of synchronous speed. Synchronous speed equals 120 times the supply frequency divided by the number of poles, so a four-pole motor on 50 hertz has a synchronous speed of 1500 revolutions per minute. A nameplate speed of 1480 gives a slip of 1.33 percent. Typical full load slip is one to five percent, with smaller motors sitting at the higher end."}},{"@type":"Question","name":"What size circuit breaker do I need for a motor?","acceptedAnswer":{"@type":"Answer","text":"Two conventions are in common use. IEC practice sizes the protective device at about 125 percent of full load current, relying on a separate overload relay for thermal protection. The NEC allows an inverse-time breaker up to 250 percent of full load current for a design B motor under article 430.52, because the device must ride through the starting inrush without tripping. Whichever you use, the final selection must be checked against the actual trip curve and the starting current and time."}},{"@type":"Question","name":"What is motor service factor?","acceptedAnswer":{"@type":"Answer","text":"Service factor is a multiplier showing how far above nameplate rating a motor may be operated continuously without damage. A service factor of 1.15 means the motor can deliver 115 percent of rated power indefinitely, though at reduced efficiency, higher temperature rise and shortened insulation life. Cables and overload relays should be sized on the service factor current rather than the nameplate current, since that is the highest continuous current the circuit may actually see."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Motor Full Load Current Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Motor Full Load Current Calculator</h1>
+    <p class="lede">Calculate induction motor full load current from the nameplate rating, with starting current for direct-on-line, star-delta, auto-transformer, soft starter and VFD starting. Also returns full load torque, synchronous speed, slip, reactive power and a recommended protective device rating.</p>
+    <div class="stdref">
+      <span>IEC 60034</span>
+      <span>IEC 60947</span>
+      <span>NEC 430</span>
+      <span>IS 12615</span>
+    </div>
+  </div>
+
+  <div class="utog">
+    <button type="button" class="ubtn on" data-unit-btn="SI" id="mUnitSI">SI</button>
+    <button type="button" class="ubtn" data-unit-btn="IMP" id="mUnitIMP">Imperial</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#9881;</span>
+      <span class="card-hd-ttl">Motor Nameplate</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="mP"><span data-unit-si="Rated Output (kW)" data-unit-imp="Rated Output (hp)">Rated Output (kW)</span></label>
+          <input type="number" id="mP" value="75" step="any" min="0">
+          <div class="hint">Shaft output from the nameplate, not electrical input.</div>
+        </div>
+        <div class="field">
+          <label for="mV">Rated Voltage <span class="u">V</span></label>
+          <input type="number" id="mV" value="415" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="mPF">Power Factor cos &#966;</label>
+          <input type="number" id="mPF" value="0.86" step="any" min="0" max="1">
+        </div>
+        <div class="field">
+          <label for="mEff">Efficiency &#951; <span class="u">%</span></label>
+          <input type="number" id="mEff" value="94" step="any" min="0" max="100">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="mPhase">Phase System</label>
+          <select id="mPhase">
+            <option value="3" selected>Three Phase</option>
+            <option value="1">Single Phase</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="mPoles">Poles</label>
+          <select id="mPoles">
+            <option value="2">2 pole</option>
+            <option value="4" selected>4 pole</option>
+            <option value="6">6 pole</option>
+            <option value="8">8 pole</option>
+            <option value="10">10 pole</option>
+            <option value="12">12 pole</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="mFreq">Supply Frequency <span class="u">Hz</span></label>
+          <select id="mFreq">
+            <option value="50" selected>50 Hz</option>
+            <option value="60">60 Hz</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="mRPM">Rated Speed <span class="u">rpm</span></label>
+          <input type="number" id="mRPM" value="1480" step="any" min="0">
+          <div class="hint">Full load speed from the nameplate. Must be below synchronous speed.</div>
+        </div>
+        <div class="field">
+          <label for="mSF">Service Factor SF</label>
+          <input type="number" id="mSF" value="1.0" step="any" min="0">
+          <div class="hint">1.0 typical for IEC, 1.15 common for NEMA.</div>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="mStart">Starting Method</label>
+          <select id="mStart">
+            <option value="dol" selected>Direct on line (DOL)</option>
+            <option value="sd">Star-delta (Y-&#916;)</option>
+            <option value="autotx">Auto-transformer (65 % tap)</option>
+            <option value="softstarter">Soft starter</option>
+            <option value="vfd">Variable frequency drive</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="mISM">Locked Rotor Multiple ISM</label>
+          <input type="number" id="mISM" value="6" step="any" min="0">
+          <div class="hint">From the nameplate. Typically 5 to 8.</div>
+        </div>
+        <div class="field">
+          <label for="mBrkRule">Protection Rule</label>
+          <select id="mBrkRule">
+            <option value="1.25" selected>125 % of FLC — IEC practice</option>
+            <option value="2.5">250 % of FLC — NEC 430.52 inverse time</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="mErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="mCalcBtn">Calculate Full Load Current</button>
+        <button type="button" class="btn-pdf" id="mPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="mShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="mResults">
+    <div class="rc-empty">Enter the nameplate data and select Calculate.</div>
+  </div>
+
+  <div id="mWarnings"></div>
+
+  <h2>Motor Current Formulae</h2>
+
+  <div class="fbox">
+    P<sub>in</sub> = P<sub>shaft</sub> / &#951; <span class="cm">// nameplate kW is shaft output</span><br>
+    I<sub>L</sub> = P<sub>in</sub> / ( &#8730;3 &#183; V &#183; cos &#966; ) <span class="cm">// three phase</span><br>
+    I<sub>L</sub> = P<sub>in</sub> / ( V &#183; cos &#966; ) <span class="cm">// single phase</span>
+  </div>
+  <div class="fbox">
+    S = &#8730;3 &#183; V &#183; I<sub>L</sub> &nbsp;&#183;&nbsp; Q = S &#183; sin &#966;<br>
+    T = P<sub>shaft</sub> / ( 2&#960; &#183; n / 60 ) <span class="cm">// full load torque from shaft power</span>
+  </div>
+  <div class="fbox">
+    N<sub>s</sub> = 120 &#183; f / p <span class="cm">// synchronous speed</span><br>
+    s = ( N<sub>s</sub> &#8722; n ) / N<sub>s</sub> &#215; 100 <span class="cm">// slip, percent</span>
+  </div>
+  <div class="fbox">
+    I<sub>SF</sub> = I<sub>L</sub> &#215; SF <span class="cm">// size cables and overload on this</span><br>
+    I<sub>breaker</sub> = next standard rating &#8805; I<sub>SF</sub> &#215; rule
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>P<sub>shaft</sub></td><td>Rated mechanical output on the nameplate</td><td>W</td></tr>
+        <tr><td>P<sub>in</sub></td><td>Electrical input power</td><td>W</td></tr>
+        <tr><td>&#951;</td><td>Efficiency at full load</td><td>—</td></tr>
+        <tr><td>I<sub>L</sub></td><td>Full load line current</td><td>A</td></tr>
+        <tr><td>S</td><td>Apparent power</td><td>VA</td></tr>
+        <tr><td>Q</td><td>Reactive power drawn</td><td>VAr</td></tr>
+        <tr><td>T</td><td>Full load shaft torque</td><td>N·m</td></tr>
+        <tr><td>N<sub>s</sub></td><td>Synchronous speed of the rotating field</td><td>rpm</td></tr>
+        <tr><td>n</td><td>Rated rotor speed at full load</td><td>rpm</td></tr>
+        <tr><td>p</td><td>Number of poles</td><td>—</td></tr>
+        <tr><td>s</td><td>Slip</td><td>%</td></tr>
+        <tr><td>SF</td><td>Service factor</td><td>—</td></tr>
+        <tr><td>ISM</td><td>Locked rotor current multiple</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">75 kW four-pole motor, 415 V, 0.86 PF, 94 % efficient, DOL start</div>
+
+    <p>A 75 kW cage induction motor runs on a 415 V three-phase 50 Hz supply. The nameplate gives 0.86 power factor, 94 % efficiency, 1480 rpm rated speed and a locked rotor multiple of 6. It is started direct on line with a service factor of 1.0.</p>
+
+    <dl>
+      <dt>Electrical input power</dt>
+      <dd>P<sub>in</sub> = 75000 / 0.94 = 79787.23 W</dd>
+
+      <dt>Full load current</dt>
+      <dd>I<sub>L</sub> = 79787.23 / (&#8730;3 × 415 × 0.86) = 79787.23 / 618.17 = 129.07 A</dd>
+
+      <dt>Apparent power</dt>
+      <dd>S = &#8730;3 × 415 × 129.07 = 92775.85 VA</dd>
+
+      <dt>Reactive power</dt>
+      <dd>sin &#966; = &#8730;(1 &#8722; 0.86&#178;) = 0.5103 &#8594; Q = 92775.85 × 0.5103 = 47342.96 VAr</dd>
+
+      <dt>Full load torque</dt>
+      <dd>T = 75000 / (2&#960; × 1480 / 60) = 75000 / 154.99 = 483.92 N·m</dd>
+
+      <dt>Synchronous speed</dt>
+      <dd>N<sub>s</sub> = 120 × 50 / 4 = 1500 rpm</dd>
+
+      <dt>Slip</dt>
+      <dd>s = (1500 &#8722; 1480) / 1500 × 100 = 1.33 %</dd>
+
+      <dt>DOL starting current</dt>
+      <dd>I<sub>s</sub> = 6 × 129.07 = 774.42 A</dd>
+
+      <dt>Breaker at 125 %</dt>
+      <dd>129.07 × 1.25 = 161.34 A &#8594; next standard rating 200 A</dd>
+    </dl>
+
+    <div class="ans">I<sub>L</sub> = 129.07 A &#183; T = 483.92 N·m &#183; slip 1.33 % &#183; I<sub>s</sub> 774.42 A &#183; breaker 200 A</div>
+  </div>
+
+  <div class="note">The 200 A result comes from the standard rating series, where 161.34 A falls just above the 160 A frame. In practice a 160 A device with a suitable trip curve is often acceptable — the standard-size step is a starting point, not a selection.</div>
+
+  <h2>Starting Method Comparison</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Method</th><th>Starting current</th><th>Starting torque</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td>Direct on line</td><td>ISM &#215; I<sub>L</sub>, i.e. 5–8&#215;</td><td>150 % of rated</td><td>Small motors, stiff supply</td></tr>
+        <tr><td>Star-delta</td><td>ISM &#215; I<sub>L</sub> / 3</td><td>50 % of rated</td><td>Light or unloaded starts (fans, pumps)</td></tr>
+        <tr><td>Auto-transformer</td><td>&#8776; 0.42 &#215; DOL at 65 % tap</td><td>42 % of rated</td><td>Where torque must be tuned by tap</td></tr>
+        <tr><td>Soft starter</td><td>&#8776; 2–3 &#215; I<sub>L</sub></td><td>100 % of rated</td><td>Belt drives, conveyors, shock-sensitive loads</td></tr>
+        <tr><td>Variable frequency drive</td><td>&#8776; 1 &#215; I<sub>L</sub></td><td>150 % of rated</td><td>Speed control, highest cost</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Star-delta cuts current to a third but torque to a third as well, so the load torque must stay below about 33 % of rated at the changeover point. A loaded star-delta start stalls in star or produces a large current transient at the transition.</div>
+
+  <h2>Synchronous Speeds</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Poles</th><th>N<sub>s</sub> at 50 Hz</th><th>Typical rated speed</th><th>N<sub>s</sub> at 60 Hz</th><th>Typical rated speed</th></tr></thead>
+      <tbody>
+        <tr><td>2</td><td>3000 rpm</td><td>2900–2950</td><td>3600 rpm</td><td>3480–3540</td></tr>
+        <tr><td>4</td><td>1500 rpm</td><td>1440–1480</td><td>1800 rpm</td><td>1730–1770</td></tr>
+        <tr><td>6</td><td>1000 rpm</td><td>950–980</td><td>1200 rpm</td><td>1150–1175</td></tr>
+        <tr><td>8</td><td>750 rpm</td><td>710–735</td><td>900 rpm</td><td>860–880</td></tr>
+        <tr><td>10</td><td>600 rpm</td><td>570–590</td><td>720 rpm</td><td>690–710</td></tr>
+        <tr><td>12</td><td>500 rpm</td><td>475–490</td><td>600 rpm</td><td>575–590</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Typical Efficiency &amp; Power Factor (IE3, 4-pole)</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Rating</th><th>Efficiency</th><th>Power factor</th><th>FLC at 415 V</th></tr></thead>
+      <tbody>
+        <tr><td>1.5 kW</td><td>82.8 %</td><td>0.80</td><td>3.15 A</td></tr>
+        <tr><td>3.7 kW</td><td>88.1 %</td><td>0.83</td><td>7.04 A</td></tr>
+        <tr><td>7.5 kW</td><td>90.4 %</td><td>0.85</td><td>13.58 A</td></tr>
+        <tr><td>15 kW</td><td>92.1 %</td><td>0.86</td><td>26.34 A</td></tr>
+        <tr><td>30 kW</td><td>93.6 %</td><td>0.86</td><td>51.83 A</td></tr>
+        <tr><td>55 kW</td><td>94.6 %</td><td>0.86</td><td>94.02 A</td></tr>
+        <tr><td>75 kW</td><td>95.0 %</td><td>0.86</td><td>127.70 A</td></tr>
+        <tr><td>132 kW</td><td>95.6 %</td><td>0.87</td><td>220.61 A</td></tr>
+        <tr><td>200 kW</td><td>96.2 %</td><td>0.87</td><td>332.28 A</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Indicative IE3 values for guidance when the nameplate is not to hand. Always use the actual nameplate for design — efficiency and power factor vary between manufacturers and fall sharply below about half load.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate motor full load current?</summary>
+      <div class="faq-a"><p>For a three-phase motor, full load current equals the electrical input power divided by &#8730;3 times the line voltage times the power factor. The important step is that rated kW on the nameplate is shaft output, not electrical input, so it must first be divided by efficiency. A 75 kW motor at 94 % efficiency draws 79.79 kW electrically, and at 415 V with a power factor of 0.86 that gives 129.07 A. Using the shaft rating directly would under-read the current by about 6 %.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the starting current of a motor?</summary>
+      <div class="faq-a"><p>A direct-on-line induction motor draws roughly five to eight times full load current at the instant of starting, because at standstill the rotor acts as a short-circuited secondary. The exact multiple is the locked rotor current on the nameplate, often shown as the code letter or as an ISM value. Star-delta reduces this to one third, an auto-transformer at a 65 % tap to about 42 %, a soft starter to roughly two to three times full load current, and a variable frequency drive to about full load current.</p></div>
+    </details>
+
+    <details>
+      <summary>How do I calculate motor slip?</summary>
+      <div class="faq-a"><p>Slip is the difference between synchronous speed and actual rotor speed, expressed as a percentage of synchronous speed. Synchronous speed equals 120 times the supply frequency divided by the number of poles, so a four-pole motor on 50 Hz has a synchronous speed of 1500 rpm. A nameplate speed of 1480 gives a slip of 1.33 %. Typical full load slip is one to five percent, with smaller motors sitting at the higher end.</p></div>
+    </details>
+
+    <details>
+      <summary>What size circuit breaker do I need for a motor?</summary>
+      <div class="faq-a"><p>Two conventions are in common use. IEC practice sizes the protective device at about 125 % of full load current, relying on a separate overload relay for thermal protection. The NEC allows an inverse-time breaker up to 250 % of full load current for a design B motor under article 430.52, because the device must ride through the starting inrush without tripping. Whichever you use, the final selection must be checked against the actual trip curve and the starting current and time.</p></div>
+    </details>
+
+    <details>
+      <summary>What is motor service factor?</summary>
+      <div class="faq-a"><p>Service factor is a multiplier showing how far above nameplate rating a motor may be operated continuously without damage. A service factor of 1.15 means the motor can deliver 115 % of rated power indefinitely, though at reduced efficiency, higher temperature rise and shortened insulation life. Cables and overload relays should be sized on the service factor current rather than the nameplate current, since that is the highest continuous current the circuit may actually see.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size the motor feeder on I<sub>SF</sub></span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Check drop at starting current</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">kVA, kW, kVAr and correction</span></a>
+    <a href="https://www.multicalci.com/short-circuit-current-calculator">Short Circuit Current Calculator<span class="d">Motor contribution to fault level</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Supply capacity for motor loads</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. Protective device selection requires trip curve coordination against the actual starting current and time per NEC 430 or IEC 60947. Verify against the motor nameplate and a qualified engineer before construction.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('mResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var HP_TO_KW = 0.7457, NM_TO_LBFT = 0.7376;
+  var last = null, hasRun = false;
+
+  function imperial() { return !M.isSI(); }
+  function syncSpeed() {
+    var p = parseFloat(M.gs('mPoles')) || 4;
+    var f = parseFloat(M.gs('mFreq')) || 50;
+    return 120 * f / p;
+  }
+  function suggestPoles(n, f) {
+    var best = null, bestDiff = Infinity;
+    [2, 4, 6, 8, 10, 12].forEach(function (p) {
+      var ns = 120 * f / p;
+      if (ns <= n) return;
+      var slip = (ns - n) / ns;
+      var diff = Math.abs(slip - 0.03);
+      if (diff < bestDiff) { bestDiff = diff; best = p; }
+    });
+    return best;
+  }
+
+  function collect() {
+    var v = M.validate([
+      { id: 'mP',    label: 'Rated output',  required: true, gt: 0 },
+      { id: 'mV',    label: 'Rated voltage', required: true, gt: 0 },
+      { id: 'mPF',   label: 'Power factor',  required: true, gt: 0, lte: 1 },
+      { id: 'mEff',  label: 'Efficiency',    required: true, gt: 0, lte: 100 },
+      { id: 'mRPM',  label: 'Rated speed',   required: true, gt: 0 },
+      { id: 'mSF',   label: 'Service factor', required: true, gte: 1, lte: 2 },
+      { id: 'mISM',  label: 'Locked rotor multiple', required: true, gt: 0, lte: 15 }
+    ]);
+
+    // Note: the `gt: 0` rule on mRPM above also covers the API's
+    // `parseFloat(n) || 1480` substitution, which would otherwise silently
+    // return a 1480 rpm result for an entered speed of 0.
+
+    // The API computes slip from Ns without checking that n is below it, so a
+    // speed above synchronous returns a negative slip presented as a normal result.
+    if (v.ok) {
+      var ns = syncSpeed(), n = M.gv('mRPM');
+      if (n >= ns) {
+        var f = parseFloat(M.gs('mFreq')) || 50;
+        var p = suggestPoles(n, f);
+        var hint = p ? ' A ' + p + '-pole motor at ' + f + ' Hz gives ' + (120 * f / p) + ' rpm.' : '';
+        v = { ok: false, errors: [{ id: 'mRPM', msg: 'Rated speed ' + n + ' rpm is not below the synchronous speed of ' + ns + ' rpm for ' + M.gs('mPoles') + ' poles at ' + f + ' Hz. An induction motor always runs slower than synchronous.' + hint }], warns: v.warns };
+      }
+    }
+
+    M.showValidation('mErrors', v);
+    if (!v.ok) return null;
+
+    var P = M.gv('mP');
+    return {
+      Pkw: imperial() ? P * HP_TO_KW : P,
+      V: M.gv('mV'),
+      PF: M.gv('mPF'),
+      eff: M.gv('mEff') / 100,
+      n: M.gv('mRPM'),
+      phase: parseInt(M.gs('mPhase'), 10),
+      poles: parseInt(M.gs('mPoles'), 10),
+      freq: parseFloat(M.gs('mFreq')),
+      SF: M.gv('mSF'),
+      start: M.gs('mStart'),
+      brkRule: parseFloat(M.gs('mBrkRule')),
+      ISM: M.gv('mISM')
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function render(inp, r) {
+    var torque = imperial() ? r.T_Nm * NM_TO_LBFT : r.T_Nm;
+    var torqueUnit = imperial() ? 'lb\u00B7ft' : 'N\u00B7m';
+    var threePh = inp.phase === 3;
+
+    var html = '';
+    html += cardHtml({
+      label: 'Full Load Current I\u2097', value: M.fN(r.IL, 2), unit: 'A',
+      tone: 'main', big: true, span: true,
+      sub: M.fN(inp.Pkw, 2, 'kW') + ' shaft, ' + (threePh ? 'three' : 'single') + ' phase at ' +
+        M.fN(inp.V, 0, 'V') + ', \u03B7 ' + M.fN(inp.eff * 100, 1, '%')
+    });
+    html += cardHtml({
+      label: 'Service Factor Current', value: M.fN(r.IL_SF, 2), unit: 'A',
+      tone: 'amb', sub: 'I\u2097 \u00D7 SF ' + M.fN(r.SF, 2) + ' \u2014 size cable and overload relay on this'
+    });
+    html += cardHtml({
+      label: 'Starting Current I\u209B', value: M.fN(r.Is, 2), unit: 'A',
+      tone: 'red', sub: r.start_note || ''
+    });
+    html += cardHtml({
+      label: 'Starting Torque', value: M.fN(r.Ts_pct, 0), unit: '% of rated',
+      tone: 'red', sub: 'Confirm the load torque curve sits below this at every speed'
+    });
+    html += cardHtml({
+      label: 'Full Load Torque', value: M.fN(torque, 2), unit: torqueUnit,
+      tone: 'blu', sub: 'From shaft power at ' + M.fN(inp.n, 0, 'rpm')
+    });
+    html += cardHtml({
+      label: 'Synchronous Speed N\u209B', value: M.fN(r.Ns, 0), unit: 'rpm',
+      tone: 'blu', sub: '120 \u00D7 ' + M.fN(inp.freq, 0, 'Hz') + ' / ' + inp.poles + ' poles'
+    });
+    html += cardHtml({
+      label: 'Slip', value: M.fN(r.slip_pct, 2), unit: '%',
+      tone: 'cyn', sub: M.fN(r.Ns - inp.n, 0, 'rpm') + ' below synchronous'
+    });
+    html += cardHtml({
+      label: 'Electrical Input Power', value: M.fN(r.Pin_W / 1000, 3), unit: 'kW',
+      tone: 'cyn', sub: 'Shaft power divided by efficiency'
+    });
+    html += cardHtml({
+      label: 'Apparent Power S', value: M.fN(r.S_VA / 1000, 3), unit: 'kVA',
+      tone: 'pur', sub: 'Supply capacity this motor occupies'
+    });
+    html += cardHtml({
+      label: 'Reactive Power Q', value: M.fN(r.Q_VAr / 1000, 3), unit: 'kVAr',
+      tone: 'pur', sub: 'Magnetising demand \u2014 the target for power factor correction'
+    });
+    html += cardHtml({
+      label: 'Protective Device', value: M.fN(r.brk, 0), unit: 'A',
+      tone: 'grn', span: true,
+      sub: 'Next standard rating at ' + M.fN(r.brkRule * 100, 0, '%') + ' of I\u209B\u1DA0. ' +
+        'Must be verified against the trip curve, the starting current of ' + M.fN(r.Is, 0, 'A') + ' and the run-up time.'
+    });
+
+    M.set('mResults', html);
+
+    var warns = '';
+    if (r.slip_pct > 6) {
+      warns += '<div class="note">Slip of ' + M.fN(r.slip_pct, 2, '%') + ' is high for a standard cage induction motor, where 1\u20135 % is typical. Check that the pole count and supply frequency match the nameplate \u2014 a 50 Hz nameplate speed entered against 60 Hz is the usual cause.</div>';
+    }
+    if (inp.start === 'sd' && r.Ts_pct < 60) {
+      warns += '<div class="note">Star-delta gives only ' + M.fN(r.Ts_pct, 0, '%') + ' of rated torque during the star period. The load must accelerate to near full speed on that torque, so this method suits unloaded or light starts only.</div>';
+    }
+    if (inp.brkRule >= 2.5) {
+      warns += '<div class="note">The 250 % rule is the NEC 430.52 maximum for an inverse-time breaker on a design B motor. It provides short-circuit protection only \u2014 a separate overload relay set near I\u209B\u1DA0 is still required.</div>';
+    }
+    M.set('mWarnings', warns);
+
+    document.getElementById('mPdfBtn').disabled = false;
+    last = { inp: inp, r: r, torque: torque, torqueUnit: torqueUnit };
+    hasRun = true;
+  }
+
+  function calculate() {
+    var inp = collect();
+    if (!inp) {
+      document.getElementById('mPdfBtn').disabled = true;
+      M.set('mWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('mCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('mResults', true);
+    return M.api.electrical('motor', inp).then(function (r) {
+      render(inp, r);
+    }).catch(function (err) {
+      M.showError('mResults', err);
+      M.set('mWarnings', '');
+      document.getElementById('mPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('p', M.gs('mP'));
+    p.set('v', M.gs('mV'));
+    p.set('pf', M.gs('mPF'));
+    p.set('eff', M.gs('mEff'));
+    p.set('n', M.gs('mRPM'));
+    p.set('ph', M.gs('mPhase'));
+    p.set('pol', M.gs('mPoles'));
+    p.set('f', M.gs('mFreq'));
+    p.set('sf', M.gs('mSF'));
+    p.set('st', M.gs('mStart'));
+    p.set('ism', M.gs('mISM'));
+    p.set('br', M.gs('mBrkRule'));
+    p.set('u', imperial() ? 'imp' : 'si');
+    return 'https://www.multicalci.com/motor-full-load-current-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    if (p.get('u')) M.setUnitSystem(p.get('u') === 'imp' ? 'IMP' : 'SI');
+    var map = {
+      p: 'mP', v: 'mV', pf: 'mPF', eff: 'mEff', n: 'mRPM', ph: 'mPhase',
+      pol: 'mPoles', f: 'mFreq', sf: 'mSF', st: 'mStart', ism: 'mISM', br: 'mBrkRule'
+    };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any || !!p.get('u');
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Motor Full Load Current Calculator', text: 'Motor sizing case on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('mShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var i = last.inp, r = last.r;
+    var when = new Date().toLocaleString();
+    var startLabel = { dol: 'Direct on line', sd: 'Star-delta', autotx: 'Auto-transformer 65 % tap', softstarter: 'Soft starter', vfd: 'Variable frequency drive' }[i.start] || i.start;
+    var inRows = [
+      ['Rated output', M.fN(i.Pkw, 2, 'kW')],
+      ['Rated voltage', M.fN(i.V, 2, 'V')],
+      ['Phase system', i.phase === 3 ? 'Three phase' : 'Single phase'],
+      ['Power factor', M.fN(i.PF, 3)],
+      ['Efficiency', M.fN(i.eff * 100, 2, '%')],
+      ['Rated speed', M.fN(i.n, 0, 'rpm')],
+      ['Poles / frequency', i.poles + ' / ' + M.fN(i.freq, 0, 'Hz')],
+      ['Service factor', M.fN(i.SF, 2)],
+      ['Starting method', startLabel],
+      ['Locked rotor multiple', M.fN(i.ISM, 2)],
+      ['Protection rule', M.fN(i.brkRule * 100, 0, '% of FLC')]
+    ];
+    var outRows = [
+      ['Full load current', M.fN(r.IL, 2, 'A')],
+      ['Service factor current', M.fN(r.IL_SF, 2, 'A')],
+      ['Starting current', M.fN(r.Is, 2, 'A')],
+      ['Starting torque', M.fN(r.Ts_pct, 0, '% of rated')],
+      ['Full load torque', M.fN(last.torque, 2, last.torqueUnit)],
+      ['Synchronous speed', M.fN(r.Ns, 0, 'rpm')],
+      ['Slip', M.fN(r.slip_pct, 2, '%')],
+      ['Electrical input power', M.fN(r.Pin_W / 1000, 3, 'kW')],
+      ['Apparent power', M.fN(r.S_VA / 1000, 3, 'kVA')],
+      ['Reactive power', M.fN(r.Q_VAr / 1000, 3, 'kVAr')],
+      ['Protective device', M.fN(r.brk, 0, 'A')]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Motor Current Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Motor Full Load Current Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Nameplate', inRows) + table('Results', outRows) +
+      '<div class="f">' + M.esc(r.start_note || '') + ' Protective device rating is a starting point from the ' +
+      'standard rating series and must be coordinated against the actual trip curve, starting current and run-up time ' +
+      'per NEC 430 or IEC 60947. For estimation and preliminary design; verify with a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  window.onUnitSystemChange = function () {
+    if (hasRun) calculate();
+  };
+
+  M.ready(function () {
+    M.setUnitSystem('SI');
+
+    document.getElementById('mCalcBtn').addEventListener('click', calculate);
+    document.getElementById('mPdfBtn').addEventListener('click', pdf);
+    document.getElementById('mShareBtn').addEventListener('click', share);
+    document.getElementById('mUnitSI').addEventListener('click', function () { M.setUnitSystem('SI'); });
+    document.getElementById('mUnitIMP').addEventListener('click', function () { M.setUnitSystem('IMP'); });
+
+    M.enterToCalc(['mP', 'mV', 'mPF', 'mEff', 'mRPM', 'mSF', 'mISM'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
