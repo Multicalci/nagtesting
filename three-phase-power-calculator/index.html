@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Three Phase Power Calculator — kVA, kW, kVAr | multicalci.com</title>
+<meta name="description" content="Free three phase power calculator. Convert line voltage and current into kVA, kW and kVAr, with power factor angle, phase voltage, correction kVAr, annual energy and running cost.">
+<link rel="canonical" href="https://www.multicalci.com/three-phase-power-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Three Phase Power Calculator — kVA, kW, kVAr">
+<meta property="og:description" content="Convert line voltage and current into apparent, active and reactive power, with power factor correction kVAr and running cost.">
+<meta property="og:url" content="https://www.multicalci.com/three-phase-power-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Three Phase Power Calculator — kVA, kW, kVAr">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Three Phase Power Calculator","description":"Converts line voltage and line current into apparent, active and reactive power for single and three phase systems, and calculates power factor angle, phase voltage, the capacitor rating needed to correct to 0.95, annual energy consumption and running cost.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/three-phase-power-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Three Phase Power Calculator","item":"https://www.multicalci.com/three-phase-power-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate three phase power?","acceptedAnswer":{"@type":"Answer","text":"Apparent power in volt-amperes equals the square root of three multiplied by the line voltage and the line current. Active power in watts is that result multiplied by the power factor. For a 415 volt supply drawing 100 amperes, apparent power is 71880 volt-amperes or 71.88 kilovolt-amperes, and at a power factor of 0.8 the active power is 57504 watts. The square root of three appears because line current and phase voltage in a three-phase system are separated by 30 degrees, not because there are three phases."}},{"@type":"Question","name":"What is the difference between kW, kVA and kVAr?","acceptedAnswer":{"@type":"Answer","text":"Kilovolt-amperes is the total power flowing, the product of voltage and current, and is what determines cable and transformer size. Kilowatts is the portion doing useful work, and is what the energy meter bills. Kilovolt-amperes reactive is the portion that oscillates between the supply and the load's magnetic fields without doing work. The three form a right triangle where apparent power squared equals active power squared plus reactive power squared, and power factor is the ratio of active to apparent power."}},{"@type":"Question","name":"How much capacitor kVAr do I need to correct power factor?","acceptedAnswer":{"@type":"Answer","text":"The capacitor rating equals the active power multiplied by the difference between the tangent of the existing phase angle and the tangent of the target angle. This calculator targets a power factor of 0.95, which is the threshold most tariffs use. A 57.5 kilowatt load at 0.8 power factor needs about 24.2 kilovolt-amperes reactive to reach 0.95. Correcting all the way to unity is usually avoided because it risks leading power factor at light load and resonance with system harmonics."}},{"@type":"Question","name":"Why is line voltage divided by root 3?","acceptedAnswer":{"@type":"Answer","text":"In a star or wye connection, the line voltage measured between any two phases is the vector difference of two phase voltages that are 120 degrees apart, and that vector difference is the square root of three times the individual phase voltage. So a 415 volt line-to-line system has 239.6 volts between each phase and neutral. In a delta connection there is no neutral and the line voltage equals the phase voltage, while the line current becomes the square root of three times the phase current instead."}},{"@type":"Question","name":"What is a good power factor?","acceptedAnswer":{"@type":"Answer","text":"Most utilities set the threshold at 0.95 lagging, below which a penalty applies, and many industrial tariffs offer a rebate above it. Anything below 0.85 is usually worth correcting on cost alone, because the reactive current inflates cable losses, consumes transformer capacity and often attracts a direct charge. Above 0.98 the remaining gain is small and the risk of overcorrection at light load rises, so 0.95 to 0.98 is the usual target band."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Three Phase Power Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Three Phase Power Calculator</h1>
+    <p class="lede">Convert line voltage and line current into apparent, active and reactive power for a three-phase or single-phase supply. Returns the power factor angle, phase voltage, the capacitor rating needed to reach 0.95, and the annual energy and running cost at your tariff.</p>
+    <div class="stdref">
+      <span>S = &#8730;3 &#183; V &#183; I</span>
+      <span>P = S &#183; cos &#966;</span>
+      <span>IEC 60038</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128267;</span>
+      <span class="card-hd-ttl">Supply &amp; Load</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="acPhase">Phase System</label>
+          <select id="acPhase">
+            <option value="3" selected>Three Phase (S = &#8730;3 &#183; V<sub>L</sub> &#183; I<sub>L</sub>)</option>
+            <option value="1">Single Phase (S = V &#183; I)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="acV">Line Voltage V<sub>L</sub> <span class="u">V</span></label>
+          <input type="number" id="acV" value="415" step="any" min="0">
+          <div class="hint">Line-to-line for three phase, line-to-neutral for single phase.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="acI">Line Current I<sub>L</sub> <span class="u">A</span></label>
+          <input type="number" id="acI" value="100" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="acPF">Power Factor cos &#966;</label>
+          <input type="number" id="acPF" value="0.8" step="any" min="0" max="1">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="acEff">Efficiency &#951; <span class="u">%</span></label>
+          <input type="number" id="acEff" value="92" step="any" min="0" max="100">
+          <div class="hint">Used only for the P &#247; &#951; figure — see the note under the results.</div>
+        </div>
+        <div class="field">
+          <label for="acHr">Operating Hours per Year <span class="u">h</span></label>
+          <input type="number" id="acHr" value="6000" step="any" min="0">
+          <div class="hint">8760 is continuous running.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="acRate">Energy Tariff <span class="u">per kWh</span></label>
+          <input type="number" id="acRate" value="8" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="acCur">Currency</label>
+          <select id="acCur">
+            <option value="&#8377;" selected>&#8377; Rupee</option>
+            <option value="$">$ Dollar</option>
+            <option value="&#8364;">&#8364; Euro</option>
+            <option value="&#163;">&#163; Pound</option>
+          </select>
+          <div class="hint">Display only — the tariff figure is used as entered.</div>
+        </div>
+      </div>
+
+      <div id="acErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="acCalcBtn">Calculate Power</button>
+        <button type="button" class="btn-pdf" id="acPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="acShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="acResults">
+    <div class="rc-empty">Enter the supply and load data and select Calculate.</div>
+  </div>
+
+  <div id="acWarnings"></div>
+
+  <div class="note"><strong>On the P &#247; &#951; figure:</strong> when V and I are measured at the load's own terminals, the active power P <em>is</em> the electrical input, and the useful output is P &#215; &#951;. The API returns P &#247; &#951;, which is the correct reading only if &#951; describes the generation or supply chain upstream of the measurement point. Both figures are shown so you can pick the one that matches where your meter sits.</div>
+
+  <h2>Three Phase Power Formulae</h2>
+
+  <div class="fbox">
+    S = &#8730;3 &#183; V<sub>L</sub> &#183; I<sub>L</sub> <span class="cm">// three phase, volt-amperes</span><br>
+    S = V &#183; I <span class="cm">// single phase</span><br>
+    P = S &#183; cos &#966; &nbsp;&#183;&nbsp; Q = S &#183; sin &#966;
+  </div>
+  <div class="fbox">
+    S&#178; = P&#178; + Q&#178; <span class="cm">// the power triangle</span><br>
+    &#966; = arccos( PF ) &nbsp;&#183;&nbsp; V<sub>&#966;</sub> = V<sub>L</sub> / &#8730;3 <span class="cm">// star connection</span>
+  </div>
+  <div class="fbox">
+    Q<sub>c</sub> = P &#183; ( tan &#966;&#8321; &#8722; tan &#966;&#8322; ) <span class="cm">// correction kVAr, &#966;&#8322; = arccos 0.95</span><br>
+    E = P &#183; h / 1000 &nbsp;&#183;&nbsp; Cost = E &#215; tariff
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>S</td><td>Apparent power — sizes cables and transformers</td><td>VA</td></tr>
+        <tr><td>P</td><td>Active power — what the meter bills</td><td>W</td></tr>
+        <tr><td>Q</td><td>Reactive power — magnetising, no useful work</td><td>VAr</td></tr>
+        <tr><td>V<sub>L</sub></td><td>Line-to-line voltage</td><td>V</td></tr>
+        <tr><td>V<sub>&#966;</sub></td><td>Phase voltage, line to neutral</td><td>V</td></tr>
+        <tr><td>I<sub>L</sub></td><td>Line current</td><td>A</td></tr>
+        <tr><td>cos &#966;</td><td>Power factor, P / S</td><td>—</td></tr>
+        <tr><td>&#966;</td><td>Phase angle between voltage and current</td><td>°</td></tr>
+        <tr><td>Q<sub>c</sub></td><td>Capacitor rating to reach the target PF</td><td>VAr</td></tr>
+        <tr><td>&#951;</td><td>Efficiency</td><td>—</td></tr>
+        <tr><td>h</td><td>Operating hours per year</td><td>h</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">415 V three-phase load drawing 100 A at 0.8 power factor</div>
+
+    <p>A three-phase distribution board draws 100 A from a 415 V supply at 0.8 lagging power factor. The connected equipment is 92 % efficient, runs 6000 hours a year, and energy costs 8 per kWh.</p>
+
+    <dl>
+      <dt>Apparent power</dt>
+      <dd>S = &#8730;3 × 415 × 100 = 71880.11 VA = 71.88 kVA</dd>
+
+      <dt>Active power</dt>
+      <dd>P = 71880.11 × 0.8 = 57504.09 W = 57.50 kW</dd>
+
+      <dt>Reactive power</dt>
+      <dd>sin &#966; = &#8730;(1 &#8722; 0.8&#178;) = 0.6 &#8594; Q = 71880.11 × 0.6 = 43128.07 VAr</dd>
+
+      <dt>Phase angle</dt>
+      <dd>&#966; = arccos(0.8) = 36.87°</dd>
+
+      <dt>Phase voltage</dt>
+      <dd>V<sub>&#966;</sub> = 415 / &#8730;3 = 239.60 V</dd>
+
+      <dt>P &#247; &#951;</dt>
+      <dd>57504.09 / 0.92 = 62504.44 W</dd>
+
+      <dt>Correction to 0.95</dt>
+      <dd>Q<sub>c</sub> = 57504.09 × (tan 36.87° &#8722; tan 18.19°) = 57504.09 × 0.4213 = 24.227 kVAr</dd>
+
+      <dt>Annual energy</dt>
+      <dd>E = 57504.09 × 6000 / 1000 = 345024.5 kWh</dd>
+
+      <dt>Annual cost</dt>
+      <dd>345024.5 × 8 = 2760196.17</dd>
+    </dl>
+
+    <div class="ans">S = 71.88 kVA &#183; P = 57.50 kW &#183; Q = 43.13 kVAr &#183; &#966; = 36.87° &#183; Q<sub>c</sub> 24.227 kVAr</div>
+  </div>
+
+  <div class="note">Correcting this load from 0.8 to 0.95 releases about 14.5 kVA of transformer and cable capacity for the same useful output, which is often the stronger argument for correction than the tariff penalty alone.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Phase system</td><td>—</td><td>Single or three phase</td><td>Three phase</td></tr>
+        <tr><td>Line voltage</td><td>V</td><td>&gt; 0</td><td>415</td></tr>
+        <tr><td>Line current</td><td>A</td><td>&gt; 0</td><td>100</td></tr>
+        <tr><td>Power factor</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.80</td></tr>
+        <tr><td>Efficiency</td><td>%</td><td>&gt; 0 and &#8804; 100</td><td>92</td></tr>
+        <tr><td>Operating hours</td><td>h/year</td><td>&gt; 0 and &#8804; 8760</td><td>6000</td></tr>
+        <tr><td>Tariff</td><td>per kWh</td><td>&#8805; 0</td><td>8</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">The correction target is fixed at 0.95 and cannot be changed. Above 0.95 the calculator reports zero correction kVAr rather than a negative value, since a capacitor cannot reduce power factor.</div>
+
+  <h2>Typical Power Factor by Load</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Load type</th><th>Typical PF</th><th>Nature</th><th>Correction worthwhile</th></tr></thead>
+      <tbody>
+        <tr><td>Resistive heating</td><td>1.00</td><td>Unity</td><td>No</td></tr>
+        <tr><td>Incandescent lighting</td><td>1.00</td><td>Unity</td><td>No</td></tr>
+        <tr><td>LED / electronic ballast</td><td>0.90–0.95</td><td>Often leading</td><td>Rarely</td></tr>
+        <tr><td>Induction motor, full load</td><td>0.85–0.90</td><td>Lagging</td><td>Marginal</td></tr>
+        <tr><td>Induction motor, half load</td><td>0.70–0.80</td><td>Lagging</td><td>Yes</td></tr>
+        <tr><td>Induction motor, no load</td><td>0.10–0.30</td><td>Lagging</td><td>Yes — avoid idling</td></tr>
+        <tr><td>Welding set</td><td>0.50–0.70</td><td>Lagging, intermittent</td><td>Yes</td></tr>
+        <tr><td>Arc furnace</td><td>0.70–0.85</td><td>Lagging, harmonic-rich</td><td>Detuned banks only</td></tr>
+        <tr><td>VFD-driven load</td><td>0.95–0.98</td><td>Displacement near unity</td><td>No — filter harmonics instead</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">A motor's power factor collapses at light load while its current falls only slightly, so an oversized motor running lightly is the most common cause of poor site power factor. Right-sizing the motor usually beats adding capacitors.</div>
+
+  <h2>Standard Supply Voltages (IEC 60038)</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>System</th><th>Line voltage</th><th>Phase voltage</th><th>Region</th></tr></thead>
+      <tbody>
+        <tr><td>Three phase LV</td><td>400 V</td><td>230 V</td><td>Europe, IEC standard</td></tr>
+        <tr><td>Three phase LV</td><td>415 V</td><td>239.6 V</td><td>India, UK legacy, Australia</td></tr>
+        <tr><td>Three phase LV</td><td>380 V</td><td>219.4 V</td><td>China, parts of Asia</td></tr>
+        <tr><td>Three phase LV</td><td>480 V</td><td>277 V</td><td>North America industrial</td></tr>
+        <tr><td>Three phase LV</td><td>208 V</td><td>120 V</td><td>North America commercial</td></tr>
+        <tr><td>Three phase MV</td><td>3.3 / 6.6 / 11 kV</td><td>1.9 / 3.8 / 6.35 kV</td><td>India, UK distribution</td></tr>
+        <tr><td>Three phase MV</td><td>4.16 / 13.8 kV</td><td>2.4 / 7.97 kV</td><td>North America distribution</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate three phase power?</summary>
+      <div class="faq-a"><p>Apparent power in volt-amperes equals &#8730;3 multiplied by the line voltage and the line current. Active power in watts is that result multiplied by the power factor. For a 415 V supply drawing 100 A, apparent power is 71880 VA or 71.88 kVA, and at a power factor of 0.8 the active power is 57504 W. The &#8730;3 appears because line current and phase voltage in a three-phase system are separated by 30°, not because there are three phases.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the difference between kW, kVA and kVAr?</summary>
+      <div class="faq-a"><p>kVA is the total power flowing, the product of voltage and current, and is what determines cable and transformer size. kW is the portion doing useful work, and is what the energy meter bills. kVAr is the portion that oscillates between the supply and the load's magnetic fields without doing work. The three form a right triangle where S&#178; = P&#178; + Q&#178;, and power factor is the ratio of active to apparent power.</p></div>
+    </details>
+
+    <details>
+      <summary>How much capacitor kVAr do I need to correct power factor?</summary>
+      <div class="faq-a"><p>The capacitor rating equals the active power multiplied by the difference between the tangent of the existing phase angle and the tangent of the target angle. This calculator targets a power factor of 0.95, which is the threshold most tariffs use. A 57.5 kW load at 0.8 power factor needs about 24.2 kVAr to reach 0.95. Correcting all the way to unity is usually avoided because it risks leading power factor at light load and resonance with system harmonics.</p></div>
+    </details>
+
+    <details>
+      <summary>Why is line voltage divided by root 3?</summary>
+      <div class="faq-a"><p>In a star or wye connection, the line voltage measured between any two phases is the vector difference of two phase voltages that are 120° apart, and that vector difference is &#8730;3 times the individual phase voltage. So a 415 V line-to-line system has 239.6 V between each phase and neutral. In a delta connection there is no neutral and the line voltage equals the phase voltage, while the line current becomes &#8730;3 times the phase current instead.</p></div>
+    </details>
+
+    <details>
+      <summary>What is a good power factor?</summary>
+      <div class="faq-a"><p>Most utilities set the threshold at 0.95 lagging, below which a penalty applies, and many industrial tariffs offer a rebate above it. Anything below 0.85 is usually worth correcting on cost alone, because the reactive current inflates cable losses, consumes transformer capacity and often attracts a direct charge. Above 0.98 the remaining gain is small and the risk of overcorrection at light load rises, so 0.95 to 0.98 is the usual target band.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">FLC, torque, slip and starting current</span></a>
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size the feeder for this current</span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Drop along the cable run</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Capacity, efficiency and regulation</span></a>
+    <a href="https://www.multicalci.com/capacitive-reactance-calculator">Capacitive Reactance Calculator<span class="d">Sizing the correction capacitor</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. Energy cost is a simple product of power and hours — real billing adds demand charges, power factor penalties and time-of-day tariffs. Verify against your tariff schedule and a qualified engineer.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('acResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var last = null;
+
+  function collect() {
+    var v = M.validate([
+      { id: 'acV',    label: 'Line voltage',    required: true, gt: 0, lte: 800000 },
+      { id: 'acI',    label: 'Line current',    required: true, gt: 0, lte: 100000 },
+      { id: 'acPF',   label: 'Power factor',    required: true, gt: 0, lte: 1 },
+      { id: 'acEff',  label: 'Efficiency',      required: true, gt: 0, lte: 100 },
+      { id: 'acHr',   label: 'Operating hours', required: true, gt: 0, lte: 8760 },
+      { id: 'acRate', label: 'Energy tariff',   required: true, gte: 0 }
+    ]);
+
+    // Note: the `gt: 0` rule on acHr also covers the API's `parseFloat(hr) || 8760`
+    // substitution, which would otherwise return a full year of energy for an
+    // entered 0 hours.
+
+    M.showValidation('acErrors', v);
+    if (!v.ok) return null;
+
+    return {
+      phase: M.gs('acPhase'),
+      VL: M.gv('acV'),
+      IL: M.gv('acI'),
+      PF: M.gv('acPF'),
+      eff: M.gv('acEff') / 100,
+      loadType: 'general',
+      hr: M.gv('acHr'),
+      rate: M.gv('acRate')
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function money(v) {
+    var cur = M.gs('acCur') || '';
+    return cur + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function render(inp, r) {
+    var threePh = parseInt(inp.phase, 10) === 3;
+    var useful = r.P * inp.eff;
+    var corrected = r.Qc_kvar > 0;
+
+    var html = '';
+    html += cardHtml({
+      label: 'Apparent Power S', value: M.fN(r.S / 1000, 3), unit: 'kVA',
+      tone: 'main', big: true, span: true,
+      sub: (threePh ? '\u221A3 \u00D7 ' : '') + M.fN(inp.VL, 0, 'V') + ' \u00D7 ' + M.fN(inp.IL, 1, 'A') +
+        ' \u2014 this is what sizes the cable and transformer'
+    });
+    html += cardHtml({
+      label: 'Active Power P', value: M.fN(r.P / 1000, 3), unit: 'kW',
+      tone: 'grn', sub: 'S \u00D7 cos \u03C6 \u2014 the billed component'
+    });
+    html += cardHtml({
+      label: 'Reactive Power Q', value: M.fN(r.Q / 1000, 3), unit: 'kVAr',
+      tone: 'amb', sub: 'S \u00D7 sin \u03C6 \u2014 no useful work done'
+    });
+    html += cardHtml({
+      label: 'Phase Angle \u03C6', value: M.fN(r.phi_deg, 2), unit: '\u00B0',
+      tone: 'blu', sub: 'arccos(' + M.fN(inp.PF, 3) + ') \u2014 current lags voltage by this'
+    });
+    html += cardHtml({
+      label: 'Phase Voltage V\u03C6', value: M.fN(r.Vphi, 2), unit: 'V',
+      tone: 'blu', sub: threePh ? 'V\u2097 / \u221A3, line to neutral' : 'Equals V\u2097 for single phase'
+    });
+    html += cardHtml({
+      label: 'P \u00F7 \u03B7', value: M.fN(r.Pin / 1000, 3), unit: 'kW',
+      tone: 'cyn',
+      sub: 'Upstream reading. Measured at the load terminals, useful output is P \u00D7 \u03B7 = ' +
+        M.fN(useful / 1000, 3, 'kW') + '.'
+    });
+    html += cardHtml({
+      label: 'Correction to 0.95 PF', value: M.fN(r.Qc_kvar, 3), unit: 'kVAr',
+      tone: 'pur',
+      sub: corrected ? 'Capacitor rating to move ' + M.fN(inp.PF, 3) + ' \u2192 0.95'
+        : 'Already at or above 0.95 \u2014 no correction needed'
+    });
+    html += cardHtml({
+      label: 'Annual Energy', value: M.fN(r.energy_kwh, 1), unit: 'kWh',
+      tone: 'cyn', sub: M.fN(r.P / 1000, 2, 'kW') + ' \u00D7 ' + M.fN(inp.hr, 0, 'h')
+    });
+    html += cardHtml({
+      label: 'Annual Running Cost', value: money(r.cost), unit: '',
+      tone: 'red', span: true,
+      sub: 'Energy charge only. Demand charges, PF penalties and time-of-day tariffs typically add 20\u201340 %.'
+    });
+
+    M.set('acResults', html);
+
+    var warns = '';
+    if (r.harmonic_warn) {
+      warns += '<div class="note">Power factor below 0.85 with capacitor correction proposed: capacitor banks on supplies feeding VFDs, UPS or other electronic loads can resonate with system harmonics. A detuned reactor is normally required, and a harmonic study should confirm the tuning point.</div>';
+    }
+    if (!corrected) {
+      warns += '<div class="note">Power factor is already at or above the 0.95 target, so no correction kVAr is reported.' +
+        (inp.PF < 1 ? ' Correcting further towards unity risks a leading power factor at light load.' : '') +
+        '</div>';
+    }
+    M.set('acWarnings', warns);
+
+    document.getElementById('acPdfBtn').disabled = false;
+    last = { inp: inp, r: r, useful: useful };
+  }
+
+  function calculate() {
+    var inp = collect();
+    if (!inp) {
+      document.getElementById('acPdfBtn').disabled = true;
+      M.set('acWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('acCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('acResults', true);
+    return M.api.electrical('power', inp).then(function (r) {
+      render(inp, r);
+    }).catch(function (err) {
+      M.showError('acResults', err);
+      M.set('acWarnings', '');
+      document.getElementById('acPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('ph', M.gs('acPhase'));
+    p.set('v', M.gs('acV'));
+    p.set('i', M.gs('acI'));
+    p.set('pf', M.gs('acPF'));
+    p.set('eff', M.gs('acEff'));
+    p.set('hr', M.gs('acHr'));
+    p.set('rate', M.gs('acRate'));
+    p.set('cur', M.gs('acCur'));
+    return 'https://www.multicalci.com/three-phase-power-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    var map = { ph: 'acPhase', v: 'acV', i: 'acI', pf: 'acPF', eff: 'acEff', hr: 'acHr', rate: 'acRate', cur: 'acCur' };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any;
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Three Phase Power Calculator', text: 'Power calculation on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('acShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var i = last.inp, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Phase system', parseInt(i.phase, 10) === 3 ? 'Three phase' : 'Single phase'],
+      ['Line voltage', M.fN(i.VL, 2, 'V')],
+      ['Line current', M.fN(i.IL, 2, 'A')],
+      ['Power factor', M.fN(i.PF, 3)],
+      ['Efficiency', M.fN(i.eff * 100, 2, '%')],
+      ['Operating hours', M.fN(i.hr, 0, 'h/year')],
+      ['Energy tariff', M.gs('acCur') + M.fN(i.rate, 3) + ' per kWh']
+    ];
+    var outRows = [
+      ['Apparent power S', M.fN(r.S / 1000, 3, 'kVA')],
+      ['Active power P', M.fN(r.P / 1000, 3, 'kW')],
+      ['Reactive power Q', M.fN(r.Q / 1000, 3, 'kVAr')],
+      ['Phase angle', M.fN(r.phi_deg, 2, 'deg')],
+      ['Phase voltage', M.fN(r.Vphi, 2, 'V')],
+      ['P / eta', M.fN(r.Pin / 1000, 3, 'kW')],
+      ['P x eta (useful output)', M.fN(last.useful / 1000, 3, 'kW')],
+      ['Correction to 0.95 PF', M.fN(r.Qc_kvar, 3, 'kVAr')],
+      ['Annual energy', M.fN(r.energy_kwh, 1, 'kWh')],
+      ['Annual running cost', money(r.cost)]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Three Phase Power Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Three Phase Power Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Inputs', inRows) + table('Results', outRows) +
+      '<div class="f">Correction target is fixed at 0.95 power factor. Energy cost is the simple product of ' +
+      'active power and hours; real billing adds demand charges, power factor penalties and time-of-day tariffs. ' +
+      'For estimation and preliminary design; verify with a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  M.ready(function () {
+    document.getElementById('acCalcBtn').addEventListener('click', calculate);
+    document.getElementById('acPdfBtn').addEventListener('click', pdf);
+    document.getElementById('acShareBtn').addEventListener('click', share);
+    document.getElementById('acCur').addEventListener('change', function () {
+      if (last) render(last.inp, last.r);
+    });
+
+    M.enterToCalc(['acV', 'acI', 'acPF', 'acEff', 'acHr', 'acRate'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
