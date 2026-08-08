@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>HV Cable Test Voltage Calculator — VLF, AC, DC | multicalci.com</title>
+<meta name="description" content="Free HV cable test voltage calculator. Find the withstand voltage and duration for VLF, AC site, factory and DC tests to IEC 60502, IEC 60840 and IEEE 400.2, with IR limits corrected for temperature.">
+<link rel="canonical" href="https://www.multicalci.com/hv-cable-test-voltage-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="HV Cable Test Voltage Calculator — VLF, AC, DC">
+<meta property="og:description" content="Withstand test voltage and duration for VLF, AC and DC cable testing, with temperature-corrected insulation resistance limits.">
+<meta property="og:url" content="https://www.multicalci.com/hv-cable-test-voltage-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HV Cable Test Voltage Calculator — VLF, AC, DC">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"HV Cable Test Voltage Calculator","description":"Determines the withstand test voltage, duration, governing standard and acceptance criterion for high voltage cable testing by VLF, AC site, AC factory and DC methods, and gives minimum insulation resistance corrected for cable length and test temperature.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/hv-cable-test-voltage-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"HV Cable Test Voltage Calculator","item":"https://www.multicalci.com/hv-cable-test-voltage-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What voltage should a HV cable be tested at?","acceptedAnswer":{"@type":"Answer","text":"Test voltage is a multiple of Uo, the phase-to-earth rating, and the multiple depends on the method and why you are testing. A new cable given a VLF or AC site test is normally taken to twice Uo for 60 minutes, a maintenance test to 1.5 times Uo for 30 minutes, and a test after a repair to 1.73 times Uo. Factory routine testing goes higher, at 2.5 times Uo for XLPE. A 6 kV Uo cable given a VLF test after installation is therefore tested at 12 kV."}},{"@type":"Question","name":"Why is DC testing not recommended for XLPE cables?","acceptedAnswer":{"@type":"Answer","text":"A direct voltage injects and traps space charge in the polymer, which does not dissipate when the test ends. When the cable is re-energised on alternating voltage, that trapped charge adds to the peak of the AC waveform and produces local field enhancement far above the design stress. The result is a cable that passes its test and then fails weeks or months later. This is why IEEE 400 treats DC as a legacy method for extruded insulation and why VLF at 0.1 hertz has replaced it. DC remains acceptable for paper-insulated lead-covered cable."}},{"@type":"Question","name":"What is VLF cable testing?","acceptedAnswer":{"@type":"Answer","text":"Very low frequency testing applies an alternating voltage at around 0.1 hertz instead of 50 or 60 hertz. Because the capacitive charging current of a cable is proportional to frequency, a 0.1 hertz source needs roughly one five-hundredth of the reactive power that a mains-frequency set would, so the equipment is small enough to carry to site. It stresses the insulation in a way that resembles service conditions without the space charge problem of DC, and it can be combined with tan delta and partial discharge measurement in the same connection."}},{"@type":"Question","name":"How do I correct insulation resistance for temperature?","acceptedAnswer":{"@type":"Answer","text":"Insulation resistance roughly halves for every 10 degree Celsius rise, so readings must be corrected to a common reference, normally 20 degrees Celsius, before they can be compared with earlier tests. The correction multiplies the reference value by 0.5 raised to the power of the temperature difference divided by ten. A 3.5 megohm limit at 20 degrees becomes 1.75 megohms at 30 degrees and 14 megohms at 0 degrees. Comparing an uncorrected summer reading against an uncorrected winter one is the most common way a healthy cable appears to have deteriorated."}},{"@type":"Question","name":"What is the difference between Uo and U in cable ratings?","acceptedAnswer":{"@type":"Answer","text":"Cable ratings are written as Uo slash U, for example 6 slash 10 kilovolts. Uo is the rated power frequency voltage between one conductor and earth or the metallic screen, and U is the voltage between two phase conductors. In a three-phase system U equals the square root of three times Uo, so a 6 slash 10 kV cable has 6 kilovolts to earth and 10 kilovolts between phases. Withstand test voltages are always specified as a multiple of Uo, because the insulation wall between conductor and screen is what the test stresses."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">HV Cable Test Voltage Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>HV Cable Test Voltage Calculator</h1>
+    <p class="lede">Find the withstand test voltage, duration, governing standard and acceptance criterion for high voltage cable testing — VLF, AC site, AC factory or DC — together with the minimum insulation resistance for the cable length, corrected to the temperature you are testing at.</p>
+    <div class="stdref">
+      <span>IEC 60502-2 / -4</span>
+      <span>IEC 60840</span>
+      <span>IEEE 400.2</span>
+      <span>IEEE 43</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128300;</span>
+      <span class="card-hd-ttl">Cable &amp; Test Details</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="hvUo">Rated Voltage U<sub>0</sub> <span class="u">kV</span></label>
+          <input type="number" id="hvUo" value="6" step="any" min="0">
+          <div class="hint">Phase to earth, the first figure in a 6/10 kV designation.</div>
+        </div>
+        <div class="field">
+          <label for="hvMethod">Test Method</label>
+          <select id="hvMethod">
+            <option value="vlf" selected>VLF 0.1 Hz — IEEE 400.2</option>
+            <option value="ac_site">AC site withstand — IEC 60502-4</option>
+            <option value="ac_factory">AC factory routine — IEC 60502-2</option>
+            <option value="dc_site">DC site — IEEE 400 (legacy)</option>
+            <option value="ir">Insulation resistance only — IEEE 43</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="hvCond">Test Occasion</label>
+          <select id="hvCond">
+            <option value="new" selected>New installation / commissioning</option>
+            <option value="maint">Routine maintenance</option>
+            <option value="repair">After joint or repair</option>
+            <option value="factory">Factory acceptance</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="hvIns">Insulation Type</label>
+          <select id="hvIns">
+            <option value="xlpe" selected>XLPE — cross-linked polyethylene</option>
+            <option value="epr">EPR — ethylene propylene rubber</option>
+            <option value="pil">PILC — paper insulated lead covered</option>
+            <option value="pvc">PVC</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="hvLen">Cable Length <span class="u">m</span></label>
+          <input type="number" id="hvLen" value="500" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="hvTemp">Test Temperature <span class="u">°C</span></label>
+          <input type="number" id="hvTemp" value="30" step="any">
+        </div>
+        <div class="field">
+          <label for="hvSheath">Outer Sheath</label>
+          <select id="hvSheath">
+            <option value="pe_outer" selected>PE outer sheath</option>
+            <option value="pvc_outer">PVC outer sheath</option>
+            <option value="none">No sheath test</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="hvErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="hvCalcBtn">Calculate Test Voltage</button>
+        <button type="button" class="btn-pdf" id="hvPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="hvShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="hvResults">
+    <div class="rc-empty">Enter the cable details and select Calculate.</div>
+  </div>
+
+  <div id="hvRequirements"></div>
+
+  <div id="hvWarnings"></div>
+
+  <div class="note"><strong>Safety.</strong> High voltage testing is potentially lethal. Only authorised and competent personnel may carry it out. Establish an exclusion zone, earth every conductor before connecting or disconnecting, and discharge the cable through a suitable resistor after every test — a tested cable holds a dangerous charge for a long time, particularly after a DC test.</div>
+
+  <h2>Test Voltage Multipliers</h2>
+
+  <div class="fbox">
+    U<sub>test</sub> = k &#183; U<sub>0</sub> <span class="cm">// k depends on method and occasion</span><br>
+    IR<sub>min</sub> = ( U<sub>0</sub> + 1 ) &#183; L<sub>km</sub> <span class="cm">// M&#937;, minimum acceptable</span><br>
+    IR<sub>T</sub> = IR<sub>min</sub> &#183; 0.5<sup>(T &#8722; 20)/10</sup> <span class="cm">// halves every 10 &#176;C</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Method</th><th>New</th><th>Maintenance</th><th>After repair</th><th>Factory</th></tr></thead>
+      <tbody>
+        <tr><td>VLF 0.1 Hz</td><td>2.0 U&#8320;</td><td>1.5 U&#8320;</td><td>1.73 U&#8320;</td><td>1.73 U&#8320;</td></tr>
+        <tr><td>AC site withstand</td><td>2.0 U&#8320;</td><td>1.5 U&#8320;</td><td>1.73 U&#8320;</td><td>2.5 U&#8320;</td></tr>
+        <tr><td>AC factory (XLPE)</td><td>2.5 U&#8320;</td><td>2.5 U&#8320;</td><td>2.5 U&#8320;</td><td>2.5 U&#8320;</td></tr>
+        <tr><td>AC factory (EPR / PILC / PVC)</td><td>2.0 U&#8320;</td><td>2.0 U&#8320;</td><td>2.0 U&#8320;</td><td>2.0 U&#8320;</td></tr>
+        <tr><td>DC site (XLPE / EPR / PVC)</td><td>3.0 U&#8320;</td><td>2.5 U&#8320;</td><td>3.0 U&#8320;</td><td>3.0 U&#8320;</td></tr>
+        <tr><td>DC site (PILC)</td><td>3.5 U&#8320;</td><td>2.5 U&#8320;</td><td>3.5 U&#8320;</td><td>3.5 U&#8320;</td></tr>
+        <tr><td>Insulation resistance</td><td colspan="4">No withstand voltage — a 1 to 10 minute megger test at 500 to 5000 V DC</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">The AC factory row does not vary with the test occasion, because a routine factory test is defined by the standard rather than by why the cable is being tested. Selecting a different occasion alongside that method will not change the voltage.</div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">6/10 kV XLPE cable, 500 m, VLF test after installation at 30 °C</div>
+
+    <p>A newly installed 6/10 kV XLPE cable, 500 m long with a PE outer sheath, is to be commissioned by VLF testing. Ambient at the time of test is 30 °C.</p>
+
+    <dl>
+      <dt>Test voltage</dt>
+      <dd>U<sub>test</sub> = 2.0 × 6 = 12 kV at 0.1 Hz</dd>
+
+      <dt>Duration</dt>
+      <dd>60 min for a new installation</dd>
+
+      <dt>Governing standard</dt>
+      <dd>IEEE 400.2 / HD 620 (VLF 0.1 Hz)</dd>
+
+      <dt>Acceptance</dt>
+      <dd>No breakdown; tan &#948; below 4×10&#8315;&#179; indicates good insulation</dd>
+
+      <dt>Minimum insulation resistance at 20 °C</dt>
+      <dd>IR = (6 + 1) × 0.5 km = 3.50 M&#937;</dd>
+
+      <dt>Corrected to 30 °C</dt>
+      <dd>IR = 3.50 × 0.5<sup>(30&#8722;20)/10</sup> = 3.50 × 0.5 = 1.75 M&#937;</dd>
+
+      <dt>Sheath test</dt>
+      <dd>DC 25 kV for 1 min, outer sheath to earth, no breakdown</dd>
+    </dl>
+
+    <div class="ans">12 kV VLF for 60 min &#183; IR &#8805; 3.50 M&#937; at 20 °C, &#8805; 1.75 M&#937; measured at 30 °C &#183; sheath DC 25 kV / 1 min</div>
+  </div>
+
+  <div class="note">Note the direction of the temperature correction. The 3.50 M&#937; limit applies at 20 °C, so a reading taken at 30 °C only has to reach 1.75 M&#937; to be equivalent. Applying the correction the wrong way round is the usual reason a warm cable is wrongly condemned.</div>
+
+  <h2>Test Method Comparison</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Method</th><th>Suits</th><th>Advantage</th><th>Limitation</th></tr></thead>
+      <tbody>
+        <tr><td>VLF 0.1 Hz</td><td>XLPE, EPR</td><td>Portable set, service-like stress, allows tan &#948;</td><td>Not traditional for PILC</td></tr>
+        <tr><td>AC site withstand</td><td>All types</td><td>Closest to service conditions</td><td>Resonant set is large and costly</td></tr>
+        <tr><td>AC factory routine</td><td>All types</td><td>Full type and routine regime</td><td>Works only before installation</td></tr>
+        <tr><td>DC site</td><td>PILC only</td><td>Simple, compact equipment</td><td>Space charge damages extruded insulation</td></tr>
+        <tr><td>Insulation resistance</td><td>All types</td><td>Fast, non-destructive, trendable</td><td>Finds no weakness that only shows at stress</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Insulation Resistance Temperature Correction</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Test temperature</th><th>Correction factor</th><th>Limit for a 3.50 M&#937; reference</th></tr></thead>
+      <tbody>
+        <tr><td>0 °C</td><td>4.00</td><td>14.00 M&#937;</td></tr>
+        <tr><td>10 °C</td><td>2.00</td><td>7.00 M&#937;</td></tr>
+        <tr><td>20 °C (reference)</td><td>1.00</td><td>3.50 M&#937;</td></tr>
+        <tr><td>30 °C</td><td>0.50</td><td>1.75 M&#937;</td></tr>
+        <tr><td>40 °C</td><td>0.25</td><td>0.88 M&#937;</td></tr>
+        <tr><td>50 °C</td><td>0.125</td><td>0.44 M&#937;</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Polarisation index is the ratio of the 10-minute to the 1-minute insulation resistance reading. Above 2 is good and below 1 is suspect. Because it is a ratio of two readings taken at the same temperature, it needs no correction, which is why it is more trustworthy than a single absolute value.</div>
+
+  <h2>Cable Voltage Designations</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Designation U&#8320;/U</th><th>U&#8320; to earth</th><th>U between phases</th><th>VLF new test at 2 U&#8320;</th></tr></thead>
+      <tbody>
+        <tr><td>0.6/1 kV</td><td>0.6 kV</td><td>1 kV</td><td>1.2 kV</td></tr>
+        <tr><td>1.8/3 kV</td><td>1.8 kV</td><td>3 kV</td><td>3.6 kV</td></tr>
+        <tr><td>3.6/6 kV</td><td>3.6 kV</td><td>6 kV</td><td>7.2 kV</td></tr>
+        <tr><td>6/10 kV</td><td>6 kV</td><td>10 kV</td><td>12 kV</td></tr>
+        <tr><td>8.7/15 kV</td><td>8.7 kV</td><td>15 kV</td><td>17.4 kV</td></tr>
+        <tr><td>12.7/22 kV</td><td>12.7 kV</td><td>22 kV</td><td>25.4 kV</td></tr>
+        <tr><td>19/33 kV</td><td>19 kV</td><td>33 kV</td><td>38 kV</td></tr>
+        <tr><td>38/66 kV</td><td>38 kV</td><td>66 kV</td><td>76 kV</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Only U&#8320; is needed for a test voltage, since U follows from it as &#8730;3 &#215; U&#8320; in a three-phase system and the test stresses the insulation wall between conductor and screen. That is why this calculator asks for U&#8320; alone.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>What voltage should a HV cable be tested at?</summary>
+      <div class="faq-a"><p>Test voltage is a multiple of U&#8320;, the phase-to-earth rating, and the multiple depends on the method and why you are testing. A new cable given a VLF or AC site test is normally taken to 2 U&#8320; for 60 minutes, a maintenance test to 1.5 U&#8320; for 30 minutes, and a test after a repair to 1.73 U&#8320;. Factory routine testing goes higher, at 2.5 U&#8320; for XLPE. A 6 kV U&#8320; cable given a VLF test after installation is therefore tested at 12 kV.</p></div>
+    </details>
+
+    <details>
+      <summary>Why is DC testing not recommended for XLPE cables?</summary>
+      <div class="faq-a"><p>A direct voltage injects and traps space charge in the polymer, which does not dissipate when the test ends. When the cable is re-energised on alternating voltage, that trapped charge adds to the peak of the AC waveform and produces local field enhancement far above the design stress. The result is a cable that passes its test and then fails weeks or months later. This is why IEEE 400 treats DC as a legacy method for extruded insulation and why VLF at 0.1 Hz has replaced it. DC remains acceptable for paper-insulated lead-covered cable.</p></div>
+    </details>
+
+    <details>
+      <summary>What is VLF cable testing?</summary>
+      <div class="faq-a"><p>Very low frequency testing applies an alternating voltage at around 0.1 Hz instead of 50 or 60 Hz. Because the capacitive charging current of a cable is proportional to frequency, a 0.1 Hz source needs roughly one five-hundredth of the reactive power that a mains-frequency set would, so the equipment is small enough to carry to site. It stresses the insulation in a way that resembles service conditions without the space charge problem of DC, and it can be combined with tan &#948; and partial discharge measurement in the same connection.</p></div>
+    </details>
+
+    <details>
+      <summary>How do I correct insulation resistance for temperature?</summary>
+      <div class="faq-a"><p>Insulation resistance roughly halves for every 10 °C rise, so readings must be corrected to a common reference, normally 20 °C, before they can be compared with earlier tests. The correction multiplies the reference value by 0.5 raised to the power of the temperature difference divided by ten. A 3.5 M&#937; limit at 20 °C becomes 1.75 M&#937; at 30 °C and 14 M&#937; at 0 °C. Comparing an uncorrected summer reading against an uncorrected winter one is the most common way a healthy cable appears to have deteriorated.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the difference between Uo and U in cable ratings?</summary>
+      <div class="faq-a"><p>Cable ratings are written as U&#8320;/U, for example 6/10 kV. U&#8320; is the rated power frequency voltage between one conductor and earth or the metallic screen, and U is the voltage between two phase conductors. In a three-phase system U = &#8730;3 &#215; U&#8320;, so a 6/10 kV cable has 6 kV to earth and 10 kV between phases. Withstand test voltages are always specified as a multiple of U&#8320;, because the insulation wall between conductor and screen is what the test stresses.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size the conductor before testing it</span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Drop along the same cable run</span></a>
+    <a href="https://www.multicalci.com/capacitive-reactance-calculator">Capacitive Reactance Calculator<span class="d">Charging current at test frequency</span></a>
+    <a href="https://www.multicalci.com/short-circuit-current-calculator">Short Circuit Current Calculator<span class="d">Withstand duty on the same circuit</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Source feeding the cable</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">Load carried by the cable</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for guidance and preliminary planning. The governing document is always the cable manufacturer's recommendation and the project specification, which take precedence over the generic multipliers shown here. High voltage testing must only be carried out by competent authorised personnel under a written safe system of work.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('hvResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var last = null;
+
+  function collect() {
+    var v = M.validate([
+      { id: 'hvUo',   label: 'Rated voltage Uo', required: true, gt: 0, lte: 500 },
+      { id: 'hvLen',  label: 'Cable length',     required: true, gt: 0 },
+      { id: 'hvTemp', label: 'Test temperature', required: true, gte: -40, lte: 120 }
+    ]);
+
+    M.showValidation('hvErrors', v);
+    if (!v.ok) return null;
+
+    // calcHVTest reads T_deg as `parseFloat(T_deg) || 20`, so an entered 0 -- a
+    // perfectly ordinary cold-weather test -- is silently replaced by 20 degC and
+    // the correction factor comes back as 1.00 instead of 4.00. 0.001 is sent
+    // instead; it rounds to the same corrected figure to two decimals.
+    var T = M.gv('hvTemp');
+    var zeroTemp = (T === 0);
+
+    return {
+      payload: {
+        Uo: M.gv('hvUo'),
+        L_m: M.gv('hvLen'),
+        T_deg: zeroTemp ? 0.001 : T,
+        method: M.gs('hvMethod'),
+        cond: M.gs('hvCond'),
+        insType: M.gs('hvIns'),
+        sheathType: M.gs('hvSheath')
+      },
+      zeroTemp: zeroTemp,
+      T: T
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    var isNull = (o.value === null || o.value === undefined);
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big && !isNull ? ' big' : '') + vTone + '">' +
+      (isNull ? '\u2014' : M.esc(o.value)) +
+      (isNull || !o.unit ? '' : '<span class="un">' + M.esc(o.unit) + '</span>') + '</div>' +
+      (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '') +
+      '</div>';
+  }
+
+  var METHOD_LABEL = {
+    vlf: 'VLF 0.1 Hz', ac_site: 'AC site withstand', ac_factory: 'AC factory routine',
+    dc_site: 'DC site (legacy)', ir: 'Insulation resistance'
+  };
+  var COND_LABEL = {
+    new: 'new installation', maint: 'routine maintenance',
+    repair: 'after joint or repair', factory: 'factory acceptance'
+  };
+  var INS_LABEL = { xlpe: 'XLPE', epr: 'EPR', pil: 'PILC', pvc: 'PVC' };
+
+  function render(ctx, r) {
+    var inp = ctx.payload;
+    // ir_min_MOhm and ir_at_temp_MOhm come back as strings rounded to 2 dp, so
+    // deriving the factor by dividing them gives 0.251 at 40 degC instead of
+    // 0.250. It is computed from the documented formula instead.
+    var irMin = parseFloat(r.ir_min_MOhm);
+    var irAtT = parseFloat(r.ir_at_temp_MOhm);
+    var factor = Math.pow(0.5, (ctx.T - 20) / 10);
+    var isIR = (inp.method === 'ir');
+    var multiple = (r.testV !== null && inp.Uo > 0) ? r.testV / inp.Uo : null;
+
+    var html = '';
+    html += cardHtml({
+      label: isIR ? 'Withstand Test Voltage' : 'Test Voltage',
+      value: r.testV, unit: 'kV', tone: 'main', big: true, span: true,
+      sub: isIR
+        ? 'The insulation resistance method applies no withstand voltage \u2014 use a megger at 500\u20135000 V DC'
+        : M.fN(multiple, 2) + ' \u00D7 U\u2080 for a ' + (COND_LABEL[inp.cond] || inp.cond) +
+          ' by ' + (METHOD_LABEL[inp.method] || inp.method) + ' on ' + (INS_LABEL[inp.insType] || inp.insType)
+    });
+    html += cardHtml({
+      label: 'Minimum IR at 20 \u00B0C', value: M.fN(irMin, 2), unit: 'M\u03A9',
+      tone: 'grn', sub: '(U\u2080 + 1) \u00D7 ' + M.fN(inp.L_m / 1000, 3, 'km')
+    });
+    html += cardHtml({
+      label: 'Minimum IR at ' + M.fN(ctx.T, 1, '\u00B0C'), value: M.fN(irAtT, 2), unit: 'M\u03A9',
+      tone: 'grn', sub: 'What your meter must actually read at this temperature'
+    });
+    html += cardHtml({
+      label: 'Temperature Correction Factor', value: M.fN(factor, 3),
+      tone: 'cyn', sub: '0.5^((T \u2212 20)/10) \u2014 resistance halves every 10 \u00B0C rise'
+    });
+    html += cardHtml({
+      label: 'Cable Length', value: M.fN(inp.L_m, 1), unit: 'm',
+      tone: 'cyn', sub: inp.L_m < 10 ? 'Below the 10 m floor used for the IR limit' : 'Used for the IR limit'
+    });
+
+    M.set('hvResults', html);
+
+    // Duration, standard, acceptance and sheath are sentences rather than
+    // figures, so they go in a table rather than into .rv, which is sized for
+    // a number.
+    var reqRows = [
+      ['Test method', (METHOD_LABEL[inp.method] || inp.method) + ' \u2014 ' + (COND_LABEL[inp.cond] || inp.cond)],
+      ['Duration', r.dur],
+      ['Governing standard', r.std],
+      ['Acceptance criterion', r.pass],
+      ['Outer sheath test', r.sheathTest]
+    ];
+    M.set('hvRequirements',
+      '<h2>Test Requirements</h2><div class="tbl-wrap"><table class="tbl">' +
+      '<thead><tr><th>Item</th><th>Requirement</th></tr></thead><tbody>' +
+      reqRows.map(function (row) {
+        return '<tr><td>' + M.esc(row[0]) + '</td><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</tbody></table></div>');
+
+    var warns = '';
+    if (r.warn && r.warn.indexOf('life-threatening') === -1) {
+      warns += '<div class="note"><strong>Method warning.</strong> ' + M.esc(r.warn) + '</div>';
+    }
+    if (ctx.zeroTemp) {
+      warns += '<div class="note">A test temperature of 0 \u00B0C was entered. The API reads 0 as "not supplied" and substitutes 20 \u00B0C, so 0.001 \u00B0C has been sent instead \u2014 the corrected IR limit is the 0 \u00B0C figure as intended.</div>';
+    }
+    if (inp.method === 'ac_factory' && inp.cond !== 'factory') {
+      warns += '<div class="note">The AC factory routine test voltage is fixed by the standard and does not change with the test occasion, so the "' +
+        M.esc(COND_LABEL[inp.cond] || inp.cond) + '" selection has no effect on this result.</div>';
+    }
+    if (inp.method === 'vlf' && inp.cond === 'factory') {
+      warns += '<div class="note">VLF has no separate factory multiplier, so the factory occasion returns the same 1.73 \u00D7 U\u2080 as an after-repair test. For a true factory routine test select the AC factory method.</div>';
+    }
+    M.set('hvWarnings', warns);
+
+    document.getElementById('hvPdfBtn').disabled = false;
+    last = { ctx: ctx, r: r, irMin: irMin, irAtT: irAtT, factor: factor, multiple: multiple };
+  }
+
+  function calculate() {
+    var ctx = collect();
+    if (!ctx) {
+      document.getElementById('hvPdfBtn').disabled = true;
+      M.set('hvRequirements', '');
+      M.set('hvWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('hvCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('hvResults', true);
+    return M.api.electrical('hvtest', ctx.payload).then(function (r) {
+      render(ctx, r);
+    }).catch(function (err) {
+      M.showError('hvResults', err);
+      M.set('hvRequirements', '');
+      M.set('hvWarnings', '');
+      document.getElementById('hvPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('uo', M.gs('hvUo'));
+    p.set('m', M.gs('hvMethod'));
+    p.set('c', M.gs('hvCond'));
+    p.set('ins', M.gs('hvIns'));
+    p.set('l', M.gs('hvLen'));
+    p.set('t', M.gs('hvTemp'));
+    p.set('sh', M.gs('hvSheath'));
+    return 'https://www.multicalci.com/hv-cable-test-voltage-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    var map = { uo: 'hvUo', m: 'hvMethod', c: 'hvCond', ins: 'hvIns', l: 'hvLen', t: 'hvTemp', sh: 'hvSheath' };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any;
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'HV Cable Test Voltage Calculator', text: 'Cable test plan on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('hvShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var inp = last.ctx.payload, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Rated voltage Uo', M.fN(inp.Uo, 3, 'kV')],
+      ['Test method', METHOD_LABEL[inp.method] || inp.method],
+      ['Test occasion', COND_LABEL[inp.cond] || inp.cond],
+      ['Insulation type', INS_LABEL[inp.insType] || inp.insType],
+      ['Cable length', M.fN(inp.L_m, 1, 'm')],
+      ['Test temperature', M.fN(last.ctx.T, 1, 'degC')],
+      ['Outer sheath', inp.sheathType === 'none' ? 'No sheath test' : (inp.sheathType === 'pe_outer' ? 'PE outer sheath' : 'PVC outer sheath')]
+    ];
+    var outRows = [
+      ['Test voltage', r.testV === null ? 'Not applicable' : M.fN(r.testV, 2, 'kV') + ' (' + M.fN(last.multiple, 2) + ' x Uo)'],
+      ['Duration', r.dur],
+      ['Governing standard', r.std],
+      ['Acceptance criterion', r.pass],
+      ['Minimum IR at 20 degC', M.fN(last.irMin, 2, 'Mohm')],
+      ['Minimum IR at test temperature', M.fN(last.irAtT, 2, 'Mohm')],
+      ['Temperature correction factor', M.fN(last.factor, 3)],
+      ['Outer sheath test', r.sheathTest]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Cable Test Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.warn{margin-top:14px;padding:8px;border:1px solid #b45309;font-size:11px}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>HV Cable Test Plan</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Cable and Test Details', inRows) + table('Test Requirements', outRows) +
+      '<div class="warn"><strong>SAFETY:</strong> ' + M.esc(r.warn) + '</div>' +
+      '<div class="f">Multipliers are generic values from the cited standards. The cable manufacturer\u2019s ' +
+      'recommendation and the project specification take precedence. High voltage testing must only be carried ' +
+      'out by competent authorised personnel under a written safe system of work.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  M.ready(function () {
+    document.getElementById('hvCalcBtn').addEventListener('click', calculate);
+    document.getElementById('hvPdfBtn').addEventListener('click', pdf);
+    document.getElementById('hvShareBtn').addEventListener('click', share);
+
+    M.enterToCalc(['hvUo', 'hvLen', 'hvTemp'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
