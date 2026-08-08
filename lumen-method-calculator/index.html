@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Lumen Method Calculator — Number of Light Fittings | multicalci.com</title>
+<meta name="description" content="Free lumen method calculator. Find how many light fittings a room needs for a target lux level, with room index, luminaire layout grid, spacing-to-height ratio and lighting power density.">
+<link rel="canonical" href="https://www.multicalci.com/lumen-method-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Lumen Method Calculator — Number of Light Fittings">
+<meta property="og:description" content="Calculate the number of luminaires needed for a target illuminance, with layout grid, spacing and power density.">
+<meta property="og:url" content="https://www.multicalci.com/lumen-method-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lumen Method Calculator — Number of Light Fittings">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Lumen Method Calculator","description":"Calculates the number of luminaires required to reach a target illuminance in a room by the lumen method, together with room index, achieved illuminance, layout grid, luminaire spacing, total connected load and lighting power density.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/lumen-method-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Lumen Method Calculator","item":"https://www.multicalci.com/lumen-method-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate the number of light fittings needed?","acceptedAnswer":{"@type":"Answer","text":"Multiply the target illuminance in lux by the floor area in square metres, then divide by the lumens per fitting multiplied by the maintenance factor and the utilisation factor, and round up to a whole number. For a 96 square metre room needing 500 lux from 4000 lumen fittings at a maintenance factor of 0.8 and a utilisation factor of 0.6, that is 500 times 96 divided by 1920, which gives exactly 25 fittings. The two factors are what turn raw lamp lumens into light actually landing on the working plane."}},{"@type":"Question","name":"What is the room index and why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Room index is the floor area divided by the mounting height above the working plane multiplied by the sum of the room length and width. It describes how squat or tall a room is. A low index below about 0.75 means a tall narrow room where much of the light is absorbed by the walls before reaching the working plane, so the utilisation factor is poor. A high index above about 3 means a wide shallow space where utilisation is good. You use the room index to read the correct utilisation factor from the luminaire photometric table."}},{"@type":"Question","name":"What is the maintenance factor in lighting design?","acceptedAnswer":{"@type":"Answer","text":"Maintenance factor accounts for the light output falling over time, and it is the product of four separate factors: lamp lumen maintenance, lamp survival, luminaire dirt depreciation and room surface dirt depreciation. A clean air-conditioned office on a regular cleaning schedule sits around 0.8, a normal industrial interior around 0.7, and a dirty or dusty environment such as a foundry or cement plant can fall to 0.5 or below. Designing at the maintained illuminance rather than the initial value is what stops a scheme failing halfway through its life."}},{"@type":"Question","name":"What is the utilisation factor?","acceptedAnswer":{"@type":"Answer","text":"Utilisation factor is the proportion of the bare lamp lumens that actually reaches the working plane, after losses in the luminaire optics and absorption by the room surfaces. It comes from the luminaire manufacturer photometric table, read against the room index and the reflectance of ceiling, walls and floor. Typical values run from about 0.3 for an indirect uplighter in a dark tall room to about 0.8 for a bare batten in a bright shallow one. Getting it from the real photometric data rather than guessing is the single biggest accuracy improvement in a lumen method calculation."}},{"@type":"Question","name":"What lighting power density should I aim for?","acceptedAnswer":{"@type":"Answer","text":"Lighting power density is the total connected lighting load divided by the floor area, in watts per square metre. Modern LED office schemes commonly achieve 5 to 8 watts per square metre at 500 lux. India's Energy Conservation Building Code sets 10 watts per square metre for offices, and ASHRAE 90.1 sets a comparable figure. If a calculation lands well above that at a normal lux target, the usual causes are a low utilisation factor from poor optics or dark surfaces, or fittings with a low lumen per watt efficacy."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Lumen Method Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Lumen Method Calculator</h1>
+    <p class="lede">Work out how many light fittings a room needs to reach a target lux level, using the lumen method. Returns the luminaire count, the room index for reading utilisation factors, the achieved maintained illuminance, a suggested layout grid with spacing and spacing-to-height ratios, and the resulting lighting power density.</p>
+    <div class="stdref">
+      <span>EN 12464-1</span>
+      <span>IS 3646</span>
+      <span>CIBSE LG</span>
+      <span>ECBC</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128161;</span>
+      <span class="card-hd-ttl">Room &amp; Luminaire Data</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g3">
+        <div class="field">
+          <label for="ilL">Room Length <span class="u">m</span></label>
+          <input type="number" id="ilL" value="12" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="ilW">Room Width <span class="u">m</span></label>
+          <input type="number" id="ilW" value="8" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="ilH">Mounting Height <span class="u">m</span></label>
+          <input type="number" id="ilH" value="3.5" step="any" min="0">
+          <div class="hint">Luminaire height above floor.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ilWH">Working Plane Height <span class="u">m</span></label>
+          <input type="number" id="ilWH" value="0.85" step="any" min="0">
+          <div class="hint">0.85 m for desks, 0.75 m for benches, 0 for floor level.</div>
+        </div>
+        <div class="field">
+          <label for="ilE">Target Illuminance <span class="u">lux</span></label>
+          <input type="number" id="ilE" value="500" step="any" min="0">
+          <div class="hint">Maintained value. See the table below for typical figures.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ilF">Lumens per Fitting <span class="u">lm</span></label>
+          <input type="number" id="ilF" value="4000" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="ilP">Watts per Fitting <span class="u">W</span></label>
+          <input type="number" id="ilP" value="36" step="any" min="0">
+          <div class="hint">Circuit watts including driver, not lamp watts.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="ilMF">Maintenance Factor MF</label>
+          <input type="number" id="ilMF" value="0.8" step="any" min="0" max="1">
+          <div class="hint">0.8 clean office, 0.7 industrial, 0.5 dirty.</div>
+        </div>
+        <div class="field">
+          <label for="ilUF">Utilisation Factor UF</label>
+          <input type="number" id="ilUF" value="0.6" step="any" min="0" max="1">
+          <div class="hint">From the luminaire photometric table against room index.</div>
+        </div>
+      </div>
+
+      <div id="ilErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="ilCalcBtn">Calculate Luminaires</button>
+        <button type="button" class="btn-pdf" id="ilPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="ilShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="ilResults">
+    <div class="rc-empty">Enter the room and luminaire data and select Calculate.</div>
+  </div>
+
+  <div id="ilWarnings"></div>
+
+  <h2>Lumen Method Formulae</h2>
+
+  <div class="fbox">
+    N = &#8968; E &#183; A / ( F &#183; MF &#183; UF ) &#8969; <span class="cm">// luminaires, rounded up</span><br>
+    A = L &#215; W &nbsp;&#183;&nbsp; H<sub>m</sub> = H &#8722; WH
+  </div>
+  <div class="fbox">
+    RI = A / ( H<sub>m</sub> &#183; ( L + W ) ) <span class="cm">// room index</span><br>
+    E<sub>a</sub> = N &#183; F &#183; MF &#183; UF / A <span class="cm">// achieved maintained lux</span>
+  </div>
+  <div class="fbox">
+    S<sub>L</sub> = L / cols &nbsp;&#183;&nbsp; S<sub>W</sub> = W / rows <span class="cm">// spacing</span><br>
+    SHR = S / H<sub>m</sub> <span class="cm">// spacing-to-height ratio, uniformity check</span>
+  </div>
+  <div class="fbox">
+    P<sub>total</sub> = N &#183; P<sub>fitting</sub> &nbsp;&#183;&nbsp; LPD = P<sub>total</sub> / A
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>N</td><td>Number of luminaires required</td><td>—</td></tr>
+        <tr><td>E</td><td>Target maintained illuminance</td><td>lux</td></tr>
+        <tr><td>E<sub>a</sub></td><td>Achieved illuminance at the rounded-up count</td><td>lux</td></tr>
+        <tr><td>A</td><td>Floor area</td><td>m&#178;</td></tr>
+        <tr><td>F</td><td>Luminous flux per fitting</td><td>lm</td></tr>
+        <tr><td>MF</td><td>Maintenance factor</td><td>—</td></tr>
+        <tr><td>UF</td><td>Utilisation factor</td><td>—</td></tr>
+        <tr><td>H</td><td>Luminaire mounting height above floor</td><td>m</td></tr>
+        <tr><td>WH</td><td>Working plane height above floor</td><td>m</td></tr>
+        <tr><td>H<sub>m</sub></td><td>Mounting height above the working plane</td><td>m</td></tr>
+        <tr><td>RI</td><td>Room index</td><td>—</td></tr>
+        <tr><td>SHR</td><td>Spacing-to-height ratio</td><td>—</td></tr>
+        <tr><td>LPD</td><td>Lighting power density</td><td>W/m&#178;</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">12 &#215; 8 m open-plan office, 3.5 m ceiling, 500 lux from 4000 lm LED panels</div>
+
+    <p>An open-plan office measures 12 m by 8 m with luminaires mounted at 3.5 m and desks at 0.85 m. The specification calls for 500 lux maintained. The selected LED panel delivers 4000 lm at 36 circuit watts, with a maintenance factor of 0.8 for a clean interior and a utilisation factor of 0.6 read from the photometric table.</p>
+
+    <dl>
+      <dt>Floor area</dt>
+      <dd>A = 12 × 8 = 96 m&#178;</dd>
+
+      <dt>Mounting height above working plane</dt>
+      <dd>H<sub>m</sub> = 3.5 &#8722; 0.85 = 2.65 m</dd>
+
+      <dt>Room index</dt>
+      <dd>RI = 96 / (2.65 × (12 + 8)) = 96 / 53 = 1.811</dd>
+
+      <dt>Luminaires required</dt>
+      <dd>N = &#8968;500 × 96 / (4000 × 0.8 × 0.6)&#8969; = &#8968;48000 / 1920&#8969; = &#8968;25&#8969; = 25</dd>
+
+      <dt>Achieved illuminance</dt>
+      <dd>E<sub>a</sub> = 25 × 4000 × 0.8 × 0.6 / 96 = 500.0 lux</dd>
+
+      <dt>Layout grid</dt>
+      <dd>4 rows × 7 cols, chosen to match the room aspect ratio</dd>
+
+      <dt>Spacing</dt>
+      <dd>S<sub>L</sub> = 12 / 7 = 1.71 m along the length, S<sub>W</sub> = 8 / 4 = 2 m across the width</dd>
+
+      <dt>Spacing-to-height ratio</dt>
+      <dd>1.71 / 2.65 = 0.65 and 2 / 2.65 = 0.75 — comfortably below the 1.5 uniformity limit</dd>
+
+      <dt>Connected load</dt>
+      <dd>P = 25 × 36 = 900 W</dd>
+
+      <dt>Lighting power density</dt>
+      <dd>900 / 96 = 9.38 W/m&#178;</dd>
+    </dl>
+
+    <div class="ans">25 luminaires in a 4 × 7 grid &#183; 500.0 lux achieved &#183; RI 1.811 &#183; 900 W total &#183; 9.38 W/m&#178;</div>
+  </div>
+
+  <div class="note">This case divides exactly, so the achieved illuminance lands on the 500 lux target. Most cases do not — the count rounds up and the achieved figure overshoots, sometimes by 10 % or more on small rooms. That overshoot is real light and real energy, which is why it is worth trying a different lumen package rather than accepting the first answer.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Room length</td><td>m</td><td>&gt; 0</td><td>12</td></tr>
+        <tr><td>Room width</td><td>m</td><td>&gt; 0</td><td>8</td></tr>
+        <tr><td>Mounting height</td><td>m</td><td>&gt; 0, and above the working plane</td><td>3.5</td></tr>
+        <tr><td>Working plane height</td><td>m</td><td>&#8805; 0, below the mounting height</td><td>0.85</td></tr>
+        <tr><td>Target illuminance</td><td>lux</td><td>&gt; 0</td><td>500</td></tr>
+        <tr><td>Lumens per fitting</td><td>lm</td><td>&gt; 0</td><td>4000</td></tr>
+        <tr><td>Watts per fitting</td><td>W</td><td>&gt; 0</td><td>36</td></tr>
+        <tr><td>Maintenance factor</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.80</td></tr>
+        <tr><td>Utilisation factor</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.60</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">The lumen method gives an average illuminance over the whole working plane. It says nothing about uniformity, glare rating or the distribution near walls, all of which need point-by-point calculation in lighting software for a design submission.</div>
+
+  <h2>Recommended Illuminance Levels</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Space</th><th>Maintained lux</th><th>Space</th><th>Maintained lux</th></tr></thead>
+      <tbody>
+        <tr><td>Corridors, stairs</td><td>100</td><td>Open-plan office</td><td>500</td></tr>
+        <tr><td>Store rooms</td><td>100</td><td>Drawing office</td><td>750</td></tr>
+        <tr><td>Plant room</td><td>200</td><td>Fine assembly</td><td>750</td></tr>
+        <tr><td>Canteen, lobby</td><td>200</td><td>Inspection, precision work</td><td>1000</td></tr>
+        <tr><td>Control room</td><td>500</td><td>Electronics assembly</td><td>1500</td></tr>
+        <tr><td>Laboratory</td><td>500</td><td>Operating theatre</td><td>Special</td></tr>
+        <tr><td>Classroom</td><td>300–500</td><td>Substation, switchroom</td><td>200–300</td></tr>
+        <tr><td>Warehouse aisles</td><td>150–200</td><td>Car park, indoor</td><td>75</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Representative values from EN 12464-1 and IS 3646 for general guidance. Take the exact figure from the applicable standard and the client brief, since both give task-specific rows that override the generic space type.</div>
+
+  <h2>Typical Factors &amp; Efficacies</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Environment</th><th>Maintenance factor</th><th>Cleaning interval</th></tr></thead>
+      <tbody>
+        <tr><td>Clean, air-conditioned office</td><td>0.80</td><td>3 years</td></tr>
+        <tr><td>Normal commercial interior</td><td>0.70</td><td>2 years</td></tr>
+        <tr><td>Light industrial</td><td>0.65</td><td>1 year</td></tr>
+        <tr><td>Heavy industrial, dusty</td><td>0.55</td><td>1 year</td></tr>
+        <tr><td>Foundry, cement, mining</td><td>0.50 or below</td><td>6 months</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Room index RI</th><th>Room shape</th><th>Typical UF, light surfaces</th><th>Typical UF, dark surfaces</th></tr></thead>
+      <tbody>
+        <tr><td>0.60</td><td>Tall and narrow</td><td>0.35</td><td>0.25</td></tr>
+        <tr><td>1.00</td><td>Fairly tall</td><td>0.48</td><td>0.36</td></tr>
+        <tr><td>1.50</td><td>Moderate</td><td>0.56</td><td>0.44</td></tr>
+        <tr><td>2.50</td><td>Wide</td><td>0.64</td><td>0.52</td></tr>
+        <tr><td>4.00</td><td>Wide and shallow</td><td>0.70</td><td>0.58</td></tr>
+        <tr><td>5.00</td><td>Very shallow</td><td>0.73</td><td>0.61</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Lamp type</th><th>Efficacy (lm/W)</th><th>4000 lm needs</th><th>Life (hours)</th></tr></thead>
+      <tbody>
+        <tr><td>Incandescent</td><td>12</td><td>333 W</td><td>1000</td></tr>
+        <tr><td>Halogen</td><td>18</td><td>222 W</td><td>2000</td></tr>
+        <tr><td>Compact fluorescent</td><td>60</td><td>67 W</td><td>10 000</td></tr>
+        <tr><td>T5 fluorescent</td><td>90</td><td>44 W</td><td>20 000</td></tr>
+        <tr><td>Metal halide</td><td>85</td><td>47 W</td><td>15 000</td></tr>
+        <tr><td>LED panel, standard</td><td>110</td><td>36 W</td><td>50 000</td></tr>
+        <tr><td>LED, high efficacy</td><td>160</td><td>25 W</td><td>50 000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Efficacy figures are luminaire lumens per circuit watt, which is the number that matters for power density — not bare lamp lumens per lamp watt, which flatters a fitting by excluding driver losses and optical trapping.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate the number of light fittings needed?</summary>
+      <div class="faq-a"><p>Multiply the target illuminance in lux by the floor area in m&#178;, then divide by the lumens per fitting multiplied by the maintenance factor and the utilisation factor, and round up to a whole number. For a 96 m&#178; room needing 500 lux from 4000 lm fittings at MF 0.8 and UF 0.6, that is 500 × 96 / 1920, which gives exactly 25 fittings. The two factors are what turn raw lamp lumens into light actually landing on the working plane.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the room index and why does it matter?</summary>
+      <div class="faq-a"><p>Room index is the floor area divided by the mounting height above the working plane multiplied by the sum of the room length and width. It describes how squat or tall a room is. A low index below about 0.75 means a tall narrow room where much of the light is absorbed by the walls before reaching the working plane, so the utilisation factor is poor. A high index above about 3 means a wide shallow space where utilisation is good. You use the room index to read the correct utilisation factor from the luminaire photometric table.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the maintenance factor in lighting design?</summary>
+      <div class="faq-a"><p>Maintenance factor accounts for the light output falling over time, and it is the product of four separate factors: lamp lumen maintenance, lamp survival, luminaire dirt depreciation and room surface dirt depreciation. A clean air-conditioned office on a regular cleaning schedule sits around 0.8, a normal industrial interior around 0.7, and a dirty or dusty environment such as a foundry or cement plant can fall to 0.5 or below. Designing at the maintained illuminance rather than the initial value is what stops a scheme failing halfway through its life.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the utilisation factor?</summary>
+      <div class="faq-a"><p>Utilisation factor is the proportion of the bare lamp lumens that actually reaches the working plane, after losses in the luminaire optics and absorption by the room surfaces. It comes from the luminaire manufacturer photometric table, read against the room index and the reflectance of ceiling, walls and floor. Typical values run from about 0.3 for an indirect uplighter in a dark tall room to about 0.8 for a bare batten in a bright shallow one. Getting it from the real photometric data rather than guessing is the single biggest accuracy improvement in a lumen method calculation.</p></div>
+    </details>
+
+    <details>
+      <summary>What lighting power density should I aim for?</summary>
+      <div class="faq-a"><p>Lighting power density is the total connected lighting load divided by the floor area, in W/m&#178;. Modern LED office schemes commonly achieve 5 to 8 W/m&#178; at 500 lux. India's Energy Conservation Building Code sets 10 W/m&#178; for offices, and ASHRAE 90.1 sets a comparable figure. If a calculation lands well above that at a normal lux target, the usual causes are a low utilisation factor from poor optics or dark surfaces, or fittings with a low lumen per watt efficacy.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">Lighting load in kVA and kW</span></a>
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size the lighting submain</span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">3 % limit applies to lighting circuits</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">Motor loads on the same board</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Supply capacity for the building</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. The lumen method gives an average illuminance only — uniformity, glare rating and wall-zone distribution require point-by-point calculation. Verify against luminaire photometric data and a qualified lighting designer before construction.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('ilResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var last = null;
+
+  function collect() {
+    var v = M.validate([
+      { id: 'ilL',  label: 'Room length',          required: true, gt: 0 },
+      { id: 'ilW',  label: 'Room width',           required: true, gt: 0 },
+      { id: 'ilH',  label: 'Mounting height',      required: true, gt: 0 },
+      { id: 'ilWH', label: 'Working plane height', required: true, gte: 0 },
+      { id: 'ilE',  label: 'Target illuminance',   required: true, gt: 0 },
+      { id: 'ilF',  label: 'Lumens per fitting',   required: true, gt: 0 },
+      { id: 'ilP',  label: 'Watts per fitting',    required: true, gt: 0 },
+      { id: 'ilMF', label: 'Maintenance factor',   required: true, gt: 0, lte: 1 },
+      { id: 'ilUF', label: 'Utilisation factor',   required: true, gt: 0, lte: 1 }
+    ]);
+
+    // Mirror of the backend's Hm guard, so the user gets a field-level message
+    // rather than a server error string.
+    if (v.ok) {
+      var H = M.gv('ilH'), WH = M.gv('ilWH');
+      if (H - WH <= 0) {
+        v = { ok: false, errors: [{ id: 'ilWH', msg: 'Working plane height (' + WH + ' m) must be below the mounting height (' + H + ' m). Mounting height above the working plane would be ' + (H - WH).toFixed(2) + ' m.' }], warns: v.warns };
+      }
+    }
+
+    M.showValidation('ilErrors', v);
+    if (!v.ok) return null;
+
+    // The API reads working plane height as `parseFloat(WH_m) || 0.85`, so an
+    // entered 0 -- illuminance measured at floor level, which is what warehouse
+    // aisle and car park figures refer to -- is silently replaced with 0.85 m.
+    // 0.001 is sent instead; it changes Hm by 1 mm.
+    var WHval = M.gv('ilWH');
+    var floorLevel = (WHval === 0);
+
+    return {
+      payload: {
+        L_m: M.gv('ilL'),
+        W_m: M.gv('ilW'),
+        H_m: M.gv('ilH'),
+        WH_m: floorLevel ? 0.001 : WHval,
+        E_target: M.gv('ilE'),
+        F_lm: M.gv('ilF'),
+        Pw: M.gv('ilP'),
+        MF: M.gv('ilMF'),
+        UF: M.gv('ilUF')
+      },
+      floorLevel: floorLevel
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function parseGrid(gridStr) {
+    var m = /^(\d+)\s*rows\s*.\s*(\d+)\s*cols$/.exec(String(gridStr || '').trim());
+    if (!m) return null;
+    return { rows: parseInt(m[1], 10), cols: parseInt(m[2], 10) };
+  }
+
+  function render(ctx, r) {
+    var inp = ctx.payload;
+    // target_met is always true because N is rounded up, so the overshoot above
+    // the target is the figure worth reporting instead.
+    var overshoot = r.Ea - inp.E_target;
+    var overshootPct = inp.E_target > 0 ? 100 * overshoot / inp.E_target : 0;
+    var grid = parseGrid(r.grid);
+    var positions = grid ? grid.rows * grid.cols : null;
+    var spare = positions === null ? null : positions - r.N;
+    var shrL = r.Hm > 0 ? r.Sl / r.Hm : null;
+    var shrW = r.Hm > 0 ? r.Sw / r.Hm : null;
+    var shrMax = (shrL === null || shrW === null) ? null : Math.max(shrL, shrW);
+
+    var lpdTone = r.Wdens <= 5 ? 'grn' : r.Wdens <= 10 ? 'blu' : r.Wdens <= 15 ? 'amb' : 'red';
+    var lpdWord = r.Wdens <= 5 ? 'Excellent' : r.Wdens <= 10 ? 'Typical' : r.Wdens <= 15 ? 'High' : 'Very high';
+
+    var html = '';
+    html += cardHtml({
+      label: 'Luminaires Required', value: M.fN(r.N, 0), unit: 'fittings',
+      tone: 'main', big: true, span: true,
+      sub: M.fN(inp.E_target, 0, 'lux') + ' over ' + M.fN(r.A, 1, 'm\u00B2') + ' from ' +
+        M.fN(inp.F_lm, 0, 'lm') + ' fittings at MF ' + M.fN(inp.MF, 2) + ' \u00D7 UF ' + M.fN(inp.UF, 2)
+    });
+    html += cardHtml({
+      label: 'Achieved Illuminance', value: M.fN(r.Ea, 1), unit: 'lux',
+      tone: overshootPct > 15 ? 'amb' : 'grn',
+      subHtml: '<span class="badge ' + (overshootPct > 15 ? 'warn' : 'ok') + '">' +
+        (overshoot <= 0.05 ? '\u2713 On target'
+          : '+' + M.esc(M.fN(overshoot, 1, 'lux')) + ' (' + M.esc(M.fN(overshootPct, 1, '%')) + ')') +
+        '</span> From rounding ' + M.esc(M.fN(r.N, 0)) + ' fittings up'
+    });
+    html += cardHtml({
+      label: 'Room Index RI', value: M.fN(r.RI, 3), unit: '',
+      tone: 'blu', sub: 'Read the utilisation factor against this value in the photometric table'
+    });
+    html += cardHtml({
+      label: 'Height Above Working Plane', value: M.fN(r.Hm, 2), unit: 'm',
+      tone: 'blu', sub: M.fN(inp.H_m, 2, 'm') + ' mounting \u2212 ' + M.fN(inp.WH_m, 3, 'm') + ' working plane'
+    });
+    html += cardHtml({
+      label: 'Suggested Layout', value: r.grid, tone: 'pur', span: true,
+      sub: spare === null ? 'Grid chosen to match the room aspect ratio'
+        : (spare === 0
+            ? 'Grid holds exactly ' + M.fN(r.N, 0) + ' fittings'
+            : positions + ' grid positions for ' + M.fN(r.N, 0) + ' fittings \u2014 ' + spare +
+              ' position' + (spare === 1 ? '' : 's') + ' unfilled, so adjust the rows or add ' + spare + ' more')
+    });
+    html += cardHtml({
+      label: 'Spacing Along Length', value: M.fN(r.Sl, 2), unit: 'm',
+      tone: 'cyn', sub: shrL === null ? '' : 'SHR ' + M.fN(shrL, 2) + ' \u2014 keep below 1.5 for uniformity'
+    });
+    html += cardHtml({
+      label: 'Spacing Across Width', value: M.fN(r.Sw, 2), unit: 'm',
+      tone: 'cyn', sub: shrW === null ? '' : 'SHR ' + M.fN(shrW, 2) + ' \u2014 keep below 1.5 for uniformity'
+    });
+    html += cardHtml({
+      label: 'Total Connected Load', value: M.fN(r.Wtot, 0), unit: 'W',
+      tone: 'amb', sub: M.fN(r.N, 0) + ' \u00D7 ' + M.fN(inp.Pw, 1, 'W') + ' circuit watts'
+    });
+    html += cardHtml({
+      label: 'Lighting Power Density', value: M.fN(r.Wdens, 2), unit: 'W/m\u00B2',
+      tone: lpdTone,
+      subHtml: '<span class="badge ' + (lpdTone === 'grn' || lpdTone === 'blu' ? 'ok' : lpdTone === 'amb' ? 'warn' : 'err') +
+        '">' + M.esc(lpdWord) + '</span> ECBC and ASHRAE 90.1 set around 10 W/m\u00B2 for offices'
+    });
+    html += cardHtml({
+      label: 'Floor Area', value: M.fN(r.A, 1), unit: 'm\u00B2',
+      tone: 'blu', sub: M.fN(inp.L_m, 2, 'm') + ' \u00D7 ' + M.fN(inp.W_m, 2, 'm')
+    });
+
+    M.set('ilResults', html);
+
+    var warns = '';
+    if (ctx.floorLevel) {
+      warns += '<div class="note">A working plane height of 0 was entered, meaning illuminance at floor level. The API reads 0 as "not supplied" and substitutes 0.85 m, so 0.001 m has been sent instead \u2014 the mounting height above the working plane is the full ' + M.fN(r.Hm, 2, 'm') + ' as intended.</div>';
+    }
+    if (shrMax !== null && shrMax > 1.5) {
+      warns += '<div class="note">Spacing-to-height ratio reaches ' + M.fN(shrMax, 2) +
+        ', above the 1.5 rule of thumb for most direct luminaires. Uniformity on the working plane will suffer, with visible scalloping between fittings. Add a row or column, or lower the mounting height.</div>';
+    }
+    if (overshootPct > 15) {
+      warns += '<div class="note">Rounding up to ' + M.fN(r.N, 0) + ' fittings overshoots the ' +
+        M.fN(inp.E_target, 0, 'lux') + ' target by ' + M.fN(overshootPct, 1, '%') +
+        '. That is energy paid for and not asked for \u2014 a lower lumen package or a dimmable driver set back to target usually recovers most of it.</div>';
+    }
+    if (r.RI < 0.75) {
+      warns += '<div class="note">Room index ' + M.fN(r.RI, 3) +
+        ' indicates a tall narrow space where wall absorption dominates. Utilisation factors below 0.4 are typical here, so confirm the figure against the photometric table rather than using a generic value.</div>';
+    }
+    if (r.Wdens > 15) {
+      warns += '<div class="note">Lighting power density of ' + M.fN(r.Wdens, 2, 'W/m\u00B2') +
+        ' is well above the 10 W/m\u00B2 that ECBC and ASHRAE 90.1 set for offices. Check the luminaire efficacy \u2014 ' +
+        M.fN(inp.F_lm / inp.Pw, 1) + ' lm/W here, against 110 or more for a current LED panel.</div>';
+    }
+    M.set('ilWarnings', warns);
+
+    document.getElementById('ilPdfBtn').disabled = false;
+    last = { ctx: ctx, r: r, shrL: shrL, shrW: shrW, positions: positions, spare: spare,
+             overshoot: overshoot, overshootPct: overshootPct };
+  }
+
+  function calculate() {
+    var ctx = collect();
+    if (!ctx) {
+      document.getElementById('ilPdfBtn').disabled = true;
+      M.set('ilWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('ilCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('ilResults', true);
+    return M.api.electrical('illum', ctx.payload).then(function (r) {
+      render(ctx, r);
+    }).catch(function (err) {
+      M.showError('ilResults', err);
+      M.set('ilWarnings', '');
+      document.getElementById('ilPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('l', M.gs('ilL'));
+    p.set('w', M.gs('ilW'));
+    p.set('h', M.gs('ilH'));
+    p.set('wh', M.gs('ilWH'));
+    p.set('e', M.gs('ilE'));
+    p.set('f', M.gs('ilF'));
+    p.set('pw', M.gs('ilP'));
+    p.set('mf', M.gs('ilMF'));
+    p.set('uf', M.gs('ilUF'));
+    return 'https://www.multicalci.com/lumen-method-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    var map = { l: 'ilL', w: 'ilW', h: 'ilH', wh: 'ilWH', e: 'ilE', f: 'ilF', pw: 'ilP', mf: 'ilMF', uf: 'ilUF' };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any;
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Lumen Method Calculator', text: 'Lighting design case on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('ilShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var inp = last.ctx.payload, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Room length', M.fN(inp.L_m, 2, 'm')],
+      ['Room width', M.fN(inp.W_m, 2, 'm')],
+      ['Mounting height', M.fN(inp.H_m, 2, 'm')],
+      ['Working plane height', last.ctx.floorLevel ? '0 m (floor level)' : M.fN(inp.WH_m, 3, 'm')],
+      ['Target illuminance', M.fN(inp.E_target, 0, 'lux')],
+      ['Lumens per fitting', M.fN(inp.F_lm, 0, 'lm')],
+      ['Watts per fitting', M.fN(inp.Pw, 1, 'W')],
+      ['Maintenance factor', M.fN(inp.MF, 3)],
+      ['Utilisation factor', M.fN(inp.UF, 3)]
+    ];
+    var outRows = [
+      ['Luminaires required', M.fN(r.N, 0)],
+      ['Floor area', M.fN(r.A, 1, 'm2')],
+      ['Height above working plane', M.fN(r.Hm, 2, 'm')],
+      ['Room index', M.fN(r.RI, 3)],
+      ['Achieved illuminance', M.fN(r.Ea, 1, 'lux') + '  (+' + M.fN(last.overshootPct, 1, '%') + ' over target)'],
+      ['Suggested layout', r.grid + (last.spare ? '  (' + last.spare + ' position(s) unfilled)' : '')],
+      ['Spacing along length', M.fN(r.Sl, 2, 'm') + '  SHR ' + M.fN(last.shrL, 2)],
+      ['Spacing across width', M.fN(r.Sw, 2, 'm') + '  SHR ' + M.fN(last.shrW, 2)],
+      ['Total connected load', M.fN(r.Wtot, 0, 'W')],
+      ['Lighting power density', M.fN(r.Wdens, 2, 'W/m2')],
+      ['Luminaire efficacy', M.fN(inp.F_lm / inp.Pw, 1, 'lm/W')]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Lighting Design Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Lumen Method Lighting Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Room and Luminaire Data', inRows) + table('Results', outRows) +
+      '<div class="f">The lumen method gives an average maintained illuminance over the working plane. It does ' +
+      'not predict uniformity, glare rating or wall-zone distribution, all of which require point-by-point ' +
+      'calculation. The utilisation factor must come from the luminaire photometric table read against the room ' +
+      'index. For estimation and preliminary design; verify with a qualified lighting designer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  M.ready(function () {
+    document.getElementById('ilCalcBtn').addEventListener('click', calculate);
+    document.getElementById('ilPdfBtn').addEventListener('click', pdf);
+    document.getElementById('ilShareBtn').addEventListener('click', share);
+
+    M.enterToCalc(['ilL', 'ilW', 'ilH', 'ilWH', 'ilE', 'ilF', 'ilP', 'ilMF', 'ilUF'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
