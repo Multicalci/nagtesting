@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Voltage Drop Calculator — IEC 60364 Cable Volt Drop | multicalci.com</title>
+<meta name="description" content="Free voltage drop calculator for single and three phase cables. Includes conductor reactance, 75 °C resistance, percentage drop against the 5% IEC 60364 limit, power loss and minimum CSA.">
+<link rel="canonical" href="https://www.multicalci.com/voltage-drop-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Voltage Drop Calculator — IEC 60364 Cable Volt Drop">
+<meta property="og:description" content="Calculate cable voltage drop for single and three phase circuits, including reactance, power loss and the minimum conductor size needed to stay within 5%.">
+<meta property="og:url" content="https://www.multicalci.com/voltage-drop-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Voltage Drop Calculator — IEC 60364 Cable Volt Drop">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Voltage Drop Calculator","description":"Calculates cable voltage drop for single and three phase circuits including conductor resistance at 75 degrees C, cable reactance, percentage drop, power loss and the minimum conductor cross-sectional area required to stay within the 5 percent limit.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/voltage-drop-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Voltage Drop Calculator","item":"https://www.multicalci.com/voltage-drop-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is the maximum allowable voltage drop in a cable?","acceptedAnswer":{"@type":"Answer","text":"IEC 60364-5-52 Annex G recommends 3% for lighting circuits and 5% for other uses, measured from the origin of the installation to the load. The NEC gives a comparable 3% branch-circuit and 5% combined feeder-plus-branch recommendation in informational notes to 210.19(A) and 215.2(A). Both are recommendations rather than hard limits, but most specifications adopt 5% as the contractual ceiling. This calculator compares the computed percentage against 5%."}},{"@type":"Question","name":"Why does this calculator use 75 degrees C conductor temperature?","acceptedAnswer":{"@type":"Answer","text":"Conductor resistivity rises with temperature, so voltage drop computed at 20 degrees C is optimistic. IEC and NEC practice is to evaluate voltage drop at the conductor operating temperature. This calculator fixes the conductor at 75 degrees C, which raises copper resistivity from 1.72e-8 to about 2.09e-8 ohm-metre, roughly 21% more resistance and therefore roughly 21% more resistive voltage drop than a 20 degrees C calculation would predict."}},{"@type":"Question","name":"Does cable reactance matter for voltage drop?","acceptedAnswer":{"@type":"Answer","text":"Yes, and it is the term most often omitted. Reactive drop is proportional to sin phi, so at a power factor of 0.85 it carries about 53% of the current in quadrature. For small conductors the resistive term dominates, but above roughly 70 to 95 square millimetres the reactance term becomes significant, and at low power factor or long runs it can decide whether a cable passes. This calculator includes the X sin phi term and reports the reactance used."}},{"@type":"Question","name":"How do I calculate voltage drop for a single-phase circuit?","acceptedAnswer":{"@type":"Answer","text":"Use a multiplier of 2 instead of the square root of 3, because current flows out along the line conductor and back along the neutral, so the cable length is traversed twice. The formula becomes delta U equals 2 times I times the quantity R cos phi plus X sin phi. Select Single Phase in the calculator and it applies the factor of 2 automatically, and compares the drop against the single-phase supply voltage you enter."}},{"@type":"Question","name":"What cable size do I need to keep voltage drop under 5%?","acceptedAnswer":{"@type":"Answer","text":"Rearranging the voltage drop formula for area gives A equals k times I times L times rho times cos phi divided by the quantity delta U max minus k times I times X times L times sin phi. The calculator reports this as the minimum CSA. Note that this is the minimum needed for voltage drop only. The conductor must also satisfy current-carrying capacity after derating and the adiabatic short-circuit withstand check, and either of those can demand a larger cable."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Voltage Drop Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Voltage Drop Calculator</h1>
+    <p class="lede">Calculate the voltage drop along a cable run for single-phase or three-phase circuits. Conductor resistance is evaluated at 75&nbsp;°C and the calculation includes the cable reactance term, so the result stays valid at low power factor and on larger conductors where a resistance-only estimate under-reads.</p>
+    <div class="stdref">
+      <span>IEC 60364-5-52</span>
+      <span>IEC 60228</span>
+      <span>NEC 210.19(A)</span>
+      <span>NEC 215.2(A)</span>
+    </div>
+  </div>
+
+  <div class="utog">
+    <button type="button" class="ubtn on" data-unit-btn="SI" id="vdUnitSI">SI</button>
+    <button type="button" class="ubtn" data-unit-btn="IMP" id="vdUnitIMP">Imperial</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">⚡</span>
+      <span class="card-hd-ttl">Circuit &amp; Cable Data</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="vdPhase">Phase System</label>
+          <select id="vdPhase">
+            <option value="3" selected>Three Phase (k = &#8730;3)</option>
+            <option value="1">Single Phase (k = 2)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="vdV">Supply Voltage U <span class="u">V</span></label>
+          <input type="number" id="vdV" value="415" step="any" min="0">
+          <div class="hint">Line-to-line for three phase, line-to-neutral for single phase.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="vdI">Load Current I <span class="u">A</span></label>
+          <input type="number" id="vdI" value="150" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="vdPF">Power Factor cos &#966;</label>
+          <input type="number" id="vdPF" value="0.85" step="any" min="0" max="1">
+          <div class="hint">Range 0 to 1. Leave at 0.85 if unknown.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="vdL"><span data-unit-si="Cable Route Length L (m)" data-unit-imp="Cable Route Length L (ft)">Cable Route Length L (m)</span></label>
+          <input type="number" id="vdL" value="150" step="any" min="0">
+          <div class="hint">One-way route length. The return path is handled by the multiplier k.</div>
+        </div>
+        <div class="field">
+          <label for="vdA"><span data-unit-si="Conductor CSA (mm&#178;)" data-unit-imp="Conductor CSA (kcmil)">Conductor CSA (mm&#178;)</span></label>
+          <input type="number" id="vdA" value="70" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="vdMat">Conductor Material</label>
+          <select id="vdMat">
+            <option value="cu" selected>Copper</option>
+            <option value="al">Aluminium</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="vdVLevel">Cable Formation (reactance)</label>
+          <select id="vdVLevel">
+            <option value="lv_trefoil" selected>LV trefoil / touching &#8804; 1 kV — 0.08 m&#937;/m</option>
+            <option value="lv_flat">LV flat formation &#8804; 1 kV — 0.10 m&#937;/m</option>
+            <option value="mv_close">MV touching trefoil 1–36 kV — 0.10 m&#937;/m</option>
+            <option value="mv_1d">MV spacing 1 &#215; dia. 1–36 kV — 0.13 m&#937;/m</option>
+            <option value="mv_2d">MV spacing 2 &#215; dia. 1–36 kV — 0.17 m&#937;/m</option>
+            <option value="mv_3d">MV spacing 3 &#215; dia. 1–36 kV — 0.20 m&#937;/m</option>
+            <option value="hv">HV XLPE &gt; 33 kV — 0.30 m&#937;/m</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="vdErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="vdCalcBtn">Calculate Voltage Drop</button>
+        <button type="button" class="btn-pdf" id="vdPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="vdShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="vdResults">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+
+  <h2>Voltage Drop Formula</h2>
+
+  <div class="fbox">
+    &#916;U = k &#183; I &#183; ( R &#183; cos &#966; + X &#183; sin &#966; )
+  </div>
+  <div class="fbox">
+    R = &#961;<sub>75</sub> &#183; L / A <span class="cm">// conductor resistance of the run</span><br>
+    &#961;<sub>75</sub> = &#961;<sub>20</sub> &#183; [ 1 + &#945; &#183; (75 &#8722; 20) ] <span class="cm">// temperature correction</span><br>
+    X = x&#8242; &#183; L <span class="cm">// reactance from the formation table</span>
+  </div>
+  <div class="fbox">
+    &#916;U % = 100 &#183; &#916;U / U<br>
+    U<sub>load</sub> = U &#8722; &#916;U<br>
+    P<sub>loss</sub> = n &#183; I&#178; &#183; R
+  </div>
+  <div class="fbox">
+    A<sub>min</sub> = k &#183; I &#183; L &#183; &#961;<sub>75</sub> &#183; cos &#966; / ( &#916;U<sub>max</sub> &#8722; k &#183; I &#183; x&#8242; &#183; L &#183; sin &#966; )
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>&#916;U</td><td>Voltage drop along the cable run</td><td>V</td></tr>
+        <tr><td>k</td><td>Phase multiplier — &#8730;3 three phase, 2 single phase</td><td>—</td></tr>
+        <tr><td>n</td><td>Loss multiplier — 3 three phase, 2 single phase</td><td>—</td></tr>
+        <tr><td>I</td><td>Load current</td><td>A</td></tr>
+        <tr><td>R</td><td>Conductor resistance of the run at 75 °C</td><td>&#937;</td></tr>
+        <tr><td>X</td><td>Conductor reactance of the run</td><td>&#937;</td></tr>
+        <tr><td>x&#8242;</td><td>Reactance per metre, from the formation table</td><td>&#937;/m</td></tr>
+        <tr><td>&#961;<sub>20</sub></td><td>Resistivity at 20 °C — 1.72e-8 Cu, 2.82e-8 Al</td><td>&#937;·m</td></tr>
+        <tr><td>&#945;</td><td>Temperature coefficient — 0.00393 Cu, 0.00403 Al</td><td>1/K</td></tr>
+        <tr><td>L</td><td>One-way route length</td><td>m</td></tr>
+        <tr><td>A</td><td>Conductor cross-sectional area</td><td>mm&#178;</td></tr>
+        <tr><td>cos &#966;</td><td>Load power factor</td><td>—</td></tr>
+        <tr><td>&#916;U<sub>max</sub></td><td>Permitted drop in volts — 5 % of U</td><td>V</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">The reactive term X&#183;sin&#966; is independent of conductor area. On long runs at low power factor it can dominate, which is why the minimum-CSA expression subtracts it from the voltage budget before solving for area rather than ignoring it.</div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">150 A three-phase feeder, 415 V, 150 m of 70 mm&#178; copper</div>
+
+    <p>A 150 m submain feeds a distribution board drawing 150 A at 0.85 power factor from a 415 V three-phase supply. The cable is 70 mm&#178; copper, laid in trefoil at low voltage, so x&#8242; = 0.08 m&#937;/m.</p>
+
+    <dl>
+      <dt>Resistivity at 75 °C</dt>
+      <dd>&#961;<sub>75</sub> = 1.72e-8 × [1 + 0.00393 × 55] = 0.020918 &#937;·mm&#178;/m</dd>
+
+      <dt>Conductor resistance</dt>
+      <dd>R = 0.020918 × 150 / 70 = 0.044824 &#937;</dd>
+
+      <dt>Conductor reactance</dt>
+      <dd>X = 0.08e-3 × 150 = 0.012 &#937;</dd>
+
+      <dt>Quadrature component</dt>
+      <dd>sin &#966; = &#8730;(1 &#8722; 0.85&#178;) = 0.5268</dd>
+
+      <dt>Voltage drop</dt>
+      <dd>&#916;U = &#8730;3 × 150 × (0.044824 × 0.85 + 0.012 × 0.5268) = 11.5411 V</dd>
+
+      <dt>Percentage drop</dt>
+      <dd>&#916;U % = 100 × 11.5411 / 415 = 2.781 %</dd>
+
+      <dt>Voltage at load</dt>
+      <dd>U<sub>load</sub> = 415 &#8722; 11.5411 = 403.46 V</dd>
+
+      <dt>Power loss</dt>
+      <dd>P = 3 × 150&#178; × 0.044824 = 3025.61 W</dd>
+
+      <dt>Current density</dt>
+      <dd>150 / 70 = 2.1429 A/mm&#178;</dd>
+
+      <dt>Minimum CSA for 5 %</dt>
+      <dd>36.26 mm&#178;, so 70 mm&#178; has substantial margin</dd>
+    </dl>
+
+    <div class="ans">&#916;U = 11.5411 V (2.781 %) &#183; U at load 403.46 V &#183; loss 3025.61 W &#183; A<sub>min</sub> 36.26 mm&#178;</div>
+  </div>
+
+  <div class="note">These are the default inputs above. Press Calculate and the same figures come back from the API.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Phase system</td><td>—</td><td>Single or three phase</td><td>Three phase</td></tr>
+        <tr><td>Supply voltage U</td><td>V</td><td>&gt; 0</td><td>415</td></tr>
+        <tr><td>Load current I</td><td>A</td><td>&gt; 0</td><td>150</td></tr>
+        <tr><td>Power factor cos &#966;</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.85</td></tr>
+        <tr><td>Route length L</td><td>m (ft)</td><td>&gt; 0</td><td>150</td></tr>
+        <tr><td>Conductor CSA</td><td>mm&#178; (kcmil)</td><td>&gt; 0</td><td>70</td></tr>
+        <tr><td>Material</td><td>—</td><td>Copper or aluminium</td><td>Copper</td></tr>
+        <tr><td>Formation</td><td>—</td><td>0.08 to 0.30 m&#937;/m</td><td>LV trefoil</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Conductor temperature is fixed at 75 °C and the pass/fail comparison is fixed at 5 %. Imperial entry converts at 1 ft = 0.3048 m and 1 kcmil = 0.5067 mm&#178; before the calculation runs.</div>
+
+  <h2>Cable Reactance by Formation</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Formation</th><th>Voltage class</th><th>x&#8242; (m&#937;/m)</th><th>Confidence</th></tr></thead>
+      <tbody>
+        <tr><td>Trefoil / touching</td><td>LV &#8804; 1 kV</td><td>0.08</td><td>±15 % vs datasheet</td></tr>
+        <tr><td>Flat formation</td><td>LV &#8804; 1 kV</td><td>0.10</td><td>±15 % vs datasheet</td></tr>
+        <tr><td>Touching trefoil</td><td>MV 1–36 kV</td><td>0.10</td><td>Use manufacturer data</td></tr>
+        <tr><td>Spacing 1 × diameter</td><td>MV 1–36 kV</td><td>0.13</td><td>Use manufacturer data</td></tr>
+        <tr><td>Spacing 2 × diameter</td><td>MV 1–36 kV</td><td>0.17</td><td>±30–50 % possible</td></tr>
+        <tr><td>Spacing 3 × diameter</td><td>MV 1–36 kV</td><td>0.20</td><td>Broad estimate only</td></tr>
+        <tr><td>XLPE</td><td>HV &gt; 33 kV</td><td>0.30</td><td>IEC 60287 software required</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Reactance depends on conductor spacing and diameter, so these are typical values for preliminary work. For MV and HV design, take x&#8242; from the cable manufacturer's datasheet.</div>
+
+  <h2>Conductor Properties &amp; Recommended Limits</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Material</th><th>&#961;<sub>20</sub> (&#937;·m)</th><th>&#945; (1/K)</th><th>&#961;<sub>75</sub> (&#937;·mm&#178;/m)</th><th>Relative drop</th></tr></thead>
+      <tbody>
+        <tr><td>Copper</td><td>1.72e-8</td><td>0.00393</td><td>0.020918</td><td>1.00</td></tr>
+        <tr><td>Aluminium</td><td>2.82e-8</td><td>0.00403</td><td>0.034451</td><td>1.65</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Circuit type</th><th>Recommended limit</th><th>Reference</th></tr></thead>
+      <tbody>
+        <tr><td>Lighting circuits</td><td>3 %</td><td>IEC 60364-5-52 Annex G</td></tr>
+        <tr><td>Other uses (power, motors)</td><td>5 %</td><td>IEC 60364-5-52 Annex G</td></tr>
+        <tr><td>Branch circuit</td><td>3 %</td><td>NEC 210.19(A) note</td></tr>
+        <tr><td>Feeder plus branch</td><td>5 %</td><td>NEC 215.2(A) note</td></tr>
+        <tr><td>Motor starting transient</td><td>10–15 %</td><td>Typical specification practice</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">An aluminium conductor of the same area drops about 65 % more voltage than copper. Aluminium is usually taken one or two standard sizes larger to compensate.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>What is the maximum allowable voltage drop in a cable?</summary>
+      <div class="faq-a"><p>IEC 60364-5-52 Annex G recommends 3 % for lighting circuits and 5 % for other uses, measured from the origin of the installation to the load. The NEC gives a comparable 3 % branch-circuit and 5 % combined feeder-plus-branch recommendation in informational notes to 210.19(A) and 215.2(A). Both are recommendations rather than hard limits, but most specifications adopt 5 % as the contractual ceiling. This calculator compares the computed percentage against 5 %.</p></div>
+    </details>
+
+    <details>
+      <summary>Why does this calculator use 75 degrees C conductor temperature?</summary>
+      <div class="faq-a"><p>Conductor resistivity rises with temperature, so voltage drop computed at 20 °C is optimistic. IEC and NEC practice is to evaluate voltage drop at the conductor operating temperature. This calculator fixes the conductor at 75 °C, which raises copper resistivity from 1.72e-8 to about 2.09e-8 &#937;·m — roughly 21 % more resistance and therefore roughly 21 % more resistive voltage drop than a 20 °C calculation would predict.</p></div>
+    </details>
+
+    <details>
+      <summary>Does cable reactance matter for voltage drop?</summary>
+      <div class="faq-a"><p>Yes, and it is the term most often omitted. Reactive drop is proportional to sin &#966;, so at a power factor of 0.85 it carries about 53 % of the current in quadrature. For small conductors the resistive term dominates, but above roughly 70 to 95 mm&#178; the reactance term becomes significant, and at low power factor or long runs it can decide whether a cable passes. This calculator includes the X sin &#966; term and reports the reactance used.</p></div>
+    </details>
+
+    <details>
+      <summary>How do I calculate voltage drop for a single-phase circuit?</summary>
+      <div class="faq-a"><p>Use a multiplier of 2 instead of &#8730;3, because current flows out along the line conductor and back along the neutral, so the cable length is traversed twice. The formula becomes &#916;U = 2 &#183; I &#183; (R cos &#966; + X sin &#966;). Select Single Phase in the calculator and it applies the factor of 2 automatically, and compares the drop against the single-phase supply voltage you enter.</p></div>
+    </details>
+
+    <details>
+      <summary>What cable size do I need to keep voltage drop under 5%?</summary>
+      <div class="faq-a"><p>Rearranging the voltage drop formula for area gives A = k &#183; I &#183; L &#183; &#961; &#183; cos &#966; / (&#916;U<sub>max</sub> &#8722; k &#183; I &#183; X &#183; L &#183; sin &#966;). The calculator reports this as the minimum CSA. Note that this is the minimum needed for voltage drop only — the conductor must also satisfy current-carrying capacity after derating and the adiabatic short-circuit withstand check, and either of those can demand a larger cable.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Size on volt drop with derating factors</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">FLC, torque, slip and starting current</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">kVA, kW, kVAr and correction</span></a>
+    <a href="https://www.multicalci.com/short-circuit-current-calculator">Short Circuit Current Calculator<span class="d">IEC 60909 fault levels and peak</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Ratio, currents, efficiency, regulation</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. Verify against project specifications, cable manufacturer data and a qualified engineer before construction.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('vdResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var FT_TO_M = 0.3048, KCMIL_TO_MM2 = 0.5067;
+  var last = null, hasRun = false;
+
+  function imperial() { return !M.isSI(); }
+
+  function collect() {
+    var v = M.validate([
+      { id: 'vdV',  label: 'Supply voltage',   required: true, gt: 0 },
+      { id: 'vdI',  label: 'Load current',     required: true, gt: 0 },
+      { id: 'vdL',  label: 'Cable route length', required: true, gt: 0 },
+      { id: 'vdA',  label: 'Conductor CSA',    required: true, gt: 0 },
+      { id: 'vdPF', label: 'Power factor',     required: true, gt: 0, lte: 1 }
+    ]);
+    M.showValidation('vdErrors', v);
+    if (!v.ok) return null;
+
+    var L = M.gv('vdL'), A = M.gv('vdA');
+    return {
+      phase: M.gs('vdPhase'),
+      V: M.gv('vdV'),
+      I: M.gv('vdI'),
+      L_m: imperial() ? L * FT_TO_M : L,
+      area_mm2: imperial() ? A * KCMIL_TO_MM2 : A,
+      PF: M.gv('vdPF'),
+      material: M.gs('vdMat'),
+      vLevel: M.gs('vdVLevel')
+    };
+  }
+
+  // The API's Amin comes from a resistance-only rearrangement and under-reads
+  // whenever reactance is significant. Rc scales as 1/A and Xc is independent
+  // of A, so the true minimum is recovered from the API's own Rc and Xc without
+  // duplicating any material or temperature constant in the browser.
+  function correctedAmin(inp, r) {
+    var k = parseInt(inp.phase, 10) === 3 ? Math.sqrt(3) : 2;
+    var sinPhi = Math.sqrt(Math.max(0, 1 - inp.PF * inp.PF));
+    var budget = inp.V * 0.05 - k * inp.I * r.Xc * sinPhi;
+    if (!(budget > 0)) return null;
+    return (r.Rc * inp.area_mm2 * inp.PF * k * inp.I) / budget;
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function render(inp, r) {
+    var pass = r.within_5pct === true;
+    var aMin = correctedAmin(inp, r);
+    var areaUnit = imperial() ? 'kcmil' : 'mm\u00B2';
+    var toArea = function (mm2) { return imperial() ? mm2 / KCMIL_TO_MM2 : mm2; };
+    var threePh = parseInt(inp.phase, 10) === 3;
+
+    var aMinVal, aMinSub;
+    if (aMin === null) {
+      aMinVal = 'No size passes';
+      aMinSub = 'Reactive drop alone exceeds the 5 % budget on this run. Shorten the route, raise the power factor or use a closer formation.';
+    } else {
+      aMinVal = M.fN(toArea(aMin), 2);
+      aMinSub = 'Includes the X\u00B7sin \u03C6 term. The API field Amin returns ' +
+        M.fN(toArea(r.Amin), 2, areaUnit) + ' from a resistance-only rearrangement, which does not meet 5 %.';
+    }
+
+    var html = '';
+    html += cardHtml({
+      label: 'Voltage Drop \u0394U', value: M.fN(r.VD, 4), unit: 'V',
+      tone: 'main', big: true, span: true,
+      sub: 'Across ' + M.fN(inp.L_m, 1, 'm') + ' of ' + M.fN(inp.area_mm2, 1, 'mm\u00B2') + ' ' +
+           (inp.material === 'al' ? 'aluminium' : 'copper')
+    });
+    html += cardHtml({
+      label: 'Percentage Drop', value: M.fN(r.VD_pct, 4), unit: '%',
+      tone: pass ? 'grn' : 'red',
+      subHtml: '<span class="badge ' + (pass ? 'ok' : 'err') + '">' +
+               (pass ? '\u2713 Within 5 % limit' : '\u2717 Exceeds 5 % limit') + '</span>'
+    });
+    html += cardHtml({
+      label: 'Voltage at Load', value: M.fN(r.end_voltage, 2), unit: 'V',
+      tone: 'blu', sub: 'Supply ' + M.fN(inp.V, 1, 'V') + ' minus \u0394U'
+    });
+    html += cardHtml({
+      label: 'Minimum CSA for 5 %', value: aMinVal, unit: aMin === null ? '' : areaUnit,
+      tone: 'amb', sub: aMinSub
+    });
+    html += cardHtml({
+      label: 'Conductor Resistance R', value: M.fN(r.Rc, 6), unit: '\u03A9',
+      tone: 'cyn', sub: 'Whole run at 75 \u00B0C'
+    });
+    html += cardHtml({
+      label: 'Conductor Reactance X', value: M.fN(r.Xc, 6), unit: '\u03A9',
+      tone: 'cyn', sub: M.fN(r.X_mpm_mohm, 3, 'm\u03A9/m') + ' \u00D7 route length'
+    });
+    html += cardHtml({
+      label: 'Power Loss', value: M.fN(r.loss_W, 2), unit: 'W',
+      tone: 'pur', sub: 'I\u00B2R across ' + (threePh ? 'three' : 'two') + ' conductors'
+    });
+    html += cardHtml({
+      label: 'Current Density', value: M.fN(r.dens, 4), unit: 'A/mm\u00B2',
+      tone: 'blu', sub: 'Load current per unit conductor area'
+    });
+    html += cardHtml({
+      label: 'Next Standard Breaker', value: M.fN(r.brk, 0), unit: 'A',
+      tone: 'blu', span: true,
+      sub: 'Sized at 1.25 \u00D7 I. Confirm against the protection study and cable ampacity.'
+    });
+
+    M.set('vdResults', html);
+    document.getElementById('vdPdfBtn').disabled = false;
+    last = { inp: inp, r: r, aMin: aMin, pass: pass };
+    hasRun = true;
+  }
+
+  function calculate() {
+    var inp = collect();
+    if (!inp) {
+      document.getElementById('vdPdfBtn').disabled = true;
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('vdCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('vdResults', true);
+    return M.api.electrical('vd', inp).then(function (r) {
+      render(inp, r);
+    }).catch(function (err) {
+      M.showError('vdResults', err);
+      document.getElementById('vdPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('ph', M.gs('vdPhase'));
+    p.set('v', M.gs('vdV'));
+    p.set('i', M.gs('vdI'));
+    p.set('l', M.gs('vdL'));
+    p.set('a', M.gs('vdA'));
+    p.set('pf', M.gs('vdPF'));
+    p.set('mat', M.gs('vdMat'));
+    p.set('x', M.gs('vdVLevel'));
+    p.set('u', imperial() ? 'imp' : 'si');
+    return 'https://www.multicalci.com/voltage-drop-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    if (p.get('u')) M.setUnitSystem(p.get('u') === 'imp' ? 'IMP' : 'SI');
+    var map = { ph: 'vdPhase', v: 'vdV', i: 'vdI', l: 'vdL', a: 'vdA', pf: 'vdPF', mat: 'vdMat', x: 'vdVLevel' };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any || !!p.get('u');
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Voltage Drop Calculator', text: 'Voltage drop case on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('vdShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var i = last.inp, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Phase system', parseInt(i.phase, 10) === 3 ? 'Three phase' : 'Single phase'],
+      ['Supply voltage', M.fN(i.V, 2, 'V')],
+      ['Load current', M.fN(i.I, 2, 'A')],
+      ['Power factor', M.fN(i.PF, 3)],
+      ['Route length', M.fN(i.L_m, 2, 'm')],
+      ['Conductor CSA', M.fN(i.area_mm2, 2, 'mm\u00B2')],
+      ['Material', i.material === 'al' ? 'Aluminium' : 'Copper'],
+      ['Reactance', M.fN(r.X_mpm_mohm, 3, 'm\u03A9/m')]
+    ];
+    var outRows = [
+      ['Voltage drop \u0394U', M.fN(r.VD, 4, 'V')],
+      ['Percentage drop', M.fN(r.VD_pct, 4, '%') + (last.pass ? '  (within 5 %)' : '  (EXCEEDS 5 %)')],
+      ['Voltage at load', M.fN(r.end_voltage, 2, 'V')],
+      ['Minimum CSA for 5 %', last.aMin === null ? 'No size passes' : M.fN(last.aMin, 2, 'mm\u00B2')],
+      ['Conductor resistance', M.fN(r.Rc, 6, '\u03A9')],
+      ['Conductor reactance', M.fN(r.Xc, 6, '\u03A9')],
+      ['Power loss', M.fN(r.loss_W, 2, 'W')],
+      ['Current density', M.fN(r.dens, 4, 'A/mm\u00B2')],
+      ['Next standard breaker', M.fN(r.brk, 0, 'A')]
+    ];
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Voltage Drop Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Voltage Drop Calculation Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Inputs', inRows) + table('Results', outRows) +
+      '<div class="f">Conductor temperature 75 \u00B0C. Minimum CSA includes the reactive term and covers voltage drop only \u2014 ' +
+      'current-carrying capacity after derating and short-circuit withstand must be checked separately. ' +
+      'For estimation and preliminary design; verify with a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  window.onUnitSystemChange = function () {
+    if (hasRun) calculate();
+  };
+
+  M.ready(function () {
+    M.setUnitSystem('SI');
+
+    document.getElementById('vdCalcBtn').addEventListener('click', calculate);
+    document.getElementById('vdPdfBtn').addEventListener('click', pdf);
+    document.getElementById('vdShareBtn').addEventListener('click', share);
+    document.getElementById('vdUnitSI').addEventListener('click', function () { M.setUnitSystem('SI'); });
+    document.getElementById('vdUnitIMP').addEventListener('click', function () { M.setUnitSystem('IMP'); });
+
+    M.enterToCalc(['vdV', 'vdI', 'vdL', 'vdA', 'vdPF'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
