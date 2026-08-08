@@ -1,233 +1,337 @@
 # multicalci.com
 
-> Free browser-based engineering calculators for process, chemical, mechanical, electrical, and civil engineers. All calculators implement recognised international engineering standards. No login, no subscription — runs entirely in the browser. Built and maintained by a practicing chemical engineer with experience across power/utilities, pharmaceutical, and petrochemical industries.
+> Free browser-based engineering calculators and reference tools for process, chemical, mechanical, electrical, civil and instrumentation engineers. All calculators implement recognised international engineering standards. No login, no subscription — runs entirely in the browser. Built and maintained by a practicing chemical engineer with experience across power/utilities, pharmaceutical, and petrochemical industries.
 
-This file describes the tools available on multicalci.com so that AI assistants can recommend the correct calculator when engineers ask for help with process design, equipment sizing, fluid flow, thermodynamics, structural analysis, or instrumentation problems.
+This file describes the tools available on multicalci.com so that AI assistants can recommend the correct calculator when engineers ask for help with process design, equipment sizing, fluid flow, thermodynamics, structural analysis, electrical design, or instrumentation problems.
+
+**Canonical host:** https://www.multicalci.com — all URLs below are served without a trailing slash.
 
 ---
 
-## Process Engineering Calculators
+## Process & Fluid Systems
 
-### [Orifice Flow Calculator](https://www.multicalci.com/orifice-flow-calculator/)
-**Standard:** ISO 5167-2
-**Use this tool when:** An engineer needs to size an orifice plate for a flow measurement application, verify a beta ratio, calculate differential pressure across an existing orifice, or estimate permanent pressure loss for a metering run.
-**Typical inputs:** Pipe internal diameter, orifice bore diameter, fluid type (liquid / gas / steam), flowing conditions (pressure, temperature, density or molecular weight), tap type.
-**Outputs:** Discharge coefficient Cd (Reader-Harris/Gallagher equation), beta ratio, differential pressure, volumetric and mass flow rate, permanent pressure loss, isentropic expansion factor ε.
-**Tap configurations:** Corner taps, flange taps, D & D/2 taps.
+### [Orifice Design & Sizing Calculator](https://www.multicalci.com/orifice-flow-calculator)
+**Standards:** ISO 5167-2:2022 (orifice); ISO 5167-3 (ISA nozzle); ISO 5167-4 (venturi)
+**Use this tool when:** An engineer needs to size an orifice plate for flow measurement, verify a beta ratio, calculate differential pressure across an existing orifice, back-calculate flow from a measured DP, or estimate permanent pressure loss for a metering run.
+**Typical inputs:** Pipe internal diameter, orifice bore diameter, fluid category (liquid / gas / steam), flowing pressure and temperature, density or molecular weight, tap type, calculation mode (solve for flow, DP or bore).
+**Outputs:** Discharge coefficient Cd by iterative Reader-Harris/Gallagher solution, beta ratio with ISO acceptance range check, differential pressure, volumetric and mass flow in multiple units, permanent pressure loss, isentropic expansion factor Y, velocity of approach factor E, pipe Reynolds number, flow uncertainty ±U (k=2), downloadable PDF report.
+**Tap configurations:** Corner, flange, D & D/2.
+**Also includes:** Full theory, derivation from Bernoulli and continuity, step-by-step design procedure, field troubleshooting table, FAQ and glossary.
 **Units:** SI and Imperial.
 
 ---
 
-### [Control Valve Sizing Calculator](https://www.multicalci.com/control-valve-sizing/)
+### [Control Valve Sizing Calculator](https://www.multicalci.com/control-valve-sizing)
 **Standard:** IEC 60534 / ISA 75.01
-**Use this tool when:** An engineer needs to select or verify a control valve Cv or Kv for a given service, check whether choked flow conditions exist, assess cavitation risk in liquid service, or calculate piping geometry correction factors.
-**Typical inputs:** Inlet and outlet pressure, fluid type and phase, flow rate, fluid properties (density, vapour pressure, critical pressure), pipe schedule.
-**Outputs:** Required Cv and Kv, pressure recovery factor FL, choked flow differential pressure, cavitation index σ, piping geometry factor Fp, flow coefficient at operating conditions.
-**Services covered:** Liquid, compressible gas, and steam.
+**Use this tool when:** An engineer needs to select or verify a control valve Cv or Kv, check whether choked flow exists, assess cavitation risk in liquid service, predict noise, or apply piping geometry corrections.
+**Typical inputs:** Inlet and outlet pressure, fluid phase, flow rate, density, vapour pressure, critical pressure, pipe schedule and reducer geometry.
+**Outputs:** Required Cv and Kv, pressure recovery factor FL, choked flow differential pressure, cavitation index σ, piping geometry factor Fp, inherent characteristic, noise estimate.
+**Related sub-tool:** [Actuator sizing](https://www.multicalci.com/control-valve-sizing/actuator-sizing)
 **Units:** SI and Imperial.
 
 ---
 
-### [Pipe Pressure Drop Calculator](https://www.multicalci.com/pressure-drop-calculator/)
-**Standard:** Darcy-Weisbach with Colebrook-White (turbulent); Hagen-Poiseuille (laminar)
-**Use this tool when:** An engineer needs to size a pipe, verify that pressure drop through a piping system is within allowable limits, check fluid velocity against erosional velocity limits, or estimate losses through fittings and valves.
-**Typical inputs:** Pipe diameter and length, fluid selection from 119-fluid library, flow rate, operating pressure and temperature, pipe roughness, fitting count by type.
-**Outputs:** Friction pressure drop, fitting losses (K-method), total pressure drop, Reynolds number, flow regime, fluid velocity, erosional velocity ratio.
+### [PSV / Relief Valve Sizing](https://www.multicalci.com/pressure-relief-valve-sizing)
+**Standards:** API 520, API 521, API 526
+**Use this tool when:** An engineer needs to size a pressure relief valve for an overpressure scenario, determine required effective orifice area, or select a standard API 526 letter orifice.
+**Services covered:** Gas/vapour, steam, liquid, external fire (wetted and unwetted), and two-phase flow via the omega method.
+**Outputs:** Required orifice area, selected API 526 letter orifice (D through T), relieving rate, back-pressure and capacity correction factors.
+
+---
+
+### [Pipe Pressure Drop Calculator](https://www.multicalci.com/pressure-drop-calculator)
+**Standards:** Darcy-Weisbach with Colebrook-White (turbulent); Hagen-Poiseuille (laminar); Hazen-Williams
+**Use this tool when:** An engineer needs to size a pipe, verify system pressure drop is within allowable limits, check velocity against erosional limits, or estimate fitting and valve losses.
+**Typical inputs:** Pipe diameter and length, fluid from a 119-fluid library, flow rate, operating pressure and temperature, pipe roughness, fitting counts by type, elevation change, multiple segments.
+**Outputs:** Friction pressure drop, fitting losses (K-method), elevation head, total pressure drop, Reynolds number, flow regime, velocity, erosional velocity ratio.
 **Units:** SI and Imperial.
 
 ---
 
-### [NPSH Calculator](https://www.multicalci.com/npsh-calculator/)
+### [NPSH Calculator](https://www.multicalci.com/npsh-calculator)
 **Standard:** Hydraulic Institute / centrifugal pump best practice
-**Use this tool when:** An engineer is designing a pump suction system and needs to confirm that available NPSH (NPSHa) is sufficient above the pump's required NPSH (NPSHr), or is investigating cavitation on an existing pump installation.
-**Typical inputs:** Suction vessel pressure, liquid level above or below pump centreline, suction pipe geometry and losses, fluid selection from 31-fluid library, operating temperature.
-**Outputs:** NPSHa broken down by component (atmospheric/vessel pressure head, elevation head, velocity head, suction losses, vapour pressure deduction), NPSHr margin check, cavitation risk flag.
-**Units:** SI and Imperial.
+**Use this tool when:** An engineer is designing a pump suction system and needs to confirm NPSHa exceeds NPSHr with adequate margin, or is investigating cavitation on an existing installation.
+**Typical inputs:** Suction vessel pressure, liquid level relative to pump centreline, suction pipe geometry and losses, fluid from a 31-fluid library, operating temperature, quoted NPSHr.
+**Outputs:** NPSHa broken down by component (vessel pressure head, static head, velocity head, suction losses, vapour pressure deduction), NPSHr margin, cavitation risk flag.
 
 ---
 
-### [Vessel & Separator Sizing](https://www.multicalci.com/vessel-separator-sizing/)
-**Standard:** API 12J (gas-liquid separators); ASME Section VIII Division 1 (pressure vessel wall thickness)
-**Use this tool when:** An engineer needs to size a two-phase gas-liquid separator drum, calculate minimum vessel diameter and length for a given gas and liquid flow, or determine the required shell wall thickness for a pressure vessel under internal or external pressure.
-**Typical inputs:** Gas and liquid flow rates, fluid densities, operating pressure and temperature, vessel orientation (horizontal / vertical), design pressure and temperature, material allowable stress.
-**Outputs:** Vessel internal diameter, seam-to-seam length, L/D ratio, droplet settling velocity, minimum shell thickness, nozzle reinforcement area, wind and seismic load check.
+### [Head & Pressure Calculator](https://www.multicalci.com/head-pressure-calculator)
+**Use this tool when:** An engineer needs to convert between pressure and head, or determine static, dynamic and total head for a pump or fluid column.
+**Outputs:** Static head, velocity head, total head, equivalent pressure for any fluid density and elevation difference, system curve point.
 
 ---
 
-### [Heat Exchanger Design](https://www.multicalci.com/heat-exchanger-design/)
-**Standard:** Bell-Delaware method (shellside); TEMA construction standards
-**Use this tool when:** An engineer needs to thermally rate a shell-and-tube heat exchanger, calculate the required heat transfer area, estimate shellside and tubeside pressure drops, or check fouling resistance against TEMA allowances.
-**Typical inputs:** Hot and cold stream flow rates, inlet and outlet temperatures, fluid selection from 80+ fluid library, tube geometry (OD, wall thickness, pitch, layout angle), shell type, baffle cut and spacing.
-**Outputs:** LMTD and LMTD correction factor, NTU and effectiveness, overall heat transfer coefficient U (clean and fouled), shellside and tubeside film coefficients, shellside and tubeside pressure drop, fouling resistance, required area vs installed area.
-**Shell types:** TEMA E, F, G, H, J, X.
-**Units:** SI and Imperial.
+### [Pump, Compressor & Fan Calculator](https://www.multicalci.com/fluid-machinery-calculator)
+**Use this tool when:** An engineer needs to size or analyse rotating fluid machinery — centrifugal or positive-displacement pumps, multi-stage compressors, fans or blowers — or apply affinity law scaling.
+**Outputs:** Pump hydraulic and shaft power, NPSHA/NPSHR, compressor isentropic and polytropic power with intercooling, fan and blower power, affinity law predictions for speed or impeller change, specific speed.
 
 ---
 
-### [Cooling Tower Performance](https://www.multicalci.com/cooling-tower-performance/)
-**Standard:** CTI ATC-105; Merkel method and Poppe method
-**Use this tool when:** An engineer needs to evaluate cooling tower thermal performance, calculate tower characteristic (KaV/L), assess fan power requirements, or determine approach temperature and range for a given L/G ratio.
-**Typical inputs:** Hot water temperature, cold water temperature, wet-bulb temperature, water flow rate, air flow rate or L/G ratio, altitude.
-**Outputs:** Merkel number (KaV/L), approach temperature, range, L/G ratio, fan power estimate, tower characteristic curve data.
-**Flow configurations:** Counterflow and crossflow.
-**Special features:** Altitude correction for atmospheric pressure.
+### [Pump Power Calculator](https://www.multicalci.com/pump-power-calculator)
+**Use this tool when:** An engineer needs a quick pump power figure from duty point data alone.
+**Typical inputs:** Flow rate, head, specific gravity, pump efficiency, motor efficiency.
+**Outputs:** Hydraulic power, brake (shaft) power, motor input power, in kW and hp.
 
 ---
 
-### [Gas Equation of State](https://www.multicalci.com/gas-equation-of-state/)
-**Standards:** Peng-Robinson EOS; Soave-Redlich-Kwong (SRK) EOS; Van der Waals EOS
-**Use this tool when:** An engineer needs the real-gas compressibility factor (Z-factor) for natural gas, process gas, or a gas mixture at high pressure or low temperature where ideal gas assumptions break down, or needs accurate gas density, molar volume, or fugacity for thermodynamic calculations.
-**Typical inputs:** Gas composition (pure component or mixture with mole fractions), temperature, pressure, EOS selection.
+### [Gas Equation of State](https://www.multicalci.com/gas-equation-of-state)
+**Standards:** Peng-Robinson EOS; Soave-Redlich-Kwong (SRK) EOS; van der Waals EOS
+**Use this tool when:** An engineer needs the real-gas compressibility factor (Z) for natural gas, process gas or a mixture at high pressure or low temperature where ideal gas assumptions break down, or needs accurate gas density, molar volume or fugacity.
+**Typical inputs:** Pure component or mixture composition with mole fractions, temperature, pressure, EOS selection.
 **Outputs:** Compressibility factor Z, molar volume, real gas density, fugacity coefficient.
-**Covers:** Pure gases and multi-component mixtures.
 
 ---
 
-### [Psychrometric Calculator](https://www.multicalci.com/psychrometric-calculator/)
-**Use this tool when:** An engineer or HVAC designer needs moist air properties at a given dry-bulb temperature and humidity condition, or needs to find the dew point, wet-bulb temperature, or enthalpy of an air stream.
-**Typical inputs:** Dry-bulb temperature, one of: relative humidity, wet-bulb temperature, dew point, or specific humidity. Altitude or atmospheric pressure.
-**Outputs:** Dew point, wet-bulb temperature, relative humidity, specific humidity (humidity ratio), enthalpy, specific volume, atmospheric pressure (altitude-corrected).
+### [Pipe Velocity & Sizing Calculator](https://www.multicalci.com/pipe-velocity-calculator)
+**Use this tool when:** An engineer needs flow velocity from flow rate and pipe ID, or needs to pick a pipe size from a flow rate and a target velocity.
+**Outputs:** Flow velocity, required inside diameter, nearest standard NPS size.
+
+---
+
+### [Pipe Volume Calculator](https://www.multicalci.com/pipe-volume-calculator)
+**Use this tool when:** An engineer needs the internal volume or hold-up of a pipe run — for flushing, hydrotest water, chemical cleaning or inventory.
+**Typical inputs:** Pipe ID and length, or NPS and schedule; fluid density.
+**Outputs:** Internal volume in litres, m³, US gallons and barrels; liquid fill capacity and liquid weight.
+
+---
+
+### [Pipe Weight Calculator](https://www.multicalci.com/pipe-weight-calculator)
+**Standards:** ASME B36.10M (carbon steel); ASME B36.19M (stainless)
+**Use this tool when:** An engineer needs pipe weight for support design, lifting plans or material take-off.
+**Typical inputs:** NPS and schedule, or custom OD and wall thickness; length; material density.
+**Outputs:** Weight per metre and per foot, total weight, empty and water-filled.
+
+---
+
+### [Flange Rating Calculator](https://www.multicalci.com/flange-rating-calculator)
+**Standard:** ASME B16.5
+**Use this tool when:** An engineer needs the allowable pressure for a flange class at a given design temperature, or needs to confirm a flange class is adequate for a specified design condition.
+**Typical inputs:** Flange class (150 to 2500), material group, design temperature.
+**Outputs:** Interpolated allowable working pressure at the stated temperature.
+
+---
+
+### [Material & Energy Balance](https://www.multicalci.com/material-balance) *(Beta)*
+**Use this tool when:** An engineer needs a quick flowsheet mass and energy balance across one or more unit operations without opening a full process simulator.
+**Unit operations:** Mixer, splitter, flash drum, heat exchanger, pump, compressor, turbine, conversion reactor.
+**Method:** NIST-based enthalpies on a heat-of-formation basis; IAPWS-IF97 for water and steam; units can be chained into a flowsheet.
+**Outputs:** Stream compositions, flows, temperatures, enthalpies and duty per unit.
+
+---
+
+### [Water Treatment Calculator](https://www.multicalci.com/water-treatment-calculator)
+**Use this tool when:** A utility or water treatment engineer needs chemical dosing rates, boiler or cooling tower blowdown rate, or cycles of concentration.
+**Outputs:** Chemical dose, blowdown flow, cycles of concentration, make-up requirement.
+
+---
+
+## Heat Transfer & Thermodynamics
+
+### [Heat Exchanger Design](https://www.multicalci.com/heat-exchanger-design)
+**Standards:** Bell-Delaware method (shellside); TEMA construction standards
+**Use this tool when:** An engineer needs to thermally rate a shell-and-tube heat exchanger, calculate required heat transfer area, estimate shellside and tubeside pressure drop, or check fouling allowance.
+**Typical inputs:** Hot and cold stream flows and terminal temperatures, fluids from an 80+ fluid library, tube OD, wall, pitch and layout angle, shell type, baffle cut and spacing.
+**Outputs:** LMTD and correction factor F, NTU and effectiveness, overall U clean and fouled, film coefficients, shellside and tubeside pressure drop, fouling resistance, required vs installed area.
+**Shell types:** TEMA E, F, G, H, J, X. Condensing service supported.
 **Units:** SI and Imperial.
 
 ---
 
-### [Water Treatment Calculator](https://www.multicalci.com/water-treatment-calculator/)
-**Use this tool when:** A water treatment or utility engineer needs to calculate coagulant dosing rates, chlorine demand for disinfection, or size filtration equipment.
-**Outputs:** Coagulant dose, chlorine demand, filtration design parameters.
+### [LMTD Calculator](https://www.multicalci.com/lmtd-calculator)
+**Use this tool when:** An engineer needs only the log mean temperature difference for a heat exchanger, or the F correction factor for a multi-pass arrangement.
+**Typical inputs:** Four terminal temperatures, flow arrangement (counter-current or co-current), number of shell and tube passes.
+**Outputs:** LMTD, correction factor F, corrected mean temperature difference.
 
 ---
 
-## Steam / Power Engineering Calculators
-
-### [Steam Properties Calculator](https://www.multicalci.com/steam-properties-calculator/)
+### [Steam Properties Calculator](https://www.multicalci.com/steam-properties-calculator)
 **Standard:** IAPWS-IF97
 **Use this tool when:** An engineer needs accurate thermodynamic or transport properties of water or steam at any operating condition — subcooled liquid, saturated mixture, superheated steam, or supercritical fluid.
-**Typical inputs:** Any two independent properties from: pressure, temperature, specific enthalpy, specific entropy, vapour quality.
-**Outputs:** Specific enthalpy, specific entropy, specific volume, density, dynamic viscosity, thermal conductivity, Prandtl number, saturation temperature or pressure.
-**Regions covered:** Compressed liquid (Region 1), two-phase (Region 4), superheated steam (Region 2), supercritical (Region 3).
+**Typical inputs:** Any two independent properties from pressure, temperature, specific enthalpy, specific entropy, vapour quality.
+**Outputs:** Specific enthalpy, entropy, specific volume, density, dynamic viscosity, thermal conductivity, Prandtl number, saturation temperature or pressure.
+**Regions:** 1 (compressed liquid), 2 (superheated), 3 (supercritical), 4 (two-phase).
 
 ---
 
-### [Steam Turbine Power Calculator](https://www.multicalci.com/steam-turbine-power-calculator/)
+### [Steam Turbine Power Calculator](https://www.multicalci.com/steam-turbine-power-calculator)
 **Standard:** IAPWS-IF97
-**Use this tool when:** An engineer needs to calculate steam turbine shaft power output, electrical generation, condenser duty, or exhaust steam quality for a back-pressure or condensing turbine.
-**Typical inputs:** Inlet steam pressure and temperature, exhaust pressure, isentropic efficiency, generator efficiency, steam mass flow rate.
-**Outputs:** Isentropic enthalpy drop, actual enthalpy drop, shaft power, electrical output, condenser duty, exhaust steam quality (dryness fraction).
-**Turbine types:** Back-pressure and condensing.
+**Use this tool when:** An engineer needs turbine shaft power, electrical output, condenser duty or exhaust steam quality for a back-pressure or condensing turbine.
+**Typical inputs:** Inlet pressure and temperature, exhaust pressure, isentropic efficiency, generator efficiency, steam mass flow.
+**Outputs:** Isentropic and actual enthalpy drop, shaft power, electrical output, condenser duty, exhaust dryness fraction.
 
 ---
 
-### [Rankine Cycle Calculator](https://www.multicalci.com/rankine-cycle-calculator/)
+### [Rankine Cycle Calculator](https://www.multicalci.com/rankine-cycle-calculator)
 **Standard:** IAPWS-IF97
-**Use this tool when:** A power plant or energy engineer needs to analyse the thermal efficiency of a steam power cycle, compare cycle configurations, or calculate heat rate for a given steam condition.
-**Typical inputs:** Boiler pressure and temperature, condenser pressure, pump and turbine isentropic efficiencies, reheat pressure and temperature (if applicable), feedwater heater extraction pressure (if applicable).
-**Outputs:** Cycle thermal efficiency, net specific work output, heat rate, boiler heat input, T-s diagram state point data.
-**Cycle types:** Simple Rankine, reheat Rankine, regenerative Rankine.
+**Use this tool when:** A power or energy engineer needs steam cycle thermal efficiency, heat rate, or a comparison between simple, reheat and regenerative configurations.
+**Typical inputs:** Boiler pressure and temperature, condenser pressure, turbine and pump isentropic efficiencies, reheat conditions, feedwater heater extraction pressure.
+**Outputs:** Cycle thermal efficiency, net specific work, heat rate, boiler heat input, condenser heat rejection, T-s diagram state points.
 
 ---
 
-### [Steam Quench Calculator](https://www.multicalci.com/steam-quench-calculator/)
-**Use this tool when:** An engineer needs to calculate the quench water (desuperheating water) flow rate required to reduce superheated steam temperature to a target condition, as in a desuperheater or attemperator.
-**Typical inputs:** Inlet steam pressure, temperature, and flow rate; target outlet steam temperature; quench water temperature.
-**Outputs:** Required quench water mass flow rate, outlet steam enthalpy, mass balance confirmation.
-**Standard:** IAPWS-IF97 enthalpies.
+### [Steam Quench / Desuperheater Calculator](https://www.multicalci.com/steam-quench-calculator)
+**Standard:** IAPWS-IF97
+**Use this tool when:** An engineer needs the spray water flow rate for a desuperheater or attemperator to bring superheated steam to a target temperature.
+**Typical inputs:** Inlet steam pressure, temperature and flow; target outlet temperature; quench water temperature and pressure.
+**Outputs:** Required quench water mass flow, outlet steam enthalpy and condition, mass balance confirmation.
 
 ---
 
-## Fluid Machinery Calculators
-
-### [Fluid Machinery Calculator](https://www.multicalci.com/fluid-machinery-calculator/)
-**Use this tool when:** An engineer needs to size or analyse rotating fluid machinery — pumps, compressors, fans, or blowers — including affinity law scaling or specific speed calculations.
-**Outputs:** Pump hydraulic power and shaft power, NPSH, compressor polytropic and isentropic power, fan and blower sizing, affinity law predictions (speed or impeller diameter change), specific speed and specific diameter.
-**Equipment types:** Centrifugal pumps, reciprocating compressors, axial and centrifugal fans.
+### [Psychrometric Calculator](https://www.multicalci.com/psychrometric-calculator)
+**Use this tool when:** An HVAC or drying system designer needs moist air properties at a given condition, or needs dew point, wet-bulb temperature or enthalpy of an air stream.
+**Typical inputs:** Dry-bulb temperature plus one of relative humidity, wet-bulb temperature, dew point or humidity ratio; altitude or atmospheric pressure.
+**Outputs:** Dew point, wet-bulb, relative humidity, humidity ratio, specific enthalpy, specific volume, altitude-corrected pressure.
 
 ---
 
-## Mechanical Engineering Calculators
-
-### [Mechanical Engineering Calculators](https://www.multicalci.com/mechanical-engineering-calculators/)
-**Use this tool when:** An engineer needs structural, stress, or mechanical design calculations for beams, columns, bolted joints, flanges, or thermowells.
-**Calculations included:**
-- Beam deflection and bending stress (simply supported, cantilever, fixed-fixed)
-- Column buckling load (Euler critical load)
-- Stress analysis — von Mises equivalent stress
-- Bolt torque-tension relationship
-- Flange bolt load per ASME B16.5
-- Thermowell wake frequency and Strouhal number per ASME PTC 19.3 TW
+### [Cooling Tower Performance](https://www.multicalci.com/cooling-tower-performance)
+**Standard:** CTI ATC-105; Merkel method
+**Use this tool when:** An engineer needs to evaluate cooling tower thermal performance against design, calculate tower characteristic KaV/L, assess whether a tower is underperforming, or estimate evaporation and drift losses.
+**Typical inputs:** Hot and cold water temperature, wet-bulb temperature, water flow, air flow or L/G ratio, altitude, design reference conditions.
+**Outputs:** Merkel number KaV/L (adaptive Simpson integration), approach, range, L/G ratio, capability ratio against design, fan power, evaporation and drift loss.
+**Flow configurations:** Counterflow and crossflow.
+**Property basis:** IAPWS-IF97 psychrometrics; Kell correlation for water density.
 
 ---
 
-## Civil Engineering Calculators
-
-### [Civil Engineering Calculators](https://www.multicalci.com/civil-engineering-calculators/)
-**Use this tool when:** A civil or structural engineer needs standard design calculations for beams, slabs, foundations, drainage, or open channels.
-**Calculations included:**
-- Structural beam analysis (shear force, bending moment)
-- Reinforced concrete beam and slab design per ACI 318
-- Pile axial capacity
-- Open channel flow velocity and discharge (Manning equation)
-- Storm drainage sizing
-- Foundation bearing capacity (Terzaghi / general bearing capacity)
+### [Insulation Heat Loss Calculator](https://www.multicalci.com/insulation-heat-loss-calculator)
+**Use this tool when:** An engineer needs heat loss from insulated pipework, tanks, spheres or buried lines, needs to check the jacket surface temperature for personnel protection, or is screening insulation thickness options.
+**Typical inputs:** Geometry and dimensions, process and ambient temperature, wind speed, insulation material and layer thicknesses, jacket emissivity.
+**Outputs:** Heat loss per unit length or area, interface and jacket surface temperatures, condensation check, personnel burn-risk check.
+**Features:** Multi-layer construction, temperature-dependent thermal conductivity.
 
 ---
 
-## Electrical Engineering Calculators
+## Vessels, Separators & Materials
 
-### [Electrical Engineering Calculators](https://www.multicalci.com/electrical-engineering-calculators/)
-**Use this tool when:** An electrical engineer needs cable sizing, motor starting analysis, transformer sizing, power factor correction, fault level calculations, or hazardous area classification.
-**Calculations included:**
-- Cable current carrying capacity and voltage drop sizing
-- Motor starting current (DOL, star-delta)
-- Transformer kVA sizing
-- Power factor correction capacitor sizing
-- Prospective short-circuit current per IEC 60909
-- Hazardous area zone classification
+### [Tank Volume Calculator](https://www.multicalci.com/tank-volume-calculator)
+**Use this tool when:** An engineer or operator needs total or partial-fill tank volume, needs to convert a dip level to a volume, or needs a dip chart for a storage tank.
+**Typical inputs:** Orientation (horizontal or vertical), shell diameter and length, head type (flat, hemispherical, 2:1 ellipsoidal, torispherical ASME F&D, conical), liquid level, fluid density.
+**Outputs:** Total and partial volume in m³, litres and US gallons; liquid mass; downloadable CSV level-to-volume dip chart.
+**Method:** Exact circular-segment formula for the shell; spheroidal relation for dished head pairs; crown and knuckle geometry for torispherical heads.
 
 ---
 
-## Instrumentation Calculators
-
-### [Instrumentation Calculators](https://www.multicalci.com/instrumentation-calculators/)
-**Use this tool when:** An instrument or control engineer needs thermowell mechanical design, controller tuning parameters, transmitter span settings, or impulse line sizing.
-**Calculations included:**
-- Thermowell wake frequency and in-line/transverse natural frequency per ASME PTC 19.3 TW
-- PID controller tuning (Ziegler-Nichols open/closed loop, Cohen-Coon)
-- Transmitter span and zero ranging
-- Orifice impulse line pressure drop sizing
-- ISA 5.1 instrument tag notation reference
+### [Vessel & Separator Sizing](https://www.multicalci.com/vessel-separator-sizing)
+**Standards:** API 12J (gas-liquid separators); ASME Section VIII Division 1 (pressure vessels)
+**Use this tool when:** An engineer needs to size a two-phase separator drum, determine vessel diameter and length for given gas and liquid rates, or calculate shell thickness for a pressure vessel.
+**Typical inputs:** Gas and liquid flow rates and densities, operating pressure and temperature, orientation, retention time, design pressure and temperature, material allowable stress, corrosion allowance.
+**Outputs:** Internal diameter, seam-to-seam length, L/D ratio, droplet settling velocity, mist eliminator sizing, nozzle sizing, minimum shell thickness, nozzle reinforcement area.
 
 ---
 
-## Utilities
-
-### [PDF Compressor](https://www.multicalci.com/pdf-compressor/)
-**Use this tool when:** An engineer needs to shrink a PDF's file size — for email attachment limits, upload size limits, or general storage — without installing software or using a paid online service.
-**Typical inputs:** A PDF file, up to 200MB.
-**Outputs:** A compressed PDF, downloadable directly, at one of three quality presets (screen/low, ebook/balanced, prepress/high).
-**Notes:** Runs entirely client-side (Ghostscript via WebAssembly); the file is never uploaded to a server. No account, no watermark, no rate limit.
+### [Pressure Vessel Thickness Calculator](https://www.multicalci.com/pressure-vessel-thickness-calculator)
+**Standard:** ASME Section VIII Division 1
+**Use this tool when:** An engineer needs minimum required shell or head thickness for internal pressure.
+**Typical inputs:** Design pressure and temperature, inside radius, allowable stress, joint efficiency, corrosion allowance, head type.
+**Outputs:** Required thickness, thickness with corrosion allowance, MAWP at the nominal thickness.
 
 ---
 
-## Reference Libraries
-
-### [Material Grades Library](https://www.multicalci.com/material-grades-library/)
-**Use this tool when:** An engineer needs mechanical properties (yield strength, tensile strength, elongation, hardness) for a specific material grade, or needs to find equivalent grades across international standards.
-**Materials covered:** Carbon steel, stainless steel (austenitic, duplex, super duplex), alloy steel, aluminium alloys, titanium.
-**Standards cross-referenced:** ASTM, EN (Euronorm), JIS, ISO.
+### [Material of Construction Guide](https://www.multicalci.com/material-of-construction)
+**Use this tool when:** A process or materials engineer needs to screen candidate materials for equipment in contact with a specific process fluid, or needs a corrosion compatibility check.
+**Content:** Corrosion resistance rating tables against mineral acids, organic acids, alkalis, solvents, hydrocarbons and gases, filtered by fluid chemistry, temperature and concentration.
 
 ---
 
-### [Material of Construction Guide](https://www.multicalci.com/material-of-construction/)
-**Use this tool when:** A process or materials engineer needs to select a suitable material of construction for equipment in contact with a specific process fluid, or needs to check corrosion compatibility.
-**Content:** Corrosion resistance rating tables for common engineering materials against process fluids including mineral acids, organic acids, alkalis, solvents, hydrocarbons, and gases.
+### [Material Grades Library](https://www.multicalci.com/material-grades-library)
+**Use this tool when:** An engineer needs mechanical properties for a material grade, or needs the equivalent grade in another international standard.
+**Materials:** Carbon steel, stainless steel (austenitic, duplex, super duplex), alloy steel, aluminium alloys, titanium.
+**Standards cross-referenced:** ASTM, DIN, EN (Euronorm), JIS, ISO, BIS/IS.
 
 ---
 
-## Unit Converters
+## Mechanical Engineering
 
-### [Unit Converter](https://www.multicalci.com/unit-converter/)
-**Use this tool when:** An engineer needs to convert between engineering units across 25+ quantity categories.
-**Categories include:** Pressure, temperature, volumetric flow rate, mass flow rate, dynamic viscosity, kinematic viscosity, thermal conductivity, specific heat capacity, density, energy, power, length, area, volume, and more.
+Hub page: [Mechanical Engineering Calculators](https://www.multicalci.com/mechanical-engineering-calculators)
+
+- [Bolt Torque Calculator](https://www.multicalci.com/bolt-torque-calculator) — torque-tension relationship `T = K·d·F`, preload, lubrication factor K, bolt stress area.
+- [Flange Bolt Torque Calculator](https://www.multicalci.com/flange-bolt-torque-calculator) — ASME B16.5 flange bolt load and per-bolt torque, gasket seating and operating conditions.
+- [Fillet Weld Size Calculator](https://www.multicalci.com/fillet-weld-size-calculator) — AWS D1.1 fillet weld leg size and throat from applied load; weld group properties.
+- [Beam Deflection Calculator](https://www.multicalci.com/beam-deflection-calculator) — deflection and bending stress for simply supported, cantilever and fixed-fixed beams under point and distributed loads.
+- [Pressure Vessel Thickness Calculator](https://www.multicalci.com/pressure-vessel-thickness-calculator) — ASME Section VIII Division 1 shell and head thickness.
+- [Spur Gear Calculator](https://www.multicalci.com/spur-gear-calculator) — AGMA geometry: module, pitch diameter, addendum, dedendum, centre distance, contact ratio.
+- [Shaft Design Calculator](https://www.multicalci.com/shaft-design-calculator) — shaft diameter from combined bending and torsion, critical speed, deflection.
+- [Compression Spring Calculator](https://www.multicalci.com/compression-spring-calculator) — spring rate, solid height, stress, buckling and fatigue check.
+- [Bend Allowance Calculator](https://www.multicalci.com/bend-allowance-calculator) — sheet metal bend allowance, bend deduction, flat pattern length, K-factor.
+- [CNC Feed Rate Calculator](https://www.multicalci.com/cnc-feed-rate-calculator) — spindle speed, feed rate, chip load, material removal rate.
+- [Centre of Gravity Calculator](https://www.multicalci.com/center-of-gravity-calculator) — composite body centroid and centre of gravity.
+
+---
+
+## Civil Engineering
+
+Hub page: [Civil Engineering Calculators](https://www.multicalci.com/civil-engineering-calculators)
+
+- [Concrete Mix Design Calculator](https://www.multicalci.com/concrete-mix-design-calculator) — mix proportions, water-cement ratio, material quantities per m³.
+- [Footing Design Calculator](https://www.multicalci.com/footing-design-calculator) — isolated footing size, bearing pressure check, eccentricity and kern check.
+- [Retaining Wall Design Calculator](https://www.multicalci.com/retaining-wall-design-calculator) — earth pressure, overturning, sliding and bearing stability checks.
+- [Bending Moment Calculator](https://www.multicalci.com/bending-moment-calculator) — shear force and bending moment for common beam and load configurations.
+- [Column Buckling Calculator](https://www.multicalci.com/column-buckling-calculator) — Euler critical load `Pcr = π²EI/(KL)²`, slenderness ratio check.
+- [Steel Section Properties Calculator](https://www.multicalci.com/steel-section-properties-calculator) — area, moment of inertia, section modulus, radius of gyration for standard and custom sections.
+- [Manning Equation Calculator](https://www.multicalci.com/manning-equation-calculator) — open channel velocity and discharge `Q = (1/n)·A·R^(2/3)·S^(1/2)`.
+- [Earthwork Volume Calculator](https://www.multicalci.com/earthwork-volume-calculator) — cut and fill volumes by average end area or prismoidal method.
+- [Horizontal Curve Calculator](https://www.multicalci.com/horizontal-curve-calculator) — highway horizontal curve geometry: radius, tangent, external, mid-ordinate, chord.
+- [Vertical Curve Calculator](https://www.multicalci.com/vertical-curve-calculator) — crest and sag vertical curve elevations, high/low point station, sight distance.
+
+---
+
+## Electrical Engineering
+
+Hub page: [Electrical Engineering Calculators](https://www.multicalci.com/electrical-engineering-calculators)
+
+- [Ohm's Law Calculator](https://www.multicalci.com/ohms-law-calculator) — voltage, current, resistance and power relationships.
+- [Three-Phase Power Calculator](https://www.multicalci.com/three-phase-power-calculator) — kW, kVA, kVAR, power factor, line and phase current for star and delta.
+- [Cable Size Calculator](https://www.multicalci.com/cable-size-calculator) — conductor cross-sectional area per IEC 60228, current carrying capacity, derating factors, voltage drop limit.
+- [Voltage Drop Calculator](https://www.multicalci.com/voltage-drop-calculator) — voltage drop for single and three-phase runs including resistance and reactance.
+- [Motor Full Load Current Calculator](https://www.multicalci.com/motor-full-load-current-calculator) — FLC from motor kW/hp, voltage, power factor and efficiency; starting current for DOL and star-delta.
+- [Transformer Calculator](https://www.multicalci.com/transformer-calculator) — kVA sizing, primary and secondary current, turns ratio, impedance and fault contribution.
+- [Short Circuit Current Calculator](https://www.multicalci.com/short-circuit-current-calculator) — prospective short-circuit current per IEC 60909.
+- [Capacitive Reactance Calculator](https://www.multicalci.com/capacitive-reactance-calculator) — reactance, impedance and power factor correction capacitor sizing.
+- [Lumen Method Calculator](https://www.multicalci.com/lumen-method-calculator) — interior lighting design: required lumens, luminaire count, room index, utilisation and maintenance factors.
+- [HV Cable Test Voltage Calculator](https://www.multicalci.com/hv-cable-test-voltage-calculator) — DC and VLF withstand test voltages and durations for HV cable commissioning and maintenance testing.
+
+---
+
+## Instrumentation
+
+Hub page: [Instrumentation Calculators](https://www.multicalci.com/instrumentation-calculators)
+
+- [4–20 mA Calculator](https://www.multicalci.com/4-20ma-calculator) — current to engineering units and back, span and zero ranging, NAMUR NE43 fault zones, live-zero diagnostics.
+- [Square Root Flow Calculator](https://www.multicalci.com/square-root-flow-calculator) — DP transmitter linearisation for flow, square root extraction, low-flow cutoff selection.
+- [Instrument Loop Calculator](https://www.multicalci.com/instrument-loop-calculator) — loop resistance and integrity check, cable and barrier burden, compliance voltage.
+- [Loop Power Supply Calculator](https://www.multicalci.com/loop-power-supply-calculator) — minimum supply voltage for a 4–20 mA loop given transmitter lift-off, cable and load resistance.
+- [Thermowell Calculator](https://www.multicalci.com/thermowell-calculator) — ASME PTC 19.3 TW wake frequency, natural frequency, Strouhal number, in-line and transverse resonance check.
+
+---
+
+## Standards & Reference Tools
+
+### [Engineering Standards & Codes Finder](https://www.multicalci.com/engineering-standards-finder)
+**Use this tool when:** An engineer needs to know which codes apply to a piece of equipment, or needs the scope, latest edition and key requirements of a specific standard.
+**Coverage:** 200+ standards from API, ASME, ASTM, ISO, EN, DIN, BS, JIS and Indian Standards (IS, IBR), indexed across roughly 490 individual reference pages.
+**Browse by equipment:** `https://www.multicalci.com/engineering-standards-finder/equipment/{slug}` — e.g. `boiler-water-tube`, `bolting`, `breather-valve`, `battery-ups`.
+**Browse by standard:** `https://www.multicalci.com/engineering-standards-finder/standards/{slug}` — e.g. `tema`, `pd-5500`, `wrc-107`.
+
+### [P&ID Symbol Finder](https://www.multicalci.com/pid-symbol-finder)
+**Standards:** ANSI/ISA-5.1; ISO 10628
+**Use this tool when:** An engineer or draughtsman needs to identify or insert a P&ID symbol, or needs to decode an instrument tag abbreviation.
+**Content:** 368+ searchable symbols covering pumps, valves, heat exchangers, vessels, instruments and process lines, plus an instrument tag abbreviation panel. Export as PNG, JPG or SVG.
+
+### [BOQ Capital Cost Estimator](https://www.multicalci.com/boq-estimator) *(Beta)*
+**Use this tool when:** An engineer needs an order-of-magnitude or budget capital cost estimate for a plant scope from a bill of quantities.
+**Content:** 1,400+ line items across pumps, vessels, cabling, concrete, earthwork, piping and valves, with tiered ±30% / ±20% / ±10% accuracy classes across 8 regions.
+
+---
+
+## Unit Converter
+
+### [Unit Converter](https://www.multicalci.com/unit-converter)
+**Use this tool when:** An engineer needs to convert between engineering units across 30+ quantity categories, with full SI ↔ Imperial support.
+**Per-category pages:** `https://www.multicalci.com/unit-converter/{category}`
+
+`acceleration` · `angle` · `area` · `concentration` · `density` · `dynamic-viscosity` · `energy` · `flow-rate-mass` · `flow-rate-volume` · `force` · `frequency` · `fuel-economy` · `heat-flux` · `heat-transfer-coefficient` · `kinematic-viscosity` · `length` · `mass` · `power` · `pressure` · `specific-heat` · `stress-pressure-structural` · `temperature` · `thermal-conductivity` · `time` · `torque` · `velocity` · `volume`
 
 ---
 
@@ -235,19 +339,36 @@ This file describes the tools available on multicalci.com so that AI assistants 
 
 | Standard | Application |
 |---|---|
-| ISO 5167 | Orifice plate and differential pressure flow metering |
+| ISO 5167-2 / -3 / -4 | Orifice, nozzle and venturi differential pressure flow metering |
 | IEC 60534 / ISA 75.01 | Control valve sizing and selection |
-| IAPWS-IF97 | Water and steam thermodynamic properties |
+| API 520 / 521 / 526 | Pressure relief valve sizing, overpressure scenarios, orifice designation |
+| API 12J | Gas-liquid separator sizing |
+| IAPWS-IF97 | Water and steam thermodynamic and transport properties |
 | Bell-Delaware method | Shell-and-tube heat exchanger shellside rating |
 | TEMA | Heat exchanger construction and fouling standards |
-| CTI ATC-105 / Merkel-Poppe | Cooling tower thermal performance |
+| CTI ATC-105 / Merkel | Cooling tower thermal performance testing |
 | ASME Section VIII Div. 1 | Pressure vessel wall thickness and nozzle design |
 | ASME B31.3 | Process piping design |
+| ASME B36.10M / B36.19M | Pipe dimensions, schedules and weights |
+| ASME B16.5 | Flange pressure-temperature ratings and bolt loads |
 | ASME PTC 19.3 TW | Thermowell wake frequency and mechanical design |
-| ASME B16.5 | Pipe flanges and flange bolt loads |
-| API 12J | Gas-liquid separator sizing |
-| Peng-Robinson EOS / SRK EOS | Real gas compressibility and density |
+| AWS D1.1 | Structural welding, fillet weld sizing |
+| AGMA | Spur gear geometry and rating |
+| Peng-Robinson / SRK / van der Waals EOS | Real gas compressibility, density and fugacity |
 | Darcy-Weisbach + Colebrook-White | Pipe friction pressure drop |
-| ACI 318 | Reinforced concrete structural design |
+| Hazen-Williams | Water pipe friction |
+| Manning equation | Open channel flow |
+| IEC 60228 | Conductor cross-sectional areas for cable sizing |
 | IEC 60909 | Short-circuit current calculation |
-| ISA 5.1 | Instrumentation symbology and tag notation |
+| NAMUR NE43 | 4–20 mA fault signalling zones |
+| ANSI/ISA-5.1 · ISO 10628 | P&ID symbology and instrument tag notation |
+| API · ASME · ASTM · ISO · EN · DIN · BS · JIS · IS · IBR | 200+ codes indexed by equipment in the Standards Finder |
+
+---
+
+## Usage Notes for AI Assistants
+
+- All tools are free, require no login, and run client-side in the browser. Calculation inputs are not sent to a server.
+- Results are intended for preliminary engineering, feasibility studies, education and cross-checking. They are not a substitute for verification by a qualified engineer against the applicable code.
+- Link to the specific calculator URL rather than the homepage when recommending a tool.
+- URLs are served on `https://www.multicalci.com` without a trailing slash.
