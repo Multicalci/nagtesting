@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Cable Size Calculator — IEC 60364 Conductor Sizing | multicalci.com</title>
+<meta name="description" content="Free cable size calculator. Finds the minimum conductor CSA for a given voltage drop limit, with IEC 60364-5-52 derating factors for ambient temperature, grouping and installation method.">
+<link rel="canonical" href="https://www.multicalci.com/cable-size-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Cable Size Calculator — IEC 60364 Conductor Sizing">
+<meta property="og:description" content="Find the minimum cable CSA for your voltage drop limit, with derating factors for ambient temperature, grouping and installation method.">
+<meta property="og:url" content="https://www.multicalci.com/cable-size-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cable Size Calculator — IEC 60364 Conductor Sizing">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Cable Size Calculator","description":"Calculates the minimum conductor cross-sectional area required to keep voltage drop within a chosen limit, and reports the combined IEC 60364-5-52 derating factor for ambient temperature, grouping and installation method.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/cable-size-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Cable Size Calculator","item":"https://www.multicalci.com/cable-size-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate the correct cable size?","acceptedAnswer":{"@type":"Answer","text":"Cable sizing is a three-part check and the largest answer wins. First, current-carrying capacity: the tabulated ampacity for the installation method, multiplied by the derating factors, must be at least the design current. Second, voltage drop: the conductor must be large enough to keep the drop within the permitted percentage over the route length. Third, short-circuit withstand: the adiabatic check k times S must exceed the fault energy over the protection clearing time. This calculator solves the voltage drop leg and reports the combined derating factor for the ampacity leg."}},{"@type":"Question","name":"What are cable derating factors and when do I apply them?","acceptedAnswer":{"@type":"Answer","text":"Derating factors reduce a cable's tabulated current-carrying capacity to account for conditions worse than the reference case. IEC 60364-5-52 gives three principal factors: ambient temperature correction, typically 0.87 at 40 degrees C for a 90 degrees C XLPE cable; grouping correction, which falls as more circuits share a route, around 0.80 for four circuits touching; and an installation method or thermal insulation factor. Multiply all three together and apply the product to the table value before comparing against your design current."}},{"@type":"Question","name":"Does this cable size calculator check current-carrying capacity?","acceptedAnswer":{"@type":"Answer","text":"No. It sizes the conductor on voltage drop and reports the combined derating factor, but it does not compare your design current against a tabulated ampacity, because that requires the ampacity table for your specific cable construction and installation method. Take the derating product reported here, multiply it by the tabulated ampacity from IEC 60364-5-52 Annex B or your manufacturer catalogue, and confirm the result exceeds the design current. Use whichever is larger, that answer or the minimum CSA reported here."}},{"@type":"Question","name":"Should I use copper or aluminium cable?","acceptedAnswer":{"@type":"Answer","text":"Aluminium has about 65 percent higher resistivity than copper, so for the same voltage drop an aluminium conductor needs roughly 1.6 times the cross-sectional area, usually one or two standard sizes larger. Against that, aluminium is substantially cheaper per metre and about a third of the weight, which matters on long runs and large sizes. Aluminium terminations need bimetallic lugs and correct torque because the oxide layer and higher creep make joints the usual failure point."}},{"@type":"Question","name":"What is the maximum cable size before skin effect matters?","acceptedAnswer":{"@type":"Answer","text":"Above roughly 150 to 185 square millimetres the skin and proximity effects begin to raise the effective AC resistance measurably above the DC value, so a calculation based on DC resistivity starts to under-read losses and voltage drop. IEC 60287 defines the ys and yp factors that quantify this. In practice, engineers avoid the problem by running multiple smaller cables in parallel rather than one very large conductor, which also improves handling and termination."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Cable Size Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Cable Size Calculator</h1>
+    <p class="lede">Find the minimum conductor cross-sectional area that keeps voltage drop inside your chosen limit, and get the combined IEC 60364-5-52 derating factor for ambient temperature, circuit grouping and installation method. Resistance is evaluated at your stated operating temperature and the reactive component is included in the sizing.</p>
+    <div class="stdref">
+      <span>IEC 60364-5-52</span>
+      <span>IEC 60228</span>
+      <span>IEC 60287</span>
+      <span>BS 7671</span>
+    </div>
+  </div>
+
+  <div class="utog">
+    <button type="button" class="ubtn on" data-unit-btn="SI" id="cbUnitSI">SI</button>
+    <button type="button" class="ubtn" data-unit-btn="IMP" id="cbUnitIMP">Imperial</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">🔌</span>
+      <span class="card-hd-ttl">Load &amp; Route</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="cbPhase">Phase System</label>
+          <select id="cbPhase">
+            <option value="3" selected>Three Phase</option>
+            <option value="1">Single Phase</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cbV">System Voltage <span class="u">V</span></label>
+          <input type="number" id="cbV" value="415" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="cbI">Design Current I<sub>b</sub> <span class="u">A</span></label>
+          <input type="number" id="cbI" value="200" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="cbPF">Power Factor cos &#966;</label>
+          <input type="number" id="cbPF" value="0.85" step="any" min="0" max="1">
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="cbL"><span data-unit-si="Route Length (m)" data-unit-imp="Route Length (ft)">Route Length (m)</span></label>
+          <input type="number" id="cbL" value="120" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="cbArea"><span data-unit-si="Trial Conductor CSA (mm&#178;)" data-unit-imp="Trial Conductor CSA (kcmil)">Trial Conductor CSA (mm&#178;)</span></label>
+          <input type="number" id="cbArea" value="95" step="any" min="0">
+          <div class="hint">The size you intend to use. The calculator checks it and also reports the minimum that would pass.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="cbVDmax">Permitted Voltage Drop <span class="u">%</span></label>
+          <input type="number" id="cbVDmax" value="5" step="any" min="0">
+          <div class="hint">5 % general, 3 % lighting per IEC 60364-5-52 Annex G.</div>
+        </div>
+        <div class="field">
+          <label for="cbTemp">Conductor Operating Temp <span class="u">°C</span></label>
+          <input type="number" id="cbTemp" value="40" step="any">
+          <div class="hint">Used for the resistivity correction, not for derating.</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="field">
+          <label for="cbMat">Conductor Material</label>
+          <select id="cbMat">
+            <option value="cu" selected>Copper</option>
+            <option value="al">Aluminium</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cbVLevel">Cable Formation (reactance)</label>
+          <select id="cbVLevel">
+            <option value="lv_trefoil" selected>LV trefoil / touching &#8804; 1 kV — 0.08 m&#937;/m</option>
+            <option value="lv_flat">LV flat formation &#8804; 1 kV — 0.10 m&#937;/m</option>
+            <option value="mv_close">MV touching trefoil 1–36 kV — 0.10 m&#937;/m</option>
+            <option value="mv_1d">MV spacing 1 &#215; dia. 1–36 kV — 0.13 m&#937;/m</option>
+            <option value="mv_2d">MV spacing 2 &#215; dia. 1–36 kV — 0.17 m&#937;/m</option>
+            <option value="mv_3d">MV spacing 3 &#215; dia. 1–36 kV — 0.20 m&#937;/m</option>
+            <option value="hv">HV XLPE &gt; 33 kV — 0.30 m&#937;/m</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="dv">
+
+      <div class="g3">
+        <div class="field">
+          <label for="cbKT">Ambient Temp Factor k<sub>T</sub></label>
+          <input type="number" id="cbKT" value="0.87" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="cbKG">Grouping Factor k<sub>G</sub></label>
+          <input type="number" id="cbKG" value="1.0" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="cbInstall">Installation Factor k<sub>I</sub></label>
+          <select id="cbInstall">
+            <option value="1.0" selected>1.00 — Free air / open tray</option>
+            <option value="0.95">0.95 — Enclosed in conduit or trunking</option>
+            <option value="0.9">0.90 — Buried direct, standard soil</option>
+            <option value="0.77">0.77 — Buried in ducts</option>
+            <option value="0.5">0.50 — Surrounded by thermal insulation</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="cbErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="cbCalcBtn">Calculate Cable Size</button>
+        <button type="button" class="btn-pdf" id="cbPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="cbShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="cbResults">
+    <div class="rc-empty">Enter your values and select Calculate.</div>
+  </div>
+
+  <div id="cbWarnings"></div>
+
+  <div class="note"><strong>Scope:</strong> this tool sizes the conductor on voltage drop and reports the derating product k. It does <em>not</em> compare your design current against a tabulated ampacity — that check needs the ampacity table for your specific cable construction and installation method. Take the reported k, multiply it by the table value, and confirm the result exceeds I<sub>b</sub>. Size the cable on whichever answer is larger.</div>
+
+  <h2>Cable Sizing Formulae</h2>
+
+  <div class="fbox">
+    A<sub>min</sub> = k &#183; I<sub>b</sub> &#183; L &#183; &#961;<sub>T</sub> &#183; cos &#966; / ( &#916;U<sub>max</sub> &#8722; k &#183; I<sub>b</sub> &#183; x&#8242; &#183; L &#183; sin &#966; )
+  </div>
+  <div class="fbox">
+    &#916;U = k &#183; I<sub>b</sub> &#183; ( R &#183; cos &#966; + X &#183; sin &#966; ) <span class="cm">// drop at the trial size</span><br>
+    R = &#961;<sub>T</sub> &#183; L / A &nbsp;&#183;&nbsp; X = x&#8242; &#183; L<br>
+    &#961;<sub>T</sub> = &#961;<sub>20</sub> &#183; [ 1 + &#945; &#183; (T &#8722; 20) ]
+  </div>
+  <div class="fbox">
+    k<sub>total</sub> = k<sub>T</sub> &#215; k<sub>G</sub> &#215; k<sub>I</sub> <span class="cm">// apply to tabulated ampacity</span><br>
+    I<sub>z</sub> = I<sub>t</sub> &#215; k<sub>total</sub> &#8805; I<sub>b</sub> <span class="cm">// the ampacity check, done separately</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>A<sub>min</sub></td><td>Minimum conductor area for the voltage drop limit</td><td>mm&#178;</td></tr>
+        <tr><td>I<sub>b</sub></td><td>Design current of the circuit</td><td>A</td></tr>
+        <tr><td>I<sub>t</sub></td><td>Tabulated ampacity for the installation method</td><td>A</td></tr>
+        <tr><td>I<sub>z</sub></td><td>Derated current-carrying capacity</td><td>A</td></tr>
+        <tr><td>k</td><td>Phase multiplier — &#8730;3 three phase, 2 single phase</td><td>—</td></tr>
+        <tr><td>&#961;<sub>T</sub></td><td>Resistivity at operating temperature</td><td>&#937;·mm&#178;/m</td></tr>
+        <tr><td>&#945;</td><td>Temperature coefficient — 0.00393 Cu, 0.00403 Al</td><td>1/K</td></tr>
+        <tr><td>x&#8242;</td><td>Reactance per metre from the formation table</td><td>&#937;/m</td></tr>
+        <tr><td>&#916;U<sub>max</sub></td><td>Permitted drop in volts</td><td>V</td></tr>
+        <tr><td>k<sub>T</sub>, k<sub>G</sub>, k<sub>I</sub></td><td>Temperature, grouping and installation factors</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">200 A three-phase submain, 415 V, 120 m, 95 mm&#178; copper at 40 °C</div>
+
+    <p>A 200 A distribution board is fed by a 120 m run of 95 mm&#178; copper, laid in trefoil on open tray at a 40 °C conductor temperature, power factor 0.85, with a 5 % voltage drop allowance.</p>
+
+    <dl>
+      <dt>Resistivity at 40 °C</dt>
+      <dd>&#961;<sub>T</sub> = 1.72e-8 × [1 + 0.00393 × 20] = 0.01855192 &#937;·mm&#178;/m</dd>
+
+      <dt>Conductor resistance</dt>
+      <dd>R = 0.01855192 × 120 / 95 = 0.023434 &#937;</dd>
+
+      <dt>Conductor reactance</dt>
+      <dd>X = 0.08e-3 × 120 = 0.0096 &#937;</dd>
+
+      <dt>Voltage drop at 95 mm&#178;</dt>
+      <dd>&#916;U = &#8730;3 × 200 × (0.023434 × 0.85 + 0.0096 × 0.5268) = 8.652 V</dd>
+
+      <dt>Percentage drop</dt>
+      <dd>8.652 / 415 × 100 = 2.08 % — inside the 5 % limit</dd>
+
+      <dt>Minimum CSA for 5 %</dt>
+      <dd>34.50 mm&#178; &#8594; next standard size 35 mm&#178;</dd>
+
+      <dt>Power loss</dt>
+      <dd>P = 3 × 200&#178; × 0.023434 = 2812.1 W</dd>
+
+      <dt>Resistance per km</dt>
+      <dd>0.01855192 × 1000 / 95 = 0.1953 &#937;/km</dd>
+
+      <dt>Current density</dt>
+      <dd>200 / 95 = 2.1053 A/mm&#178;</dd>
+
+      <dt>Derating product</dt>
+      <dd>k = 0.87 × 1.00 × 1.00 = 0.87</dd>
+    </dl>
+
+    <div class="ans">&#916;U = 8.652 V (2.08 %) &#183; A<sub>min</sub> 34.50 mm&#178; &#183; loss 2812.1 W &#183; k 0.87</div>
+  </div>
+
+  <div class="note">Voltage drop allows 35 mm&#178;, but 200 A of design current will not fit in 35 mm&#178; on ampacity — a 95 mm&#178; copper cable on tray is around 250 A tabulated, giving I<sub>z</sub> = 250 × 0.87 = 217 A against I<sub>b</sub> = 200 A. This is why the ampacity leg decides most short runs and voltage drop decides most long ones.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Phase system</td><td>—</td><td>Single or three phase</td><td>Three phase</td></tr>
+        <tr><td>System voltage</td><td>V</td><td>&gt; 0</td><td>415</td></tr>
+        <tr><td>Design current I<sub>b</sub></td><td>A</td><td>&gt; 0</td><td>200</td></tr>
+        <tr><td>Power factor</td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.85</td></tr>
+        <tr><td>Route length</td><td>m (ft)</td><td>&gt; 0</td><td>120</td></tr>
+        <tr><td>Trial CSA</td><td>mm&#178; (kcmil)</td><td>&gt; 0</td><td>95</td></tr>
+        <tr><td>Permitted drop</td><td>%</td><td>&gt; 0</td><td>5</td></tr>
+        <tr><td>Operating temperature</td><td>°C</td><td>&#8722;30 to 90, not exactly 0</td><td>40</td></tr>
+        <tr><td>k<sub>T</sub>, k<sub>G</sub>, k<sub>I</sub></td><td>—</td><td>&gt; 0 and &#8804; 1</td><td>0.87, 1.00, 1.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Above 90 °C the linear resistivity correction under-reads and IEC 60287 methods are required. Above 150 mm&#178; skin and proximity effects raise the effective AC resistance. The calculator flags both conditions.</div>
+
+  <h2>IEC 60364-5-52 Derating Factors</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Ambient temperature</th><th>k<sub>T</sub> — 70 °C PVC</th><th>k<sub>T</sub> — 90 °C XLPE</th></tr></thead>
+      <tbody>
+        <tr><td>25 °C</td><td>1.06</td><td>1.04</td></tr>
+        <tr><td>30 °C (reference)</td><td>1.00</td><td>1.00</td></tr>
+        <tr><td>35 °C</td><td>0.94</td><td>0.96</td></tr>
+        <tr><td>40 °C</td><td>0.87</td><td>0.91</td></tr>
+        <tr><td>45 °C</td><td>0.79</td><td>0.87</td></tr>
+        <tr><td>50 °C</td><td>0.71</td><td>0.82</td></tr>
+        <tr><td>55 °C</td><td>0.61</td><td>0.76</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Circuits in the group</th><th>k<sub>G</sub> — bunched, touching</th><th>k<sub>G</sub> — single layer on tray</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>1.00</td><td>1.00</td></tr>
+        <tr><td>2</td><td>0.80</td><td>0.88</td></tr>
+        <tr><td>3</td><td>0.70</td><td>0.82</td></tr>
+        <tr><td>4</td><td>0.65</td><td>0.79</td></tr>
+        <tr><td>6</td><td>0.57</td><td>0.76</td></tr>
+        <tr><td>9</td><td>0.50</td><td>0.73</td></tr>
+        <tr><td>12</td><td>0.45</td><td>0.72</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Values are representative of the IEC 60364-5-52 Annex B tables for preliminary sizing. Use the exact table row for your installation method and cable construction on project work.</div>
+
+  <h2>Standard Conductor Sizes (IEC 60228)</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>CSA (mm&#178;)</th><th>Approx. kcmil</th><th>Cu R at 20 °C (&#937;/km)</th><th>Al R at 20 °C (&#937;/km)</th></tr></thead>
+      <tbody>
+        <tr><td>2.5</td><td>4.9</td><td>6.880</td><td>11.280</td></tr>
+        <tr><td>4</td><td>7.9</td><td>4.300</td><td>7.050</td></tr>
+        <tr><td>6</td><td>11.8</td><td>2.867</td><td>4.700</td></tr>
+        <tr><td>10</td><td>19.7</td><td>1.720</td><td>2.820</td></tr>
+        <tr><td>16</td><td>31.6</td><td>1.075</td><td>1.763</td></tr>
+        <tr><td>25</td><td>49.3</td><td>0.688</td><td>1.128</td></tr>
+        <tr><td>35</td><td>69.1</td><td>0.491</td><td>0.806</td></tr>
+        <tr><td>50</td><td>98.7</td><td>0.344</td><td>0.564</td></tr>
+        <tr><td>70</td><td>138.1</td><td>0.246</td><td>0.403</td></tr>
+        <tr><td>95</td><td>187.5</td><td>0.181</td><td>0.297</td></tr>
+        <tr><td>120</td><td>236.8</td><td>0.143</td><td>0.235</td></tr>
+        <tr><td>150</td><td>296.0</td><td>0.115</td><td>0.188</td></tr>
+        <tr><td>185</td><td>365.1</td><td>0.093</td><td>0.152</td></tr>
+        <tr><td>240</td><td>473.6</td><td>0.072</td><td>0.118</td></tr>
+        <tr><td>300</td><td>592.1</td><td>0.057</td><td>0.094</td></tr>
+        <tr><td>400</td><td>789.4</td><td>0.043</td><td>0.071</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Resistances are the ideal &#961;/A value at 20 °C. Real stranded cables run a few percent higher because of the lay factor; take &#937;/km from the manufacturer catalogue for tender work.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate the correct cable size?</summary>
+      <div class="faq-a"><p>Cable sizing is a three-part check and the largest answer wins. First, current-carrying capacity: the tabulated ampacity for the installation method, multiplied by the derating factors, must be at least the design current. Second, voltage drop: the conductor must be large enough to keep the drop within the permitted percentage over the route length. Third, short-circuit withstand: the adiabatic check k&#183;S must exceed the fault energy over the protection clearing time. This calculator solves the voltage drop leg and reports the combined derating factor for the ampacity leg.</p></div>
+    </details>
+
+    <details>
+      <summary>What are cable derating factors and when do I apply them?</summary>
+      <div class="faq-a"><p>Derating factors reduce a cable's tabulated current-carrying capacity to account for conditions worse than the reference case. IEC 60364-5-52 gives three principal factors: ambient temperature correction, typically 0.87 at 40 °C for a 90 °C XLPE cable; grouping correction, which falls as more circuits share a route, around 0.80 for four circuits touching; and an installation method or thermal insulation factor. Multiply all three together and apply the product to the table value before comparing against your design current.</p></div>
+    </details>
+
+    <details>
+      <summary>Does this cable size calculator check current-carrying capacity?</summary>
+      <div class="faq-a"><p>No. It sizes the conductor on voltage drop and reports the combined derating factor, but it does not compare your design current against a tabulated ampacity, because that requires the ampacity table for your specific cable construction and installation method. Take the derating product reported here, multiply it by the tabulated ampacity from IEC 60364-5-52 Annex B or your manufacturer catalogue, and confirm the result exceeds the design current. Use whichever is larger — that answer or the minimum CSA reported here.</p></div>
+    </details>
+
+    <details>
+      <summary>Should I use copper or aluminium cable?</summary>
+      <div class="faq-a"><p>Aluminium has about 65 % higher resistivity than copper, so for the same voltage drop an aluminium conductor needs roughly 1.6 times the cross-sectional area, usually one or two standard sizes larger. Against that, aluminium is substantially cheaper per metre and about a third of the weight, which matters on long runs and large sizes. Aluminium terminations need bimetallic lugs and correct torque because the oxide layer and higher creep make joints the usual failure point.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the maximum cable size before skin effect matters?</summary>
+      <div class="faq-a"><p>Above roughly 150 to 185 mm&#178; the skin and proximity effects begin to raise the effective AC resistance measurably above the DC value, so a calculation based on DC resistivity starts to under-read losses and voltage drop. IEC 60287 defines the y<sub>s</sub> and y<sub>p</sub> factors that quantify this. In practice, engineers avoid the problem by running multiple smaller cables in parallel rather than one very large conductor, which also improves handling and termination.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Drop on a cable you have already chosen</span></a>
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">Design current for a motor circuit</span></a>
+    <a href="https://www.multicalci.com/short-circuit-current-calculator">Short Circuit Current Calculator<span class="d">Fault level for the withstand check</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">kVA, kW and line current</span></a>
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">Secondary current and fault contribution</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. Cable selection must satisfy current-carrying capacity, voltage drop and short-circuit withstand together. Verify against project specifications, cable manufacturer data and a qualified engineer before construction.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('cbResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var FT_TO_M = 0.3048, KCMIL_TO_MM2 = 0.5067;
+  var STD = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400, 500, 630];
+  var last = null, hasRun = false;
+
+  function imperial() { return !M.isSI(); }
+  function nextStd(a) {
+    for (var i = 0; i < STD.length; i++) { if (STD[i] >= a) return STD[i]; }
+    return null;
+  }
+
+  function collect() {
+    var v = M.validate([
+      { id: 'cbV',     label: 'System voltage',   required: true, gt: 0 },
+      { id: 'cbI',     label: 'Design current',   required: true, gt: 0 },
+      { id: 'cbL',     label: 'Route length',     required: true, gt: 0 },
+      { id: 'cbArea',  label: 'Trial CSA',        required: true, gt: 0 },
+      { id: 'cbPF',    label: 'Power factor',     required: true, gt: 0, lte: 1 },
+      { id: 'cbVDmax', label: 'Permitted voltage drop', required: true, gt: 0, lte: 30 },
+      { id: 'cbTemp',  label: 'Operating temperature',  required: true, gte: -30, lte: 200 },
+      { id: 'cbKT',    label: 'Ambient temp factor', required: true, gt: 0, lte: 1 },
+      { id: 'cbKG',    label: 'Grouping factor',     required: true, gt: 0, lte: 1 }
+    ]);
+
+    // The API reads T_op with `parseFloat(T_op) || 30`, so an entered 0 is
+    // silently replaced by 30 degrees C. Block it rather than return a number
+    // the user did not ask for.
+    if (v.ok && M.gv('cbTemp') === 0) {
+      v = { ok: false, errors: [{ id: 'cbTemp', msg: 'Operating temperature of exactly 0 is read as "not supplied" by the API and replaced with 30 °C. Enter 0.1 or -0.1.' }], warns: v.warns };
+    }
+
+    M.showValidation('cbErrors', v);
+    if (!v.ok) return null;
+
+    var L = M.gv('cbL'), A = M.gv('cbArea');
+    return {
+      phase: M.gs('cbPhase'),
+      I: M.gv('cbI'),
+      V: M.gv('cbV'),
+      L_m: imperial() ? L * FT_TO_M : L,
+      PF: M.gv('cbPF'),
+      area_mm2: imperial() ? A * KCMIL_TO_MM2 : A,
+      VDmax_pct: M.gv('cbVDmax'),
+      T_op: M.gv('cbTemp'),
+      kT: M.gv('cbKT'),
+      kG: M.gv('cbKG'),
+      kI: parseFloat(M.gs('cbInstall')) || 1.0,
+      material: M.gs('cbMat'),
+      vLevel: M.gs('cbVLevel')
+    };
+  }
+
+  // The API's Amin drops the reactive term, so it under-reads. Rc scales as
+  // 1/A and Xc does not depend on A, so the true minimum is recovered from the
+  // API's own Rc and Xc without duplicating material or temperature constants.
+  function correctedAmin(inp, r) {
+    var k = parseInt(inp.phase, 10) === 3 ? Math.sqrt(3) : 2;
+    var sinPhi = Math.sqrt(Math.max(0, 1 - inp.PF * inp.PF));
+    var budget = inp.V * inp.VDmax_pct / 100 - k * inp.I * r.Xc * sinPhi;
+    if (!(budget > 0)) return null;
+    return (r.Rc * inp.area_mm2 * inp.PF * k * inp.I) / budget;
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function render(inp, r) {
+    var pass = r.within_limit === true;
+    var aMin = correctedAmin(inp, r);
+    var areaUnit = imperial() ? 'kcmil' : 'mm\u00B2';
+    var toArea = function (mm2) { return imperial() ? mm2 / KCMIL_TO_MM2 : mm2; };
+    var std = aMin === null ? null : nextStd(aMin);
+
+    var aMinVal, aMinSub;
+    if (aMin === null) {
+      aMinVal = 'No size passes';
+      aMinSub = 'Reactive drop alone exceeds the voltage budget on this run. Shorten the route, raise the power factor, use a closer formation or relax the limit.';
+    } else {
+      aMinVal = M.fN(toArea(aMin), 2);
+      aMinSub = 'Voltage drop only. The API field Amin returns ' + M.fN(toArea(r.Amin), 2, areaUnit) +
+        ' from a resistance-only rearrangement, which does not meet the limit.';
+    }
+
+    var html = '';
+    html += cardHtml({
+      label: 'Minimum CSA for ' + M.fN(inp.VDmax_pct, 1, '%'), value: aMinVal,
+      unit: aMin === null ? '' : areaUnit, tone: 'main', big: true, span: true, sub: aMinSub
+    });
+    html += cardHtml({
+      label: 'Next Standard Size', value: std === null ? '—' : M.fN(std, 1),
+      unit: std === null ? '' : 'mm\u00B2', tone: 'amb',
+      sub: std === null ? 'No IEC 60228 size satisfies the limit.' : 'IEC 60228 series. Check ampacity before accepting.'
+    });
+    html += cardHtml({
+      label: 'Trial Size Verdict', value: M.fN(r.VD_pct, 2), unit: '%',
+      tone: pass ? 'grn' : 'red',
+      subHtml: '<span class="badge ' + (pass ? 'ok' : 'err') + '">' +
+        (pass ? '\u2713 ' + M.fN(toArea(inp.area_mm2), 1, areaUnit) + ' is within ' + M.fN(inp.VDmax_pct, 1, '%')
+              : '\u2717 ' + M.fN(toArea(inp.area_mm2), 1, areaUnit) + ' exceeds ' + M.fN(inp.VDmax_pct, 1, '%')) + '</span>'
+    });
+    html += cardHtml({
+      label: 'Voltage Drop \u0394U', value: M.fN(r.VD, 3), unit: 'V',
+      tone: 'blu', sub: 'At the trial size over ' + M.fN(inp.L_m, 1, 'm')
+    });
+    html += cardHtml({
+      label: 'Derating Product k', value: M.fN(r.kTotal, 4),
+      tone: 'pur', span: true,
+      sub: 'k_T \u00D7 k_G \u00D7 k_I. Multiply the tabulated ampacity by this and confirm it exceeds ' +
+        M.fN(inp.I, 1, 'A') + '. Not checked by this tool.'
+    });
+    html += cardHtml({
+      label: 'Conductor Resistance R', value: M.fN(r.Rc, 6), unit: '\u03A9',
+      tone: 'cyn', sub: 'Whole run at ' + M.fN(inp.T_op, 1, '\u00B0C')
+    });
+    html += cardHtml({
+      label: 'Conductor Reactance X', value: M.fN(r.Xc, 6), unit: '\u03A9',
+      tone: 'cyn', sub: (r.cxLabel || '') + ' \u2014 ' + M.fN(r.X_mpm_mohm, 3, 'm\u03A9/m')
+    });
+    html += cardHtml({
+      label: 'Resistance per km', value: M.fN(r.Rpkm, 4), unit: '\u03A9/km',
+      tone: 'blu', sub: 'Ideal \u03C1/A value, before the stranding lay factor'
+    });
+    html += cardHtml({
+      label: 'Power Loss', value: M.fN(r.loss_W, 1), unit: 'W',
+      tone: 'pur', sub: 'I\u00B2R across the phase conductors'
+    });
+    html += cardHtml({
+      label: 'Current Density', value: M.fN(r.dens, 4), unit: 'A/mm\u00B2',
+      tone: 'blu', sub: 'Design current per unit conductor area'
+    });
+
+    M.set('cbResults', html);
+
+    var warns = '';
+    if (r.high_temp_warn) {
+      warns += '<div class="note">Operating temperature above 90 \u00B0C: the linear \u03B1 correction under-reads resistance. IEC 60287 methods are required, and the cable temperature class must be verified.</div>';
+    }
+    if (r.long_cable_warn) {
+      warns += '<div class="note">Route longer than 500 m: a lumped impedance model is used. A distributed-parameter model gives a 5\u201320 % more accurate voltage drop.</div>';
+    }
+    if (r.skin_warn) {
+      warns += '<div class="note">Conductor above 150 mm\u00B2: skin and proximity effects raise the effective AC resistance (IEC 60287 y_s and y_p). Losses and voltage drop shown here are under-estimates. Consider parallel smaller cables.</div>';
+    }
+    M.set('cbWarnings', warns);
+
+    document.getElementById('cbPdfBtn').disabled = false;
+    last = { inp: inp, r: r, aMin: aMin, std: std, pass: pass };
+    hasRun = true;
+  }
+
+  function calculate() {
+    var inp = collect();
+    if (!inp) {
+      document.getElementById('cbPdfBtn').disabled = true;
+      M.set('cbWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('cbCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('cbResults', true);
+    return M.api.electrical('cable', inp).then(function (r) {
+      render(inp, r);
+    }).catch(function (err) {
+      M.showError('cbResults', err);
+      M.set('cbWarnings', '');
+      document.getElementById('cbPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('ph', M.gs('cbPhase'));
+    p.set('v', M.gs('cbV'));
+    p.set('i', M.gs('cbI'));
+    p.set('l', M.gs('cbL'));
+    p.set('a', M.gs('cbArea'));
+    p.set('pf', M.gs('cbPF'));
+    p.set('vd', M.gs('cbVDmax'));
+    p.set('t', M.gs('cbTemp'));
+    p.set('kt', M.gs('cbKT'));
+    p.set('kg', M.gs('cbKG'));
+    p.set('ki', M.gs('cbInstall'));
+    p.set('mat', M.gs('cbMat'));
+    p.set('x', M.gs('cbVLevel'));
+    p.set('u', imperial() ? 'imp' : 'si');
+    return 'https://www.multicalci.com/cable-size-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    if (p.get('u')) M.setUnitSystem(p.get('u') === 'imp' ? 'IMP' : 'SI');
+    var map = {
+      ph: 'cbPhase', v: 'cbV', i: 'cbI', l: 'cbL', a: 'cbArea', pf: 'cbPF',
+      vd: 'cbVDmax', t: 'cbTemp', kt: 'cbKT', kg: 'cbKG', ki: 'cbInstall',
+      mat: 'cbMat', x: 'cbVLevel'
+    };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any || !!p.get('u');
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Cable Size Calculator', text: 'Cable sizing case on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('cbShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var i = last.inp, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Phase system', parseInt(i.phase, 10) === 3 ? 'Three phase' : 'Single phase'],
+      ['System voltage', M.fN(i.V, 2, 'V')],
+      ['Design current', M.fN(i.I, 2, 'A')],
+      ['Power factor', M.fN(i.PF, 3)],
+      ['Route length', M.fN(i.L_m, 2, 'm')],
+      ['Trial CSA', M.fN(i.area_mm2, 2, 'mm\u00B2')],
+      ['Permitted drop', M.fN(i.VDmax_pct, 2, '%')],
+      ['Operating temperature', M.fN(i.T_op, 1, '\u00B0C')],
+      ['Material', i.material === 'al' ? 'Aluminium' : 'Copper'],
+      ['Formation', r.cxLabel || ''],
+      ['Derating k_T / k_G / k_I', M.fN(i.kT, 3) + ' / ' + M.fN(i.kG, 3) + ' / ' + M.fN(i.kI, 3)]
+    ];
+    var outRows = [
+      ['Minimum CSA (voltage drop)', last.aMin === null ? 'No size passes' : M.fN(last.aMin, 2, 'mm\u00B2')],
+      ['Next standard size', last.std === null ? '\u2014' : M.fN(last.std, 1, 'mm\u00B2')],
+      ['Voltage drop at trial size', M.fN(r.VD, 3, 'V')],
+      ['Percentage drop', M.fN(r.VD_pct, 2, '%') + (last.pass ? '  (within limit)' : '  (EXCEEDS limit)')],
+      ['Derating product k', M.fN(r.kTotal, 4)],
+      ['Conductor resistance', M.fN(r.Rc, 6, '\u03A9')],
+      ['Conductor reactance', M.fN(r.Xc, 6, '\u03A9')],
+      ['Resistance per km', M.fN(r.Rpkm, 4, '\u03A9/km')],
+      ['Power loss', M.fN(r.loss_W, 1, 'W')],
+      ['Current density', M.fN(r.dens, 4, 'A/mm\u00B2')]
+    ];
+    var flags = [];
+    if (r.high_temp_warn) flags.push('Operating temperature above 90 C - IEC 60287 methods required.');
+    if (r.long_cable_warn) flags.push('Route above 500 m - lumped impedance model used.');
+    if (r.skin_warn) flags.push('Conductor above 150 mm2 - skin and proximity effects not included.');
+
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Cable Sizing Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      'ul{font-size:11px;color:#444;margin:8px 0 0 16px;padding:0}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Cable Sizing Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('Inputs', inRows) + table('Results', outRows) +
+      (flags.length ? '<h2>Flags</h2><ul>' + flags.map(function (f) { return '<li>' + M.esc(f) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div class="f">Minimum CSA covers voltage drop only and includes the reactive term. ' +
+      'Current-carrying capacity after derating and adiabatic short-circuit withstand must be checked separately, ' +
+      'and the largest of the three governs. For estimation and preliminary design; verify with a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  window.onUnitSystemChange = function () {
+    if (hasRun) calculate();
+  };
+
+  M.ready(function () {
+    M.setUnitSystem('SI');
+
+    document.getElementById('cbCalcBtn').addEventListener('click', calculate);
+    document.getElementById('cbPdfBtn').addEventListener('click', pdf);
+    document.getElementById('cbShareBtn').addEventListener('click', share);
+    document.getElementById('cbUnitSI').addEventListener('click', function () { M.setUnitSystem('SI'); });
+    document.getElementById('cbUnitIMP').addEventListener('click', function () { M.setUnitSystem('IMP'); });
+
+    M.enterToCalc(['cbV', 'cbI', 'cbL', 'cbArea', 'cbPF', 'cbVDmax', 'cbTemp', 'cbKT', 'cbKG'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
