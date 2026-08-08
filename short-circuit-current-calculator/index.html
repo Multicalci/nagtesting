@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>Short Circuit Current Calculator — IEC 60909 Fault Level | multicalci.com</title>
+<meta name="description" content="Free short circuit current calculator to IEC 60909. Find three-phase, phase-phase and phase-earth fault current, peak asymmetrical current, motor contribution and required breaking capacity.">
+<link rel="canonical" href="https://www.multicalci.com/short-circuit-current-calculator">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Short Circuit Current Calculator — IEC 60909 Fault Level">
+<meta property="og:description" content="Calculate three-phase fault current, peak asymmetrical current, motor contribution and the breaking capacity your switchgear needs.">
+<meta property="og:url" content="https://www.multicalci.com/short-circuit-current-calculator">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Short Circuit Current Calculator — IEC 60909 Fault Level">
+<meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
+<link rel="stylesheet" href="/assets/calc-suite.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Short Circuit Current Calculator","description":"Calculates three-phase, phase-to-phase and phase-to-earth short circuit current at a low voltage board to IEC 60909, including grid, transformer and cable impedance, the peak asymmetrical current, induction motor back-feed and the breaking capacity required.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/short-circuit-current-calculator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.multicalci.com"},{"@type":"ListItem","position":2,"name":"Electrical Calculators","item":"https://www.multicalci.com/electrical-engineering-calculators"},{"@type":"ListItem","position":3,"name":"Short Circuit Current Calculator","item":"https://www.multicalci.com/short-circuit-current-calculator"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I calculate short circuit current?","acceptedAnswer":{"@type":"Answer","text":"Add the impedances of every element between the source and the fault, then divide the driving voltage by the total. IEC 60909 uses a voltage factor c of 1.05 for maximum fault current on low voltage systems, so the three-phase symmetrical current is c times the nominal voltage divided by the square root of three times the total impedance. The chain is normally the grid source impedance referred to the low voltage side, the transformer impedance from its percentage impedance and percentage resistance, and the cable impedance to the point of fault."}},{"@type":"Question","name":"What is the difference between Isc3, Isc2 and Isc1?","acceptedAnswer":{"@type":"Answer","text":"Isc3 is the symmetrical three-phase fault, normally the largest and the figure that sets switchgear breaking capacity. Isc2 is the phase-to-phase fault, which for a fault far from the generator is the square root of three over two, about 86.6 percent of Isc3. Isc1 is the phase-to-earth fault, and its true value depends on the zero-sequence impedance of the transformer and the earthing arrangement, so it can be either larger or smaller than Isc3. This calculator approximates Isc1 as 85 percent of Isc3 and flags that an accurate figure needs zero-sequence data."}},{"@type":"Question","name":"Why does peak current exceed the symmetrical value?","acceptedAnswer":{"@type":"Answer","text":"Current in an inductive circuit cannot change instantaneously, so a fault starting at a voltage zero produces a decaying direct current offset on top of the symmetrical alternating component. The first peak can therefore approach twice the square root of two times the symmetrical current. IEC 60909 quantifies this with the kappa factor, which equals 1.02 plus 0.98 times the exponential of minus three times the resistance over the reactance. A stiff, highly inductive supply with a high X over R ratio gives a kappa near 1.8, while a cable-limited fault with a low X over R gives a kappa near 1.1."}},{"@type":"Question","name":"Do motors contribute to short circuit current?","acceptedAnswer":{"@type":"Answer","text":"Yes. During a fault a running induction motor is driven by the inertia of its load and briefly acts as a generator, feeding current back into the fault at roughly six times its full load current for the first few cycles. IEC 60909 requires this contribution to be included where the connected motor rating is significant relative to the transformer. It matters most for the making and peak duty of the switchgear, since the motor contribution decays within a few cycles and has largely disappeared by the time a breaker interrupts."}},{"@type":"Question","name":"What breaking capacity does my breaker need?","acceptedAnswer":{"@type":"Answer","text":"The breaking capacity must exceed the prospective symmetrical fault current at the point of installation, and the making capacity must exceed the peak asymmetrical current including any motor contribution. Devices are rated in the standard series of 6, 10, 16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 150 and 200 kiloamperes. Selecting on the symmetrical current alone under-rates the device wherever significant motor load is connected, because the peak duty is what the contacts actually face on closing."}}]}</script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="https://www.multicalci.com">MULTICALCI</a>
+    <nav>
+      <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical</a>
+      <a href="https://www.multicalci.com/mechanical-engineering-calculators">Mechanical</a>
+      <a href="https://www.multicalci.com/civil-engineering-calculators">Civil</a>
+      <a href="https://www.multicalci.com/instrumentation-calculators">Instrumentation</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="crumb">
+    <a href="https://www.multicalci.com">Home</a>
+    <span class="sep">/</span>
+    <a href="https://www.multicalci.com/electrical-engineering-calculators">Electrical Calculators</a>
+    <span class="sep">/</span>
+    <span aria-current="page">Short Circuit Current Calculator</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Electrical Engineering</span>
+    <h1>Short Circuit Current Calculator</h1>
+    <p class="lede">Calculate the prospective fault current at a low voltage board to IEC 60909, working through the grid source, the transformer and the connecting cable. Returns three-phase, phase-to-phase and phase-to-earth currents, the peak asymmetrical current, induction motor back-feed and the breaking capacity your switchgear needs.</p>
+    <div class="stdref">
+      <span>IEC 60909</span>
+      <span>IEC 60947-2</span>
+      <span>c = 1.05</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span class="card-hd-ico">&#128165;</span>
+      <span class="card-hd-ttl">Source, Transformer &amp; Cable</span>
+    </div>
+    <div class="card-bd">
+
+      <div class="g2">
+        <div class="field">
+          <label for="fltGridMVA">Grid Fault Level <span class="u">MVA</span></label>
+          <input type="number" id="fltGridMVA" value="500" step="any" min="0">
+          <div class="hint">Short circuit capacity at the HV side, from the utility.</div>
+        </div>
+        <div class="field">
+          <label for="fltLV">LV Bus Voltage <span class="u">V</span></label>
+          <input type="number" id="fltLV" value="415" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="fltXkVA">Transformer Rating <span class="u">kVA</span></label>
+          <input type="number" id="fltXkVA" value="1000" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="fltXZ">Impedance %Z</label>
+          <input type="number" id="fltXZ" value="5" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="fltXR">Resistance %R</label>
+          <input type="number" id="fltXR" value="1" step="any" min="0">
+          <div class="hint">Must not exceed %Z.</div>
+        </div>
+      </div>
+
+      <div class="g3">
+        <div class="field">
+          <label for="fltCL">Cable Length to Fault <span class="u">m</span></label>
+          <input type="number" id="fltCL" value="10" step="any" min="0">
+          <div class="hint">Enter 0 for a fault at the transformer LV terminals.</div>
+        </div>
+        <div class="field">
+          <label for="fltCA">Cable CSA <span class="u">mm&#178;</span></label>
+          <input type="number" id="fltCA" value="240" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="fltMat">Cable Material</label>
+          <select id="fltMat">
+            <option value="cu" selected>Copper</option>
+            <option value="al">Aluminium</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fltMotKVA">Connected Motor Load <span class="u">kVA</span></label>
+        <input type="number" id="fltMotKVA" value="1500" step="any" min="0">
+        <div class="hint">Total running induction motor rating on the bus. Enter 0 if none.</div>
+      </div>
+
+      <div id="fltErrors" class="validation-err" style="display:none"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-calc" id="fltCalcBtn">Calculate Fault Current</button>
+        <button type="button" class="btn-pdf" id="fltPdfBtn" disabled>PDF Report</button>
+        <button type="button" class="btn-pdf" id="fltShareBtn">Share Link</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="results" id="fltResults">
+    <div class="rc-empty">Enter the system data and select Calculate.</div>
+  </div>
+
+  <div id="fltWarnings"></div>
+
+  <h2>IEC 60909 Fault Current Formulae</h2>
+
+  <div class="fbox">
+    Z<sub>base</sub> = V&#178; / S<sub>base</sub> &nbsp;&#183;&nbsp; Z<sub>grid</sub> = V&#178; / S<sub>kQ</sub> <span class="cm">// referred to the LV side</span><br>
+    Z<sub>xfmr</sub> = (%Z / 100) &#183; Z<sub>base</sub> &nbsp;&#183;&nbsp; R<sub>xfmr</sub> = (%R / 100) &#183; Z<sub>base</sub><br>
+    X = &#8730;(Z&#178; &#8722; R&#178;) <span class="cm">// split each element into R and X</span>
+  </div>
+  <div class="fbox">
+    Z<sub>total</sub> = &#8730;( (&#931;R)&#178; + (&#931;X)&#178; )<br>
+    I<sub>k3</sub> = c &#183; V / ( &#8730;3 &#183; Z<sub>total</sub> ) <span class="cm">// c = 1.05 for max LV fault</span>
+  </div>
+  <div class="fbox">
+    I<sub>k2</sub> = (&#8730;3 / 2) &#183; I<sub>k3</sub> &nbsp;&#183;&nbsp; I<sub>k1</sub> &#8776; 0.85 &#183; I<sub>k3</sub> <span class="cm">// approximate, needs Z&#8320;</span><br>
+    &#954; = 1.02 + 0.98 &#183; e<sup>&#8722;3R/X</sup> &nbsp;&#183;&nbsp; i<sub>p</sub> = &#954; &#183; &#8730;2 &#183; I<sub>k3</sub>
+  </div>
+  <div class="fbox">
+    I<sub>mot</sub> = 6 &#183; S<sub>mot</sub> / ( &#8730;3 &#183; V ) <span class="cm">// back-feed, first few cycles</span><br>
+    S<sub>k</sub> = &#8730;3 &#183; V &#183; I<sub>k3</sub> <span class="cm">// fault level in MVA</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr><td>I<sub>k3</sub></td><td>Symmetrical three-phase fault current</td><td>A</td></tr>
+        <tr><td>I<sub>k2</sub></td><td>Phase-to-phase fault current</td><td>A</td></tr>
+        <tr><td>I<sub>k1</sub></td><td>Phase-to-earth fault current, approximate</td><td>A</td></tr>
+        <tr><td>i<sub>p</sub></td><td>Peak asymmetrical current, first half cycle</td><td>A</td></tr>
+        <tr><td>&#954;</td><td>Peak factor from the X/R ratio</td><td>—</td></tr>
+        <tr><td>c</td><td>Voltage factor, 1.05 for maximum LV fault</td><td>—</td></tr>
+        <tr><td>S<sub>kQ</sub></td><td>Grid short circuit capacity</td><td>MVA</td></tr>
+        <tr><td>%Z, %R</td><td>Transformer impedance and resistance</td><td>%</td></tr>
+        <tr><td>I<sub>mot</sub></td><td>Induction motor back-feed contribution</td><td>A</td></tr>
+        <tr><td>S<sub>k</sub></td><td>Fault level</td><td>MVA</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">The grid X/R ratio is fixed at 10 per IEC 60909 Table 3, cable reactance at 0.08 m&#937;/m, and conductor resistance is taken at 20 °C, which is the correct choice for a <em>maximum</em> fault current calculation. Minimum fault current for protection grading uses c = 0.95 and conductor resistance at the maximum operating temperature, and is not covered here.</div>
+
+  <h2>Worked Example</h2>
+
+  <div class="wex">
+    <div class="wex-hd">1000 kVA transformer, 500 MVA grid, 415 V board, 1500 kVA of motors</div>
+
+    <p>A 1000 kVA distribution transformer at 5 %Z and 1 %R feeds a 415 V main board through 10 m of 240 mm&#178; copper. The utility declares 500 MVA at the HV terminals. The board carries 1500 kVA of running induction motors.</p>
+
+    <dl>
+      <dt>Base impedance</dt>
+      <dd>Z<sub>base</sub> = 415&#178; / 1 000 000 = 0.172225 &#937;</dd>
+
+      <dt>Grid impedance at LV</dt>
+      <dd>Z<sub>grid</sub> = 415&#178; / 500 000 000 = 0.000344 &#937;</dd>
+
+      <dt>Transformer impedance</dt>
+      <dd>Z<sub>xfmr</sub> = 0.05 × 0.172225 = 0.008611 &#937;</dd>
+
+      <dt>Cable impedance</dt>
+      <dd>R = 0.000717 &#937;, X = 0.0008 &#937; over 10 m</dd>
+
+      <dt>Total impedance</dt>
+      <dd>Z<sub>total</sub> = 0.009894 &#937;, X/R = 3.87</dd>
+
+      <dt>Three-phase fault</dt>
+      <dd>I<sub>k3</sub> = 1.05 × 415 / (&#8730;3 × 0.009894) = 25427.3 A = 25.43 kA</dd>
+
+      <dt>Phase-phase and phase-earth</dt>
+      <dd>I<sub>k2</sub> = 22020.7 A &#183; I<sub>k1</sub> &#8776; 21613.2 A</dd>
+
+      <dt>Peak factor and peak current</dt>
+      <dd>&#954; = 1.02 + 0.98 e<sup>&#8722;3/3.87</sup> = 1.4717 &#8594; i<sub>p</sub> = 52922.6 A = 52.92 kA</dd>
+
+      <dt>Motor contribution</dt>
+      <dd>I<sub>mot</sub> = 6 × 1 500 000 / (&#8730;3 × 415) = 12520.8 A</dd>
+
+      <dt>Total including motors</dt>
+      <dd>25427.3 + 12520.8 = 37948.2 A = 37.95 kA</dd>
+
+      <dt>Fault level</dt>
+      <dd>S<sub>k</sub> = &#8730;3 × 415 × 25427.3 / 10&#8310; = 18.2772 MVA</dd>
+
+      <dt>Peak duty including motors</dt>
+      <dd>&#954; &#215; &#8730;2 &#215; 37948.2 = 78 980 A = 78.98 kA &#8594; 80 kA device</dd>
+    </dl>
+
+    <div class="ans">I<sub>k3</sub> = 25.43 kA &#183; i<sub>p</sub> = 52.92 kA &#183; with motors 37.95 kA &#183; peak duty 78.98 kA &#183; select 80 kA</div>
+  </div>
+
+  <div class="note"><strong>Read the last two lines together.</strong> Sizing on the 52.92 kA peak alone would pick a 63 kA device, but the motor back-feed pushes the actual peak duty to 78.98 kA. This is the single most common way a fault study under-rates switchgear, and it is why the motor kVA field matters even though the contribution decays within a few cycles.</div>
+
+  <h2>Units &amp; Accepted Ranges</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Input</th><th>Unit</th><th>Accepted range</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Grid fault level</td><td>MVA</td><td>&gt; 0</td><td>500</td></tr>
+        <tr><td>LV bus voltage</td><td>V</td><td>&gt; 0</td><td>415</td></tr>
+        <tr><td>Transformer rating</td><td>kVA</td><td>&gt; 0</td><td>1000</td></tr>
+        <tr><td>Impedance %Z</td><td>%</td><td>&gt; 0, typically 4–8</td><td>5</td></tr>
+        <tr><td>Resistance %R</td><td>%</td><td>&gt; 0 and &#8804; %Z</td><td>1</td></tr>
+        <tr><td>Cable length</td><td>m</td><td>&#8805; 0</td><td>10</td></tr>
+        <tr><td>Cable CSA</td><td>mm&#178;</td><td>&gt; 0</td><td>240</td></tr>
+        <tr><td>Motor load</td><td>kVA</td><td>&#8805; 0</td><td>1500</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Standard Breaking Capacities (IEC 60947-2)</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Rating (kA)</th><th>Typical application</th><th>Rating (kA)</th><th>Typical application</th></tr></thead>
+      <tbody>
+        <tr><td>6</td><td>Domestic final circuits</td><td>50</td><td>Large LV main board</td></tr>
+        <tr><td>10</td><td>Small commercial board</td><td>63</td><td>1000–1600 kVA transformer</td></tr>
+        <tr><td>16</td><td>Sub-distribution board</td><td>80</td><td>With significant motor load</td></tr>
+        <tr><td>25</td><td>500 kVA transformer bus</td><td>100</td><td>Large industrial main board</td></tr>
+        <tr><td>31.5</td><td>Common MV switchgear rating</td><td>125</td><td>Parallel transformers</td></tr>
+        <tr><td>40</td><td>800 kVA transformer bus</td><td>150 / 200</td><td>Generation and heavy industry</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Typical Transformer Impedance</h2>
+
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>Rating</th><th>Typical %Z</th><th>Typical %R</th><th>X/R</th><th>Isc at LV terminals</th></tr></thead>
+      <tbody>
+        <tr><td>100 kVA</td><td>4.0 %</td><td>2.0 %</td><td>1.7</td><td>3.5 kA</td></tr>
+        <tr><td>250 kVA</td><td>4.0 %</td><td>1.6 %</td><td>2.3</td><td>8.8 kA</td></tr>
+        <tr><td>500 kVA</td><td>4.5 %</td><td>1.3 %</td><td>3.3</td><td>15.6 kA</td></tr>
+        <tr><td>1000 kVA</td><td>5.0 %</td><td>1.0 %</td><td>4.9</td><td>28.1 kA</td></tr>
+        <tr><td>1600 kVA</td><td>6.0 %</td><td>0.9 %</td><td>6.6</td><td>37.5 kA</td></tr>
+        <tr><td>2000 kVA</td><td>6.0 %</td><td>0.8 %</td><td>7.4</td><td>46.9 kA</td></tr>
+        <tr><td>2500 kVA</td><td>6.25 %</td><td>0.7 %</td><td>8.9</td><td>56.2 kA</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">Indicative values at 415 V with an infinite source, for a sanity check when the nameplate is not to hand. A higher %Z lowers the fault current but worsens voltage regulation and motor starting, which is the trade-off behind the rating series.</div>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq">
+
+    <details>
+      <summary>How do I calculate short circuit current?</summary>
+      <div class="faq-a"><p>Add the impedances of every element between the source and the fault, then divide the driving voltage by the total. IEC 60909 uses a voltage factor c of 1.05 for maximum fault current on low voltage systems, so the three-phase symmetrical current is c times the nominal voltage divided by &#8730;3 times the total impedance. The chain is normally the grid source impedance referred to the low voltage side, the transformer impedance from its %Z and %R, and the cable impedance to the point of fault.</p></div>
+    </details>
+
+    <details>
+      <summary>What is the difference between Isc3, Isc2 and Isc1?</summary>
+      <div class="faq-a"><p>I<sub>k3</sub> is the symmetrical three-phase fault, normally the largest and the figure that sets switchgear breaking capacity. I<sub>k2</sub> is the phase-to-phase fault, which for a fault far from the generator is &#8730;3/2, about 86.6 % of I<sub>k3</sub>. I<sub>k1</sub> is the phase-to-earth fault, and its true value depends on the zero-sequence impedance of the transformer and the earthing arrangement, so it can be either larger or smaller than I<sub>k3</sub>. This calculator approximates I<sub>k1</sub> as 85 % of I<sub>k3</sub> and flags that an accurate figure needs zero-sequence data.</p></div>
+    </details>
+
+    <details>
+      <summary>Why does peak current exceed the symmetrical value?</summary>
+      <div class="faq-a"><p>Current in an inductive circuit cannot change instantaneously, so a fault starting at a voltage zero produces a decaying DC offset on top of the symmetrical AC component. The first peak can therefore approach 2&#8730;2 times the symmetrical current. IEC 60909 quantifies this with the &#954; factor, which equals 1.02 + 0.98 e<sup>&#8722;3R/X</sup>. A stiff, highly inductive supply with a high X/R gives a &#954; near 1.8, while a cable-limited fault with a low X/R gives a &#954; near 1.1.</p></div>
+    </details>
+
+    <details>
+      <summary>Do motors contribute to short circuit current?</summary>
+      <div class="faq-a"><p>Yes. During a fault a running induction motor is driven by the inertia of its load and briefly acts as a generator, feeding current back into the fault at roughly six times its full load current for the first few cycles. IEC 60909 requires this contribution to be included where the connected motor rating is significant relative to the transformer. It matters most for the making and peak duty of the switchgear, since the motor contribution decays within a few cycles and has largely disappeared by the time a breaker interrupts.</p></div>
+    </details>
+
+    <details>
+      <summary>What breaking capacity does my breaker need?</summary>
+      <div class="faq-a"><p>The breaking capacity must exceed the prospective symmetrical fault current at the point of installation, and the making capacity must exceed the peak asymmetrical current including any motor contribution. Devices are rated in the standard series of 6, 10, 16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 150 and 200 kA. Selecting on the symmetrical current alone under-rates the device wherever significant motor load is connected, because the peak duty is what the contacts actually face on closing.</p></div>
+    </details>
+
+  </div>
+
+  <h2>Related Electrical Calculators</h2>
+
+  <div class="related">
+    <a href="https://www.multicalci.com/transformer-calculator">Transformer Calculator<span class="d">%Z, secondary current and Isc</span></a>
+    <a href="https://www.multicalci.com/motor-full-load-current-calculator">Motor Full Load Current Calculator<span class="d">Motor kVA for the back-feed term</span></a>
+    <a href="https://www.multicalci.com/cable-size-calculator">Cable Size Calculator<span class="d">Withstand check on the feeder</span></a>
+    <a href="https://www.multicalci.com/voltage-drop-calculator">Voltage Drop Calculator<span class="d">Impedance of the same cable run</span></a>
+    <a href="https://www.multicalci.com/three-phase-power-calculator">Three Phase Power Calculator<span class="d">Load kVA on the bus</span></a>
+    <a href="https://www.multicalci.com/ohms-law-calculator">Ohm's Law Calculator<span class="d">Solve V, I, R and P from any two</span></a>
+  </div>
+
+  <a class="hublink" href="https://www.multicalci.com/electrical-engineering-calculators">&#8592; All Electrical Engineering Calculators</a>
+
+  <div class="foot">
+    <p>Results are for estimation and preliminary design. A fault study for construction must use manufacturer transformer data, actual cable routes, zero-sequence impedance for earth faults and a minimum-fault case for protection grading. Verify with a qualified engineer.</p>
+    <p><a href="https://www.multicalci.com">multicalci.com</a> — free engineering calculators</p>
+  </div>
+
+</div>
+
+<script src="/assets/calc-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var M = window.MC;
+  if (!M) {
+    var box = document.getElementById('fltResults');
+    if (box) box.innerHTML = '<div class="rc-empty">Calculator assets failed to load. Please refresh the page.</div>';
+    return;
+  }
+
+  var KA_STD = [6, 10, 16, 20, 25, 31.5, 40, 50, 63, 80, 100, 125, 150, 200];
+  var last = null;
+
+  function nextKA(ka) {
+    for (var i = 0; i < KA_STD.length; i++) { if (KA_STD[i] >= ka) return KA_STD[i]; }
+    return Math.ceil(ka);
+  }
+
+  function collect() {
+    var v = M.validate([
+      { id: 'fltGridMVA', label: 'Grid fault level',   required: true, gt: 0 },
+      { id: 'fltLV',      label: 'LV bus voltage',     required: true, gt: 0 },
+      { id: 'fltXkVA',    label: 'Transformer rating', required: true, gt: 0 },
+      { id: 'fltXZ',      label: 'Impedance %Z',       required: true, gt: 0, lte: 30 },
+      { id: 'fltXR',      label: 'Resistance %R',      required: true, gt: 0, lte: 30 },
+      { id: 'fltCL',      label: 'Cable length',       required: true, gte: 0 },
+      { id: 'fltCA',      label: 'Cable CSA',          required: true, gt: 0 },
+      { id: 'fltMotKVA',  label: 'Motor load',         required: true, gte: 0 }
+    ]);
+
+    if (v.ok && M.gv('fltXR') > M.gv('fltXZ')) {
+      v = { ok: false, errors: [{ id: 'fltXR', msg: '%R (' + M.gv('fltXR') + ' %) cannot exceed %Z (' + M.gv('fltXZ') + ' %). Check the transformer nameplate.' }], warns: v.warns };
+    }
+
+    M.showValidation('fltErrors', v);
+    if (!v.ok) return null;
+
+    // The API reads cable length as `parseFloat(CL_m) || 10`, so an entered 0 --
+    // a fault at the transformer LV terminals, a case engineers genuinely want --
+    // is silently replaced with 10 m. 0.001 m is sent instead; its impedance is
+    // seven orders of magnitude below the transformer's and does not affect the
+    // result. The substitution is disclosed in the results.
+    var CL = M.gv('fltCL');
+    var terminalFault = (CL === 0);
+
+    return {
+      payload: {
+        gridMVA: M.gv('fltGridMVA'),
+        xkVA: M.gv('fltXkVA'),
+        xZpct: M.gv('fltXZ'),
+        xRpct: M.gv('fltXR'),
+        CL_m: terminalFault ? 0.001 : CL,
+        CA_mm2: M.gv('fltCA'),
+        LV: M.gv('fltLV'),
+        fltMat: M.gs('fltMat'),
+        motKVA: M.gv('fltMotKVA')
+      },
+      terminalFault: terminalFault
+    };
+  }
+
+  function cardHtml(o) {
+    var tone = o.tone ? ' c-' + o.tone : '';
+    var vTone = o.tone ? ' v-' + o.tone : '';
+    return '<div class="rc' + tone + (o.span ? ' sp2' : '') + '">' +
+      '<div class="rl">' + M.esc(o.label) + '</div>' +
+      '<div class="rv' + (o.big ? ' big' : '') + vTone + '">' + M.esc(o.value) +
+      (o.unit ? '<span class="un">' + M.esc(o.unit) + '</span>' : '') + '</div>' +
+      (o.subHtml ? '<div class="rsub">' + o.subHtml + '</div>' :
+        (o.sub ? '<div class="rsub">' + M.esc(o.sub) + '</div>' : '')) +
+      '</div>';
+  }
+
+  function render(ctx, r) {
+    var inp = ctx.payload;
+    var hasMotors = r.Imot > 0;
+
+    // The API sizes brkKA from Ip, which is computed from Isc3 alone and excludes
+    // the motor contribution the same function returned in Isc3_total. Both kappa
+    // and Isc3_total come from the API, so the peak duty is recovered by
+    // multiplication without duplicating any of the impedance model.
+    var ipTotal = r.kappa * Math.SQRT2 * r.Isc3_total;
+    var requiredKA = nextKA(ipTotal / 1000);
+    var apiUnderRated = hasMotors && requiredKA > r.brkKA;
+
+    var html = '';
+    html += cardHtml({
+      label: 'Three-Phase Fault I\u2096\u2083', value: M.fN(r.Isc3 / 1000, 2), unit: 'kA',
+      tone: 'main', big: true, span: true,
+      sub: 'Symmetrical RMS at ' + M.fN(inp.LV, 0, 'V') + ', c = ' + M.fN(r.c_factor, 2) +
+        (ctx.terminalFault ? ' \u2014 at the transformer LV terminals' : ' \u2014 ' + M.fN(inp.CL_m, 1, 'm') + ' from the transformer')
+    });
+    html += cardHtml({
+      label: 'Peak Asymmetrical i\u209A', value: M.fN(r.Ip / 1000, 2), unit: 'kA',
+      tone: 'red', sub: '\u03BA \u00D7 \u221A2 \u00D7 I\u2096\u2083 \u2014 excludes motor contribution'
+    });
+    html += cardHtml({
+      label: 'Phase-Phase Fault I\u2096\u2082', value: M.fN(r.Isc2 / 1000, 2), unit: 'kA',
+      tone: 'amb', sub: '\u221A3/2 \u00D7 I\u2096\u2083, i.e. 86.6 %'
+    });
+    html += cardHtml({
+      label: 'Phase-Earth Fault I\u2096\u2081', value: M.fN(r.Isc1 / 1000, 2), unit: 'kA',
+      tone: 'amb', sub: r.Isc1_note || ''
+    });
+    html += cardHtml({
+      label: 'Motor Contribution I\u2098\u2092\u209C', value: hasMotors ? M.fN(r.Imot / 1000, 2) : '0.00', unit: 'kA',
+      tone: 'pur',
+      sub: hasMotors ? '6 \u00D7 FLC of ' + M.fN(inp.motKVA, 0, 'kVA') + ', decays within a few cycles'
+        : 'No motor load entered'
+    });
+    html += cardHtml({
+      label: 'Total with Motors', value: M.fN(r.Isc3_total / 1000, 2), unit: 'kA',
+      tone: 'pur', sub: 'I\u2096\u2083 + I\u2098\u2092\u209C \u2014 the making duty basis'
+    });
+    html += cardHtml({
+      label: 'Fault Level S\u2096', value: M.fN(r.fMVA, 3), unit: 'MVA',
+      tone: 'blu', sub: '\u221A3 \u00D7 V \u00D7 I\u2096\u2083'
+    });
+    html += cardHtml({
+      label: 'Total Impedance', value: M.fN(r.Ztot, 6), unit: '\u03A9',
+      tone: 'cyn', sub: 'Grid ' + M.fN(r.Zgrid_mag, 6) + ' + transformer ' + M.fN(r.Zxfmr_mag, 6) +
+        ' + cable R ' + M.fN(r.Rcable, 6) + ' / X ' + M.fN(r.Xcable, 6)
+    });
+    html += cardHtml({
+      label: 'X/R Ratio', value: M.fN(r.XR_total, 2), unit: '',
+      tone: 'cyn', sub: '\u03BA = ' + M.fN(r.kappa, 4) + ' from 1.02 + 0.98 e^(\u22123R/X)'
+    });
+    html += cardHtml({
+      label: 'Breaking Capacity Required', value: M.fN(requiredKA, 1), unit: 'kA',
+      tone: apiUnderRated ? 'red' : 'grn', span: true,
+      subHtml: '<span class="badge ' + (apiUnderRated ? 'err' : 'ok') + '">' +
+        (apiUnderRated
+          ? '\u2717 API field brkKA returns ' + M.fN(r.brkKA, 1, 'kA') + ' \u2014 under-rated'
+          : '\u2713 Matches the API field brkKA') +
+        '</span> Peak duty including motor back-feed is ' + M.esc(M.fN(ipTotal / 1000, 2, 'kA')) + '.'
+    });
+
+    M.set('fltResults', html);
+
+    var warns = '';
+    if (apiUnderRated) {
+      warns += '<div class="note"><strong>Motor contribution excluded from the API breaker rating.</strong> ' +
+        'The API sizes brkKA from i\u209A = ' + M.fN(r.Ip / 1000, 2, 'kA') + ', which is derived from I\u2096\u2083 alone and ignores the ' +
+        M.fN(r.Imot / 1000, 2, 'kA') + ' of motor back-feed it returned in the same response. Including it gives a peak duty of ' +
+        M.fN(ipTotal / 1000, 2, 'kA') + ', so a ' + M.fN(requiredKA, 1, 'kA') + ' device is needed, not the ' +
+        M.fN(r.brkKA, 1, 'kA') + ' the API suggests. The larger figure is shown above.</div>';
+    }
+    if (ctx.terminalFault) {
+      warns += '<div class="note">Cable length 0 was entered. The API reads 0 as "not supplied" and substitutes 10 m, so 0.001 m has been sent instead \u2014 its impedance is negligible against the transformer, and the result is the fault at the LV terminals as intended.</div>';
+    }
+    if (r.XR_total > 8) {
+      warns += '<div class="note">X/R of ' + M.fN(r.XR_total, 2) + ' is high, giving \u03BA = ' + M.fN(r.kappa, 4) +
+        '. Verify the transformer %R against the nameplate, since the peak current is sensitive to it at this ratio.</div>';
+    }
+    M.set('fltWarnings', warns);
+
+    document.getElementById('fltPdfBtn').disabled = false;
+    last = { ctx: ctx, r: r, ipTotal: ipTotal, requiredKA: requiredKA, apiUnderRated: apiUnderRated };
+  }
+
+  function calculate() {
+    var ctx = collect();
+    if (!ctx) {
+      document.getElementById('fltPdfBtn').disabled = true;
+      M.set('fltWarnings', '');
+      last = null;
+      return Promise.resolve();
+    }
+    var btn = document.getElementById('fltCalcBtn');
+    M.busy(btn, true);
+    M.setLoading('fltResults', true);
+    return M.api.electrical('fault', ctx.payload).then(function (r) {
+      render(ctx, r);
+    }).catch(function (err) {
+      M.showError('fltResults', err);
+      M.set('fltWarnings', '');
+      document.getElementById('fltPdfBtn').disabled = true;
+      last = null;
+    }).then(function () {
+      M.busy(btn, false);
+    });
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('g', M.gs('fltGridMVA'));
+    p.set('lv', M.gs('fltLV'));
+    p.set('kva', M.gs('fltXkVA'));
+    p.set('z', M.gs('fltXZ'));
+    p.set('r', M.gs('fltXR'));
+    p.set('cl', M.gs('fltCL'));
+    p.set('ca', M.gs('fltCA'));
+    p.set('mat', M.gs('fltMat'));
+    p.set('mot', M.gs('fltMotKVA'));
+    return 'https://www.multicalci.com/short-circuit-current-calculator?' + p.toString();
+  }
+
+  function readParams() {
+    var p = new URLSearchParams(window.location.search);
+    if (!p.toString()) return false;
+    var map = {
+      g: 'fltGridMVA', lv: 'fltLV', kva: 'fltXkVA', z: 'fltXZ', r: 'fltXR',
+      cl: 'fltCL', ca: 'fltCA', mat: 'fltMat', mot: 'fltMotKVA'
+    };
+    var any = false;
+    Object.keys(map).forEach(function (key) {
+      var val = p.get(key);
+      if (val === null) return;
+      var el = M.$(map[key]);
+      if (!el) return;
+      el.value = val;
+      any = true;
+    });
+    return any;
+  }
+
+  function share() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: 'Short Circuit Current Calculator', text: 'Fault study on multicalci.com', url: url })
+        .catch(function () {});
+      return;
+    }
+    var btn = document.getElementById('fltShareBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        var t = btn.textContent;
+        btn.textContent = 'Link copied';
+        setTimeout(function () { btn.textContent = t; }, 1800);
+      }).catch(function () { window.prompt('Copy this link:', url); });
+      return;
+    }
+    window.prompt('Copy this link:', url);
+  }
+
+  function pdf() {
+    if (!last) return;
+    var inp = last.ctx.payload, r = last.r;
+    var when = new Date().toLocaleString();
+    var inRows = [
+      ['Grid fault level', M.fN(inp.gridMVA, 2, 'MVA')],
+      ['LV bus voltage', M.fN(inp.LV, 2, 'V')],
+      ['Transformer rating', M.fN(inp.xkVA, 2, 'kVA')],
+      ['Transformer %Z / %R', M.fN(inp.xZpct, 2, '%') + ' / ' + M.fN(inp.xRpct, 2, '%')],
+      ['Cable length', last.ctx.terminalFault ? '0 m (fault at LV terminals)' : M.fN(inp.CL_m, 2, 'm')],
+      ['Cable CSA', M.fN(inp.CA_mm2, 2, 'mm2')],
+      ['Cable material', inp.fltMat === 'al' ? 'Aluminium' : 'Copper'],
+      ['Connected motor load', M.fN(inp.motKVA, 2, 'kVA')]
+    ];
+    var outRows = [
+      ['Three-phase fault Ik3', M.fN(r.Isc3 / 1000, 2, 'kA')],
+      ['Phase-phase fault Ik2', M.fN(r.Isc2 / 1000, 2, 'kA')],
+      ['Phase-earth fault Ik1', M.fN(r.Isc1 / 1000, 2, 'kA') + ' (approximate)'],
+      ['Peak asymmetrical ip', M.fN(r.Ip / 1000, 2, 'kA') + ' (excludes motors)'],
+      ['kappa factor', M.fN(r.kappa, 4)],
+      ['Motor contribution', M.fN(r.Imot / 1000, 2, 'kA')],
+      ['Total with motors', M.fN(r.Isc3_total / 1000, 2, 'kA')],
+      ['Peak duty with motors', M.fN(last.ipTotal / 1000, 2, 'kA')],
+      ['Fault level Sk', M.fN(r.fMVA, 3, 'MVA')],
+      ['Total impedance', M.fN(r.Ztot, 6, 'ohm')],
+      ['X/R ratio', M.fN(r.XR_total, 2)],
+      ['Breaking capacity required', M.fN(last.requiredKA, 1, 'kA')]
+    ];
+    var notes = [];
+    if (last.apiUnderRated) {
+      notes.push('The API field brkKA returns ' + M.fN(r.brkKA, 1, 'kA') + ', sized from ip excluding the motor back-feed. ' +
+        'Peak duty including motors is ' + M.fN(last.ipTotal / 1000, 2, 'kA') + ', requiring ' + M.fN(last.requiredKA, 1, 'kA') + '.');
+    }
+    if (last.ctx.terminalFault) {
+      notes.push('Cable length 0 was requested; 0.001 m was sent because the API treats 0 as not supplied.');
+    }
+    notes.push('Ik1 is approximated as 0.85 x Ik3. An accurate earth fault value requires zero-sequence impedance data.');
+
+    var table = function (title, rows) {
+      return '<h2>' + title + '</h2><table>' + rows.map(function (row) {
+        return '<tr><th>' + M.esc(row[0]) + '</th><td>' + M.esc(row[1]) + '</td></tr>';
+      }).join('') + '</table>';
+    };
+    var doc = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>Short Circuit Report \u2014 multicalci.com</title><style>' +
+      'body{font-family:Georgia,serif;margin:28px;color:#0f2044}' +
+      'h1{font-size:20px;margin:0 0 2px}' +
+      'h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em}' +
+      '.sub{font-size:11px;color:#555;margin-bottom:14px}' +
+      'table{border-collapse:collapse;width:100%;font-size:12px}' +
+      'th,td{border:1px solid #cbd2e0;padding:5px 8px;text-align:left}' +
+      'th{background:#f4f6fb;width:45%}' +
+      'ul{font-size:11px;color:#444;margin:8px 0 0 16px;padding:0}' +
+      '.f{margin-top:20px;font-size:10px;color:#666;border-top:1px solid #cbd2e0;padding-top:8px}' +
+      '</style></head><body>' +
+      '<h1>Short Circuit Current Report</h1>' +
+      '<div class="sub">multicalci.com \u2014 Electrical Engineering Suite \u00B7 IEC 60909 \u00B7 Generated ' + M.esc(when) + '</div>' +
+      table('System Data', inRows) + table('Results', outRows) +
+      '<h2>Notes</h2><ul>' + notes.map(function (n) { return '<li>' + M.esc(n) + '</li>'; }).join('') + '</ul>' +
+      '<div class="f">Maximum fault case only, with c = 1.05 and conductor resistance at 20 C. ' +
+      'Protection grading requires a separate minimum fault calculation. For estimation and preliminary ' +
+      'design; verify with a qualified engineer.</div>' +
+      '</body></html>';
+
+    var w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
+  M.ready(function () {
+    document.getElementById('fltCalcBtn').addEventListener('click', calculate);
+    document.getElementById('fltPdfBtn').addEventListener('click', pdf);
+    document.getElementById('fltShareBtn').addEventListener('click', share);
+
+    M.enterToCalc(['fltGridMVA', 'fltLV', 'fltXkVA', 'fltXZ', 'fltXR', 'fltCL', 'fltCA', 'fltMotKVA'], calculate);
+
+    if (readParams()) calculate();
+  });
+})();
+</script>
+
+</body>
+</html>
