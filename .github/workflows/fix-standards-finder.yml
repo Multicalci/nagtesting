@@ -1,0 +1,43 @@
+name: Fix Standards Finder URLs
+
+# Manual only — click "Run workflow" on the Actions tab.
+# Safe to run more than once; a second run reports 0 changes.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview only — do not commit'
+        type: boolean
+        default: true
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the fix
+        run: python3 scripts/fix_esf.py .
+
+      - name: Show what changed
+        run: |
+          echo "── files changed ──"
+          git diff --stat | tail -20
+          echo "── sample diff (first changed file) ──"
+          git diff -- 'engineering-standards-finder/**/index.html' | head -60
+
+      - name: Commit
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git add engineering-standards-finder
+          git commit -m "SEO: strip trailing slashes and add analytics on 494 standards-finder pages"
+          git push
