@@ -503,3 +503,29 @@
   });
 
 })(window);
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VERCEL WEB ANALYTICS — static-site injection
+   ───────────────────────────────────────────────────────────────────────
+   The npm package (@vercel/analytics) and its inject() helper assume a
+   bundler. This repo has no build step, so the tracking script is loaded
+   directly from the platform endpoint instead. Same data, no dependency.
+
+   Verify: DevTools > Network should show a request to
+           /_vercel/insights/view on page load.
+   Note:   ad blockers and privacy browsers block this, so counts
+           undercount real traffic. Treat the numbers as directional.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function (root, doc) {
+  'use strict';
+  if (root.va) return;                       // already present on the page
+  if (!/multicalci\.com$/i.test(root.location.hostname)) return; // prod only
+  root.va = root.va || function () {
+    (root.vaq = root.vaq || []).push(arguments);
+  };
+  var s = doc.createElement('script');
+  s.defer = true;
+  s.src = '/_vercel/insights/script.js';
+  (doc.head || doc.documentElement).appendChild(s);
+})(window, document);
