@@ -1,791 +1,370 @@
-/* ═══════════════════════════════════════════════════════════════════
-   multicalci.com — CALC SUITE
-   Shared stylesheet for individual calculator pages.
-   Path: /assets/calc-suite.css
-
-   Used by the per-calculator SEO pages (one calculator = one URL).
-   NOT used by the four discipline hub pages — those keep their own
-   inline styles and are deliberately untouched.
-
-   Class vernacular is inherited from the civil + electrical hubs so
-   that existing render code ports across unchanged.
-═══════════════════════════════════════════════════════════════════ */
-
-
-/* ══════════════════════════════
-   1. TOKENS
-══════════════════════════════ */
-:root {
-  /* Structure */
-  --ink:      #0f2044;   /* navy — headings, chrome            */
-  --ink2:     #1a3260;
-  --ink3:     #3d5080;   /* secondary text                     */
-  --muted:    #7a8fb5;   /* captions, meta                     */
-
-  /* Surfaces */
-  --paper:    #f4f6fb;   /* page background — blueprint paper  */
-  --surface:  #ffffff;   /* cards                              */
-  --surface2: #eef1f8;   /* wells, hover                       */
-  --surface3: #e3e8f4;
-
-  /* Rules */
-  --rule:     #d6dced;
-  --rule2:    #bfc9e0;
-
-  /* Interactive */
-  --cobalt:   #1e4db7;
-  --cobalt2:  #2563eb;
-  --cobalt-bg:#e8f0fe;
-  --cobalt-bd:#c5d5f5;
-
-  /* Signal — computed results, active state. Used sparingly. */
-  --signal:   #b45309;
-  --signal2:  #92400e;
-  --signal-bg:#fffbeb;
-  --signal-bd:#fcd34d;
-
-  /* Status */
-  --grn:      #047857;  --grn-bg: #ecfdf5;  --grn-bd: #6ee7b7;
-  --red:      #b91c1c;  --red-bg: #fef2f2;  --red-bd: #fca5a5;
-  --amb:      #a16207;  --amb-bg: #fefce8;  --amb-bd: #fde047;
-  --cyn:      #0e7490;  --cyn-bg: #ecfeff;  --cyn-bd: #a5f3fc;
-  --pur:      #6d28d9;  --pur-bg: #f5f3ff;  --pur-bd: #c4b5fd;
-  --blu:      #1d4ed8;  --blu-bg: #eff6ff;  --blu-bd: #bfdbfe;
-
-  /* Type */
-  --display: 'Saira', system-ui, sans-serif;
-  --body:    'Plus Jakarta Sans', system-ui, sans-serif;
-  --mono:    'IBM Plex Mono', ui-monospace, monospace;
-
-  /* Geometry */
-  --r:   10px;
-  --r2:  6px;
-  --well: 880px;         /* content measure                    */
-  --sh:  0 1px 2px rgba(15,32,68,.05), 0 4px 14px rgba(15,32,68,.05);
-  --sh2: 0 8px 28px rgba(15,32,68,.11);
-}
-
-
-/* ══════════════════════════════
-   2. RESET + BASE
-══════════════════════════════ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-
-html {
-  font-size: 15px;
-  scroll-behavior: smooth;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
-body {
-  font-family: var(--body);
-  background: var(--paper);
-  color: var(--ink);
-  min-height: 100vh;
-  line-height: 1.6;
-  background-image:
-    radial-gradient(ellipse 60% 40% at 10% -10%, rgba(30,77,183,.05) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 30% at 95% 105%, rgba(180,83,9,.045) 0%, transparent 60%);
-  background-attachment: fixed;
-}
-
-a { color: var(--cobalt); text-decoration: none }
-a:hover { text-decoration: underline }
-
-:focus-visible {
-  outline: 2px solid var(--cobalt2);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-::selection { background: var(--signal-bd); color: var(--ink) }
-
-::-webkit-scrollbar { width: 10px; height: 10px }
-::-webkit-scrollbar-track { background: var(--surface2) }
-::-webkit-scrollbar-thumb { background: var(--rule2); border-radius: 3px }
-::-webkit-scrollbar-thumb:hover { background: var(--ink3) }
-
-
-/* ══════════════════════════════
-   3. PAGE FRAME
-══════════════════════════════ */
-.wrap {
-  max-width: var(--well);
-  margin: 0 auto;
-  padding: 0 20px 72px;
-}
-
-/* Top bar — site identity + back to hub */
-.topbar {
-  background: var(--ink);
-  color: #fff;
-  border-bottom: 2px solid var(--signal);
-}
-.topbar-in {
-  max-width: var(--well);
-  margin: 0 auto;
-  padding: 11px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.brand {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: .04em;
-  color: #fff;
-}
-.brand:hover { text-decoration: none; color: var(--signal-bd) }
-.topbar nav { display: flex; gap: 18px; flex-wrap: wrap }
-.topbar nav a {
-  color: rgba(255,255,255,.72);
-  font-size: .8rem;
-  font-weight: 600;
-}
-.topbar nav a:hover { color: #fff; text-decoration: none }
-
-
-/* ══════════════════════════════
-   4. BREADCRUMB
-══════════════════════════════ */
-.crumb {
-  font-size: .78rem;
-  color: var(--ink3);
-  padding: 16px 0 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 7px;
-}
-.crumb a { color: var(--ink3); font-weight: 600 }
-.crumb a:hover { color: var(--cobalt) }
-.crumb .sep { color: var(--rule2); user-select: none }
-.crumb [aria-current] { color: var(--ink); font-weight: 700 }
-
-
-/* ══════════════════════════════
-   5. HERO — H1 + standard reference
-══════════════════════════════ */
-.hero { padding: 22px 0 26px; border-bottom: 1px solid var(--rule) }
-
-/* Mono eyebrow carries the governing standard — see .stdref */
-.eyebrow {
-  font-family: var(--mono);
-  font-size: .68rem;
-  font-weight: 600;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-  color: var(--signal2);
-  display: block;
-  margin-bottom: 9px;
-}
-
-h1 {
-  font-family: var(--display);
-  font-size: clamp(1.7rem, 4.4vw, 2.45rem);
-  font-weight: 700;
-  line-height: 1.14;
-  letter-spacing: -.015em;
-  color: var(--ink);
-}
-
-.lede {
-  margin-top: 12px;
-  font-size: 1.02rem;
-  color: var(--ink3);
-  max-width: 62ch;
-}
-
-/* Standard-reference chips under the H1 */
-.stdref { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px }
-.stdref span {
-  font-family: var(--mono);
-  font-size: .7rem;
-  font-weight: 500;
-  padding: 3.5px 9px;
-  border-radius: var(--r2);
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  color: var(--ink3);
-}
-
-
-/* ══════════════════════════════
-   6. SECTION HEADINGS
-══════════════════════════════ */
-h2 {
-  font-family: var(--display);
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -.005em;
-  color: var(--ink);
-  margin: 40px 0 14px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--rule);
-  position: relative;
-}
-h2::after {
-  content: '';
-  position: absolute;
-  left: 0; bottom: -2px;
-  width: 46px; height: 2px;
-  background: var(--signal);
-}
-h3 {
-  font-family: var(--display);
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--ink2);
-  margin: 24px 0 9px;
-}
-p { margin: 0 0 13px; color: var(--ink3) }
-p strong { color: var(--ink); font-weight: 700 }
-
-hr.dv { border: 0; border-top: 1px solid var(--rule); margin: 20px 0 }
-
-ul, ol { margin: 0 0 14px 22px; color: var(--ink3) }
-li { margin-bottom: 6px }
-
-
-/* ══════════════════════════════
-   7. CARD
-══════════════════════════════ */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--r);
-  box-shadow: var(--sh);
-  margin-bottom: 20px;
-  overflow: hidden;
-}
-.card:last-child { margin-bottom: 0 }
-
-.card-hd {
-  background: var(--surface2);
-  border-bottom: 1px solid var(--rule);
-  padding: 13px 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.card-hd-ico { font-size: 1.05rem; line-height: 1; flex-shrink: 0 }
-.card-hd-ttl {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: .95rem;
-  letter-spacing: .01em;
-  color: var(--ink);
-}
-.card-bd { padding: 18px }
-
-
-/* ══════════════════════════════
-   8. FORM FIELDS
-══════════════════════════════ */
-.g2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 13px }
-.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px }
-
-.field { margin-bottom: 13px }
-.field:last-child { margin-bottom: 0 }
-
-.field label {
-  display: block;
-  font-size: .74rem;
-  font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  color: var(--ink3);
-  margin-bottom: 5px;
-}
-.field label .u { font-family: var(--mono); font-weight: 500; text-transform: none; color: var(--muted) }
-
-.field input,
-.field select {
-  width: 100%;
-  padding: 9px 11px;
-  font-family: var(--mono);
-  font-size: .88rem;
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1.5px solid var(--rule2);
-  border-radius: var(--r2);
-  transition: border-color .13s, box-shadow .13s;
-}
-.field select { font-family: var(--body); cursor: pointer }
-
-.field input:hover,
-.field select:hover { border-color: var(--ink3) }
-
-.field input:focus,
-.field select:focus {
-  outline: none;
-  border-color: var(--cobalt2);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.13);
-}
-.field input:invalid:not(:placeholder-shown) { border-color: var(--red) }
-
-.hint { font-size: .72rem; color: var(--muted); margin-top: 4px }
-
-
-/* ══════════════════════════════
-   9. BUTTONS
-══════════════════════════════ */
-.btn-calc {
-  width: 100%;
-  padding: 11px 18px;
-  font-family: var(--display);
-  font-size: .92rem;
-  font-weight: 700;
-  letter-spacing: .03em;
-  color: #fff;
-  background: var(--ink);
-  border: 0;
-  border-radius: var(--r2);
-  cursor: pointer;
-  transition: background .13s, transform .08s, box-shadow .13s;
-}
-.btn-calc:hover { background: var(--ink2); box-shadow: var(--sh2) }
-.btn-calc:active { transform: translateY(1px) }
-.btn-calc:disabled { background: var(--rule2); cursor: not-allowed; box-shadow: none }
-
-.btn-pdf {
-  padding: 8px 15px;
-  font-family: var(--body);
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1.5px solid var(--rule2);
-  border-radius: var(--r2);
-  cursor: pointer;
-  transition: background .13s, border-color .13s;
-}
-.btn-pdf:hover { background: var(--surface2); border-color: var(--ink3) }
-
-.btn-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center }
-
-
-/* ══════════════════════════════
-   10. UNIT TOGGLE
-══════════════════════════════ */
-.utog {
-  display: inline-flex;
-  background: var(--surface2);
-  border: 1px solid var(--rule);
-  border-radius: var(--r2);
-  padding: 2.5px;
-  gap: 2.5px;
-}
-.ubtn {
-  padding: 5px 13px;
-  font-family: var(--mono);
-  font-size: .74rem;
-  font-weight: 600;
-  color: var(--ink3);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background .13s, color .13s;
-}
-.ubtn:hover:not(.on) { background: var(--surface3); color: var(--ink) }
-.ubtn.on { background: var(--ink); color: #fff }
-
-
-/* ══════════════════════════════
-   11. RESULTS — the calculation stamp
-   Values set in tabular mono so they align down the column.
-══════════════════════════════ */
-.results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px }
-
-.rc {
-  background: var(--surface2);
-  border: 1px solid var(--rule);
-  border-top: 3px solid var(--ink3);
-  border-radius: var(--r2);
-  padding: 12px 14px;
-  transition: box-shadow .13s;
-}
-.rc:hover { box-shadow: var(--sh) }
-.rc.sp2 { grid-column: span 2 }
-
-/* Primary computed result — the one number the engineer came for */
-.rc.c-main { border-top-color: var(--signal); background: var(--signal-bg) }
-.rc.c-grn  { border-top-color: var(--grn); background: var(--grn-bg) }
-.rc.c-red  { border-top-color: var(--red); background: var(--red-bg) }
-.rc.c-amb  { border-top-color: var(--amb); background: var(--amb-bg) }
-.rc.c-blu  { border-top-color: var(--blu); background: var(--blu-bg) }
-.rc.c-cyn  { border-top-color: var(--cyn); background: var(--cyn-bg) }
-.rc.c-pur  { border-top-color: var(--pur); background: var(--pur-bg) }
-
-.rl {
-  font-size: .71rem;
-  font-weight: 700;
-  letter-spacing: .045em;
-  text-transform: uppercase;
-  color: var(--ink3);
-  margin-bottom: 5px;
-}
-
-.rv {
-  font-family: var(--mono);
-  font-size: 1.12rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--ink);
-  line-height: 1.25;
-  word-break: break-word;
-}
-.rv.big { font-size: 1.62rem; font-weight: 700 }
-.rv.v-main { color: var(--signal2) }
-.rv.v-grn  { color: var(--grn) }
-.rv.v-red  { color: var(--red) }
-.rv.v-amb  { color: var(--amb) }
-.rv.v-blu  { color: var(--blu) }
-.rv.v-cyn  { color: var(--cyn) }
-.rv.v-pur  { color: var(--pur) }
-
-/* Units sit quietly beside the figure */
-.rv .un { font-size: .68em; font-weight: 500; color: var(--muted); margin-left: 3px }
-
-.rsub {
-  font-family: var(--mono);
-  font-size: .72rem;
-  color: var(--muted);
-  margin-top: 4px;
-  font-variant-numeric: tabular-nums slashed-zero;
-}
-
-/* Empty state — an invitation to act, not an apology */
-.rc-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 26px 18px;
-  color: var(--muted);
-  font-size: .87rem;
-  border: 1.5px dashed var(--rule2);
-  border-radius: var(--r2);
-  background: var(--surface);
-}
-
-
-/* ══════════════════════════════
-   12. BADGES
-══════════════════════════════ */
-.badge {
-  display: inline-block;
-  padding: 3px 9px;
-  font-size: .71rem;
-  font-weight: 700;
-  border-radius: 20px;
-  border: 1px solid;
-  margin: 2px 3px 2px 0;
-}
-.badge.ok   { background: var(--grn-bg); color: var(--grn); border-color: var(--grn-bd) }
-.badge.warn { background: var(--amb-bg); color: var(--amb); border-color: var(--amb-bd) }
-.badge.err  { background: var(--red-bg); color: var(--red); border-color: var(--red-bd) }
-.badge.info { background: var(--cobalt-bg); color: var(--cobalt); border-color: var(--cobalt-bd) }
-
-/* Inline validation message under a field or result block */
-.validation-err {
-  display: block;
-  color: var(--red);
-  font-size: .8rem;
-  font-weight: 600;
-  margin-top: 6px;
-}
-
-
-/* ══════════════════════════════
-   13. FORMULA SLAB
-   Dark navy — carried over from the civil/electrical hubs.
-══════════════════════════════ */
-.fbox {
-  position: relative;
-  background: var(--ink);
-  border-radius: var(--r2);
-  padding: 15px 17px;
-  margin: 15px 0;
-  font-family: var(--mono);
-  font-size: .82rem;
-  line-height: 1.95;
-  color: rgba(255,255,255,.7);
-  overflow-x: auto;
-}
-.fbox::before {
-  content: 'FORMULA';
-  position: absolute;
-  top: 9px; right: 13px;
-  font-size: .6rem;
-  font-weight: 600;
-  letter-spacing: .16em;
-  color: rgba(255,255,255,.24);
-}
-.fbox .ht { color: #93c5fd }              /* term / variable      */
-.fbox .hi { color: var(--signal-bd); font-weight: 600 }  /* result */
-.fbox .cm { color: rgba(255,255,255,.36); font-style: italic }  /* note */
-
-/* Variable legend under a formula */
-.legend { font-size: .8rem; color: var(--ink3); margin-top: 10px }
-.legend code {
-  font-family: var(--mono);
-  font-size: .84em;
-  background: var(--surface2);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  padding: 1px 5px;
-  color: var(--ink);
-}
-
-
-/* ══════════════════════════════
-   14. TABLES
-══════════════════════════════ */
-.tbl-wrap { overflow-x: auto; margin: 14px 0; -webkit-overflow-scrolling: touch }
-
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .84rem;
-  min-width: 420px;
-}
-.tbl th {
-  background: var(--ink);
-  color: rgba(255,255,255,.85);
-  font-size: .71rem;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  text-align: left;
-  padding: 9px 12px;
-  white-space: nowrap;
-}
-.tbl th:first-child { border-top-left-radius: var(--r2) }
-.tbl th:last-child  { border-top-right-radius: var(--r2) }
-
-.tbl td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: .82rem;
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--ink3);
-}
-.tbl td:first-child {
-  font-family: var(--body);
-  font-weight: 600;
-  color: var(--ink);
-}
-.tbl tr:nth-child(even) td { background: var(--surface2) }
-.tbl tr:hover td { background: var(--cobalt-bg) }
-.tbl tr.hl td { background: var(--signal-bg); color: var(--signal2); font-weight: 700 }
-
-
-/* ══════════════════════════════
-   15. WORKED EXAMPLE
-══════════════════════════════ */
-.wex {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--cobalt);
-  border-radius: var(--r2);
-  padding: 16px 18px;
-  margin: 15px 0;
-}
-.wex-hd {
-  font-family: var(--display);
-  font-size: .8rem;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--cobalt);
-  margin-bottom: 11px;
-}
-.wex dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; font-size: .86rem }
-.wex dt { color: var(--ink3); font-weight: 600 }
-.wex dd {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--ink);
-}
-.wex .ans {
-  margin-top: 13px;
-  padding-top: 11px;
-  border-top: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: 1rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums slashed-zero;
-  color: var(--signal2);
-}
-
-
-/* ══════════════════════════════
-   16. FAQ
-══════════════════════════════ */
-.faq details {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--r2);
-  margin-bottom: 9px;
-  overflow: hidden;
-}
-.faq summary {
-  padding: 13px 16px;
-  font-weight: 700;
-  font-size: .92rem;
-  color: var(--ink);
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  transition: background .13s;
-}
-.faq summary::-webkit-details-marker { display: none }
-.faq summary::after {
-  content: '+';
-  font-family: var(--mono);
-  font-size: 1.15rem;
-  font-weight: 400;
-  color: var(--muted);
-  flex-shrink: 0;
-  transition: transform .18s;
-}
-.faq details[open] summary::after { transform: rotate(45deg) }
-.faq summary:hover { background: var(--surface2) }
-.faq details[open] summary { border-bottom: 1px solid var(--rule) }
-.faq-a { padding: 13px 16px; font-size: .89rem; color: var(--ink3) }
-.faq-a p:last-child { margin-bottom: 0 }
-
-
-/* ══════════════════════════════
-   17. RELATED LINKS + HUB LINK
-══════════════════════════════ */
-.related { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 10px }
-.related a {
-  display: block;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--r2);
-  font-size: .87rem;
-  font-weight: 600;
-  color: var(--ink);
-  transition: border-color .13s, box-shadow .13s, transform .13s;
-}
-.related a:hover {
-  border-color: var(--cobalt);
-  box-shadow: var(--sh);
-  transform: translateY(-1px);
-  text-decoration: none;
-}
-.related a .d { display: block; font-size: .76rem; font-weight: 400; color: var(--muted); margin-top: 3px }
-
-.hublink {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 26px;
-  padding: 10px 16px;
-  background: var(--surface);
-  border: 1.5px solid var(--rule2);
-  border-radius: var(--r2);
-  font-size: .87rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-.hublink:hover { border-color: var(--cobalt); color: var(--cobalt); text-decoration: none }
-
-
-/* ══════════════════════════════
-   18. NOTES + FOOTER
-══════════════════════════════ */
-.note {
-  background: var(--signal-bg);
-  border: 1px solid var(--signal-bd);
-  border-radius: var(--r2);
-  padding: 12px 15px;
-  font-size: .85rem;
-  color: var(--signal2);
-  margin: 15px 0;
-}
-.note strong { color: var(--signal2) }
-
-.foot {
-  border-top: 1px solid var(--rule);
-  margin-top: 44px;
-  padding-top: 20px;
-  font-size: .8rem;
-  color: var(--muted);
-}
-.foot a { color: var(--ink3); font-weight: 600 }
-
-
-/* ══════════════════════════════
-   19. UTILITIES
-══════════════════════════════ */
-.mono { font-family: var(--mono); font-variant-numeric: tabular-nums slashed-zero }
-.tc { text-align: center }
-.tr { text-align: right }
-.mt0 { margin-top: 0 }
-.mb0 { margin-bottom: 0 }
-.sr-only {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-}
-
-
-/* ══════════════════════════════
-   20. RESPONSIVE
-══════════════════════════════ */
-@media (max-width: 720px) {
-  html { font-size: 14.5px }
-  .wrap { padding: 0 15px 52px }
-  .topbar-in { padding: 10px 15px; flex-wrap: wrap; gap: 9px }
-  .g2, .g3, .results { grid-template-columns: 1fr }
-  .rc.sp2 { grid-column: span 1 }
-  .card-bd { padding: 15px }
-  .wex dl { grid-template-columns: 1fr; gap: 2px }
-  .wex dd { margin-bottom: 8px }
-  h2 { margin-top: 32px }
-}
-
-@media (max-width: 420px) {
-  .topbar nav { gap: 13px }
-  .rv.big { font-size: 1.4rem }
-}
-
-
-/* ══════════════════════════════
-   21. MOTION PREFERENCE
-══════════════════════════════ */
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto }
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
+/* =========================================================================
+   multicalci.com — assets/calc-state.js   (v2)
+   Shareable URL state + last-session restore for all calculator pages.
+
+   Load AFTER calc-common.js:
+     <script src="/assets/calc-common.js"></script>
+     <script src="/assets/calc-state.js"></script>
+
+   No dependencies, no build step.
+
+   Integrates with calc-common.js:
+     - unit system read from  MC.UNITS.system  ('SI' | 'IMP')
+     - unit system restored via MC.setUnitSystem(), which fires the page's
+       own window.onUnitSystemChange hook
+     - boot sequenced through MC.ready()
+
+   SEO: query-string URLs must never become indexable duplicates. This
+   module forces a param-free rel=canonical on every page it runs on.
+   ========================================================================= */
+(function (window, document) {
+  'use strict';
+
+  if (window.MCState) return;
+
+  var DEFAULTS = {
+    root: 'body',
+
+    excludeSelector: [
+      '[data-mc-state="off"]',
+      '[type="search"]',
+      '[type="hidden"]',
+      '[type="password"]',
+      '[type="file"]',
+      '#search', '#searchInput', '.search-input', '.mc-search'
+    ].join(','),
+
+    // Page's own calculate function, e.g. { calcHandler: calculate }.
+    // Preferred over clicking a button.
+    calcHandler: null,
+
+    // Fallback if no calcHandler is given.
+    calcButton: '[data-mc-calc],#calculate,#calcBtn,.calc-btn',
+
+    shareMount: '[data-mc-share]',
+
+    storagePrefix: 'mc:state:',
+    storageMaxAgeDays: 30,
+    restoreFromStorage: true,
+
+    writeDelay: 400,
+    maxUrlLength: 1800,
+
+    // Reserved query key for the unit system.
+    unitKey: 'u'
+  };
+
+  var CFG = {};
+  (function () {
+    var over = window.MC_STATE_CONFIG || {};
+    for (var k in DEFAULTS) CFG[k] = DEFAULTS[k];
+    for (var j in over) CFG[j] = over[j];
+  })();
+
+  /* ---------------------------------------------------------------- utils */
+  function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+  function $$(sel, ctx) {
+    return Array.prototype.slice.call((ctx || document).querySelectorAll(sel));
   }
-}
+  function debounce(fn, ms) {
+    var t;
+    return function () {
+      var self = this, args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(self, args); }, ms);
+    };
+  }
+  function storageKey() {
+    return CFG.storagePrefix + location.pathname.replace(/\/+$/, '');
+  }
+  function isCrawler() {
+    return /bot|crawl|spider|slurp|bingpreview|headlesschrome/i
+      .test(navigator.userAgent || '');
+  }
 
+  /* ------------------------------------------------- unit system bridging */
+  function getUnitSystem() {
+    if (window.MC && window.MC.UNITS && window.MC.UNITS.system)
+      return window.MC.UNITS.system;
+    var on = $('[data-unit-btn].on');
+    return on ? on.getAttribute('data-unit-btn') : null;
+  }
 
-/* ══════════════════════════════
-   22. PRINT
-══════════════════════════════ */
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important }
-  body { background: #fff; background-image: none; font-size: 11pt }
-  .topbar, .crumb, .faq, .related, .hublink, .btn-calc, .btn-pdf, .btn-row, .utog { display: none !important }
-  .wrap { max-width: 100%; padding: 0 }
-  .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid }
-  .rc, .wex, .fbox { break-inside: avoid }
-  h2 { break-after: avoid }
-  a { color: inherit; text-decoration: none }
-}
+  function setUnitSystem(v) {
+    if (!v) return false;
+    if (getUnitSystem() === v) return false;
+    if (window.MC && typeof window.MC.setUnitSystem === 'function') {
+      window.MC.setUnitSystem(v);          // fires window.onUnitSystemChange
+      return true;
+    }
+    var btn = $('[data-unit-btn="' + v + '"]');
+    if (btn) { btn.click(); return true; }
+    return false;
+  }
+
+  /* ------------------------------------------------------- canonical guard */
+  function ensureCleanCanonical() {
+    var clean = location.origin +
+      (location.pathname === '/' ? '/' : location.pathname.replace(/\/+$/, ''));
+    var link = $('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+      link.setAttribute('href', clean);
+      return;
+    }
+    var href = link.getAttribute('href') || '';
+    if (href.indexOf('?') > -1 || href.indexOf('#') > -1)
+      link.setAttribute('href', href.split(/[?#]/)[0]);
+  }
+
+  /* ----------------------------------------------------------- field layer */
+  function fields() {
+    var root = $(CFG.root) || document.body;
+    if (!root) return [];
+    return $$('input,select,textarea', root).filter(function (el) {
+      if (el.disabled) return false;
+      if (CFG.excludeSelector && el.matches && el.matches(CFG.excludeSelector)) return false;
+      return !!fieldKey(el);
+    });
+  }
+  function fieldKey(el) {
+    if (el.type === 'radio') return el.name || null;
+    return el.id || el.name || null;
+  }
+  function readField(el) {
+    if (el.type === 'checkbox') return el.checked ? '1' : '0';
+    if (el.type === 'radio') return el.checked ? el.value : null;
+    return el.value;
+  }
+  function writeField(el, value) {
+    if (value == null) return false;
+    if (el.type === 'checkbox') {
+      var next = (value === '1' || value === 'true');
+      if (el.checked === next) return false;
+      el.checked = next; return true;
+    }
+    if (el.type === 'radio') {
+      if (el.value !== value || el.checked) return false;
+      el.checked = true; return true;
+    }
+    if (el.value === value) return false;
+    el.value = value; return true;
+  }
+  function fire(el) {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  /* --------------------------------------------------------- baseline diff */
+  var baseline = {};
+
+  function captureBaseline() {
+    baseline = {};
+    fields().forEach(function (el) {
+      var k = fieldKey(el), v = readField(el);
+      if (k && v != null && !(k in baseline)) baseline[k] = v;
+    });
+    baseline[CFG.unitKey] = getUnitSystem();
+  }
+
+  function snapshot() {
+    var out = {};
+    fields().forEach(function (el) {
+      var k = fieldKey(el), v = readField(el);
+      if (!k || v == null || v === '') return;
+      if (baseline[k] === v) return;
+      out[k] = v;
+    });
+    var u = getUnitSystem();
+    if (u && u !== baseline[CFG.unitKey]) out[CFG.unitKey] = u;
+    return out;
+  }
+
+  /* -------------------------------------------------------- serialisation */
+  function toQuery(state, includeGo) {
+    var p = new URLSearchParams();
+    Object.keys(state).sort().forEach(function (k) { p.set(k, state[k]); });
+    if (includeGo) p.set('go', '1');
+    return p.toString();
+  }
+  function fromQuery() {
+    var p = new URLSearchParams(location.search), out = {}, n = 0;
+    p.forEach(function (v, k) { if (k !== 'go') { out[k] = v; n++; } });
+    return { state: out, go: p.get('go') === '1', any: n > 0 };
+  }
+
+  /* -------------------------------------------------------------- restore */
+  var restoring = false;
+
+  function applyState(state, then) {
+    if (!state || !Object.keys(state).length) { if (then) then(); return; }
+    restoring = true;
+
+    // Phase 1 — unit system, because MC.setUnitSystem() rewrites labels and
+    // the page's onUnitSystemChange hook may rewrite field values.
+    setUnitSystem(state[CFG.unitKey]);
+
+    setTimeout(function () {
+      // Phase 2 — field values
+      fields().forEach(function (el) {
+        var k = fieldKey(el);
+        if (k in state && writeField(el, state[k])) fire(el);
+      });
+      restoring = false;
+      if (then) then();
+    }, 0);
+  }
+
+  function runCalculation() {
+    if (typeof CFG.calcHandler === 'function') {
+      try { CFG.calcHandler(); return; } catch (e) { /* non-fatal */ }
+    }
+    var btn = CFG.calcButton && $(CFG.calcButton);
+    if (btn && !btn.disabled) { try { btn.click(); } catch (e) {} }
+  }
+
+  /* ---------------------------------------------------------- persistence */
+  var writeUrl = debounce(function () {
+    if (restoring) return;
+    var state = snapshot();
+    var qs = toQuery(state, false);
+    var url = location.pathname + (qs ? '?' + qs : '') + location.hash;
+    if (url.length <= CFG.maxUrlLength) {
+      try { history.replaceState(null, '', url); } catch (e) {}
+    }
+    saveLocal(state);
+  }, CFG.writeDelay);
+
+  function saveLocal(state) {
+    if (!CFG.restoreFromStorage) return;
+    try {
+      if (!Object.keys(state).length) { localStorage.removeItem(storageKey()); return; }
+      localStorage.setItem(storageKey(), JSON.stringify({ t: Date.now(), s: state }));
+    } catch (e) {}
+  }
+  function loadLocal() {
+    if (!CFG.restoreFromStorage) return null;
+    try {
+      var raw = localStorage.getItem(storageKey());
+      if (!raw) return null;
+      var o = JSON.parse(raw);
+      if ((Date.now() - (o.t || 0)) / 86400000 > CFG.storageMaxAgeDays) {
+        localStorage.removeItem(storageKey()); return null;
+      }
+      return o.s || null;
+    } catch (e) { return null; }
+  }
+  function clearLocal() { try { localStorage.removeItem(storageKey()); } catch (e) {} }
+
+  /* ------------------------------------------------------------------- UI */
+  function getLink(withGo) {
+    var qs = toQuery(snapshot(), withGo !== false);
+    return location.origin + location.pathname + (qs ? '?' + qs : '');
+  }
+
+  function toast(msg) {
+    var el = document.createElement('div');
+    el.textContent = msg;
+    el.setAttribute('role', 'status');
+    el.style.cssText =
+      'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);' +
+      'background:#111;color:#fff;padding:10px 16px;border-radius:8px;' +
+      'font:14px/1.4 system-ui,sans-serif;z-index:99999;opacity:0;' +
+      'transition:opacity .2s;box-shadow:0 4px 16px rgba(0,0,0,.25)';
+    document.body.appendChild(el);
+    setTimeout(function () { el.style.opacity = '1'; }, 10);
+    setTimeout(function () {
+      el.style.opacity = '0';
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
+    }, 2200);
+  }
+
+  function copyLink() {
+    var url = getLink(true);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function () { toast('Link copied — your inputs are included'); },
+        function () { window.prompt('Copy this link:', url); }
+      );
+    } else {
+      window.prompt('Copy this link:', url);
+    }
+  }
+
+  function mountShareButton(selector) {
+    var mount = $(selector || CFG.shareMount);
+    if (!mount || mount.querySelector('[data-mc-share-btn]')) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mc-share-btn';
+    b.setAttribute('data-mc-share-btn', '');
+    b.textContent = 'Copy link with my inputs';
+    b.addEventListener('click', copyLink);
+    mount.appendChild(b);
+  }
+
+  function showRestoredNotice() {
+    var mount = $(CFG.shareMount) || document.body;
+    var bar = document.createElement('div');
+    bar.setAttribute('data-mc-restored', '');
+    bar.style.cssText =
+      'margin:8px 0;padding:8px 12px;border-radius:8px;background:#eef6ff;' +
+      'border:1px solid #cfe3fb;font:13px/1.4 system-ui,sans-serif;color:#123';
+    bar.appendChild(document.createTextNode('Restored your last inputs. '));
+    var a = document.createElement('button');
+    a.type = 'button';
+    a.textContent = 'Start fresh';
+    a.style.cssText = 'background:none;border:0;color:#0b5cad;text-decoration:underline;' +
+                      'cursor:pointer;font:inherit;padding:0';
+    a.addEventListener('click', function () {
+      clearLocal(); location.href = location.pathname;
+    });
+    bar.appendChild(a);
+    if (mount.firstChild) mount.insertBefore(bar, mount.firstChild);
+    else mount.appendChild(bar);
+  }
+
+  /* ----------------------------------------------------------------- boot */
+  function init() {
+    ensureCleanCanonical();
+    if (isCrawler()) return;
+
+    captureBaseline();
+
+    var q = fromQuery();
+    if (q.any) {
+      applyState(q.state, function () { if (q.go) runCalculation(); });
+    } else {
+      var saved = loadLocal();
+      if (saved && Object.keys(saved).length) applyState(saved, showRestoredNotice);
+    }
+
+    var root = $(CFG.root) || document.body;
+    root.addEventListener('input', writeUrl, true);
+    root.addEventListener('change', writeUrl, true);
+
+    // Unit buttons are <button>, not form fields — catch them separately.
+    $$('[data-unit-btn]').forEach(function (b) {
+      b.addEventListener('click', writeUrl, true);
+    });
+
+    mountShareButton();
+  }
+
+  window.MCState = {
+    getLink: getLink,
+    snapshot: snapshot,
+    copyLink: copyLink,
+    mountShareButton: mountShareButton,
+    clear: function () { clearLocal(); location.href = location.pathname; },
+    config: CFG
+  };
+
+  if (window.MC && typeof window.MC.ready === 'function') window.MC.ready(init);
+  else if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+})(window, document);
