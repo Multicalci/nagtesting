@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BOQ Capital Cost Estimator — 114 Templates, 8 Regions | multicalci.com</title>
 <meta name="description" content="Free BOQ capital cost estimator for process, mechanical, electrical, civil & instrumentation work. 1,400+ line items, ±30/20/10% tiers, 8 regions, live cost indices. Beta.">
-<link rel="canonical" href="https://www.multicalci.com/boq-estimator/">
+<link rel="canonical" href="https://multicalci.com/boq-estimator/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -423,7 +423,13 @@ function renderForm(){
       let ctrl;
       if(f.type === 'dropdown' && Array.isArray(f.options)){
         ctrl = `<select data-k="${esc(f.spec_key)}">` +
-          (f.mandatory ? '' : '<option value="">—</option>') +
+          // [NULLDEF] A mandatory dropdown with default:null used to auto-select its
+          // FIRST option, silently answering a question the user was never asked.
+          // Emit a selected blank placeholder whenever there is no default; the
+          // required-field check below then blocks Calculate until one is chosen.
+          ((f.default == null || f.default === '')
+             ? '<option value="" selected>— select —</option>'
+             : (f.mandatory ? '' : '<option value="">—</option>')) +
           f.options.map(o => `<option${o===f.default?' selected':''}>${esc(o)}</option>`).join('') + '</select>';
       } else if(f.type === 'number'){
         const attrs = [f.min!=null?`min="${f.min}"`:'', f.max!=null?`max="${f.max}"`:'',
@@ -789,9 +795,12 @@ $('btn-calc').addEventListener('click', async () => {
   btn.disabled = false; btn.textContent = 'Calculate cost →';
 });
 
-function fmt(n, cur){
-  return new Intl.NumberFormat(cur==='INR'?'en-IN':'en-US',
-    {maximumFractionDigits: n >= 1000 ? 0 : 2}).format(n);
+function fmt(n, cur, dp){
+  // [RATEDP] Optional dp forces a fixed number of decimals. Omit it and the old
+  // rule applies (0 dp at or above 1000, else 2) — every money line is unchanged.
+  return new Intl.NumberFormat(cur==='INR'?'en-IN':'en-US', dp != null
+    ? {minimumFractionDigits: dp, maximumFractionDigits: dp}
+    : {maximumFractionDigits: n >= 1000 ? 0 : 2}).format(n);
 }
 function renderSheet(d){
   const cur = d.total.currency;
@@ -804,9 +813,18 @@ function renderSheet(d){
     const perUnit = (d.unit_rate != null) ? d.unit_rate
                   : (d.total_dimension ? d.lines[0].amount / d.total_dimension
                                        : d.lines[0].amount / d.quantity);
+    // [RATEDP] The rate row used to be formatted independently of the supply
+    // line, so both got truncated to whole units and "rate x quantity" no longer
+    // reproduced the supply figure a reader is cross-checking against
+    // (e.g. 2,287 x 2 m = 4,574 against a supply line reading 4,575).
+    // Widen the rate's precision to the least that reconciles.
+    const div = d.total_dimension || d.quantity;
+    const supplyShown = fmt(d.lines[0].amount, cur);
+    let rdp = 2;
+    while (rdp < 6 && fmt(Number(perUnit.toFixed(rdp)) * div, cur) !== supplyShown) rdp++;
     rows = rows.replace('</tr>',
       `</tr><tr><td style="color:var(--dim);font-size:.72rem">&nbsp;&nbsp;↳ rate basis</td>
-       <td class="amt" style="color:var(--dim);font-size:.72rem">${cur} ${fmt(perUnit, cur)} / ${esc(d.unit)}</td></tr>`);
+       <td class="amt" style="color:var(--dim);font-size:.72rem">${cur} ${fmt(perUnit, cur, rdp)} / ${esc(d.unit)}</td></tr>`);
   }
   // [DIM] Show the priced dimension, not just the run count: "qty 1 × 100 m".
   // Falls back to the old "qty N unit" if the engine doesn't send measured_dimension.
