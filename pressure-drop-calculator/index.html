@@ -2776,12 +2776,27 @@ function generatePDF() {
   document.body.appendChild(report);
 
   // FIX PDF-1: capture with the window at scroll origin, restore afterwards
+  // FIX PDF-3: the page sets `html{scroll-behavior:smooth}` globally, so a
+  // plain window.scrollTo(0,0) does NOT take effect immediately — it starts
+  // an animated scroll that can take a few hundred ms. html2canvas runs
+  // synchronously right after and clones the document into a hidden iframe,
+  // converting our position:fixed report div to position:absolute offset by
+  // whatever window.scrollY is AT THAT INSTANT. If the real page was scrolled
+  // down and the smooth-scroll hadn't finished yet, the report div gets
+  // shifted off the captured 794px canvas entirely — producing a fully blank
+  // PDF (no error, because nothing actually failed; there was just nothing
+  // in the capture region). Fix: force 'auto' (instant) scroll behavior for
+  // the duration of the capture, then restore whatever the page had.
   const prevScrollX = window.scrollX || window.pageXOffset || 0;
   const prevScrollY = window.scrollY || window.pageYOffset || 0;
+  const htmlEl = document.documentElement;
+  const prevScrollBehavior = htmlEl.style.scrollBehavior;
+  htmlEl.style.scrollBehavior = 'auto';
   window.scrollTo(0, 0);
   function pdfCleanup() {
     if (report.parentNode) document.body.removeChild(report);
     window.scrollTo(prevScrollX, prevScrollY);
+    htmlEl.style.scrollBehavior = prevScrollBehavior;
     if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
   }
 
@@ -2793,14 +2808,28 @@ function generatePDF() {
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
-  html2pdf().set(opt).from(report).save()
-    .then(function() {
-      pdfCleanup();
-    })
-    .catch(function(e) {
+  // FIX PDF-3 (cont.): give the browser one paint cycle to actually apply the
+  // scrollTo(0,0) + the newly appended report div's layout before html2canvas
+  // reads window.scrollY / the DOM. Without this, on slower devices the
+  // capture can still race the layout/scroll and grab a blank frame even
+  // with scroll-behavior forced to 'auto'.
+  requestAnimationFrame(function() {
+  requestAnimationFrame(function() {
+    try {
+      html2pdf().set(opt).from(report).save()
+        .then(function() {
+          pdfCleanup();
+        })
+        .catch(function(e) {
+          pdfCleanup();
+          alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
+        });
+    } catch (e) {
       pdfCleanup();
       alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
-    });
+    }
+  });
+  });
   } catch (e) {
     // Report-HTML build failed BEFORE html2pdf was ever invoked (e.g. a
     // missing/renamed field on lastResults). Previously this threw silently
