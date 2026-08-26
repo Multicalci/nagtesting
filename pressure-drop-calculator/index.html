@@ -2800,13 +2800,76 @@ function generatePDF() {
     if (btn) { btn.innerHTML = origTxt; btn.disabled = false; }
   }
 
-  const opt = {
-    margin: 0,
-    filename: 'PressureDrop_multicalci_' + dateStr.replace(/ /g, '_') + '.pdf',
-    image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794, scrollX: 0, scrollY: 0 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
+  // FIX PDF-4/5: build the page options once per attempt (foreignObjectRendering
+  // flag varies), then VERIFY the resulting canvas actually has content before
+  // trusting it. html2canvas can resolve its promise successfully while still
+  // handing back an entirely blank canvas (that's exactly the failure we saw
+  // with the iframe-clone path — no thrown error, zero drawn content). So
+  // instead of assuming success means success, sample real pixel data.
+  //
+  // Strategy: try foreignObjectRendering first (avoids the iframe clone +
+  // load/unload handshake entirely — see note below). If that produces a
+  // blank canvas OR throws, automatically retry once with the original
+  // iframe-based renderer. Only if BOTH fail do we tell the user, with a
+  // concrete alternative (Ctrl+P) rather than a dead end.
+  function buildOpt(useForeignObject) {
+    return {
+      margin: 0,
+      filename: 'PressureDrop_multicalci_' + dateStr.replace(/ /g, '_') + '.pdf',
+      image: { type: 'jpeg', quality: 0.97 },
+      // FIX PDF-4: html2pdf's default path clones the whole document into a
+      // hidden iframe and waits for a load/unload handshake to know the
+      // clone is ready before painting. Chrome's Permissions-Policy now
+      // blocks `unload` listeners in many contexts (see the "unload is not
+      // allowed" console warning) — when that handshake breaks, html2canvas
+      // doesn't throw, it just silently produces an empty canvas, which is
+      // exactly the all-blank PDF we kept seeing regardless of scroll
+      // position or timing (FIX PDF-1/2/3 never had a chance to matter).
+      // foreignObjectRendering draws the live DOM node directly via an SVG
+      // <foreignObject> — no iframe clone, no load/unload handshake, no
+      // scroll dependency — removing this whole failure class.
+      html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794, scrollX: 0, scrollY: 0, foreignObjectRendering: useForeignObject },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+  }
+
+  function isCanvasBlank(canvas) {
+    var ctx = canvas.getContext('2d');
+    var sampleW = Math.min(canvas.width, 300), sampleH = Math.min(canvas.height, 300);
+    var data = ctx.getImageData(0, 0, sampleW, sampleH).data;
+    var r0 = data[0], g0 = data[1], b0 = data[2];
+    var differing = 0;
+    for (var i = 0; i < data.length; i += 80) {
+      if (Math.abs(data[i] - r0) + Math.abs(data[i + 1] - g0) + Math.abs(data[i + 2] - b0) > 12) {
+        differing++;
+        if (differing > 8) return false;
+      }
+    }
+    return true;
+  }
+
+  function runPdfAttempt(useForeignObject, isRetry) {
+    var opt = buildOpt(useForeignObject);
+    return html2pdf().set(opt).from(report).toCanvas().then(function(canvas) {
+      if (isCanvasBlank(canvas)) {
+        throw new Error('blank-capture:' + (useForeignObject ? 'foreignObject' : 'iframe'));
+      }
+    }).toPdf().save().then(function() {
+      pdfCleanup();
+    }).catch(function(e) {
+      var isBlank = e && /^blank-capture:/.test(e.message || '');
+      if (!isRetry) {
+        // First attempt failed (blank or thrown) — retry once with the
+        // other renderer before giving up.
+        return runPdfAttempt(!useForeignObject, true);
+      }
+      pdfCleanup();
+      var msg = isBlank
+        ? 'PDF generation produced a blank page with both rendering methods available in this browser. This usually points to a browser extension (ad-blocker / privacy tool) or a security policy blocking canvas capture. Try Ctrl+P → Save as PDF, or try a different browser/profile.'
+        : ('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
+      alert(msg);
+    });
+  }
 
   // FIX PDF-3 (cont.): give the browser one paint cycle to actually apply the
   // scrollTo(0,0) + the newly appended report div's layout before html2canvas
@@ -2816,14 +2879,7 @@ function generatePDF() {
   requestAnimationFrame(function() {
   requestAnimationFrame(function() {
     try {
-      html2pdf().set(opt).from(report).save()
-        .then(function() {
-          pdfCleanup();
-        })
-        .catch(function(e) {
-          pdfCleanup();
-          alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
-        });
+      runPdfAttempt(true, false);
     } catch (e) {
       pdfCleanup();
       alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
