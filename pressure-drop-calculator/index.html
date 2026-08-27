@@ -2812,7 +2812,7 @@ function generatePDF() {
   // blank canvas OR throws, automatically retry once with the original
   // iframe-based renderer. Only if BOTH fail do we tell the user, with a
   // concrete alternative (Ctrl+P) rather than a dead end.
-  function buildOpt(useForeignObject) {
+  function buildOpt(useForeignObject, reportHeight) {
     return {
       margin: 0,
       filename: 'PressureDrop_multicalci_' + dateStr.replace(/ /g, '_') + '.pdf',
@@ -2828,7 +2828,15 @@ function generatePDF() {
       // foreignObjectRendering draws the live DOM node directly via an SVG
       // <foreignObject> — no iframe clone, no load/unload handshake, no
       // scroll dependency — removing this whole failure class.
-      html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794, scrollX: 0, scrollY: 0, foreignObjectRendering: useForeignObject },
+      // FIX PDF-7: foreignObjectRendering needs an EXPLICIT height for the
+      // SVG wrapper it draws through — unlike the default iframe-clone path,
+      // it does not reliably auto-measure the target element, and without a
+      // height it can size the canvas to 0px tall (throwing "source height
+      // is 0" the moment we try to read pixel data from it). We measure the
+      // report div's real rendered height ourselves and pass it explicitly
+      // for both height and windowHeight, for both renderers (harmless for
+      // the iframe path, required for the foreignObject path).
+      html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, height: reportHeight, windowWidth: 794, windowHeight: reportHeight, scrollX: 0, scrollY: 0, foreignObjectRendering: useForeignObject },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
   }
@@ -2848,8 +2856,8 @@ function generatePDF() {
     return true;
   }
 
-  function runPdfAttempt(useForeignObject, isRetry) {
-    var opt = buildOpt(useForeignObject);
+  function runPdfAttempt(useForeignObject, isRetry, reportHeight) {
+    var opt = buildOpt(useForeignObject, reportHeight);
     // FIX PDF-6: html2pdf.js's Worker.toCanvas() step resolves its OWN promise
     // with undefined — it stores the actual canvas on the internal worker as
     // this.prop.canvas, it does not pass it through .then(canvas => ...). My
@@ -2872,7 +2880,7 @@ function generatePDF() {
       if (!isRetry) {
         // First attempt failed (blank or thrown) — retry once with the
         // other renderer before giving up.
-        return runPdfAttempt(!useForeignObject, true);
+        return runPdfAttempt(!useForeignObject, true, reportHeight);
       }
       pdfCleanup();
       var msg = isBlank
@@ -2890,7 +2898,15 @@ function generatePDF() {
   requestAnimationFrame(function() {
   requestAnimationFrame(function() {
     try {
-      runPdfAttempt(true, false);
+      // FIX PDF-7 (cont.): measure AFTER the two rAFs so layout has actually
+      // settled (matches when html2canvas itself will read the DOM).
+      // scrollHeight is the reliable one here — report has no set height, so
+      // it grows to fit content, but offsetHeight/getBoundingClientRect can
+      // still race a font swap (Outfit/JetBrains Mono loading async) on a
+      // first-visit cold cache; scrollHeight reflects the laid-out content
+      // box regardless. Add a small buffer so nothing clips at the bottom.
+      var reportHeight = Math.ceil(report.scrollHeight) + 20;
+      runPdfAttempt(true, false, reportHeight);
     } catch (e) {
       pdfCleanup();
       alert('PDF generation failed: ' + e.message + '. Try Ctrl+P to print as PDF instead.');
