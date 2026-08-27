@@ -2850,14 +2850,25 @@ function generatePDF() {
 
   function runPdfAttempt(useForeignObject, isRetry) {
     var opt = buildOpt(useForeignObject);
-    return html2pdf().set(opt).from(report).toCanvas().then(function(canvas) {
+    // FIX PDF-6: html2pdf.js's Worker.toCanvas() step resolves its OWN promise
+    // with undefined — it stores the actual canvas on the internal worker as
+    // this.prop.canvas, it does not pass it through .then(canvas => ...). My
+    // first attempt at this check called canvas.getContext() on that
+    // undefined value, throwing "Cannot read properties of undefined
+    // (reading 'getContext')" on every attempt regardless of whether
+    // rendering itself worked. .get('canvas') is html2pdf's documented way
+    // to pull that stored prop back into the promise chain correctly.
+    return html2pdf().set(opt).from(report).toCanvas().get('canvas').then(function(canvas) {
+      if (!canvas || typeof canvas.getContext !== 'function') {
+        throw new Error('no-canvas:' + (useForeignObject ? 'foreignObject' : 'iframe'));
+      }
       if (isCanvasBlank(canvas)) {
         throw new Error('blank-capture:' + (useForeignObject ? 'foreignObject' : 'iframe'));
       }
     }).toPdf().save().then(function() {
       pdfCleanup();
     }).catch(function(e) {
-      var isBlank = e && /^blank-capture:/.test(e.message || '');
+      var isBlank = e && /^(blank-capture|no-canvas):/.test(e.message || '');
       if (!isRetry) {
         // First attempt failed (blank or thrown) — retry once with the
         // other renderer before giving up.
