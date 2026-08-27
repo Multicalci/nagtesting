@@ -426,12 +426,104 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
 }
 
 // ── Compliance mini-language evaluator (NO eval) ─────────────────────────────
+// PATCH 2026-08-27 — real AND / OR precedence with parenthesis support.
+//
+// WHAT WAS WRONG
+//   The previous implementation split the whole expression on OR first, then
+//   required every AND clause inside each fragment:
+//
+//     const orParts = expr.split(/\s+OR\s+/i);
+//     return orParts.some(part =>
+//       part.split(/\s+AND\s+/i).every(clause => evalClause(clause.trim(), values)));
+//
+//   Parentheses were never parsed. So
+//
+//     'Magnetic' IN equipment_subtype AND (moc == 'CS' OR moc == 'SS316')
+//
+//   became ["'Magnetic' IN equipment_subtype AND (moc == 'CS'", "moc == 'SS316')"]
+//   and .some() returned true whenever the second fragment alone was true —
+//   regardless of the sub-type. A Coriolis meter was shown a warning about
+//   magnetic-flowmeter liners, with an IEC citation, on a client quotation.
+//
+//   82 of the library's 649 compliance rules have the shape A AND (B OR C),
+//   across 44 templates.
+//
+// WHAT THIS DOES
+//   Recursive descent: OR binds loosest, then AND, then a parenthesised group,
+//   then a single clause. evalClause itself is UNCHANGED — every existing
+//   clause form (IN, NOT IN, !x IN, comparisons, IS None, bare truthiness)
+//   behaves exactly as before.
+//
+//   Splitting is quote-, paren- and bracket-aware, which matters here: sub-type
+//   names legitimately contain parentheses — 'LV Switchgear (Main Distribution)',
+//   'Compressor – other (specify in remarks)' — and IN lists contain brackets,
+//   IN ['Rotary Dryer', 'Rotary Cooler']. A naive scanner corrupts both.
+
+// Split on a top-level AND / OR only: not inside quotes, parens or brackets.
+function splitTopLevel(expr, op) {
+  const out = [];
+  const re = new RegExp('^\\s+' + op + '\\s+', 'i');
+  let depth = 0, quote = null, last = 0, i = 0;
+  while (i < expr.length) {
+    const ch = expr[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      i++; continue;
+    }
+    if (ch === "'" || ch === '"') { quote = ch; i++; continue; }
+    if (ch === '(' || ch === '[') { depth++; i++; continue; }
+    if (ch === ')' || ch === ']') { depth--; i++; continue; }
+    if (depth === 0 && (ch === ' ' || ch === '\t' || ch === '\n')) {
+      const m = re.exec(expr.slice(i));
+      if (m) { out.push(expr.slice(last, i)); i += m[0].length; last = i; continue; }
+    }
+    i++;
+  }
+  out.push(expr.slice(last));
+  return out;
+}
+
+// True when the expression is one parenthesised group, e.g. "(a OR b)" but not
+// "(a) AND (b)" — quote-aware so "('x (y)' == z)" is handled correctly.
+function isWrapped(expr) {
+  if (expr[0] !== '(' || expr[expr.length - 1] !== ')') return false;
+  let depth = 0, quote = null;
+  for (let i = 0; i < expr.length; i++) {
+    const ch = expr[i];
+    if (quote) { if (ch === quote) quote = null; continue; }
+    if (ch === "'" || ch === '"') { quote = ch; continue; }
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i === expr.length - 1;
+    }
+  }
+  return false;
+}
+
+function evalExpr(expr, values) {
+  expr = String(expr).trim();
+  if (!expr) return false;
+
+  const ors = splitTopLevel(expr, 'OR');
+  if (ors.length > 1) return ors.some((p) => evalExpr(p, values));
+
+  const ands = splitTopLevel(expr, 'AND');
+  if (ands.length > 1) return ands.every((p) => evalExpr(p, values));
+
+  if (isWrapped(expr)) return evalExpr(expr.slice(1, -1), values);
+
+  // Negation of a whole group. A bare "!" or "NOT" in front of a clause is left
+  // to evalClause, which already handles "!x IN y" and "x NOT IN y".
+  const neg = expr.match(/^(?:!|NOT)\s*(\(.*\))$/is);
+  if (neg && isWrapped(neg[1])) return !evalExpr(neg[1], values);
+
+  return evalClause(expr, values);
+}
+
 function evalCondition(expr, values) {
   try {
-    const orParts = expr.split(/\s+OR\s+/i);
-    return orParts.some((part) =>
-      part.split(/\s+AND\s+/i).every((clause) => evalClause(clause.trim(), values))
-    );
+    return evalExpr(expr, values);
   } catch {
     return false;
   }
@@ -444,14 +536,38 @@ function literal(tok, values) {
   if (n !== null && /^[\d.+-]+$/.test(tok)) return n;
   return values[tok];
 }
+// Find the first occurrence of an operator that is NOT inside a quoted literal
+// and not nested in parens/brackets. Without this, a sub-type name such as
+// 'DN400 (16 in NPS)' or 'Direct buried in ground' makes the IN-operator regex
+// match inside the quotes and the clause is torn apart at the wrong place.
+// 18 rules in the library carry a quoted literal containing IN / AND / OR / NOT.
+function findOperator(s, re) {
+  let depth = 0, quote = null;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (quote) { if (ch === quote) quote = null; continue; }
+    if (ch === "'" || ch === '"') { quote = ch; continue; }
+    if (ch === '(' || ch === '[') { depth++; continue; }
+    if (ch === ')' || ch === ']') { depth--; continue; }
+    if (depth !== 0) continue;
+    const m = re.exec(s.slice(i));
+    if (m && m.index === 0) return { at: i, len: m[0].length, op: m[1] || m[0] };
+  }
+  return null;
+}
 function evalClause(clause, values) {
-  let m = clause.match(/^!\s*(.+?)\s+IN\s+(.+)$/i);
-  if (m) return !inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s+NOT\s+IN\s+(.+)$/i);
-  if (m) return !inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s+IN\s+(.+)$/i);
-  if (m) return inTest(m[1], m[2], values);
-  m = clause.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/);
+  let f = findOperator(clause, /^\s+NOT\s+IN\s+/i);
+  if (f) return !inTest(clause.slice(0, f.at), clause.slice(f.at + f.len), values);
+  f = findOperator(clause, /^\s+IN\s+/i);
+  if (f) {
+    const lhs = clause.slice(0, f.at).trim();
+    const rhs = clause.slice(f.at + f.len);
+    if (lhs.startsWith('!')) return !inTest(lhs.slice(1), rhs, values);
+    return inTest(lhs, rhs, values);
+  }
+  f = findOperator(clause, /^(==|!=|>=|<=|>|<)/);
+  let m = null;
+  if (f) m = [null, clause.slice(0, f.at), f.op, clause.slice(f.at + f.len)];
   if (m) {
     const a = literal(m[1], values);
     const b = literal(m[3], values);
