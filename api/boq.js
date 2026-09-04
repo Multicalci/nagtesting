@@ -307,6 +307,8 @@ function resolveBase(baseline, subtype, values, notes, out = {}) {
     return null;
   }
   out.unit = itemUnit(item);
+  // [ACC] Surface the rate's provenance so the accuracy claim can depend on it.
+  out.rateBasis = item.rate_basis || null;
 
   // Flat list price
   if (item.usd_list_price != null) {
@@ -828,7 +830,10 @@ async function calculate(schema, body) {
   }
   const contPct = Number(rf.contingency_pct ?? (Number(adders.contingency) || 0.1) * 100);
   const cont = subtotal * (contPct / 100);
-  lines.push({ line: `Contingency (${contPct}% ${rf.aace_class || ''})`.trim(), usd: round2(cont) });
+  // [ACC] An AACE class label is a claim about the RATE, not only the method.
+  const ACC_PLACEHOLDER = new Set(['benchmark_estimate', 'historical_escalated']);
+  const rateCalibrated = !!ub.rateBasis && !ACC_PLACEHOLDER.has(ub.rateBasis);
+  lines.push({ line: `Contingency (${contPct}% ${rateCalibrated ? (rf.aace_class || '') : ''})`.trim(), usd: round2(cont) });
   const totalUsd = subtotal + cont;
 
   // 9) Compliance rules — evaluated HERE, never shipped to the client
@@ -848,18 +853,32 @@ async function calculate(schema, body) {
   }
 
   const tierAcc = t === 1 ? 30 : t === 2 ? 20 : 10;
-  const accuracy = `±${Math.max(tierAcc, Number(rf.accuracy_pct) || 0)}%`;
+  // [ACC] A tier accuracy describes the METHOD. It is only meaningful if the base
+  // rate underneath is sourced. An unsourced benchmark placeholder is not a Class 4
+  // estimate however detailed the tier.
+  let accuracy, rateStatus, disclaimer;
+  if (rateCalibrated) {
+    accuracy = `±${Math.max(tierAcc, Number(rf.accuracy_pct) || 0)}%`;
+    rateStatus = 'sourced';
+    disclaimer = `Tier ${t} ${accuracy} estimate for budgetary purposes only — not for procurement. multicalci.com`;
+  } else {
+    accuracy = 'not established';
+    rateStatus = 'uncalibrated_benchmark';
+    disclaimer = 'ORDER-OF-MAGNITUDE ONLY — the base rate for this item is an uncalibrated '
+      + 'benchmark, not a sourced price. No accuracy class applies. Confirm against a vendor '
+      + 'quotation or DSR before any budgetary or procurement use. multicalci.com';
+  }
   return {
     template_id: schema.template_id,
     template_name: schema.template_name,
-    tier, accuracy, region, sub_region: rf.sub_region || subRegion,
+    tier, accuracy, rate_status: rateStatus, region, sub_region: rf.sub_region || subRegion,
     quantity: qty, unit, spec,
     factors_applied: applied, // [IP] {table, matched} only
     lines: lines.map((l) => ({ ...l, amount: round2(l.usd * fx) })),
     total: { usd: round2(totalUsd), currency: outCur, amount: round2(totalUsd * fx), fx_rate: fx },
     compliance: findings,
     notes, // [IP] genericised at source — no library rates / coefficients
-    disclaimer: `Tier ${t} ${accuracy} estimate for budgetary purposes only — not for procurement. multicalci.com`,
+    disclaimer,
   };
 }
 
