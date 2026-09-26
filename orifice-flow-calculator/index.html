@@ -838,11 +838,11 @@ select option { background: #ffffff; color: var(--text); }
         <div class="frow" style="margin-bottom:0;">
           <div class="field">
             <label id="custom_rho_lbl">Base SG (air=1.0) <span class="hint">gas</span></label>
-            <input type="number" id="custom_rho" value="0.65" step="0.01" oninput="clearChipSel()">
+            <input type="number" id="custom_rho" value="0.65" step="0.01" oninput="onCustomSgInput()">
           </div>
           <div class="field" id="custom_mw_wrap">
             <label>Molar Mass <span class="hint">g/mol</span></label>
-            <input type="number" id="custom_mw" value="28.96" step="0.1" oninput="clearChipSel()">
+            <input type="number" id="custom_mw" value="18.827" step="0.1" oninput="onCustomMwInput()">
           </div>
         </div>
       </div>
@@ -879,6 +879,29 @@ select option { background: #ffffff; color: var(--text); }
           <label data-tip="Quality x = gas (or steam) mass flow ÷ total mass flow, 0 &lt; x &lt; 1. For wet steam this is the dryness fraction. Flow is directly sensitive to x — take it from a heat balance, sampling or separator test.">Quality x <span class="hint">gas mass fraction</span></label>
           <input type="number" id="tp_x" value="0.90" min="0.001" max="0.999" step="0.01" oninput="updateFluidProps()">
         </div>
+        <div class="field" id="tp_xmode_wrap" style="display:none;">
+          <label data-tip="Flash: quality computed from an isenthalpic flash of liquid from an upstream vessel (e.g. boiler drum blowdown, condensate letdown). IAPWS-IF97 saturation enthalpies.">Quality Basis</label>
+          <select id="tp_xmode" onchange="onTpXModeChange()">
+            <option value="entered">Entered x</option>
+            <option value="flash">Flash from upstream liquid</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" id="tp_flash_row" style="display:none;">
+        <div class="field">
+          <label data-tip="Pressure of the vessel the liquid comes from (e.g. steam drum). Same unit as Op. Pressure.">Source Liquid Pressure</label>
+          <div class="inp-wrap">
+            <input type="number" id="tp_psrc" value="104" step="0.1" oninput="updateFluidProps()">
+            <span class="inp-unit" id="tp_psrc_unit">bar a</span>
+          </div>
+        </div>
+        <div class="field">
+          <label data-tip="Leave blank for saturated liquid (e.g. drum water). Enter a value for subcooled liquid.">Source Liquid Temp. <span class="hint">blank = saturated</span></label>
+          <div class="inp-wrap">
+            <input type="number" id="tp_tsrc" value="" step="1" placeholder="saturated" oninput="updateFluidProps()">
+            <span class="inp-unit" id="tp_tsrc_unit">°C</span>
+          </div>
+        </div>
         <div class="field" id="tp_tsat_wrap" style="display:none;">
           <label>Saturation Temp. <span class="hint">from P (IF97)</span></label>
           <div class="inp-wrap">
@@ -909,15 +932,16 @@ select option { background: #ffffff; color: var(--text); }
         <span style="padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);">ρ<sub>l</sub> <b id="tp_prev_rl">—</b></span>
         <span style="padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);">ρ<sub>g</sub>/ρ<sub>l</sub> <b id="tp_prev_ratio">—</b></span>
       </div>
+      <div id="tp_prev_fatal" style="display:none;margin:-4px 0 10px;padding:7px 10px;border-radius:6px;background:rgba(176,0,20,0.07);border:1px solid rgba(176,0,20,0.3);color:var(--red);font-size:0.72rem;font-weight:700;line-height:1.45;"></div>
     </div>
 
     <!-- Process conditions -->
     <div class="frow">
       <div class="field">
-        <label id="p_lbl" data-tip="ABSOLUTE upstream pressure (bara / psia — NOT gauge pressure). Using gauge pressure will cause 10–20% flow error.">Op. Pressure <span class="hint" style="color:var(--amber);font-size:0.7rem;">abs</span></label>
-        <div class="inp-wrap">
-          <input type="number" id="p_val" value="10.0" step="0.1" oninput="updateFluidProps()">
-          <span class="inp-unit" id="p_unit">Bar a</span>
+        <label id="p_lbl" data-tip="Upstream line pressure at the meter. Pick an absolute (a) or gauge (g) unit — gauge values are converted to absolute using 1 atm.">Op. Pressure</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="p_val" value="10.0" step="0.1" oninput="updateFluidProps()" style="flex:1;min-width:0;">
+          <select id="p_unit_sel" onchange="onPUnitChange()" style="width:104px;padding:10px 6px;font-size:0.85rem;"></select>
         </div>
       </div>
       <div class="field">
@@ -977,16 +1001,23 @@ select option { background: #ffffff; color: var(--text); }
       <div class="card-head-step">STEP 03</div>
     </div>
 
-    <div class="field frow-1">
-      <label>Pipe Schedule / Size — Quick Set</label>
-      <div class="pipe-quick" id="pipe_quick"></div>
+    <div class="frow">
+      <div class="field">
+        <label>Nominal Pipe Size <span class="hint">NPS (DN)</span></label>
+        <select id="pipe_nps" onchange="onPipeNpsChange()"></select>
+      </div>
+      <div class="field">
+        <label data-tip="Wall thickness per ASME B36.10M (carbon/alloy steel) and B36.19M (stainless, 'S' schedules).">Schedule <span class="hint">B36.10M / 36.19M</span></label>
+        <select id="pipe_sch" onchange="applyPipeSelection()"></select>
+      </div>
     </div>
+    <div id="pipe_info" style="font-family:var(--mono);font-size:0.72rem;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin:-2px 0 4px;">—</div>
 
     <div class="frow" style="margin-top:10px;">
       <div class="field">
         <label>Pipe ID <span class="hint" style="color:var(--text3)">ISO valid: 50–1000 mm</span></label>
         <div style="display:flex;gap:6px;">
-          <input type="number" id="p_id" value="154.05" step="0.01" min="10" style="flex:1;min-width:0;">
+          <input type="number" id="p_id" value="154.05" step="0.01" min="10" style="flex:1;min-width:0;" oninput="onPipeIdManual()">
           <select id="pid_unit_sel" onchange="onDimUnitChange('pid')" style="width:80px;padding:10px 6px;font-size:0.85rem;">
             <option value="mm" selected>mm</option>
             <option value="cm">cm</option>
@@ -1183,6 +1214,7 @@ select option { background: #ffffff; color: var(--text); }
       <div style="font-family:var(--head);font-size:0.62rem;letter-spacing:1.5px;color:var(--green);font-weight:800;margin-bottom:8px;padding:5px 0 4px;border-bottom:1.5px solid var(--border);">⇄ TWO-PHASE BREAKDOWN — <span id="tp_r_corr">—</span></div>
       <table class="output-table" style="margin-bottom:10px;">
         <tr><td>Quality x (gas mass fraction)</td><td id="tp_r_x">—</td></tr>
+        <tr id="tp_r_xdown_row"><td data-tip="Isenthalpic quality at the downstream tap pressure (P − ΔP). Shows how much extra flashing occurs across the plate.">x at downstream tap (P − ΔP)</td><td id="tp_r_xdown">—</td></tr>
         <tr><td>Gas / vapour mass flow</td><td id="tp_r_mg">—</td></tr>
         <tr><td>Liquid mass flow</td><td id="tp_r_ml">—</td></tr>
         <tr><td>Gas actual vol. flow</td><td id="tp_r_qg">—</td></tr>
@@ -1245,7 +1277,8 @@ select option { background: #ffffff; color: var(--text); }
       <span class="hl">TWO-PHASE</span> &nbsp;x = ṁ<sub>g</sub>/ṁ &nbsp;|&nbsp; X = ((1−x)/x)·√(ρg/ρl)·Y &nbsp;|&nbsp; K<sub>g</sub> = Cd·E·Y·A₂·√(2·ρg·ΔP)<br>
       &nbsp;&nbsp;<span class="hl">Chisholm</span>: ṁ = K<sub>g</sub> / [x·√(1 + C·X + X²)], &nbsp;C = (ρl/ρg)^¼ + (ρg/ρl)^¼<br>
       &nbsp;&nbsp;<span class="hl">Murdock</span>: ṁ = K<sub>g</sub> / [x·(1 + 1.26·X)] &nbsp;|&nbsp; <span class="hl">Homogeneous</span>: ṁ = Cd·E·A₂·√(2ΔP / v<sub>m</sub>), v<sub>m</sub> = x/(Y²ρg) + (1−x)/ρl<br>
-      &nbsp;&nbsp;<span class="hl">James</span> (steam–water): homogeneous form with x → x<sup>1.5</sup> &nbsp;|&nbsp; Cd at gas-alone Re (X ≤ 1) or liquid-alone Re (X &gt; 1)
+      &nbsp;&nbsp;<span class="hl">James</span> (steam–water): homogeneous form with x → x<sup>1.5</sup> &nbsp;|&nbsp; Cd at gas-alone Re (X ≤ 1) or liquid-alone Re (X &gt; 1)<br>
+      &nbsp;&nbsp;<span class="hl">Flash quality</span> (wet steam): x = [h<sub>f</sub>(source) − h<sub>f</sub>(P)] / h<sub>fg</sub>(P) &nbsp;— IAPWS-IF97 saturation enthalpies
     </div>
 
     <div class="warn-box" id="warn1">⚠ <span id="warn1_txt"></span></div>
@@ -1335,17 +1368,6 @@ const FLUID_DB = {
   'Steam':          {t:'s',sg:0.498,mu:1.3e-5,Pv:0,k:1.135},
 };
 
-// Pipe schedule lookup [NPS, sched, OD_mm, ID_mm]
-const PIPE_SCHEDULES = [
-  ['1"',   40, 33.40, 26.64], ['1.5"', 40, 48.26, 40.89],
-  ['2"',   40, 60.33, 52.50], ['2.5"', 40, 73.03, 62.71],
-  ['3"',   40, 88.90, 77.93], ['4"',   40,114.30,102.26],
-  ['6"',   40,168.28,154.05], ['6"',   80,168.28,146.33],
-  ['8"',   40,219.08,202.72], ['8"',   80,219.08,193.68],
-  ['10"',  40,273.05,254.51], ['12"',  40,323.85,303.23],
-  ['16"',  40,406.40,381.00], ['20"',  40,508.00,477.82],
-  ['24"',  40,609.60,574.65],
-];
 
 // ─── DIMENSION UNIT HELPERS (UI only, no calc) ────────────────────────
 function dimToMm(val, unit) {
@@ -1361,6 +1383,7 @@ function onDimUnitChange(which) {
   const conv    = {mm:1,cm:0.1,m:0.001,in:1/25.4};
   inp.value     = parseFloat((valMm * (conv[newUnit]||1)).toFixed(6));
   sel.dataset.prev = newUnit;
+  if (which === 'pid' && typeof updatePipeInfo === 'function') updatePipeInfo();
 }
 
 // ─── DISPLAY HELPERS ──────────────────────────────────────────────────
@@ -1582,7 +1605,7 @@ async function runNow() {
     unitSys:   UNITS,
     tapType:   document.getElementById('orifice_type').value,
     customCd:  document.getElementById('custom_cd_val')?.value,
-    P:         document.getElementById('p_val').value,
+    P:         pToApi(document.getElementById('p_val').value),
     T:         document.getElementById('t_val').value,
     D:         document.getElementById('p_id').value,
     D_unit:    document.getElementById('pid_unit_sel').value,
@@ -1652,7 +1675,7 @@ function setUnits(u) {
 function updateUnitLabels() {
   const m = UNITS === 'metric';
   // Input field unit labels
-  document.getElementById('p_unit').textContent = m ? 'Bar a'  : 'psia';
+  buildPUnitOptions();
   document.getElementById('t_unit').textContent = m ? '°C'     : '°F';
   // Left-panel density preview label
   const densPreview = document.getElementById('out_dens');
@@ -1699,6 +1722,7 @@ function onCatChange() {
     fsel.innerHTML = '<option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr (metric)</option>';
     fsel.value = 'kghr';
     buildFluidChips();
+    setMwFromSg(parseFloat(document.getElementById('d_val').value));
     buildTpLiquidOptions();
     updateExtraTableVisibility(cat);
     onTpSubChange();          // applies gas-liquid vs wet-steam specifics + preview
@@ -1734,6 +1758,7 @@ function onCatChange() {
     fsel.value = 'Nm3hr';
   }
   buildFluidChips();
+  if (cat === 'gas') setMwFromSg(parseFloat(document.getElementById('d_val').value));
   updateExtraTableVisibility(cat);
   updateFluidProps();
 }
@@ -1798,6 +1823,7 @@ function clearChipSel() {
 
 function syncCustomRho() {
   document.getElementById('custom_rho').value = document.getElementById('d_val').value;
+  setMwFromSg(parseFloat(document.getElementById('d_val').value));
   clearChipSel();
   updateFluidProps();
 }
@@ -1828,7 +1854,7 @@ async function _fetchDensityPreview() {
     action:   'density-preview',
     cat,
     unitSys:  UNITS,
-    P:        document.getElementById('p_val').value,
+    P:        pToApi(document.getElementById('p_val').value),
     T:        document.getElementById('t_val').value,
     fluidKey: selectedFluidKey,
     sg:       document.getElementById('d_val').value,
@@ -1877,6 +1903,9 @@ function twoPhasePayload(cat) {
     liqKey: tpLiqKey,
     liqSG:  document.getElementById('tp_liq_sg').value,
     liqMu:  document.getElementById('tp_liq_mu').value,
+    xMode:  document.getElementById('tp_xmode').value,
+    Psrc:   pToApi(document.getElementById('tp_psrc').value),
+    Tsrc:   document.getElementById('tp_tsrc').value,
   };
 }
 
@@ -1914,6 +1943,9 @@ function onTpSubChange() {
   if (document.getElementById('f_cat').value !== 'twophase') return;
   const wet = document.getElementById('tp_sub').value === 'wetsteam';
   document.getElementById('tp_liq_wrap').style.display  = wet ? 'none' : '';
+  document.getElementById('tp_xmode_wrap').style.display = wet ? '' : 'none';
+  if (!wet) document.getElementById('tp_xmode').value = 'entered';
+  onTpXModeChange(true);
   document.getElementById('tp_tsat_wrap').style.display = wet ? '' : 'none';
   document.querySelector('.fluid-db-wrap').style.display = wet ? 'none' : '';
   document.getElementById('gas_extra_row').style.display = wet ? 'none' : '';
@@ -1936,6 +1968,10 @@ function onTpSubChange() {
 }
 
 function showTpPreview(d) {
+  const fb = document.getElementById('tp_prev_fatal');
+  if (fb) { fb.style.display = d.fatal ? '' : 'none'; fb.textContent = d.fatal ? '⛔ ' + d.fatal : ''; }
+  if (d.x_flash != null && document.getElementById('tp_xmode').value === 'flash')
+    document.getElementById('tp_x').value = d.x_flash > 0 && d.x_flash < 1 ? d.x_flash.toFixed(4) : 'n/a';
   const imp = UNITS === 'imperial';
   const dc  = imp ? 0.0624278 : 1, du = imp ? ' lb/ft³' : ' kg/m³';
   setOut('tp_prev_rg', d.rho_g != null ? (d.rho_g*dc).toFixed(4) + du : '—');
@@ -1962,7 +1998,12 @@ function renderTwoPhase(r) {
   const f = (v, n) => (v == null || !isFinite(v)) ? '—' : Number(v).toFixed(n);
 
   setOut('tp_r_corr',  t.corrLabel.toUpperCase());
-  setOut('tp_r_x',     f(t.x, 4) + (t.sub === 'wetsteam' ? ' (dryness fraction)' : ''));
+  setOut('tp_r_x',     f(t.x, 4) + (t.xMode === 'flash'
+                          ? ` (flash from ${imp ? f(t.Psrc_bar/0.0689476, 1) + ' psia' : f(t.Psrc_bar, 2) + ' bara'}${t.Tsrc_C != null ? ', ' + (imp ? f(t.Tsrc_C*9/5+32, 1) + ' °F' : f(t.Tsrc_C, 1) + ' °C') : ''})`
+                          : (t.sub === 'wetsteam' ? ' (dryness fraction)' : '')));
+  document.getElementById('tp_r_xdown_row').style.display = t.x_down != null ? '' : 'none';
+  setOut('tp_r_xdown', t.x_down != null ? f(t.x_down, 4) + `  (+${f(t.plate_dx_pct, 2)} %; flow effect ≈ ${f(t.plate_flow_effect_pct, 1)} %)` : '—');
+  if (t.xMode === 'flash') document.getElementById('tp_x').value = f(t.x, 4);
   setOut('tp_r_mg',    f(t.mg_kghr*mC, 2) + mU);
   setOut('tp_r_ml',    f(t.ml_kghr*mC, 2) + mU);
   setOut('tp_r_qg',    f(t.qg_m3hr*vC, 3) + vU);
@@ -2001,21 +2042,197 @@ function renderTwoPhase(r) {
   document.getElementById('tp_cmp_table').innerHTML = rows;
 }
 
-// ─── PIPE CHIPS ───────────────────────────────────────────────────────
-function buildPipeChips() {
-  const wrap = document.getElementById('pipe_quick');
-  PIPE_SCHEDULES.forEach(([nps, sch, od, id_mm]) => {
-    const el = document.createElement('div');
-    el.className = 'pchip';
-    el.title = `OD ${od}mm, ID ${id_mm}mm, Sch ${sch}`;
-    el.textContent = `${nps} Sch${sch}`;
-    el.onclick = () => {
-      const pidUnit = document.getElementById('pid_unit_sel').value;
-      const conv = {mm:1,cm:0.1,m:0.001,in:1/25.4};
-      document.getElementById('p_id').value = parseFloat((id_mm*(conv[pidUnit]||1)).toFixed(4));
-    };
-    wrap.appendChild(el);
+// ─── PRESSURE UNITS (absolute / gauge) — converted to bar a | psia for the API ──
+const P_UNITS_METRIC = [
+  ['bara',   'bar a',     v => v],
+  ['barg',   'bar g',     v => v + 1.01325],
+  ['kgcm2a', 'kg/cm² a',  v => v * 0.980665],
+  ['kgcm2g', 'kg/cm² g',  v => v * 0.980665 + 1.01325],
+  ['MPaa',   'MPa a',     v => v * 10],
+  ['kPaa',   'kPa a',     v => v / 100],
+];
+const P_UNITS_IMP = [
+  ['psia', 'psia', v => v],
+  ['psig', 'psig', v => v + 14.6959],
+];
+function pUnitList() { return UNITS === 'metric' ? P_UNITS_METRIC : P_UNITS_IMP; }
+function buildPUnitOptions() {
+  const sel = document.getElementById('p_unit_sel');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = pUnitList().map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+  sel.value = pUnitList().some(u => u[0] === prev) ? prev : pUnitList()[0][0];
+  sel.dataset.prev = sel.value;
+  syncPsrcUnitLabel();
+}
+function pToApi(valStr) {           // → bar a (metric) or psia (imperial)
+  const v = parseFloat(valStr);
+  if (!Number.isFinite(v)) return valStr;
+  const u = pUnitList().find(x => x[0] === document.getElementById('p_unit_sel').value) || pUnitList()[0];
+  return String(u[2](v));
+}
+function pFromAbs(absVal, unitKey) { // inverse, for converting the field when the unit changes
+  const u = pUnitList().find(x => x[0] === unitKey) || pUnitList()[0];
+  const k = u[2](1) - u[2](0), off = u[2](0);
+  return (absVal - off) / k;
+}
+function onPUnitChange() {
+  const sel = document.getElementById('p_unit_sel');
+  const oldKey = sel.dataset.prev || sel.value;
+  ['p_val', 'tp_psrc'].forEach(id => {
+    const el = document.getElementById(id);
+    const v = parseFloat(el.value);
+    if (!Number.isFinite(v)) return;
+    const uOld = pUnitList().find(x => x[0] === oldKey) || pUnitList()[0];
+    el.value = parseFloat(pFromAbs(uOld[2](v), sel.value).toFixed(4));
   });
+  sel.dataset.prev = sel.value;
+  syncPsrcUnitLabel();
+  updateFluidProps();
+}
+function syncPsrcUnitLabel() {
+  const sel = document.getElementById('p_unit_sel');
+  const lbl = document.getElementById('tp_psrc_unit');
+  if (sel && lbl) lbl.textContent = sel.options[sel.selectedIndex]?.text || '';
+  const tl = document.getElementById('tp_tsrc_unit');
+  if (tl) tl.textContent = UNITS === 'metric' ? '°C' : '°F';
+}
+function pressureText() {
+  const sel = document.getElementById('p_unit_sel');
+  const v = document.getElementById('p_val').value;
+  const abs = parseFloat(pToApi(v));
+  const absTxt = UNITS === 'metric' ? abs.toFixed(3) + ' bar a' : abs.toFixed(2) + ' psia';
+  const u = sel.options[sel.selectedIndex]?.text || '';
+  return (u === 'bar a' || u === 'psia') ? `${v} ${u}` : `${v} ${u} (= ${absTxt})`;
+}
+
+// ─── SG ↔ MOLAR MASS SYNC (gas) — the value shown is the value used ──────
+function isGasLike() { const c = document.getElementById('f_cat').value; return c === 'gas' || c === 'twophase'; }
+function setMwFromSg(sg) {
+  if (!isGasLike() || !(sg > 0)) return;
+  document.getElementById('custom_mw').value = (sg * 28.964).toFixed(3);
+}
+function onCustomSgInput() {
+  const sg = parseFloat(document.getElementById('custom_rho').value);
+  document.getElementById('d_val').value = document.getElementById('custom_rho').value;
+  setMwFromSg(sg);
+  clearChipSel();
+  updateFluidProps();
+}
+function onCustomMwInput() {
+  const mw = parseFloat(document.getElementById('custom_mw').value);
+  if (mw > 0 && isGasLike()) {
+    const sg = (mw / 28.964).toFixed(4);
+    document.getElementById('d_val').value = sg;
+    document.getElementById('custom_rho').value = sg;
+  }
+  clearChipSel();
+  updateFluidProps();
+}
+
+// ─── TWO-PHASE: quality basis ────────────────────────────────────────
+function onTpXModeChange(silent) {
+  const flash = document.getElementById('f_cat').value === 'twophase'
+             && document.getElementById('tp_sub').value === 'wetsteam'
+             && document.getElementById('tp_xmode').value === 'flash';
+  document.getElementById('tp_flash_row').style.display = flash ? '' : 'none';
+  const xi = document.getElementById('tp_x');
+  xi.disabled = flash;
+  if (!flash && !(parseFloat(xi.value) > 0)) xi.value = '0.90';
+  syncPsrcUnitLabel();
+  if (!silent) updateFluidProps();
+}
+
+// ─── PIPE: NPS + SCHEDULE (ASME B36.10M / B36.19M) ───────────────────
+// [NPS, DN, OD mm, [[schedule label, wall mm], ...]]
+const PIPE_DATA = [
+  ['1/2',   15,  21.34, [['5S',1.65],['10S',2.11],['40 / STD / 40S',2.77],['80 / XS / 80S',3.73],['160',4.78],['XXS',7.47]]],
+  ['3/4',   20,  26.67, [['5S',1.65],['10S',2.11],['40 / STD / 40S',2.87],['80 / XS / 80S',3.91],['160',5.56],['XXS',7.82]]],
+  ['1',     25,  33.40, [['5S',1.65],['10S',2.77],['40 / STD / 40S',3.38],['80 / XS / 80S',4.55],['160',6.35],['XXS',9.09]]],
+  ['1-1/4', 32,  42.16, [['5S',1.65],['10S',2.77],['40 / STD / 40S',3.56],['80 / XS / 80S',4.85],['160',6.35],['XXS',9.70]]],
+  ['1-1/2', 40,  48.26, [['5S',1.65],['10S',2.77],['40 / STD / 40S',3.68],['80 / XS / 80S',5.08],['160',7.14],['XXS',10.15]]],
+  ['2',     50,  60.33, [['5S',1.65],['10S',2.77],['40 / STD / 40S',3.91],['80 / XS / 80S',5.54],['160',8.74],['XXS',11.07]]],
+  ['2-1/2', 65,  73.03, [['5S',2.11],['10S',3.05],['40 / STD / 40S',5.16],['80 / XS / 80S',7.01],['160',9.53],['XXS',14.02]]],
+  ['3',     80,  88.90, [['5S',2.11],['10S',3.05],['40 / STD / 40S',5.49],['80 / XS / 80S',7.62],['160',11.13],['XXS',15.24]]],
+  ['4',    100, 114.30, [['5S',2.11],['10S',3.05],['40 / STD / 40S',6.02],['80 / XS / 80S',8.56],['120',11.13],['160',13.49],['XXS',17.12]]],
+  ['5',    125, 141.30, [['5S',2.77],['10S',3.40],['40 / STD / 40S',6.55],['80 / XS / 80S',9.53],['120',12.70],['160',15.88],['XXS',19.05]]],
+  ['6',    150, 168.28, [['5S',2.77],['10S',3.40],['40 / STD / 40S',7.11],['80 / XS / 80S',10.97],['120',14.27],['160',18.26],['XXS',21.95]]],
+  ['8',    200, 219.08, [['5S',2.77],['10S',3.76],['20',6.35],['30',7.04],['40 / STD / 40S',8.18],['60',10.31],['80 / XS / 80S',12.70],['100',15.09],['120',18.26],['140',20.62],['160',23.01],['XXS',22.23]]],
+  ['10',   250, 273.05, [['5S',3.40],['10S',4.19],['20',6.35],['30',7.80],['40 / STD / 40S',9.27],['60 / XS / 80S',12.70],['80',15.09],['100',18.26],['120',21.44],['140',25.40],['160',28.58],['XXS',25.40]]],
+  ['12',   300, 323.85, [['5S',3.96],['10S',4.57],['20',6.35],['30',8.38],['STD / 40S',9.53],['40',10.31],['XS / 80S',12.70],['60',14.27],['80',17.48],['100',21.44],['120',25.40],['140',28.58],['160',33.32],['XXS',25.40]]],
+  ['14',   350, 355.60, [['5S',3.96],['10S',4.78],['10',6.35],['20',7.92],['30 / STD',9.53],['40',11.13],['XS',12.70],['60',15.09],['80',19.05],['100',23.83],['120',27.79],['140',31.75],['160',35.71]]],
+  ['16',   400, 406.40, [['5S',4.19],['10S',4.78],['10',6.35],['20',7.92],['30 / STD',9.53],['40 / XS',12.70],['60',16.66],['80',21.44],['100',26.19],['120',30.96],['140',36.53],['160',40.49]]],
+  ['18',   450, 457.20, [['5S',4.19],['10S',4.78],['10',6.35],['20',7.92],['STD',9.53],['30',11.13],['XS',12.70],['40',14.27],['60',19.05],['80',23.83],['100',29.36],['120',34.93],['140',39.67],['160',45.24]]],
+  ['20',   500, 508.00, [['5S',4.78],['10S',5.54],['10',6.35],['20 / STD',9.53],['30 / XS',12.70],['40',15.09],['60',20.62],['80',26.19],['100',32.54],['120',38.10],['140',44.45],['160',50.01]]],
+  ['24',   600, 609.60, [['5S',5.54],['10S',6.35],['10',6.35],['20 / STD',9.53],['XS',12.70],['30',14.27],['40',17.48],['60',24.61],['80',30.96],['100',38.89],['120',46.02],['140',52.37],['160',59.54]]],
+];
+let _pipeCustom = false;
+
+function buildPipeSelectors() {
+  const nps = document.getElementById('pipe_nps');
+  nps.innerHTML = PIPE_DATA.map(([n, dn, od]) => `<option value="${n}">${n}" (DN ${dn}) — OD ${od.toFixed(2)} mm</option>`).join('')
+                + '<option value="custom">Custom ID (manual)</option>';
+  nps.value = '6';
+  onPipeNpsChange('40 / STD / 40S');
+}
+function onPipeNpsChange(preferSch) {
+  const npsV = document.getElementById('pipe_nps').value;
+  const sch  = document.getElementById('pipe_sch');
+  if (npsV === 'custom') {
+    sch.innerHTML = '<option value="">—</option>'; sch.disabled = true;
+    _pipeCustom = true; updatePipeInfo(); return;
+  }
+  const row  = PIPE_DATA.find(r => r[0] === npsV);
+  const prev = preferSch || sch.value;
+  sch.disabled = false;
+  sch.innerHTML = row[3].map(([l, wt]) => `<option value="${l}">Sch ${l} — WT ${wt.toFixed(2)} mm</option>`).join('');
+  // keep the same schedule if it exists for the new size (match any alias, e.g. "40" or "STD")
+  const tokens = (prev || '').split(' / ');
+  const primary = tokens[0];
+  const hit = row[3].find(([l]) => l === prev)
+           || row[3].find(([l]) => l.split(' / ')[0] === primary)          // same schedule number first (e.g. "80")
+           || row[3].find(([l]) => l.split(' / ').includes(primary))       // then as an alias (e.g. "STD")
+           || row[3].find(([l]) => l.split(' / ').some(t => tokens.includes(t)))
+           || row[3].find(([l]) => l.split(' / ').includes('40')) || row[3].find(([l]) => l.includes('STD'));
+  sch.value = hit ? hit[0] : row[3][0][0];
+  applyPipeSelection();
+}
+function currentPipe() {
+  const npsV = document.getElementById('pipe_nps').value;
+  const row  = PIPE_DATA.find(r => r[0] === npsV);
+  if (!row) return null;
+  const s = row[3].find(([l]) => l === document.getElementById('pipe_sch').value);
+  if (!s) return null;
+  return { nps: row[0], dn: row[1], od: row[2], sch: s[0], wt: s[1], id: row[2] - 2 * s[1] };
+}
+function applyPipeSelection() {
+  const p = currentPipe();
+  if (!p) return;
+  _pipeCustom = false;
+  const pidUnit = document.getElementById('pid_unit_sel').value;
+  const conv = { mm: 1, cm: 0.1, m: 0.001, in: 1 / 25.4 };
+  document.getElementById('p_id').value = parseFloat((p.id * (conv[pidUnit] || 1)).toFixed(pidUnit === 'in' ? 4 : 3));
+  updatePipeInfo();
+}
+function onPipeIdManual() {
+  if (!_pipeCustom) { _pipeCustom = true; document.getElementById('pipe_nps').value = 'custom'; onPipeNpsChange(); }
+  updatePipeInfo();
+}
+function updatePipeInfo() {
+  const el = document.getElementById('pipe_info');
+  if (!el) return;
+  const idmm = dimToMm(parseFloat(document.getElementById('p_id').value) || 0, document.getElementById('pid_unit_sel').value);
+  const iso  = idmm < 50 ? ' <span style="color:var(--amber);font-weight:700;">· below ISO 5167 min 50 mm</span>'
+             : idmm > 1000 ? ' <span style="color:var(--amber);font-weight:700;">· above ISO 5167 max 1000 mm</span>' : '';
+  const p = _pipeCustom ? null : currentPipe();
+  el.innerHTML = p
+    ? `NPS ${p.nps}" Sch ${p.sch.split(' / ')[0]} · OD ${p.od.toFixed(2)} × WT ${p.wt.toFixed(2)} → <b>ID ${p.id.toFixed(2)} mm</b> (${(p.id/25.4).toFixed(3)} in)${iso}`
+    : `Custom pipe ID: <b>${idmm.toFixed(2)} mm</b> (${(idmm/25.4).toFixed(3)} in)${iso}`;
+}
+function pipeText() {
+  const idTxt = document.getElementById('p_id').value + ' ' + document.getElementById('pid_unit_sel').value;
+  const p = _pipeCustom ? null : currentPipe();
+  return p ? `${idTxt} (NPS ${p.nps}" Sch ${p.sch.split(' / ')[0]}, OD ${p.od.toFixed(2)} × WT ${p.wt.toFixed(2)} mm)` : idTxt + ' (custom)';
 }
 
 function toggleFormula() {
@@ -2052,7 +2269,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pid_unit_sel').dataset.prev = 'mm';
   document.getElementById('bid_unit_sel').dataset.prev = 'mm';
   buildFluidChips();
-  buildPipeChips();
+  buildPUnitOptions();
+  buildPipeSelectors();
   onCatChange();
   updateUnitLabels();
   updateFluidProps();
@@ -2065,7 +2283,13 @@ function tpPdfSection() {
   const t = r.twoPhase;
   const g = id => document.getElementById(id)?.textContent || '—';
   const liq = t.sub === 'wetsteam' ? 'Water (saturated, IF97)' : (tpLiqKey || ('Custom, SG ' + document.getElementById('tp_liq_sg').value));
-  const cmp = t.compare.map(c => `<tr><td>${c.label}${c.selected ? ' ◀' : ''}</td><td class="val">${c.value == null ? 'n/a' : c.value.toFixed(t.compareUnit === 'mm' ? 2 : t.compareUnit === 'Pa' ? 0 : 1) + ' ' + t.compareUnit}</td><td class="val">${c.dev_pct == null || c.selected ? '—' : (c.dev_pct >= 0 ? '+' : '') + c.dev_pct.toFixed(2) + ' %'}</td></tr>`).join('');
+  const cmp = Array.from(document.querySelectorAll('#tp_cmp_table tr')).map(tr => {
+    const tds = tr.querySelectorAll('td'); if (tds.length < 2) return '';
+    const raw = tds[1].textContent; const sel = raw.includes('◀');
+    const val = raw.replace(/◀.*$/, '').replace(/\s*\(([-+][\d.]+ %)\)\s*$/, '').trim();
+    const dev = sel ? '—' : ((raw.match(/\(([-+][\d.]+ %)\)/) || [,'—'])[1]);
+    return `<tr><td>${tds[0].textContent}${sel ? ' ◀' : ''}</td><td class="val">${val}</td><td class="val">${dev}</td></tr>`;
+  }).join('');
   return `
     <div class="section-title">▸ Two-Phase Flow — ${t.corrLabel}</div>
     <div class="two-col">
@@ -2073,7 +2297,8 @@ function tpPdfSection() {
         <tr><th>Parameter</th><th style="text-align:right">Value</th></tr>
         <tr><td>System</td><td class="val">${t.sub === 'wetsteam' ? 'Wet steam' : 'Gas + liquid'}</td></tr>
         <tr><td>Liquid phase</td><td class="val">${liq}</td></tr>
-        <tr><td>Quality x</td><td class="val">${t.x.toFixed(4)}</td></tr>
+        <tr><td>Quality x</td><td class="val">${t.x.toFixed(4)}${t.xMode === 'flash' ? ` (flash from ${t.Psrc_bar.toFixed(2)} bara${t.Tsrc_C != null ? ', ' + t.Tsrc_C.toFixed(1) + ' °C' : ' sat.'})` : ''}</td></tr>
+        ${t.x_down != null ? `<tr><td>x at downstream tap</td><td class="val">${t.x_down.toFixed(4)} (+${t.plate_dx_pct.toFixed(2)} %)</td></tr>` : ''}
         <tr><td>Gas mass flow</td><td class="val">${g('tp_r_mg')}</td></tr>
         <tr><td>Liquid mass flow</td><td class="val">${g('tp_r_ml')}</td></tr>
         <tr><td>ρg / ρl / ρh</td><td class="val">${t.rho_g.toFixed(3)} / ${t.rho_l.toFixed(1)} / ${t.rho_h.toFixed(3)} kg/m³</td></tr>
@@ -2109,9 +2334,10 @@ function generatePDF() {
     fluidCat: document.getElementById('f_cat').options[document.getElementById('f_cat').selectedIndex].text,
     fluidSel: selectedFluidKey || 'Custom / Manual',
     orificeType: document.getElementById('orifice_type').options[document.getElementById('orifice_type').selectedIndex].text,
-    pressure: document.getElementById('p_val').value + ' ' + document.getElementById('p_unit').textContent,
+    pressure: pressureText(),
     temperature: document.getElementById('t_val').value + ' ' + document.getElementById('t_unit').textContent,
-    pipeID: document.getElementById('p_id').value + ' ' + document.getElementById('pid_unit_sel').value,
+    pipeID: pipeText(),
+    mw: document.getElementById('custom_mw').value,
     boreDia: document.getElementById('b_id').value + ' ' + document.getElementById('bid_unit_sel').value,
     dp: document.getElementById('dp_v').value + ' ' + document.getElementById('dp_unit_sel').value,
     flow: document.getElementById('f_val').value + ' ' + document.getElementById('f_unit_sel').value,
@@ -2154,8 +2380,9 @@ function generatePDF() {
     betaStatus: document.getElementById('beta_status').textContent,
   };
 
-  const warn1 = document.getElementById('warn1').textContent.trim();
-  const warn2 = document.getElementById('warn2').textContent.trim();
+  const _w1 = document.getElementById('warn1'), _w2 = document.getElementById('warn2');
+  const warn1 = _w1.classList.contains('show') ? _w1.innerHTML.trim() : '';
+  const warn2 = _w2.classList.contains('show') ? _w2.innerHTML.trim() : '';
   const now = new Date().toLocaleString();
   const unitSys = m ? 'SI (Metric)' : 'Imperial (US)';
 
@@ -2387,7 +2614,8 @@ function generatePDF() {
           <tr><th>Parameter</th><th style="text-align:right">Value</th></tr>
           <tr><td>Pipe Internal Dia.</td><td class="val">${inputs.pipeID}</td></tr>
           <tr><td>Orifice Bore Dia.</td><td class="val">${inputs.boreDia}</td></tr>
-          <tr><td>Specific Gravity / SG</td><td class="val">${inputs.sg}</td></tr>
+          ${(document.getElementById('f_cat').value === 'twophase' && document.getElementById('tp_sub').value === 'wetsteam') ? '' : `<tr><td>Specific Gravity / SG</td><td class="val">${inputs.sg}</td></tr>`}
+          ${(['gas','twophase'].includes(document.getElementById('f_cat').value) && !(document.getElementById('f_cat').value === 'twophase' && document.getElementById('tp_sub').value === 'wetsteam')) ? `<tr><td>Molar Mass (gas)</td><td class="val">${selectedFluidKey && FLUID_DB[selectedFluidKey]?.M ? FLUID_DB[selectedFluidKey].M.toFixed(3) : inputs.mw} g/mol</td></tr>` : ''}
           <tr><td>Compressibility Z</td><td class="val">${inputs.z}</td></tr>
           <tr><td>Isentropic Exponent k</td><td class="val">${inputs.k}</td></tr>
           <tr><td>Dynamic Viscosity μ</td><td class="val">${inputs.visc}</td></tr>
@@ -2452,8 +2680,8 @@ function generatePDF() {
       <span class="hl">Y (orifice)</span> = 1 − (0.41+0.35β⁴)·ΔP/(P·κ) &nbsp;|&nbsp; ρ = <span class="hla">P·M</span>/(Z·R·T) [gas] &nbsp;|&nbsp; Cd: Reader-Harris/Gallagher iterative
     </div>
 
-    ${warn1 ? `<div class="warn-box warn-red">⚠ ${warn1}</div>` : ''}
-    ${warn2 ? `<div class="warn-box warn-amber">ℹ ${warn2}</div>` : ''}
+    ${warn1 ? `<div class="warn-box warn-red">${warn1}</div>` : ''}
+    ${warn2 ? `<div class="warn-box warn-amber">${warn2}</div>` : ''}
 
   </div><!-- /page-body -->
 
