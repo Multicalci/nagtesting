@@ -2292,6 +2292,342 @@ function readBody(req) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SECTION C-2  ►  TWO-PHASE ORIFICE EXTENSION  (gas–liquid & wet steam)
+// Paste this whole block inside SECTION C of api/process-calculators.js,
+// directly ABOVE the line:   async function orificeFlow_handler(req, res) {
+//
+// Re-uses existing Section C helpers (do not duplicate them):
+//   getCd, computeY, computePressureRecovery, estimateUncertainty, steamDensity,
+//   steamViscosity, waterLiquidViscosity, liquidViscosity, sutherlandViscosity,
+//   pitzerZ, validateInputs, getReMin, FLUID_DB_orifice
+//
+// Model basis (separated-flow orifice correlations, frozen quality):
+//   gas-alone capacity  Kg = Cd·E·ε·A₂·√(2·ρg·ΔP)          (ε on the gas phase)
+//   X  = ((1−x)/x)·√(ρg/ρl)·ε                              (Lockhart–Martinelli)
+//   Chisholm 1977 :  ṁ = Kg / (x·√(1 + C·X + X²)),  C = (ρl/ρg)^¼ + (ρg/ρl)^¼
+//   Murdock  1962 :  ṁ = Kg / (x·(1 + 1.26·X))
+//   Homogeneous   :  ṁ = Cd·E·A₂·√(2ΔP / v_m),  v_m = x/(ε²ρg) + (1−x)/ρl
+//   James    1965 :  as homogeneous with x → x^1.5  (steam–water)
+//   Cd from ISO RHG at the gas-alone Re (X ≤ 1) or liquid-alone Re (X > 1).
+// ══════════════════════════════════════════════════════════════════════════════
+
+const TP_CORR = {
+  chisholm:    { label: 'Chisholm (1977)',          base_u: 3.0 },
+  murdock:     { label: 'Murdock (1962)',           base_u: 4.0 },
+  homogeneous: { label: 'Homogeneous (no slip)',    base_u: 8.0 },
+  james:       { label: 'James (1965) steam–water', base_u: 4.0 },
+};
+const TP_KEYS = Object.keys(TP_CORR);
+
+// Saturated-liquid water density — same IF97 polynomial as Section C
+function tpWaterDensity(T_c) {
+  const T = Math.max(0, Math.min(360, T_c));
+  const T2 = T*T, T3 = T2*T, T4 = T3*T, T5 = T4*T, T6 = T5*T;
+  const r = -3.430583e-12*T6 + 3.305509e-09*T5 - 1.216454e-06*T4
+          + 2.120305e-04*T3 - 2.009065e-02*T2 + 4.039409e-01*T + 998.117618;
+  return Math.max(100, Math.min(1005, r));
+}
+
+function tpLiquidDensity(f, T_c, sg) {
+  if (f?.t === 'l' && f.rhoModel === 'poly_water') return tpWaterDensity(T_c);
+  if (f?.t === 'l' && f.rho0 && f.beta_T !== undefined)
+    return Math.max(100, Math.min(1500, f.rho0 / (1 + f.beta_T * (T_c - f.T0))));
+  return Math.max(100, Math.min(2500, (sg > 0 ? sg : 1) * 1000));
+}
+
+// ── Phase properties ─────────────────────────────────────────────────────────
+function tpProps(p) {
+  const P_Pa = p.P_bar * 1e5;
+  const out = { sub: p.sub, warns: [], infos: [], gasAuto: false, zr: null, Tsat_C: null };
+
+  if (p.sub === 'wetsteam') {
+    const Tsat_C = steamDensity(p.P_bar, 0).T_sat_C;
+    const Tsat_K = Tsat_C + 273.15;
+    out.Tsat_C = Tsat_C;
+    out.T_c    = Tsat_C;
+    out.rho_g  = steamDensity(p.P_bar, Tsat_C + 0.01).rho;   // IF97 Region 2 on the saturation line
+    out.rho_l  = tpWaterDensity(Tsat_C);
+    out.mu_g   = steamViscosity(Tsat_K);
+    out.mu_l   = waterLiquidViscosity(Tsat_K);
+    out.MW     = 18.015;
+    out.Z      = 1;
+    if (p.P_bar > 165)
+      out.warns.push(`Wet steam at ${p.P_bar.toFixed(1)} bara — IF97 Region 2 / liquid polynomial lose accuracy above ~165 bara (near-critical)`);
+    if (Number.isFinite(p.T_c) && Math.abs(p.T_c - Tsat_C) > 2)
+      out.infos.push(`Wet steam is saturated — temperature taken as Tsat = ${Tsat_C.toFixed(2)} °C (entered value ignored)`);
+    return out;
+  }
+
+  // Gas + liquid
+  const T_K = p.T_c + 273.15;
+  const fg  = FLUID_DB_orifice[p.gasKey] || null;
+  if (fg?.t === 'g') {
+    out.MW   = fg.M;
+    out.mu_g = sutherlandViscosity(fg, T_K);
+    out.zr   = pitzerZ(fg, T_K, P_Pa);
+    out.Z    = out.zr.Z;
+    out.gasAuto = true;
+  } else {
+    // Mirrors the single-phase gas path: MW field wins over SG when valid
+    out.MW   = (p.MW_input > 1 && p.MW_input < 500) ? p.MW_input : (p.sg_gas > 0 ? p.sg_gas : 0.65) * 28.964;
+    out.Z    = p.Z_input > 0 ? p.Z_input : 1;
+    out.mu_g = p.mu_g_input > 0 ? p.mu_g_input : 1.82e-5;
+  }
+  out.rho_g = (P_Pa * out.MW) / (out.Z * 8314.46 * T_K);
+
+  const fl  = FLUID_DB_orifice[p.liqKey] || null;
+  out.rho_l = tpLiquidDensity(fl, p.T_c, p.liqSG);
+  const muL = liquidViscosity(fl, T_K);
+  out.mu_l  = muL != null ? muL : (p.liqMu > 0 ? p.liqMu : 1e-3);
+  out.T_c   = p.T_c;
+  if (fl?.Tb_C != null && !fl.ant && p.T_c > fl.Tb_C && p.P_bar < 3)
+    out.warns.push(`Liquid is above its normal boiling point (${fl.Tb_C} °C) at low pressure — flashing across the plate is likely; frozen-quality correlations will under-state the ΔP`);
+  return out;
+}
+
+// ── Core: total mass flow for a given ΔP and bore ────────────────────────────
+function tpMassFlow(corr, dp_Pa, d_m, c) {
+  const D    = c.D_m;
+  const beta = d_m / D;
+  const b4   = Math.pow(beta, 4);
+  const A2   = Math.PI / 4 * d_m * d_m;
+  const E    = 1 / Math.sqrt(1 - b4);
+  const eps  = computeY(beta, dp_Pa, c.P_Pa, c.k, c.tapType);
+  const x = c.x, rg = c.rho_g, rl = c.rho_l;
+  const X   = ((1 - x) / x) * Math.sqrt(rg / rl) * eps;
+  const Cch = Math.pow(rl / rg, 0.25) + Math.pow(rg / rl, 0.25);
+
+  const massAt = (Cd) => {
+    const Kg = Cd * E * eps * A2 * Math.sqrt(2 * rg * dp_Pa);
+    switch (corr) {
+      case 'murdock':
+        return Kg / (x * (1 + 1.26 * X));
+      case 'homogeneous': {
+        const vm = x / (eps * eps * rg) + (1 - x) / rl;
+        return Cd * E * A2 * Math.sqrt(2 * dp_Pa / vm);
+      }
+      case 'james': {
+        const xj = Math.pow(x, 1.5);
+        const vm = xj / (eps * eps * rg) + (1 - xj) / rl;
+        return Cd * E * A2 * Math.sqrt(2 * dp_Pa / vm);
+      }
+      default:
+        return Kg / (x * Math.sqrt(1 + Cch * X + X * X));
+    }
+  };
+
+  let Cd = getCd(1e6, beta, c.tapType, c.D_mm, c.customCd);
+  let m = 0, Re = 0, Re_g = 0, Re_l = 0;
+  for (let i = 0; i < 40; i++) {
+    m    = massAt(Cd);
+    Re_g = 4 * x * m / (Math.PI * D * c.mu_g);
+    Re_l = 4 * (1 - x) * m / (Math.PI * D * c.mu_l);
+    Re   = X <= 1 ? Re_g : Re_l;
+    const CdN = getCd(Re, beta, c.tapType, c.D_mm, c.customCd);
+    if (Math.abs(CdN - Cd) < 1e-10) { Cd = CdN; break; }
+    Cd = CdN;
+  }
+  m = massAt(Cd);
+  const mg_app = Cd * E * eps * A2 * Math.sqrt(2 * rg * dp_Pa);   // flow a dry-gas meter would report
+  return { m, Cd, eps, E, beta, X, Cch, Re, Re_g, Re_l, OR: mg_app / (x * m) };
+}
+
+// ΔP for a target mass flow (log-bisection; ṁ rises monotonically with ΔP)
+function tpSolveDp(corr, m_target, d_m, c) {
+  let lo = 0.1, hi = 0.6 * c.P_Pa;
+  if (tpMassFlow(corr, hi, d_m, c).m < m_target) return null;
+  for (let i = 0; i < 90; i++) {
+    const mid = Math.sqrt(lo * hi);
+    if (tpMassFlow(corr, mid, d_m, c).m < m_target) lo = mid; else hi = mid;
+    if (hi / lo < 1 + 1e-10) break;
+  }
+  return Math.sqrt(lo * hi);
+}
+
+// Bore for a target mass flow at a given ΔP (bisection; ṁ rises with d)
+function tpSolveBore(corr, m_target, dp_Pa, c) {
+  let lo = 0.05 * c.D_m, hi = 0.94 * c.D_m;
+  if (tpMassFlow(corr, hi, dp_Pa, c).m < m_target) return null;
+  if (tpMassFlow(corr, lo, dp_Pa, c).m > m_target) return null;
+  for (let i = 0; i < 90; i++) {
+    const mid = 0.5 * (lo + hi);
+    if (tpMassFlow(corr, dp_Pa, mid, c).m < m_target) lo = mid; else hi = mid;
+    if (hi - lo < 1e-9) break;
+  }
+  return 0.5 * (lo + hi);
+}
+
+// ── Main two-phase calculation ───────────────────────────────────────────────
+function calculateTwoPhase(params) {
+  const { mode, tapType, customCd, P_bar, T_c, k, D_mm, d_mm,
+          dp_Pa_in, flow_in, flow_unit, tp } = params;
+
+  const x = tp.x;
+  if (!(x > 0 && x < 1))
+    return { error: 'Quality x (gas mass fraction) must be between 0 and 1 (exclusive). For x = 0 or 1 use the Liquid or Gas category.' };
+  if (!(P_bar > 0)) return { error: 'Pressure must be > 0 bara (absolute).' };
+  if (!(D_mm > 0))  return { error: 'Pipe ID must be > 0.' };
+
+  const corr = TP_CORR[tp.corr] ? tp.corr : 'chisholm';
+  const pr   = tpProps({ ...tp, P_bar, T_c });
+  if (!(pr.rho_g > 0 && pr.rho_l > 0))
+    return { error: 'Could not evaluate phase densities — check pressure, temperature and fluid inputs.' };
+  if (pr.rho_g >= pr.rho_l)
+    return { error: `Gas density (${pr.rho_g.toFixed(2)}) ≥ liquid density (${pr.rho_l.toFixed(1)} kg/m³) — not a gas–liquid system at these conditions.` };
+
+  const D_m    = D_mm / 1000;
+  const P_Pa   = P_bar * 1e5;
+  const A_pipe = Math.PI / 4 * D_m * D_m;
+  const c = { D_m, D_mm, P_Pa, k, tapType, customCd, x,
+              rho_g: pr.rho_g, rho_l: pr.rho_l, mu_g: pr.mu_g, mu_l: pr.mu_l };
+
+  const toKgs = (v, u) => u === 'kgs' ? v : u === 'tonhr' ? v * 1000 / 3600 : v / 3600;
+
+  let dp_Pa, d_m, m_target = null;
+  if (mode === 'flow') {
+    dp_Pa = dp_Pa_in; d_m = d_mm / 1000;
+    if (!(dp_Pa > 0)) return { error: 'Differential pressure must be > 0.' };
+    if (!(d_m > 0 && d_m < D_m)) return { error: 'Bore d must be > 0 and smaller than pipe ID.' };
+  } else if (mode === 'dp') {
+    m_target = toKgs(flow_in, flow_unit); d_m = d_mm / 1000;
+    if (!(m_target > 0)) return { error: 'Target total mass flow must be > 0.' };
+    if (!(d_m > 0 && d_m < D_m)) return { error: 'Bore d must be > 0 and smaller than pipe ID.' };
+    dp_Pa = tpSolveDp(corr, m_target, d_m, c);
+    if (dp_Pa == null) return { error: 'Required ΔP exceeds 60 % of line pressure — bore too small for this two-phase flow (near-critical). Increase the bore.' };
+  } else {
+    m_target = toKgs(flow_in, flow_unit); dp_Pa = dp_Pa_in;
+    if (!(m_target > 0)) return { error: 'Target total mass flow must be > 0.' };
+    if (!(dp_Pa > 0))    return { error: 'Differential pressure must be > 0.' };
+    d_m = tpSolveBore(corr, m_target, dp_Pa, c);
+    if (d_m == null) return { error: 'No bore between β = 0.05 and 0.94 passes this flow at the given ΔP — change the ΔP range.' };
+  }
+
+  const r  = tpMassFlow(corr, dp_Pa, d_m, c);
+  const m  = r.m;                       // kg/s (≈ target in dp/bore modes)
+  const mg = x * m, ml = (1 - x) * m;
+  const qg = mg / pr.rho_g, ql = ml / pr.rho_l;
+  const vm = x / pr.rho_g + (1 - x) / pr.rho_l;
+  const rho_h = 1 / vm;
+  const alpha = (x / pr.rho_g) / vm;
+  const A2 = Math.PI / 4 * d_m * d_m;
+
+  // ── Correlation comparison (same mode, same inputs) ──
+  const selVal = mode === 'flow' ? m * 3600 : mode === 'dp' ? dp_Pa : d_m * 1000;
+  const compare = TP_KEYS.map(key => {
+    let v = null;
+    if (mode === 'flow')      v = tpMassFlow(key, dp_Pa, d_m, c).m * 3600;
+    else if (mode === 'dp') { const s = tpSolveDp(key, m_target, d_m, c);   v = s != null ? s : null; }
+    else                    { const s = tpSolveBore(key, m_target, dp_Pa, c); v = s != null ? s * 1000 : null; }
+    return { key, label: TP_CORR[key].label, value: v,
+             dev_pct: v != null ? (v / selVal - 1) * 100 : null, selected: key === corr };
+  });
+  const sepVals = compare.filter(q => q.key !== 'homogeneous' && q.value != null).map(q => q.value);
+  const spread_raw = sepVals.length > 1 ? (Math.max(...sepVals) - Math.min(...sepVals)) / selVal * 100 : 0;
+  // express the spread as a flow-equivalent % (ΔP ∝ ṁ², ṁ ∝ d² roughly)
+  const spread_flow = mode === 'dp' ? spread_raw / 2 : mode === 'beta' ? spread_raw * 2 : spread_raw;
+
+  // ── Sensitivity of flow to quality (+5 % on x) ──
+  const x2 = Math.min(x * 1.05, 0.9999);
+  const sens_x = (tpMassFlow(corr, dp_Pa, d_m, { ...c, x: x2 }).m / m - 1) * 100;
+
+  // ── Uncertainty (indicative) ──
+  const u_iso = parseFloat(estimateUncertainty(r.beta, r.Re, tapType, true));
+  const U = Math.sqrt(TP_CORR[corr].base_u ** 2 + u_iso ** 2 + (spread_flow / 2) ** 2);
+
+  // ── Permanent loss (single-phase ISO relation — approximate for two-phase) ──
+  const perm_pct = computePressureRecovery(r.beta, r.Cd, tapType);
+  const perm_Pa  = perm_pct / 100 * dp_Pa;
+
+  // Gas-phase normal volume (gas–liquid only)
+  const rho_n = pr.sub === 'wetsteam' ? null : 101325 * pr.MW / (8314.46 * 273.15);
+  const nm3hr_gas = rho_n ? mg * 3600 / rho_n : null;
+
+  // ── Warnings / infos ──
+  const warns = [...pr.warns], infos = [...pr.infos];
+  validateInputs({ D_m, d_m, P_Pa, rho: rho_h, mu: pr.mu_g, beta: r.beta, Z: pr.Z })
+    .forEach(e => warns.push(e));
+  const betaMax = ['nozzle_isa', 'venturi_nozzle'].includes(tapType) ? 0.80 : 0.75;
+  if (r.beta < 0.20 || r.beta > betaMax) warns.push(`β=${r.beta.toFixed(4)} outside ISO 5167 range 0.20–${betaMax}`);
+  if (dp_Pa / P_Pa > 0.25) warns.push('⚡ ΔP/P > 0.25: gas expansibility factor outside ISO validity — two-phase result unreliable');
+  const Re_min = getReMin(r.beta);
+  if (r.Re < Re_min) warns.push(`Continuous-phase Re=${r.Re.toFixed(0)} below ISO minimum ${Re_min} for β=${r.beta.toFixed(3)}`);
+  if (corr === 'chisholm' && r.X > 1)
+    warns.push(`X = ${r.X.toFixed(3)} > 1 (liquid-dominant) — outside Chisholm's orifice range; compare with Homogeneous/James`);
+  if (corr === 'murdock' && r.X > 0.3)
+    warns.push(`X = ${r.X.toFixed(3)} > 0.3 — outside Murdock's wet-gas range; Chisholm is preferred here`);
+  if (corr === 'james' && pr.sub !== 'wetsteam')
+    infos.push('James correlation was developed for steam–water; for other fluid pairs treat the result as indicative');
+  if (corr === 'homogeneous')
+    infos.push('Homogeneous model ignores phase slip — it gives the lowest flow for a given ΔP (conservative-low for metering)');
+  if (spread_raw > 5)
+    warns.push(`Correlations disagree by ${spread_raw.toFixed(1)} % — result is correlation-dependent; confirm x and consider a wet-gas / two-phase meter`);
+  if (pr.zr?.outOfRange)
+    infos.push(`Pitzer Z validity: Tr=${pr.zr.Tr?.toFixed(2)}, Pr=${pr.zr.Pr?.toFixed(2)} — outside recommended range`);
+  infos.push(`Flow is sensitive to quality: +5 % on x changes total flow by ${sens_x >= 0 ? '+' : ''}${sens_x.toFixed(2)} % — x must come from a reliable source (heat balance, sampling, separator test)`);
+  infos.push('Frozen quality assumed (no flashing/condensation across the plate). Install in vertical flow where possible; stratified horizontal flow is outside all correlations. Provide drain/vent hole and DP damping.');
+
+  return {
+    mode, twoPhaseCalc: true,
+    mass_kghr:   m * 3600,
+    mass_kgs:    m,
+    mass_tonhr:  m * 3.6,
+    qv_act_m3hr: (qg + ql) * 3600,
+    qv_act_m3s:  qg + ql,
+    nm3hr: null, nm3day: null, sm3hr: null,
+    dp_Pa,
+    dp_mmH2O: dp_Pa / 9.80665,  dp_inH2O: dp_Pa / 249.089, dp_kPa: dp_Pa / 1000,
+    dp_mbar:  dp_Pa / 100,      dp_bar:   dp_Pa / 1e5,     dp_psi: dp_Pa / 6894.757,
+    dp_kgcm2: dp_Pa / 98066.5,
+    bore_mm: d_m * 1000, bore_in: d_m * 1000 / 25.4, beta: r.beta,
+    pv_bar: null, throat_superheat_C: null,
+    rho_op: rho_h,
+    mu_used: pr.mu_g,
+    mu_auto: pr.gasAuto ? pr.mu_g : null,
+    Z_used:  pr.Z,
+    Z_auto:  pr.gasAuto ? pr.Z : null,
+    Z_autoOutOfRange: pr.zr?.outOfRange ?? false,
+    steamSatWarning: false,
+    steamSatT: pr.Tsat_C,
+    Cd: r.Cd, Y: r.eps, E: r.E, Re_pipe: r.Re,
+    perm_pct, perm_Pa,
+    perm_mmH2O: perm_Pa / 9.80665, perm_mbar: perm_Pa / 100, perm_bar: perm_Pa / 1e5,
+    perm_kPa: perm_Pa / 1000,      perm_psi:  perm_Pa / 6894.757,
+    uncertainty_pct: U.toFixed(1),
+    dp_P_ratio: dp_Pa / P_Pa,
+    v_orifice: (qg + ql) / A2,
+    v_pipe:    (qg + ql) / A_pipe,
+    warnings: warns,
+    infos,
+    twoPhase: {
+      sub: pr.sub, corr, corrLabel: TP_CORR[corr].label, x,
+      rho_g: pr.rho_g, rho_l: pr.rho_l, rho_h, alpha,
+      mu_g: pr.mu_g, mu_l: pr.mu_l, Tsat_C: pr.Tsat_C,
+      mg_kghr: mg * 3600, ml_kghr: ml * 3600,
+      qg_m3hr: qg * 3600, ql_m3hr: ql * 3600, nm3hr_gas,
+      X: r.X, Cch: r.Cch, OR: r.OR, Re_g: r.Re_g, Re_l: r.Re_l,
+      sens_x, spread_pct: spread_raw,
+      compareUnit: mode === 'flow' ? 'kg/hr' : mode === 'dp' ? 'Pa' : 'mm',
+      compare,
+    },
+  };
+}
+
+// Lightweight preview for the page (densities as T/P/x change)
+function twoPhasePreview(tp, P_bar, T_c) {
+  const pr = tpProps({ ...tp, P_bar, T_c });
+  const x  = (tp.x > 0 && tp.x < 1) ? tp.x : null;
+  const rho_h = x ? 1 / (x / pr.rho_g + (1 - x) / pr.rho_l) : null;
+  return {
+    ok: true,
+    rho_op: rho_h,
+    rho_g: pr.rho_g, rho_l: pr.rho_l, Tsat_C: pr.Tsat_C,
+    mu_auto: pr.gasAuto ? pr.mu_g : null,
+    Z_auto:  pr.gasAuto ? pr.Z : null,
+  };
+}
+// ── End of Section C-2: Two-Phase Orifice Extension ─────────────────────────
+
 async function orificeFlow_handler(req, res) {
   setCORS_orifice(res);
 
@@ -2307,6 +2643,22 @@ async function orificeFlow_handler(req, res) {
 
   try {
     const body = await readBody(req);
+
+    // ── TWO-PHASE input bundle (used only when cat === 'twophase') ──
+    const buildTP = (b) => ({
+      sub:        b.tpSub === 'wetsteam' ? 'wetsteam' : 'gasliq',
+      corr:       b.tpCorr || 'chisholm',
+      x:          parseFloat(b.x),
+      gasKey:     b.fluidKey || null,
+      MW_input:   parseFloat(b.MW) || 0,
+      sg_gas:     parseFloat(b.sg) || 0,
+      Z_input:    parseFloat(b.Z)  || 1,
+      mu_g_input: parseFloat(b.mu) || 1.82e-5,
+      liqKey:     b.liqKey || null,
+      liqSG:      parseFloat(b.liqSG) || 1.0,
+      liqMu:      parseFloat(b.liqMu) || 1e-3,
+    });
+
 // ── DENSITY PREVIEW (lightweight — called on every T/P/fluid change) ──
     if (body.action === 'density-preview') {
       const isMetric = (body.unitSys || 'metric') === 'metric';
@@ -2318,6 +2670,12 @@ async function orificeFlow_handler(req, res) {
       const cat      = body.cat      || 'gas';
       const fluidKey = body.fluidKey || null;
       const sg_input = parseFloat(body.sg) || 1.0;
+
+      // TWO-PHASE preview
+      if (cat === 'twophase') {
+        res.statusCode = 200;
+        return res.end(JSON.stringify(twoPhasePreview(buildTP(body), P_bar, T_c)));
+      }
 
       let rho = null, mu_out = null, Z_out = null;
 
@@ -2366,7 +2724,7 @@ async function orificeFlow_handler(req, res) {
         Z_auto:  Z_out,
       }));
     }
-    
+
     // ── PARSE & NORMALISE ALL INPUTS TO SI ──────────────────────────
     const mode     = body.mode    || 'flow';
     const cat      = body.cat     || 'gas';
@@ -2388,6 +2746,22 @@ async function orificeFlow_handler(req, res) {
     // Flow input
     const flow_in   = parseFloat(body.flow) || 0;
     const flow_unit = body.flow_unit || 'Nm3hr';
+
+    // ── TWO-PHASE BRANCH ──
+    if (cat === 'twophase') {
+      const tpResult = calculateTwoPhase({
+        mode, tapType, customCd: body.customCd, P_bar, T_c,
+        k: parseFloat(body.k) || 1.3,
+        D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
+        tp: buildTP(body),
+      });
+      if (tpResult.error) {
+        res.statusCode = 200;
+        return res.end(JSON.stringify({ ok: false, error: tpResult.error }));
+      }
+      res.statusCode = 200;
+      return res.end(JSON.stringify({ ok: true, ...tpResult }));
+    }
 
     const params = {
       mode, cat, tapType,
