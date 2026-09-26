@@ -75,7 +75,15 @@
           "name": "When should I not use an orifice plate?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Orifice plates are a poor choice for: High viscosity fluids (Re < 5000) — Cd becomes unstable; use a positive displacement meter or Coriolis instead. Two-phase flow (liquid with gas, or wet steam) — the equation is not valid; use a multiphase meter or separate phases upstream. Slurries and fluids with suspended solids — solids erode the bore edge and settle in impulse lines; use a magnetic flowmeter or Coriolis. Very low flow or wide turndown (greater than 5:1) — poor signal at low ΔP; use Coriolis, ultrasonic, or variable area meter. Very dirty gases — bore fouls rapidly; consider an annubar or averaging pitot that can be retracted for cleaning."
+            "text": "Orifice plates are a poor choice for: High viscosity fluids (Re < 5000) — Cd becomes unstable; use a positive displacement meter or Coriolis instead. Two-phase flow (liquid with gas, or wet steam) — the single-phase ISO 5167 equation over-reads; if the quality is known, a two-phase correlation such as Chisholm or Murdock (available in this calculator's Two-Phase mode) corrects the reading to roughly ±3–10%, otherwise use a multiphase meter or separate the phases upstream. Slurries and fluids with suspended solids — solids erode the bore edge and settle in impulse lines; use a magnetic flowmeter or Coriolis. Very low flow or wide turndown (greater than 5:1) — poor signal at low ΔP; use Coriolis, ultrasonic, or variable area meter. Very dirty gases — bore fouls rapidly; consider an annubar or averaging pitot that can be retracted for cleaning."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I size an orifice for two-phase (gas–liquid or wet steam) flow?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, for non-flashing flow with known quality x. Select the Two-Phase fluid category: the calculator computes the gas-alone ISO 5167 capacity and applies the Chisholm (1977), Murdock (1962), James (1965) or homogeneous correlation, where X = ((1-x)/x)·sqrt(rho_g/rho_l) is the Lockhart-Martinelli parameter. Wet steam properties come from IAPWS-IF97 at saturation. Expect ±3-10% uncertainty. Flashing letdown and choked two-phase restriction orifices need the HEM/omega method (API 520 Annex C)."
           }
         },
         {
@@ -796,6 +804,7 @@ select option { background: #ffffff; color: var(--text); }
           <option value="gas">General Gas / Vapour</option>
           <option value="liquid">Liquid</option>
           <option value="steam">Steam / Water</option>
+          <option value="twophase">Two-Phase (Gas–Liquid / Wet Steam)</option>
         </select>
       </div>
       <div class="field" id="orifice_type_wrap">
@@ -842,6 +851,64 @@ select option { background: #ffffff; color: var(--text); }
     <!-- Steam badge -->
     <div class="steam-badge" id="steam_badge">
       🌡 <span>Steam density: IAPWS-IF97 Region 1 (liquid) + Region 2 (superheated steam) — 43-term residual formulation. Enter temperature above saturation for superheated steam.</span>
+    </div>
+
+    <!-- ══ TWO-PHASE INPUTS (shown only for Fluid Category = Two-Phase) ══ -->
+    <div id="tp_block" style="display:none;background:rgba(0,122,94,0.05);border:1.5px solid rgba(0,122,94,0.28);border-radius:8px;padding:12px 14px 4px;margin-bottom:12px;">
+      <div style="font-family:var(--head);font-size:0.62rem;letter-spacing:1.5px;color:var(--green);font-weight:800;margin-bottom:10px;">▸ TWO-PHASE FLOW — SEPARATED-FLOW ORIFICE CORRELATIONS</div>
+      <div class="frow">
+        <div class="field">
+          <label data-tip="Gas + Liquid: any gas with any liquid (non-flashing). Wet Steam: saturated steam–water mixture, properties from IAPWS-IF97 at the saturation temperature for the entered pressure.">Two-Phase System</label>
+          <select id="tp_sub" onchange="onTpSubChange()">
+            <option value="gasliq">Gas + Liquid (wet gas)</option>
+            <option value="wetsteam">Wet Steam (steam–water)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label data-tip="Chisholm: general orifice two-phase correlation (preferred, X ≤ 1). Murdock: wet gas, X < 0.3. James: steam–water. Homogeneous: no slip — gives lowest flow for a given ΔP.">Correlation</label>
+          <select id="tp_corr">
+            <option value="chisholm">Chisholm (1977) — recommended</option>
+            <option value="murdock">Murdock (1962) — wet gas</option>
+            <option value="james">James (1965) — steam–water</option>
+            <option value="homogeneous">Homogeneous (no slip)</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="field">
+          <label data-tip="Quality x = gas (or steam) mass flow ÷ total mass flow, 0 &lt; x &lt; 1. For wet steam this is the dryness fraction. Flow is directly sensitive to x — take it from a heat balance, sampling or separator test.">Quality x <span class="hint">gas mass fraction</span></label>
+          <input type="number" id="tp_x" value="0.90" min="0.001" max="0.999" step="0.01" oninput="updateFluidProps()">
+        </div>
+        <div class="field" id="tp_tsat_wrap" style="display:none;">
+          <label>Saturation Temp. <span class="hint">from P (IF97)</span></label>
+          <div class="inp-wrap">
+            <input type="text" id="tp_tsat" value="—" disabled>
+            <span class="inp-unit" id="tp_tsat_unit">°C</span>
+          </div>
+        </div>
+      </div>
+      <div id="tp_liq_wrap">
+        <div class="field frow-1" style="margin-bottom:10px;">
+          <label>Liquid Phase <span class="hint">(select, or enter SG &amp; μ below)</span></label>
+          <select id="tp_liq_select" onchange="onTpLiqSelect()" style="width:100%;"></select>
+        </div>
+        <div class="frow">
+          <div class="field">
+            <label data-tip="Liquid specific gravity relative to water. When a liquid is selected, the API applies its temperature-corrected density.">Liquid SG <span class="hint">water=1</span></label>
+            <input type="number" id="tp_liq_sg" value="1.000" step="0.001" oninput="onTpLiqManual()">
+          </div>
+          <div class="field">
+            <label data-tip="Liquid dynamic viscosity. Auto-calculated vs temperature when a liquid is selected.">Liquid μ <span class="hint">Pa·s</span></label>
+            <input type="number" id="tp_liq_mu" value="0.001" step="0.0001" oninput="onTpLiqManual()">
+          </div>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text3);line-height:1.5;margin:-4px 0 8px;">Gas phase = fluid selected in the database above; SG, Z, k and μ fields below refer to the <strong>gas phase</strong>.</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--mono);font-size:0.72rem;">
+        <span style="padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);">ρ<sub>g</sub> <b id="tp_prev_rg">—</b></span>
+        <span style="padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);">ρ<sub>l</sub> <b id="tp_prev_rl">—</b></span>
+        <span style="padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);">ρ<sub>g</sub>/ρ<sub>l</sub> <b id="tp_prev_ratio">—</b></span>
+      </div>
     </div>
 
     <!-- Process conditions -->
@@ -1111,6 +1178,31 @@ select option { background: #ffffff; color: var(--text); }
       </div>
     </div>
 
+    <!-- ══ TWO-PHASE RESULTS (shown only for two-phase calculations) ══ -->
+    <div id="tp_results" style="display:none;margin-bottom:14px;">
+      <div style="font-family:var(--head);font-size:0.62rem;letter-spacing:1.5px;color:var(--green);font-weight:800;margin-bottom:8px;padding:5px 0 4px;border-bottom:1.5px solid var(--border);">⇄ TWO-PHASE BREAKDOWN — <span id="tp_r_corr">—</span></div>
+      <table class="output-table" style="margin-bottom:10px;">
+        <tr><td>Quality x (gas mass fraction)</td><td id="tp_r_x">—</td></tr>
+        <tr><td>Gas / vapour mass flow</td><td id="tp_r_mg">—</td></tr>
+        <tr><td>Liquid mass flow</td><td id="tp_r_ml">—</td></tr>
+        <tr><td>Gas actual vol. flow</td><td id="tp_r_qg">—</td></tr>
+        <tr><td>Liquid vol. flow</td><td id="tp_r_ql">—</td></tr>
+        <tr id="tp_r_nm3_row"><td>Gas Nm³/hr (0°C, 1 atm)</td><td id="tp_r_nm3">—</td></tr>
+        <tr><td>Gas density ρ<sub>g</sub></td><td id="tp_r_rg">—</td></tr>
+        <tr><td>Liquid density ρ<sub>l</sub></td><td id="tp_r_rl">—</td></tr>
+        <tr><td>Homogeneous density ρ<sub>h</sub></td><td id="tp_r_rh">—</td></tr>
+        <tr><td>Homogeneous void fraction α</td><td id="tp_r_alpha">—</td></tr>
+        <tr id="tp_r_tsat_row"><td>Saturation temperature</td><td id="tp_r_tsat">—</td></tr>
+        <tr><td data-tip="X = ((1−x)/x)·√(ρg/ρl)·ε. X &lt; 0.3 wet gas; X &gt; 1 liquid-dominant.">Lockhart–Martinelli X</td><td id="tp_r_X">—</td></tr>
+        <tr><td>Chisholm C = (ρl/ρg)^¼ + (ρg/ρl)^¼</td><td id="tp_r_C">—</td></tr>
+        <tr><td data-tip="How much a dry-gas meter (single-phase equation using gas density) would over-read the true gas flow.">Gas over-reading (dry-gas meter)</td><td id="tp_r_or">—</td></tr>
+        <tr><td>Re gas-alone / liquid-alone</td><td id="tp_r_re">—</td></tr>
+        <tr><td>Flow change for +5 % on x</td><td id="tp_r_sens">—</td></tr>
+      </table>
+      <div style="font-family:var(--head);font-size:0.62rem;letter-spacing:1.5px;color:var(--cyan2);font-weight:800;margin-bottom:6px;">▸ CORRELATION COMPARISON <span id="tp_cmp_unit" style="color:var(--text3)"></span></div>
+      <table class="output-table" id="tp_cmp_table"></table>
+    </div>
+
     <!-- Extra outputs table -->
     <table class="output-table" id="extra_table">
       <tr style="background:rgba(0,85,187,0.04)"><td colspan="2" style="font-family:var(--head);font-size:0.65rem;letter-spacing:1.5px;color:var(--cyan2);font-weight:800;padding:7px 11px;">▸ FLOW — MULTIPLE UNITS</td></tr>
@@ -1149,15 +1241,19 @@ select option { background: #ffffff; color: var(--text); }
       <span class="hl">Y — Nozzle/Venturi (ISO 5167-3/4)</span>: Y = √[κ·τ^(2/κ)·(1−β⁴) / ((κ−1)·(1−τ^((κ-1)/κ))·(1−β⁴·τ^(2/κ)))]<br>
       <span class="hla">ΔW</span>/ΔP = [√(1−β⁴(1−Cd²)) − Cd·β²] / [√(1−β⁴(1−Cd²)) + Cd·β²] &nbsp;<span style="color:var(--text3)">(perm. loss, orifice)</span><br>
       ρ = <span class="hla">P·M</span>/(Z·R·T) &nbsp;[gas] &nbsp;|&nbsp; ρ = SG×1000 &nbsp;[liquid] &nbsp;|&nbsp; IAPWS-IF97 &nbsp;[steam]<br>
-      β = d/D &nbsp;&nbsp; A₂ = π/4·d² &nbsp;&nbsp; ISO Re min: β≤0.44→5000, β≤0.56→10000, β≤0.65→30000, β≤0.75→170000
+      β = d/D &nbsp;&nbsp; A₂ = π/4·d² &nbsp;&nbsp; ISO Re min: β≤0.44→5000, β≤0.56→10000, β≤0.65→30000, β≤0.75→170000<br>
+      <span class="hl">TWO-PHASE</span> &nbsp;x = ṁ<sub>g</sub>/ṁ &nbsp;|&nbsp; X = ((1−x)/x)·√(ρg/ρl)·Y &nbsp;|&nbsp; K<sub>g</sub> = Cd·E·Y·A₂·√(2·ρg·ΔP)<br>
+      &nbsp;&nbsp;<span class="hl">Chisholm</span>: ṁ = K<sub>g</sub> / [x·√(1 + C·X + X²)], &nbsp;C = (ρl/ρg)^¼ + (ρg/ρl)^¼<br>
+      &nbsp;&nbsp;<span class="hl">Murdock</span>: ṁ = K<sub>g</sub> / [x·(1 + 1.26·X)] &nbsp;|&nbsp; <span class="hl">Homogeneous</span>: ṁ = Cd·E·A₂·√(2ΔP / v<sub>m</sub>), v<sub>m</sub> = x/(Y²ρg) + (1−x)/ρl<br>
+      &nbsp;&nbsp;<span class="hl">James</span> (steam–water): homogeneous form with x → x<sup>1.5</sup> &nbsp;|&nbsp; Cd at gas-alone Re (X ≤ 1) or liquid-alone Re (X &gt; 1)
     </div>
 
     <div class="warn-box" id="warn1">⚠ <span id="warn1_txt"></span></div>
     <div class="warn-box warn-amber" id="warn2">ℹ <span id="warn2_txt"></span></div>
     <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:0.68rem;color:var(--text3);line-height:1.6;">
-      <strong>Assumptions &amp; Limitations:</strong> ISO 5167-2:2022 | Single-phase flow only | Sharp-edge orifice (ISO geometry) | Clean smooth pipe assumed | 
+      <strong>Assumptions &amp; Limitations:</strong> ISO 5167-2:2022 | Single-phase ISO equation (two-phase via correlations below) | Sharp-edge orifice (ISO geometry) | Clean smooth pipe assumed | 
       Plate edge wear, pipe roughness and flow profile distortion not modelled (each can affect Cd by 0.5–5%) | 
-      Two-phase (flashing liquid, wet steam) not supported | 
+      Two-phase mode: Chisholm / Murdock / James / Homogeneous correlations, frozen quality (no flashing across the plate), homogeneous or vertical flow — typical ±3–10%; flashing letdown and choked two-phase flow not supported | 
       Viscosity: Sutherland law (±5–30% for polar/heavy gases) | 
       Z: Pitzer correlation (valid Tr&gt;0.7, Pr&lt;0.9; use EOS outside this range) | 
       Pressure must be <em>absolute</em> (bara/psia).
@@ -1389,6 +1485,8 @@ function renderResults(r) {
     setOut('muc_v_nm3hr',  r.nm3hr != null ? r.nm3hr.toFixed(2) : '—');
     setOut('muc_v_nm3day', r.nm3day != null ? r.nm3day.toFixed(1) : '—');
     setOut('muc_v_sm3hr',  r.sm3hr != null ? r.sm3hr.toFixed(2) : '—');
+  } else {
+    ['muc_v_nm3hr','muc_v_nm3day','muc_v_sm3hr'].forEach(id => setOut(id, '—'));
   }
 
   // ── DP multi-unit cells ── (always show all units)
@@ -1423,7 +1521,7 @@ function renderResults(r) {
   setOut('out_perm_mmh2o', permPrimary.toFixed(imp?4:1) + ' ' + permPrimUnit);
   setOut('out_perm_mbar',  (r.perm_mbar ?? 0).toFixed(2) + ' mbar');
   setOut('out_perm_bar',   (r.perm_bar ?? 0).toFixed(4) + ' bar | ' + (r.perm_kPa??0).toFixed(3) + ' kPa | ' + (r.perm_psi??0).toFixed(4) + ' psi');
-  setOut('out_uncertainty', '±' + (r.uncertainty_pct ?? '—') + '% (ISO, k=2)');
+  setOut('out_uncertainty', '±' + (r.uncertainty_pct ?? '—') + (r.twoPhaseCalc ? '% (two-phase, indicative)' : '% (ISO, k=2)'));
 
   // ΔP/P ratio
   const dpPratio = r.dp_P_ratio ?? 0;
@@ -1435,6 +1533,9 @@ function renderResults(r) {
 
   // Beta gauge
   updateGauge(r.beta ?? 0);
+
+  // Two-phase breakdown
+  renderTwoPhase(r);
 
   // Auto-update Z/μ fields if API returned auto values
   if (r.mu_auto != null) {
@@ -1497,6 +1598,7 @@ async function runNow() {
     sg:        document.getElementById('d_val').value,
     MW:        document.getElementById('custom_mw').value,
     fluidKey:  selectedFluidKey,
+    ...twoPhasePayload(cat),
   };
 
   setLoading(true);
@@ -1577,10 +1679,31 @@ function onCatChange() {
   const cat     = document.getElementById('f_cat').value;
   const isSteam = cat === 'steam';
   const isLiq   = cat === 'liquid';
+  const isTP    = cat === 'twophase';
   document.getElementById('steam_badge').classList.toggle('show', isSteam);
   document.getElementById('gas_extra_row').style.display = isSteam ? 'none' : '';
   document.getElementById('zf').disabled   = isSteam;
   document.getElementById('d_val').disabled = isSteam;
+  document.getElementById('tp_block').style.display = isTP ? '' : 'none';
+  document.querySelector('.fluid-db-wrap').style.display = '';
+  document.getElementById('t_val').disabled = false;
+  if (!isTP) { const tr = document.getElementById('tp_results'); if (tr) tr.style.display = 'none'; }
+
+  if (isTP) {
+    document.getElementById('sg_lbl').textContent = 'Gas SG (air=1.0)';
+    document.getElementById('rho_unit').textContent = 'SG (air=1)';
+    document.getElementById('custom_rho_lbl').textContent = 'Gas SG (air=1.0)';
+    document.getElementById('custom_mw_wrap').style.display = '';
+    document.getElementById('f_lbl').textContent = 'Target Total Mass Flow';
+    const fsel = document.getElementById('f_unit_sel');
+    fsel.innerHTML = '<option value="kghr">kg/hr</option><option value="kgs">kg/s</option><option value="tonhr">t/hr (metric)</option>';
+    fsel.value = 'kghr';
+    buildFluidChips();
+    buildTpLiquidOptions();
+    updateExtraTableVisibility(cat);
+    onTpSubChange();          // applies gas-liquid vs wet-steam specifics + preview
+    return;
+  }
 
   if (isSteam) {
     document.getElementById('isen_k').value = '1.30';
@@ -1627,7 +1750,7 @@ function updateExtraTableVisibility(cat) {
 function buildFluidChips() { // name kept for legacy call sites — now populates the dropdown
   const sel = document.getElementById('fluid_select');
   const cat = document.getElementById('f_cat').value;
-  const tWant = cat === 'gas' ? 'g' : cat === 'liquid' ? 'l' : 's';
+  const tWant = (cat === 'gas' || cat === 'twophase') ? 'g' : cat === 'liquid' ? 'l' : 's';
   let html = '<option value="">— Select fluid (optional) —</option>';
   Object.entries(FLUID_DB).forEach(([name, data]) => {
     if (data.t === tWant) html += `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`;
@@ -1711,6 +1834,8 @@ async function _fetchDensityPreview() {
     sg:       document.getElementById('d_val').value,
     MW:       document.getElementById('custom_mw').value,
     Z:        document.getElementById('zf').value,
+    mu:       document.getElementById('visc').value,
+    ...twoPhasePayload(cat),
   };
   try {
     const res  = await fetch(API_URL, {
@@ -1722,8 +1847,9 @@ async function _fetchDensityPreview() {
     if (!data.ok) return;
     // Update density display
     if (data.rho_op != null && data.rho_op > 0) {
-      setOut('out_dens', data.rho_op.toFixed(4) + ' kg/m³');
+      setOut('out_dens', data.rho_op.toFixed(4) + ' kg/m³' + (cat === 'twophase' ? ' (homog.)' : ''));
     }
+    if (cat === 'twophase') showTpPreview(data);
     // Update Z field if gas with auto Z
     if (data.Z_auto != null) {
       document.getElementById('zf').value = data.Z_auto.toFixed(5);
@@ -1737,6 +1863,142 @@ async function _fetchDensityPreview() {
   } catch (e) {
     // Silent fail — preview is non-critical
   }
+}
+
+// ─── TWO-PHASE UI (client only — all physics in API) ──────────────────
+let tpLiqKey = 'Water';
+
+function twoPhasePayload(cat) {
+  if (cat !== 'twophase') return {};
+  return {
+    tpSub:  document.getElementById('tp_sub').value,
+    tpCorr: document.getElementById('tp_corr').value,
+    x:      document.getElementById('tp_x').value,
+    liqKey: tpLiqKey,
+    liqSG:  document.getElementById('tp_liq_sg').value,
+    liqMu:  document.getElementById('tp_liq_mu').value,
+  };
+}
+
+function buildTpLiquidOptions() {
+  const sel = document.getElementById('tp_liq_select');
+  let html = '<option value="">— Custom liquid (SG &amp; μ below) —</option>';
+  Object.entries(FLUID_DB).forEach(([name, d]) => {
+    if (d.t === 'l') html += `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`;
+  });
+  sel.innerHTML = html;
+  sel.value = tpLiqKey || '';
+  if (tpLiqKey && FLUID_DB[tpLiqKey]) {
+    document.getElementById('tp_liq_sg').value = FLUID_DB[tpLiqKey].sg.toFixed(3);
+    document.getElementById('tp_liq_mu').value = FLUID_DB[tpLiqKey].mu.toExponential(3);
+  }
+}
+
+function onTpLiqSelect() {
+  tpLiqKey = document.getElementById('tp_liq_select').value || null;
+  const f = tpLiqKey ? FLUID_DB[tpLiqKey] : null;
+  if (f) {
+    document.getElementById('tp_liq_sg').value = f.sg.toFixed(3);
+    document.getElementById('tp_liq_mu').value = f.mu.toExponential(3);
+  }
+  updateFluidProps();
+}
+
+function onTpLiqManual() {
+  tpLiqKey = null;
+  document.getElementById('tp_liq_select').value = '';
+  updateFluidProps();
+}
+
+function onTpSubChange() {
+  if (document.getElementById('f_cat').value !== 'twophase') return;
+  const wet = document.getElementById('tp_sub').value === 'wetsteam';
+  document.getElementById('tp_liq_wrap').style.display  = wet ? 'none' : '';
+  document.getElementById('tp_tsat_wrap').style.display = wet ? '' : 'none';
+  document.querySelector('.fluid-db-wrap').style.display = wet ? 'none' : '';
+  document.getElementById('gas_extra_row').style.display = wet ? 'none' : '';
+  document.getElementById('t_val').disabled = wet;       // T = Tsat(P)
+  document.getElementById('zf').disabled    = wet;
+  document.getElementById('d_val').disabled = wet;
+  const corr = document.getElementById('tp_corr');
+  if (wet) {
+    selectedFluidKey = null;
+    document.getElementById('isen_k').value = '1.30';
+    document.getElementById('visc').value   = '0.0000150';
+    document.getElementById('zf').value     = '1.000';
+    if (corr.value === 'murdock') corr.value = 'james';
+    document.getElementById('mu_auto_badge').style.display = 'none';
+    document.getElementById('z_auto_badge').style.display  = 'none';
+  } else if (corr.value === 'james') {
+    corr.value = 'chisholm';
+  }
+  updateFluidProps();
+}
+
+function showTpPreview(d) {
+  const imp = UNITS === 'imperial';
+  const dc  = imp ? 0.0624278 : 1, du = imp ? ' lb/ft³' : ' kg/m³';
+  setOut('tp_prev_rg', d.rho_g != null ? (d.rho_g*dc).toFixed(4) + du : '—');
+  setOut('tp_prev_rl', d.rho_l != null ? (d.rho_l*dc).toFixed(2) + du : '—');
+  setOut('tp_prev_ratio', (d.rho_g && d.rho_l) ? (d.rho_g/d.rho_l).toExponential(3) : '—');
+  if (d.Tsat_C != null) {
+    const t = imp ? d.Tsat_C*9/5+32 : d.Tsat_C;
+    document.getElementById('tp_tsat').value = t.toFixed(2);
+    document.getElementById('tp_tsat_unit').textContent = imp ? '°F' : '°C';
+    document.getElementById('t_val').value = t.toFixed(2);
+  }
+}
+
+function renderTwoPhase(r) {
+  const box = document.getElementById('tp_results');
+  if (!box) return;
+  const t = r.twoPhase;
+  if (!r.twoPhaseCalc || !t) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const imp = UNITS === 'imperial';
+  const mC = imp ? 2.20462 : 1,   mU = imp ? ' lb/hr' : ' kg/hr';
+  const vC = imp ? 4.40287 : 1,   vU = imp ? ' US gal/min' : ' m³/hr';
+  const dC = imp ? 0.0624278 : 1, dU = imp ? ' lb/ft³' : ' kg/m³';
+  const f = (v, n) => (v == null || !isFinite(v)) ? '—' : Number(v).toFixed(n);
+
+  setOut('tp_r_corr',  t.corrLabel.toUpperCase());
+  setOut('tp_r_x',     f(t.x, 4) + (t.sub === 'wetsteam' ? ' (dryness fraction)' : ''));
+  setOut('tp_r_mg',    f(t.mg_kghr*mC, 2) + mU);
+  setOut('tp_r_ml',    f(t.ml_kghr*mC, 2) + mU);
+  setOut('tp_r_qg',    f(t.qg_m3hr*vC, 3) + vU);
+  setOut('tp_r_ql',    f(t.ql_m3hr*vC, 4) + vU);
+  document.getElementById('tp_r_nm3_row').style.display  = t.nm3hr_gas != null ? '' : 'none';
+  setOut('tp_r_nm3',   f(t.nm3hr_gas, 2) + ' Nm³/hr');
+  setOut('tp_r_rg',    f(t.rho_g*dC, 4) + dU);
+  setOut('tp_r_rl',    f(t.rho_l*dC, 2) + dU);
+  setOut('tp_r_rh',    f(t.rho_h*dC, 4) + dU);
+  setOut('tp_r_alpha', f(t.alpha*100, 3) + ' %');
+  document.getElementById('tp_r_tsat_row').style.display = t.Tsat_C != null ? '' : 'none';
+  setOut('tp_r_tsat',  t.Tsat_C != null ? (imp ? f(t.Tsat_C*9/5+32, 2) + ' °F' : f(t.Tsat_C, 2) + ' °C') : '—');
+  setOut('tp_r_X',     f(t.X, 5) + (t.X < 0.3 ? '  (wet gas)' : t.X > 1 ? '  (liquid-dominant)' : ''));
+  setOut('tp_r_C',     f(t.Cch, 4));
+  setOut('tp_r_or',    f((t.OR - 1)*100, 2) + ' %');
+  setOut('tp_r_re',    Math.round(t.Re_g).toLocaleString() + ' / ' + Math.round(t.Re_l).toLocaleString());
+  setOut('tp_r_sens',  (t.sens_x >= 0 ? '+' : '') + f(t.sens_x, 2) + ' %');
+
+  // Comparison table — values in the unit of the solved quantity
+  const u = t.compareUnit;
+  let conv = 1, unit = u, dec = 1;
+  if (u === 'kg/hr') { conv = mC; unit = imp ? 'lb/hr' : 'kg/hr'; dec = 1; }
+  else if (u === 'Pa') {
+    const dpUnit = document.getElementById('dp_unit_sel').value;
+    const map = { mmH2O:[1/9.80665,'mmH₂O',1], inH2O:[1/249.089,'inH₂O',3], Pa:[1,'Pa',0], kPa:[1e-3,'kPa',3],
+                  mbar:[1e-2,'mbar',2], bar:[1e-5,'bar',5], psi:[1/6894.757,'psi',4], kgcm2:[1/98066.5,'kg/cm²',5] };
+    [conv, unit, dec] = map[dpUnit] || [1,'Pa',0];
+  } else if (u === 'mm') { conv = imp ? 1/25.4 : 1; unit = imp ? 'in' : 'mm'; dec = imp ? 4 : 2; }
+  setOut('tp_cmp_unit', '(' + (MODE === 'flow' ? 'total mass flow' : MODE === 'dp' ? 'required ΔP' : 'required bore') + ', ' + unit + ')');
+  let rows = '';
+  t.compare.forEach(c => {
+    const val = c.value == null ? 'n/a' : (c.value*conv).toFixed(dec) + ' ' + unit;
+    const dev = c.dev_pct == null ? '' : (c.selected ? '  ◀ selected' : `  (${c.dev_pct >= 0 ? '+' : ''}${c.dev_pct.toFixed(2)} %)`);
+    rows += `<tr${c.selected ? ' style="font-weight:800;background:rgba(0,122,94,0.06)"' : ''}><td>${c.label}</td><td>${val}${dev}</td></tr>`;
+  });
+  document.getElementById('tp_cmp_table').innerHTML = rows;
 }
 
 // ─── PIPE CHIPS ───────────────────────────────────────────────────────
@@ -1795,6 +2057,47 @@ window.addEventListener('DOMContentLoaded', () => {
   updateUnitLabels();
   updateFluidProps();
 });
+
+// ─── PDF: two-phase section (empty string for single-phase) ──────────
+function tpPdfSection() {
+  const r = _lastApiResult;
+  if (!r || !r.twoPhaseCalc || !r.twoPhase || document.getElementById('f_cat').value !== 'twophase') return '';
+  const t = r.twoPhase;
+  const g = id => document.getElementById(id)?.textContent || '—';
+  const liq = t.sub === 'wetsteam' ? 'Water (saturated, IF97)' : (tpLiqKey || ('Custom, SG ' + document.getElementById('tp_liq_sg').value));
+  const cmp = t.compare.map(c => `<tr><td>${c.label}${c.selected ? ' ◀' : ''}</td><td class="val">${c.value == null ? 'n/a' : c.value.toFixed(t.compareUnit === 'mm' ? 2 : t.compareUnit === 'Pa' ? 0 : 1) + ' ' + t.compareUnit}</td><td class="val">${c.dev_pct == null || c.selected ? '—' : (c.dev_pct >= 0 ? '+' : '') + c.dev_pct.toFixed(2) + ' %'}</td></tr>`).join('');
+  return `
+    <div class="section-title">▸ Two-Phase Flow — ${t.corrLabel}</div>
+    <div class="two-col">
+      <table>
+        <tr><th>Parameter</th><th style="text-align:right">Value</th></tr>
+        <tr><td>System</td><td class="val">${t.sub === 'wetsteam' ? 'Wet steam' : 'Gas + liquid'}</td></tr>
+        <tr><td>Liquid phase</td><td class="val">${liq}</td></tr>
+        <tr><td>Quality x</td><td class="val">${t.x.toFixed(4)}</td></tr>
+        <tr><td>Gas mass flow</td><td class="val">${g('tp_r_mg')}</td></tr>
+        <tr><td>Liquid mass flow</td><td class="val">${g('tp_r_ml')}</td></tr>
+        <tr><td>ρg / ρl / ρh</td><td class="val">${t.rho_g.toFixed(3)} / ${t.rho_l.toFixed(1)} / ${t.rho_h.toFixed(3)} kg/m³</td></tr>
+        ${t.Tsat_C != null ? `<tr><td>Saturation temperature</td><td class="val">${t.Tsat_C.toFixed(2)} °C</td></tr>` : ''}
+      </table>
+      <table>
+        <tr><th>Parameter</th><th style="text-align:right">Value</th></tr>
+        <tr><td>Lockhart–Martinelli X</td><td class="val">${t.X.toFixed(5)}</td></tr>
+        <tr><td>Chisholm C</td><td class="val">${t.Cch.toFixed(4)}</td></tr>
+        <tr><td>Void fraction α (homog.)</td><td class="val">${(t.alpha*100).toFixed(3)} %</td></tr>
+        <tr><td>Dry-gas meter over-reading</td><td class="val">${((t.OR-1)*100).toFixed(2)} %</td></tr>
+        <tr><td>Flow change for +5 % on x</td><td class="val">${(t.sens_x>=0?'+':'') + t.sens_x.toFixed(2)} %</td></tr>
+        <tr><td>Uncertainty (indicative)</td><td class="val">±${r.uncertainty_pct} %</td></tr>
+      </table>
+    </div>
+    <table style="margin-top:8px;">
+      <tr><th>Correlation</th><th style="text-align:right">Result</th><th style="text-align:right">vs selected</th></tr>
+      ${cmp}
+    </table>
+    <div class="formula">
+      <span class="hl">Chisholm</span>: ṁ = Cd·E·Y·A₂·√(2ρgΔP) / [x·√(1 + C·X + X²)] &nbsp;|&nbsp; X = ((1−x)/x)·√(ρg/ρl)·Y &nbsp;|&nbsp; C = (ρl/ρg)^¼ + (ρg/ρl)^¼<br>
+      <span class="hl">Murdock</span>: ÷ x·(1 + 1.26X) &nbsp;|&nbsp; <span class="hl">Homogeneous</span>: v<sub>m</sub> = x/(Y²ρg) + (1−x)/ρl &nbsp;|&nbsp; <span class="hl">James</span>: x → x^1.5 &nbsp;|&nbsp; frozen quality assumed
+    </div>`;
+}
 
 // ─── PDF REPORT GENERATOR ─────────────────────────────────────
 function generatePDF() {
@@ -2136,9 +2439,11 @@ function generatePDF() {
         <tr><td>Expansibility Factor Y</td><td class="val">${results.expY}</td></tr>
         <tr><td>Velocity of Approach E</td><td class="val">${results.velE}</td></tr>
         <tr><td>Discharge Coeff. Cd</td><td class="val">${results.cd}</td></tr>
-        <tr><td>Perm. Pressure Loss</td><td class="val">${results.pressRec}% of ΔP · ${results.pressRecBar}</td></tr>
+        <tr><td>Perm. Pressure Loss</td><td class="val">${results.pressRec} of ΔP · ${results.pressRecBar}</td></tr>
       </table>
     </div>
+
+    ${tpPdfSection()}
 
     <!-- ══ FORMULA ══ -->
     <div class="section-title">▸ ISO 5167 Formula Reference</div>
@@ -2731,12 +3036,26 @@ Y = 1.0 for liquids; Y &lt; 1.0 for gases (typically 0.96–0.99 for ΔP/P₁ &l
           <p>Orifice plates are a poor choice in the following situations:</p>
           <ul>
             <li><strong>High viscosity fluids (Re &lt; 5000):</strong> Cd becomes unstable and inaccurate. Use a positive displacement meter, Coriolis, or laminar flow element.</li>
-            <li><strong>Two-phase flow (liquid with gas, or wet steam):</strong> The equation is not valid and readings are unreliable. Use a dedicated multiphase meter or separate the phases upstream.</li>
+            <li><strong>Two-phase flow (liquid with gas, or wet steam):</strong> The single-phase equation over-reads the gas flow. If the quality x is known, the <em>Two-Phase</em> fluid category in this calculator applies the Chisholm, Murdock, James or homogeneous correction (typical ±3–10%). For fiscal accuracy or unknown quality, use a wet-gas / multiphase meter or separate the phases upstream.</li>
             <li><strong>Slurries and fluids with suspended solids:</strong> Solids settle in impulse lines and erode the bore edge. Use a magnetic flowmeter (conductive liquids) or Coriolis.</li>
             <li><strong>Very low flow or wide turndown (&gt;5:1):</strong> Poor signal at low ΔP. Use a Coriolis, ultrasonic, or variable area meter.</li>
             <li><strong>Very dirty gases (catalyst fines, heavy tars):</strong> Bore fouls rapidly. Consider an annubar or averaging pitot which can be retracted for cleaning without shutdown.</li>
             <li><strong>Cryogenic or very high temperature service where straight run is unavailable:</strong> The cost of piping modifications may exceed the cost of a more compact meter (Coriolis, ultrasonic) that requires less straight run.</li>
           </ul>
+        </div>
+      </div>
+
+      <div class="faq">
+        <button class="faq-q" onclick="eFaq(this)">Can I size an orifice for two-phase (gas–liquid or wet steam) flow?<span class="faq-arr">+</span></button>
+        <div class="faq-a">
+          <p>Yes, provided the flow is non-flashing and the quality x (gas mass fraction, or steam dryness) is known. Select <strong>Two-Phase</strong> as the fluid category. The calculator first computes the gas-alone orifice capacity with the ISO 5167 Cd, E and expansibility factor, then applies a separated-flow correction:</p>
+          <ul>
+            <li><strong>Chisholm (1977):</strong> ṁ = K<sub>g</sub> / [x·√(1 + C·X + X²)] with C = (ρl/ρg)<sup>¼</sup> + (ρg/ρl)<sup>¼</sup> — the general-purpose choice for X ≤ 1.</li>
+            <li><strong>Murdock (1962):</strong> ṁ = K<sub>g</sub> / [x·(1 + 1.26X)] — wet gas with X &lt; 0.3.</li>
+            <li><strong>James (1965):</strong> steam–water mixtures.</li>
+            <li><strong>Homogeneous:</strong> no slip between phases — gives the lowest flow for a given ΔP.</li>
+          </ul>
+          <p>X = ((1−x)/x)·√(ρg/ρl) is the Lockhart–Martinelli parameter. All four correlations are shown side by side, so you can see how much the answer depends on the model. Expect ±3–10% uncertainty, and note that a 5% error in x typically moves the flow by 2–5%. Mount the meter in vertical flow where possible, and provide a drain or vent hole. Flashing letdown and choked two-phase restriction orifices need a different method (HEM / omega method, API 520 Annex C).</p>
         </div>
       </div>
 
