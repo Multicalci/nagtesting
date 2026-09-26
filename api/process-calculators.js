@@ -2336,6 +2336,42 @@ function tpLiquidDensity(f, T_c, sg) {
   return Math.max(100, Math.min(2500, (sg > 0 ? sg : 1) * 1000));
 }
 
+// ── IAPWS-IF97 saturation enthalpies, 1 °C table (0.01–373 °C, kJ/kg) ────────
+// Generated from IAPWS-IF97; linear interpolation error < 0.1 kJ/kg up to 365 °C.
+const TP_HF = [0.00,4.18,8.39,12.60,16.81,21.02,25.22,29.43,33.63,37.82,42.02,46.22,50.41,54.60,58.79,62.98,67.17,71.36,75.55,79.73,83.92,88.10,92.29,96.47,100.66,104.84,109.02,113.20,117.38,121.56,125.75,129.93,134.11,138.29,142.47,146.64,150.82,155.00,159.18,163.36,167.54,171.72,175.90,180.08,184.26,188.44,192.62,196.80,200.98,205.16,209.34,213.52,217.70,221.88,226.06,230.24,234.42,238.61,242.79,246.97,251.15,255.34,259.52,263.71,267.89,272.08,276.27,280.45,284.64,288.83,293.02,297.21,301.40,305.59,309.78,313.97,318.17,322.36,326.56,330.75,334.95,339.15,343.34,347.54,351.74,355.95,360.15,364.35,368.56,372.76,376.97,381.18,385.38,389.59,393.81,398.02,402.23,406.45,410.66,414.88,419.10,423.32,427.54,431.76,435.99,440.21,444.44,448.67,452.90,457.13,461.36,465.60,469.83,474.07,478.31,482.55,486.80,491.04,495.29,499.53,503.78,508.04,512.29,516.55,520.80,525.06,529.32,533.59,537.85,542.12,546.39,550.66,554.93,559.21,563.49,567.77,572.05,576.33,580.62,584.91,589.20,593.49,597.79,602.09,606.39,610.69,615.00,619.31,623.62,627.93,632.25,636.57,640.89,645.22,649.55,653.88,658.21,662.55,666.89,671.23,675.57,679.92,684.28,688.63,692.99,697.35,701.71,706.08,710.45,714.83,719.21,723.59,727.97,732.36,736.75,741.15,745.55,749.95,754.36,758.77,763.19,767.61,772.03,776.46,780.89,785.32,789.76,794.21,798.66,803.11,807.57,812.03,816.49,820.96,825.44,829.92,834.40,838.89,843.39,847.89,852.39,856.90,861.42,865.94,870.46,874.99,879.53,884.07,888.62,893.17,897.73,902.29,906.86,911.44,916.02,920.61,925.20,929.80,934.41,939.02,943.64,948.27,952.90,957.54,962.19,966.84,971.50,976.17,980.84,985.52,990.21,994.91,999.61,1004.32,1009.04,1013.77,1018.50,1023.24,1028.00,1032.76,1037.52,1042.30,1047.08,1051.88,1056.68,1061.49,1066.31,1071.14,1075.98,1080.83,1085.69,1090.55,1095.43,1100.32,1105.22,1110.13,1115.04,1119.97,1124.91,1129.86,1134.83,1139.80,1144.78,1149.78,1154.79,1159.81,1164.84,1169.88,1174.94,1180.01,1185.09,1190.19,1195.30,1200.42,1205.55,1210.70,1215.87,1221.05,1226.24,1231.45,1236.67,1241.91,1247.16,1252.43,1257.72,1263.02,1268.34,1273.68,1279.03,1284.41,1289.80,1295.20,1300.63,1306.08,1311.54,1317.03,1322.54,1328.06,1333.61,1339.18,1344.77,1350.39,1356.02,1361.68,1367.37,1373.07,1378.81,1384.57,1390.35,1396.16,1402.00,1407.87,1413.77,1419.69,1425.65,1431.63,1437.65,1443.70,1449.78,1455.90,1462.05,1468.24,1474.46,1480.73,1487.03,1493.37,1499.76,1506.18,1512.66,1519.17,1525.74,1532.35,1539.02,1545.74,1552.51,1559.34,1566.23,1573.18,1580.20,1587.29,1594.45,1601.68,1608.99,1616.38,1623.86,1631.44,1639.11,1646.88,1654.75,1662.75,1670.86,1679.14,1687.54,1696.09,1704.81,1713.71,1722.80,1732.10,1741.63,1751.42,1761.49,1771.88,1782.62,1793.78,1805.41,1817.59,1830.43,1844.09,1858.77,1874.78,1892.64,1913.44,1938.57,1974.31];
+const TP_HG = [2500.91,2502.73,2504.57,2506.40,2508.24,2510.07,2511.91,2513.74,2515.57,2517.40,2519.23,2521.06,2522.89,2524.71,2526.54,2528.36,2530.19,2532.01,2533.83,2535.65,2537.47,2539.29,2541.10,2542.92,2544.73,2546.54,2548.35,2550.16,2551.97,2553.78,2555.58,2557.39,2559.19,2560.99,2562.79,2564.58,2566.38,2568.17,2569.96,2571.75,2573.54,2575.33,2577.11,2578.89,2580.67,2582.45,2584.23,2586.00,2587.77,2589.54,2591.31,2593.08,2594.84,2596.60,2598.35,2600.11,2601.86,2603.61,2605.36,2607.10,2608.85,2610.58,2612.32,2614.05,2615.78,2617.51,2619.23,2620.96,2622.67,2624.39,2626.10,2627.81,2629.51,2631.21,2632.91,2634.60,2636.29,2637.98,2639.66,2641.34,2643.01,2644.68,2646.35,2648.01,2649.67,2651.33,2652.98,2654.62,2656.26,2657.90,2659.53,2661.16,2662.78,2664.39,2666.01,2667.61,2669.22,2670.81,2672.40,2673.99,2675.57,2677.15,2678.72,2680.28,2681.84,2683.39,2684.94,2686.48,2688.02,2689.55,2691.07,2692.58,2694.09,2695.60,2697.09,2698.58,2700.07,2701.55,2703.02,2704.48,2705.93,2707.38,2708.82,2710.26,2711.69,2713.11,2714.52,2715.92,2717.32,2718.71,2720.09,2721.46,2722.83,2724.18,2725.53,2726.87,2728.20,2729.53,2730.84,2732.15,2733.44,2734.73,2736.01,2737.28,2738.54,2739.80,2741.04,2742.27,2743.50,2744.71,2745.92,2747.12,2748.30,2749.48,2750.64,2751.80,2752.95,2754.08,2755.21,2756.33,2757.43,2758.53,2759.61,2760.68,2761.75,2762.80,2763.84,2764.87,2765.89,2766.90,2767.89,2768.88,2769.85,2770.82,2771.77,2772.70,2773.63,2774.55,2775.45,2776.34,2777.22,2778.09,2778.94,2779.78,2780.61,2781.43,2782.23,2783.02,2783.80,2784.56,2785.31,2786.05,2786.77,2787.48,2788.18,2788.86,2789.53,2790.18,2790.82,2791.45,2792.06,2792.66,2793.24,2793.81,2794.36,2794.90,2795.42,2795.93,2796.42,2796.89,2797.35,2797.80,2798.22,2798.64,2799.03,2799.41,2799.77,2800.12,2800.45,2800.76,2801.05,2801.33,2801.59,2801.83,2802.05,2802.26,2802.45,2802.61,2802.76,2802.90,2803.01,2803.10,2803.18,2803.23,2803.27,2803.28,2803.28,2803.26,2803.21,2803.15,2803.06,2802.95,2802.82,2802.68,2802.50,2802.31,2802.10,2801.86,2801.60,2801.32,2801.01,2800.68,2800.33,2799.96,2799.56,2799.13,2798.69,2798.21,2797.71,2797.19,2796.64,2796.07,2795.47,2794.84,2794.19,2793.51,2792.80,2792.07,2791.30,2790.51,2789.69,2788.84,2787.96,2787.05,2786.11,2785.14,2784.14,2783.11,2782.05,2780.95,2779.82,2778.66,2777.47,2776.24,2774.97,2773.67,2772.34,2770.97,2769.56,2768.12,2766.63,2765.11,2763.55,2761.95,2760.31,2758.63,2756.90,2755.14,2753.33,2751.47,2749.57,2747.63,2745.64,2743.60,2741.51,2739.38,2737.19,2734.95,2732.66,2730.32,2727.92,2725.47,2722.96,2720.39,2717.77,2715.08,2712.33,2709.51,2706.63,2703.68,2700.67,2697.58,2694.42,2691.19,2687.87,2684.48,2681.01,2677.45,2673.81,2670.08,2666.25,2662.33,2658.30,2654.18,2649.95,2645.60,2641.14,2636.57,2631.86,2627.03,2622.07,2616.96,2611.71,2606.30,2600.74,2595.01,2589.10,2583.02,2576.74,2570.27,2563.59,2556.72,2549.57,2542.15,2534.45,2526.45,2518.13,2509.46,2500.40,2490.93,2480.99,2470.53,2459.49,2447.79,2435.34,2422.00,2407.63,2391.98,2374.76,2355.51,2333.50,2307.60,2274.71,2227.16];
+function tpHsat(T_c) {
+  const T = Math.max(0.01, Math.min(372.999, T_c));
+  const i = Math.floor(T), f = T - i;
+  const hf = TP_HF[i] + (TP_HF[i + 1] - TP_HF[i]) * f;
+  const hg = TP_HG[i] + (TP_HG[i + 1] - TP_HG[i]) * f;
+  return { hf, hg, hfg: hg - hf };
+}
+function tpTsat(P_bar) { return steamDensity(P_bar, 0).T_sat_C; }
+
+// Quality after an isenthalpic flash of liquid (saturated at P_src, or at T_src) down to P
+function tpFlashQuality(P_src_bar, P_bar, T_src_C) {
+  const Tsrc = Number.isFinite(T_src_C) ? T_src_C : tpTsat(P_src_bar);
+  const h_in = tpHsat(Tsrc).hf;            // compressed-liquid pressure term ignored (<0.2 % on x)
+  const s    = tpHsat(tpTsat(P_bar));
+  return { x: (h_in - s.hf) / s.hfg, h_in, Tsrc };
+}
+
+// Vapour pressure estimate (bar) for boiling check of the liquid phase
+function tpLiquidPv(f, T_c) {
+  if (!f || f.t !== 'l') return null;
+  if (f.rhoModel === 'poly_water') return null;                 // handled via IF97 Tsat
+  if (Array.isArray(f.ant)) {
+    const [A, B, C] = f.ant;
+    return { Pv: Math.pow(10, A - B / (C + T_c)) * 0.00133322, method: 'Antoine' };
+  }
+  if (f.Tb_C != null) {                                          // Trouton / Clausius–Clapeyron estimate
+    const Tb = f.Tb_C + 273.15, T = T_c + 273.15;
+    return { Pv: 1.01325 * Math.exp(10.5 * (1 - Tb / T)), method: 'Trouton estimate' };
+  }
+  return null;
+}
+
 // ── Phase properties ─────────────────────────────────────────────────────────
 function tpProps(p) {
   const P_Pa = p.P_bar * 1e5;
@@ -2381,8 +2417,24 @@ function tpProps(p) {
   const muL = liquidViscosity(fl, T_K);
   out.mu_l  = muL != null ? muL : (p.liqMu > 0 ? p.liqMu : 1e-3);
   out.T_c   = p.T_c;
-  if (fl?.Tb_C != null && !fl.ant && p.T_c > fl.Tb_C && p.P_bar < 3)
-    out.warns.push(`Liquid is above its normal boiling point (${fl.Tb_C} °C) at low pressure — flashing across the plate is likely; frozen-quality correlations will under-state the ΔP`);
+  // ── Boiling check: the "liquid" phase must actually be liquid at P, T ──
+  if (fl?.rhoModel === 'poly_water') {
+    const Ts = tpTsat(p.P_bar);
+    if (p.T_c >= Ts - 0.1)
+      out.fatal = `Water at ${p.T_c.toFixed(1)} °C is not liquid at ${p.P_bar.toFixed(2)} bara (saturation ${Ts.toFixed(1)} °C) — it is steam. ` +
+                  `For steam–water mixtures select System = Wet Steam; for a hot-water letdown use Wet Steam with "quality from flash".`;
+    else if (p.T_c > Ts - 3)
+      out.warns.push(`Water is only ${(Ts - p.T_c).toFixed(1)} °C below saturation (${Ts.toFixed(1)} °C) — it may flash at the orifice throat; consider System = Wet Steam`);
+  } else {
+    const pv = tpLiquidPv(fl, p.T_c);
+    if (pv && pv.Pv >= p.P_bar) {
+      const msg = `${p.liqKey}: vapour pressure ≈ ${pv.Pv.toFixed(2)} bar (${pv.method}) ≥ line pressure ${p.P_bar.toFixed(2)} bara at ${p.T_c.toFixed(1)} °C — the liquid would boil`;
+      if (pv.method === 'Antoine') out.fatal = msg + '. Frozen-quality correlations do not apply to flashing flow.';
+      else out.warns.push(msg + ' (estimate from normal boiling point — verify). Result not valid if the liquid flashes.');
+    } else if (pv && pv.Pv > 0.8 * p.P_bar) {
+      out.warns.push(`${p.liqKey}: vapour pressure ≈ ${pv.Pv.toFixed(2)} bar (${pv.method}) is within 20 % of line pressure — flashing at the orifice throat is possible`);
+    }
+  }
   return out;
 }
 
@@ -2463,14 +2515,29 @@ function calculateTwoPhase(params) {
   const { mode, tapType, customCd, P_bar, T_c, k, D_mm, d_mm,
           dp_Pa_in, flow_in, flow_unit, tp } = params;
 
-  const x = tp.x;
+  if (!(P_bar > 0)) return { error: 'Pressure must be > 0 bara (absolute).' };
+
+  // ── Quality: entered, or from isenthalpic flash of upstream liquid (wet steam only) ──
+  let x = tp.x, flash = null;
+  if (tp.sub === 'wetsteam' && tp.xMode === 'flash') {
+    if (!(tp.Psrc_bar > 0)) return { error: 'Enter the upstream (source) liquid pressure for quality-from-flash.' };
+    if (tp.Psrc_bar <= P_bar) return { error: `Source pressure (${tp.Psrc_bar.toFixed(2)} bara) must be higher than the meter pressure (${P_bar.toFixed(2)} bara) for the liquid to flash.` };
+    if (tp.Psrc_bar > 200) return { error: 'Source pressure above 200 bara is outside the saturation-table range (near-critical).' };
+    const Tsat_src = tpTsat(tp.Psrc_bar);
+    if (Number.isFinite(tp.Tsrc_C) && tp.Tsrc_C > Tsat_src + 0.5)
+      return { error: `Source liquid temperature ${tp.Tsrc_C.toFixed(1)} °C is above saturation at the source pressure (${Tsat_src.toFixed(1)} °C).` };
+    flash = tpFlashQuality(tp.Psrc_bar, P_bar, tp.Tsrc_C);
+    x = flash.x;
+    if (!(x > 0)) return { error: `Source liquid does not flash at the meter pressure (x = ${x.toFixed(4)}) — this is single-phase liquid; use the Liquid category.` };
+    if (!(x < 1)) return { error: `Computed flash quality x = ${x.toFixed(4)} ≥ 1 — check pressures.` };
+  }
   if (!(x > 0 && x < 1))
     return { error: 'Quality x (gas mass fraction) must be between 0 and 1 (exclusive). For x = 0 or 1 use the Liquid or Gas category.' };
-  if (!(P_bar > 0)) return { error: 'Pressure must be > 0 bara (absolute).' };
   if (!(D_mm > 0))  return { error: 'Pipe ID must be > 0.' };
 
   const corr = TP_CORR[tp.corr] ? tp.corr : 'chisholm';
   const pr   = tpProps({ ...tp, P_bar, T_c });
+  if (pr.fatal) return { error: pr.fatal };
   if (!(pr.rho_g > 0 && pr.rho_l > 0))
     return { error: 'Could not evaluate phase densities — check pressure, temperature and fluid inputs.' };
   if (pr.rho_g >= pr.rho_l)
@@ -2565,6 +2632,24 @@ function calculateTwoPhase(params) {
   if (pr.zr?.outOfRange)
     infos.push(`Pitzer Z validity: Tr=${pr.zr.Tr?.toFixed(2)}, Pr=${pr.zr.Pr?.toFixed(2)} — outside recommended range`);
   infos.push(`Flow is sensitive to quality: +5 % on x changes total flow by ${sens_x >= 0 ? '+' : ''}${sens_x.toFixed(2)} % — x must come from a reliable source (heat balance, sampling, separator test)`);
+  // ── Additional flashing across the plate (wet steam: isenthalpic, known enthalpy) ──
+  let plateFlash = null;
+  if (pr.sub === 'wetsteam') {
+    const sU = tpHsat(pr.Tsat_C);
+    const h  = sU.hf + x * sU.hfg;
+    const P2 = (P_Pa - dp_Pa) / 1e5;
+    const sD = tpHsat(tpTsat(P2));
+    const x_down = (h - sD.hf) / sD.hfg;
+    const x_avg  = 0.5 * (x + x_down);
+    const m_avg  = tpMassFlow(corr, dp_Pa, d_m, { ...c, x: x_avg }).m;
+    plateFlash = { x_down, dx_pct: (x_down / x - 1) * 100, flow_effect_pct: (m_avg / m - 1) * 100 };
+    if (plateFlash.dx_pct > 2)
+      warns.push(`Flashing across the plate: x rises ${x.toFixed(4)} → ${x_down.toFixed(4)} (+${plateFlash.dx_pct.toFixed(1)} %). Frozen-quality result may overstate flow by ≈ ${Math.abs(plateFlash.flow_effect_pct).toFixed(1)} % — keep ΔP/P small or allow for it`);
+    else
+      infos.push(`Flashing across the plate is small: x ${x.toFixed(4)} → ${x_down.toFixed(4)} (+${plateFlash.dx_pct.toFixed(2)} %)`);
+  }
+  if (flash)
+    infos.push(`Quality from isenthalpic flash: liquid at ${Number.isFinite(tp.Tsrc_C) ? tp.Tsrc_C.toFixed(1) + ' °C / ' : 'saturation, '}${tp.Psrc_bar.toFixed(2)} bara (h = ${flash.h_in.toFixed(1)} kJ/kg) → x = ${x.toFixed(4)} at ${P_bar.toFixed(2)} bara. x changes with line pressure — pressure-compensate the DCS calculation.`);
   infos.push('Frozen quality assumed (no flashing/condensation across the plate). Install in vertical flow where possible; stratified horizontal flow is outside all correlations. Provide drain/vent hole and DP damping.');
 
   return {
@@ -2601,6 +2686,11 @@ function calculateTwoPhase(params) {
     infos,
     twoPhase: {
       sub: pr.sub, corr, corrLabel: TP_CORR[corr].label, x,
+      xMode: flash ? 'flash' : 'entered',
+      Psrc_bar: flash ? tp.Psrc_bar : null, Tsrc_C: flash ? flash.Tsrc : null, h_in: flash ? flash.h_in : null,
+      x_down: plateFlash ? plateFlash.x_down : null,
+      plate_dx_pct: plateFlash ? plateFlash.dx_pct : null,
+      plate_flow_effect_pct: plateFlash ? plateFlash.flow_effect_pct : null,
       rho_g: pr.rho_g, rho_l: pr.rho_l, rho_h, alpha,
       mu_g: pr.mu_g, mu_l: pr.mu_l, Tsat_C: pr.Tsat_C,
       mg_kghr: mg * 3600, ml_kghr: ml * 3600,
@@ -2616,11 +2706,16 @@ function calculateTwoPhase(params) {
 // Lightweight preview for the page (densities as T/P/x change)
 function twoPhasePreview(tp, P_bar, T_c) {
   const pr = tpProps({ ...tp, P_bar, T_c });
-  const x  = (tp.x > 0 && tp.x < 1) ? tp.x : null;
+  let x = (tp.x > 0 && tp.x < 1) ? tp.x : null, x_flash = null;
+  if (tp.sub === 'wetsteam' && tp.xMode === 'flash' && tp.Psrc_bar > P_bar && tp.Psrc_bar <= 200) {
+    x_flash = tpFlashQuality(tp.Psrc_bar, P_bar, tp.Tsrc_C).x;
+    x = (x_flash > 0 && x_flash < 1) ? x_flash : null;
+  }
   const rho_h = x ? 1 / (x / pr.rho_g + (1 - x) / pr.rho_l) : null;
   return {
     ok: true,
     rho_op: rho_h,
+    x_flash, fatal: pr.fatal || null,
     rho_g: pr.rho_g, rho_l: pr.rho_l, Tsat_C: pr.Tsat_C,
     mu_auto: pr.gasAuto ? pr.mu_g : null,
     Z_auto:  pr.gasAuto ? pr.Z : null,
@@ -2657,6 +2752,12 @@ async function orificeFlow_handler(req, res) {
       liqKey:     b.liqKey || null,
       liqSG:      parseFloat(b.liqSG) || 1.0,
       liqMu:      parseFloat(b.liqMu) || 1e-3,
+      xMode:      b.xMode === 'flash' ? 'flash' : 'entered',
+      // Source (upstream liquid) pressure / temperature — same unit system as P, T
+      Psrc_bar:   (() => { const v = parseFloat(b.Psrc); if (!(v > 0)) return null;
+                           return (b.unitSys || 'metric') === 'metric' ? v : v * 0.0689476; })(),
+      Tsrc_C:     (() => { const v = parseFloat(b.Tsrc); if (!Number.isFinite(v)) return NaN;
+                           return (b.unitSys || 'metric') === 'metric' ? v : (v - 32) * 5 / 9; })(),
     });
 
 // ── DENSITY PREVIEW (lightweight — called on every T/P/fluid change) ──
