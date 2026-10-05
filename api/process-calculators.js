@@ -1277,6 +1277,12 @@ function controlValve_handler(req,res){
 //     used to draw its charts with a second, simplified copy of the maths in
 //     the browser (van der Waals there was hard-wired to Z = 1); the charts now
 //     come from this same engine, so they cannot drift from the calculator.
+//
+// FIX Z-6 (Oct 2026): GAS MIXTURES — a request with  components: [{name, x, Tc_K,
+//   Pc_Pa, omega, M}, …]  (and optional kij matrix) is handled by
+//   eosMixture_handler near the end of this section: van der Waals one-fluid
+//   mixing rules, component fugacities, tangent-plane stability test and a
+//   two-phase flash. Pure-gas requests are untouched.
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 04 of 21  ►  EQUATION OF STATE (EOS)
 // Route: /api/eos
@@ -1305,6 +1311,7 @@ function eos_handler(req, res) {
     const body = req.body || {};
     const num  = v => (v === null || v === undefined || v === '' || typeof v === 'boolean' ? NaN : Number(v));
     if (body.curve) return eosCurve_handler(body, num, res);          // FIX Z-5: chart series
+    if (Array.isArray(body.components)) return eosMixture_handler(body, num, res);   // FIX Z-6: gas mixtures
     const eos   = typeof body.eos === 'string' ? body.eos.trim().toLowerCase() : body.eos;
     const T_K   = num(body.T_K),  P_Pa  = num(body.P_Pa);
     const Tc_K  = num(body.Tc_K), Pc_Pa = num(body.Pc_Pa);
@@ -1789,6 +1796,478 @@ function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots, ctx
   }
 
   return warnings;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIX Z-6 (Oct 2026): GAS MIXTURES   — request body carries  components: [...]
+//
+//   components: [{ name, key?, x, Tc_K, Pc_Pa, omega, M }]   (x = mole fraction or mole %,
+//                any positive scale — normalised here; 1 … 20 components)
+//   kij:        optional n×n matrix of binary interaction parameters (default all 0)
+//
+//   Mixing rules (van der Waals one-fluid):
+//       a = Σi Σj xi·xj·(1 − kij)·√(ai·aj)        b = Σi xi·bi
+//   with the pure-component ai(T), bi of the same model as the pure-gas engine above.
+//   Component fugacity coefficient:
+//       ln φi = (bi/b)(Z − 1) − ln(Z − B) − L(Z)·[2·Σj xj·aij / a − bi/b]
+//       L(Z) = A/(2√2·B)·ln[(Z+(1+√2)B)/(Z+(1−√2)B)]  (PR)   (A/B)·ln(1+B/Z)  (SRK)   A/Z  (vdW)
+//
+//   A mixture is NOT assumed to be a gas. The feed is first tested for stability
+//   (Michelsen tangent-plane test); if it is unstable it is split by an isothermal
+//   flash (Rachford-Rice + successive substitution on ln K, with dominant-eigenvalue
+//   acceleration) and each phase is reported separately. Reporting "gas" values for
+//   a mixture that has dropped liquid is the same mistake as the old vapour-root
+//   answer for a pure liquid.
+//
+//   A one-component "mixture" reproduces the pure-gas engine exactly.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const EOS_MIX_MAX_COMPONENTS = 20;
+const EOS_OMEGA_B_OVER_ZC = { vdw: 0.125 / 0.375, srk: 0.08664 / (1 / 3), pr: 0.07780 / 0.3074013087 };  // b/Vc of each model
+
+// Pure-component a(T) and b — the same expressions as solveVdW / solveSRK / solvePR.
+function eosPureAB(eos, T_K, Tc_K, Pc_Pa, omega) {
+  if (eos === 'vdw') {
+    return { a: 27 * R * R * Tc_K * Tc_K / (64 * Pc_Pa), b: R * Tc_K / (8 * Pc_Pa) };
+  }
+  const Tr = T_K / Tc_K;
+  if (eos === 'srk') {
+    const m = 0.480 + 1.574 * omega - 0.176 * omega * omega;
+    const alpha_base = 1 + m * (1 - Math.sqrt(Math.max(0, Tr)));
+    const alpha = Math.max(1e-6, alpha_base * alpha_base);
+    return { a: 0.42748 * R * R * Tc_K * Tc_K / Pc_Pa * alpha, b: 0.08664 * R * Tc_K / Pc_Pa };
+  }
+  const kappa = omega <= 0.491
+      ? 0.37464 + 1.54226 * omega - 0.26992 * omega * omega
+      : 0.379642 + 1.48503 * omega - 0.164423 * omega * omega + 0.016666 * omega * omega * omega;
+  const alpha_base = 1 + kappa * (1 - Math.sqrt(Math.max(0, Tr)));
+  const alpha = Math.max(1e-6, alpha_base * alpha_base);
+  return { a: 0.45724 * R * R * Tc_K * Tc_K / Pc_Pa * alpha, b: 0.07780 * R * Tc_K / Pc_Pa };
+}
+
+// One phase of composition x (mole fractions summing to 1).
+//   pick: 'min' → the root with the lower Gibbs energy (the only physically meaningful choice)
+// Returns Z, Vm, ln φi and the number of physical roots.
+function eosMixPhase(mix, x, P_Pa) {
+  const { eos, T_K, sq, bi, omk } = mix;
+  const n = x.length;
+  const s = new Array(n);                       // s_i = Σj xj·aij
+  let a = 0, b = 0;
+  for (let i = 0; i < n; i++) {
+    let t = 0;
+    const row = omk[i];
+    for (let j = 0; j < n; j++) t += x[j] * row[j] * sq[j];
+    s[i] = sq[i] * t;
+    a += x[i] * s[i];
+    b += x[i] * bi[i];
+  }
+  const RT = R * T_K;
+  const A = a * P_Pa / (RT * RT);
+  const B = b * P_Pa / RT;
+
+  let c2, c1, c0, L;
+  if (eos === 'vdw') {
+    c2 = -(1 + B); c1 = A; c0 = -A * B;
+    L = Z => A / Z;
+  } else if (eos === 'srk') {
+    c2 = -1; c1 = A - B - B * B; c0 = -A * B;
+    L = Z => (A / B) * Math.log(1 + B / Z);
+  } else {
+    const sq2 = Math.SQRT2;
+    c2 = -(1 - B); c1 = A - 3 * B * B - 2 * B; c0 = -(A * B - B * B - B * B * B);
+    L = Z => A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
+  }
+
+  let Zs = solveCubic(c2, c1, c0, B);
+  if (Zs.length > 1 && Zs[Zs.length - 1] - Zs[0] < 5e-5 * Zs[Zs.length - 1]) {
+    Zs = [Zs.reduce((u, z) => u + z, 0) / Zs.length];
+  }
+  if (!Zs.length) return null;
+  // reduced Gibbs energy of the phase at fixed composition:  Σ xi·ln φi = (Z−1) − ln(Z−B) − L(Z)
+  const gOf = Z => (Z - 1) - Math.log(Z - B) - L(Z);
+  let Z = Zs[0], g = gOf(Z);
+  if (Zs.length > 1) {
+    const Zv = Zs[Zs.length - 1], gv = gOf(Zv);
+    if (!(g < gv)) { Z = Zv; g = gv; }
+  }
+  const LZ = L(Z), lnZB = Math.log(Z - B);
+  const lnPhi = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const br = bi[i] / b;
+    lnPhi[i] = br * (Z - 1) - lnZB - LZ * (2 * s[i] / a - br);
+  }
+  return { Z, Vm: Z * RT / P_Pa, lnPhi, g, A, B, a, b, rootCount: Zs.length,
+           liquidLike: B / Z > EOS_OMEGA_B_OVER_ZC[eos] };          // Vm below the model's critical volume
+}
+
+// Rachford-Rice:  Σ zi·(Ki − 1)/(1 + β(Ki − 1)) = 0   for the vapour fraction β.
+// The function falls monotonically between its two asymptotes, so a bracketed Newton
+// always converges. β outside [0, 1] is returned as-is ("negative flash") — the caller
+// reads it as a single-phase result.
+function eosRachfordRice(z, K) {
+  let Kmax = -Infinity, Kmin = Infinity;
+  for (let i = 0; i < K.length; i++) { if (K[i] > Kmax) Kmax = K[i]; if (K[i] < Kmin) Kmin = K[i]; }
+  if (!(Kmax > 1 && Kmin < 1)) return null;                 // no root: every component prefers the same phase
+  let lo = 1 / (1 - Kmax), hi = 1 / (1 - Kmin);             // asymptotes: g(lo+) = +∞, g(hi−) = −∞
+  let beta = Math.min(Math.max(0.5, lo + 1e-12 * (hi - lo)), hi - 1e-12 * (hi - lo));
+  for (let it = 0; it < 200; it++) {
+    let g = 0, dg = 0;
+    for (let i = 0; i < z.length; i++) {
+      const k1 = K[i] - 1, den = 1 + beta * k1, t = z[i] * k1 / den;
+      g += t; dg -= t * k1 / den;
+    }
+    if (g === 0) break;
+    if (g > 0) lo = beta; else hi = beta;
+    let bn = beta - g / dg;
+    if (!(bn > lo && bn < hi)) bn = 0.5 * (lo + hi);
+    if (Math.abs(bn - beta) <= 1e-15 * Math.max(1, Math.abs(bn))) { beta = bn; break; }
+    beta = bn;
+  }
+  return beta;
+}
+
+// Michelsen tangent-plane stability test of the feed z.
+// Returns { stable, tm, K, all } — K (and the other unstable trials in `all`) are starting
+// estimates for the flash when the feed is unstable.
+function eosMixStability(mix, z, P_Pa, feed, Kw, tol) {
+  const n = z.length;
+  const d = z.map((zi, i) => Math.log(zi) + feed.lnPhi[i]);
+  const trials = [
+    z.map((zi, i) => zi * Kw[i]),                           // vapour-like
+    z.map((zi, i) => zi / Kw[i]),                           // liquid-like
+    d.map(di => Math.exp(di)),                              // ideal-gas-like
+  ];
+  for (let k = 0; k < n; k++) {                             // nearly pure component k
+    trials.push(z.map((zi, i) => (i === k ? 0.9 : 0.1 / Math.max(1, n - 1))));
+  }
+  const found = [];
+  for (const W0 of trials) {
+    let W = W0.slice(), ok = true, ph = null, w = null;
+    for (let it = 0; it < 2000; it++) {
+      const sum = W.reduce((u, v) => u + v, 0);
+      if (!(sum > 0) || !isFinite(sum)) { ok = false; break; }
+      w = W.map(v => v / sum);
+      ph = eosMixPhase(mix, w, P_Pa);
+      if (!ph) { ok = false; break; }
+      let err = 0;
+      const Wn = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const lnWn = d[i] - ph.lnPhi[i];
+        const dl = lnWn - Math.log(W[i]);
+        err += dl * dl;
+        Wn[i] = Math.exp(lnWn);
+      }
+      W = Wn;
+      if (err < 1e-22) break;
+    }
+    if (!ok || !ph) continue;
+    const sum = W.reduce((u, v) => u + v, 0);
+    let dist = 0;
+    for (let i = 0; i < n; i++) { const t = W[i] / sum - z[i]; dist += t * t; }
+    const trivial = dist < 1e-10 && Math.abs(ph.Z - feed.Z) < 1e-6 * feed.Z;      // converged back onto the feed
+    const tm = 1 - sum;                                     // tangent-plane distance at the stationary point
+    if (!trivial && tm < -(tol || 1e-9)) {
+      const vapourTrial = ph.Z > feed.Z;
+      found.push({ tm, K: z.map((zi, i) => (vapourTrial ? W[i] / zi : zi / W[i])) });
+    }
+  }
+  found.sort((u, v) => u.tm - v.tm);
+  return found.length ? { stable: false, tm: found[0].tm, K: found[0].K, all: found.map(f => f.K) }
+                      : { stable: true, tm: 0, K: null, all: [] };
+}
+
+// One evaluation of the flash equations for a given ln K:
+//   F_i = (ln φi^L − ln φi^V) − ln K_i      (zero at equilibrium)
+function eosMixFlashEval(mix, z, P_Pa, lnK) {
+  const n = z.length;
+  const K = lnK.map(Math.exp);
+  const beta = eosRachfordRice(z, K);
+  if (beta === null) return { trivial: true };
+  const x = new Array(n), y = new Array(n);
+  let sx = 0, sy = 0;
+  for (let i = 0; i < n; i++) { x[i] = z[i] / (1 + beta * (K[i] - 1)); y[i] = K[i] * x[i]; sx += x[i]; sy += y[i]; }
+  if (!(sx > 0 && sy > 0) || !isFinite(sx) || !isFinite(sy)) return { failed: true };
+  for (let i = 0; i < n; i++) { x[i] /= sx; y[i] /= sy; }
+  const pl = eosMixPhase(mix, x, P_Pa), pv = eosMixPhase(mix, y, P_Pa);
+  if (!pl || !pv) return { failed: true };
+  const F = new Array(n);
+  let err = 0, mag = 0;
+  for (let i = 0; i < n; i++) { F[i] = (pl.lnPhi[i] - pv.lnPhi[i]) - lnK[i]; err += F[i] * F[i]; mag += lnK[i] * lnK[i]; }
+  if (!isFinite(err)) return { failed: true };
+  if (mag < 1e-12) return { trivial: true };                 // K → 1: the two phases have merged
+  return { beta, x, y, K, pl, pv, F, err };
+}
+
+// Solve J·d = −F by Gaussian elimination with partial pivoting (n ≤ 20).
+function eosSolveLinear(J, F) {
+  const n = F.length;
+  const M = J.map((r, i) => r.concat([-F[i]]));
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (!(Math.abs(M[p][c]) > 1e-300)) return null;
+    if (p !== c) { const t = M[p]; M[p] = M[c]; M[c] = t; }
+    for (let r = c + 1; r < n; r++) {
+      const f = M[r][c] / M[c][c];
+      if (f !== 0) for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  const d = new Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let v = M[r][n];
+    for (let k = r + 1; k < n; k++) v -= M[r][k] * d[k];
+    d[r] = v / M[r][r];
+  }
+  return d.every(isFinite) ? d : null;
+}
+
+// Isothermal two-phase flash.
+//   1. successive substitution on ln K with dominant-eigenvalue extrapolation — robust far from the answer;
+//   2. Newton's method on the same equations (finite-difference Jacobian, step halving) — successive
+//      substitution alone crawls near a critical point, Newton finishes in a few steps.
+function eosMixFlash(mix, z, P_Pa, K0) {
+  const n = z.length;
+  const TOL = 1e-24;                                         // on Σ F_i²
+  let lnK = K0.map(Math.log);
+  let cur = null, prevF = null, lastErr = Infinity, it = 0;
+
+  const substitution = maxIt => {
+    for (let k = 0; k < maxIt; k++) {
+      it++;
+      const e = eosMixFlashEval(mix, z, P_Pa, lnK);
+      if (e.trivial || e.failed) return e;
+      cur = e;
+      if (e.err < TOL) return e;
+      let step = e.F;
+      if (prevF && it % 5 === 0 && e.err < lastErr) {         // dominant-eigenvalue method
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) { num += e.F[i] * e.F[i]; den += e.F[i] * prevF[i]; }
+        const lam = den !== 0 ? num / den : 0;
+        if (lam > 0 && lam < 0.999) step = e.F.map(v => v / (1 - lam));
+      }
+      for (let i = 0; i < n; i++) lnK[i] += step[i];
+      prevF = e.F; lastErr = e.err;
+    }
+    return cur;
+  };
+
+  const newton = maxIt => {
+    for (let k = 0; k < maxIt; k++) {
+      it++;
+      const e = eosMixFlashEval(mix, z, P_Pa, lnK);
+      if (e.trivial || e.failed) return false;
+      cur = e;
+      if (e.err < TOL) return true;
+      const J = [];
+      for (let i = 0; i < n; i++) J.push(new Array(n));
+      for (let j = 0; j < n; j++) {
+        const h = 1e-7 * Math.max(1, Math.abs(lnK[j]));
+        const t = lnK.slice(); t[j] += h;
+        const ej = eosMixFlashEval(mix, z, P_Pa, t);
+        if (ej.trivial || ej.failed) return false;
+        for (let i = 0; i < n; i++) J[i][j] = (ej.F[i] - e.F[i]) / h;
+      }
+      const d = eosSolveLinear(J, e.F);
+      if (!d) return false;
+      let lam = 1, accepted = false;
+      for (let ls = 0; ls < 30; ls++) {
+        const t = lnK.map((v, i) => v + lam * d[i]);
+        const et = eosMixFlashEval(mix, z, P_Pa, t);
+        if (!et.trivial && !et.failed && et.err < e.err) { lnK = t; cur = et; accepted = true; break; }
+        lam *= 0.5;
+      }
+      if (!accepted) return cur.err < 1e-20;                 // cannot improve further (rounding floor)
+      if (cur.err < TOL) return true;
+    }
+    return false;
+  };
+
+  let r = substitution(60);
+  if (!r || r.trivial || r.failed) return { ...(r || { failed: true }), iterations: it };
+  let converged = r.err < TOL;
+  if (!converged) converged = newton(60);
+  if (!converged) {                                          // last resort: keep substituting
+    const backup = { lnK: lnK.slice(), cur };
+    r = substitution(20000);
+    if (!r || r.trivial || r.failed) {
+      if (r && r.trivial) return { trivial: true, iterations: it };
+      lnK = backup.lnK; cur = backup.cur;
+    }
+    converged = !!cur && cur.err < 1e-18;
+  }
+  if (!cur) return { failed: true, iterations: it };
+  return { ...cur, iterations: it, converged };
+}
+
+function eosMixture_handler(body, num, res) {
+  const eos   = typeof body.eos === 'string' ? body.eos.trim().toLowerCase() : body.eos;
+  const T_K   = num(body.T_K), P_Pa = num(body.P_Pa), nMol = num(body.n);
+  const list  = body.components;
+
+  if (!eos)                     return res.status(400).json({ error: 'Missing EOS type' });
+  if (!EOS_TYPES.includes(eos)) return res.status(400).json({ error: `Unknown EOS type "${eos}". Use ideal, vdw, srk or pr.` });
+  if (!isFinite(T_K)  || T_K  <= 0) return res.status(400).json({ error: 'Temperature must be positive and finite.' });
+  if (T_K < 10)                 return res.status(400).json({ error: `Temperature ${T_K.toFixed(2)} K is below 10 K. EOS calculations are not reliable at near-absolute-zero temperatures.` });
+  if (!isFinite(P_Pa) || P_Pa <= 0) return res.status(400).json({ error: 'Pressure must be positive and finite.' });
+  if (!isFinite(nMol) || nMol <= 0) return res.status(400).json({ error: 'Number of moles must be positive.' });
+  if (!Array.isArray(list) || !list.length) return res.status(400).json({ error: 'Add at least one component.' });
+  if (list.length > EOS_MIX_MAX_COMPONENTS) return res.status(400).json({ error: `At most ${EOS_MIX_MAX_COMPONENTS} components are supported.` });
+
+  // ── components ──
+  const all = [];
+  for (let i = 0; i < list.length; i++) {
+    const c = list[i] || {};
+    const label = (typeof c.name === 'string' && c.name.trim()) ? c.name.trim().slice(0, 80) : `Component ${i + 1}`;
+    const x = num(c.x), Tc = num(c.Tc_K), Pc = num(c.Pc_Pa), M = num(c.M);
+    let w = num(c.omega);
+    if (!isFinite(x) || x < 0)   return res.status(400).json({ error: `${label}: mole fraction must be zero or positive.` });
+    if (!isFinite(Tc) || Tc <= 0) return res.status(400).json({ error: `${label}: critical temperature Tc must be positive.` });
+    if (!isFinite(Pc) || Pc <= 0) return res.status(400).json({ error: `${label}: critical pressure Pc must be positive.` });
+    if (!isFinite(M)  || M < 1)   return res.status(400).json({ error: `${label}: molar mass must be ≥ 1 g/mol.` });
+    if (eos === 'srk' || eos === 'pr') {
+      if (!isFinite(w)) return res.status(400).json({ error: `${label}: acentric factor ω is required for SRK and Peng-Robinson.` });
+      if (w < -1 || w > 2) return res.status(400).json({ error: `${label}: acentric factor ω = ${w} is outside the physical range (−1 … 2).` });
+    } else if (!isFinite(w)) w = 0;
+    all.push({ name: label, key: typeof c.key === 'string' ? c.key : null, x, Tc, Pc, omega: w, M, index: i });
+  }
+  const total = all.reduce((u, c) => u + c.x, 0);
+  if (!(total > 0)) return res.status(400).json({ error: 'The mole fractions add up to zero — enter the composition.' });
+  all.forEach(c => { c.z = c.x / total; });
+
+  // ── binary interaction parameters (full list indices) ──
+  let kijIn = null;
+  if (body.kij != null) {
+    if (!Array.isArray(body.kij) || body.kij.length !== all.length || body.kij.some(r => !Array.isArray(r) || r.length !== all.length))
+      return res.status(400).json({ error: `kij must be a ${all.length} × ${all.length} matrix.` });
+    kijIn = body.kij.map(r => r.map(v => { const k = num(v); return isFinite(k) ? k : 0; }));
+    for (let i = 0; i < all.length; i++) for (let j = 0; j < all.length; j++) {
+      if (Math.abs(kijIn[i][j]) >= 1) return res.status(400).json({ error: `kij between ${all[i].name} and ${all[j].name} must lie between −1 and 1.` });
+      if (i !== j && Math.abs(kijIn[i][j] - kijIn[j][i]) > 1e-12) return res.status(400).json({ error: `kij must be symmetric (${all[i].name} / ${all[j].name}).` });
+    }
+  }
+
+  const comps = all.filter(c => c.z > 0);                    // components that are actually present
+  const n = comps.length;
+  const z = comps.map(c => c.z);
+  const Mmix = comps.reduce((u, c) => u + c.z * c.M, 0);
+  const anyKij = !!kijIn && comps.some((ci, i) => comps.some((cj, j) => i !== j && kijIn[ci.index][cj.index] !== 0));
+  const RT = R * T_K;
+  const warnings = [];
+  const pack = (kind, frac, ph, x) => {
+    const M = x.reduce((u, xi, i) => u + xi * comps[i].M, 0);
+    return { kind, moleFrac: frac, Z: ph.Z, Vm_SI: ph.Vm, M, rho_mass: (M / 1000) / ph.Vm,
+             x, lnPhi: ph.lnPhi, phi: ph.lnPhi.map(Math.exp),
+             f_Pa: ph.lnPhi.map((l, i) => Math.exp(l) * x[i] * P_Pa),
+             A: ph.A, B: ph.B, a: ph.a, b: ph.b, rootCount: ph.rootCount };
+  };
+  // Kay's-rule pseudo-critical point — for orientation only, it is not used in the calculation
+  const pseudo = { Tc_K: comps.reduce((u, c) => u + c.z * c.Tc, 0), Pc_Pa: comps.reduce((u, c) => u + c.z * c.Pc, 0),
+                   omega: comps.reduce((u, c) => u + c.z * c.omega, 0) };
+  pseudo.Tr = T_K / pseudo.Tc_K; pseudo.Pr = P_Pa / pseudo.Pc_Pa;
+
+  let state = 'single', beta = 1, phases, K = null, flashInfo = null, tm = null, splitKind = null;
+
+  if (eos === 'ideal') {
+    const Vm = RT / P_Pa;
+    phases = [{ kind: 'ideal', moleFrac: 1, Z: 1, Vm_SI: Vm, M: Mmix, rho_mass: (Mmix / 1000) / Vm, x: z.slice(),
+                lnPhi: z.map(() => 0), phi: z.map(() => 1), f_Pa: z.map(zi => zi * P_Pa), rootCount: 1 }];
+    if (pseudo.Pr > 0.1) warnings.push({ type: 'ideal', msg: `Ideal gas law: only accurate at low reduced pressure. At pseudo-reduced Pr = ${pseudo.Pr.toFixed(3)} use PR or SRK — the ideal-gas law also cannot detect condensation.` });
+  } else {
+    const pure = comps.map(c => eosPureAB(eos, T_K, c.Tc, c.Pc, c.omega));
+    const mix = { eos, T_K, sq: pure.map(p => Math.sqrt(p.a)), bi: pure.map(p => p.b),
+                  omk: comps.map((ci, i) => comps.map((cj, j) => 1 - (kijIn && i !== j ? kijIn[ci.index][cj.index] : 0))) };
+    const feed = eosMixPhase(mix, z, P_Pa);
+    if (!feed) return res.status(400).json({ error: 'No real solution found for this mixture — try a lower pressure or a higher temperature.' });
+    if (!isFinite(feed.Z) || feed.Z <= 0 || feed.Z > 20) return res.status(400).json({ error: `EOS produced an unusable Z-factor (${feed.Z}). Check the inputs.` });
+
+    let split = null;
+    if (n > 1) {
+      const Kw = comps.map(c => (c.Pc / P_Pa) * Math.exp(5.373 * (1 + c.omega) * (1 - c.Tc / T_K)));     // Wilson
+      const st = eosMixStability(mix, z, P_Pa, feed, Kw);
+      tm = st.tm;
+      if (!st.stable) {
+        // Several two-phase solutions can exist (vapour–liquid and liquid–liquid). Flash from every
+        // unstable trial and from the Wilson estimate, and keep the split with the lowest Gibbs energy.
+        const gMix = (frac, x, ph) => frac * x.reduce((u, xi, i) => u + xi * (Math.log(xi) + ph.lnPhi[i]), 0);
+        const gFeed = gMix(1, z, feed);
+        let gBest = Infinity;
+        for (const K0 of st.all.concat([Kw])) {
+          const f = eosMixFlash(mix, z, P_Pa, K0);
+          if (!f || f.trivial || f.failed || !(f.beta > 0 && f.beta < 1)) continue;
+          let dxy = 0;
+          for (let i = 0; i < n; i++) dxy += (f.x[i] - f.y[i]) * (f.x[i] - f.y[i]);
+          if (dxy < 1e-14) continue;                                    // the two "phases" are the same
+          const g = gMix(f.beta, f.y, f.pv) + gMix(1 - f.beta, f.x, f.pl);
+          if (g < gFeed && g < gBest - 1e-12 * Math.max(1, Math.abs(g))) { gBest = g; split = f; }
+        }
+        if (!split) warnings.push({ type: 'flash', msg: 'The stability test indicates two phases, but the phase split did not converge (very close to a phase boundary or a critical point). Single-phase values are shown — treat them with caution.' });
+        else {
+          // is either phase itself unstable? → a third phase (vapour–liquid–liquid)
+          const third = [[split.x, split.pl], [split.y, split.pv]].some(([xx, pp]) => !eosMixStability(mix, xx, P_Pa, pp, Kw, 1e-7).stable);
+          if (third) warnings.push({ type: 'three_phase', msg: 'A third phase is indicated at these conditions (vapour–liquid–liquid). This calculator splits a mixture into at most two phases — treat the phase amounts and compositions below as approximate.' });
+        }
+      }
+    }
+    if (split) {
+      // the lighter phase (larger molar volume) is the vapour
+      const vapIsY = split.pv.Vm >= split.pl.Vm;
+      const pv = vapIsY ? split.pv : split.pl, pl = vapIsY ? split.pl : split.pv;
+      const y = vapIsY ? split.y : split.x,   x = vapIsY ? split.x : split.y;
+      beta = vapIsY ? split.beta : 1 - split.beta;
+      K = y.map((yi, i) => yi / x[i]);
+      state = 'two-phase';
+      // Both phases liquid-like (Vm below the model's critical volume) → a liquid–liquid split.
+      splitKind = pv.liquidLike ? 'liquid-liquid' : 'vapour-liquid';
+      phases = [pack(pv.liquidLike ? 'liquid-light' : 'vapour', beta, pv, y), pack('liquid', 1 - beta, pl, x)];
+      flashInfo = { iterations: split.iterations, converged: !!split.converged };
+      if (!split.converged) warnings.push({ type: 'flash', msg: 'The phase split has not fully converged (close to a critical point). Phase amounts and compositions are approximate.' });
+    } else {
+      const liq = feed.liquidLike;
+      beta = liq ? 0 : 1;
+      phases = [pack(liq ? 'liquid' : 'vapour', 1, feed, z.slice())];
+    }
+
+    if (eos === 'vdw') warnings.push({ type: 'vdw', msg: 'van der Waals EOS is historical/qualitative (1873). Use PR or SRK for engineering work — its phase boundaries in particular are far from the real ones.' });
+    if (splitKind === 'vapour-liquid') warnings.push({ type: 'two_phase', msg: `Two phases are present at these conditions: ${(beta * 100).toFixed(2)} mol % vapour and ${((1 - beta) * 100).toFixed(2)} mol % liquid. Each phase has its own composition, Z and density.` });
+    if (splitKind === 'liquid-liquid') warnings.push({ type: 'liquid_liquid', msg: 'The model predicts TWO LIQUID phases (a liquid–liquid split) at these conditions. With kij = 0, or for polar components, a cubic EOS often predicts such a split where the real mixture is fully miscible — do not rely on it without checking against data. A vapour phase is not looked for once two liquids are found.' });
+    if (phases.some(p => p.kind === 'liquid')) warnings.push({ type: 'liquid_density', msg: 'Liquid density from an untranslated cubic EOS is approximate (PR typically within 5 % for non-polar fluids, SRK about 9 % low; much worse for water, ammonia and alcohols).' });
+    if (!anyKij && n > 1) warnings.push({ type: 'kij', msg: 'All binary interaction parameters kij are zero. Gas-phase Z is hardly affected, but dew/bubble points and phase compositions of CO₂-, H₂S-, N₂- or H₂-hydrocarbon and of polar mixtures can shift noticeably — enter kij values if you have them.' });
+    const POLAR = new Set(['H2O','MeOH','EtOH','iPrOH','nPrOH','nBuOH','iBuOH','nPenOH','EG','HF','FormAcid','AcAcid','PropAcid','NH3','R717','HCN']);
+    const polarNames = comps.filter(c => c.key && POLAR.has(c.key)).map(c => c.name);
+    if (polarNames.length) warnings.push({ type: 'polar', msg: `Polar / hydrogen-bonding component present (${polarNames.join(', ')}): a cubic EOS with classical mixing rules is only a rough guide to its condensation and to the liquid phase.` });
+    if (comps.some(c => c.key && ['H2','He','Ne'].includes(c.key))) warnings.push({ type: 'quantum', msg: 'Hydrogen / helium / neon present: the Soave-type α(T) is used far above the range it was fitted to. Expect Z a few % low at high pressure.' });
+    if (pseudo.Pr > 10) warnings.push({ type: 'highP', msg: `Very high pressure (pseudo-reduced Pr = ${pseudo.Pr.toFixed(2)}): cubic EOS accuracy degrades.` });
+  }
+
+  // ── overall (both phases together) ──
+  const Vm_all = phases.reduce((u, p) => u + p.moleFrac * p.Vm_SI, 0);            // m³ per mol of feed
+  const massFracDen = phases.reduce((u, p) => u + p.moleFrac * p.M, 0);
+  phases.forEach(p => {
+    p.massFrac = p.moleFrac * p.M / massFracDen;
+    p.volFrac  = p.moleFrac * p.Vm_SI / Vm_all;
+    p.moles    = nMol * p.moleFrac;
+    p.V_m3     = nMol * p.moleFrac * p.Vm_SI;
+    p.mass_kg  = +(nMol * p.moleFrac * p.M / 1000).toPrecision(12);
+  });
+  const overall = { M: Mmix, Z: P_Pa * Vm_all / RT, Vm_SI: Vm_all, rho_mass: (Mmix / 1000) / Vm_all,
+                    V_m3: nMol * Vm_all, mass_kg: +(nMol * Mmix / 1000).toPrecision(12) };
+
+  // expand per-component arrays back to the caller's component order (absent components → null)
+  const expand = arr => all.map(c => { const k = comps.indexOf(c); return k < 0 ? null : arr[k]; });
+  return res.status(200).json({
+    success: true,
+    data: {
+      mixture: true, eos, T_K, P_Pa, n: nMol,
+      components: all.map(c => ({ name: c.name, key: c.key, z: c.z, Tc_K: c.Tc, Pc_Pa: c.Pc, omega: c.omega, M: c.M })),
+      state, split: splitKind, beta,
+      phases: phases.map(p => ({ ...p, x: expand(p.x), lnPhi: expand(p.lnPhi), phi: expand(p.phi), f_Pa: expand(p.f_Pa) })),
+      K: K ? expand(K) : null,
+      overall, pseudo, kijUsed: anyKij,
+      stability: tm == null ? null : { tm },
+      flash: flashInfo,
+      warnings
+    }
+  });
 }
 
 // ── End of Section 04: Equation of State (EOS) ──────────────────────────────────────────
