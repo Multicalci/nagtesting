@@ -1236,6 +1236,47 @@ function controlValve_handler(req,res){
 //     pr NH3 273.15 K / 10e5 Pa  -> Z 0.8854, Psat 4.293e5 Pa, phase 'liquid'
 //     pr NH3 298.15 K /  5e5 Pa  -> Z 0.9576, Psat 10.04e5 Pa, phase 'vapor'
 //     pr CO2 333.15 K / 50e5 Pa  -> Z 0.7919, phase 'supercritical'
+//
+// FIX Z-5 (Oct 2026): full calculation review of the EOS engine —
+//   • solveCubic REWRITTEN. The old Cardano routine switched branches on an
+//     ABSOLUTE tolerance (|D| < 1e-10). van der Waals was solved in molar-volume
+//     units where D ~ 1e-20, so EVERY vdW call fell into the "repeated root"
+//     branch and returned wrong numbers (CO2 350 K/100 bar: Z 0.7276 instead of
+//     0.6105; NH3 373 K/100 bar: 0.528 instead of 0.215) plus a phantom 2nd root.
+//     The same tolerance corrupted SRK/PR near the critical point (≈4 % in Z)
+//     and let roots below the co-volume (Z < B, i.e. Vm < b) through
+//     (PR H2 300 K/700 bar reported a non-existent root Z = 0.1385).
+//     New solver: roots are isolated between the turning points of the cubic
+//     and refined by bracketed Newton — no tolerances, scale-free, and only
+//     physical roots (Z > B) are returned.
+//   • van der Waals now solved as a cubic in Z like SRK/PR (A = aP/R²T²,
+//     B = bP/RT); eosParams carries A and B for vdW too.
+//   • Root labels were inverted (smallest Z was labelled "Vapour Z", largest
+//     "Liquid Z"). Roots now carry a correct label + kind
+//     ('liquid' | 'unstable' | 'vapour' | 'gas' | 'supercritical' | 'ideal').
+//   • eosPsat: Newton on ln P inside a guaranteed bracket instead of 60 rounds of
+//     successive substitution (which stalled near Tc and lost the liquid root at
+//     low Tr because of the old `z > 1e-6` filter). Works for vdW as well.
+//   • NEW data.stable — the thermodynamically stable root (lowest fugacity):
+//       { phase, kind, label, Z, phi, Vm_SI, rho_mass, f_Pa, Psat_Pa,
+//         V_m3, mass_kg, isLegacyRoot }
+//     phase: 'liquid' | 'vapor' | 'gas' (T ≥ Tc, P < Pc) | 'supercritical'
+//            (T ≥ Tc, P ≥ Pc) | null (ideal).  V_m3 / mass_kg use the mole
+//     number n, which was validated before but never used in any result.
+//   • BACKWARD COMPATIBILITY: data.Z / phi / Vm_SI / rho_mass / f_Pa are STILL
+//     the largest-Z (vapour-like) root and data.phase / data.Psat_Pa keep their
+//     Z-4 meaning (pr/srk only), so the control-valve auto-Z contract and the
+//     three regression anchors above are unchanged. Pages that want the real
+//     fluid state must read data.stable.
+//   • Optional body.gas (page gas key) switches on the polar / associating /
+//     quantum-gas notes — those sets existed in buildWarnings but were never used.
+//   • Inputs are coerced with Number(); unknown EOS names and a missing ω for
+//     SRK/PR now return a clear 400 instead of "No real solution found".
+//   • NEW request type  { curve: 'ZP' | 'PV', T_K, Pmax_Pa, Tc_K, Pc_Pa, omega }
+//     → chart series for all four EOS in ONE call (eosCurve_handler). The page
+//     used to draw its charts with a second, simplified copy of the maths in
+//     the browser (van der Waals there was hard-wired to Z = 1); the charts now
+//     come from this same engine, so they cannot drift from the calculator.
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 04 of 21  ►  EQUATION OF STATE (EOS)
 // Route: /api/eos
@@ -1260,9 +1301,19 @@ function eos_handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, M, n } = req.body;
+    // FIX Z-5: coerce — a JSON string "350" used to pass isFinite() and then crash on .toFixed()
+    const body = req.body || {};
+    const num  = v => (v === null || v === undefined || v === '' || typeof v === 'boolean' ? NaN : Number(v));
+    if (body.curve) return eosCurve_handler(body, num, res);          // FIX Z-5: chart series
+    const eos   = typeof body.eos === 'string' ? body.eos.trim().toLowerCase() : body.eos;
+    const T_K   = num(body.T_K),  P_Pa  = num(body.P_Pa);
+    const Tc_K  = num(body.Tc_K), Pc_Pa = num(body.Pc_Pa);
+    const M     = num(body.M),    n     = num(body.n);
+    let   omega = num(body.omega);
+    const gas   = typeof body.gas === 'string' ? body.gas : null;   // optional page gas key
 
     if (!eos)          return res.status(400).json({ error: 'Missing EOS type' });
+    if (!EOS_TYPES.includes(eos)) return res.status(400).json({ error: `Unknown EOS type "${eos}". Use ideal, vdw, srk or pr.` });
     if (!isFinite(T_K)  || T_K  <= 0) return res.status(400).json({ error: 'Temperature must be positive and finite.' });
     if (!isFinite(P_Pa) || P_Pa <= 0) return res.status(400).json({ error: 'Pressure must be positive and finite.' });
     if (!isFinite(Tc_K) || Tc_K <= 0) return res.status(400).json({ error: 'Critical temperature Tc must be positive.' });
@@ -1270,10 +1321,17 @@ function eos_handler(req, res) {
     if (!isFinite(M)    || M    <  1)  return res.status(400).json({ error: 'Molar mass must be ≥ 1 g/mol.' });
     if (!isFinite(n)    || n    <= 0)  return res.status(400).json({ error: 'Number of moles must be positive.' });
     if (T_K < 10) return res.status(400).json({ error: `Temperature ${T_K.toFixed(2)} K is below 10 K. EOS calculations are not reliable at near-absolute-zero temperatures.` });
+    if (eos === 'srk' || eos === 'pr') {
+      if (!isFinite(omega)) return res.status(400).json({ error: 'Acentric factor ω is required for SRK and Peng-Robinson.' });
+      if (omega < -1 || omega > 2) return res.status(400).json({ error: `Acentric factor ω = ${omega} is outside the physical range (−1 … 2). Check the input.` });
+    } else if (!isFinite(omega)) {
+      omega = 0;                                   // ideal / vdW do not use ω
+    }
 
     const roots = runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega);
     if (!roots.length) return res.status(400).json({ error: 'No real solution found — conditions may be below absolute minimum volume for this EOS. Try a lower pressure or higher temperature.' });
 
+    // Legacy "primary" root = largest Z (vapour-like). Kept for the control-valve auto-Z contract.
     const primary = roots.reduce((a, b) => a.Z > b.Z ? a : b);
     const Z       = primary.Z;
 
@@ -1287,29 +1345,53 @@ function eos_handler(req, res) {
     const Tr       = T_K / Tc_K;
     const Pr       = P_Pa / Pc_Pa;
 
-    // FIX Z-4: definitive phase verdict via fugacity-equality Psat (pr/srk only)
-    const Psat_Pa = eosPsat(eos, T_K, Tc_K, Pc_Pa, omega);
-    const phase   = eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa);
+    // FIX Z-5: the stable root (lowest fugacity) and the model's own saturation pressure
+    const stableRoot = eosStableRoot(roots);
+    const PsatModel  = eosPsat(eos, T_K, Tc_K, Pc_Pa, omega);           // ideal → null, T ≥ Tc → null
 
-    const warnings = buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots);
+    // FIX Z-4: definitive phase verdict via fugacity-equality Psat (pr/srk only — unchanged contract)
+    const Psat_Pa = (eos === 'pr' || eos === 'srk') ? PsatModel : null;
+    const phase   = eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa, stableRoot.kind);
+
+    const stable = {
+      phase:      EOS_KIND_TO_PHASE[stableRoot.kind] || null,
+      kind:       stableRoot.kind,
+      label:      stableRoot.label,
+      Z:          stableRoot.Z,
+      phi:        stableRoot.phi,
+      Vm_SI:      stableRoot.Vm,
+      rho_mass:   (M / 1000) / stableRoot.Vm,
+      f_Pa:       stableRoot.phi * P_Pa,
+      Psat_Pa:    PsatModel != null ? +PsatModel.toPrecision(8) : null,
+      V_m3:       n * stableRoot.Vm,              // total volume of n mol
+      mass_kg:    +(n * M / 1000).toPrecision(12), // mass of n mol
+      isLegacyRoot: stableRoot === primary        // false → data.Z is a metastable vapour root
+    };
+
+    const warnings = buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots,
+                                   { stable, gas, legacyZ: Z });
     if (phase === 'liquid') {
       warnings.unshift({ type: 'phase_liquid',
-        msg: `P (${(P_Pa/1e5).toFixed(2)} bar a) exceeds the saturation pressure at this temperature (Psat ≈ ${(Psat_Pa/1e5).toFixed(2)} bar a). The STABLE phase is LIQUID — the vapour-root Z reported here describes a phase that does not exist at these conditions.` });
+        msg: `P (${(P_Pa/1e5).toFixed(2)} bar a) exceeds the saturation pressure at this temperature (Psat ≈ ${eosFmtBar(Psat_Pa)} bar a). The STABLE phase is LIQUID (liquid-root Z = ${stable.Z.toPrecision(4)}). The vapour-root Z = ${Z.toFixed(4)} describes a phase that does not exist at these conditions.` });
     } else if (phase === 'near_dew') {
       warnings.unshift({ type: 'phase_near_dew',
-        msg: `Within 5 % of saturation (Psat ≈ ${(Psat_Pa/1e5).toFixed(2)} bar a) — near-dew-point gas. Cubic-EOS Z accuracy is reduced and condensation is possible.` });
+        msg: `Within 5 % of saturation (Psat ≈ ${eosFmtBar(Psat_Pa)} bar a) — near-dew-point gas. Cubic-EOS Z accuracy is reduced and condensation is possible.` });
     }
 
     return res.status(200).json({
       success: true,
       data: {
         Z, phi, Vm_SI, rho_mass, f_Pa, Tr, Pr,
-        Psat_Pa: Psat_Pa != null ? +Psat_Pa.toFixed(1) : null,   // FIX Z-4
-        phase,                                                    // FIX Z-4
-        roots: roots.map(r => ({ Z: r.Z, Vm: r.Vm, phi: r.phi, label: r.label })),
+        Psat_Pa: Psat_Pa != null ? +Psat_Pa.toPrecision(8) : null,   // FIX Z-4 (Z-5: precision kept for low Psat)
+        phase,                                                        // FIX Z-4
+        stable,                                                       // FIX Z-5
+        n, M,
+        roots: roots.map(r => ({ Z: r.Z, Vm: r.Vm, phi: r.phi, label: r.label, kind: r.kind,
+                                 rho_mass: (M / 1000) / r.Vm, stable: r === stableRoot })),
         rootCount: roots.length,
         eosParams: { A: primary.A, B: primary.B, a: primary.a, b: primary.b,
-                     m: primary.m, kappa: primary.kappa, alpha: primary.alpha },
+                     m: primary.m, kappa: primary.kappa, alpha: primary.alpha,
+                     kappaForm: primary.kappaForm },
         warnings
       }
     });
@@ -1325,53 +1407,128 @@ function eos_handler(req, res) {
 
 const R = 8.314462; // J/(mol·K)
 
-function solveCubic(c2, c1, c0) {
-  const shift = -c2 / 3;
-  const p = c1 - c2 * c2 / 3;
-  const q = 2 * c2 * c2 * c2 / 27 - c1 * c2 / 3 + c0;
-  const D = q * q / 4 + p * p * p / 27;
-  let roots = [];
+const EOS_TYPES = ['ideal', 'vdw', 'srk', 'pr'];
+const EOS_ROOT_LABEL    = { liquid: 'Liquid Z', unstable: 'Middle Z (unstable)', vapour: 'Vapour Z',
+                            gas: 'Gas Z', supercritical: 'Supercritical Z', ideal: 'Z = 1 (Ideal)' };
+const EOS_KIND_TO_PHASE = { liquid: 'liquid', vapour: 'vapor', gas: 'gas', supercritical: 'supercritical' };
+// Critical compressibility of each model (Vc = Zc·R·Tc/Pc) — used to tell a lone
+// sub-critical root apart: Vm < Vc → liquid-like branch, Vm > Vc → vapour-like branch.
+const EOS_ZC = { vdw: 0.375, srk: 1 / 3, pr: 0.3074013087 };
 
-  if (D > 1e-10) {
-    const sqrtD = Math.sqrt(D);
-    const u = Math.cbrt(-q / 2 + sqrtD);
-    const v = Math.cbrt(-q / 2 - sqrtD);
-    roots = [u + v + shift];
-  } else if (D < -1e-10) {
-    const r       = Math.sqrt(-p * p * p / 27);
-    const cosArg  = Math.max(-1, Math.min(1, -q / (2 * r)));
-    const theta   = Math.acos(cosArg);
-    const m       = 2 * Math.cbrt(r);
-    roots = [
-      m * Math.cos(theta / 3) + shift,
-      m * Math.cos((theta + 2 * Math.PI) / 3) + shift,
-      m * Math.cos((theta + 4 * Math.PI) / 3) + shift,
-    ];
-  } else {
-    const u = Math.cbrt(-q / 2);
-    roots = [2 * u + shift, -u + shift];
+function eosFmtBar(P_Pa) {
+  if (P_Pa == null || !isFinite(P_Pa)) return '—';
+  const bar = P_Pa / 1e5;
+  return bar >= 0.01 ? bar.toFixed(2) : bar.toExponential(2);
+}
+
+// ── FIX Z-5 : bracketed Newton (never leaves [a, b]; falls back to bisection) ──
+// Requires f(a) and f(b) of opposite sign. Converges to full double precision.
+function eosBracketRoot(f, df, a, b, fa) {
+  let lo = fa < 0 ? a : b;           // f(lo) < 0
+  let hi = fa < 0 ? b : a;           // f(hi) > 0
+  let x = 0.5 * (a + b);
+  let dxOld = Math.abs(b - a), dx = dxOld;
+  for (let it = 0; it < 300; it++) {
+    const fx = f(x);
+    if (fx === 0) return x;
+    if (fx < 0) lo = x; else hi = x;                 // x is now one end of the bracket
+    const d    = df(x);
+    const mn   = Math.min(lo, hi), mx = Math.max(lo, hi);
+    const step = fx / d;
+    let xn = x - step;                               // Newton candidate
+    const newtonOk = isFinite(xn) && xn > mn && xn < mx && Math.abs(2 * step) <= Math.abs(dxOld);
+    dxOld = dx;
+    if (newtonOk) {
+      dx = step;
+    } else {
+      xn = lo + 0.5 * (hi - lo);                     // bisection step
+      dx = xn - x;
+      if (xn === lo || xn === hi) return x;          // bracket has collapsed to adjacent doubles
+    }
+    if (Math.abs(xn - x) <= 4e-16 * Math.abs(xn)) return xn;
+    x = xn;
+  }
+  return x;
+}
+
+// ── FIX Z-5 : real roots of  z³ + c2·z² + c1·z + c0 = 0  with z > zMin, ascending ──
+// A cubic is monotonic between its turning points, so each interval
+// [zMin, z_max], [z_max, z_min], [z_min, Cauchy bound] holds at most one root and a
+// sign change proves it is there. No discriminant, no tolerance, no scale
+// dependence — the same routine is exact for Z ~ 1 and for a liquid root Z ~ 1e-9.
+function solveCubic(c2, c1, c0, zMin = 0) {
+  if (!(isFinite(c2) && isFinite(c1) && isFinite(c0) && isFinite(zMin))) return [];
+  const f  = z => ((z + c2) * z + c1) * z + c0;
+  const df = z => (3 * z + 2 * c2) * z + c1;
+  const zMax = 1 + Math.max(Math.abs(c2), Math.abs(c1), Math.abs(c0), Math.abs(zMin));  // all roots lie below this
+
+  // turning points: 3z² + 2·c2·z + c1 = 0 (cancellation-free quadratic formula)
+  let zA = NaN, zB = NaN;
+  const disc = c2 * c2 - 3 * c1;
+  if (disc > 0) {
+    const s = Math.sqrt(disc);
+    const q = -(c2 + (c2 >= 0 ? s : -s));
+    const r1 = q / 3, r2 = c1 / q;
+    zA = Math.min(r1, r2);            // local maximum
+    zB = Math.max(r1, r2);            // local minimum
   }
 
-  return roots.filter(z => z > 1e-6 && isFinite(z)).sort((a, b) => a - b);
+  const pts = [zMin];
+  if (zA > zMin && zA < zMax) pts.push(zA);
+  if (zB > zMin && zB < zMax && !(zB <= zA)) pts.push(zB);
+  pts.push(zMax);
+
+  const roots = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const lo = pts[i], hi = pts[i + 1];
+    const flo = f(lo), fhi = f(hi);
+    if (fhi === 0) { roots.push(hi); continue; }             // root sits exactly on a turning point
+    if (flo === 0 || (flo > 0) === (fhi > 0)) continue;      // no sign change → no root here
+    roots.push(eosBracketRoot(f, df, lo, hi, flo));
+  }
+  return roots.filter((z, i) => isFinite(z) && z > zMin && (i === 0 || z > roots[i - 1]));
 }
 
 function solveIdeal(T_K, P_Pa) {
   const Vm = R * T_K / P_Pa;
-  return [{ Z: 1, Vm, phi: 1, label: 'Z = 1 (Ideal)' }];
+  return [{ Z: 1, Vm, phi: 1, lnPhi: 0, label: EOS_ROOT_LABEL.ideal, kind: 'ideal' }];
+}
+
+// Shared tail of the three cubic models: solve, attach Vm / ln φ / φ, classify roots.
+function eosFinishRoots(eos, T_K, P_Pa, Tc_K, Pc_Pa, c2, c1, c0, B, lnPhiOf, params) {
+  let Zs = solveCubic(c2, c1, c0, B);                        // only Z > B  (Vm > b) is physical
+  // At the model's exact critical point the three roots coincide; a triple root can only be
+  // resolved to ~ε^(1/3) ≈ 1e-5, so numerically "different" roots that close are one root.
+  if (Zs.length > 1 && Zs[Zs.length - 1] - Zs[0] < 5e-5 * Zs[Zs.length - 1]) {
+    Zs = [Zs.reduce((s, z) => s + z, 0) / Zs.length];
+  }
+  const RT_P = R * T_K / P_Pa;
+  const roots = Zs.map(Z => {
+    const lnPhi = lnPhiOf(Z);
+    return { Z, Vm: Z * RT_P, phi: Math.exp(lnPhi), lnPhi, ...params };
+  }).filter(r => isFinite(r.lnPhi));
+
+  const Vc = EOS_ZC[eos] * R * Tc_K / Pc_Pa;
+  roots.forEach((r, i) => {
+    if (roots.length === 1) {
+      r.kind = T_K >= Tc_K ? (P_Pa >= Pc_Pa ? 'supercritical' : 'gas')
+                           : (r.Vm < Vc ? 'liquid' : 'vapour');
+    } else {
+      r.kind = i === 0 ? 'liquid' : i === roots.length - 1 ? 'vapour' : 'unstable';
+    }
+    r.label = EOS_ROOT_LABEL[r.kind];
+  });
+  return roots;
 }
 
 function solveVdW(T_K, P_Pa, Tc_K, Pc_Pa) {
-  const a  = 27 * R * R * Tc_K * Tc_K / (64 * Pc_Pa);
-  const b  = R * Tc_K / (8 * Pc_Pa);
-  const c2 = -(b + R * T_K / P_Pa);
-  const c1 = a / P_Pa;
-  const c0 = -a * b / P_Pa;
-  const Vms = solveCubic(c2, c1, c0);
-  return Vms.map((Vm, i) => {
-    const Z     = P_Pa * Vm / (R * T_K);
-    const lnPhi = b / (Vm - b) - Math.log(Math.max(1e-300, P_Pa * (Vm - b) / (R * T_K))) - 2 * a / (R * T_K * Vm);
-    return { Z, Vm, phi: Math.exp(lnPhi), label: ['Vapour Z', 'Middle Z', 'Liquid Z'][i] || 'Z', a, b };
-  });
+  const a = 27 * R * R * Tc_K * Tc_K / (64 * Pc_Pa);
+  const b = R * Tc_K / (8 * Pc_Pa);
+  const A = a * P_Pa / (R * R * T_K * T_K);
+  const B = b * P_Pa / (R * T_K);
+  // FIX Z-5: Z³ − (1+B)Z² + A·Z − A·B = 0  (was a cubic in Vm — see header)
+  const lnPhi = Z => (Z - 1) - Math.log(Z - B) - A / Z;      // ≡ b/(Vm−b) − ln[P(Vm−b)/RT] − 2a/(RT·Vm)
+  return eosFinishRoots('vdw', T_K, P_Pa, Tc_K, Pc_Pa, -(1 + B), A, -A * B, B, lnPhi, { A, B, a, b });
 }
 
 function solveSRK(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
@@ -1385,15 +1542,9 @@ function solveSRK(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
   const a           = a0 * alpha;
   const A           = a * P_Pa / (R * R * T_K * T_K);
   const B           = b * P_Pa / (R * T_K);
-  const c2 = -1;
-  const c1 = A - B - B * B;
-  const c0 = -A * B;
-  const Zs = solveCubic(c2, c1, c0);
-  return Zs.map((Z, i) => {
-    const Vm    = Z * R * T_K / P_Pa;
-    const lnPhi = (Z - 1) - Math.log(Math.max(1e-300, Z - B)) - (A / B) * Math.log(Math.max(1e-300, 1 + B / Z));
-    return { Z, Vm, phi: Math.exp(lnPhi), label: ['Vapour Z', 'Middle Z', 'Liquid Z'][i] || 'Z', A, B, a, b, m, alpha };
-  });
+  const lnPhi = Z => (Z - 1) - Math.log(Z - B) - (A / B) * Math.log(1 + B / Z);
+  return eosFinishRoots('srk', T_K, P_Pa, Tc_K, Pc_Pa, -1, A - B - B * B, -A * B, B, lnPhi,
+                        { A, B, a, b, m, alpha });
 }
 
 function solvePR(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
@@ -1402,6 +1553,7 @@ function solvePR(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
   // FIX Z-4: 1978 extension for heavy/polar fluids — the 1976 kappa polynomial
   // was fitted only up to omega ~0.49; beyond that (heavy HCs, some polar
   // fluids) the extended cubic form is the published correction.
+  const kappaForm   = omega <= 0.491 ? 1976 : 1978;
   const kappa       = omega <= 0.491
       ? 0.37464 + 1.54226 * omega - 0.26992 * omega * omega
       : 0.379642 + 1.48503 * omega - 0.164423 * omega * omega + 0.016666 * omega * omega * omega;
@@ -1411,18 +1563,12 @@ function solvePR(T_K, P_Pa, Tc_K, Pc_Pa, omega) {
   const a           = a0 * alpha;
   const A           = a * P_Pa / (R * R * T_K * T_K);
   const B           = b * P_Pa / (R * T_K);
-  const c2 = -(1 - B);
-  const c1 = A - 3 * B * B - 2 * B;
-  const c0 = -(A * B - B * B - B * B * B);
-  const Zs = solveCubic(c2, c1, c0);
-  return Zs.map((Z, i) => {
-    const Vm     = Z * R * T_K / P_Pa;
-    const sq2    = Math.SQRT2;
-    const denom1 = Math.max(1e-300, Z + (1 + sq2) * B);
-    const denom2 = Math.max(1e-300, Z + (1 - sq2) * B);
-    const lnPhi  = (Z - 1) - Math.log(Math.max(1e-300, Z - B)) - A / (2 * sq2 * B) * Math.log(denom1 / denom2);
-    return { Z, Vm, phi: Math.exp(lnPhi), label: ['Vapour Z', 'Middle Z', 'Liquid Z'][i] || 'Z', A, B, a, b, kappa, alpha };
-  });
+  const sq2         = Math.SQRT2;
+  const lnPhi = Z => (Z - 1) - Math.log(Z - B)
+                     - A / (2 * sq2 * B) * Math.log((Z + (1 + sq2) * B) / (Z + (1 - sq2) * B));
+  return eosFinishRoots('pr', T_K, P_Pa, Tc_K, Pc_Pa,
+                        -(1 - B), A - 3 * B * B - 2 * B, -(A * B - B * B - B * B * B), B, lnPhi,
+                        { A, B, a, b, kappa, kappaForm, alpha });
 }
 
 function runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega) {
@@ -1435,55 +1581,175 @@ function runEOS(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega) {
   }
 }
 
+// ── FIX Z-5 : which root is the real one? ────────────────────────────────────
+// For a pure fluid the stable phase is the one with the lower fugacity. With a
+// single physical root there is nothing to choose; with three, the middle root
+// has (∂P/∂V)_T > 0 and is never a candidate.
+function eosStableRoot(roots) {
+  if (roots.length <= 1) return roots[0] || null;
+  const liq = roots[0], vap = roots[roots.length - 1];
+  return liq.lnPhi < vap.lnPhi ? liq : vap;
+}
+
 // ── FIX Z-4 : saturation pressure & phase-stability verdict ──────────────────
 // Motivation (found during NIST/CoolProp validation of the control-valve Z):
 // "largest root = vapour" is only true when the vapour is the STABLE phase.
 // At sub-saturation states (NH3 at 0 °C / 10 bar a, Psat = 4.29 bar) the old
 // path returned a plausible-looking vapour Z = 0.885 for a phase that doesn't
 // exist — the fluid is liquid. The definitive test is fugacity equality:
-// Psat is the pressure where phi_liquid = phi_vapour. Solved here by direct
-// substitution P(n+1) = P(n) * phi_L/phi_V from a Wilson-correlation start,
-// reusing the existing solveSRK/solvePR machinery (works for both cubics).
+// Psat is the pressure where phi_liquid = phi_vapour.
+//
+// FIX Z-5: solved by Newton on ln P,   ln P ← ln P + (ln φL − ln φV)/(ZV − ZL)
+// (exact derivative: ∂ln φ/∂ln P = Z − 1), safeguarded by a bracket that always
+// contains Psat: below it the vapour is stable, above it the liquid is. Outside
+// the three-root window the side is read from the lone root (Vm vs the model's
+// Vc), so the search can never stall the way the old successive-substitution
+// loop did near Tc or at low Tr. Valid for any of the three cubics (vdW too).
 // Validated vs NIST: PR Psat within 0.1–2 % (NH3 25 °C: 10.042 vs 10.027 bar;
 // n-C4 25 °C: 2.430 vs 2.433 bar; Cl2 25 °C: 7.744 vs ~7.7 bar literature).
 function eosPsat(eos, T_K, Tc_K, Pc_Pa, omega) {
-  if (!(eos === 'pr' || eos === 'srk')) return null;   // needs an alpha-function cubic
-  if (!(T_K < Tc_K)) return null;                       // no saturation above Tc
-  let P = Pc_Pa * Math.exp(5.373 * (1 + omega) * (1 - Tc_K / T_K));  // Wilson init
-  if (!(P > 0) || !isFinite(P)) return null;
-  for (let i = 0; i < 60; i++) {
-    const roots = runEOS(eos, T_K, P, Tc_K, Pc_Pa, omega);
-    if (roots.length < 2) {                             // outside 3-root region — nudge in
-      const zTop = roots.length ? Math.max(...roots.map(r => r.Z)) : 1;
-      P *= zTop > 0.5 ? 1.05 : 0.95;
-      continue;
+  if (!(eos === 'pr' || eos === 'srk' || eos === 'vdw')) return null;   // needs a cubic
+  if (!(T_K < Tc_K) || !(T_K > 0)) return null;                         // no saturation above Tc
+
+  // g > 0 → vapour stable (P below Psat);  g < 0 → liquid stable (P above Psat)
+  const probe = P => {
+    const r = runEOS(eos, T_K, P, Tc_K, Pc_Pa, omega);
+    if (!r.length) return null;
+    if (r.length >= 2) {
+      const L = r[0], V = r[r.length - 1];
+      return { g: L.lnPhi - V.lnPhi, dZ: V.Z - L.Z };
     }
-    const rV = roots.reduce((a, b) => (a.Z > b.Z ? a : b));
-    const rL = roots.reduce((a, b) => (a.Z < b.Z ? a : b));
-    if (!(rV.phi > 0) || !(rL.phi > 0)) return null;
-    const Pn = P * (rL.phi / rV.phi);                   // phi_L/phi_V -> 1 at Psat
-    if (!isFinite(Pn) || Pn <= 0) return null;
-    if (Math.abs(Pn - P) / P < 1e-7) return Pn;
+    return { g: r[0].kind === 'liquid' ? -Infinity : Infinity, dZ: 0 };
+  };
+
+  let lo = Pc_Pa * 1e-100, hi = Pc_Pa;
+  const atLo = probe(lo);
+  if (!atLo || !(atLo.g > 0)) return null;                // Psat below any meaningful pressure
+
+  const w = isFinite(omega) ? omega : 0;
+  let P = Pc_Pa * Math.exp(5.373 * (1 + w) * (1 - Tc_K / T_K));          // Wilson init
+  if (!(P > lo && P < hi)) P = Math.sqrt(lo * hi);
+
+  for (let i = 0; i < 200; i++) {
+    const s = probe(P);
+    if (!s) return null;
+    if (s.g === 0) return P;
+    if (s.g > 0) lo = P; else hi = P;
+    let Pn = NaN;
+    if (isFinite(s.g) && s.dZ > 0) Pn = P * Math.exp(s.g / s.dZ);        // Newton step in ln P
+    if (!(Pn > lo && Pn < hi)) Pn = Math.sqrt(lo * hi);                  // otherwise bisect in ln P
+    if (Math.abs(Pn - P) <= 1e-12 * P) return Pn;
     P = Pn;
   }
-  return P;                                             // best estimate after 60 iters
+  return P;                                               // best estimate (bracket already tiny)
 }
 
 // 'vapor' | 'near_dew' | 'liquid' | 'supercritical' | null (ideal/vdw: no verdict)
-function eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa) {
+// Legacy Z-4 field — unchanged meaning ('supercritical' = T ≥ Tc at any pressure).
+// FIX Z-5: if Psat could not be evaluated below Tc, fall back on the stable-root
+// kind instead of silently answering 'vapor'.
+function eosPhase(eos, T_K, P_Pa, Tc_K, Psat_Pa, stableKind) {
   if (!(eos === 'pr' || eos === 'srk')) return null;
   if (T_K >= Tc_K) return 'supercritical';
-  if (Psat_Pa == null) return 'vapor';
+  if (Psat_Pa == null) return stableKind === 'liquid' ? 'liquid' : 'vapor';
   if (P_Pa > Psat_Pa * 1.001) return 'liquid';
   if (P_Pa > Psat_Pa * 0.95)  return 'near_dew';
   return 'vapor';
 }
 
-function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
+// ── FIX Z-5 : chart series for the EOS page (one request per chart) ──────────
+//   curve 'ZP' → Z of the STABLE phase vs pressure, with the exact vapour→liquid
+//                step at each model's own Psat when T < Tc
+//   curve 'PV' → pressure-explicit isotherm P(Vm) on a log-spaced volume grid,
+//                plus the saturation tie-line (Maxwell construction) when T < Tc
+function eosCurve_handler(body, num, res) {
+  const type  = String(body.curve).toUpperCase();
+  const T_K   = num(body.T_K),  Pmax  = num(body.Pmax_Pa);
+  const Tc_K  = num(body.Tc_K), Pc_Pa = num(body.Pc_Pa);
+  let   omega = num(body.omega);
+  if (type !== 'ZP' && type !== 'PV') return res.status(400).json({ error: `Unknown curve type "${body.curve}". Use ZP or PV.` });
+  if (!isFinite(T_K)  || T_K  <= 0)  return res.status(400).json({ error: 'Temperature must be positive and finite.' });
+  if (T_K < 10)                      return res.status(400).json({ error: `Temperature ${T_K.toFixed(2)} K is below 10 K. EOS calculations are not reliable at near-absolute-zero temperatures.` });
+  if (!isFinite(Pmax) || Pmax <= 0)  return res.status(400).json({ error: 'Maximum pressure must be positive and finite.' });
+  if (!isFinite(Tc_K) || Tc_K <= 0)  return res.status(400).json({ error: 'Critical temperature Tc must be positive.' });
+  if (!isFinite(Pc_Pa)|| Pc_Pa<= 0)  return res.status(400).json({ error: 'Critical pressure Pc must be positive.' });
+  if (!isFinite(omega)) omega = 0;
+  if (omega < -1 || omega > 2)       return res.status(400).json({ error: `Acentric factor ω = ${omega} is outside the physical range (−1 … 2).` });
+
+  let N = Math.round(num(body.N));
+  if (!isFinite(N)) N = 160;
+  N = Math.max(20, Math.min(400, N));
+  let list = Array.isArray(body.eos) ? body.eos.filter(e => EOS_TYPES.includes(e)) : [];
+  if (!list.length) list = EOS_TYPES;
+
+  const RT   = R * T_K;
+  const Vlo  = 1.03 * 0.07780 * R * Tc_K / Pc_Pa;          // just above the smallest co-volume (PR)
+  const Vhi  = Math.max(RT / (0.01 * Pmax), 50 * Vlo);     // ideal-gas volume at 1 % of Pmax
+
+  const series = list.map(eos => {
+    const Psat = eosPsat(eos, T_K, Tc_K, Pc_Pa, omega);
+    let sat = null;
+    if (Psat != null) {
+      const r = runEOS(eos, T_K, Psat, Tc_K, Pc_Pa, omega);
+      if (r.length >= 2) {
+        const L = r[0], V = r[r.length - 1];
+        sat = { P_Pa: Psat, Z_liq: L.Z, Z_vap: V.Z, Vm_liq: L.Vm, Vm_vap: V.Vm };
+      }
+    }
+    const points = [];
+
+    if (type === 'ZP') {
+      const Ps = [Pmax * 1e-3];
+      for (let i = 1; i <= N; i++) Ps.push(Pmax * i / N);
+      let stepDone = false;
+      for (const P of Ps) {
+        if (sat && !stepDone && P >= sat.P_Pa) {             // exact phase change at Psat
+          points.push({ P_Pa: sat.P_Pa, Z: sat.Z_vap, kind: 'vapour' },
+                      { P_Pa: sat.P_Pa, Z: sat.Z_liq, kind: 'liquid' });
+          stepDone = true;
+          if (P === sat.P_Pa) continue;
+        }
+        const s = eosStableRoot(runEOS(eos, T_K, P, Tc_K, Pc_Pa, omega));
+        if (s && isFinite(s.Z)) points.push({ P_Pa: P, Z: s.Z, kind: s.kind });
+      }
+    } else {
+      // a (with α at this T) and b of the model, taken from the engine itself
+      const ref = eos === 'ideal' ? null : runEOS(eos, T_K, Pc_Pa, Tc_K, Pc_Pa, omega)[0];
+      const a = ref ? ref.a : 0, b = ref ? ref.b : 0;
+      const Pof = Vm => {
+        if (eos === 'ideal') return RT / Vm;
+        if (Vm <= b * 1.0001) return NaN;
+        if (eos === 'vdw') return RT / (Vm - b) - a / (Vm * Vm);
+        if (eos === 'srk') return RT / (Vm - b) - a / (Vm * (Vm + b));
+        return RT / (Vm - b) - a / (Vm * (Vm + b) + b * (Vm - b));
+      };
+      const ratio = Math.log(Vhi / Vlo);
+      for (let i = 0; i < N; i++) {
+        const Vm = Vlo * Math.exp(ratio * i / (N - 1));
+        const P  = Pof(Vm);
+        // null breaks the line where the isotherm leaves the plotted range (or goes negative)
+        points.push({ Vm, P_Pa: (isFinite(P) && P > 0 && P <= 1.3 * Pmax) ? P : null });
+      }
+    }
+    return { eos, Psat_Pa: Psat, sat, points };
+  });
+
+  return res.status(200).json({
+    success: true,
+    data: { curve: type, T_K, Tr: T_K / Tc_K, Pmax_Pa: Pmax, N, series }
+  });
+}
+
+function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots, ctx) {
   const warnings = [];
-  const POLAR_GASES_SET  = new Set(['H2O','MeOH','EtOH','iPrOH','nPrOH','nBuOH','iBuOH','nPenOH','EG','HF','FormAcid','AcAcid','PropAcid','NH3','HCN']);
-  const QUANTUM_GASES    = new Set(['H2','He']);
+  const POLAR_GASES_SET  = new Set(['H2O','MeOH','EtOH','iPrOH','nPrOH','nBuOH','iBuOH','nPenOH','EG','HF','FormAcid','AcAcid','PropAcid','NH3','R717','HCN']);
+  const QUANTUM_GASES    = new Set(['H2','He','Ne']);
   const ASSOC_GASES      = new Set(['AcAcid','FormAcid','PropAcid','HF']);
+  const stable  = (ctx && ctx.stable) || null;
+  const gas     = (ctx && ctx.gas) || null;
+  const cubic   = eos !== 'ideal';
+  const isLiq   = !!stable && stable.kind === 'liquid';
+  const Zs      = stable ? stable.Z : Z;          // Z of the phase that actually exists
 
   if (Tr < 0.5)            warnings.push({ type: 'subcritical', msg: `Deep subcritical region (Tr = ${Tr.toFixed(3)}): Operating well below Tc. Liquid-phase properties may be unreliable.` });
   if (Math.abs(Tr-1)<0.05 && Math.abs(Pr-1)<0.05)
@@ -1492,9 +1758,35 @@ function buildWarnings(eos, T_K, P_Pa, Tc_K, Pc_Pa, omega, Z, Tr, Pr, roots) {
   else if (Pr > 5)         warnings.push({ type: 'highP', msg: `High reduced pressure (Pr = ${Pr.toFixed(2)}): Validate results at Pr > 5.` });
   if (eos === 'ideal' && Pr > 0.1) warnings.push({ type: 'ideal', msg: `Ideal gas law: only accurate at Pr < 0.1. At Pr = ${Pr.toFixed(3)}, switch to PR or SRK.` });
   if (eos === 'vdw')       warnings.push({ type: 'vdw', msg: 'van der Waals EOS is historical/qualitative (1873). Use PR or SRK for engineering work.' });
-  if (roots.length === 3)  warnings.push({ type: 'twophase', msg: `Three real roots found (Tr=${Tr.toFixed(3)}, Pr=${Pr.toFixed(3)}) — possible two-phase region. Largest Z = vapour, smallest Z = liquid.` });
-  if (Z > 2.0 && eos !== 'ideal') warnings.push({ type: 'highZ', msg: `Z = ${Z.toFixed(4)} is above typical range. Verify conditions.` });
-  if (Z < 0.2 && Z > 0 && eos !== 'ideal') warnings.push({ type: 'lowZ', msg: `Very low Z-factor (Z = ${Z.toFixed(4)}) — may indicate liquid-like conditions.` });
+
+  // FIX Z-5: three roots do NOT mean two phases are present — only that T < Tc and P
+  // lies between the two spinodal pressures. Say which root is the real one.
+  if (roots.length === 3) {
+    const liqStable = isLiq;
+    warnings.push({ type: 'twophase', msg: `Three real roots (Tr=${Tr.toFixed(3)}, Pr=${Pr.toFixed(3)}) — T is below Tc and P lies between the spinodal limits. The ${liqStable ? 'LIQUID (smallest Z)' : 'VAPOUR (largest Z)'} root has the lower fugacity and is the stable phase; the ${liqStable ? 'vapour' : 'liquid'} root is metastable and the middle root is unphysical. Two phases coexist only at P = Psat.` });
+  }
+
+  // FIX Z-5: vdW has no legacy phase verdict — report its own (qualitative) one here.
+  if (eos === 'vdw' && isLiq) {
+    warnings.push({ type: 'vdw_liquid', msg: `van der Waals predicts LIQUID at these conditions${stable.Psat_Pa != null ? ` (its own Psat ≈ ${eosFmtBar(stable.Psat_Pa)} bar a)` : ''}. The vdW saturation line is far from the real one — use PR or SRK to judge the phase.` });
+  }
+  if (cubic && isLiq) {
+    warnings.push({ type: 'liquid_density', msg: 'Liquid density from an untranslated cubic EOS is approximate. For non-polar fluids PR is typically within 5 % (worst cases ≈ 15 %) and SRK reads about 9 % low (up to 25 %); for water, ammonia and alcohols expect 15–30 % error; van der Waals is far worse. No Peneloux volume shift is applied — use a liquid-density correlation for design.' });
+  }
+
+  if (Zs > 2.0 && eos !== 'ideal') warnings.push({ type: 'highZ', msg: `Z = ${Zs.toFixed(4)} is above typical range. Verify conditions.` });
+  if (Zs < 0.2 && Zs > 0 && eos !== 'ideal' && !isLiq) warnings.push({ type: 'lowZ', msg: `Very low Z-factor (Z = ${Zs.toFixed(4)}) — dense, liquid-like fluid.` });
+
+  // FIX Z-5: fluid-specific notes (need the optional body.gas key)
+  if (cubic && gas) {
+    if (QUANTUM_GASES.has(gas)) warnings.push({ type: 'quantum', msg: 'Quantum gas (H₂ / He / Ne): at Tr ≫ 1 the Soave-type α(T) is used far outside the range it was fitted to. Expect Z a few % low at high pressure (PR is ≈ 5 % low for H₂ at 300 K / 700 bar).' });
+    if (ASSOC_GASES.has(gas))   warnings.push({ type: 'associating', msg: 'Associating fluid (carboxylic acid / HF): the vapour dimerises or oligomerises even at low pressure. A cubic EOS cannot represent this — real vapour density can be far higher than calculated.' });
+    else if (POLAR_GASES_SET.has(gas)) warnings.push({ type: 'polar', msg: 'Polar / hydrogen-bonding fluid: vapour-phase Z is usually good to a few %, but cubic-EOS liquid density can be 10–30 % in error and Psat several % off.' });
+    if (/_sim$/.test(gas))      warnings.push({ type: 'mixture', msg: 'Refrigerant blend treated as ONE pseudo-pure component: bubble- and dew-point pressures are not distinguished (no temperature glide).' });
+  }
+  if ((eos === 'srk' || eos === 'pr') && (omega < -0.4 || omega > 1.0)) {
+    warnings.push({ type: 'omega', msg: `Acentric factor ω = ${omega} is outside the range the α(T) correlations were fitted to (≈ −0.4 … 1.0).` });
+  }
 
   return warnings;
 }
