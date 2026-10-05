@@ -142,6 +142,31 @@ select{cursor:pointer;appearance:none;padding-right:28px;
 }
 .calc-btn:hover{background:var(--navy2);box-shadow:0 6px 20px rgba(13,27,42,0.28);transform:translateY(-1px);}
 
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--rule2);border-radius:6px;overflow:hidden;margin-bottom:14px;}
+.mode-btn{padding:9px 6px;border:none;background:var(--paper2);color:var(--mid);font-family:var(--body);font-size:0.86rem;font-weight:900;letter-spacing:0.4px;cursor:pointer;transition:all .15s;}
+.mode-btn+.mode-btn{border-left:1.5px solid var(--rule2);}
+.mode-btn.active{background:var(--teal);color:#fff;}
+.mix-head,.mix-row{display:grid;grid-template-columns:1fr 92px 34px;gap:6px;align-items:center;}
+.mix-head{font-family:var(--mono);font-size:0.64rem;letter-spacing:1px;text-transform:uppercase;color:var(--mid);font-weight:700;margin:10px 0 5px;}
+.mix-row{margin-bottom:6px;}
+.mix-row select,.mix-row input{padding:8px 9px;font-size:0.84rem;}
+.mix-row select{padding-right:24px;}
+.mix-x{height:36px;border:1.5px solid var(--rule2);border-radius:5px;background:var(--paper2);color:var(--red);font-weight:900;cursor:pointer;}
+.mix-x:disabled{opacity:.35;cursor:default;}
+.mix-custom{grid-column:1/-1;display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:5px;}
+.mix-custom input{font-size:0.78rem;padding:7px 7px;}
+.mix-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.mix-foot #mix_total{font-family:var(--mono);font-size:0.78rem;font-weight:700;margin-right:auto;}
+.mini-btn{padding:7px 11px;border:1.5px solid var(--teal);border-radius:5px;background:var(--paper);color:var(--teal);font-family:var(--body);font-size:0.78rem;font-weight:900;cursor:pointer;}
+.mini-btn:hover{background:var(--teal-pale);}
+#kij_box{margin-top:12px;border:1.5px solid var(--rule);border-radius:6px;padding:8px 12px;background:var(--paper2);}
+#kij_box summary{cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--ink2);}
+.kij-grid{display:grid;grid-template-columns:1fr;gap:5px;margin:10px 0 6px;max-height:260px;overflow-y:auto;}
+.kij-pair{display:grid;grid-template-columns:1fr 84px;gap:8px;align-items:center;font-size:0.78rem;color:var(--mid);font-weight:600;}
+.kij-pair input{padding:6px 8px;font-size:0.8rem;}
+@media(max-width:480px){.mix-custom{grid-template-columns:1fr 1fr;}}
+.layout>div{min-width:0;}   /* let wide result tables scroll inside the card instead of widening the page */
+
 .xls-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;padding:11px;border:1.5px solid var(--teal);border-radius:6px;background:var(--paper);color:var(--teal);font-family:var(--body);font-size:0.86rem;font-weight:900;letter-spacing:0.6px;text-decoration:none;transition:all 0.2s;}
 .xls-btn:hover{background:var(--teal-pale);}
 .xls-note{font-size:0.76rem;color:var(--light);text-align:center;margin-top:6px;line-height:1.5;}
@@ -414,12 +439,13 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
   <div class="hero">
     <div class="hero-tag">Thermodynamics — Equations of State</div>
     <h1>Gas Laws &amp; <em>EOS Calculator</em></h1>
-    <p class="hero-desc">Compute compressibility factor Z, molar volume, density and fugacity using 4 equations of state. Identifies the stable phase (vapour, liquid or supercritical) by fugacity, reports the saturation pressure and returns all cubic roots.</p>
+    <p class="hero-desc">Compute compressibility factor Z, molar volume, density and fugacity of a pure gas or a mixture of up to 12 components using 4 equations of state. Identifies the stable phase by fugacity, reports the saturation pressure, and splits a mixture into gas and liquid when it is partly condensed.</p>
     <div class="hero-pills">
       <span class="hpill">IDEAL GAS</span><span class="hpill">VAN DER WAALS</span>
       <span class="hpill">PENG-ROBINSON</span><span class="hpill">SRK</span>
       <span class="hpill">SI &amp; IMPERIAL UNITS</span>
       <span class="hpill">STABLE PHASE &amp; PSAT</span>
+      <span class="hpill">GAS MIXTURES</span>
     </div>
   </div>
 
@@ -458,6 +484,11 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
           <!-- Gas select -->
           <div class="fsec">
             <div class="fsec-lbl">Select Gas</div>
+            <div class="mode-toggle">
+              <button type="button" class="mode-btn active" id="mode-pure" onclick="setMode('pure')">Pure gas</button>
+              <button type="button" class="mode-btn" id="mode-mix" onclick="setMode('mix')">Mixture</button>
+            </div>
+            <div id="pure_box">
             <div class="fg">
               <label class="fl">Gas Species</label>
               <select id="gas_sel" onchange="fillGasProps()">
@@ -466,7 +497,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
                   <option value="N2">Nitrogen (N₂)</option>
                   <option value="O2">Oxygen (O₂)</option>
                   <option value="H2">Hydrogen (H₂)</option>
-                  <option value="CO2" selected>Carbon Dioxide (CO₂)</option>
+                  <option value="CO2">Carbon Dioxide (CO₂)</option>
                   <option value="CO">Carbon Monoxide (CO)</option>
                   <option value="H2O">Water / Steam (H₂O)</option>
                   <option value="NH3">Ammonia (NH₃)</option>
@@ -498,7 +529,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
                   <option value="Xe">Xenon (Xe)</option>
                 </optgroup>
                 <optgroup label="🟠 Alkanes — Paraffins">
-                  <option value="CH4">Methane (CH₄)</option>
+                  <option value="CH4" selected>Methane (CH₄)</option>
                   <option value="C2H6">Ethane (C₂H₆)</option>
                   <option value="C3H8">Propane (C₃H₈)</option>
                   <option value="nC4">n-Butane (n-C₄H₁₀)</option>
@@ -643,16 +674,39 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
             <div class="r2">
               <div class="fg">
                 <label class="fl" id="lbl-Tc">Tc (°C)</label>
-                <div class="ir"><input type="number" id="Tc" value="31.05" step="0.1"><div class="iu" id="iu-Tc">°C</div></div>
+                <div class="ir"><input type="number" id="Tc" value="-82.59" step="0.1"><div class="iu" id="iu-Tc">°C</div></div>
               </div>
               <div class="fg">
                 <label class="fl" id="lbl-Pc">Pc (bar)</label>
-                <div class="ir"><input type="number" id="Pc" value="73.83" step="0.01"><div class="iu" id="iu-Pc">bar</div></div>
+                <div class="ir"><input type="number" id="Pc" value="46.1" step="0.01"><div class="iu" id="iu-Pc">bar</div></div>
               </div>
             </div>
             <div class="fg" style="max-width:200px;">
               <label class="fl">ω (acentric factor)</label>
-              <div class="ir"><input type="number" id="omega" value="0.2239" step="0.0001"><div class="iu">—</div></div>
+              <div class="ir"><input type="number" id="omega" value="0.0115" step="0.0001"><div class="iu">—</div></div>
+            </div>
+            </div><!-- /pure_box -->
+            <div id="mix_box" style="display:none;">
+              <select id="mix_preset" aria-label="Load an example composition" onchange="loadMixPreset(this.value)">
+                <option value="">Load an example composition…</option>
+                <option value="natural_gas">Natural gas</option>
+                <option value="nh3_loop">Ammonia synthesis loop gas</option>
+                <option value="syngas">Make-up synthesis gas (H₂ : N₂ = 3 : 1)</option>
+                <option value="air">Dry air</option>
+                <option value="lpg">LPG</option>
+                <option value="co2_stream">CO₂ with impurities</option>
+              </select>
+              <div class="mix-head"><span>Component</span><span>mol %</span><span></span></div>
+              <div id="mix_rows"></div>
+              <div class="mix-foot">
+                <span id="mix_total">Total 0.00 %</span>
+                <button type="button" class="mini-btn" onclick="normaliseMix()">Normalise</button>
+                <button type="button" class="mini-btn" onclick="addMixRow()">+ Add component</button>
+              </div>
+              <details id="kij_box">
+                <summary>Binary interaction parameters k<sub>ij</sub> — optional, default 0</summary>
+                <div id="kij_table"></div>
+              </details>
             </div>
           </div>
 
@@ -670,9 +724,9 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
               </div>
             </div>
             <div class="r2">
-              <div class="fg">
+              <div class="fg" id="M_fg">
                 <label class="fl">Molar Mass M</label>
-                <div class="ir"><input type="number" id="M_mol" value="44.01" step="0.01" min="1"><div class="iu">g/mol</div></div>
+                <div class="ir"><input type="number" id="M_mol" value="16.043" step="0.01" min="1"><div class="iu">g/mol</div></div>
               </div>
               <div class="fg">
                 <label class="fl">Moles n</label>
@@ -698,7 +752,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
 
           <button class="calc-btn" onclick="calculate()">▶ CALCULATE EOS</button>
           <a class="xls-btn" href="/gas-equation-of-state/gas-eos-calculator.xlsx" download="gas-eos-calculator.xlsx">⬇ Download Excel version (.xlsx)</a>
-          <div class="xls-note">The same calculation as plain cell formulas — all 127 gases, no macros.</div>
+          <div class="xls-note">The same calculation as plain cell formulas — all 127 gases and mixtures of up to 12, no macros.</div>
         </div>
       </div>
     </div>
@@ -739,7 +793,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
           <label class="fl">Gas</label>
           <select id="chart_gas" onchange="chartGasChange()">
             <optgroup label="Inorganic">
-              <option value="CO2" selected>CO₂</option>
+              <option value="CO2">CO₂</option>
               <option value="N2">Nitrogen</option><option value="O2">Oxygen</option>
               <option value="H2">Hydrogen</option><option value="H2O">Water/Steam</option>
               <option value="NH3">Ammonia</option><option value="H2S">H₂S</option>
@@ -753,7 +807,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
               <option value="Xe">Xenon</option>
             </optgroup>
             <optgroup label="Alkanes">
-              <option value="CH4">Methane</option><option value="C2H6">Ethane</option>
+              <option value="CH4" selected>Methane</option><option value="C2H6">Ethane</option>
               <option value="C3H8">Propane</option><option value="nC4">n-Butane</option>
               <option value="nC5">n-Pentane</option><option value="nC6">n-Hexane</option>
               <option value="nC7">n-Heptane</option><option value="nC8">n-Octane</option>
@@ -833,7 +887,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
           <label class="fl">Gas</label>
           <select id="cmp_gas" onchange="cmpGasChange()">
             <optgroup label="Inorganic">
-              <option value="CO2" selected>CO₂</option><option value="N2">Nitrogen</option>
+              <option value="CO2">CO₂</option><option value="N2">Nitrogen</option>
               <option value="O2">Oxygen</option><option value="H2">Hydrogen</option>
               <option value="H2O">Water/Steam</option><option value="NH3">Ammonia</option>
               <option value="H2S">H₂S</option><option value="SO2">SO₂</option>
@@ -844,7 +898,7 @@ dl.tc-params dd{font-size:0.88rem;color:var(--mid);line-height:1.6;margin-left:0
               <option value="Ar">Argon</option><option value="Kr">Krypton</option><option value="Xe">Xenon</option>
             </optgroup>
             <optgroup label="Alkanes">
-              <option value="CH4">Methane</option><option value="C2H6">Ethane</option>
+              <option value="CH4" selected>Methane</option><option value="C2H6">Ethane</option>
               <option value="C3H8">Propane</option><option value="nC4">n-Butane</option>
               <option value="iC4">i-Butane</option><option value="nC5">n-Pentane</option>
               <option value="nC6">n-Hexane</option><option value="nC7">n-Heptane</option>
@@ -1048,7 +1102,7 @@ function selectEOS(eos, el) {
 function fillVdW() {
   const sec = document.getElementById('vdw_sec');
   if (!sec) return;
-  sec.style.display = activeEOS === 'vdw' ? '' : 'none';
+  sec.style.display = (activeEOS === 'vdw' && !mixMode) ? '' : 'none';
   const Tc = getTcK(), Pc = getPcPa();
   const ok = Tc > 0 && Pc > 0;
   document.getElementById('vdw_a').value = ok ? (27 * R * R * Tc * Tc / (64 * Pc)).toExponential(5) : '';
@@ -1224,8 +1278,370 @@ function gasIsEdited(g, Tc_K, Pc_Pa, omega, M) {
          Math.abs(omega - g.omega) > 1e-6 || Math.abs(M - g.M) > 1e-6;
 }
 
+// ── MIXTURE MODE (FIX Z-6) ────────────────────────────────────────
+// The page only collects the composition and shows the answer; mixing rules,
+// stability test and the gas/liquid split are computed by /api/eos.
+const MIX_MAX = 12;
+let mixMode = false;
+let mixSeq  = 0;
+let mixRows = [];        // { id, key, pct, name, Tc, Pc, omega, M }  — the last five only for key === 'custom'
+const kijMap = {};       // "idA|idB" → kij  (ids in ascending order)
+const MIX_PRESETS = {
+  natural_gas: { label: 'Example — natural gas',                 comps: [['CH4',85],['C2H6',6],['C3H8',3],['nC4',1],['iC4',0.5],['nC5',0.3],['N2',2],['CO2',2.2]] },
+  nh3_loop:    { label: 'Example — ammonia synthesis loop gas',  comps: [['H2',60],['N2',20],['CH4',8],['Ar',4],['NH3',8]] },
+  syngas:      { label: 'Example — make-up synthesis gas (3 : 1)', comps: [['H2',74],['N2',24.7],['CH4',1],['Ar',0.3]] },
+  air:         { label: 'Example — dry air',                     comps: [['N2',78.09],['O2',20.95],['Ar',0.93],['CO2',0.03]] },
+  lpg:         { label: 'Example — LPG',                         comps: [['C3H8',60],['nC4',30],['iC4',10]] },
+  co2_stream:  { label: 'Example — CO₂ with impurities',         comps: [['CO2',95],['N2',2],['CH4',2],['H2',1]] },
+};
+
+function setMode(mode) {
+  mixMode = mode === 'mix';
+  document.getElementById('mode-pure').classList.toggle('active', !mixMode);
+  document.getElementById('mode-mix').classList.toggle('active', mixMode);
+  document.getElementById('pure_box').style.display = mixMode ? 'none' : '';
+  document.getElementById('mix_box').style.display  = mixMode ? '' : 'none';
+  const mfg = document.getElementById('M_fg'); if (mfg) mfg.style.visibility = mixMode ? 'hidden' : '';
+  if (mixMode && !mixRows.length) loadMixPreset('natural_gas');
+  fillVdW();
+  lastCalc = null;
+  document.getElementById('res_eos_label').textContent = 'Select EOS above then click Calculate';
+  document.getElementById('results_panel').innerHTML = `<div class="placeholder"><div class="ph-icon">⚗️</div><h3>Awaiting Calculation</h3>
+    <p>${mixMode ? 'Enter the composition in mol %, set T &amp; P, then click Calculate.' : 'Choose gas, set T &amp; P, then click Calculate.'}</p></div>`;
+}
+
+function newMixRow(key, pct) {
+  return { id: ++mixSeq, key, pct, name: '', Tc: '', Pc: '', omega: '', M: '' };
+}
+function loadMixPreset(name) {
+  const p = MIX_PRESETS[name];
+  if (!p) return;
+  mixRows = p.comps.map(([k, x]) => newMixRow(k, x));
+  Object.keys(kijMap).forEach(k => delete kijMap[k]);
+  const sel = document.getElementById('mix_preset'); if (sel) sel.value = '';
+  renderMixRows();
+}
+function addMixRow() {
+  if (mixRows.length >= MIX_MAX) { showToast(`At most ${MIX_MAX} components.`); return; }
+  const used = new Set(mixRows.map(r => r.key));
+  const next = ['N2','CH4','CO2','H2','C2H6','C3H8','O2','Ar','NH3','H2O','CO','H2S'].find(k => !used.has(k)) || 'N2';
+  mixRows.push(newMixRow(next, 0));
+  renderMixRows();
+}
+function removeMixRow(id) {
+  if (mixRows.length <= 1) return;
+  mixRows = mixRows.filter(r => r.id !== id);
+  Object.keys(kijMap).forEach(k => { if (k.split('|').includes(String(id))) delete kijMap[k]; });
+  renderMixRows();
+}
+function mixSet(id, field, value) {
+  const r = mixRows.find(x => x.id === id);
+  if (!r) return;
+  r[field] = value;
+  if (field === 'key') renderMixRows();              // custom fields appear / disappear, kij labels change
+  else if (field === 'pct') updateMixTotal();
+  else if (field === 'name') buildKijTable();
+}
+function mixName(r) {
+  if (r.key === 'custom') return (r.name && String(r.name).trim()) || 'Custom component';
+  return GAS_DB[r.key] ? GAS_DB[r.key].name : r.key;
+}
+function mixTotal() { return mixRows.reduce((s, r) => s + (Number.isFinite(parseFloat(r.pct)) ? parseFloat(r.pct) : 0), 0); }
+function updateMixTotal() {
+  const t = mixTotal(), el = document.getElementById('mix_total');
+  if (!el) return;
+  const ok = Math.abs(t - 100) < 0.005;
+  el.textContent = `Total ${t.toFixed(2)} %` + (ok || t <= 0 ? '' : ' — will be normalised to 100 %');
+  el.style.color = ok ? 'var(--teal)' : 'var(--amber)';
+}
+function normaliseMix() {
+  const t = mixTotal();
+  if (!(t > 0)) return;
+  mixRows.forEach(r => { const v = parseFloat(r.pct); r.pct = Number.isFinite(v) ? +(v / t * 100).toFixed(4) : 0; });
+  renderMixRows();
+}
+function renderMixRows() {
+  const opts = document.getElementById('gas_sel').innerHTML.replace(/\sselected(="[^"]*")?/g, '')
+                 .replace('── Custom Gas ──', '── Custom component ──');
+  const box = document.getElementById('mix_rows');
+  box.innerHTML = mixRows.map(r => `
+    <div class="mix-row">
+      <select aria-label="Component" onchange="mixSet(${r.id},'key',this.value)" data-id="${r.id}">${opts}</select>
+      <input type="number" aria-label="mol %" value="${esc(r.pct)}" min="0" step="0.01" oninput="mixSet(${r.id},'pct',this.value)">
+      <button type="button" class="mix-x" title="Remove component" onclick="removeMixRow(${r.id})"${mixRows.length <= 1 ? ' disabled' : ''}>✕</button>
+      ${r.key === 'custom' ? `<div class="mix-custom">
+        <input type="text"   placeholder="Name"       value="${esc(r.name)}"  oninput="mixSet(${r.id},'name',this.value)">
+        <input type="number" placeholder="Tc (K)"     value="${esc(r.Tc)}"    step="0.1"    oninput="mixSet(${r.id},'Tc',this.value)">
+        <input type="number" placeholder="Pc (bar)"   value="${esc(r.Pc)}"    step="0.01"   oninput="mixSet(${r.id},'Pc',this.value)">
+        <input type="number" placeholder="ω"          value="${esc(r.omega)}" step="0.0001" oninput="mixSet(${r.id},'omega',this.value)">
+        <input type="number" placeholder="M (g/mol)"  value="${esc(r.M)}"     step="0.01"   oninput="mixSet(${r.id},'M',this.value)">
+      </div>` : ''}
+    </div>`).join('');
+  box.querySelectorAll('select').forEach(s => { const r = mixRows.find(x => x.id === +s.dataset.id); if (r) s.value = r.key; });
+  updateMixTotal();
+  buildKijTable();
+}
+function kijKey(a, b) { return a < b ? `${a}|${b}` : `${b}|${a}`; }
+function buildKijTable() {
+  const box = document.getElementById('kij_table');
+  if (!box) return;
+  if (mixRows.length < 2) { box.innerHTML = '<div class="xls-note">Add a second component to enter k<sub>ij</sub>.</div>'; return; }
+  let html = '';
+  for (let i = 0; i < mixRows.length; i++) for (let j = i + 1; j < mixRows.length; j++) {
+    const k = kijKey(mixRows[i].id, mixRows[j].id);
+    html += `<label class="kij-pair"><span>${esc(mixName(mixRows[i]).replace(/\s*\(.*\)$/, ''))} – ${esc(mixName(mixRows[j]).replace(/\s*\(.*\)$/, ''))}</span>
+      <input type="number" step="0.001" min="-0.99" max="0.99" value="${kijMap[k] != null ? esc(kijMap[k]) : ''}" placeholder="0" oninput="kijMap['${k}']=this.value"></label>`;
+  }
+  box.innerHTML = `<div class="kij-grid">${html}</div>
+    <div class="xls-note" style="text-align:left;">Blank = 0. Gas-phase Z changes little; dew and bubble points can shift. Typical PR values: CO₂–hydrocarbon 0.10–0.15, N₂–CH₄ ≈ 0.03, H₂S–hydrocarbon 0.05–0.10.</div>`;
+}
+
+// Read the component table → request payload, or an error string.
+function readMix(needsOmega) {
+  if (!mixRows.length) return { error: 'Add at least one component.' };
+  const comps = [];
+  for (let i = 0; i < mixRows.length; i++) {
+    const r = mixRows[i], label = mixName(r);
+    const pct = parseFloat(r.pct);
+    if (!Number.isFinite(pct) || pct < 0) return { error: `${esc(label)}: enter a mole % of zero or more.` };
+    if (r.key === 'custom') {
+      const Tc = parseFloat(r.Tc), Pc = parseFloat(r.Pc), M = parseFloat(r.M);
+      let w = parseFloat(r.omega);
+      if (!(Tc > 0)) return { error: `${esc(label)}: enter the critical temperature Tc in K.` };
+      if (!(Pc > 0)) return { error: `${esc(label)}: enter the critical pressure Pc in bar.` };
+      if (!Number.isFinite(w)) { if (needsOmega) return { error: `${esc(label)}: enter the acentric factor ω.` }; w = 0; }
+      if (!(M >= 1)) return { error: `${esc(label)}: enter the molar mass M (≥ 1 g/mol).` };
+      comps.push({ name: label, key: null, x: pct, Tc_K: Tc, Pc_Pa: Pc * 1e5, omega: w, M });
+    } else {
+      const g = GAS_DB[r.key];
+      if (!g) return { error: `No property data for "${esc(r.key)}".` };
+      comps.push({ name: g.name, key: r.key, x: pct, Tc_K: g.Tc, Pc_Pa: g.Pc * 1e5, omega: g.omega, M: g.M });
+    }
+  }
+  if (!(comps.reduce((s, c) => s + c.x, 0) > 0)) return { error: 'Enter the composition — the mole percentages add up to zero.' };
+  let kij = null;
+  for (let i = 0; i < mixRows.length; i++) for (let j = i + 1; j < mixRows.length; j++) {
+    const raw = kijMap[kijKey(mixRows[i].id, mixRows[j].id)];
+    if (raw == null || raw === '') continue;
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v) || Math.abs(v) >= 1) return { error: `k<sub>ij</sub> for ${esc(mixName(mixRows[i]))} – ${esc(mixName(mixRows[j]))} must lie between −1 and 1.` };
+    if (v !== 0) {
+      if (!kij) kij = mixRows.map(() => mixRows.map(() => 0));
+      kij[i][j] = kij[j][i] = v;
+    }
+  }
+  return { comps, kij };
+}
+
+async function calculateMixture() {
+  if (_apiPending) return;
+  const eos  = activeEOS;
+  const T_K  = getTopK(), P_Pa = getPoPa(), n = numVal('n_moles');
+  if (!isFinite(T_K) || T_K <= 0) { showError('Enter a temperature above absolute zero.'); return; }
+  if (!isFinite(P_Pa)|| P_Pa<= 0) { showError('Pressure must be positive (absolute pressure).'); return; }
+  if (!isFinite(n)   || n <= 0)   { showError('Number of moles must be positive.'); return; }
+  const m = readMix(eos === 'srk' || eos === 'pr');
+  if (m.error) { showError(m.error); return; }
+
+  const btn = document.querySelector('button[onclick="calculate()"]');
+  if (btn) { btn.textContent = '⏳ Calculating…'; btn.disabled = true; }
+  _apiPending = true;
+  try {
+    const resp = await fetch('/api/eos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eos, T_K, P_Pa, n, components: m.comps, kij: m.kij })
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json.success) { showError(json.error || `Server error (${resp.status}).`); return; }
+    const d = json.data;
+    if (!d.mixture || !Array.isArray(d.phases)) { showError('The calculation server is out of date (no mixture support). Deploy the updated api/process-calculators.js together with this page.'); return; }
+    const main = d.phases[0];
+    lastCalc = { mixture: true, data: d, eos, T_K, P_Pa, n, gasName: `Mixture (${d.components.filter(c => c.z > 0).length} components)`,
+                 Z: main.Z, rho_mass: d.overall.rho_mass };
+    renderMixResults(d, { eos, T_K, P_Pa, n });
+  } catch (e) {
+    showError('Could not reach calculation server. Check your connection and try again.');
+  } finally {
+    _apiPending = false;
+    if (btn) { btn.textContent = '▶ CALCULATE EOS'; btn.disabled = false; }
+  }
+}
+
+const MIX_PHASE_NAME = { vapour: 'Vapour', liquid: 'Liquid', 'liquid-light': 'Liquid 1 (lighter)', ideal: 'Ideal gas' };
+function mixPhaseName(d, p) { return (d.split === 'liquid-liquid' && p.kind === 'liquid') ? 'Liquid 2 (denser)' : MIX_PHASE_NAME[p.kind] || p.kind; }
+function mixBanner(d) {
+  const b = d.beta * 100;
+  if (d.eos === 'ideal') return { tag: 'IDEAL GAS', cls: 'ph-na', text: 'Ideal gas mixture — the ideal-gas law has no liquid phase and makes no phase prediction' };
+  if (d.split === 'vapour-liquid') return { tag: 'TWO PHASES', cls: 'ph-sc', text: `The mixture is partly condensed: ${b.toFixed(2)} mol % vapour and ${(100 - b).toFixed(2)} mol % liquid` };
+  if (d.split === 'liquid-liquid') return { tag: 'TWO LIQUID PHASES', cls: 'ph-sc', text: `Liquid–liquid split predicted: ${b.toFixed(2)} mol % lighter liquid and ${(100 - b).toFixed(2)} mol % denser liquid` };
+  if (d.phases[0].kind === 'liquid') return { tag: 'LIQUID', cls: 'ph-liq', text: 'Single phase — the whole mixture is a dense, liquid-like fluid at these conditions' };
+  return { tag: 'GAS', cls: 'ph-vap', text: 'Single phase — the whole mixture is a stable gas at these conditions (no liquid forms)' };
+}
+
+function renderMixResults(d, c) {
+  const { eos, T_K, P_Pa, n } = c;
+  const ph = d.phases, two = d.state === 'two-phase', o = d.overall, ban = mixBanner(d);
+  const comps = d.components;
+  const main = ph[0];
+  const T_disp = fromSI_T(T_K), P_disp = fromSI_P(P_Pa);
+  const pct = v => (v == null ? '—' : fx(v * 100, 4));
+
+  // Only notes that change how the result must be read go on top; accuracy notes follow the tables.
+  const TOP = new Set(['flash', 'three_phase', 'liquid_liquid', 'vdw', 'ideal']);
+  const warnBox = w => `<div class="eos-warn"><span class="eos-warn-icon">⚠</span><span>${w.msg}</span></div>`;
+  const warnHTML = (d.warnings || []).filter(w => TOP.has(w.type)).map(warnBox).join('');
+  const notes = (d.warnings || []).filter(w => !TOP.has(w.type) && w.type !== 'two_phase');
+  const notesHTML = notes.length ? `<div class="sum-strip"><div class="sum-head">Accuracy notes</div>
+      ${notes.map(w => `<div class="sum-row" style="justify-content:flex-start;"><span style="font-size:0.84rem;color:var(--ink2);line-height:1.6;">${w.msg}</span></div>`).join('')}</div>` : '';
+  const phaseHTML = `<div class="phase-box ${ban.cls}">
+      <div><div class="phase-tag">Phase state</div><div class="phase-name">${ban.tag}</div></div>
+      <div class="phase-txt">${ban.text}<br>Mixture molar mass M = ${fx(o.M, 3)} g/mol &nbsp;·&nbsp; ${d.kijUsed ? 'k<sub>ij</sub> as entered' : 'all k<sub>ij</sub> = 0'}</div>
+    </div>`;
+
+  // ── phases side by side ──
+  const cols = ph.map(p => ({ name: mixPhaseName(d, p), p }));
+  const prow = (label, f, unit) => `<tr><td>${label}</td>${cols.map(k => `<td>${f(k.p)}${unit ? ' ' + unit : ''}</td>`).join('')}${two ? `<td>${f(null)}</td>` : ''}</tr>`;
+  const ov = (pv, all, unit) => p => (p ? pv(p) : (all == null ? '—' : all + (unit ? ' ' + unit : '')));
+  const phaseTable = `<div style="overflow-x:auto;margin-bottom:16px;"><table class="cmp-table">
+      <thead><tr><th>Property</th>${cols.map(k => `<th>${k.name}</th>`).join('')}${two ? '<th>Whole mixture</th>' : ''}</tr></thead><tbody>
+      ${two ? prow('Amount of phase', ov(p => `${pct(p.moleFrac)} mol %`, '100 mol %')) : ''}
+      ${two ? prow('Mass fraction', ov(p => `${pct(p.massFrac)} wt %`, '100 wt %')) : ''}
+      ${two ? prow('Volume fraction', ov(p => `${pct(p.volFrac)} vol %`, '100 vol %')) : ''}
+      ${prow('Compressibility factor Z', ov(p => fx(p.Z, 6), fx(o.Z, 6) + ' <span class="badge b-a" style="margin-left:4px;">PV/nRT of both phases</span>'))}
+      ${prow('Molar mass M', ov(p => fx(p.M, 3) + ' g/mol', fx(o.M, 3), 'g/mol'))}
+      ${prow('Molar volume Vm', ov(p => `${fx(fromSI_Vm(p.Vm_SI), 5)} ${uVm()}`, fx(fromSI_Vm(o.Vm_SI), 5), uVm()))}
+      ${prow('Density ρ', ov(p => `${fx(fromSI_rho(p.rho_mass), 4)} ${uRho()}`, fx(fromSI_rho(o.rho_mass), 4), uRho()))}
+      ${prow(`Moles (of ${n} mol)`, ov(p => `${fx(p.moles, 4)} mol`, fx(n, 4), 'mol'))}
+      ${prow('Volume', ov(p => `${fx(fromSI_V(p.V_m3), 5)} ${uV()}`, fx(fromSI_V(o.V_m3), 5), uV()))}
+      ${prow('Mass', ov(p => `${fx(fromSI_m(p.mass_kg), 4)} ${uM()}`, fx(fromSI_m(o.mass_kg), 4), uM()))}
+      </tbody></table></div>`;
+
+  // ── composition ──
+  const compRows = comps.map((cm, i) => {
+    if (!(cm.z > 0)) return `<tr><td>${esc(cm.name)}</td><td>0</td><td colspan="${two ? 5 : 2}" style="color:var(--light);">not present</td></tr>`;
+    return `<tr><td>${esc(cm.name)}</td><td>${pct(cm.z)}</td>
+      ${two ? `<td>${pct(ph[0].x[i])}</td><td>${pct(ph[1].x[i])}</td><td>${fx(d.K[i], 5)}</td>` : ''}
+      <td>${fx(ph[0].phi[i], 5)}</td>
+      <td>${fx(fromSI_P(ph[0].f_Pa[i]), 4)} ${uP()}</td></tr>`;
+  }).join('');
+  const compTable = `<div class="sum-strip"><div class="sum-head">Composition (mol %) and component fugacity</div>
+    <div style="overflow-x:auto;"><table class="cmp-table">
+      <thead><tr><th>Component</th><th>Feed z</th>${two ? `<th>${cols[0].name} y</th><th>${cols[1].name} x</th><th>K = y / x</th>` : ''}
+        <th>φ<sub>i</sub>${two ? ' (' + cols[0].name.toLowerCase() + ')' : ''}</th><th>Fugacity f<sub>i</sub></th></tr></thead>
+      <tbody>${compRows}</tbody></table></div>
+    ${two ? '<div class="xls-note" style="text-align:left;padding:8px 14px;">At equilibrium each component has the same fugacity in both phases, so one fugacity column is enough.</div>' : ''}</div>`;
+
+  const eqHTML = eos === 'ideal' ? '' : `<div class="eq-box">
+      <div class="eq-title">${EOS_SHORT[eos]} — mixing rules &amp; parameters of ${two ? 'each phase' : 'the mixture'}</div>
+      <div>a = Σ<sub>i</sub>Σ<sub>j</sub> x<sub>i</sub>x<sub>j</sub>(1 − k<sub>ij</sub>)√(a<sub>i</sub>a<sub>j</sub>) &nbsp;&nbsp; b = Σ<sub>i</sub> x<sub>i</sub>b<sub>i</sub></div>
+      ${ph.map(p => `<div>${mixPhaseName(d, p)}:  A = ${fx(p.A, 6)}   B = ${fx(p.B, 6)}   →   Z = ${fx(p.Z, 7)}${p.rootCount === 3 ? '   (lowest-Gibbs root of 3)' : ''}</div>`).join('')}
+    </div>`;
+
+  const zLabel = two ? `${cols[0].name} phase` : ban.tag.toLowerCase();
+  document.getElementById('res_eos_label').textContent = `${EOS_NAMES[eos]} · mixture`;
+  document.getElementById('results_panel').innerHTML = `
+    ${warnHTML}
+    ${phaseHTML}
+    <div class="eos-active-banner" style="background:${EOS_COLORS[eos]};">
+      ★ EOS: ${EOS_NAMES[eos]} — mixture of ${comps.filter(x => x.z > 0).length} components
+      <span>Change EOS by clicking the 4 tabs above</span>
+    </div>
+    <div class="z-headline">
+      <div class="zh-bar"></div>
+      <div class="zh-main">
+        <div class="zh-tag">Compressibility Factor Z  [${EOS_NAMES[eos]}] — ${zLabel}</div>
+        <div class="zh-z">${fx(main.Z, 6)}<span class="zh-unit">—</span></div>
+        <div class="zh-sub">Mixture · T = ${T_disp.toFixed(2)} ${uT()} · P = ${fx(P_disp, 3)} ${uP()}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="badge ${two ? 'b-r' : 'b-g'}">${two ? 'Two phases' : 'Single phase'}</span>
+          <span class="badge b-a">M = ${fx(o.M, 3)} g/mol</span>
+          ${two ? `<span class="badge b-a">vapour fraction ${pct(d.beta)} mol %</span>` : ''}
+        </div>
+      </div>
+      <div class="zh-aside">
+        <div class="zs"><div class="zs-val">${fx(fromSI_rho(main.rho_mass), 4)}</div><div class="zs-lbl">ρ ${two ? cols[0].name.toLowerCase() : ''} (${uRho()})</div></div>
+        <div class="zs"><div class="zs-val">${two ? fx(fromSI_rho(ph[1].rho_mass), 3) : fx(fromSI_Vm(main.Vm_SI), 4)}</div><div class="zs-lbl">${two ? 'ρ ' + cols[1].name.toLowerCase() + ' (' + uRho() + ')' : 'Vm (' + uVm() + ')'}</div></div>
+        <div class="zs"><div class="zs-val">${fx(fromSI_V(o.V_m3), 4)}</div><div class="zs-lbl">Volume of ${n} mol (${uV()})</div></div>
+        <div class="zs"><div class="zs-val">${fx(fromSI_m(o.mass_kg), 3)}</div><div class="zs-lbl">Mass of ${n} mol (${uM()})</div></div>
+      </div>
+    </div>
+    ${phaseTable}
+    ${compTable}
+    ${notesHTML}
+    ${eqHTML}
+    <div class="sum-strip">
+      <div class="sum-head">Conditions</div>
+      <div class="sum-row"><span class="sum-key">Temperature T</span><span class="sum-val">${T_disp.toFixed(2)} ${uT()} (${T_K.toFixed(2)} K)</span></div>
+      <div class="sum-row"><span class="sum-key">Pressure P (absolute)</span><span class="sum-val">${fx(P_disp, 3)} ${uP()} = ${fx(P_Pa/1e5, 4)} bar</span></div>
+      <div class="sum-row"><span class="sum-key">Amount n</span><span class="sum-val">${n} mol</span></div>
+      <div class="sum-row"><span class="sum-key">Pseudo-critical point (Kay's rule, for orientation only)</span><span class="sum-val">Tpc ${d.pseudo.Tc_K.toFixed(2)} K · Ppc ${(d.pseudo.Pc_Pa/1e5).toFixed(2)} bar · Tr ${d.pseudo.Tr.toFixed(3)} · Pr ${fx(d.pseudo.Pr, 3)}</span></div>
+      <div class="sum-row"><span class="sum-key">Phase check</span><span class="sum-val">${eos === 'ideal' ? 'none (ideal gas)' : 'stability test' + (two ? ' + two-phase flash' : ' — single phase is stable')}</span></div>
+    </div>`;
+}
+
+function makeMixPDF() {
+  const r = lastCalc, d = r.data, ph = d.phases, two = d.state === 'two-phase', o = d.overall, ban = mixBanner(d);
+  const now = new Date();
+  const ds = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const ts = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const names = ph.map(p => mixPhaseName(d, p));
+  const pct = v => (v == null ? '—' : fx(v * 100, 4));
+  const line = (label, f, all) => `<tr><td>${label}</td>${ph.map(p => `<td>${f(p)}</td>`).join('')}${two ? `<td>${all}</td>` : ''}</tr>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+@page{size:A4 portrait;margin:13mm 15mm 12mm 15mm;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#060e16;font-size:11px;line-height:1.6;}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:4px solid #0d7d6a;margin-bottom:12px;}
+.logo{font-family:Georgia,serif;font-size:20px;font-weight:700;color:#0d1b2a;}
+.logo-sub{font-size:9.5px;color:#304050;letter-spacing:2px;text-transform:uppercase;margin-top:2px;font-weight:700;}
+.meta{text-align:right;font-size:10.5px;color:#304050;line-height:1.9;font-weight:600;}.meta b{color:#060e16;}
+.sec{font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#0d7d6a;border-bottom:1.5px solid #d6f0eb;padding-bottom:3px;margin:12px 0 7px;}
+.state{background:#0d1b2a;color:#fff;border-left:7px solid #0d7d6a;border-radius:4px;padding:10px 14px;font-weight:700;}
+.state small{display:block;font-weight:600;color:rgba(255,255,255,.7);margin-top:2px;}
+table{width:100%;border-collapse:collapse;font-size:10px;}
+th{background:#0d1b2a;color:#fff;text-align:left;padding:5px 8px;font-size:8.5px;letter-spacing:.8px;text-transform:uppercase;}
+td{padding:4px 8px;border-bottom:1px solid #d4dde6;font-family:'Courier New',monospace;font-weight:700;}
+td:first-child{font-family:inherit;font-weight:600;color:#304050;}
+.footer{position:fixed;bottom:7mm;left:15mm;right:15mm;display:flex;justify-content:space-between;font-size:8.5px;color:#4a5e70;border-top:1px solid #b8c8d8;padding-top:5px;font-weight:600;}
+</style></head><body>
+<div class="hdr">
+  <div><div class="logo">MULTICALCI.COM — Gas Laws &amp; EOS</div><div class="logo-sub">Mixture calculation report</div></div>
+  <div class="meta">Report date: <b>${ds}</b> &nbsp; Time: <b>${ts}</b><br>EOS: <b>${EOS_NAMES[r.eos]}</b><br>T = <b>${fromSI_T(r.T_K).toFixed(2)} ${uT()}</b> (${r.T_K.toFixed(2)} K) &nbsp; P = <b>${fx(fromSI_P(r.P_Pa), 3)} ${uP()}</b> abs &nbsp; n = <b>${r.n} mol</b></div>
+</div>
+<div class="state">${ban.tag}<small>${ban.text} · mixture molar mass ${fx(o.M, 3)} g/mol · ${d.kijUsed ? 'kij as entered' : 'all kij = 0'}</small></div>
+<div class="sec">Phases</div>
+<table><thead><tr><th>Property</th>${names.map(nm => `<th>${nm}</th>`).join('')}${two ? '<th>Whole mixture</th>' : ''}</tr></thead><tbody>
+${two ? line('Amount (mol %)', p => pct(p.moleFrac), '100') : ''}
+${two ? line('Mass fraction (wt %)', p => pct(p.massFrac), '100') : ''}
+${two ? line('Volume fraction (vol %)', p => pct(p.volFrac), '100') : ''}
+${line('Compressibility factor Z', p => fx(p.Z, 6), fx(o.Z, 6))}
+${line('Molar mass (g/mol)', p => fx(p.M, 3), fx(o.M, 3))}
+${line(`Molar volume (${uVm()})`, p => fx(fromSI_Vm(p.Vm_SI), 5), fx(fromSI_Vm(o.Vm_SI), 5))}
+${line(`Density (${uRho()})`, p => fx(fromSI_rho(p.rho_mass), 4), fx(fromSI_rho(o.rho_mass), 4))}
+${line(`Volume (${uV()})`, p => fx(fromSI_V(p.V_m3), 5), fx(fromSI_V(o.V_m3), 5))}
+${line(`Mass (${uM()})`, p => fx(fromSI_m(p.mass_kg), 4), fx(fromSI_m(o.mass_kg), 4))}
+</tbody></table>
+<div class="sec">Composition (mol %)</div>
+<table><thead><tr><th>Component</th><th>Feed</th>${two ? `<th>${names[0]}</th><th>${names[1]}</th><th>K</th>` : ''}<th>φ</th><th>Fugacity (${uP()})</th></tr></thead><tbody>
+${d.components.map((cm, i) => cm.z > 0 ? `<tr><td>${esc(cm.name)}</td><td>${pct(cm.z)}</td>${two ? `<td>${pct(ph[0].x[i])}</td><td>${pct(ph[1].x[i])}</td><td>${fx(d.K[i], 5)}</td>` : ''}<td>${fx(ph[0].phi[i], 5)}</td><td>${fx(fromSI_P(ph[0].f_Pa[i]), 4)}</td></tr>` : '').join('')}
+</tbody></table>
+<div class="sec">Notes</div>
+<ul style="padding-left:18px;font-size:10px;color:#304050;line-height:1.9;font-weight:600;">
+  <li>van der Waals one-fluid mixing rules; the phase state comes from a stability test and, where needed, a two-phase flash.</li>
+  ${(d.warnings || []).map(w => `<li>${w.msg}</li>`).join('')}
+  <li>Not for design use — validate against measured data or a process simulator.</li>
+</ul>
+<div class="footer"><span>MULTICALCI.COM — Gas Laws &amp; EOS Calculator</span><span>${EOS_NAMES[r.eos]} · mixture · T=${r.T_K.toFixed(1)}K · P=${fx(r.P_Pa/1e5, 2)}bar</span><span>Rev A — ${ds} ${ts}</span></div>
+</body></html>`;
+  const pw = window.open('','_blank','width=940,height=780');
+  if (!pw) { alert('Pop-up blocked — please allow pop-ups for this site.'); return; }
+  pw.document.open(); pw.document.write(html); pw.document.close();
+  pw.onload = () => setTimeout(()=>{ try { pw.focus(); pw.print(); } catch(e) {} }, 600);
+}
+
 // ── MAIN CALCULATE (sends to server API) ─────────────────────────
 async function calculate() {
+  if (mixMode) return calculateMixture();
   if (_apiPending) return;
 
   const eos   = activeEOS;                // frozen for this request
@@ -1720,6 +2136,12 @@ const THEORY_DATA = [
    desc:'Modified attractive term for Zc=0.307, closer to experimental ~0.27. Industry standard for natural gas, LNG, condensate.',
    params:[{k:'κ',v:'PR kappa — analogous to m in SRK'},{k:'Zc=0.307',v:'Better than SRK\'s 0.333'}],
    fugacity:'ln φ = Z−1 − ln(Z−B) − A/(2√2·B)·ln[(Z+(1+√2)B)/(Z+(1−√2)B)]',range:'Best for gas/hydrocarbon: Tr≥0.5, Pr≤15',accuracy:'Non-polar fluids: gas Z ≈ 1 % (several % near the critical point); Psat ≈ 0.5 %; liquid density ≈ 4 % (up to 15 %)'},
+  {tag:'Mixtures · mixing rules',name:'Gas Mixtures',year:'van der Waals one-fluid mixing rules · Michelsen stability test (1982)',color:'#243d56',
+   eqs:['a = Σ<sub>i</sub>Σ<sub>j</sub> x<sub>i</sub>x<sub>j</sub>(1 − k<sub>ij</sub>)√(a<sub>i</sub>a<sub>j</sub>)','b = Σ<sub>i</sub> x<sub>i</sub>b<sub>i</sub>','A = aP/(RT)² ,  B = bP/RT  →  same cubic in Z as the pure gas','K<sub>i</sub> = y<sub>i</sub>/x<sub>i</sub> = φ<sub>i</sub><sup>L</sup>/φ<sub>i</sub><sup>V</sup>   ·   Σ z<sub>i</sub>(K<sub>i</sub>−1)/(1+β(K<sub>i</sub>−1)) = 0'],
+   desc:'Each component keeps its own a<sub>i</sub>(T) and b<sub>i</sub>; the mixture is treated as one fluid with composition-averaged a and b. A mixture is not assumed to be a gas: its stability is tested first, and if it is unstable it is split into vapour and liquid (Rachford-Rice + equal fugacities).',
+   params:[{k:'k<sub>ij</sub>',v:'Binary interaction parameter — 0 unless entered. Matters for CO₂, H₂S, N₂ and H₂ with hydrocarbons, and for polar pairs'},{k:'β',v:'Vapour fraction (mol) from the Rachford-Rice equation'}],
+   fugacity:'ln φ<sub>i</sub> = (b<sub>i</sub>/b)(Z−1) − ln(Z−B) − L·[2Σ<sub>j</sub>x<sub>j</sub>a<sub>ij</sub>/a − b<sub>i</sub>/b]   with L = A/(2√2·B)·ln[(Z+(1+√2)B)/(Z+(1−√2)B)] for PR, (A/B)·ln(1+B/Z) for SRK, A/Z for van der Waals',
+   range:'Non-polar and weakly polar mixtures; up to 12 components here',accuracy:'Gas Z as for the pure gases; dew / bubble points and liquid compositions depend strongly on k<sub>ij</sub>'},
 ];
 
 function buildTheory() {
@@ -1755,6 +2177,7 @@ function buildTheory() {
 // ── PDF generator ──────────────────────────────────────────────────
 function makePDF() {
   if (!lastCalc) { alert('Run a calculation first, then click PDF Report.'); return; }
+  if (lastCalc.mixture) return makeMixPDF();
   const r = lastCalc;
   const now = new Date();
   const ds = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
@@ -1894,7 +2317,7 @@ function showToast(msg) {
 
 // ── Initialisation ─────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  fillGasProps();    // populate CO2 defaults
+  fillGasProps();    // populate the properties of the default gas (methane)
   buildTheory();     // render theory cards
   cmpGasChange();    // set Tr display
   chartGasChange();  // set chart default T
@@ -2669,7 +3092,7 @@ Sources: DECHEMA VLE Databank, NIST ThermoData Engine,
 <!-- ═══════════ ENGINEERING DISCLAIMER — BOTTOM ═══════════ -->
 <div class="disclaimer-bottom">
   <span>⚠️</span>
-  <span><b>NOT FOR DESIGN USE:</b> This tool is for educational and preliminary estimation purposes only. Results are based on pure-component cubic EOS. Do not use for safety-critical, regulatory, or final engineering design without validation against experimental data or process simulation software. Accuracy degrades near the critical point, for polar / associating fluids (water, alcohols, HF, acids), and for quantum fluids (H₂, He). Critical properties sourced from standard literature — verify against NIST Chemistry WebBook for final applications.</span>
+  <span><b>NOT FOR DESIGN USE:</b> This tool is for educational and preliminary estimation purposes only. Results are based on cubic equations of state (classical mixing rules for mixtures). Do not use for safety-critical, regulatory, or final engineering design without validation against experimental data or process simulation software. Accuracy degrades near the critical point, for polar / associating fluids (water, alcohols, HF, acids), and for quantum fluids (H₂, He). Critical properties sourced from standard literature — verify against NIST Chemistry WebBook for final applications.</span>
 </div>
 </body>
 </html>
