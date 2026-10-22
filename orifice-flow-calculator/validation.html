@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Orifice Flow Calculator Validation — ISO 5167-2 Test Cases | multicalci.com</title>
+<meta name="description" content="11 reference cases, 7 validity-limit tests and 45 steam densities: how the multicalci orifice flow calculator is checked against ISO 5167-2 and IAPWS-IF97.">
+<link rel="canonical" href="https://www.multicalci.com/orifice-flow-calculator/validation">
+<meta name="robots" content="index,follow">
+<meta name="author" content="Nagendra">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="multicalci.com">
+<meta property="og:title" content="Orifice Flow Calculator Validation — ISO 5167-2 Test Cases">
+<meta property="og:description" content="How the multicalci orifice calculator is checked against ISO 5167-2 and IAPWS-IF97, with every case and result published.">
+<meta property="og:url" content="https://www.multicalci.com/orifice-flow-calculator/validation">
+<meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Orifice flow calculator validation against ISO 5167-2",
+      "description": "Reference cases, validity-limit tests and steam-density checks for the multicalci orifice flow calculator.",
+      "datePublished": "2026-10-22",
+      "dateModified": "2026-10-22",
+      "author": { "@type": "Person", "name": "Nagendra", "jobTitle": "Process engineer" },
+      "publisher": { "@type": "Organization", "name": "multicalci.com", "url": "https://www.multicalci.com" },
+      "about": ["ISO 5167-2", "Orifice plate", "Reader-Harris/Gallagher equation", "IAPWS-IF97"],
+      "mainEntityOfPage": "https://www.multicalci.com/orifice-flow-calculator/validation"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.multicalci.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Orifice Flow Calculator", "item": "https://www.multicalci.com/orifice-flow-calculator" },
+        { "@type": "ListItem", "position": 3, "name": "Validation", "item": "https://www.multicalci.com/orifice-flow-calculator/validation" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Source+Serif+4:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f1923;
+  --ink2: #2c3e50;
+  --muted: #596577;
+  --accent: #c0392b;
+  --blue: #1a5276;
+  --blue-lt: #e8f1f9;
+  --green: #115e2e;
+  --green-lt: #e7f4ec;
+  --amber-lt: #fff6e5;
+  --bg: #f7f9fc;
+  --card: #ffffff;
+  --border: #dce3ed;
+  --navy: #1a2332;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --serif: 'Source Serif 4', Georgia, serif;
+  --sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.65 var(--sans); }
+a { color: var(--blue); text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+
+.topbar { background: var(--navy); color: #e8f0fb; }
+.topbar .in { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; flex-wrap: wrap; }
+.topbar .in a { margin-left: 18px; }
+.topbar .in a.brand { margin-left: 0; }
+.topbar a { color: #e8f0fb; text-decoration: none; font-weight: 600; font-size: .92rem; }
+.topbar .brand { font-family: var(--mono); font-weight: 600; font-size: 1rem; margin-right: auto; }
+.topbar .brand b { color: #ff8a7a; font-weight: 600; }
+.topbar a:hover { color: #fff; text-decoration: underline; }
+
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+.crumbs { font-size: .85rem; color: var(--muted); margin-bottom: 18px; }
+.crumbs a { color: var(--muted); }
+.kicker { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font-family: var(--serif); font-weight: 700; font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.2; margin: 0 0 12px; text-wrap: balance; }
+h2 { font-family: var(--serif); font-weight: 700; font-size: 1.45rem; line-height: 1.3; margin: 48px 0 10px; }
+h3 { font-size: 1.02rem; margin: 22px 0 6px; }
+.lede { font-size: 1.1rem; color: var(--ink2); max-width: 760px; margin: 0 0 14px; }
+.meta { font-size: .88rem; color: var(--muted); display: flex; flex-wrap: wrap; margin-bottom: 22px; }
+.meta span { margin: 0 18px 4px 0; }
+p, li { max-width: 760px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+@supports not (display: grid) { .card { margin-bottom: 12px; } }
+.card { background: var(--card); border: 1px solid var(--border); border-top: 4px solid var(--green); border-radius: 8px; padding: 16px 18px; }
+.card .big { font-family: var(--serif); font-size: 1.6rem; font-weight: 700; color: var(--green); line-height: 1.2; }
+.card .lbl { font-weight: 600; margin: 2px 0 6px; }
+.card p { margin: 0; font-size: .9rem; color: var(--ink2); }
+
+.note { background: var(--blue-lt); border-left: 4px solid var(--blue); border-radius: 6px; padding: 14px 18px; margin: 18px 0; max-width: 820px; }
+.note p { margin: 0 0 8px; } .note p:last-child { margin: 0; }
+
+.eq { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; padding: 16px 18px; font-family: var(--mono); font-size: .86rem; line-height: 1.85; overflow-x: auto; }
+.eq .c { color: var(--muted); font-family: var(--sans); font-size: .82rem; }
+.eq b { color: var(--accent); font-weight: 600; }
+
+.tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0 6px; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: #f0f4f9; font-weight: 600; font-size: .8rem; color: var(--ink2); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+th.num { text-align: right; }
+td.ref { color: var(--muted); }
+td.dev { color: var(--green); font-weight: 600; }
+td.old { color: var(--accent); }
+td.id { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+td .sub { display: block; font-family: var(--sans); font-size: .76rem; color: var(--muted); white-space: nowrap; }
+td.flag { min-width: 280px; }
+.pass { display: inline-block; background: var(--green-lt); color: var(--green); font-weight: 700; font-size: .75rem; padding: 1px 8px; border-radius: 10px; margin-right: 6px; }
+.tbl-note { font-size: .82rem; color: var(--muted); margin: 0 0 8px; }
+
+details { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0; }
+summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+details .tbl-wrap { border: 0; border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; margin: 0; }
+
+pre { background: var(--navy); color: #e8f0fb; border-radius: 8px; padding: 16px 18px; overflow-x: auto; font: 400 .84rem/1.6 var(--mono); margin: 12px 0; }
+pre .k { color: #ffb4a9; } pre .s { color: #a8e6b8; } pre .c { color: #8fafc8; }
+
+.log { border-left: 3px solid var(--border); padding-left: 16px; margin: 0; list-style: none; max-width: 820px; }
+.log li { margin: 0 0 16px; max-width: none; }
+.log .d { font-family: var(--mono); font-size: .8rem; color: var(--accent); display: block; }
+.who { display: flex; align-items: flex-start; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-top: 40px; max-width: 820px; }
+.who .av { flex: 0 0 44px; height: 44px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 700; font-size: 1.2rem; }
+.who p { margin: 0; }
+.who .av + div { margin-left: 14px; }
+.cta { display: inline-block; margin-top: 10px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 6px; }
+.cta:hover { background: #a93226; color: #fff; }
+
+footer { background: var(--navy); color: #8fafc8; font-size: .85rem; }
+footer .in { max-width: 1080px; margin: 0 auto; padding: 22px 16px; display: flex; flex-wrap: wrap; align-items: center; }
+footer .in a { margin: 0 22px 8px 0; }
+footer a { color: #c9d8e8; text-decoration: none; font-weight: 600; }
+footer a:hover { color: #fff; }
+footer .disc { flex-basis: 100%; color: #8fafc8; }
+
+@media (max-width: 600px) {
+  body { font-size: 15.5px; }
+  h2 { margin-top: 38px; }
+  th, td { padding: 8px 10px; }
+}
+@media print {
+  .topbar, footer, .cta { display: none; }
+  body { background: #fff; }
+  details { border: 0; } details > summary { display: none; }
+  .tbl-wrap { overflow: visible; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar"><div class="in">
+  <a class="brand" href="/">multi<b>calci</b>.com</a>
+  <a href="/orifice-flow-calculator">Orifice Flow Calculator</a>
+  <a href="/">All calculators</a>
+</div></header>
+
+<main>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> › <a href="/orifice-flow-calculator">Orifice Flow Calculator</a> › Validation</nav>
+
+  <p class="kicker">Validation report</p>
+  <h1>Orifice flow calculator: validation against ISO 5167-2</h1>
+  <p class="lede">How we check that the <a href="/orifice-flow-calculator">orifice flow calculator</a> applies ISO 5167-2 correctly: 11 reference cases covering liquids, gases and steam with corner, flange and D and D/2 tappings, the standard's limits of use, and steam density against IAPWS-IF97. Every input and result is published below so you can check them yourself.</p>
+  <div class="meta">
+    <span>Last checked 22 October 2026</span>
+    <span>Standard: ISO 5167-2:2022 (Reader-Harris/Gallagher equation, unchanged since 2003)</span>
+    <span>Prepared by Nagendra, process engineer</span>
+  </div>
+
+  <section class="cards" aria-label="Summary">
+    <div class="card">
+      <div class="big">11 / 11</div>
+      <div class="lbl">reference cases agree</div>
+      <p>Largest difference from the reference: 1.3 × 10⁻⁸ (relative), which is iteration round-off.</p>
+    </div>
+    <div class="card">
+      <div class="big">7 / 7</div>
+      <div class="lbl">out-of-range inputs flagged</div>
+      <p>Inputs outside ISO 5167-2 §5.3.1 produce a warning. None of the valid cases does.</p>
+    </div>
+    <div class="card">
+      <div class="big">45 / 45</div>
+      <div class="lbl">steam densities match IAPWS-IF97</div>
+      <p>Superheated steam from 1 to 160 bar a. Largest difference: 4.1 × 10⁻¹⁶.</p>
+    </div>
+  </section>
+
+  <h2>What this check shows</h2>
+  <p>It shows that the calculator evaluates ISO 5167-2 correctly: the Reader-Harris/Gallagher discharge coefficient, the expansibility factor, the iteration on Reynolds number, the permanent pressure loss, and the standard's limits of use.</p>
+  <div class="note">
+    <p><strong>It does not make the ISO equation more accurate than the standard says it is.</strong> ISO 5167-2 gives the uncertainty of the discharge coefficient as 0.5 % for 0.2 ≤ β ≤ 0.6, larger outside that range and in pipes smaller than 71.12 mm.</p>
+    <p>A real installation adds the uncertainty of the differential-pressure and density measurements, the condition of the plate edge, pipe roughness and upstream straight lengths.</p>
+  </div>
+
+  <h2>Method</h2>
+  <p>Each case was run through the calculator's server code, the same code that serves the calculator page. The results were compared with two references written independently of it:</p>
+  <ol>
+    <li><a href="https://fluids.readthedocs.io/fluids.flow_meter.html" rel="noopener"><strong>fluids</strong></a>, an open-source Python library for fluid mechanics (version 1.3.1). Its orifice functions implement ISO 5167-2 and ASME MFC-3M.</li>
+    <li>A separate implementation written directly from the equations in ISO 5167-2:2003 §5.3.2, which the 2022 edition did not change.</li>
+  </ol>
+  <p>The two references agree with each other to machine precision on every case. Mass flow is solved by iterating between the flow equation and the Reynolds-number-dependent C until C stops changing. Each reference uses the same density and viscosity as the calculator, so the comparison isolates the flow equations. Steam density is checked separately, below.</p>
+  <p>One detail: fluids adds two low-Reynolds-number terms from later work by Reader-Harris that are not in ISO 5167-2. Both are zero above Re<sub>D</sub> ≈ 3 700. Every case here is above the ISO minimum of 5 000, so the comparison is against the ISO equation alone.</p>
+
+  <h3>Equations checked</h3>
+  <div class="eq" role="math" aria-label="ISO 5167-2 orifice equations">
+    <b>q<sub>m</sub></b> = C / √(1 − β⁴) · ε · (π/4) d² · √(2 Δp ρ₁)<br>
+    <b>C</b> = 0.5961 + 0.0261β² − 0.216β⁸ + 0.000521(10⁶β/Re<sub>D</sub>)<sup>0.7</sup> + (0.0188 + 0.0063A)β<sup>3.5</sup>(10⁶/Re<sub>D</sub>)<sup>0.3</sup><br>
+    &nbsp;&nbsp;&nbsp;+ (0.043 + 0.080e<sup>−10L₁</sup> − 0.123e<sup>−7L₁</sup>)(1 − 0.11A) β⁴/(1 − β⁴) − 0.031(M₂′ − 0.8M₂′<sup>1.1</sup>)β<sup>1.3</sup><br>
+    &nbsp;&nbsp;&nbsp;+ 0.011(0.75 − β)(2.8 − D/25.4) <span class="c">when D &lt; 71.12 mm</span><br>
+    <span class="c">A = (19000β/Re<sub>D</sub>)<sup>0.8</sup>, M₂′ = 2L₂′/(1 − β). Corner taps: L₁ = L₂′ = 0. D and D/2 taps: L₁ = 1, L₂′ = 0.47. Flange taps: L₁ = L₂′ = 25.4/D (D in mm).</span><br>
+    <b>ε</b> = 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (p₂/p₁)<sup>1/κ</sup>]<br>
+    <b>Δϖ</b> = [√(1 − β⁴(1 − C²)) − Cβ²] / [√(1 − β⁴(1 − C²)) + Cβ²] · Δp <span class="c">(permanent pressure loss)</span>
+  </div>
+
+  <h2>Results</h2>
+  <p class="tbl-note">“Calc” is the calculator; “Ref” is fluids 1.3.1, and the independent implementation gives the same values. Mass flow is in kg/s.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Case</th><th>Fluid</th><th class="num">D / d, mm</th><th class="num">Re<sub>D</sub></th>
+        <th class="num">C calc</th><th class="num">C ref</th><th class="num">ε</th>
+        <th class="num">q<sub>m</sub> calc</th><th class="num">q<sub>m</sub> ref</th><th class="num">Largest diff.*</th>
+      </tr></thead>
+      <tbody>
+<tr>
+<td class="id">L1</td><td>Water<span class="sub">Corner taps</span></td>
+<td class="num">50 / 25<span class="sub">β = 0.500</span></td>
+<td class="num">55 699</td>
+<td class="num">0.610763</td><td class="num ref">0.610763</td>
+<td class="num">1.000000</td>
+<td class="num">2.187293</td><td class="num ref">2.187293</td>
+<td class="num dev">1.1 × 10⁻⁹</td></tr>
+<tr>
+<td class="id">L2</td><td>Water<span class="sub">Flange taps</span></td>
+<td class="num">100 / 50<span class="sub">β = 0.500</span></td>
+<td class="num">110 525</td>
+<td class="num">0.605979</td><td class="num ref">0.605979</td>
+<td class="num">1.000000</td>
+<td class="num">8.680648</td><td class="num ref">8.680648</td>
+<td class="num dev">2.1 × 10⁻¹⁰</td></tr>
+<tr>
+<td class="id">L3</td><td>Water<span class="sub">D and D/2 taps</span></td>
+<td class="num">150 / 112.5<span class="sub">β = 0.750</span></td>
+<td class="num">279 607</td>
+<td class="num">0.613273</td><td class="num ref">0.613273</td>
+<td class="num">1.000000</td>
+<td class="num">32.94047</td><td class="num ref">32.94047</td>
+<td class="num dev">1.7 × 10⁻⁹</td></tr>
+<tr>
+<td class="id">L4</td><td>Water<span class="sub">Flange taps</span></td>
+<td class="num">200 / 40<span class="sub">β = 0.200</span></td>
+<td class="num">47 863</td>
+<td class="num">0.598411</td><td class="num ref">0.598411</td>
+<td class="num">1.000000</td>
+<td class="num">7.518350</td><td class="num ref">7.518350</td>
+<td class="num dev">7.0 × 10⁻⁹</td></tr>
+<tr>
+<td class="id">L5</td><td>Light oil<span class="sub">Corner taps</span></td>
+<td class="num">300 / 180<span class="sub">β = 0.600</span></td>
+<td class="num">10 587</td>
+<td class="num">0.627350</td><td class="num ref">0.627350</td>
+<td class="num">1.000000</td>
+<td class="num">49.88782</td><td class="num ref">49.88782</td>
+<td class="num dev">1.1 × 10⁻⁸</td></tr>
+<tr>
+<td class="id">L6</td><td>Cooling water<span class="sub">Flange taps</span></td>
+<td class="num">1000 / 600<span class="sub">β = 0.600</span></td>
+<td class="num">1 838 988</td>
+<td class="num">0.604344</td><td class="num ref">0.604344</td>
+<td class="num">1.000000</td>
+<td class="num">1155.470</td><td class="num ref">1155.470</td>
+<td class="num dev">2.8 × 10⁻⁹</td></tr>
+<tr>
+<td class="id">L7</td><td>Viscous oil<span class="sub">Corner taps</span></td>
+<td class="num">50 / 30<span class="sub">β = 0.600</span></td>
+<td class="num">7 735</td>
+<td class="num">0.633902</td><td class="num ref">0.633902</td>
+<td class="num">1.000000</td>
+<td class="num">4.556341</td><td class="num ref">4.556341</td>
+<td class="num dev">9.5 × 10⁻¹⁰</td></tr>
+<tr>
+<td class="id">G1</td><td>Natural gas<span class="sub">Flange taps</span></td>
+<td class="num">154.1 / 92.46<span class="sub">β = 0.600</span></td>
+<td class="num">3 992 296</td>
+<td class="num">0.604172</td><td class="num ref">0.604172</td>
+<td class="num">0.998077</td>
+<td class="num">5.315058</td><td class="num ref">5.315058</td>
+<td class="num dev">3.1 × 10⁻⁹</td></tr>
+<tr>
+<td class="id">G2</td><td>Air<span class="sub">Corner taps</span></td>
+<td class="num">102.3 / 51.15<span class="sub">β = 0.500</span></td>
+<td class="num">259 427</td>
+<td class="num">0.605156</td><td class="num ref">0.605156</td>
+<td class="num">0.973131</td>
+<td class="num">0.3856138</td><td class="num ref">0.3856138</td>
+<td class="num dev">1.2 × 10⁻⁸</td></tr>
+<tr>
+<td class="id">S1</td><td>Superheated steam<span class="sub">D and D/2 taps</span></td>
+<td class="num">202.7 / 141.89<span class="sub">β = 0.700</span></td>
+<td class="num">3 075 018</td>
+<td class="num">0.607718</td><td class="num ref">0.607718</td>
+<td class="num">0.983616</td>
+<td class="num">7.950127</td><td class="num ref">7.950127</td>
+<td class="num dev">1.3 × 10⁻⁸</td></tr>
+<tr>
+<td class="id">G3</td><td>Air<span class="sub">Flange taps</span></td>
+<td class="num">77.9 / 31.16<span class="sub">β = 0.400</span></td>
+<td class="num">140 267</td>
+<td class="num">0.601528</td><td class="num ref">0.601528</td>
+<td class="num">0.936244</td>
+<td class="num">0.1561901</td><td class="num ref">0.1561901</td>
+<td class="num dev">9.8 × 10⁻⁹</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tbl-note">* Largest relative difference across C, ε, mass flow, Re<sub>D</sub> and permanent pressure loss. Across all cases: C 2.5 × 10⁻¹⁰, mass flow 1.3 × 10⁻⁸.</p>
+
+  <details>
+    <summary>Inputs for every case</summary>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Case</th><th>Description</th><th>Taps</th><th class="num">D, mm</th><th class="num">d, mm</th><th class="num">Δp, kPa</th><th>Fluid properties</th><th>Gas data</th></tr></thead>
+        <tbody>
+<tr><td class="id">L1</td><td>Water, small pipe (small-bore term active)</td><td>Corner</td><td class="num">50</td><td class="num">25</td><td class="num">25</td><td>ρ = 998 kg/m³, μ = 1 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L2</td><td>Water, 4 in line</td><td>Flange</td><td class="num">100</td><td class="num">50</td><td class="num">25</td><td>ρ = 998 kg/m³, μ = 1 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L3</td><td>Water, beta at upper limit</td><td>D and D/2</td><td class="num">150</td><td class="num">112.5</td><td class="num">10</td><td>ρ = 998 kg/m³, μ = 1 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L4</td><td>Water, low beta</td><td>Flange</td><td class="num">200</td><td class="num">40</td><td class="num">50</td><td>ρ = 998 kg/m³, μ = 1 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L5</td><td>Light oil, moderate Reynolds number</td><td>Corner</td><td class="num">300</td><td class="num">180</td><td class="num">5</td><td>ρ = 850 kg/m³, μ = 20 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L6</td><td>Cooling water, 1000 mm main</td><td>Flange</td><td class="num">1000</td><td class="num">600</td><td class="num">20</td><td>ρ = 995 kg/m³, μ = 0.8 mPa·s</td><td>—</td></tr>
+<tr><td class="id">L7</td><td>Viscous oil, near the Reynolds limit</td><td>Corner</td><td class="num">50</td><td class="num">30</td><td class="num">50</td><td>ρ = 900 kg/m³, μ = 15 mPa·s</td><td>—</td></tr>
+<tr><td class="id">G1</td><td>Natural gas, 6 in Sch 40</td><td>Flange</td><td class="num">154.1</td><td class="num">92.46</td><td class="num">25</td><td>ρ = 30 kg/m³, μ = 0.011 mPa·s</td><td>p₁ = 40 bar a, κ = 1.3</td></tr>
+<tr><td class="id">G2</td><td>Air, 4 in Sch 40, low pressure</td><td>Corner</td><td class="num">102.3</td><td class="num">51.15</td><td class="num">20</td><td>ρ = 2.38 kg/m³, μ = 0.0185 mPa·s</td><td>p₁ = 2 bar a, κ = 1.4</td></tr>
+<tr><td class="id">S1</td><td>Saturated steam, 8 in Sch 40</td><td>D and D/2</td><td class="num">202.7</td><td class="num">141.89</td><td class="num">50</td><td>11 bar a, 200 °C → ρ = 5.3760 kg/m³ (IAPWS-IF97), μ = 0.01624 mPa·s</td><td>p₁ = 11 bar a, κ = 1.3</td></tr>
+<tr><td class="id">G3</td><td>Air, pressure ratio near the 0.75 limit</td><td>Flange</td><td class="num">77.9</td><td class="num">31.16</td><td class="num">36</td><td>ρ = 1.79 kg/m³, μ = 0.0182 mPa·s</td><td>p₁ = 1.5 bar a, κ = 1.4</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <h2>Limits of use</h2>
+  <p>ISO 5167-2 §5.3.1 sets the conditions under which the equations apply. Each limit was tested with an input just outside it. Every one produces a warning, and none of the 11 valid cases above produces a limit warning.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>ISO 5167-2 limit</th><th>Test input</th><th>Calculator response</th></tr></thead>
+      <tbody>
+<tr><td>Diameter ratio 0.10 ≤ β ≤ 0.75</td><td>β = 0.80</td><td class="flag"><span class="pass">Flagged</span> β=0.8000 outside ISO 5167 range 0.10–0.75</td></tr>
+<tr><td>Pipe bore 50 ≤ D ≤ 1000 mm</td><td>D = 40 mm</td><td class="flag"><span class="pass">Flagged</span> Pipe ID = 40.0 mm &lt; ISO 5167 minimum 50 mm — Cd correlation outside validated range</td></tr>
+<tr><td>Orifice bore d ≥ 12.5 mm</td><td>d = 10 mm</td><td class="flag"><span class="pass">Flagged</span> Bore d = 10.00 mm below ISO 5167-2 minimum 12.5 mm</td></tr>
+<tr><td>Re<sub>D</sub> ≥ 5000</td><td>β = 0.60, Re<sub>D</sub> = 907</td><td class="flag"><span class="pass">Flagged</span> Re=907 below ISO 5167 minimum (5760 for β=0.600)</td></tr>
+<tr><td>Pressure ratio p₂/p₁ ≥ 0.75 (expansibility)</td><td>p₁ = 1.2, p₂ = 0.8 bar a</td><td class="flag"><span class="pass">Flagged</span> ΔP/P &gt; 0.25 (p₂/p₁ &lt; 0.75): Exceeds ISO 5167-2 expansibility factor validity limit</td></tr>
+<tr><td>Corner and D–D/2 taps, β &gt; 0.56: Re<sub>D</sub> ≥ 16000β²</td><td>β = 0.75, Re<sub>D</sub> = 7 006 (needs ≥ 9 000)</td><td class="flag"><span class="pass">Flagged</span> Re=7006 below ISO 5167 minimum (9000 for β=0.750)</td></tr>
+<tr><td>Flange taps: Re<sub>D</sub> ≥ 170β²D (D in mm)</td><td>β = 0.75, Re<sub>D</sub> = 56 245 (needs ≥ 95 625)</td><td class="flag"><span class="pass">Flagged</span> Re=56245 below ISO 5167 minimum (95625 for β=0.750)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Steam density</h2>
+  <p>For steam, the calculator works out density from pressure and temperature using IAPWS-IF97. At 45 superheated points from 1 to 160 bar a and 150 to 600 °C, it was compared with the <a href="https://pypi.org/project/iapws/" rel="noopener">iapws</a> reference implementation. The largest difference is 4.1 × 10⁻¹⁶. The last column shows the error before the October 2026 correction described in the change log.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th class="num">p, bar a</th><th class="num">T, °C</th><th class="num">IAPWS-IF97 ρ, kg/m³</th><th class="num">Calculator ρ, kg/m³</th><th class="num">Before correction</th></tr></thead>
+      <tbody>
+<tr><td class="num">1</td><td class="num">200</td><td class="num">0.4603</td><td class="num">0.4603</td><td class="num old">+0.00 %</td></tr>
+<tr><td class="num">5</td><td class="num">200</td><td class="num">2.3528</td><td class="num">2.3528</td><td class="num old">+0.04 %</td></tr>
+<tr><td class="num">11</td><td class="num">200</td><td class="num">5.3760</td><td class="num">5.3760</td><td class="num old">+0.40 %</td></tr>
+<tr><td class="num">20</td><td class="num">300</td><td class="num">7.9681</td><td class="num">7.9681</td><td class="num old">+0.26 %</td></tr>
+<tr><td class="num">40</td><td class="num">300</td><td class="num">16.9872</td><td class="num">16.9872</td><td class="num old">+2.23 %</td></tr>
+<tr><td class="num">60</td><td class="num">300</td><td class="num">27.6311</td><td class="num">27.6311</td><td class="num old">+8.65 %</td></tr>
+<tr><td class="num">100</td><td class="num">400</td><td class="num">37.8225</td><td class="num">37.8225</td><td class="num old">+3.70 %</td></tr>
+<tr><td class="num">160</td><td class="num">400</td><td class="num">70.0230</td><td class="num">70.0230</td><td class="num old">+20.35 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Check it yourself</h2>
+  <p>Case L2 (water, flange taps) with the same reference library. Enter the same values in the calculator and compare.</p>
+<pre><span class="c"># pip install fluids==1.3.1</span>
+<span class="k">from</span> fluids.flow_meter <span class="k">import</span> differential_pressure_meter_solver, differential_pressure_meter_C_epsilon
+
+<span class="c"># D = 100 mm, d = 50 mm, Δp = 25 kPa, water ρ = 998 kg/m³, μ = 1.0 mPa·s
+# (k = 1e20 makes ε = 1, as for a liquid)</span>
+args = dict(D=<span class="s">0.100</span>, D2=<span class="s">0.050</span>, P1=<span class="s">200000</span>, P2=<span class="s">175000</span>, rho=<span class="s">998</span>, mu=<span class="s">1.0e-3</span>, k=<span class="s">1e20</span>,
+            meter_type=<span class="s">'ISO 5167 orifice'</span>, taps=<span class="s">'flange'</span>)
+m = differential_pressure_meter_solver(**args)
+C, eps = differential_pressure_meter_C_epsilon(m=m, **args)
+print(<span class="s">f"m = {m:.6f} kg/s  C = {C:.6f}"</span>)   <span class="c"># m = 8.680648 kg/s  C = 0.605979</span></pre>
+
+  <h2>Change log</h2>
+  <ul class="log">
+    <li><span class="d">22 Oct 2026</span><strong>Steam density corrected.</strong> Four IAPWS-IF97 Region 2 coefficients in the steam-density routine had the wrong power of ten. The error was negligible at low pressure but grew with pressure: +0.4 % at 11 bar a and 200 °C, +2.2 % at 40 bar a and 300 °C, and +8.7 % at 60 bar a and 300 °C. The largest error in the test grid was 20 %, at 160 bar a and 400 °C. Mass flow varies with √ρ, so superheated-steam flows were high by roughly half these figures. Liquid and gas results were not affected.</li>
+    <li><span class="d">22 Oct 2026</span><strong>Limits of use aligned with ISO 5167-2:2022 §5.3.1.</strong> β now starts at 0.10 (was 0.20), the 12.5 mm minimum bore is checked, and the Reynolds-number limit depends on the tapping type and β. The previous fixed table was stricter than the standard and warned on some valid inputs. Calculated values did not change.</li>
+    <li><span class="d">22 Oct 2026</span><strong>Formula reference corrected.</strong> The calculator page now shows the 2003/2022 expansibility equation, which the calculation was already using.</li>
+  </ul>
+
+  <div class="who">
+    <div class="av" aria-hidden="true">N</div>
+    <div>
+      <p><strong>Prepared by Nagendra</strong>, process engineer with 18+ years in ammonia–urea, fertilizer and petrochemical plants, and the builder of multicalci.com.</p>
+      <a class="cta" href="/orifice-flow-calculator">Open the orifice flow calculator</a>
+    </div>
+  </div>
+</main>
+
+<footer><div class="in">
+  <a href="/">multicalci.com</a>
+  <a href="/orifice-flow-calculator">Orifice Flow Calculator</a>
+  <a href="/contact/">Contact</a>
+  <span class="disc">For preliminary engineering use. Verify results against the applicable code before use in final design. © 2026 multicalci.com</span>
+</div></footer>
+
+</body>
+</html>
