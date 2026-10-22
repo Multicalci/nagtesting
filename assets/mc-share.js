@@ -27,9 +27,11 @@
 
    Check per page — open it with the browser console open. A warning
    starting "[mc-share]" means its SI/Imperial switch can't be read;
-   add to that page:
-       MCShare.config({ getUnits: function () { return 'SI' or 'IMP' },
-                        setUnits: function (u) { switch the page to u } });
+   add to that page, in any of its own scripts:
+       window.MCShareConfig = {
+         getUnits: function () { return 'SI' or 'IMP' },
+         setUnits: function (u) { switch the page to u }
+       };
    Until then, links from that page restore inputs but don't calculate.
 
    Optional, per page
@@ -40,7 +42,7 @@
                                    starts with "Calculate" is used.
      data-mc-share-skip            on a field or container to keep it
                                    out of shared links
-     MCShare.config({...})         see CONFIG below
+     window.MCShareConfig = {...}  any CONFIG option below
      MCShare.url('pdf')            link for a PDF report footer
 
    Contains NO calculator mathematics.
@@ -87,6 +89,12 @@
     }
     return cfg;
   }
+
+  // Per-page settings set anywhere in the page, before or after this file loads:
+  //   window.MCShareConfig = { getUnits: ..., setUnits: ... };
+  // (This file loads with defer, so MCShare.config() can't be called from inline
+  // page scripts; the global avoids that ordering problem.)
+  if (root.MCShareConfig && typeof root.MCShareConfig === 'object') config(root.MCShareConfig);
 
 
   /* ══════════════════════════════
@@ -684,7 +692,7 @@
       initialUnits = '?';
       if (root.console && console.warn) {
         console.warn('[mc-share] This page has a unit switch whose state cannot be read, so shared links ' +
-                     'will not auto-calculate. Add MCShare.config({ getUnits: fn, setUnits: fn }) to this page.');
+                     'will not auto-calculate. Add window.MCShareConfig = { getUnits: fn, setUnits: fn } to this page.');
       }
     }
     var s = stateFromHash();
