@@ -39,15 +39,31 @@ jobs:
           FORM = re.compile(rb'<(input|select|textarea)\b', re.I)
           apply = os.environ.get('MODE') == 'apply'
 
-          changed, already, no_form, problems = [], 0, 0, []
+          # Never add: forms whose inputs are personal data.
+          EXCLUDE = {
+              'contact/index.html',
+          }
+          # Always add: calculators whose form fields are built by JavaScript,
+          # so the HTML file itself has no <input>.
+          INCLUDE = {
+              'material-balance.html',
+              'mechanical-engineering-calculators/index.html',
+          }
+
+          changed, already, no_form, excluded, problems, seen = [], 0, 0, 0, [], set()
           for p in sorted(pathlib.Path('.').rglob('*.html')):
               if any(part in SKIP_DIRS for part in p.parts):
+                  continue
+              rel = p.as_posix()
+              seen.add(rel)
+              if rel in EXCLUDE:
+                  excluded += 1
                   continue
               b = p.read_bytes()                      # bytes: line endings and encoding stay exactly as they are
               if b'mc-share.js' in b:
                   already += 1
                   continue
-              if not FORM.search(b):
+              if not FORM.search(b) and rel not in INCLUDE:
                   no_form += 1
                   continue
               i = b.lower().rfind(b'</body>')
@@ -65,12 +81,16 @@ jobs:
                   p.write_bytes(new)
               changed.append(str(p))
 
+          for x in sorted(INCLUDE - seen):
+              problems.append(f'{x}: in INCLUDE but no such file (check the name)')
+
           verb = 'Changed' if apply else 'Would change'
           lines = [
               f'## {"Applied" if apply else "Preview"}',
               f'- {verb}: **{len(changed)}** pages',
               f'- Already had mc-share.js: {already}',
               f'- No form fields, skipped: {no_form}',
+              f'- Excluded by name: {excluded}',
               f'- Problems: {len(problems)}',
               '',
           ]
