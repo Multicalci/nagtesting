@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>HeatXpert Regression Tests</title>
+<style>
+:root{--bg:#f6f7fb;--surf:#fff;--t1:#1a2035;--t2:#4a5470;--t3:#8a93a8;--bdr:#e2e6ef;--ok:#1b7a3e;--okbg:#e9f6ee;--err:#c0201a;--errbg:#fdeeee;--warn:#a86400;--blue:#0055c8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11141c;--surf:#1a1f2b;--t1:#e8ebf2;--t2:#b3bacb;--t3:#7f889c;--bdr:#2c3344;--ok:#5fd08a;--okbg:#14301f;--err:#ff7b74;--errbg:#3a1716;--warn:#f0b35a;--blue:#6aa8ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.35rem;margin:0 0 4px}
+.sub{color:var(--t2);margin:0 0 16px;font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:14px}
+.bar label{font-size:.8rem;color:var(--t2);font-weight:600}
+.bar input{flex:1 1 260px;min-width:0;padding:8px 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg);color:var(--t1);font:inherit}
+button{padding:8px 14px;border:0;border-radius:8px;background:var(--blue);color:#fff;font:600 .85rem system-ui,sans-serif;cursor:pointer}
+button.sec{background:transparent;color:var(--blue);border:1px solid var(--bdr)}
+button:disabled{opacity:.5;cursor:default}
+.sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pill{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;min-width:120px}
+.pill b{display:block;font-size:1.4rem}
+.pill.ok b{color:var(--ok)}.pill.bad b{color:var(--err)}
+.grp{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.grp h2{font-size:.95rem;margin:0;padding:10px 12px;border-bottom:1px solid var(--bdr)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{padding:7px 10px;border-bottom:1px solid var(--bdr);text-align:left;vertical-align:top}
+th{color:var(--t3);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+td.num{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:nowrap}
+.res{font-weight:700;white-space:nowrap}
+.res.pass{color:var(--ok)}.res.fail{color:var(--err)}.res.run{color:var(--t3)}
+tr.fail td{background:var(--errbg)}
+.ref{color:var(--t3);font-size:.74rem}
+.note{color:var(--t2);font-size:.8rem;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HeatXpert regression tests</h1>
+  <p class="sub">Runs fixed cases against the live <code>/api/heatxpert</code> endpoint and checks the answers against closed-form values and physical limits. Run it after every deploy.</p>
+  <div class="bar">
+    <label for="ep">Endpoint</label>
+    <input id="ep" spellcheck="false">
+    <button id="runBtn">Run all tests</button>
+    <button id="copyBtn" class="sec" disabled>Copy results</button>
+  </div>
+  <div class="sum" id="sum"></div>
+  <div id="out"></div>
+  <p class="note">Expected build: <code id="expBuild"></code>. If the build check fails, Vercel is still serving an older <code>heat-exchanger.js</code>. Tolerances are tight on closed-form values (≈0.1–1 %) and wide on design results, which depend on the property data.</p>
+</div>
+<script>
+const EXPECTED_BUILD = '2026-10-review-fixes-r1';
+const P = {"shell-tube:0":{"calcType":"shellTube","unitSys":"metric","hFlKey":"water","cFlKey":"water","hPop":4,"cPop":3,"hTi":90,"hTo":55,"cTi":30,"hF":20000,"hFunit":"kgh","coldMode":"flow","cF":60000,"cFunit":"kgh","cTo":0,"OD":19.05,"tw":1.65,"L":3.66,"pitch":1.25,"Rfo":0.0002,"Rfi":0.0002,"arr":"counter","mat":"cs","hxType":"1-2","tema":"C","bcut":0.25,"bsp":0.5,"bspMode":"auto","velMode":"target","targetVel":1.5,"pdAllowShell":0.7,"pdAllowTube":0.7,"pitchLayout":"triangular","numTubesFixed":0,"shellMode":"single-phase"},"shell-tube:1":{"calcType":"shellTube","unitSys":"metric","hFlKey":"lube-oil","cFlKey":"water","hPop":4,"cPop":3,"hTi":65,"hTo":45,"cTi":32,"hF":30000,"hFunit":"kgh","coldMode":"flow","cF":40000,"cFunit":"kgh","cTo":0,"OD":19.05,"tw":1.65,"L":4.88,"pitch":1.25,"Rfo":0.0002,"Rfi":0.0002,"arr":"counter","mat":"cs","hxType":"1-2","tema":"C","bcut":0.25,"bsp":0.4,"bspMode":"auto","velMode":"target","targetVel":1.2,"pdAllowShell":1,"pdAllowTube":0.7,"pitchLayout":"triangular","numTubesFixed":0,"shellMode":"single-phase"},"shell-tube:2":{"calcType":"shellTube","unitSys":"metric","hFlKey":"steam","cFlKey":"water","hPop":2,"cPop":3,"hTi":120.21,"hTo":120.21,"cTi":32,"hF":2000,"hFunit":"kgh","coldMode":"flow","cF":60000,"cFunit":"kgh","cTo":0,"OD":19.05,"tw":1.65,"L":2.44,"pitch":1.25,"Rfo":0.0001,"Rfi":0.0002,"arr":"counter","mat":"ss304","hxType":"1-2","tema":"C","bcut":0.25,"bsp":0.5,"bspMode":"auto","velMode":"target","targetVel":1.8,"pdAllowShell":0.3,"pdAllowTube":0.7,"pitchLayout":"triangular","numTubesFixed":0,"shellMode":"condensing"},"shell-tube:3":{"calcType":"shellTube","unitSys":"metric","hFlKey":"water","cFlKey":"ammonia-liquid","hPop":3,"cPop":4,"hTi":12,"hTo":7,"cTi":-1.9,"hF":60000,"hFunit":"kgh","coldMode":"flow","cF":1300,"cFunit":"kgh","cTo":0,"OD":19.05,"tw":1.65,"L":4.88,"pitch":1.25,"Rfo":0.0002,"Rfi":0.0001,"arr":"counter","mat":"cs","hxType":"1-4","tema":"C","bcut":0.25,"bsp":0.5,"bspMode":"auto","velMode":"targetKeepPasses","targetVel":1,"pdAllowShell":0.7,"pdAllowTube":0.5,"pitchLayout":"triangular","numTubesFixed":0,"shellMode":"evaporating"},"plate:0":{"calcType":"plate","unitSys":"metric","hFlKey":"water","cFlKey":"water","hPop":4,"cPop":3,"hTi":80,"hTo":45,"cTi":20,"hF":20000,"hFunit":"kgh","coldMode":"temp","cTo":55,"cF":0,"cFunit":"kgh","th":0.6,"angle":60,"gap":3,"pw":400,"plen":1000,"phi":1.17,"mat":"ss316","foul":0.0001,"pdAllowH":1,"pdAllowC":1},"plate:1":{"calcType":"plate","unitSys":"metric","hFlKey":"water","cFlKey":"ethylene-glycol-30","hPop":3,"cPop":3,"hTi":15,"hTo":9,"cTi":4,"hF":30000,"hFunit":"kgh","coldMode":"flow","cTo":0,"cF":34000,"cFunit":"kgh","th":0.5,"angle":60,"gap":3,"pw":400,"plen":1000,"phi":1.17,"mat":"ss316","foul":0.0001,"pdAllowH":1,"pdAllowC":1},"air-cooled:0":{"calcType":"airCooled","unitSys":"metric","flKey":"water","Ti":120,"To":80,"F":20000,"Tamb":35,"dTa":30,"rows":4,"nTubes":84,"nPasses":4,"tubeLen":6,"tubeOD":25.4,"tubeID":20,"finH":12.5,"finThk":0.4,"finDens":394,"pitchT":63.5,"Rfo":0.0002,"Rfi":0.0002,"fmat":"aluminum","fanType":"forced"},"fin-fan:0":{"calcType":"finFan","unitSys":"metric","tFlKey":"diesel","tTi":120,"tTo":60,"tF_kgh":30000,"tFoul":0.00035,"tPdAllow":1,"htSF":1,"aTamb":34,"aTout":55,"aPop":1.01325,"aFoul":0.00018,"tPop":6,"tubeOD":25.4,"tubeID":21.2,"tubeLen":7315,"pitchT":63.5,"pitchL":55,"nRows":4,"nPasses":4,"nTubes":168,"tubeLayout":"staggered","tubeMat":"cs","finDensity":394,"finRoot":25.4,"finH":15.875,"finThk":0.4,"finMat":"al1100","nBays":1,"nBundlesPBay":1,"bundleW":2700,"nFans":2,"fanDia":3048,"fanEff":70,"driverKW":30,"draftType":"forced"},"double-pipe:0":{"calcType":"doublePipe","unitSys":"metric","hFlKey":"water","cFlKey":"water","hPop":3,"cPop":3,"hTi":100,"hTo":55,"cTi":25,"hF":2000,"hFunit":"kgh","coldMode":"temp","cF":0,"cFunit":"kgh","cTo":65,"iOD":50,"iTW":3,"oID":80,"L":6,"nHairpins":0,"arr":"counter","mat":"ss304","foul":0.0002,"pdAllowInner":1,"pdAllowAnn":1}};
+const clone = o => JSON.parse(JSON.stringify(o));
+const fmt = v => v == null ? '—' : typeof v === 'number' ? (Math.abs(v) >= 1000 || Number.isInteger(v) ? String(+v.toFixed(1)) : String(+v.toPrecision(4))) : String(v);
+
+document.getElementById('expBuild').textContent = EXPECTED_BUILD;
+const ep = document.getElementById('ep');
+ep.value = /multicalci\.com|vercel\.app|localhost/.test(location.hostname) ? '/api/heatxpert' : 'https://www.multicalci.com/api/heatxpert';
+
+async function api(body) {
+  const r = await fetch(ep.value.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { status: r.status, r: j || {} };
+}
+
+// Check helpers — each returns {label, expected, got, pass}
+const eq   = (label, got, exp) => ({ label, expected: fmt(exp), got: fmt(got), pass: got === exp });
+const near = (label, got, exp, relTol) => ({ label, expected: `${fmt(exp)} ± ${+(relTol * 100).toFixed(2)} %`, got: fmt(got), pass: isFinite(got) && Math.abs(got - exp) <= Math.abs(exp) * relTol });
+const range = (label, got, lo, hi) => ({ label, expected: `${lo} – ${hi}`, got: fmt(got), pass: isFinite(got) && got >= lo && got <= hi });
+const truthy = (label, cond, got) => ({ label, expected: 'yes', got: fmt(got), pass: !!cond });
+const noCrit = r => truthy('no ✗ messages', !(r.warns || []).some(w => String(w).trim().startsWith('✗')), (r.warns || []).filter(w => String(w).trim().startsWith('✗')).length + ' ✗');
+
+function stConsistency(r) {
+  const OD = r.OD, Di = r.Di, b = r.bdCorr || {};
+  const Rw = OD * Math.log(OD / Di) / (2 * r.tubeK);
+  const Ucalc = 1 / (1 / b.hShell + r.Rfo + (OD / Di) * (1 / b.hTube + r.Rfi) + Rw);
+  return [
+    near('U = 1/(1/hs + Rfo + Ao/Ai·(1/ht + Rfi) + Rw) at the final geometry', r.U, Ucalc, 0.005),
+    near('Provided area = π·OD·L·N·shells', r.area_provided, Math.PI * OD * r.L * r.numTubes * r.nShells, 0.002),
+    truthy('Provided area ≥ required area', r.area_provided >= r.area * 0.999, `${fmt(r.area_provided)} vs ${fmt(r.area)} m²`),
+    range('Energy balance error (%)', r.balErr ?? 0, 0, 2),
+  ];
+}
+
+const CASES = [
+  // ── Build & routing
+  { g: 'Build and routing', name: 'Deployed build', body: { calcType: 'version' },
+    check: (r, s) => [eq('HTTP status', s, 200), eq('apiBuild', r.apiBuild, EXPECTED_BUILD)] },
+  { g: 'Build and routing', name: 'Unknown calcType is rejected', body: { calcType: 'no-such-type' },
+    check: (r, s) => [eq('HTTP status', s, 400), truthy('error message returned', /Unknown calcType/.test(r.error || ''), r.error)] },
+  { g: 'Build and routing', name: 'Live energy balance (calcType balance)', body: { calcType: 'balance', hFlKey: 'water', cFlKey: 'water', hTi: 90, hTo: 55, cTi: 30, hF: 20000, cF: 60000, hPop: 4, cPop: 3 },
+    check: r => [eq('ok', r.ok, true), near('Q (kW) = ṁ·cp·ΔT', r.Q_kW, 20000 / 3600 * 4.19 * 35, 0.01), near('Cold outlet (°C)', r.cTo, 30 + 35 / 3, 0.01)] },
+
+  // ── Server self-test (internal correlations)
+  { g: 'Correlations (server self-test)', name: 'selftest', body: { calcType: 'selftest' }, selftest: true },
+
+  // ── Worked examples (the same inputs the page's example menus load)
+  { g: 'Worked examples', name: 'S&T — cooling-water cooler', body: P['shell-tube:0'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), near('Q (kW)', r.Q, 20000 / 3600 * 4.19 * 35, 0.015), range('F', r.F, 0.85, 1), range('Tube velocity (m/s)', r.tubeVel, 1.2, 2.5), range('U (W/m²K)', r.U, 800, 1800), ...stConsistency(r),
+      near('Required area = Q/(U·F·LMTD)', r.area, r.Q * 1000 / (r.U * r.FLMTD), 0.005)] },
+  { g: 'Worked examples', name: 'S&T — lube-oil cooler', body: P['shell-tube:1'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('U (W/m²K)', r.U, 180, 450), range('Shell ΔP (bar)', r.shellDP, 0.02, 1.0), ...stConsistency(r),
+      near('Required area = Q/(U·F·LMTD)', r.area, r.Q * 1000 / (r.U * r.FLMTD), 0.005)] },
+  { g: 'Worked examples', name: 'S&T — steam condenser, 2 bar a', body: P['shell-tube:2'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), near('Q ≈ ṁ·hvap (kW)', r.Q, 2000 / 3600 * 2201.6, 0.02), range('U (W/m²K)', r.U_effective, 1000, 3000), range('Shell ΔP (bar)', r.shellDP, 0, 0.3), ...stConsistency(r)] },
+  { g: 'Worked examples', name: 'S&T — ammonia chiller (evaporating)', body: P['shell-tube:3'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), near('Q = hot-side duty (kW)', r.Q, 60000 / 3600 * 4.19 * 5, 0.02), range('U effective (W/m²K)', r.U_effective, 600, 2500), ...stConsistency(r)] },
+  { g: 'Worked examples', name: 'Plate — central cooler', body: P['plate:0'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('U (W/m²K)', r.U, 2000, 6000), range('Hot ΔP (bar)', r.dpH, 0.05, 1), truthy('Area provided ≥ required', r.A_provided >= r.A_req * 0.999, `${fmt(r.A_provided)} vs ${fmt(r.A_req)}`),
+      near('Area provided = (plates − 2)·plate area', r.A_provided, (r.nPlates - 2) * r.A_plate, 0.001)] },
+  { g: 'Worked examples', name: 'Plate — glycol chiller', body: P['plate:1'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('U (W/m²K)', r.U, 1200, 5000), range('Cold ΔP (bar)', r.dpC, 0.02, 1)] },
+  { g: 'Worked examples', name: 'Air cooled — hot water', body: P['air-cooled:0'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('Face velocity (m/s)', r.v_face, 1.5, 4), range('Air h, bare-fin basis (W/m²K)', r.h_air_bare, 25, 100), range('U, extended area (W/m²K)', r.U, 15, 60), range('Air ΔP (mm H₂O)', r.dpAir_mmH2O, 2, 25), range('F', r.F, 0.85, 1)] },
+  { g: 'Worked examples', name: 'Fin-fan — diesel cooler', body: P['fin-fan:0'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('Air h (W/m²K)', r.h_air, 20, 100), range('Air ΔP (mm H₂O)', r.dpAir_mmH2O, 1, 30), range('Fan coverage (API 661 ≥ 40 %)', r.fanAreaRatio * 100, 40, 100), range('Fan efficiency used (fraction)', r.fanEff, 0.4, 0.9), range('Overdesign (%)', r.overDesign, 0, 50)] },
+  { g: 'Worked examples', name: 'Double pipe — hot-water heater', body: P['double-pipe:0'],
+    check: r => [eq('status', r.st, 'ok'), noCrit(r), range('Hairpins (sized)', r.nHairpins, 1, 20), range('Overdesign (%)', r.overDesign, 0, 100), near('Q (kW)', r.Q, 2000 / 3600 * 4.2 * 45, 0.02)] },
+
+  // ── Consistency and design logic
+  { g: 'Design logic', name: 'Double pipe — one hairpin fewer is short of area', body: (() => { const b = clone(P['double-pipe:0']); b.nHairpins = 2; return b; })(),
+    check: r => [truthy('Overdesign < 0 with 2 hairpins (3 were sized)', r.overDesign < 0, r.overDesign), eq('status', r.st, 'err')] },
+  { g: 'Design logic', name: 'S&T rating mode — 80 fixed tubes (design needs ~116)', body: Object.assign(clone(P['shell-tube:0']), { velMode: 'fixedtubes', numTubesFixed: 80 }),
+    check: r => [eq('status', r.st, 'err'), truthy('Oversurface negative', r.overSurf < 0, r.overSurf), truthy('✗ message explains the shortfall', (r.warns || []).some(w => /Insufficient area/.test(w)), '')] },
+  { g: 'Design logic', name: 'S&T — tight approach in one 1-2 shell flags F', body: Object.assign(clone(P['shell-tube:0']), { hTo: 45, cTi: 32, cF: 45000 }),
+    check: r => [range('F', r.F, 0.4, 0.75), truthy('⚠ message suggests shells in series', (r.warns || []).some(w => /shells in series/.test(w)), '')] },
+  { g: 'Design logic', name: 'S&T — same duty in 2-4 (two shells) is fine', body: Object.assign(clone(P['shell-tube:0']), { hTo: 45, cTi: 32, cF: 45000, hxType: '2-4' }),
+    check: r => [range('F', r.F, 0.85, 1), eq('Shells', r.nShells, 2)] },
+  { g: 'Design logic', name: 'S&T — US units give the same answer as SI', body: Object.assign(clone(P['shell-tube:0']), { unitSys: 'imperial', hTi: 194, hTo: 131, cTi: 86, hF: 44092.4, cF: 132277.2, hPop: 58.0151, cPop: 43.5113, pdAllowShell: 10.1526, pdAllowTube: 10.1526 }),
+    check: r => [near('Q (kW)', r.Q, 20000 / 3600 * 4.19 * 35, 0.015), eq('status', r.st, 'ok')] },
+  { g: 'Design logic', name: 'LMTD / NTU tab — counterflow, Ch = 10 kW/K', body: { calcType: 'lmtdNtu', hTi: 150, hTo: 90, cTi: 30, cTo: 75, arr: 'counter', Ch: 10 },
+    check: r => [near('LMTD (K)', r.lmtd, 67.2213, 0.001), near('Q (kW)', r.Q, 600, 0.001), near('UA (W/K)', r.UA, 8925.74, 0.001), near('NTU', r.NTU, 0.89257, 0.001)] },
+  { g: 'Design logic', name: 'Wall thickness — ASME UG-27, 10 barg, ID 1000 mm, S = 138 MPa', body: { calcType: 'wallThick', std: 'asme8d1', type: 'cylinder', P: 10, D: 1000, S: 138, E: 1 },
+    check: r => [near('t (mm)', r.t_calc_mm, 3.6390, 0.001), eq('Nominal (mm, rounded up to 0.5)', r.t_nominal, 4)] },
+
+  // ── Error handling
+  { g: 'Error handling', name: 'S&T — temperature cross in a single 1-2 shell', body: Object.assign(clone(P['shell-tube:0']), { hTo: 40, cF: 20000 }),
+    check: (r, s) => [truthy('Request rejected', s >= 400, s), truthy('Message names the temperature cross', /Temperature cross/.test(r.error || ''), (r.error || '').slice(0, 80))] },
+  { g: 'Error handling', name: 'S&T — hot outlet above hot inlet', body: Object.assign(clone(P['shell-tube:0']), { hTo: 95 }),
+    check: (r, s) => [truthy('Request rejected', s >= 400, s), truthy('Message says what to change', /Hot outlet/.test(r.error || ''), (r.error || '').slice(0, 80))] },
+];
+
+const results = [];
+function render() {
+  const out = document.getElementById('out'); out.innerHTML = '';
+  const groups = [...new Set(results.map(x => x.g))];
+  for (const g of groups) {
+    const rows = results.filter(x => x.g === g);
+    const sec = document.createElement('section'); sec.className = 'grp';
+    sec.innerHTML = `<h2>${g}</h2><div class="tw"><table><thead><tr><th>Case</th><th>Check</th><th>Expected</th><th>Got</th><th>Result</th></tr></thead><tbody></tbody></table></div>`;
+    const tb = sec.querySelector('tbody');
+    for (const x of rows) {
+      const tr = document.createElement('tr'); if (x.pass === false) tr.className = 'fail';
+      const res = x.pass == null ? '<span class="res run">…</span>' : x.pass ? '<span class="res pass">✓ pass</span>' : '<span class="res fail">✗ fail</span>';
+      tr.innerHTML = `<td>${x.name}${x.ref ? `<div class="ref">${x.ref}</div>` : ''}</td><td>${x.label}</td><td class="num">${x.expected ?? ''}</td><td class="num">${x.got ?? ''}</td><td>${res}</td>`;
+      tb.appendChild(tr);
+    }
+    out.appendChild(sec);
+  }
+  const done = results.filter(x => x.pass != null), pass = done.filter(x => x.pass).length;
+  document.getElementById('sum').innerHTML =
+    `<div class="pill ${pass === done.length && done.length ? 'ok' : 'bad'}"><span>Passed</span><b>${pass} / ${done.length}</b></div>` +
+    `<div class="pill"><span>Cases</span><b>${CASES.length}</b></div>`;
+}
+
+async function runAll() {
+  const btn = document.getElementById('runBtn'); btn.disabled = true; btn.textContent = 'Running…';
+  results.length = 0; render();
+  for (const c of CASES) {
+    try {
+      const { status, r } = await api(c.body);
+      if (c.selftest) {
+        if (!r.tests) results.push({ g: c.g, name: 'Self-test endpoint', label: 'available', expected: 'list of checks', got: r.error || status, pass: false });
+        else r.tests.forEach(t => results.push({ g: c.g, name: t.name, ref: t.ref, label: t.tol != null ? 'within tolerance' : 'condition', expected: t.tol != null ? `${t.expected} ± ${t.tol}` : t.expected, got: t.got, pass: t.pass }));
+      } else {
+        if (status >= 400 && !/Error handling|routing/.test(c.g)) results.push({ g: c.g, name: c.name, label: 'API answered', expected: '200', got: `${status}: ${r.error || ''}`, pass: false });
+        else c.check(r, status).forEach(k => results.push({ g: c.g, name: c.name, ...k }));
+      }
+    } catch (e) {
+      results.push({ g: c.g, name: c.name, label: 'request', expected: 'response', got: e.message, pass: false });
+    }
+    render();
+  }
+  btn.disabled = false; btn.textContent = 'Run again';
+  document.getElementById('copyBtn').disabled = false;
+}
+
+function copyResults() {
+  const done = results.filter(x => x.pass != null);
+  const txt = [`HeatXpert regression — ${new Date().toISOString()} — endpoint ${ep.value}`,
+    `Passed ${done.filter(x => x.pass).length}/${done.length}`, '',
+    ...done.map(x => `${x.pass ? 'PASS' : 'FAIL'} | ${x.g} | ${x.name} | ${x.label} | expected ${x.expected} | got ${x.got}`)].join('\n');
+  const fallback = () => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).catch(fallback); else fallback();
+  const b = document.getElementById('copyBtn'); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy results', 1500);
+}
+document.getElementById('runBtn').addEventListener('click', runAll);
+document.getElementById('copyBtn').addEventListener('click', copyResults);
+</script>
+</body>
+</html>
