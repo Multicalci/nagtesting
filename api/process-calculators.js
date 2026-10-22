@@ -2558,19 +2558,27 @@ function steamDensity(p_bar, t_c) {
     let rho_liq = -3.430583e-12*T6 + 3.305509e-09*T5 - 1.216454e-06*T4
                   + 2.120305e-04*T3 - 2.009065e-02*T2 + 4.039409e-01*Tc6 + 998.117618;
     rho_liq = Math.max(500, Math.min(1005, rho_liq));
-    return { rho: rho_liq, isSat: false, T_sat_C: T_s-273.15, mu: waterLiquidViscosity(T) };
+    return { rho: rho_liq, isSat: false, T_sat_C: T_s-273.15, mu: waterLiquidViscosity(T), kappa: null };
   }
 
   const isSat = Math.abs(T - T_s) < 2.0;
 
-  // Region 2 — superheated steam
-  // FIX 2026-10: n11, n14, n22 and n27 corrected to the IAPWS-IF97 (2007) values;
-  // they had wrong powers of ten (density +0.4 % at 11 bar a / 200 °C).
-  const tau2 = 540 / T;
-  const pi2  = P_MPa;
-  const Ir = [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,5,6,6,6,7,7,7,8,8,9,10,10,10,16,16,18,20,20,20,21,22,23,24,24,24];
-  const Jr = [0,1,2,3,6,1,2,4,7,36,0,1,3,6,35,1,2,3,7,3,16,35,0,11,25,8,36,13,4,10,14,29,50,57,20,35,48,21,53,39,26,40,58];
-  const nr = [
+  // Region 2 — superheated steam (IAPWS-IF97, shared with the isentropic exponent)
+  const r2 = if97Region2(P_MPa, T);
+  return { rho: r2.v > 0 ? 1/r2.v : 1.0, isSat, T_sat_C: T_s-273.15, mu: steamViscosity(T), kappa: r2.kappa };
+}
+
+// ── IAPWS-IF97 REGION 2 (superheated steam) ───────────────────────────
+// Dimensionless Gibbs free energy γ = γ° + γʳ, IAPWS-IF97 (2007) Eq. 15–17,
+// Tables 10–12. Used for density and for the isentropic exponent.
+// FIX 2026-10: residual coefficients n11, n14, n22 and n27 corrected (they had
+// wrong powers of ten; density was +0.4 % at 11 bar a / 200 °C, +20 % at 160 bar a).
+const IF97_R2_J0 = [0, 1, -5, -4, -3, -2, -1, 2, 3];
+const IF97_R2_N0 = [-9.6927686500217, 10.086655968018, -0.005608791128302, 0.071452738081455,
+                    -0.40710498223928, 1.4240819171444, -4.383951131945, -0.28408632460772, 0.021268463753307];
+const IF97_R2_I  = [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,5,6,6,6,7,7,7,8,8,9,10,10,10,16,16,18,20,20,20,21,22,23,24,24,24];
+const IF97_R2_J  = [0,1,2,3,6,1,2,4,7,36,0,1,3,6,35,1,2,3,7,3,16,35,0,11,25,8,36,13,4,10,14,29,50,57,20,35,48,21,53,39,26,40,58];
+const IF97_R2_N  = [
     -1.7731742473213e-3,-1.7834862292358e-2,-4.5996013696365e-2,-5.7581259083432e-2,
     -5.0325278727930e-2,-3.3032641670203e-5,-1.8948987516315e-4,-3.9392777243355e-3,
     -4.3797295650573e-2,-2.6674547914087e-5,2.0481737692309e-8,4.3870667284435e-7,
@@ -2583,13 +2591,39 @@ function steamDensity(p_bar, t_c) {
     -4.2002467698208e-6,-5.9056029685639e-26,3.7826947613457e-6,-1.2768608934681e-15,
     7.3087610595061e-29,5.5414715350778e-17,-9.4369707241210e-7
   ];
-  let phiR_pi = 0;
-  for (let i = 0; i < nr.length; i++) {
-    if (Ir[i]===0) continue;
-    phiR_pi += nr[i] * Ir[i] * Math.pow(pi2, Ir[i]-1) * Math.pow(tau2-0.5, Jr[i]);
+
+/** Region 2 at p (MPa) and T (K): specific volume v (m³/kg), speed of sound w (m/s)
+ *  and isentropic exponent κ = ρw²/p — the definition used in ISO 5167-1. */
+function if97Region2(P_MPa, T) {
+  const R = 461.526, pi = P_MPa, tau = 540 / T, t = tau - 0.5;
+  let gr_p = 0, gr_pp = 0, gr_tt = 0, gr_pt = 0, g0_tt = 0;
+  for (let i = 0; i < IF97_R2_N.length; i++) {
+    const n = IF97_R2_N[i], I = IF97_R2_I[i], J = IF97_R2_J[i];
+    gr_p  += n * I * Math.pow(pi, I - 1) * Math.pow(t, J);
+    gr_pp += n * I * (I - 1) * Math.pow(pi, I - 2) * Math.pow(t, J);
+    gr_tt += n * Math.pow(pi, I) * J * (J - 1) * Math.pow(t, J - 2);
+    gr_pt += n * I * Math.pow(pi, I - 1) * J * Math.pow(t, J - 1);
   }
-  const v = (R * T / (P_MPa*1e6)) * pi2 * (1/pi2 + phiR_pi);
-  return { rho: v > 0 ? 1/v : 1.0, isSat, T_sat_C: T_s-273.15, mu: steamViscosity(T) };
+  for (let i = 0; i < IF97_R2_N0.length; i++) {
+    const J = IF97_R2_J0[i];
+    g0_tt += IF97_R2_N0[i] * J * (J - 1) * Math.pow(tau, J - 2);
+  }
+  const v  = R * T / (P_MPa * 1e6) * pi * (1 / pi + gr_p);
+  const a  = 1 + pi * gr_p - tau * pi * gr_pt;
+  const w2 = R * T * (1 + 2 * pi * gr_p + pi * pi * gr_p * gr_p)
+           / ((1 - pi * pi * gr_pp) + a * a / (tau * tau * (g0_tt + gr_tt)));
+  return { v, w: Math.sqrt(w2), kappa: w2 / (P_MPa * 1e6 * v) };
+}
+
+// FIX 2026-10: isentropic exponent for steam (was a fixed 1.135 from the fluid list).
+//   More than 2 °C above saturation: κ = ρw²/p from IAPWS-IF97 (about 1.24–1.32).
+//   Within 2 °C of saturation:       1.135, the customary value for dry saturated steam.
+//   Compressed water:                 null (κ is not used for liquids).
+function steamKappaAuto(p_bar, t_c) {
+  const s = steamDensity(p_bar, t_c);
+  if (s.kappa == null) return { k: null, basis: 'compressed water' };
+  if (s.isSat)         return { k: 1.135, basis: 'dry saturated steam (within 2 °C of saturation)' };
+  return { k: s.kappa, basis: 'IAPWS-IF97, κ = ρw²/p' };
 }
 
 // ── INPUT VALIDATION ──────────────────────────────────────────────────
@@ -3567,12 +3601,14 @@ async function orificeFlow_handler(req, res) {
         return res.end(JSON.stringify(twoPhasePreview(buildTP(body), P_bar, T_c)));
       }
 
-      let rho = null, mu_out = null, Z_out = null;
+      let rho = null, mu_out = null, Z_out = null, k_out = null, k_basis = null;
 
       if (cat === 'steam') {
         const sres = steamDensity(P_bar, T_c);
         rho    = sres.rho;
         mu_out = sres.mu;
+        const ka = steamKappaAuto(P_bar, T_c);   // FIX 2026-10
+        k_out = ka.k; k_basis = ka.basis;
       } else if (cat === 'liquid') {
         const f = FLUID_DB_orifice[fluidKey] || null;
         if (f?.t === 'l' && f.rhoModel === 'poly_water') {
@@ -3612,6 +3648,8 @@ async function orificeFlow_handler(req, res) {
         rho_op: rho,
         mu_auto: mu_out,
         Z_auto:  Z_out,
+        k_auto:  k_out,
+        k_basis,
       }));
     }
 
