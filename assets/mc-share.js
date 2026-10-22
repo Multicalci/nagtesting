@@ -391,9 +391,33 @@
     }
   } catch (e) { /* share sheet not available */ }
 
-  // Plain <a href="https://wa.me/?text=..."> links: rewrite just before the browser follows them.
+  /**
+   * Read-only boxes that show this page's link (the URL field in a share
+   * dialog): show the full share link instead, so selecting or copying the
+   * box, or a button that reads its value, sends the inputs too.
+   */
+  function upgradeLinkBoxes() {
+    if (!cfg.patch) return;
+    var boxes = doc.querySelectorAll('input[readonly], textarea[readonly]');
+    for (var i = 0; i < boxes.length; i++) {
+      var el = boxes[i];
+      var v = el.value;
+      if (!v || v.length > 5000 || el.closest('.mcs-bar')) continue;
+      var nv = rewrite(v, 'copy');
+      if (nv !== v) el.value = nv;
+    }
+  }
+
+  // Runs before the page's own click handlers (capture phase), and again
+  // right after them, for dialogs that fill their link box when they open.
   doc.addEventListener('click', function (e) {
     if (!cfg.patch) return;
+    try {
+      upgradeLinkBoxes();
+      setTimeout(upgradeLinkBoxes, 0);
+    } catch (x) { /* never block the click */ }
+
+    // Plain <a href="https://wa.me/?text=..."> links: rewrite just before the browser follows them.
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!a || a.closest('.mcs-bar')) return;
     var h = a.getAttribute('href');
