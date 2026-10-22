@@ -170,9 +170,10 @@ function orificeFlow(a) {
   const dp = a.differential_pressure_pa;
   const E = 1 / Math.sqrt(1 - Math.pow(beta, 4));
   // expansibility
+  const compressible = a.fluid_state === "gas" || a.fluid_state === "steam";
+  const pr = a.downstream_pressure_bara / a.upstream_pressure_bara;
   let eps = 1;
-  if (a.fluid_state === "gas" || a.fluid_state === "steam") {
-    const pr = a.downstream_pressure_bara / a.upstream_pressure_bara;
+  if (compressible) {
     eps = 1 - (0.351 + 0.256 * Math.pow(beta, 4) + 0.93 * Math.pow(beta, 8))
               * (1 - Math.pow(pr, 1 / a.isentropic_exponent));
   }
@@ -194,7 +195,13 @@ function orificeFlow(a) {
   const warn = [];
   if (beta < 0.1 || beta > 0.75) warn.push("Beta outside ISO 5167-2 range 0.10-0.75.");
   if (a.pipe_id_mm < 50 || a.pipe_id_mm > 1000) warn.push("Pipe ID outside ISO 5167-2 range 50-1000 mm.");
-  if (ReD < 5000) warn.push("ReD below ISO 5167-2 minimum.");
+  // ISO 5167-2 §5.3.1: bore and tap-dependent Reynolds limits; §5.3.2.2: p2/p1 >= 0.75 for epsilon
+  if (a.orifice_bore_mm < 12.5) warn.push("Orifice bore below ISO 5167-2 minimum 12.5 mm.");
+  const isFlange = !(a.tap_type === "corner" || a.tap_type === "d_and_d2");
+  const reMin = isFlange ? Math.max(5000, 170 * beta * beta * a.pipe_id_mm)
+                         : (beta <= 0.56 ? 5000 : 16000 * beta * beta);
+  if (ReD < reMin) warn.push(`ReD below ISO 5167-2 minimum (${Math.round(reMin)} for this beta and tap type).`);
+  if (compressible && pr < 0.75) warn.push("Pressure ratio p2/p1 below 0.75, outside the ISO 5167-2 expansibility equation's range.");
 
   return {
     mass_flow_kg_s: r(qm, 6),
