@@ -86,7 +86,7 @@ export const config = { api: { bodyParser: true } };
 // Build marker — returned on every response as `apiBuild`, and on its own via
 // {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
 // actually serving without reading the logs.
-const API_BUILD = '2026-10-review-fixes-r1';
+const API_BUILD = '2026-10-review-fixes-r2';
 
 // Status = worst of the calculator's own checks and the severity of every
 // message it returns (✗ fails, ⚠ check, ℹ note). Keeps the verdict and the
@@ -104,7 +104,7 @@ function finalizeStatus(st, warns) {
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
   'https://www.multicalci.com',
-  'https://www.multicalci.com',
+  'https://multicalci.com',
   'http://localhost:3000',
   'http://localhost:5173',
   // Add your Vercel preview URL here, e.g.:
@@ -238,7 +238,12 @@ function cpProps(fluidKey, T_degC, P_bar_abs) {
   const name = COOLPROP_NAME[(fluidKey||'').toLowerCase().trim()];
   if (!name) return null;
   const T_K = T_degC + 273.15, Pa = Math.max(P_bar_abs||P_REF_DB, 0.001)*1e5;
-  const mk = name+'|'+(Math.round(T_K*10)/10)+'|'+(Math.round(Pa/1000));
+  // FIX 2026-10: key on the fluid KEY, not the CoolProp name. 'water' and
+  // 'steam' (or 'ammonia-liquid' / 'ammonia-gas') share one CoolProp fluid but
+  // ask for opposite sides of the dome at Tsat; keyed by name, the second call
+  // got the first call's phase — e.g. vapour density for the condensate film,
+  // which collapsed the Nusselt h of every condenser zone to ≈300 W/m²K.
+  const mk = (fluidKey||'').toLowerCase().trim()+'|'+(Math.round(T_K*10)/10)+'|'+(Math.round(Pa/1000));
   if (_cpMemo.has(mk)) return _cpMemo.get(mk);
   const S = (o,n1,v1,n2,v2)=>CPI.PropsSI(o,n1,v1,n2,v2,name);
   let out = null;
@@ -3811,6 +3816,13 @@ function runSelfTest() {
   near('ASME UG-27 cylinder with 3 mm CA (corroded R)', tryF(() => calcWallThickness({ P: 10, D: 1000, S: 138, E: 1, CA: 3 }).t_calc_mm), 3.661, 0.002, 'R = Ri + CA');
   near('ASME App. 1-2 thick cylinder, 600 barg', tryF(() => calcWallThickness({ P: 600, D: 1000, S: 138, E: 1 }).t_calc_mm), 296.62, 0.05, 't = R(√Z − 1)');
   near('EN 13445-3 cylinder, 10 bar, Di 1000, f 138', tryF(() => calcWallThickness({ std: 'en13445', P: 10, D: 1000, S: 138, E: 1 }).t_calc_mm), 3.636, 0.002, 'e = P·Di/(2fz − P)');
+
+  // Property layer: liquid and vapour of one substance at Tsat keep their own phase
+  {
+    const Ts = satTemperature('water', 2);
+    const vap = fluidAtConditions('steam', Ts, 2), liq = fluidAtConditions('water', Ts, 2);
+    ok('Saturated steam / condensate at 2 bar a keep their own density', vap.rho < 5 && liq.rho > 900, `${vap.rho.toFixed(2)} / ${liq.rho.toFixed(0)} kg/m³`, 'phase-aware property cache');
+  }
 
   // Shell & tube: film coefficients belong to the geometry that is reported
   try {
