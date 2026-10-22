@@ -361,6 +361,7 @@ footer .disc { flex-basis: 100%; color: #8fafc8; }
 
   <h2>Steam density</h2>
   <p>For steam, the calculator works out density from pressure and temperature using IAPWS-IF97. At 45 superheated points from 1 to 160 bar a and 150 to 600 °C, it was compared with the <a href="https://pypi.org/project/iapws/" rel="noopener">iapws</a> reference implementation. The largest difference is 4.1 × 10⁻¹⁶. The last column shows the error before the October 2026 correction described in the change log.</p>
+  <p>The isentropic exponent κ, which enters the expansibility factor, is also taken from IAPWS-IF97 for superheated steam as κ = ρw²/p, the definition used in ISO 5167. It matches the reference implementation to machine precision. Within 2 °C of saturation the calculator uses 1.135, the customary value for dry saturated steam.</p>
   <div class="tbl-wrap">
     <table>
       <thead><tr><th class="num">p, bar a</th><th class="num">T, °C</th><th class="num">IAPWS-IF97 ρ, kg/m³</th><th class="num">Calculator ρ, kg/m³</th><th class="num">Before correction</th></tr></thead>
@@ -392,6 +393,7 @@ print(<span class="s">f"m = {m:.6f} kg/s  C = {C:.6f}"</span>)   <span class="c"
 
   <h2>Change log</h2>
   <ul class="log">
+    <li><span class="d">22 Oct 2026</span><strong>Isentropic exponent for steam now from IAPWS-IF97.</strong> κ was a fixed 1.135, the value for dry saturated steam. For superheated steam it is now calculated as κ = ρw²/p, which is about 1.24–1.32. Within 2 °C of saturation 1.135 is still used. κ affects only the expansibility factor: at 11 bar a and 200 °C, with β = 0.7 and Δp = 50 kPa, κ = 1.297 raises ε from 0.9813 to 0.9836, so the flow is 0.23 % higher.</li>
     <li><span class="d">22 Oct 2026</span><strong>Steam density corrected.</strong> Four IAPWS-IF97 Region 2 coefficients in the steam-density routine had the wrong power of ten. The error was negligible at low pressure but grew with pressure: +0.4 % at 11 bar a and 200 °C, +2.2 % at 40 bar a and 300 °C, and +8.7 % at 60 bar a and 300 °C. The largest error in the test grid was 20 %, at 160 bar a and 400 °C. Mass flow varies with √ρ, so superheated-steam flows were high by roughly half these figures. Liquid and gas results were not affected.</li>
     <li><span class="d">22 Oct 2026</span><strong>Limits of use aligned with ISO 5167-2:2022 §5.3.1.</strong> β now starts at 0.10 (was 0.20), the 12.5 mm minimum bore is checked, and the Reynolds-number limit depends on the tapping type and β. The previous fixed table was stricter than the standard and warned on some valid inputs. Calculated values did not change.</li>
     <li><span class="d">22 Oct 2026</span><strong>Formula reference corrected.</strong> The calculator page now shows the 2003/2022 expansibility equation, which the calculation was already using.</li>
