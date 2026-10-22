@@ -2564,6 +2564,8 @@ function steamDensity(p_bar, t_c) {
   const isSat = Math.abs(T - T_s) < 2.0;
 
   // Region 2 — superheated steam
+  // FIX 2026-10: n11, n14, n22 and n27 corrected to the IAPWS-IF97 (2007) values;
+  // they had wrong powers of ten (density +0.4 % at 11 bar a / 200 °C).
   const tau2 = 540 / T;
   const pi2  = P_MPa;
   const Ir = [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,5,6,6,6,7,7,7,8,8,9,10,10,10,16,16,18,20,20,20,21,22,23,24,24,24];
@@ -2571,11 +2573,11 @@ function steamDensity(p_bar, t_c) {
   const nr = [
     -1.7731742473213e-3,-1.7834862292358e-2,-4.5996013696365e-2,-5.7581259083432e-2,
     -5.0325278727930e-2,-3.3032641670203e-5,-1.8948987516315e-4,-3.9392777243355e-3,
-    -4.3797295650573e-2,-2.6674547914087e-5,2.0481737692310e-7,4.3870667284435e-7,
-    -3.2277677238570e-5,-1.5033924542148e-2,-4.0668253562950e-2,-7.8847309559367e-10,
+    -4.3797295650573e-2,-2.6674547914087e-5,2.0481737692309e-8,4.3870667284435e-7,
+    -3.2277677238570e-5,-1.5033924542148e-3,-4.0668253562950e-2,-7.8847309559367e-10,
     1.2790717852285e-8,4.8225372718507e-7,2.2922076337661e-6,-1.6714766451061e-11,
-    -2.1171472321355e-3,-2.3895741934104e-2,-5.9059564324270e-18,-1.2621808899101e-6,
-    -3.8946842435739e-2,1.1256211360459e-11,-8.2311340897998e-2,1.9809712802088e-8,
+    -2.1171472321355e-3,-2.3895741934104e+1,-5.9059564324270e-18,-1.2621808899101e-6,
+    -3.8946842435739e-2,1.1256211360459e-11,-8.2311340897998e+0,1.9809712802088e-8,
     1.0406965210174e-19,-1.0234747095929e-13,-1.0018179379511e-9,-8.0882908646985e-11,
     1.0693031879409e-1,-3.3662250574171e-1,8.9185845355421e-25,3.0629316876232e-13,
     -4.2002467698208e-6,-5.9056029685639e-26,3.7826947613457e-6,-1.2768608934681e-15,
@@ -2600,7 +2602,7 @@ function validateInputs({ D_m, d_m, P_Pa, rho, mu, beta, Z }) {
 else if (P_Pa < 10000) errs.push(`Pressure = ${(P_Pa/1e5).toFixed(4)} bara — very low; confirm ABSOLUTE pressure (bara/psia), not gauge`);
   if (beta <= 0 || beta>=1) errs.push('Beta ratio β must be between 0 and 1 (exclusive)');
   const D_mm = D_m * 1000;
-  if (D_mm < 50)   errs.push(`Pipe ID = ${D_mm.toFixed(1)} mm < ISO 5167 minimum 50 mm — small-pipe correction applied`);
+  if (D_mm < 50)   errs.push(`Pipe ID = ${D_mm.toFixed(1)} mm < ISO 5167 minimum 50 mm — Cd correlation outside validated range`);
   if (D_mm > 1000) errs.push(`Pipe ID = ${D_mm.toFixed(1)} mm > ISO 5167 maximum 1000 mm — Cd correlation outside validated range`);
   if (Z !== undefined && (Z <= 0 || Z > 3.0)) errs.push(`Z = ${Z} is physically impossible`);
   return errs;
@@ -2673,6 +2675,16 @@ const FLUID_DB_orifice = {
 function getReMin(b) {
     if (b <= 0.44) return 5000; if (b <= 0.56) return 10000; if (b <= 0.65) return 30000; return 170000;
   }
+// FIX 2026-10: orifice plates use the ISO 5167-2:2003/2022 §5.3.1 Reynolds limits,
+// which depend on the tapping arrangement. getReMin() above is kept for the
+// nozzle, venturi and custom-Cd types only.
+//   Corner and D & D/2 taps: Re_D ≥ 5000 (β ≤ 0.56), Re_D ≥ 16000·β² (β > 0.56)
+//   Flange taps:             Re_D ≥ 5000 and Re_D ≥ 170·β²·D   (D in mm)
+const ORIFICE_TAPS = ['sharp_corner', 'corner_tap', 'sharp_flange', 'd_d2_tap'];
+function reMinOrificeISO(beta, tapType, D_mm) {
+  if (tapType === 'sharp_flange') return Math.max(5000, 170 * beta * beta * D_mm);
+  return beta <= 0.56 ? 5000 : 16000 * beta * beta;
+}
 function calculate(params) {
   const {
     mode,                // 'flow' | 'dp' | 'beta'
@@ -2908,11 +2920,17 @@ function calculate(params) {
   const valErrs = validateInputs({ D_m: D, d_m: d_final, P_Pa, rho: rho_op, mu, beta, Z: Z_used });
   valErrs.forEach(e => warns.push(e));
 
-  const isNozzleType = ['nozzle_isa','venturi_nozzle'].includes(tapType);
+  const isNozzleType  = ['nozzle_isa','venturi_nozzle'].includes(tapType);
+  const isOrificeType = ORIFICE_TAPS.includes(tapType);
   const betaMax = isNozzleType ? 0.80 : 0.75;
-  if (beta < 0.20 || beta > betaMax) warns.push(`β=${beta.toFixed(4)} outside ISO 5167 range 0.20–${betaMax}`);
+  // FIX 2026-10: ISO 5167-2 allows orifice plates from β = 0.10 (was 0.20).
+  // The 1e-9 margin stops a ratio like 40/200 = 0.19999999999999998 being flagged.
+  const betaMin = isOrificeType ? 0.10 : 0.20;
+  if (beta < betaMin - 1e-9 || beta > betaMax + 1e-9) warns.push(`β=${beta.toFixed(4)} outside ISO 5167 range ${betaMin.toFixed(2)}–${betaMax}`);
   if (beta > 0.70 && beta <= 0.75)   infos.push(`β=${beta.toFixed(4)} in high-beta range — verify corner tap validity`);
-  if (!isLiq && dp_Pa > 0 && (dp_Pa/P_Pa) > 0.25) warns.push('⚡ ΔP/P > 0.25: Exceeds ISO 5167-2 expansibility factor validity limit');
+  // FIX 2026-10: ISO 5167-2 §5.3.1 minimum bore, d ≥ 12.5 mm (was not checked).
+  if (isOrificeType && d_final * 1000 < 12.5 - 1e-9) warns.push(`Bore d = ${(d_final * 1000).toFixed(2)} mm below ISO 5167-2 minimum 12.5 mm`);
+  if (!isLiq && dp_Pa > 0 && (dp_Pa/P_Pa) > 0.25) warns.push('⚡ ΔP/P > 0.25 (p₂/p₁ < 0.75): Exceeds ISO 5167-2 expansibility factor validity limit');
   if (v_orifice > 100) warns.push(`Orifice velocity ${v_orifice.toFixed(1)} m/s very high — verify sizing`);
   // ── FLASHING / CAVITATION CHECK (ISO 5167 valid for single-phase only) ──
   // Flashing: downstream tap pressure p2 = P1 − Δp falls below vapor pressure Pv.
@@ -2967,8 +2985,8 @@ function calculate(params) {
   if (isSteam) infos.push('⚠ Wet steam (quality x<1) not modelled — ensure steam is dry/superheated at operating conditions');
   if (Re_pipe > 5000 && beta >= 0.20 && beta <= 0.75)
     infos.push('ISO 5167 requires ≥10–30 D upstream + ≥5 D downstream straight run');
-    const Re_min = getReMin(beta);
-  if (Re_pipe > 0 && Re_pipe < Re_min) warns.push(`Re=${Re_pipe.toFixed(0)} below ISO 5167 minimum (${Re_min} for β=${beta.toFixed(3)})`);
+  const Re_min = isOrificeType ? reMinOrificeISO(beta, tapType, D_mm) : getReMin(beta);
+  if (Re_pipe > 0 && Re_pipe < Re_min) warns.push(`Re=${Re_pipe.toFixed(0)} below ISO 5167 minimum (${Re_min.toFixed(0)} for β=${beta.toFixed(3)})`);
   if (Z_auto?.outOfRange)
     infos.push(`Pitzer Z validity: Tr=${Z_auto.Tr?.toFixed(2)}, Pr=${Z_auto.Pr?.toFixed(2)} — outside recommended range (Tr>0.7, Pr<0.9)`);
 
