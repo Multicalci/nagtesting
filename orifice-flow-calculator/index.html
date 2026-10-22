@@ -980,8 +980,8 @@ select option { background: #ffffff; color: var(--text); }
 
     <div class="frow">
       <div class="field">
-        <label data-tip="Ratio of specific heats Cp/Cv. Air=1.40, Steam≈1.30, CO2≈1.28">Isentropic Exp. k</label>
-        <input type="number" id="isen_k" value="1.40" step="0.01">
+        <label data-tip="Isentropic exponent κ. Air=1.40, CO2≈1.28. Steam: set automatically from IAPWS-IF97 (κ = ρw²/p, about 1.24–1.32 when superheated; 1.135 within 2 °C of saturation). Edit to override.">Isentropic Exp. k <span class="hint" id="k_auto_badge" style="display:none;color:var(--cyan2);font-size:0.68rem;">⟳ auto</span></label>
+        <input type="number" id="isen_k" value="1.40" step="0.01" oninput="document.getElementById('k_auto_badge').style.display='none'">
       </div>
       <div class="field">
         <label data-tip="Sutherland's law auto-updates viscosity with T when a known gas is selected. Edit manually to override.">Dyn. Viscosity μ <span class="hint" id="mu_auto_badge" style="display:none;color:var(--cyan2);font-size:0.68rem;">⟳ auto</span></label>
@@ -1365,7 +1365,7 @@ const FLUID_DB = {
   'Hot Pot. Carbonate 30%':{t:'l',sg:1.270,mu:2.5e-3,Pv:0.02},
   'Nitric Acid 60%':   {t:'l',sg:1.367,mu:1.9e-3,  Pv:0.01},
   // ── Steam ──
-  'Steam':          {t:'s',sg:0.498,mu:1.3e-5,Pv:0,k:1.135},
+  'Steam':          {t:'s',sg:0.498,mu:1.3e-5,Pv:0,k:1.30},   // κ is then set from IAPWS-IF97 by the API
 };
 
 
@@ -1885,6 +1885,15 @@ async function _fetchDensityPreview() {
     if (data.mu_auto != null) {
       document.getElementById('visc').value = data.mu_auto.toExponential(4);
       document.getElementById('mu_auto_badge').style.display = '';
+    }
+    // Steam: isentropic exponent from IAPWS-IF97 (or 1.135 near saturation)
+    const kBadge = document.getElementById('k_auto_badge');
+    if (cat === 'steam' && data.k_auto != null) {
+      document.getElementById('isen_k').value = data.k_auto.toFixed(3);
+      kBadge.style.display = '';
+      kBadge.title = data.k_basis || '';
+    } else if (cat !== 'steam') {
+      kBadge.style.display = 'none';
     }
   } catch (e) {
     // Silent fail — preview is non-critical
