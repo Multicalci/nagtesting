@@ -1,0 +1,99 @@
+name: add mc-share to pages
+
+# Adds <script src="/assets/mc-share.js" defer> before </body> on every page
+# that has a form field (input, select or textarea).
+# Pages that already have it are left alone, so it is safe to run again
+# after adding new calculator pages.
+#
+# Run from the Actions tab: "add mc-share to pages" -> Run workflow.
+#   preview: lists the pages it would change, changes nothing
+#   apply:   changes them and commits
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'preview = list pages only, apply = add the tag and commit'
+        type: choice
+        options: [preview, apply]
+        default: preview
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add the script tag
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          python3 - <<'PY'
+          import os, re, pathlib
+
+          TAG = b'<script src="/assets/mc-share.js" defer></script>'
+          SKIP_DIRS = {'.git', '.github', 'node_modules', 'api', 'tests'}
+          FORM = re.compile(rb'<(input|select|textarea)\b', re.I)
+          apply = os.environ.get('MODE') == 'apply'
+
+          changed, already, no_form, problems = [], 0, 0, []
+          for p in sorted(pathlib.Path('.').rglob('*.html')):
+              if any(part in SKIP_DIRS for part in p.parts):
+                  continue
+              b = p.read_bytes()                      # bytes: line endings and encoding stay exactly as they are
+              if b'mc-share.js' in b:
+                  already += 1
+                  continue
+              if not FORM.search(b):
+                  no_form += 1
+                  continue
+              i = b.lower().rfind(b'</body>')
+              if i == -1:
+                  problems.append(f'{p}: no </body> tag, not changed')
+                  continue
+              nl = b'\r\n' if b'\r\n' in b else b'\n'
+              line_start = b.rfind(b'\n', 0, i) + 1
+              indent = b[line_start:i]
+              if indent.strip() == b'':               # </body> on its own line: new line above it, same indent
+                  new = b[:line_start] + indent + TAG + nl + b[line_start:]
+              else:                                   # </body> shares a line: insert just before it
+                  new = b[:i] + TAG + b[i:]
+              if apply:
+                  p.write_bytes(new)
+              changed.append(str(p))
+
+          verb = 'Changed' if apply else 'Would change'
+          lines = [
+              f'## {"Applied" if apply else "Preview"}',
+              f'- {verb}: **{len(changed)}** pages',
+              f'- Already had mc-share.js: {already}',
+              f'- No form fields, skipped: {no_form}',
+              f'- Problems: {len(problems)}',
+              '',
+          ]
+          if problems:
+              lines += ['### Problems'] + [f'- {x}' for x in problems] + ['']
+          if changed:
+              lines += [f'### {verb}'] + [f'- `{x}`' for x in changed]
+          report = '\n'.join(lines)
+          print(report)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+              f.write(report + '\n')
+          PY
+
+      - name: Commit
+        if: ${{ inputs.mode == 'apply' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "Add mc-share.js to calculator pages"
+          git pull --rebase
+          git push
