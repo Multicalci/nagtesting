@@ -231,7 +231,7 @@ function skip(tier, name, note) { nSkip++; rows.push({ tier, name, got: '—', e
 // the reference {U, area, shellDP, tubeDp} plus a tolerance. Deviations are
 // then tracked release-over-release. DO NOT fill expect with guesses.
 const EXTERNAL_CASES = [
-  { name: 'IFFCO Kalol CW cooler (HTRI ref)',    inputs: null, expect: null, tol: 15 },
+  { name: 'Plant CW cooler (HTRI ref)',    inputs: null, expect: null, tol: 15 },
   { name: 'NH3 chiller vendor datasheet',        inputs: null, expect: null, tol: 20 },
   { name: 'Steam surface condenser (plant data)',inputs: null, expect: null, tol: 20 },
 ];
