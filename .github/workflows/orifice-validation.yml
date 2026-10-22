@@ -1,0 +1,23 @@
+name: Orifice validation
+
+# Checks both orifice engines (website api/process-calculators.js and the MCP
+# tool api/mcp.mjs) against ISO 5167-2 reference cases, the ISO validity
+# limits and IAPWS-IF97 steam densities. See tests/orifice-validation.mjs.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'api/process-calculators.js'
+      - 'api/mcp.mjs'
+      - 'tests/orifice-validation.mjs'
+
+jobs:
+  orifice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node tests/orifice-validation.mjs api/process-calculators.js api/mcp.mjs
