@@ -47,7 +47,7 @@ const pageA = (extraScriptAttrs = '') => `<!doctype html><html><head>
   function copyLink(){ navigator.clipboard.writeText(location.href); }
   window.va = function(){ evts.push(Array.prototype.slice.call(arguments)); };
 </script>
-<script ${extraScriptAttrs}>${SHARE}</script>
+<!--MODULE--><script ${extraScriptAttrs}>${SHARE}</script>
 </body></html>`;
 
 /* ---------- Page B: calc-common page with data-unit-btn ---------- */
@@ -173,7 +173,7 @@ function hashState(url) {
   }
 
   console.log('\nA5. Address matching');
-  const E = open(pageA(), 'https://www.multicalci.com/npsh-calculator/');
+  const E = open(pageA(), 'https://multicalci.com/npsh-calculator/');
   await wait(400);
   ok(E.w.MCShare.url('x').startsWith('https://www.multicalci.com/npsh-calculator?utm_source=x'), 'non-www + slash page shares the canonical www, no-slash URL');
   const rw = t => E.w.MCShare.rewrite(t, 'copy');
@@ -200,8 +200,7 @@ function hashState(url) {
     const h = pageA()
       .replace('class="ubtn on"', 'class="ubtn unit-active"')
       .replace(/classList\.toggle\('on',/g, "classList.toggle('unit-active',");
-    const at = h.lastIndexOf('</body>');            // the module's own comment also mentions </body>
-    return h.slice(0, at) + extra + h.slice(at);
+    return h.replace('<!--MODULE-->', () => extra);   // page's own script, before mc-share.js
   };
   const G = open(pageC(), 'https://www.multicalci.com/npsh-calculator');
   await wait(400);
@@ -215,10 +214,11 @@ function hashState(url) {
   const n3 = H.d.getElementById('mcs-note');
   ok(n3 && n3.classList.contains('warn') && /unit system could not be recorded/.test(n3.textContent), 'warning: ' + (n3 && n3.textContent));
 
-  const cfgScript = "<script>MCShare.config({ getUnits: function(){ return unitsNow; }, setUnits: function(u){ setU(u); } });</script>";
+  // Set by the page before mc-share.js loads, as it would be with the deferred tag.
+  const cfgScript = "<script>window.MCShareConfig = { getUnits: function(){ return unitsNow; }, setUnits: function(u){ setU(u); } };</script>";
   const I = open(pageC(cfgScript), 'https://www.multicalci.com/npsh-calculator');
   await wait(400);
-  ok(!I.warns.some(w => /mc-share/.test(w)), 'no warning once the page supplies getUnits/setUnits');
+  ok(!I.warns.some(w => /mc-share/.test(w)), 'no warning once the page sets window.MCShareConfig');
   I.w.setU('IMP'); I.d.getElementById('q').value = '80';
   const J = open(pageC(cfgScript), I.w.MCShare.url('copy'));
   await wait(900);
