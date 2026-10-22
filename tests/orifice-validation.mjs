@@ -15,7 +15,8 @@
 //                                  equations and solved independently.
 //   TIER 3  External references — values computed with the open-source
 //                                  `fluids` library and IAPWS-IF97 (`iapws`
-//                                  package), stored below with their versions.
+//                                  package: density and κ = ρw²/p), stored
+//                                  below with their versions.
 //   LIMITS  ISO 5167-2 §5.3.1   — every out-of-range input must be flagged,
 //                                  and no valid case may be flagged.
 //
@@ -37,7 +38,7 @@ async function load(src, names) {
   fs.writeFileSync(tmp, code);
   try { return await import(tmp); } finally { try { fs.unlinkSync(tmp); } catch {} }
 }
-const site = await load(SITE_SRC, ['calculate', 'steamDensity']);
+const site = await load(SITE_SRC, ['calculate', 'steamDensity', 'steamKappaAuto']);
 const mcp  = await load(MCP_SRC,  ['orificeFlow']);
 
 const DATA = {
@@ -746,167 +747,234 @@ const DATA = {
   [
    1,
    200,
-   0.460300288277
+   0.460300288277,
+   1.31095583136
   ],
   [
    1,
    300,
-   0.378950393136
+   0.378950393136,
+   1.29983204391
   ],
   [
    1,
    400,
-   0.322297653023
+   0.322297653023,
+   1.28805855151
   ],
   [
    1,
    500,
-   0.280459026852
+   0.280459026852,
+   1.27648064193
   ],
   [
    1,
    600,
-   0.248265300841
+   0.248265300841,
+   1.2653990041
   ],
   [
    5,
    200,
-   2.35275480601
+   2.35275480601,
+   1.30608111393
   ],
   [
    5,
    300,
-   1.91349924281
+   1.91349924281,
+   1.29876196849
   ],
   [
    5,
    400,
-   1.61997295718
+   1.61997295718,
+   1.28784177979
   ],
   [
    5,
    500,
-   1.40657530747
+   1.40657530747,
+   1.27652057363
   ],
   [
    5,
    600,
-   1.24363362818
+   1.24363362818,
+   1.2655592889
   ],
   [
    11,
    200,
-   5.37603875475
+   5.37603875475,
+   1.29729182614
   ],
   [
    11,
    300,
-   4.2751312589
+   4.2751312589,
+   1.29700141842
   ],
   [
    11,
    400,
-   3.59263934539
+   3.59263934539,
+   1.28749649912
   ],
   [
    11,
    500,
-   3.10877843294
+   3.10877843294,
+   1.27658365477
   ],
   [
    11,
    600,
-   2.74366718976
+   2.74366718976,
+   1.26580844607
   ],
   [
    20,
    300,
-   7.9680527031
+   7.9680527031,
+   1.29400207376
   ],
   [
    20,
    400,
-   6.61340509241
+   6.61340509241,
+   1.28693569276
   ],
   [
    20,
    500,
-   5.69215484538
+   5.69215484538,
+   1.27668886575
   ],
   [
    20,
    600,
-   5.00965927355
+   5.00965927355,
+   1.26620405063
   ],
   [
    40,
    300,
-   16.9871689031
+   16.9871689031,
+   1.28573720431
   ],
   [
    40,
    400,
-   13.6180775301
+   13.6180775301,
+   1.28553684358
   ],
   [
    40,
    500,
-   11.5685836279
+   11.5685836279,
+   1.27699720375
   ],
   [
    40,
    600,
-   10.1155760585
+   10.1155760585,
+   1.26719470235
   ],
   [
    60,
    300,
-   27.6310764974
+   27.6310764974,
+   1.2743122024
   ],
   [
    60,
    400,
-   21.0868349284
+   21.0868349284,
+   1.28402043339
   ],
   [
    60,
    500,
-   17.6455029092
+   17.6455029092,
+   1.27746939341
   ],
   [
    60,
    600,
-   15.3222969593
+   15.3222969593,
+   1.26837296447
   ],
   [
    100,
    400,
-   37.8224714494
+   37.8224714494,
+   1.28132058993
   ],
   [
    100,
    500,
-   30.4758533669
+   30.4758533669,
+   1.27924142856
   ],
   [
    100,
    600,
-   26.0569558342
+   26.0569558342,
+   1.27145603291
   ],
   [
    160,
    400,
-   70.0229869849
+   70.0229869849,
+   1.28241501674
   ],
   [
    160,
    500,
-   51.7498362745
+   51.7498362745,
+   1.28544919228
   ],
   [
    160,
    600,
-   43.0343015492
+   43.0343015492,
+   1.27849895464
+  ]
+ ],
+ "steam_near_sat": [
+  [
+   1,
+   100.106
+  ],
+  [
+   1,
+   101.506
+  ],
+  [
+   11,
+   184.57
+  ],
+  [
+   11,
+   185.97
+  ],
+  [
+   40,
+   250.858
+  ],
+  [
+   40,
+   252.258
+  ],
+  [
+   100,
+   311.499
+  ],
+  [
+   100,
+   312.899
   ]
  ]
 };
@@ -989,11 +1057,16 @@ for (const c of DATA.limits) {
   check('LIM', `${c.id} MCP flags: ${c.desc}`, !q.validity_warnings.includes('Within ISO 5167-2 validity limits.'), JSON.stringify(q.validity_warnings));
 }
 
-// ── STEAM DENSITY vs IAPWS-IF97 (region 2) ───────────────────────────────────
-for (const [p, t, rho] of DATA.steam_if97) {
-  const got = site.steamDensity(p, t).rho;
-  check(3, `steam ρ ${p} bar a, ${t} °C vs IAPWS-IF97`, rel(got, rho) < 1e-9, `got ${got} ref ${rho}`);
+// ── STEAM vs IAPWS-IF97 (region 2): density and isentropic exponent ──────────
+for (const [p, t, rho, kappa] of DATA.steam_if97) {
+  const s = site.steamDensity(p, t);
+  check(3, `steam ρ ${p} bar a, ${t} °C vs IAPWS-IF97`, rel(s.rho, rho) < 1e-9, `got ${s.rho} ref ${rho}`);
+  check(3, `steam κ ${p} bar a, ${t} °C vs IAPWS-IF97`, rel(s.kappa, kappa) < 1e-9, `got ${s.kappa} ref ${kappa}`);
+  check(1, `steam κ auto uses IF97 when superheated (${p} bar a, ${t} °C)`, site.steamKappaAuto(p, t).k === s.kappa);
 }
+for (const [p, t] of DATA.steam_near_sat)
+  check(1, `κ = 1.135 within 2 °C of saturation (${p} bar a, ${t} °C)`, site.steamKappaAuto(p, t).k === 1.135, String(site.steamKappaAuto(p, t).k));
+check(1, 'κ not set for compressed water (11 bar a, 150 °C)', site.steamKappaAuto(11, 150).k === null);
 
 console.log(`Orifice validation: ${nPass} passed, ${nFail} failed  (references: fluids ${DATA.fluids}, iapws ${DATA.iapws}, generated ${DATA.generated})`);
 for (const f of fails) console.log('  FAIL ' + f);
