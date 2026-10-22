@@ -51,7 +51,7 @@ dense CO₂.
 Tier 3 — external benchmarks: harness ready for HTRI / vendor / plant cases.
 Paste real reference values into `EXTERNAL\_CASES`; empty slots report SKIP, never
 fabricated numbers. This tier is what ultimately earns design-grade trust — fill it
-from your IFFCO HTRI runs.
+from your plant HTRI runs.
 Current status: 21 PASS / 0 FAIL / 4 SKIP (1 structural, 3 awaiting external data).
 Bugs the suite caught on its first run (all fixed)
 Condensing Q halved — a post-loop sensible-only cTo recompute ran for condensing
