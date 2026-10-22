@@ -1027,7 +1027,7 @@ select option { background: #ffffff; color: var(--text); }
         </div>
       </div>
       <div class="field">
-        <label>Orifice Bore d <span class="hint" style="color:var(--text3)">β=d/D: 0.20–0.75</span></label>
+        <label>Orifice Bore d <span class="hint" style="color:var(--text3)">β=d/D: 0.10–0.75</span></label>
         <div style="display:flex;gap:6px;">
           <input type="number" id="b_id" value="75.00" step="0.01" style="flex:1;min-width:0;">
           <select id="bid_unit_sel" onchange="onDimUnitChange('bid')" style="width:80px;padding:10px 6px;font-size:0.85rem;">
@@ -1181,7 +1181,7 @@ select option { background: #ffffff; color: var(--text); }
 
     <!-- Beta gauge -->
     <div class="beta-gauge-wrap">
-      <div class="beta-gauge-title">BETA RATIO (β = d/D) — ISO 5167 ACCEPTANCE RANGE 0.20–0.75</div>
+      <div class="beta-gauge-title">BETA RATIO (β = d/D) — ISO 5167-2 RANGE 0.10–0.75</div>
       <div class="gauge-bar-bg">
         <div class="gauge-zone-ok"></div>
         <div class="gauge-fill" id="gauge_fill" style="width:0%;background:var(--green);"></div>
@@ -1269,11 +1269,11 @@ select option { background: #ffffff; color: var(--text); }
       <span class="hl">Cd(Re,β)</span> = Reader-Harris/Gallagher (ISO 5167-2 §5.3.2.1) — iterative f(Re,β,tap). NOT constant.<br>
       &nbsp;&nbsp;Cd ≈ 0.5961 + 0.0261β² − 0.216β⁸ + 0.000521(10⁶β/Re)⁰·⁷ + tap corrections<br>
       <span class="hl">E</span> = 1/√(1−β⁴) &nbsp;<span style="color:var(--text3)"> (velocity of approach factor)</span><br>
-      <span class="hl">Y — Orifice (ISO 5167-2)</span>: Y = 1 − (0.41+0.35β⁴)·ΔP/(P·κ) &nbsp;[valid ΔP/P &lt; 0.25]<br>
+      <span class="hl">Y (ε) — Orifice (ISO 5167-2 §5.3.2.2)</span>: Y = 1 − (0.351 + 0.256β⁴ + 0.93β⁸)·[1 − (p₂/p₁)<sup>1/κ</sup>] &nbsp;[valid p₂/p₁ ≥ 0.75]<br>
       <span class="hl">Y — Nozzle/Venturi (ISO 5167-3/4)</span>: Y = √[κ·τ^(2/κ)·(1−β⁴) / ((κ−1)·(1−τ^((κ-1)/κ))·(1−β⁴·τ^(2/κ)))]<br>
       <span class="hla">ΔW</span>/ΔP = [√(1−β⁴(1−Cd²)) − Cd·β²] / [√(1−β⁴(1−Cd²)) + Cd·β²] &nbsp;<span style="color:var(--text3)">(perm. loss, orifice)</span><br>
       ρ = <span class="hla">P·M</span>/(Z·R·T) &nbsp;[gas] &nbsp;|&nbsp; ρ = SG×1000 &nbsp;[liquid] &nbsp;|&nbsp; IAPWS-IF97 &nbsp;[steam]<br>
-      β = d/D &nbsp;&nbsp; A₂ = π/4·d² &nbsp;&nbsp; ISO Re min: β≤0.44→5000, β≤0.56→10000, β≤0.65→30000, β≤0.75→170000<br>
+      β = d/D &nbsp;&nbsp; A₂ = π/4·d² &nbsp;&nbsp; ISO 5167-2 Re min (orifice): Re_D ≥ 5000; corner &amp; D–D/2 taps with β &gt; 0.56: Re_D ≥ 16000β²; flange taps: Re_D ≥ 170β²D (D in mm)<br>
       <span class="hl">TWO-PHASE</span> &nbsp;x = ṁ<sub>g</sub>/ṁ &nbsp;|&nbsp; X = ((1−x)/x)·√(ρg/ρl)·Y &nbsp;|&nbsp; K<sub>g</sub> = Cd·E·Y·A₂·√(2·ρg·ΔP)<br>
       &nbsp;&nbsp;<span class="hl">Chisholm</span>: ṁ = K<sub>g</sub> / [x·√(1 + C·X + X²)], &nbsp;C = (ρl/ρg)^¼ + (ρg/ρl)^¼<br>
       &nbsp;&nbsp;<span class="hl">Murdock</span>: ṁ = K<sub>g</sub> / [x·(1 + 1.26·X)] &nbsp;|&nbsp; <span class="hl">Homogeneous</span>: ṁ = Cd·E·A₂·√(2ΔP / v<sub>m</sub>), v<sub>m</sub> = x/(Y²ρg) + (1−x)/ρl<br>
@@ -1284,7 +1284,7 @@ select option { background: #ffffff; color: var(--text); }
     <div class="warn-box" id="warn1">⚠ <span id="warn1_txt"></span></div>
     <div class="warn-box warn-amber" id="warn2">ℹ <span id="warn2_txt"></span></div>
     <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);font-size:0.68rem;color:var(--text3);line-height:1.6;">
-      <strong>Assumptions &amp; Limitations:</strong> ISO 5167-2:2022 | Single-phase ISO equation (two-phase via correlations below) | Sharp-edge orifice (ISO geometry) | Clean smooth pipe assumed | 
+      <strong>Assumptions &amp; Limitations:</strong> ISO 5167-2:2022 (<a href="/orifice-flow-calculator/validation">validated against 11 reference cases</a>) | Single-phase ISO equation (two-phase via correlations below) | Sharp-edge orifice (ISO geometry) | Clean smooth pipe assumed | 
       Plate edge wear, pipe roughness and flow profile distortion not modelled (each can affect Cd by 0.5–5%) | 
       Two-phase mode: Chisholm / Murdock / James / Homogeneous correlations, frozen quality (no flashing across the plate), homogeneous or vertical flow — typical ±3–10%; flashing letdown and choked two-phase flow not supported | 
       Viscosity: Sutherland law (±5–30% for polar/heavy gases) | 
@@ -1427,7 +1427,7 @@ function updateGauge(beta) {
   fill.style.width = pct + '%';
   needle.style.left = pct + '%';
   valEl.textContent = beta.toFixed(4);
-  if (beta >= 0.20 && beta <= 0.70) {
+  if (beta >= 0.10 && beta <= 0.70) {   // ISO 5167-2 §5.3.1: 0.10 ≤ β ≤ 0.75
     fill.style.background='var(--green)'; valEl.style.color='var(--green)';
     statEl.textContent='WITHIN ISO RANGE'; statEl.className='beta-status beta-ok';
   } else if (beta > 0.70 && beta <= 0.75) {
@@ -2589,7 +2589,7 @@ function generatePDF() {
       <div class="banner-beta">
         <div class="banner-beta-lbl">Beta Ratio β = d/D</div>
         <div class="banner-beta-val">${results.beta}</div>
-        <div style="font-size:8pt;color:#5a6a80;font-weight:600;margin-top:3px;">ISO Range: 0.20 – 0.75</div>
+        <div style="font-size:8pt;color:#5a6a80;font-weight:600;margin-top:3px;">ISO Range: 0.10 – 0.75</div>
       </div>
     </div>
 
@@ -2677,7 +2677,7 @@ function generatePDF() {
     <div class="section-title">▸ ISO 5167 Formula Reference</div>
     <div class="formula">
       q<sub>m</sub> = <span class="hl">Cd(Re,β)</span> · <span class="hla">E</span> · <span class="hl">Y</span> · A₂ · √(2·ρ·ΔP) &nbsp;|&nbsp; <span class="hl">E</span> = 1/√(1−β⁴) &nbsp;|&nbsp; β = d/D<br>
-      <span class="hl">Y (orifice)</span> = 1 − (0.41+0.35β⁴)·ΔP/(P·κ) &nbsp;|&nbsp; ρ = <span class="hla">P·M</span>/(Z·R·T) [gas] &nbsp;|&nbsp; Cd: Reader-Harris/Gallagher iterative
+      <span class="hl">Y (orifice)</span> = 1 − (0.351+0.256β⁴+0.93β⁸)·[1 − (p₂/p₁)<sup>1/κ</sup>] &nbsp;|&nbsp; ρ = <span class="hla">P·M</span>/(Z·R·T) [gas] &nbsp;|&nbsp; Cd: Reader-Harris/Gallagher iterative
     </div>
 
     ${warn1 ? `<div class="warn-box warn-red">${warn1}</div>` : ''}
@@ -2879,7 +2879,7 @@ Y = 1 − (0.351 + 0.256β⁴ + 0.93β⁸) · [1 − (P₂/P₁)^(1/κ)]
       <p>Cd is the most critical parameter. It accounts for real-fluid effects — viscous losses, turbulence, and the jet contraction at the vena contracta — that ideal Bernoulli theory ignores. ISO 5167 uses the <strong>Reader-Harris/Gallagher (RG) equation</strong>, derived by regression of ~16,000 calibration data points from 9 independent laboratories:</p>
       <div class="f-block">
         <div class="f-main">Cd = 0.5961 + 0.0261β² − 0.216β⁸ + 0.000521(10⁶β/Re_D)^0.7<br>+ (0.0188 + 0.0063A)β³·⁵(10⁶/Re_D)^0.3<br>+ (0.043 + 0.080e^(−10L₁) − 0.123e^(−7L₁))(1−0.11A)(β⁴/(1−β⁴))<br>− 0.031(M₂' − 0.8M₂'^1.1)β^1.3</div>
-        <div class="f-label">RG equation — valid for 0.1 ≤ β ≤ 0.75, Re_D ≥ 5000, per ISO 5167-2:2022 §5.3</div>
+        <div class="f-label">RG equation — valid for 0.1 ≤ β ≤ 0.75, d ≥ 12.5 mm, 50 ≤ D ≤ 1000 mm and Re_D ≥ 5000 (≥ 16000β² for β &gt; 0.56 with corner or D–D/2 taps; ≥ 170β²D for flange taps), per ISO 5167-2:2022 §5.3.1. <a href="/orifice-flow-calculator/validation">How this calculator is validated</a></div>
         <div class="f-where">
 A = (19000β/Re_D)^0.8
 L₁ = tap distance upstream / D (0 for corner taps, 25.4/D for flange taps, 1.0 for D taps)
@@ -3117,7 +3117,7 @@ Y = 1.0 for liquids; Y &lt; 1.0 for gases (typically 0.96–0.99 for ΔP/P₁ &l
             <h4>Select DP Transmitter Range and Calculate Required β</h4>
             <p>Choose a target ΔP at Q_max — this is your DP transmitter upper range value (URV). Common choices: 25 kPa (100 inH₂O), 50 kPa, 125 kPa. Rearrange the orifice equation to solve for d:</p>
             <p style="font-family:var(--mono); font-size:0.85rem; background:#f0f4f8; padding:10px; border-radius:4px;">d = D · √β &nbsp; where β is found by solving:<br>Q_max = Cd · E · (π/4 · β²D²) · √(2ΔP_max/ρ)</p>
-            <p>Since both Cd and E depend on β, iterate: start with β = 0.6, compute d, calculate E and Cd at this β and Re_D, recompute d, repeat until β converges (usually 3 iterations). Confirm β is in range 0.20–0.75. If outside, adjust DP URV or pipe size.</p>
+            <p>Since both Cd and E depend on β, iterate: start with β = 0.6, compute d, calculate E and Cd at this β and Re_D, recompute d, repeat until β converges (usually 3 iterations). Confirm β is in range 0.10–0.75 (ISO 5167-2); 0.20–0.70 is the practical range. If outside, adjust DP URV or pipe size.</p>
           </div>
         </div>
 
@@ -3345,7 +3345,7 @@ Y = 1.0 for liquids; Y &lt; 1.0 for gases (typically 0.96–0.99 for ΔP/P₁ &l
 
         <div class="gloss-item">
           <div class="gloss-term">Isentropic Expansion Factor <span class="gloss-sym">Y (or ε)</span></div>
-          <div class="gloss-def">Correction factor for compressible gas flow accounting for gas density decrease across the orifice. Y = 1.0 for incompressible liquids. Y &lt; 1 for gases. For air at ΔP/P₁ = 0.10: Y ≈ 0.963. Significant (&gt;0.3%) when ΔP/P₁ &gt; 2%. For ΔP/P₁ &gt; 25%, the equation's accuracy degrades and full isentropic nozzle equations with real gas properties are needed.</div>
+          <div class="gloss-def">Correction factor for compressible gas flow accounting for gas density decrease across the orifice. Y = 1.0 for incompressible liquids. Y &lt; 1 for gases. For air at ΔP/P₁ = 0.10 and β = 0.5: Y ≈ 0.973. Significant (&gt;0.3%) when ΔP/P₁ &gt; 2%. For ΔP/P₁ &gt; 25%, the equation's accuracy degrades and full isentropic nozzle equations with real gas properties are needed.</div>
           <div class="gloss-std">ISO 5167-2 §5.3.3</div>
         </div>
 
