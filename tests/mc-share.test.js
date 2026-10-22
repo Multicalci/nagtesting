@@ -173,7 +173,7 @@ function hashState(url) {
   }
 
   console.log('\nA5. Address matching');
-  const E = open(pageA(), 'https://multicalci.com/npsh-calculator/');
+  const E = open(pageA(), 'https://www.multicalci.com/npsh-calculator/');
   await wait(400);
   ok(E.w.MCShare.url('x').startsWith('https://www.multicalci.com/npsh-calculator?utm_source=x'), 'non-www + slash page shares the canonical www, no-slash URL');
   const rw = t => E.w.MCShare.rewrite(t, 'copy');
