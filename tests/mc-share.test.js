@@ -34,6 +34,15 @@ const pageA = (extraScriptAttrs = '') => `<!doctype html><html><head>
 <a id="shLi" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.multicalci.com%2Fnpsh-calculator%2F">LinkedIn</a>
 <a id="shMail" href="mailto:?subject=NPSH&amp;body=Check%20https%3A%2F%2Fmulticalci.com%2Fnpsh-calculator%2F%20now">Mail</a></div>
 <div data-mc-share></div>
+<button id="openShare" onclick="openModal()">Share</button>
+<div id="modal" style="display:none"><input id="linkBox" readonly><button id="mCopy" onclick="modalCopy()">Copy</button><button id="mWa" onclick="modalWa()">WhatsApp</button></div>
+<script>
+  // Share dialog like the live NPSH page: fills a read-only link box when opened.
+  var copiedVia = null;
+  function openModal(){ document.getElementById('linkBox').value = location.href; document.getElementById('modal').style.display = 'block'; }
+  function modalCopy(){ var b = document.getElementById('linkBox'); b.select(); copiedVia = b.value; /* execCommand('copy') copies b.value */ }
+  function modalWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(document.getElementById('linkBox').value), '_blank'); }
+</script>
 <script>
   var calcCount = 0, unitsNow = 'SI', evts = [];
   function setU(u){ unitsNow=u; document.getElementById('bSI').classList.toggle('on',u==='SI'); document.getElementById('bIMP').classList.toggle('on',u==='IMP');
@@ -130,6 +139,16 @@ function hashState(url) {
   const mail = $('shMail').getAttribute('href');
   ok(/^mailto:\?subject=NPSH&body=Check%20https%3A%2F%2Fwww\.multicalci\.com%2Fnpsh-calculator%3Futm_source%3Demail.*%20now$/.test(mail), 'mailto upgraded, spaces stay %20, non-www→www');
 
+  $('openShare').click(); await wait(10);
+  ok(/^https:\/\/www\.multicalci\.com\/npsh-calculator\?utm_source=copy&utm_medium=share&utm_campaign=calculator#mc=/.test($('linkBox').value),
+     'dialog link box shows the full link once the dialog opens');
+  $('mCopy').click();
+  ok(A.w.copiedVia === $('linkBox').value && /#mc=/.test(A.w.copiedVia), 'Copy that selects the box copies the full link');
+  $('mWa').click();
+  const waBox = decodeURIComponent(A.opened[A.opened.length - 1].split('?text=')[1]);
+  ok(/utm_source=whatsapp&utm_medium=share&utm_campaign=calculator#mc=/.test(waBox), 'WhatsApp button that reads the box gets the whatsapp-tagged link');
+  ok(hashState(waBox) && hashState(waBox).f.q === '120', 'that link carries the inputs');
+
   A.d.querySelector('.mcs-bar [data-mcs-ch=whatsapp]').click();
   ok(/^https:\/\/wa\.me\/\?text=/.test(A.opened[A.opened.length - 1]), 'own share bar opens WhatsApp');
   ok(A.w.evts.some(e => e[0] === 'event' && e[1].name === 'Share' && e[1].data.channel === 'whatsapp' && e[1].data.page === '/npsh-calculator'), 'Vercel Share event sent with channel and page');
@@ -173,7 +192,7 @@ function hashState(url) {
   }
 
   console.log('\nA5. Address matching');
-  const E = open(pageA(), 'https://www.multicalci.com/npsh-calculator/');
+  const E = open(pageA(), 'https://multicalci.com/npsh-calculator/');
   await wait(400);
   ok(E.w.MCShare.url('x').startsWith('https://www.multicalci.com/npsh-calculator?utm_source=x'), 'non-www + slash page shares the canonical www, no-slash URL');
   const rw = t => E.w.MCShare.rewrite(t, 'copy');
