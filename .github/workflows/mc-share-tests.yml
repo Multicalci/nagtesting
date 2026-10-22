@@ -1,1 +1,18 @@
-   name: mc-share tests
+name: mc-share tests
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'assets/mc-share.js'
+      - 'assets/calc-common.js'
+      - 'tests/**'
+jobs:
+  mc-share:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-save --prefix tests jsdom@24
+      - run: node tests/mc-share.test.js assets/mc-share.js assets/calc-common.js
