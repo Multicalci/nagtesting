@@ -2655,7 +2655,7 @@ const FLUID_DB_orifice = {
   'Methane (CH₄)':  {t:'g',sg:0.554,M:16.043,k:1.304,mu:1.10e-5,Z:0.998,Tc:190.6,Pc:4.60, omega:0.012,mu_ref:1.030e-5,T_ref:273.15,S:164.0},
   'Propane (C₃H₈)': {t:'g',sg:1.522,M:44.097,k:1.130,mu:8.20e-6,Z:0.981,Tc:369.8,Pc:4.25, omega:0.152,mu_ref:7.550e-6,T_ref:273.15,S:278.0},
   'Butane (C₄H₁₀)': {t:'g',sg:2.009,M:58.124,k:1.100,mu:7.40e-6,Z:0.960,Tc:425.1,Pc:3.80, omega:0.200,mu_ref:6.870e-6,T_ref:273.15,S:329.0},
-  'Natural Gas':    {t:'g',sg:0.620,M:17.967,k:1.310,mu:1.10e-5,Z:0.990,Tc:203.3,Pc:4.64, omega:0.010,mu_ref:1.027e-5,T_ref:273.15,S:170.0},
+  'Natural Gas':    {t:'g',sg:0.620,M:17.967,k:1.310,mu:1.10e-5,Z:0.990,Tc:203.3,Pc:4.64, omega:0.010,mu_ref:1.027e-5,T_ref:273.15,S:170.0,pseudo:true},
   'Ammonia (NH₃)':  {t:'g',sg:0.588,M:17.031,k:1.310,mu:1.00e-5,Z:0.995,Tc:405.6,Pc:11.28,omega:0.250,mu_ref:9.270e-6,T_ref:273.15,S:503.0},
   'Chlorine':       {t:'g',sg:2.448,M:70.906,k:1.340,mu:1.33e-5,Z:0.990,Tc:417.2,Pc:7.71, omega:0.069,mu_ref:1.234e-5,T_ref:273.15,S:351.0},
   'Argon':          {t:'g',sg:1.380,M:39.948,k:1.667,mu:2.27e-5,Z:1.000,Tc:150.9,Pc:4.87, omega:0.001,mu_ref:2.125e-5,T_ref:273.15,S:142.0},
@@ -2665,10 +2665,19 @@ const FLUID_DB_orifice = {
   'Ethane (C₂H₆)':  {t:'g',sg:1.049,M:30.069,k:1.200,mu:9.10e-6,Z:0.988,Tc:305.3,Pc:4.87, omega:0.099,mu_ref:8.560e-6,T_ref:273.15,S:252.0},
   'Ethylene':       {t:'g',sg:0.968,M:28.054,k:1.240,mu:1.02e-5,Z:0.993,Tc:282.4,Pc:5.04, omega:0.089,mu_ref:9.450e-6,T_ref:273.15,S:225.0},
   'Acetylene':      {t:'g',sg:0.897,M:26.038,k:1.232,mu:1.03e-5,Z:0.990,Tc:308.3,Pc:6.14, omega:0.187,mu_ref:9.570e-6,T_ref:273.15,S:234.0},
-  'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4},
-  'Syngas (3H₂:N₂)':{t:'g',sg:0.294,M:8.525, k:1.400,mu:1.37e-5,Z:1.000,Tc:56.5, Pc:1.82, omega:-0.150,mu_ref:1.300e-5,T_ref:273.15,S:100.0},
-  'Biogas (60% CH₄)':{t:'g',sg:0.940,M:27.230,k:1.300,mu:1.29e-5,Z:0.995,Tc:236.0,Pc:5.71, omega:0.100,mu_ref:1.210e-5,T_ref:273.15,S:190.0},
-  'LPG Vapor':      {t:'g',sg:1.716,M:49.708,k:1.110,mu:7.80e-6,Z:0.970,Tc:391.9,Pc:4.07, omega:0.170,mu_ref:7.280e-6,T_ref:273.15,S:298.0},
+  // ADD 2026-10: extra components for gas mixtures (natural gas C4–C6, water vapour).
+  // Tc, Pc, ω from Poling, Prausnitz & O'Connell (5th ed.), Appendix A; κ = ideal-gas cp/cv at 15 °C (GPSA).
+  // mixOnly: offered only as a mixture component on the page (pure C5+ / water are not gases at usual conditions).
+  'Isobutane (i-C₄H₁₀)':{t:'g',sg:2.007,M:58.123,k:1.097,mu:7.40e-6,Z:0.970,Tc:407.8,Pc:3.64, omega:0.184,mu_ref:6.900e-6,T_ref:273.15,S:330.0},
+  'n-Pentane (C₅H₁₂)':  {t:'g',sg:2.491,M:72.150,k:1.077,mu:6.70e-6,Z:0.950,Tc:469.7,Pc:3.37, omega:0.252,mu_ref:6.100e-6,T_ref:273.15,S:383.0,mixOnly:true},
+  'Isopentane (i-C₅H₁₂)':{t:'g',sg:2.491,M:72.150,k:1.080,mu:6.75e-6,Z:0.950,Tc:460.4,Pc:3.38, omega:0.227,mu_ref:6.150e-6,T_ref:273.15,S:380.0,mixOnly:true},
+  'n-Hexane (C₆H₁₄)':   {t:'g',sg:2.975,M:86.177,k:1.063,mu:6.20e-6,Z:0.930,Tc:507.6,Pc:3.025,omega:0.301,mu_ref:5.600e-6,T_ref:273.15,S:436.0,mixOnly:true},
+  'Water Vapour (H₂O)': {t:'g',sg:0.622,M:18.015,k:1.330,mu:1.23e-5,Z:1.000,Tc:647.1,Pc:22.064,omega:0.344,mu_ref:1.227e-5,T_ref:373.15,S:961.0,mixOnly:true,muFn:'iapws'},
+  // pseudo: these entries are themselves mixtures — not accepted as mixture components.
+  'Flue Gas':       {t:'g',sg:1.000,M:28.964,k:1.350,mu:1.90e-5,Z:1.000,Tc:132.5,Pc:3.77, omega:0.035,mu_ref:1.716e-5,T_ref:273.15,S:110.4,pseudo:true},
+  'Syngas (3H₂:N₂)':{t:'g',sg:0.294,M:8.525, k:1.400,mu:1.37e-5,Z:1.000,Tc:56.5, Pc:1.82, omega:-0.150,mu_ref:1.300e-5,T_ref:273.15,S:100.0,pseudo:true},
+  'Biogas (60% CH₄)':{t:'g',sg:0.940,M:27.230,k:1.300,mu:1.29e-5,Z:0.995,Tc:236.0,Pc:5.71, omega:0.100,mu_ref:1.210e-5,T_ref:273.15,S:190.0,pseudo:true},
+  'LPG Vapor':      {t:'g',sg:1.716,M:49.708,k:1.110,mu:7.80e-6,Z:0.970,Tc:391.9,Pc:4.07, omega:0.170,mu_ref:7.280e-6,T_ref:273.15,S:298.0,pseudo:true},
 // ── Liquids ── rho0=kg/m³ at T0°C, beta_T=thermal expansion coefficient /°C
   // ρ(T) = rho0 / (1 + beta_T*(T - T0));  Tb_C = normal boiling point (mixtures: IBP, conservative)
   'Water':             {t:'l', rhoModel:'poly_water'},
@@ -2704,6 +2713,160 @@ const FLUID_DB_orifice = {
 };
 
 // ═════════════════════════════════════════════════════════════════════
+//  GAS MIXTURES  (ADD 2026-10)
+//  Composition in mol % (= vol % for gases) or mass %, any total (normalised).
+//  The mixture then goes through the same path as a single gas from the list:
+//    M  = Σ yi·Mi                                  SG = M / 28.964
+//    Z  = Pitzer correlation (as for single gases) at Kay's-rule pseudo-criticals
+//         Tpc = Σ yi·Tci,  Ppc = Σ yi·Pci,  ω = Σ yi·ωi
+//    μ  = Wilke (1950) mixing rule on each component's μi(T)
+//         (Sutherland; water vapour from the IAPWS dilute-gas equation)
+//    κ  = ideal-gas mixing of molar heat capacities:
+//         cp,i = R·κi/(κi − 1),  cp = Σ yi·cp,i,  κ = cp/(cp − R)
+//  A one-component "mixture" gives exactly the single-gas result.
+//  Phase checks: water dew point (IAPWS-IF97 Psat vs H₂O partial pressure) and,
+//  for 2+ components, the Peng-Robinson stability test of Section B (kij = 0)
+//  for condensation of heavier components (C3+, NH₃, CO₂, H₂S …).
+// ═════════════════════════════════════════════════════════════════════
+const ORIFICE_MIX_MAX   = 20;
+const ORIFICE_WATER_KEY = 'Water Vapour (H₂O)';
+
+// Water dew point (K) for a given H₂O partial pressure — inverse of waterPsat_Pa().
+// Returns null below the triple point (frost point < 0 °C).
+function waterDewPoint_K(pp_Pa) {
+  if (!(pp_Pa > 0) || pp_Pa < waterPsat_Pa(273.16)) return null;
+  if (pp_Pa >= waterPsat_Pa(647.0)) return 647.0;
+  let lo = 273.16, hi = 647.0;
+  for (let i = 0; i < 80; i++) {
+    const mid = 0.5 * (lo + hi);
+    if (waterPsat_Pa(mid) < pp_Pa) lo = mid; else hi = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
+// Peng-Robinson single-phase check of a gas mixture (reuses the Section B engine).
+function orificeMixPhaseCheck(comps, y, T_K, P_Pa) {
+  try {
+    const pure = comps.map(c => eosPureAB('pr', T_K, c.f.Tc, c.f.Pc * 1e6, c.f.omega));
+    const mix  = { eos: 'pr', T_K, sq: pure.map(p => Math.sqrt(p.a)), bi: pure.map(p => p.b),
+                   omk: comps.map(() => comps.map(() => 1)) };            // kij = 0
+    const feed = eosMixPhase(mix, y, P_Pa);
+    if (!feed) return null;
+    const Kw = comps.map(c => (c.f.Pc * 1e6 / P_Pa) * Math.exp(5.373 * (1 + c.f.omega) * (1 - c.f.Tc / T_K)));
+    const st = eosMixStability(mix, y, P_Pa, feed, Kw);
+    return { stable: !!st.stable, liquidLike: !!feed.liquidLike, Z_pr: feed.Z };
+  } catch (e) {
+    return null;                                      // the check is advisory — never block the calculation
+  }
+}
+
+// mixIn = { basis: 'mol' | 'mass', comps: [{ key, v }, …] }   (v = amount in the chosen basis)
+function gasMixtureProps(mixIn, T_K, P_Pa) {
+  if (!mixIn || typeof mixIn !== 'object') return { error: 'Gas mixture: composition is missing.' };
+  const basis = mixIn.basis === 'mass' ? 'mass' : 'mol';
+  const unit  = basis === 'mass' ? 'mass %' : 'mol %';
+  const list  = Array.isArray(mixIn.comps) ? mixIn.comps : [];
+  if (list.length > ORIFICE_MIX_MAX) return { error: `Gas mixture: at most ${ORIFICE_MIX_MAX} components.` };
+
+  const warns = [], infos = [];
+  const amounts = new Map();
+  for (const c of list) {
+    const key = (c && typeof c.key === 'string') ? c.key : '';
+    if (!key) continue;                                                   // empty row
+    const f = FLUID_DB_orifice[key];
+    if (!f || f.t !== 'g') return { error: `Gas mixture: "${key.slice(0, 60).replace(/[<>&"']/g, '')}" is not in the gas component list.` };
+    if (f.pseudo)          return { error: `Gas mixture: "${key}" is itself a mixture — enter its components instead.` };
+    const v = (c.v === '' || c.v == null) ? 0 : Number(c.v);
+    if (!Number.isFinite(v) || v < 0) return { error: `Gas mixture: the amount of ${key} must be zero or positive.` };
+    if (v === 0) continue;
+    if (amounts.has(key)) infos.push(`${key} is listed more than once — the amounts were added.`);
+    amounts.set(key, (amounts.get(key) || 0) + v);
+  }
+  if (!amounts.size) return { error: 'Gas mixture: enter at least one component with an amount above zero.' };
+
+  const comps = [...amounts.keys()].map(key => ({ key, f: FLUID_DB_orifice[key], v: amounts.get(key) }));
+  const sum   = comps.reduce((s, c) => s + c.v, 0);
+  if (Math.abs(sum - 100) > 0.005) {
+    if (Math.abs(sum - 1) <= 0.01)       infos.push(`Composition entered as fractions (total ${sum.toFixed(4)}) — normalised to 100 %.`);
+    else if (Math.abs(sum - 100) <= 1)   infos.push(`Composition totals ${sum.toFixed(3)} ${unit} — normalised to 100 %.`);
+    else                                 warns.push(`Composition totals ${sum.toFixed(2)} ${unit} — normalised to 100 %. Check the gas analysis.`);
+  }
+
+  // Mole fractions (mass basis: yi = (wi/Mi) / Σ wj/Mj)
+  const raw = comps.map(c => basis === 'mass' ? c.v / c.f.M : c.v);
+  const rs  = raw.reduce((a, b) => a + b, 0);
+  const y   = raw.map(v => v / rs);
+  const M   = comps.reduce((s, c, i) => s + y[i] * c.f.M, 0);
+  const w   = comps.map((c, i) => y[i] * c.f.M / M);
+
+  // Z — Kay's rule pseudo-criticals + Pitzer (same correlation as single gases)
+  const Tpc   = comps.reduce((s, c, i) => s + y[i] * c.f.Tc, 0);
+  const Ppc   = comps.reduce((s, c, i) => s + y[i] * c.f.Pc, 0);              // MPa
+  const omega = comps.reduce((s, c, i) => s + y[i] * (c.f.omega || 0), 0);
+  const zr    = pitzerZ({ Tc: Tpc, Pc: Ppc, omega }, T_K, P_Pa);
+
+  // μ — Wilke mixing rule
+  const mui = comps.map(c => c.f.muFn === 'iapws' ? steamViscosity(T_K) : sutherlandViscosity(c.f, T_K));
+  let mu = 0;
+  for (let i = 0; i < comps.length; i++) {
+    let den = 0;
+    for (let j = 0; j < comps.length; j++) {
+      const phi = Math.pow(1 + Math.sqrt(mui[i] / mui[j]) * Math.pow(comps[j].f.M / comps[i].f.M, 0.25), 2)
+                / Math.sqrt(8 * (1 + comps[i].f.M / comps[j].f.M));
+      den += y[j] * phi;
+    }
+    mu += y[i] * mui[i] / den;
+  }
+
+  // κ — ideal-gas molar heat capacities
+  const Rg = 8.314462;
+  const cp = comps.reduce((s, c, i) => s + y[i] * Rg * c.f.k / (c.f.k - 1), 0);
+  const k  = cp / (cp - Rg);
+
+  // Water dew point
+  let h2o = null;
+  const iw = comps.findIndex(c => c.key === ORIFICE_WATER_KEY);
+  if (iw >= 0) {
+    const pp    = y[iw] * P_Pa;
+    const dewK  = waterDewPoint_K(pp);
+    const condenses = dewK != null && T_K < 647.0 && T_K <= dewK;
+    h2o = { y: y[iw], pp_bar: pp / 1e5, dew_C: dewK != null ? dewK - 273.15 : null, below0: dewK == null, condenses };
+    const T_C = T_K - 273.15;
+    if (condenses)
+      warns.push(`⚡ WATER CONDENSES: H₂O partial pressure ${(pp / 1e5).toFixed(4)} bar a ≥ saturation pressure ${(waterPsat_Pa(T_K) / 1e5).toFixed(4)} bar a at ${T_C.toFixed(1)} °C (water dew point ${h2o.dew_C.toFixed(1)} °C). Liquid water is present, so the single-phase gas equation does not apply. Check whether the analysis is on a wet or dry basis, or use Two-Phase mode.`);
+    else if (dewK != null && T_K - dewK < 5)
+      infos.push(`Water dew point ${h2o.dew_C.toFixed(1)} °C is only ${(T_K - dewK).toFixed(1)} °C below the operating temperature — water can condense in impulse lines or on cooling; keep the meter and lines above the dew point.`);
+  }
+
+  // Peng-Robinson phase check (2+ components). Water is judged by IAPWS-IF97 above —
+  // a cubic EOS with kij = 0 is poor for water–gas systems and flags condensation
+  // several °C above the true water dew point — so the test is run on the water-free
+  // gas at its own partial pressure.
+  let pr = null;
+  const dry = comps.map((c, i) => i).filter(i => i !== iw);
+  if (dry.length >= 2) {
+    const yd = dry.map(i => y[i]);
+    const sd = yd.reduce((a, b) => a + b, 0);
+    pr = orificeMixPhaseCheck(dry.map(i => comps[i]), yd.map(v => v / sd), T_K, P_Pa * sd);
+    if (pr && !pr.stable && !(h2o && h2o.condenses))
+      warns.push(`⚡ PARTIAL CONDENSATION: the Peng-Robinson stability test (kij = 0) shows this mixture is not a single gas phase at ${(P_Pa / 1e5).toFixed(2)} bar a and ${(T_K - 273.15).toFixed(1)} °C — heavier components${iw >= 0 ? ' (other than water)' : ''} condense. The single-phase orifice equation does not apply; keep the meter above the dew point or use Two-Phase mode. The test is indicative (no binary interaction parameters).`);
+    else if (pr && pr.stable && pr.liquidLike)
+      warns.push('Dense, liquid-like state (Peng-Robinson): the Pitzer Z used here is not reliable at these conditions. Check Z with an equation of state and enter M, Z, κ and μ under Known MW.');
+  }
+
+  return {
+    M, sg: M / 28.964, k, mu, Z: zr.Z, zr, warns, infos,
+    summary: {
+      basis, sumInput: sum, n: comps.length,
+      M, sg: M / 28.964, k, mu, Z: zr.Z, Z_outOfRange: !!zr.outOfRange,
+      Tpc_K: Tpc, Ppc_bar: Ppc * 10, omega,
+      comps: comps.map((c, i) => ({ key: c.key, y: y[i], w: w[i], M: c.f.M })),
+      h2o, pr: pr ? { stable: pr.stable, liquidLike: pr.liquidLike } : null,
+    },
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════
 //  MAIN CALCULATION ENGINE
 // ═════════════════════════════════════════════════════════════════════
 function getReMin(b) {
@@ -2733,6 +2896,7 @@ function calculate(params) {
     sg,                  // specific gravity (gas: vs air; liquid: vs water)
     MW_input,            // molar mass g/mol
     fluidKey,            // key in FLUID_DB_orifice or null
+    gasMix,              // ADD 2026-10: gasMixtureProps() result, or null
     D_mm,                // pipe ID in mm
     d_mm,                // orifice bore in mm
     dp_Pa_in,            // differential pressure in Pa (mode='flow' or 'beta')
@@ -2788,7 +2952,14 @@ function calculate(params) {
     // Gas
     const f = FLUID_DB_orifice[fluidKey] || null;
     let MW_use;
-    if (f?.t === 'g') {
+    if (gasMix) {
+      // ADD 2026-10: gas mixture — properties computed from the composition
+      MW_use  = gasMix.M;
+      mu      = gasMix.mu;
+      mu_auto = mu;
+      Z_used  = gasMix.Z;
+      Z_auto  = gasMix.zr;
+    } else if (f?.t === 'g') {
       MW_use = f.M;
       mu = sutherlandViscosity(f, T_K);
       mu_auto = mu;
@@ -2807,7 +2978,8 @@ function calculate(params) {
 
   // ── REFERENCE DENSITIES ─────────────────────────────────────────────
   const f_db  = FLUID_DB_orifice[fluidKey] || null;
-  const MW_final = f_db?.t==='g' ? f_db.M : (MW_input>1&&MW_input<500 ? MW_input : sg*28.964);
+  const MW_final = gasMix ? gasMix.M
+                 : f_db?.t==='g' ? f_db.M : (MW_input>1&&MW_input<500 ? MW_input : sg*28.964);
   const rho_n = isGas ? (REF_COND.normal.P_Pa * MW_final)   / (8314.46 * REF_COND.normal.T_K)   : 0;
   const rho_s = isGas ? (REF_COND.standard.P_Pa * MW_final) / (8314.46 * REF_COND.standard.T_K) : 0;
 
@@ -3221,7 +3393,14 @@ function tpProps(p) {
   // Gas + liquid
   const T_K = p.T_c + 273.15;
   const fg  = FLUID_DB_orifice[p.gasKey] || null;
-  if (fg?.t === 'g') {
+  if (p.mix) {
+    // ADD 2026-10: gas phase defined by a mixture composition
+    out.MW   = p.mix.M;
+    out.mu_g = p.mix.mu;
+    out.zr   = p.mix.zr;
+    out.Z    = p.mix.Z;
+    out.gasAuto = true;
+  } else if (fg?.t === 'g') {
     out.MW   = fg.M;
     out.mu_g = sutherlandViscosity(fg, T_K);
     out.zr   = pitzerZ(fg, T_K, P_Pa);
@@ -3542,9 +3721,16 @@ function twoPhasePreview(tp, P_bar, T_c) {
     rho_g: pr.rho_g, rho_l: pr.rho_l, Tsat_C: pr.Tsat_C,
     mu_auto: pr.gasAuto ? pr.mu_g : null,
     Z_auto:  pr.gasAuto ? pr.Z : null,
+    ...(tp.mix && tp.sub !== 'wetsteam' ? gasMixPreviewFields(tp.mix) : {}),   // ADD 2026-10
   };
 }
 // ── End of Section C-2: Two-Phase Orifice Extension ─────────────────────────
+
+// ADD 2026-10: mixture fields shared by the density preview and the results
+function gasMixPreviewFields(gm) {
+  return { k_auto: gm.k, k_basis: 'gas mixture, ideal-gas cp mixing',
+           gasMix: { ...gm.summary, warns: gm.warns, infos: gm.infos } };
+}
 
 async function orificeFlow_handler(req, res) {
   setCORS_orifice(res);
@@ -3587,7 +3773,7 @@ async function orificeFlow_handler(req, res) {
     if (body.action === 'density-preview') {
       const isMetric = (body.unitSys || 'metric') === 'metric';
       let P_bar = parseFloat(body.P) || 10;
-      let T_c   = parseFloat(body.T) || 20;
+      let T_c   = Number.isFinite(parseFloat(body.T)) ? parseFloat(body.T) : 20;   // FIX 2026-10: 0 °C / 0 °F was replaced by 20
       if (!isMetric) { P_bar = P_bar * 0.0689476; T_c = (T_c - 32) * 5/9; }
       const T_K = T_c + 273.15;
       const P_Pa = P_bar * 1e5;
@@ -3595,10 +3781,31 @@ async function orificeFlow_handler(req, res) {
       const fluidKey = body.fluidKey || null;
       const sg_input = parseFloat(body.sg) || 1.0;
 
+      // ADD 2026-10: gas mixture (gas, or gas phase of gas–liquid two-phase)
+      let gm = null;
+      if (body.gasMix && (cat === 'gas' || (cat === 'twophase' && body.tpSub !== 'wetsteam'))) {
+        gm = gasMixtureProps(body.gasMix, T_K, P_Pa);
+        if (gm.error) {
+          res.statusCode = 200;
+          return res.end(JSON.stringify({ ok: false, error: gm.error, mixError: true }));
+        }
+      }
+
       // TWO-PHASE preview
       if (cat === 'twophase') {
         res.statusCode = 200;
-        return res.end(JSON.stringify(twoPhasePreview(buildTP(body), P_bar, T_c)));
+        return res.end(JSON.stringify(twoPhasePreview({ ...buildTP(body), mix: gm }, P_bar, T_c)));
+      }
+
+      if (gm) {
+        res.statusCode = 200;
+        return res.end(JSON.stringify({
+          ok: true,
+          rho_op:  (P_Pa * gm.M) / (gm.Z * 8314.46 * T_K),
+          mu_auto: gm.mu,
+          Z_auto:  gm.Z,
+          ...gasMixPreviewFields(gm),
+        }));
       }
 
       let rho = null, mu_out = null, Z_out = null, k_out = null, k_basis = null;
@@ -3661,7 +3868,7 @@ async function orificeFlow_handler(req, res) {
 
     // Pressure & temperature
     let P_bar = parseFloat(body.P) || 10;
-    let T_c   = parseFloat(body.T) || 20;
+    let T_c   = Number.isFinite(parseFloat(body.T)) ? parseFloat(body.T) : 20;   // FIX 2026-10: 0 °C / 0 °F was replaced by 20
     if (!isMetric) { P_bar = P_bar * 0.0689476; T_c = (T_c - 32) * 5/9; }
 
     // Pipe & bore in mm
@@ -3675,20 +3882,38 @@ async function orificeFlow_handler(req, res) {
     const flow_in   = parseFloat(body.flow) || 0;
     const flow_unit = body.flow_unit || 'Nm3hr';
 
+    // ── GAS MIXTURE (ADD 2026-10) — composition → M, Z, μ, κ ──
+    // Used for gas, and for the gas phase of gas–liquid two-phase flow.
+    // Without body.gasMix the request is handled exactly as before.
+    let gm = null;
+    if (body.gasMix && (cat === 'gas' || (cat === 'twophase' && body.tpSub !== 'wetsteam'))) {
+      gm = gasMixtureProps(body.gasMix, T_c + 273.15, P_bar * 1e5);
+      if (gm.error) {
+        res.statusCode = 200;
+        return res.end(JSON.stringify({ ok: false, error: gm.error }));
+      }
+    }
+    const withMix = (r) => {
+      if (!gm) return r;
+      r.warnings = [...gm.warns, ...(r.warnings || [])];
+      r.infos    = [...gm.infos, ...(r.infos || [])];
+      return { ...r, k_used: gm.k, ...gasMixPreviewFields(gm) };
+    };
+
     // ── TWO-PHASE BRANCH ──
     if (cat === 'twophase') {
       const tpResult = calculateTwoPhase({
         mode, tapType, customCd: body.customCd, P_bar, T_c,
-        k: parseFloat(body.k) || 1.3,
+        k: gm ? gm.k : (parseFloat(body.k) || 1.3),
         D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
-        tp: buildTP(body),
+        tp: { ...buildTP(body), mix: gm },
       });
       if (tpResult.error) {
         res.statusCode = 200;
         return res.end(JSON.stringify({ ok: false, error: tpResult.error }));
       }
       res.statusCode = 200;
-      return res.end(JSON.stringify({ ok: true, ...tpResult }));
+      return res.end(JSON.stringify({ ok: true, ...withMix(tpResult) }));
     }
 
     const params = {
@@ -3696,18 +3921,19 @@ async function orificeFlow_handler(req, res) {
       customCd:  body.customCd,
       P_bar, T_c,
       Z_input:   parseFloat(body.Z)   || 1,
-      k:         parseFloat(body.k)   || 1.4,
+      k:         gm ? gm.k : (parseFloat(body.k) || 1.4),
       mu_input:  parseFloat(body.mu)  || (cat === 'liquid' ? 1e-3 : 1.82e-5),
       sg:        parseFloat(body.sg)  || (cat === 'liquid' ? 1.0  : 0.65),
       MW_input:  parseFloat(body.MW)  || 28.964,
-      fluidKey:  body.fluidKey || null,
+      fluidKey:  gm ? null : (body.fluidKey || null),
+      gasMix:    gm,
       D_mm, d_mm, dp_Pa_in, flow_in, flow_unit,
     };
 
     const result = calculate(params);
 
     res.statusCode = 200;
-    return res.end(JSON.stringify({ ok: true, ...result }));
+    return res.end(JSON.stringify({ ok: true, ...withMix(result) }));
 
   } catch (err) {
     console.error('orifice-flow.js error:', err);
