@@ -223,7 +223,11 @@ body::before {
   grid-template-rows: auto;
   gap: 20px;
 }
-@media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  /* FIX 2026-10: the cards' inline grid-column:1 / 2 kept a second column on phones (page scrolled sideways) */
+  .app > .card, .app > .results-card { grid-column: 1 !important; grid-row: auto !important; min-width: 0; }
+}
 @media (max-width: 480px) { .header { padding: 12px 16px; } .app { padding: 14px 10px; } }
 
 /* ─── CARDS ───────────────────────────────────────────────────── */
@@ -384,6 +388,52 @@ select option { background: #ffffff; color: var(--text); }
 .custom-fluid-toggle:hover { color: var(--cyan); }
 .custom-fluid-section { display: none; margin-top: 10px; }
 .custom-fluid-section.open { display: block; }
+
+/* ─── GAS MIXTURE (ADD 2026-10) ───────────────────────────────── */
+.gas-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.gm-btn {
+  padding: 8px 6px; border: 1.5px solid var(--border); border-radius: 6px; background: #ffffff;
+  font-family: var(--body); font-size: 0.78rem; font-weight: 800; color: var(--text3);
+  cursor: pointer; transition: all 0.15s;
+}
+.gm-btn:hover { border-color: var(--cyan2); color: var(--cyan); }
+.gm-btn.active { border-color: var(--cyan); background: rgba(0,85,187,0.07); color: var(--cyan); }
+.mix-top { display: flex; gap: 6px; margin-bottom: 8px; }
+.mix-top select { font-size: 0.8rem; padding: 7px 26px 7px 8px; }
+.mix-row { display: grid; grid-template-columns: minmax(0,1fr) 78px 62px 30px; gap: 6px; align-items: center; margin-bottom: 5px; }
+.mix-row select, .mix-row input { font-size: 0.82rem; padding: 7px 8px; }
+.mix-row select { padding-right: 24px; }
+.mix-hdr { font-size: 0.68rem; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+.mix-conv { font-family: var(--mono); font-size: 0.74rem; font-weight: 700; color: var(--text3); text-align: right; white-space: nowrap; }
+.mix-del {
+  height: 32px; border: 1.5px solid var(--border); border-radius: 6px; background: #ffffff;
+  color: var(--text3); font-weight: 800; cursor: pointer;
+}
+.mix-del:hover { border-color: var(--red); color: var(--red); }
+.mix-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0 8px; }
+.mix-add {
+  border: 1.5px dashed var(--border2); background: #ffffff; color: var(--cyan2);
+  border-radius: 6px; padding: 6px 10px; font-family: var(--body); font-size: 0.75rem; font-weight: 800; cursor: pointer;
+}
+.mix-add:hover { border-color: var(--cyan); color: var(--cyan); }
+.mix-total { font-family: var(--mono); font-size: 0.8rem; font-weight: 800; text-align: right; }
+.mix-total.ok  { color: var(--green); }
+.mix-total.off { color: var(--amber); }
+.mix-sum {
+  background: #ffffff; border: 1.5px solid var(--border); border-radius: 7px; padding: 8px 10px;
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 600; color: var(--text2); line-height: 1.75;
+}
+.mix-sum b { color: var(--cyan2); }
+.mix-sum .mw { font-size: 0.95rem; color: var(--cyan); }
+.mix-sum .nw { white-space: nowrap; }
+.mix-note { font-family: var(--body); font-size: 0.72rem; font-weight: 700; line-height: 1.5; margin-top: 5px; }
+.mix-note.w { color: var(--red); }
+.mix-note.i { color: var(--amber); }
+.mix-note.m { color: var(--text3); font-weight: 600; }
+@media (max-width: 480px) {
+  .mix-row { grid-template-columns: minmax(0,1fr) 74px 30px; }
+  .mix-row .mix-conv { display: none; }
+}
 
 /* ─── STEAM BADGE ─────────────────────────────────────────────── */
 .steam-badge {
@@ -831,9 +881,40 @@ select option { background: #ffffff; color: var(--text); }
 
     <!-- Fluid database -->
     <div class="fluid-db-wrap">
-      <div style="font-family:var(--head); font-size:0.62rem; letter-spacing:1.5px; color:var(--text2); font-weight:800; margin-bottom:8px;">▸ FLUID DATABASE — QUICK SELECT</div>
-      <select id="fluid_select" onchange="onFluidSelect()" style="width:100%; font-size:0.82rem; padding:8px 10px; margin-bottom:4px;"></select>
-      <div class="custom-fluid-toggle" onclick="toggleCustomFluid()">＋ Enter custom fluid properties</div>
+      <div id="fluid_db_title" style="font-family:var(--head); font-size:0.62rem; letter-spacing:1.5px; color:var(--text2); font-weight:800; margin-bottom:8px;">▸ FLUID DATABASE — QUICK SELECT</div>
+      <!-- How the gas is defined (gas, and gas phase of two-phase) -->
+      <div class="gas-mode" id="gas_mode_row" role="group" aria-label="How the gas is defined">
+        <button type="button" class="gm-btn active" id="gm_pure" onclick="setGasMode('pure')" title="Pick one gas from the list">Single gas</button>
+        <button type="button" class="gm-btn" id="gm_mix" onclick="setGasMode('mix')" title="Enter the composition — M, Z, μ and κ are calculated">Gas mixture</button>
+        <button type="button" class="gm-btn" id="gm_mw" onclick="setGasMode('mw')" title="Enter your own molar mass, Z, κ and μ">Known MW</button>
+      </div>
+      <div id="pure_wrap">
+        <select id="fluid_select" onchange="onFluidSelect()" style="width:100%; font-size:0.82rem; padding:8px 10px; margin-bottom:4px;"></select>
+        <div class="custom-fluid-toggle" id="custom_fluid_toggle" onclick="toggleCustomFluid()">＋ Enter custom fluid properties</div>
+      </div>
+      <!-- Gas mixture composition -->
+      <div id="mix_wrap" style="display:none;">
+        <div class="mix-top">
+          <select id="mix_basis" onchange="onMixBasisChange()" aria-label="Composition basis" style="flex:1;min-width:0;">
+            <option value="mol">mol / vol %</option>
+            <option value="mass">mass (wt) %</option>
+          </select>
+          <select id="mix_preset" onchange="loadMixPreset(this.value)" aria-label="Load an example composition" style="flex:1;min-width:0;">
+            <option value="">Load example…</option>
+            <option value="air">Dry air</option>
+            <option value="ng">Natural gas (typical)</option>
+            <option value="syn">NH₃ synthesis gas</option>
+            <option value="flue">Flue gas (wet)</option>
+          </select>
+        </div>
+        <div class="mix-row mix-hdr"><span>Component</span><span id="mix_hdr_v">mol %</span><span class="mix-conv" id="mix_hdr_c">mass %</span><span></span></div>
+        <div id="mix_rows"></div>
+        <div class="mix-foot">
+          <button type="button" class="mix-add" onclick="addMixRow('', '')">＋ Add component</button>
+          <span class="mix-total" id="mix_total">Total —</span>
+        </div>
+        <div class="mix-sum" id="mix_sum">Mixture properties appear here.</div>
+      </div>
       <div class="custom-fluid-section" id="custom_fluid_sec">
         <div class="frow" style="margin-bottom:0;">
           <div class="field">
@@ -1278,7 +1359,9 @@ select option { background: #ffffff; color: var(--text); }
       &nbsp;&nbsp;<span class="hl">Chisholm</span>: ṁ = K<sub>g</sub> / [x·√(1 + C·X + X²)], &nbsp;C = (ρl/ρg)^¼ + (ρg/ρl)^¼<br>
       &nbsp;&nbsp;<span class="hl">Murdock</span>: ṁ = K<sub>g</sub> / [x·(1 + 1.26·X)] &nbsp;|&nbsp; <span class="hl">Homogeneous</span>: ṁ = Cd·E·A₂·√(2ΔP / v<sub>m</sub>), v<sub>m</sub> = x/(Y²ρg) + (1−x)/ρl<br>
       &nbsp;&nbsp;<span class="hl">James</span> (steam–water): homogeneous form with x → x<sup>1.5</sup> &nbsp;|&nbsp; Cd at gas-alone Re (X ≤ 1) or liquid-alone Re (X &gt; 1)<br>
-      &nbsp;&nbsp;<span class="hl">Flash quality</span> (wet steam): x = [h<sub>f</sub>(source) − h<sub>f</sub>(P)] / h<sub>fg</sub>(P) &nbsp;— IAPWS-IF97 saturation enthalpies
+      &nbsp;&nbsp;<span class="hl">Flash quality</span> (wet steam): x = [h<sub>f</sub>(source) − h<sub>f</sub>(P)] / h<sub>fg</sub>(P) &nbsp;— IAPWS-IF97 saturation enthalpies<br>
+      <span class="hl">GAS MIXTURE</span> &nbsp;M = Σy<sub>i</sub>·M<sub>i</sub> &nbsp;|&nbsp; Z: Pitzer at Kay's-rule T<sub>pc</sub> = Σy<sub>i</sub>·T<sub>ci</sub>, P<sub>pc</sub> = Σy<sub>i</sub>·P<sub>ci</sub>, ω = Σy<sub>i</sub>·ω<sub>i</sub><br>
+      &nbsp;&nbsp;μ: Wilke mixing rule &nbsp;|&nbsp; κ = c<sub>p</sub>/(c<sub>p</sub> − R), &nbsp;c<sub>p</sub> = Σy<sub>i</sub>·R·κ<sub>i</sub>/(κ<sub>i</sub> − 1) &nbsp;|&nbsp; mass % → y<sub>i</sub> = (w<sub>i</sub>/M<sub>i</sub>) / Σ(w<sub>j</sub>/M<sub>j</sub>)
     </div>
 
     <div class="warn-box" id="warn1">⚠ <span id="warn1_txt"></span></div>
@@ -1288,7 +1371,8 @@ select option { background: #ffffff; color: var(--text); }
       Plate edge wear, pipe roughness and flow profile distortion not modelled (each can affect Cd by 0.5–5%) | 
       Two-phase mode: Chisholm / Murdock / James / Homogeneous correlations, frozen quality (no flashing across the plate), homogeneous or vertical flow — typical ±3–10%; flashing letdown and choked two-phase flow not supported | 
       Viscosity: Sutherland law (±5–30% for polar/heavy gases) | 
-      Z: Pitzer correlation (valid Tr&gt;0.7, Pr&lt;0.9; use EOS outside this range) | 
+      Z: Pitzer correlation (valid Tr&gt;0.7, Pr&lt;0.9; use EOS outside this range) |
+      Gas mixtures: Kay's-rule pseudo-criticals with Pitzer Z, Wilke viscosity, ideal-gas κ mixing; water dew point (IAPWS-IF97) and Peng-Robinson phase check (kij = 0) are indicative |
       Pressure must be <em>absolute</em> (bara/psia).
     </div>
 
@@ -1320,6 +1404,7 @@ const FLUID_DB = {
   'Methane (CH₄)':  {t:'g',sg:0.554,M:16.043,k:1.304,mu:1.10e-5,Z:0.998,Tc:190.6,Pc:4.60, omega:0.012, mu_ref:1.030e-5,T_ref:273.15,S:164.0},
   'Propane (C₃H₈)': {t:'g',sg:1.522,M:44.097,k:1.130,mu:8.20e-6,Z:0.981,Tc:369.8,Pc:4.25, omega:0.152, mu_ref:7.550e-6,T_ref:273.15,S:278.0},
   'Butane (C₄H₁₀)': {t:'g',sg:2.009,M:58.124,k:1.100,mu:7.40e-6,Z:0.960,Tc:425.1,Pc:3.80, omega:0.200, mu_ref:6.870e-6,T_ref:273.15,S:329.0},
+  'Isobutane (i-C₄H₁₀)':{t:'g',sg:2.007,M:58.123,k:1.097,mu:7.40e-6,Z:0.970,Tc:407.8,Pc:3.64, omega:0.184, mu_ref:6.900e-6,T_ref:273.15,S:330.0},
   'Natural Gas':    {t:'g',sg:0.620,M:17.967,k:1.310,mu:1.10e-5,Z:0.990,Tc:203.3,Pc:4.64, omega:0.010, mu_ref:1.027e-5,T_ref:273.15,S:170.0},
   'Ammonia (NH₃)':  {t:'g',sg:0.588,M:17.031,k:1.310,mu:1.00e-5,Z:0.995,Tc:405.6,Pc:11.28,omega:0.250, mu_ref:9.270e-6,T_ref:273.15,S:503.0},
   'Chlorine':       {t:'g',sg:2.448,M:70.906,k:1.340,mu:1.33e-5,Z:0.990,Tc:417.2,Pc:7.71, omega:0.069, mu_ref:1.234e-5,T_ref:273.15,S:351.0},
@@ -1560,6 +1645,10 @@ function renderResults(r) {
   // Two-phase breakdown
   renderTwoPhase(r);
 
+  // Gas mixture — properties calculated from the composition
+  if (r.gasMix && mixActive()) applyMixResult(r.gasMix);
+  if (r.k_used != null && mixActive()) document.getElementById('isen_k').value = r.k_used.toFixed(4);
+
   // Auto-update Z/μ fields if API returned auto values
   if (r.mu_auto != null) {
     document.getElementById('visc').value = r.mu_auto.toExponential(4);
@@ -1622,6 +1711,7 @@ async function runNow() {
     MW:        document.getElementById('custom_mw').value,
     fluidKey:  selectedFluidKey,
     ...twoPhasePayload(cat),
+    ...mixPayload(),
   };
 
   setLoading(true);
@@ -1760,6 +1850,7 @@ function onCatChange() {
   buildFluidChips();
   if (cat === 'gas') setMwFromSg(parseFloat(document.getElementById('d_val').value));
   updateExtraTableVisibility(cat);
+  applyGasModeUI();
   updateFluidProps();
 }
 
@@ -1862,6 +1953,7 @@ async function _fetchDensityPreview() {
     Z:        document.getElementById('zf').value,
     mu:       document.getElementById('visc').value,
     ...twoPhasePayload(cat),
+    ...mixPayload(),
   };
   try {
     const res  = await fetch(API_URL, {
@@ -1870,7 +1962,11 @@ async function _fetchDensityPreview() {
       body:    JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.ok) return;
+    if (!data.ok) {
+      if (data.mixError && mixActive()) showMixError(data.error);
+      return;
+    }
+    if (data.gasMix && mixActive()) applyMixResult(data.gasMix);
     // Update density display
     if (data.rho_op != null && data.rho_op > 0) {
       setOut('out_dens', data.rho_op.toFixed(4) + ' kg/m³' + (cat === 'twophase' ? ' (homog.)' : ''));
@@ -1886,10 +1982,11 @@ async function _fetchDensityPreview() {
       document.getElementById('visc').value = data.mu_auto.toExponential(4);
       document.getElementById('mu_auto_badge').style.display = '';
     }
-    // Steam: isentropic exponent from IAPWS-IF97 (or 1.135 near saturation)
+    // Steam: isentropic exponent from IAPWS-IF97 (or 1.135 near saturation).
+    // Gas mixture: κ from the composition (ideal-gas cp mixing).
     const kBadge = document.getElementById('k_auto_badge');
-    if (cat === 'steam' && data.k_auto != null) {
-      document.getElementById('isen_k').value = data.k_auto.toFixed(3);
+    if ((cat === 'steam' || mixActive()) && data.k_auto != null) {
+      document.getElementById('isen_k').value = data.k_auto.toFixed(cat === 'steam' ? 3 : 4);
       kBadge.style.display = '';
       kBadge.title = data.k_basis || '';
     } else if (cat !== 'steam') {
@@ -1898,6 +1995,182 @@ async function _fetchDensityPreview() {
   } catch (e) {
     // Silent fail — preview is non-critical
   }
+}
+
+// ─── GAS MIXTURE (UI only — every property is calculated by the API) ──
+let GAS_MODE = 'pure';            // 'pure' (one gas from the list) | 'mix' (composition) | 'mw' (known MW)
+
+const MIX_GROUPS = [
+  ['Permanent gases', ['Nitrogen (N₂)', 'Oxygen (O₂)', 'Argon', 'Helium', 'Hydrogen (H₂)', 'CO', 'CO₂', 'Air']],
+  ['Hydrocarbons',    ['Methane (CH₄)', 'Ethane (C₂H₆)', 'Ethylene', 'Acetylene', 'Propane (C₃H₈)', 'Butane (C₄H₁₀)',
+                       'Isobutane (i-C₄H₁₀)', 'n-Pentane (C₅H₁₂)', 'Isopentane (i-C₅H₁₂)', 'n-Hexane (C₆H₁₄)']],
+  ['Other gases',     ['Ammonia (NH₃)', 'H₂S', 'SO₂', 'Chlorine', 'Water Vapour (H₂O)']],
+];
+const MIX_LABEL = {
+  'CO': 'Carbon monoxide (CO)', 'CO₂': 'Carbon dioxide (CO₂)', 'Butane (C₄H₁₀)': 'n-Butane (C₄H₁₀)',
+  'H₂S': 'Hydrogen sulfide (H₂S)', 'SO₂': 'Sulfur dioxide (SO₂)', 'Chlorine': 'Chlorine (Cl₂)',
+  'Argon': 'Argon (Ar)', 'Helium': 'Helium (He)', 'Ethylene': 'Ethylene (C₂H₄)', 'Acetylene': 'Acetylene (C₂H₂)',
+  'Air': 'Air (as one component)',
+};
+const MIX_PRESETS = {
+  air:  { basis: 'mol', rows: [['Nitrogen (N₂)', 78.08], ['Oxygen (O₂)', 20.95], ['Argon', 0.93], ['CO₂', 0.04]] },
+  ng:   { basis: 'mol', rows: [['Methane (CH₄)', 90], ['Ethane (C₂H₆)', 5], ['Propane (C₃H₈)', 1.5], ['Butane (C₄H₁₀)', 0.3],
+                               ['Isobutane (i-C₄H₁₀)', 0.2], ['n-Pentane (C₅H₁₂)', 0.1], ['Nitrogen (N₂)', 1.4], ['CO₂', 1.5]] },
+  syn:  { basis: 'mol', rows: [['Hydrogen (H₂)', 74.0], ['Nitrogen (N₂)', 24.7], ['Methane (CH₄)', 0.9], ['Argon', 0.4]] },
+  flue: { basis: 'mol', rows: [['Nitrogen (N₂)', 71.5], ['CO₂', 8.5], ['Water Vapour (H₂O)', 17.0], ['Oxygen (O₂)', 3.0]] },
+};
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function mixLabel(k) { return MIX_LABEL[k] || k; }
+
+function gasModeApplies() {   // gas, or the gas phase of gas–liquid two-phase
+  const cat = document.getElementById('f_cat').value;
+  return cat === 'gas' || (cat === 'twophase' && document.getElementById('tp_sub').value !== 'wetsteam');
+}
+function mixActive()  { return GAS_MODE === 'mix' && gasModeApplies(); }
+function mixPayload() { return mixActive() ? { gasMix: getMixPayload() } : {}; }
+
+function getMixPayload() {
+  const comps = [];
+  document.querySelectorAll('#mix_rows .mix-row').forEach(r => {
+    const key = r.querySelector('.mix-key').value;
+    if (key) comps.push({ key, v: r.querySelector('.mix-val').value });
+  });
+  return { basis: document.getElementById('mix_basis').value, comps };
+}
+
+function setGasMode(m) {
+  if (GAS_MODE === m) return;
+  GAS_MODE = m;
+  selectedFluidKey = null;
+  ['mu_auto_badge', 'z_auto_badge', 'k_auto_badge'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  if (m === 'mix' && !document.querySelector('#mix_rows .mix-row')) loadMixPreset('ng', true);
+  applyGasModeUI();
+  const pick = document.getElementById('fluid_select').value;
+  if (m === 'pure' && pick) { selectFluid(pick); return; }   // re-applies the gas chosen in the list
+  updateFluidProps();
+}
+
+function applyGasModeUI() {
+  const $    = id => document.getElementById(id);
+  const on   = gasModeApplies();
+  const mode = on ? GAS_MODE : 'pure';
+  $('gas_mode_row').style.display = on ? '' : 'none';
+  ['pure', 'mix', 'mw'].forEach(m => $('gm_' + m).classList.toggle('active', mode === m));
+  $('pure_wrap').style.display = mode === 'pure' ? '' : 'none';
+  $('custom_fluid_toggle').style.display = on ? 'none' : '';          // gas uses the Known MW tab instead
+  if (on) $('custom_fluid_sec').classList.toggle('open', mode === 'mw');
+  else    $('custom_fluid_sec').classList.remove('open');
+  $('mix_wrap').style.display = mode === 'mix' ? '' : 'none';
+  $('fluid_db_title').textContent = mode === 'mix' ? '▸ GAS MIXTURE — COMPOSITION'
+                                  : mode === 'mw'  ? '▸ KNOWN MOLAR MASS — ENTER YOUR OWN Z, κ, μ'
+                                  :                  '▸ FLUID DATABASE — QUICK SELECT';
+  // In mixture mode SG, Z, μ and κ are calculated from the composition
+  const lock = mode === 'mix';
+  if (on) ['d_val', 'zf'].forEach(id => { $(id).disabled = lock; });
+  ['visc', 'isen_k'].forEach(id => { $(id).disabled = lock; });
+}
+
+function mixOptions(sel) {
+  let h = '<option value="">— select —</option>';
+  MIX_GROUPS.forEach(([g, keys]) => {
+    h += `<optgroup label="${g}">`
+       + keys.map(k => `<option value="${escHtml(k)}"${k === sel ? ' selected' : ''}>${escHtml(mixLabel(k))}</option>`).join('')
+       + '</optgroup>';
+  });
+  return h;
+}
+function addMixRow(key, val, quiet) {
+  const box = document.getElementById('mix_rows');
+  if (box.children.length >= 20) return;
+  const row = document.createElement('div');
+  row.className = 'mix-row';
+  row.innerHTML =
+      `<select class="mix-key" aria-label="Component" onchange="onMixChange()">${mixOptions(key)}</select>`
+    + `<input type="number" class="mix-val" min="0" step="any" aria-label="Amount" value="${val === '' || val == null ? '' : Number(val)}" oninput="onMixChange()">`
+    + `<span class="mix-conv">—</span>`
+    + `<button type="button" class="mix-del" aria-label="Remove component" title="Remove" onclick="removeMixRow(this)">×</button>`;
+  box.appendChild(row);
+  if (!quiet) onMixChange();
+}
+function removeMixRow(btn) {
+  btn.closest('.mix-row').remove();
+  if (!document.querySelector('#mix_rows .mix-row')) addMixRow('', '', true);
+  onMixChange();
+}
+function loadMixPreset(id, quiet) {
+  document.getElementById('mix_preset').value = '';
+  const p = MIX_PRESETS[id];
+  if (!p) return;
+  document.getElementById('mix_basis').value = p.basis;
+  document.getElementById('mix_rows').innerHTML = '';
+  p.rows.forEach(([k, v]) => addMixRow(k, v, true));
+  onMixBasisChange(true);
+  if (quiet) updateMixTotal(); else onMixChange();
+}
+function onMixBasisChange(quiet) {
+  const mass = document.getElementById('mix_basis').value === 'mass';
+  document.getElementById('mix_hdr_v').textContent = mass ? 'mass %' : 'mol %';
+  document.getElementById('mix_hdr_c').textContent = mass ? 'mol %'  : 'mass %';
+  if (!quiet) onMixChange();
+}
+function updateMixTotal() {
+  let sum = 0, n = 0;
+  document.querySelectorAll('#mix_rows .mix-row').forEach(r => {
+    const v = parseFloat(r.querySelector('.mix-val').value);
+    if (r.querySelector('.mix-key').value && v > 0) { sum += v; n++; }
+  });
+  const unit = document.getElementById('mix_basis').value === 'mass' ? 'mass %' : 'mol %';
+  const ok   = Math.abs(sum - 100) <= 0.005;
+  const el   = document.getElementById('mix_total');
+  el.textContent = n ? `Total ${sum.toFixed(2)} ${unit}${ok ? '' : ' → normalised'}` : 'Total —';
+  el.className   = 'mix-total ' + (n && ok ? 'ok' : 'off');
+}
+function onMixChange() {
+  updateMixTotal();
+  document.querySelectorAll('#mix_rows .mix-conv').forEach(c => { c.textContent = '…'; });
+  updateFluidProps();
+}
+
+// Mixture properties returned by the API (density preview or calculation)
+function applyMixResult(gm) {
+  document.getElementById('d_val').value      = gm.sg.toFixed(4);
+  document.getElementById('custom_rho').value = gm.sg.toFixed(4);
+  document.getElementById('custom_mw').value  = gm.M.toFixed(3);
+  const conv = {};
+  gm.comps.forEach(c => { conv[c.key] = 100 * (gm.basis === 'mass' ? c.y : c.w); });
+  document.querySelectorAll('#mix_rows .mix-row').forEach(r => {
+    const k = r.querySelector('.mix-key').value, v = conv[k];
+    r.querySelector('.mix-conv').textContent = (k && v != null) ? v.toFixed(v < 1 ? 3 : 2) : '—';
+  });
+  renderMixSummary(gm);
+}
+function renderMixSummary(gm) {
+  const imp = UNITS === 'imperial';
+  const tK  = K => imp ? (K * 1.8).toFixed(1) + ' °R' : K.toFixed(1) + ' K';
+  const pB  = b => { const v = imp ? b * 14.5038 : b; return v.toFixed(v < 1 ? 4 : 2) + (imp ? ' psia' : ' bar a'); };
+  const tC  = C => imp ? (C * 9 / 5 + 32).toFixed(1) + ' °F' : C.toFixed(1) + ' °C';
+  const nw = s => `<span class="nw">${s}</span>`;
+  let h = `${nw(`<span class="mw">M = <b>${gm.M.toFixed(3)}</b> g/mol</span>`)} &nbsp;·&nbsp; ${nw(`SG <b>${gm.sg.toFixed(4)}</b>`)}<br>`
+        + `${nw(`κ <b>${gm.k.toFixed(4)}</b>`)} &nbsp;·&nbsp; ${nw(`Z <b>${gm.Z.toFixed(5)}</b>`)}`
+        + `${gm.Z_outOfRange ? ' <span style="color:var(--amber)">(outside Pitzer range)</span>' : ''}`
+        + ` &nbsp;·&nbsp; ${nw(`μ <b>${gm.mu.toExponential(3)}</b> Pa·s`)}<br>`
+        + `${nw(`T<sub>pc</sub> ${tK(gm.Tpc_K)}`)} &nbsp;·&nbsp; ${nw(`P<sub>pc</sub> ${pB(gm.Ppc_bar)}`)} &nbsp;·&nbsp; ${nw(`ω ${gm.omega.toFixed(4)}`)}`;
+  if (gm.h2o) h += `<br>${nw(`H₂O dew point <b>${gm.h2o.below0 ? (imp ? 'below 32 °F' : 'below 0 °C') : tC(gm.h2o.dew_C)}</b>`)}`
+                 + ` &nbsp;·&nbsp; ${nw(`H₂O partial pressure ${pB(gm.h2o.pp_bar)}`)}`;
+  if (gm.pr && gm.pr.stable && !gm.pr.liquidLike && !(gm.h2o && gm.h2o.condenses))
+    h += `<br><span style="color:var(--green)">✓ ${gm.h2o ? 'No condensation of the other components' : 'Single gas phase'} at line P and T (Peng-Robinson check)</span>`;
+  (gm.warns || []).forEach(t => { h += `<div class="mix-note w">${/^[⚡⚠]/.test(t) ? '' : '⚠ '}${escHtml(t)}</div>`; });
+  (gm.infos || []).forEach(t => { h += `<div class="mix-note i">ℹ ${escHtml(t)}</div>`; });
+  h += `<div class="mix-note m">Z, μ and κ above are calculated from the composition and used in the calculation. To enter your own values, choose Known MW.</div>`;
+  document.getElementById('mix_sum').innerHTML = h;
+}
+function showMixError(msg) {
+  document.querySelectorAll('#mix_rows .mix-conv').forEach(c => { c.textContent = '—'; });
+  document.getElementById('mix_sum').innerHTML = `<div class="mix-note w" style="margin-top:0">⚠ ${escHtml(msg)}</div>`;
+  setOut('out_dens', '—');
 }
 
 // ─── TWO-PHASE UI (client only — all physics in API) ──────────────────
@@ -1973,6 +2246,7 @@ function onTpSubChange() {
   } else if (corr.value === 'james') {
     corr.value = 'chisholm';
   }
+  applyGasModeUI();
   updateFluidProps();
 }
 
@@ -2285,6 +2559,46 @@ window.addEventListener('DOMContentLoaded', () => {
   updateFluidProps();
 });
 
+// ─── PDF: gas mixture section (empty string unless a mixture was calculated) ──
+function mixPdfSection() {
+  const g = _lastApiResult && _lastApiResult.gasMix;
+  if (!g || !mixActive()) return '';
+  const rows = g.comps.map(c => `<tr><td>${escHtml(mixLabel(c.key))}</td><td class="val">${(c.y * 100).toFixed(3)}</td>`
+    + `<td class="val">${(c.w * 100).toFixed(3)}</td><td class="val">${c.M.toFixed(3)}</td></tr>`).join('');
+  const dew   = g.h2o ? (g.h2o.below0 ? 'below 0 °C' : g.h2o.dew_C.toFixed(1) + ' °C') : null;
+  const phase = (g.h2o && g.h2o.condenses) ? 'water condenses (IAPWS-IF97)'
+              : !g.pr ? '— (not applicable)'
+              : !g.pr.stable ? 'NOT single-phase — liquid condenses'
+              : g.pr.liquidLike ? 'dense, liquid-like'
+              : g.h2o ? 'no condensation (water: IAPWS-IF97)' : 'single gas phase';
+  const norm  = Math.abs(g.sumInput - 100) > 0.005 ? ` (total ${g.sumInput.toFixed(2)}, normalised)` : '';
+  return `
+    <div class="section-title">▸ Gas Mixture — Composition &amp; Properties</div>
+    <div class="two-col">
+      <table>
+        <tr><th>Component</th><th style="text-align:right">mol %</th><th style="text-align:right">mass %</th><th style="text-align:right">M, g/mol</th></tr>
+        ${rows}
+        <tr><td><strong>Mixture</strong></td><td class="val">100.000</td><td class="val">100.000</td><td class="val">${g.M.toFixed(3)}</td></tr>
+      </table>
+      <table>
+        <tr><th>Parameter</th><th style="text-align:right">Value</th></tr>
+        <tr><td>Composition entered as</td><td class="val">${g.basis === 'mass' ? 'mass %' : 'mol % (= vol %)'}${norm}</td></tr>
+        <tr><td>Molar mass M</td><td class="val">${g.M.toFixed(3)} g/mol</td></tr>
+        <tr><td>SG (air = 1)</td><td class="val">${g.sg.toFixed(4)}</td></tr>
+        <tr><td>Isentropic exponent κ</td><td class="val">${g.k.toFixed(4)}</td></tr>
+        <tr><td>Z (Pitzer, Kay's rule)</td><td class="val">${g.Z.toFixed(5)}${g.Z_outOfRange ? ' ⚠' : ''}</td></tr>
+        <tr><td>Viscosity μ (Wilke)</td><td class="val">${g.mu.toExponential(3)} Pa·s</td></tr>
+        <tr><td>T<sub>pc</sub> / P<sub>pc</sub> / ω</td><td class="val">${g.Tpc_K.toFixed(1)} K / ${g.Ppc_bar.toFixed(2)} bar a / ${g.omega.toFixed(4)}</td></tr>
+        ${dew ? `<tr><td>Water dew point</td><td class="val">${dew}</td></tr>` : ''}
+        <tr><td>Phase check (Peng-Robinson)</td><td class="val">${phase}</td></tr>
+      </table>
+    </div>
+    <div class="formula">
+      M = Σyᵢ·Mᵢ &nbsp;|&nbsp; Z: Pitzer at T<sub>pc</sub> = Σyᵢ·T<sub>ci</sub>, P<sub>pc</sub> = Σyᵢ·P<sub>ci</sub>, ω = Σyᵢ·ωᵢ (Kay's rule) &nbsp;|&nbsp; μ: Wilke mixing rule<br>
+      κ = c<sub>p</sub>/(c<sub>p</sub> − R), c<sub>p</sub> = Σyᵢ·R·κᵢ/(κᵢ − 1) &nbsp;|&nbsp; mass % → yᵢ = (wᵢ/Mᵢ) / Σ(wⱼ/Mⱼ)
+    </div>`;
+}
+
 // ─── PDF: two-phase section (empty string for single-phase) ──────────
 function tpPdfSection() {
   const r = _lastApiResult;
@@ -2341,7 +2655,8 @@ function generatePDF() {
   const inputs = {
     mode: MODE === 'flow' ? 'Flow Rate' : MODE === 'dp' ? 'Differential Pressure' : 'Bore Size',
     fluidCat: document.getElementById('f_cat').options[document.getElementById('f_cat').selectedIndex].text,
-    fluidSel: selectedFluidKey || 'Custom / Manual',
+    fluidSel: mixActive() ? (_lastApiResult.gasMix ? `Gas mixture (${_lastApiResult.gasMix.n} components)` : 'Gas mixture')
+            : selectedFluidKey || (gasModeApplies() && GAS_MODE === 'mw' ? 'Known MW (user properties)' : 'Custom / Manual'),
     orificeType: document.getElementById('orifice_type').options[document.getElementById('orifice_type').selectedIndex].text,
     pressure: pressureText(),
     temperature: document.getElementById('t_val').value + ' ' + document.getElementById('t_unit').textContent,
@@ -2624,7 +2939,7 @@ function generatePDF() {
           <tr><td>Pipe Internal Dia.</td><td class="val">${inputs.pipeID}</td></tr>
           <tr><td>Orifice Bore Dia.</td><td class="val">${inputs.boreDia}</td></tr>
           ${(document.getElementById('f_cat').value === 'twophase' && document.getElementById('tp_sub').value === 'wetsteam') ? '' : `<tr><td>Specific Gravity / SG</td><td class="val">${inputs.sg}</td></tr>`}
-          ${(['gas','twophase'].includes(document.getElementById('f_cat').value) && !(document.getElementById('f_cat').value === 'twophase' && document.getElementById('tp_sub').value === 'wetsteam')) ? `<tr><td>Molar Mass (gas)</td><td class="val">${selectedFluidKey && FLUID_DB[selectedFluidKey]?.M ? FLUID_DB[selectedFluidKey].M.toFixed(3) : inputs.mw} g/mol</td></tr>` : ''}
+          ${(['gas','twophase'].includes(document.getElementById('f_cat').value) && !(document.getElementById('f_cat').value === 'twophase' && document.getElementById('tp_sub').value === 'wetsteam')) ? `<tr><td>Molar Mass (gas)</td><td class="val">${mixActive() && _lastApiResult.gasMix ? _lastApiResult.gasMix.M.toFixed(3) : selectedFluidKey && FLUID_DB[selectedFluidKey]?.M ? FLUID_DB[selectedFluidKey].M.toFixed(3) : inputs.mw} g/mol</td></tr>` : ''}
           <tr><td>Compressibility Z</td><td class="val">${inputs.z}</td></tr>
           <tr><td>Isentropic Exponent k</td><td class="val">${inputs.k}</td></tr>
           <tr><td>Dynamic Viscosity μ</td><td class="val">${inputs.visc}</td></tr>
@@ -2632,6 +2947,8 @@ function generatePDF() {
         </table>
       </div>
     </div>
+
+    ${mixPdfSection()}
 
     <!-- ══ FLOW — ALL UNITS ══ -->
     <div class="section-title">▸ Flow Rate — Multiple Units</div>
