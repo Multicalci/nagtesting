@@ -13,6 +13,8 @@
 //   EXTENDED here with: vdW one-fluid mixing + editable KIJ table,
 //   closed-form PR enthalpy departure, component fugacity coefficients,
 //   quantum-gas effective critical constants (H2/He), and selfTest().
+//   STEP 21: phiCoefficients({..., root:'liquid'}) — liquid-root fugacity
+//   coefficients for the PR (phi-phi) flash. Default (vapour) unchanged.
 //
 // UNITS (module convention, per spec base SI):
 //   Inputs:  T_K [K], P_bar [bar absolute], tc_K [K], pc_bar [bar],
@@ -306,14 +308,24 @@ function hDeparture(inp) {
  *              − A/(2√2 B) · (2·Σj yj·a_ij / a − bi/b)
  *                · ln[(Z+(1+√2)B)/(Z+(1−√2)B)]
  * Pure-component (length 1) reduces to the extracted solvePR lnPhi exactly.
- * Vapour root used (consistent with solveZ's primary choice).
- * @param {{T_K:number,P_bar:number,comps:Array}} inp same shape as solveZ
+ * Vapour root by default (consistent with solveZ's primary choice);
+ * pass inp.root = 'liquid' for the smallest physical root (PR flash).
+ * @param {{T_K:number,P_bar:number,comps:Array,root?:('vapour'|'liquid')}} inp
  * @returns {{phi:number[], Z:number}}
  */
 function phiCoefficients(inp) {
   const { A, B, roots, mix } = prSolveCore(inp.T_K, inp.P_bar, inp.comps);
   if (!roots.length) throw new Error('EOS_NOROOT: no real Z root');
-  const Z = roots.reduce((a, b) => (a.Z > b.Z ? a : b)).Z;
+  // root choice: vapour (default — unchanged) = largest Z; liquid (Step 21
+  // extension, used by the PR flash) = smallest PHYSICAL root (Z > B).
+  // With a single real root both choices return that root.
+  let Z;
+  if (inp.root === 'liquid') {
+    const phys = roots.filter(r => r.Z > B);
+    Z = (phys.length ? phys : roots).reduce((a, b) => (a.Z < b.Z ? a : b)).Z;
+  } else {
+    Z = roots.reduce((a, b) => (a.Z > b.Z ? a : b)).Z;
+  }
   const sq2 = Math.SQRT2;
   const logTerm = Math.log(
     Math.max(1e-300, Z + (1 + sq2) * B) /
@@ -400,6 +412,15 @@ function selfTest() {
     const zNoQ = solveZ({ T_K: 30, P_bar: 20, comps: [{ tc_K: 33.2, pc_bar: 13.0, omega: -0.216, y: 1 }] }).Z; // no key → true criticals
     push('quantum H2 override live', Math.abs(zQ - zNoQ) > 1e-4,
       Math.abs(zQ - zNoQ), 'effective-constant Z differs from true-critical Z');
+
+    // 6 — liquid root (PR flash extension): at the PR saturation pressure
+    // of NH3 (273.15 K, 4.293 bar — source anchor) liquid and vapour
+    // fugacity coefficients must coincide (phase-equilibrium identity).
+    const nh3 = [{ key: 'NH3', tc_K: 405.6, pc_bar: 112.8, omega: 0.250, y: 1 }];
+    const fL = phiCoefficients({ T_K: 273.15, P_bar: 4.293, comps: nh3, root: 'liquid' });
+    const fV = phiCoefficients({ T_K: 273.15, P_bar: 4.293, comps: nh3 });
+    push('NH3 φL = φV at PR Psat (liquid root)', Math.abs(fL.phi[0] / fV.phi[0] - 1) < 0.01 && fL.Z < 0.1,
+      fL.phi[0] / fV.phi[0], 'ratio 1 ± 0.01 and liquid Z < 0.1');
   } catch (err) {
     push('selfTest exception', false, NaN, err.message);
   }

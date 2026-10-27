@@ -1,7 +1,7 @@
 // ============================================================================
 // REPO PATH: api/_lib/mb-engine.js
 // ============================================================================
-// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13+16+17
+// multicalci.com — Material Balance Calculator (spec v5.2) — STEPS 8+11+12+13+16+17+21
 // PARTS 1+2+3+4+5+6+7 — THERMO CORE + TWENTY MODULE SOLVERS (MODULES{...}):
 // mixer, splitter, flash, heat-exchanger, rotating, reactor (Part 2);
 // cstr, pfr, pfr-recycle (Part 3 — liquid-basis reaction engineering);
@@ -11,6 +11,9 @@
 //   urea-reactor, hp-stripper, sls, dryer, urea-hp-loop (Part 7 — urea HP
 //   section + solids finishing; the solvers themselves live in mb-urea.js and
 //   are registered into MODULES at the bottom of this file).
+// STEP 21: flash params.model 'raoult' | 'pr' (Peng-Robinson φ–φ) | 'nrtl'
+//   (γ–Psat); 'component-splitter' module; 'flowsheet' (mb-flowsheet.js —
+//   whole flowsheet in one call, recycle tears, design specs).
 //
 // FORMATION-ENTHALPY BASIS: every enthalpy returned here includes the
 // standard enthalpy of formation at 298.15 K, so any module's duty is
@@ -34,6 +37,10 @@
 //             reported 0 above ~650 K at low P).
 //   phase   : override > nonvolatile(Tm split) > T≥Tc gas > T<Tm solid >
 //             Psat (Antoine in range, else Clausius-Clapeyron) vs P.
+//             STEP 21 dew-point rule (streamEnthalpy): a mixture with
+//             Σ yᵢP/Psatᵢ < 1 is all vapour and water is evaluated on IF97
+//             at its partial pressure (wet gas below the pure-water Tsat at
+//             total P is no longer booked as liquid).
 //
 // ERROR CONVENTION: public functions NEVER throw. Failures return
 // {error:{code,message,field}}; success objects carry no `error` key and
@@ -50,8 +57,15 @@ import mbData from './mb-data.js';
 import if97 from './if97.js';
 import eos from './eos.js';
 import urea from './mb-urea.js';
+import flowsheet from './mb-flowsheet.js';
+import compdb from './mb-compdb.js';           // STEP 22 — ChemSep databank
+import thermo from './mb-thermo.js';            // STEP 22 — property packages
+import rigUnits from './mb-units.js';           // STEP 22 — rigorous unit operations
+import rigColumn from './mb-column.js';         // STEP 22 — rigorous column
+import rigAnalysis from './mb-analysis.js';     // STEP 23 — phase envelope, property table, binary diagram
+import rigKinetics from './mb-kinetics.js';     // STEP 23 — kinetic PFR / CSTR on the property packages
 
-const ENGINE_VERSION = 'mb-engine 0.11.0 (parts 1-7 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids)';
+const ENGINE_VERSION = 'mb-engine 0.17.0 (parts 1-7 + steps 21–25 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate) and Murphree tray efficiencies)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -87,6 +101,29 @@ function num(x) { return typeof x === 'number' && isFinite(x); }
 // (calorics + supplements for keys fluids.js lacks)
 // ---------------------------------------------------------------------------
 
+const CS_REC = new Map();
+/**
+ * STEP 22 — legacy-shaped record for a ChemSep-only component.
+ * @param {string} key
+ * @param {object} cs compdb record
+ */
+function chemsepRecord(key, cs) {
+  let r = CS_REC.get(key);
+  if (r) return r;
+  const c = thermo.component(key);
+  const tb = num(cs.tb) ? cs.tb : null;
+  r = {
+    key, name: cs.name, formula: cs.formula, cas: cs.cas, mw: cs.mw, tb_K: tb, tm_K: num(cs.tm) ? cs.tm : null,
+    tc_K: cs.tc, pc_bar: cs.pc / 1e5, omega: num(cs.w) ? cs.w : 0, antoine: null, nonvolatile: false,
+    hf_gas_298: num(cs.hf) ? cs.hf / 1e6 : null, hf_liq_298: null, hf_sol_298: null,
+    shomate: null, cp_svn: null, cp_chemsep: true, cp_liq_kjkgk: null, cp_sol_kjkgk: null,
+    dhvap_tb: tb ? thermo.hvap(c, tb) / 1000 : null, dhvap_ref_K: null, dhfus: num(cs.hfus) ? cs.hfus / 1e6 : null,
+    caloric_quality: 'chemsep', chemsep: true, category: 'chemsep',
+  };
+  CS_REC.set(key, r);
+  return r;
+}
+
 /**
  * Resolve a component key to one merged record: fluids.js physicals as the
  * base, mb-data supplement filling keys fluids.js lacks, caloric fields
@@ -101,7 +138,12 @@ function resolve(key) {
   const phys = fluids.get(key);
   const cal = mbData.get(key);
   if (!phys && !cal) {
-    return errObj('MB_UNKNOWN_KEY', `unknown component key '${key}'`, 'key');
+    // STEP 22: components that exist only in the ChemSep databank resolve to
+    // a record built from it (ideal-gas Cp via mb-thermo, ΔHvap at Tb,
+    // critical constants) so the classic modules can carry them too
+    const cs = compdb.get(key);
+    if (!cs) return errObj('MB_UNKNOWN_KEY', `unknown component key '${key}'`, 'key');
+    return chemsepRecord(key, cs);
   }
   const base = Object.assign(
     { key, mw: null, tb_K: null, tm_K: null, tc_K: null, pc_bar: null,
@@ -219,6 +261,7 @@ function cpGas(key, T_K) {
     if (T_K < 250 || T_K > 1500) warnings.push(`cpGas(${key}): T ${T_K.toFixed(1)} K outside SVN validity ≈298–1500 K`);
     return { cp_J_molK: svnCp(rec.cp_svn, T_K), method: 'svn', warnings };
   }
+  if (rec.cp_chemsep) return { cp_J_molK: thermo.component(key)._cp.cp(T_K), method: 'chemsep', warnings };
   return errObj('MB_NO_GAS_CP', `component '${key}' has no gas Cp data (Shomate/SVN)`, 'key');
 }
 
@@ -257,6 +300,10 @@ function hGasMolar(key, T_K, opts) {
     if (T_K < 250 || T_K > 1500) warnings.push(`hGasMolar(${key}): T ${T_K.toFixed(1)} K outside SVN validity ≈298–1500 K`);
     dH = svnDH(rec.cp_svn, T_K);
     method = 'svn';
+  } else if (rec.cp_chemsep) {
+    const c = thermo.component(key);
+    dH = (thermo.hIG(c, T_K) - c.Hf) / 1000;
+    method = 'chemsep';
   } else {
     return errObj('MB_NO_GAS_CP', `component '${key}' has no gas Cp data`, 'key');
   }
@@ -513,6 +560,10 @@ function waterMolarH(T_K, P_bar, phaseHint) {
  * @returns {{psat_bar:number|null, method:string, warning?:string}}
  */
 function psatOf(rec, T_K) {
+  if (rec.chemsep) {
+    if (T_K >= rec.tc_K) return { psat_bar: null, method: 'supercritical' };
+    return { psat_bar: thermo.psat(thermo.component(rec.key), T_K) / 1e5, method: 'chemsep' };
+  }
   if (fluids.get(rec.key)) {
     const r = fluids.psat_bar(rec.key, T_K);
     return { psat_bar: r.psat_bar, method: r.method, warning: r.warning };
@@ -653,6 +704,42 @@ function molarize(stream) {
 }
 
 /**
+ * STEP 21 — Raoult dew-point test for a mixed stream. Returns vapour:true
+ * only when (a) no component carries an explicit phase, (b) at least two
+ * components flow, (c) no component is nonvolatile and every condensable
+ * has a Psat route, and (d) Σ yᵢ·P/Psatᵢ(T) < 1 over the condensables
+ * (supercritical components count as noncondensable). Anything else returns
+ * vapour:false and the legacy per-component phase route is used.
+ * @returns {{vapour:boolean, dew_sum?:number}}
+ */
+function dewPointVapour(stream, mol) {
+  if (stream.components.some((c) => c && c.phase)) return { vapour: false };
+  const live = mol.components.filter((c) => c.n_kmol_h > 0);
+  if (live.length < 2) return { vapour: false };
+  const T = stream.T_K, P = stream.P_bar;
+  let sum = 0;
+  for (const mc of live) {
+    const rec = resolve(mc.key);
+    if (rec.error || rec.nonvolatile) return { vapour: false };
+    let ps;
+    if (mc.key === 'H2O') {
+      if (T >= 647.1) continue;
+      if (T < 273.16) return { vapour: false };
+      try { ps = if97.psat_bar(T); } catch (_e) { return { vapour: false }; }
+    } else {
+      if (num(rec.tc_K) && T >= rec.tc_K) continue;
+      if (num(rec.tm_K) && T < rec.tm_K) return { vapour: false };
+      const r = psatOf(rec, T);
+      if (r.method === 'supercritical') continue;
+      ps = r.psat_bar;
+    }
+    if (!num(ps) || ps <= 0) return { vapour: false };
+    sum += mc.mole_fraction * P / ps;
+  }
+  return { vapour: sum < 1, dew_sum: sum };
+}
+
+/**
  * Total stream enthalpy on the FORMATION basis.
  * Per component: phase from phaseOf (per-component `phase` field acts as
  * override), then the matching molar-enthalpy route; water always IF97.
@@ -678,6 +765,14 @@ function streamEnthalpy(stream) {
   const warnings = mol.warnings.slice();
   const per = [];
   let H = 0;
+  // STEP 21 — dew-point rule: a mixture above its Raoult dew point (Σ yᵢP/Psatᵢ < 1
+  // over the condensable components) is all vapour, and water is evaluated on
+  // IF97 at its PARTIAL pressure. Without this, wet process gas below the
+  // pure-water Tsat at TOTAL pressure (e.g. 15 % steam at 150 °C / 5 bar) was
+  // booked as liquid water, losing the latent heat. Streams with an explicit
+  // phase on any component, or inside / below the two-phase envelope, keep
+  // the per-component route unchanged.
+  const dew = dewPointVapour(stream, mol);
   for (let i = 0; i < mol.components.length; i++) {
     const mc = mol.components[i];
     if (mc.n_kmol_h <= 0) {
@@ -688,12 +783,14 @@ function streamEnthalpy(stream) {
       continue;
     }
     const override = stream.components[i].phase;
-    const ph = phaseOf(mc.key, stream.T_K, stream.P_bar, override);
+    const ph = dew.vapour ? { phase: 'gas', warnings: [] } : phaseOf(mc.key, stream.T_K, stream.P_bar, override);
     if (ph.error) return ph;
     warnings.push(...ph.warnings);
     let hres;
     if (mc.key === 'H2O') {
-      hres = waterMolarH(stream.T_K, stream.P_bar, ph.phase);
+      hres = dew.vapour
+        ? waterMolarH(stream.T_K, Math.max(1e-6, mc.mole_fraction * stream.P_bar), 'gas')
+        : waterMolarH(stream.T_K, stream.P_bar, ph.phase);
     } else if (ph.phase === 'gas') {
       hres = hGasMolar(mc.key, stream.T_K, { P_bar: stream.P_bar });
     } else if (ph.phase === 'liquid') {
@@ -1142,44 +1239,22 @@ function flashK(key, T_K, P_bar) {
   return { K: ps.psat_bar / P_bar, method: 'psat_' + ps.method };
 }
 
+// ---- Rachford-Rice helpers (shared by every flash model) -----------------
+
 /**
- * Isothermal flash. Feed = streams[0] at its own (T,P) — that state sets
- * Hin, so Q covers both the temperature change to the flash condition and
- * the phase split. params: { T_K, P_bar } (flash condition, required).
- * VALIDITY: Raoult's-law K-values — near-ideal systems only; azeotropic /
- * strongly polar pairs are out of scope (spec: activity models are Phase 3).
- * @param {{streams:Array, params:object}} input
- * @returns {object} module result or error envelope
+ * Rachford-Rice on V/F in [0, 1): f(ψ) = Σ zᵢ(Kᵢ−1)/(1+ψ(Kᵢ−1)), monotone
+ * decreasing. Bisection; single-phase feeds are clamped to ψ = 0 / 1.
+ * (Arithmetic identical to the Step-8 inline version.)
+ * @param {number[]} z feed mole fractions
+ * @param {number[]} K K-values
+ * @param {string[]} warnings
+ * @returns {{psi:number, regime:string, iterations:number, converged:boolean}}
  */
-function solveFlash(input) {
-  const mi = moduleInput(input, 1, 1);
-  if (mi.error) return mi;
-  const feed = mi.streams[0];
-  const { T_K, P_bar } = mi.params;
-  if (!num(T_K) || T_K <= 0) return errObj('MB_T', 'params.T_K (flash temperature) must be positive', 'T_K');
-  if (!num(P_bar) || P_bar <= 0) return errObj('MB_P', 'params.P_bar (flash pressure) must be positive', 'P_bar');
-  const warnings = [];
-
-  const eIn = streamEnthalpy(feed);
-  if (eIn.error) return eIn;
-  warnings.push(...eIn.warnings);
-  const mol = molarize(feed);
-  if (mol.error) return mol;
-
-  const z = mol.components.map((c) => c.mole_fraction);
-  const Ks = [];
-  for (const c of mol.components) {
-    const k = flashK(c.key, T_K, P_bar);
-    if (k.error) return k;
-    if (k.warning) warnings.push(`flash: ${k.warning}`);
-    Ks.push({ key: c.key, K: k.K, method: k.method });
-  }
-
-  // Rachford-Rice: f(ψ) = Σ zᵢ(Kᵢ−1)/(1+ψ(Kᵢ−1)); monotone decreasing.
+function rrSolve(z, K, warnings) {
   const f = (psi) => {
     let s = 0;
     for (let i = 0; i < z.length; i++) {
-      const km1 = Ks[i].K - 1;
+      const km1 = K[i] - 1;
       s += (z[i] * km1) / (1 + psi * km1);
     }
     return s;
@@ -1193,7 +1268,7 @@ function solveFlash(input) {
   if (f0 <= 0) {
     psi = 0;
     regime = 'all_liquid';
-    if (Math.abs(f0) < 1e-9) warnings.push('flash: feed is at its bubble point — all-liquid returned');
+    if (Math.abs(f0) < 1e-9 && warnings) warnings.push('flash: feed is at its bubble point — all-liquid returned');
   } else if (f(PSI_HI) >= 0) {
     psi = 1;
     regime = 'all_vapor';
@@ -1212,24 +1287,304 @@ function solveFlash(input) {
     psi = 0.5 * (lo + hi);
     if (iterations >= RR_MAX_ITER) {
       converged = false;
-      warnings.push(`flash: Rachford-Rice iteration cap ${RR_MAX_ITER} reached`);
+      if (warnings) warnings.push(`flash: Rachford-Rice iteration cap ${RR_MAX_ITER} reached`);
     }
   }
+  return { psi, regime, iterations, converged };
+}
 
-  // phase compositions and component splits
+/**
+ * Phase compositions for a given ψ (normalized). K ≥ K_NONCOND marks a
+ * noncondensable that is placed wholly in the vapour.
+ * @returns {{x:number[], y:number[]}}
+ */
+function rrPhaseComps(z, K, psi) {
   const x = [];
   const y = [];
   let sx = 0;
   let sy = 0;
   for (let i = 0; i < z.length; i++) {
-    const km1 = Ks[i].K - 1;
-    const xi = psi >= 1 ? (Ks[i].K > 0 ? z[i] / Ks[i].K : 0) : z[i] / (1 + psi * km1);
-    const yi = Ks[i].K >= K_NONCOND ? (psi > 0 ? z[i] / psi : 0) : Ks[i].K * xi;
+    const km1 = K[i] - 1;
+    const xi = psi >= 1 ? (K[i] > 0 ? z[i] / K[i] : 0) : z[i] / (1 + psi * km1);
+    const yi = K[i] >= K_NONCOND ? (psi > 0 ? z[i] / psi : 0) : K[i] * xi;
     x.push(xi); y.push(yi); sx += xi; sy += yi;
   }
   for (let i = 0; i < z.length; i++) {
     x[i] = sx > 0 ? x[i] / sx : 0;
     y[i] = sy > 0 ? y[i] / sy : 0;
+  }
+  return { x, y };
+}
+
+// ---- Step 21: Peng-Robinson (phi-phi) flash ------------------------------
+const PR_FLASH_MAX_ITER = 400;     // successive-substitution cap
+const PR_FLASH_TOL = 1e-10;        // max |Δ ln K| at convergence
+const WILSON_C = 5.373;            // Wilson K-value constant
+
+/**
+ * PR equation-of-state flash: Kᵢ = φᵢᴸ(x)/φᵢⱽ(y), Wilson initial guess,
+ * successive substitution on K with Rachford-Rice inside. Uses eos.js
+ * (vdW one-fluid mixing, KIJ table, H2/He effective constants). Nonvolatile
+ * components (salts, urea…) are held in the liquid (K = 0) and excluded from
+ * the EOS mixture. Single-phase (trivial K → 1) results are classified by
+ * Kay's pseudo-critical temperature.
+ * @param {object} mol molarize() result of the feed
+ * @param {number} T_K
+ * @param {number} P_bar
+ * @param {string[]} warnings
+ * @returns {object|{error:object}}
+ */
+function flashPR(mol, T_K, P_bar, warnings) {
+  const z = mol.components.map((c) => c.mole_fraction);
+  const props = [];
+  for (const c of mol.components) {
+    const rec = resolve(c.key);
+    if (rec.error) return rec;
+    if (rec.nonvolatile) { props.push({ key: c.key, inert: true }); continue; }
+    if (!num(rec.tc_K) || !num(rec.pc_bar)) {
+      return errObj('MB_PR_CRIT', `PR flash needs Tc and Pc for '${c.key}' — use model 'raoult' for this feed`, 'components');
+    }
+    if (!num(rec.omega)) warnings.push(`flash(pr): no acentric factor for ${c.key} — ω = 0 assumed`);
+    props.push({ key: c.key, tc_K: rec.tc_K, pc_bar: rec.pc_bar, omega: num(rec.omega) ? rec.omega : 0 });
+  }
+  const live = props.map((p, i) => (p.inert ? -1 : i)).filter((i) => i >= 0);
+  const kOut = (K) => props.map((p, i) => ({ key: p.key, K: K[i], method: p.inert ? 'nonvolatile' : 'pr_phi' }));
+  if (!live.length) {
+    const K0 = z.map(() => 0);
+    return { psi: 0, regime: 'all_liquid', iterations: 0, converged: true, K: K0, Ks: kOut(K0),
+      x: z.slice(), y: z.map(() => 0), extra: { ss_iterations: 0 } };
+  }
+  const phiOf = (frac, root) => {
+    let s = 0;
+    for (const i of live) s += frac[i];
+    const sub = live.map((i) => ({ key: props[i].key, tc_K: props[i].tc_K, pc_bar: props[i].pc_bar,
+      omega: props[i].omega, y: s > 0 ? frac[i] / s : 1 / live.length }));
+    const r = eos.phiCoefficients({ T_K, P_bar, comps: sub, root });
+    const out = new Array(z.length).fill(NaN);
+    live.forEach((i, k) => { out[i] = r.phi[k]; });
+    return { phi: out, Z: r.Z };
+  };
+  let K = props.map((p) => (p.inert ? 0
+    : (p.pc_bar / P_bar) * Math.exp(WILSON_C * (1 + p.omega) * (1 - p.tc_K / T_K))));
+  let it = 0;
+  let dlnK = Infinity;
+  let ZL = NaN;
+  let ZV = NaN;
+  try {
+    for (; it < PR_FLASH_MAX_ITER;) {
+      const rr = rrSolve(z, K, null);
+      const xy = rrPhaseComps(z, K, rr.psi);
+      const fl = phiOf(xy.x, 'liquid');
+      const fv = phiOf(xy.y, 'vapour');
+      ZL = fl.Z; ZV = fv.Z;
+      dlnK = 0;
+      const Kn = K.map((k, i) => {
+        if (props[i].inert) return 0;
+        const kn = fl.phi[i] / fv.phi[i];
+        dlnK = Math.max(dlnK, Math.abs(Math.log(kn / k)));
+        return kn;
+      });
+      K = Kn;
+      it++;
+      if (!(dlnK > PR_FLASH_TOL)) break;
+    }
+  } catch (e) {
+    return errObj('MB_PR_FLASH', `PR flash failed: ${e.message}`, 'params');
+  }
+  if (!K.every((k) => num(k))) return errObj('MB_PR_FLASH', 'PR flash produced non-finite K-values', 'params');
+  const converged = dlnK < 1e-7;
+  if (!converged) warnings.push(`flash(pr): K-values not converged after ${it} iterations (max Δln K ${dlnK.toExponential(2)}) — near-critical state?`);
+  const rr = rrSolve(z, K, warnings);
+  let { psi, regime } = rr;
+  let { x, y } = rrPhaseComps(z, K, psi);
+  const trivial = live.every((i) => Math.abs(Math.log(K[i])) < 1e-3);
+  if (trivial) {
+    let zs = 0, tpc = 0;
+    for (const i of live) { zs += z[i]; tpc += z[i] * props[i].tc_K; }
+    tpc /= zs || 1;
+    const vap = T_K > tpc;
+    psi = vap ? 1 : 0;
+    regime = vap ? 'all_vapor' : 'all_liquid';
+    x = vap ? z.map(() => 0) : z.slice();
+    y = vap ? z.slice() : z.map(() => 0);
+    warnings.push(`flash(pr): single phase (trivial solution) — classified ${vap ? 'vapour' : 'liquid'} by Kay's rule (T ${T_K.toFixed(1)} K vs pseudo-Tc ${tpc.toFixed(1)} K)`);
+  }
+  return { psi, regime, iterations: it, converged, K, Ks: kOut(K), x, y,
+    extra: { Z_liquid: ZL, Z_vapour: ZV, ss_iterations: it, max_dlnK: dlnK, trivial } };
+}
+
+// ---- Step 21: NRTL (gamma-phi, modified Raoult) flash --------------------
+const NRTL_MAX_ITER = 300;
+const NRTL_TOL = 1e-10;
+
+/**
+ * Build NRTL τ and G matrices (Aspen form): τij = aij + bij/T, αij = cij,
+ * Gij = exp(−αij·τij). Pairs not given → ideal (τ = 0).
+ * @param {string[]} keys feed component keys
+ * @param {{pairs:Array<{i:string,j:string,aij?:number,aji?:number,bij?:number,
+ *          bji?:number,cij?:number}>}} nrtl
+ * @param {number} T_K
+ * @param {string[]} warnings
+ * @returns {{tau:number[][], G:number[][], used:number}|{error:object}}
+ */
+function nrtlMatrices(keys, nrtl, T_K, warnings) {
+  const n = keys.length;
+  const tau = Array.from({ length: n }, () => new Array(n).fill(0));
+  const G = Array.from({ length: n }, () => new Array(n).fill(1));
+  const pairs = nrtl && Array.isArray(nrtl.pairs) ? nrtl.pairs : [];
+  let used = 0;
+  for (let k = 0; k < pairs.length; k++) {
+    const pr = pairs[k] || {};
+    const i = keys.indexOf(pr.i), j = keys.indexOf(pr.j);
+    if (i < 0 || j < 0 || i === j) {
+      warnings.push(`flash(nrtl): pair ${k + 1} (${pr.i}–${pr.j}) not both in the feed — ignored`);
+      continue;
+    }
+    const v = (x) => (num(x) ? x : 0);
+    const alpha = num(pr.cij) ? pr.cij : 0.3;
+    if (alpha <= 0 || alpha > 1) return errObj('MB_NRTL_ALPHA', `NRTL pair ${pr.i}–${pr.j}: cij (α) must be in (0, 1]`, `params.nrtl.pairs[${k}].cij`);
+    tau[i][j] = v(pr.aij) + v(pr.bij) / T_K;
+    tau[j][i] = v(pr.aji) + v(pr.bji) / T_K;
+    G[i][j] = Math.exp(-alpha * tau[i][j]);
+    G[j][i] = Math.exp(-alpha * tau[j][i]);
+    used++;
+  }
+  return { tau, G, used };
+}
+
+/** NRTL ln γ for liquid mole fractions x. */
+function nrtlLnGamma(x, tau, G) {
+  const n = x.length;
+  const sG = new Array(n).fill(0);   // Σk xk Gkj   (per column j)
+  const sTG = new Array(n).fill(0);  // Σm xm τmj Gmj
+  for (let j = 0; j < n; j++) {
+    for (let k = 0; k < n; k++) { sG[j] += x[k] * G[k][j]; sTG[j] += x[k] * tau[k][j] * G[k][j]; }
+  }
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    let term2 = 0;
+    for (let j = 0; j < n; j++) {
+      if (sG[j] <= 0) continue;
+      term2 += (x[j] * G[i][j] / sG[j]) * (tau[i][j] - sTG[j] / sG[j]);
+    }
+    out[i] = (sG[i] > 0 ? sTG[i] / sG[i] : 0) + term2;
+  }
+  return out;
+}
+
+/**
+ * NRTL flash: Kᵢ = γᵢ(x)·Psatᵢ(T)/P (ideal vapour), Psat by the same routes
+ * as the Raoult flash (IF97 for water). Successive substitution on the
+ * liquid composition. Supercritical components stay noncondensable,
+ * nonvolatile components stay in the liquid. VLE only — no liquid-liquid
+ * split is attempted.
+ * @returns {object|{error:object}}
+ */
+function flashNRTL(mol, T_K, P_bar, nrtl, warnings) {
+  const keys = mol.components.map((c) => c.key);
+  const z = mol.components.map((c) => c.mole_fraction);
+  const K0 = [];
+  const meth = [];
+  for (const c of mol.components) {
+    const k = flashK(c.key, T_K, P_bar);
+    if (k.error) return k;
+    if (k.warning) warnings.push(`flash: ${k.warning}`);
+    K0.push(k.K); meth.push(k.method);
+  }
+  const mats = nrtlMatrices(keys, nrtl, T_K, warnings);
+  if (mats.error) return mats;
+  if (!mats.used) warnings.push('flash(nrtl): no binary parameters given — result equals the Raoult flash');
+  const active = (i) => K0[i] > 0 && K0[i] < K_NONCOND;
+  let lnG = z.map(() => 0);
+  let K = K0.slice();
+  let it = 0;
+  let dlnK = Infinity;
+  for (; it < NRTL_MAX_ITER;) {
+    const rr = rrSolve(z, K, null);
+    const xy = rrPhaseComps(z, K, rr.psi);
+    const g = nrtlLnGamma(xy.x, mats.tau, mats.G);
+    const damp = it > 60 ? 0.5 : 1;
+    dlnK = 0;
+    const Kn = K.map((k, i) => {
+      if (!active(i)) return k;
+      const lnNew = (1 - damp) * (Math.log(k) - Math.log(K0[i])) + damp * g[i];
+      const kn = K0[i] * Math.exp(lnNew);
+      dlnK = Math.max(dlnK, Math.abs(Math.log(kn / k)));
+      return kn;
+    });
+    lnG = g;
+    K = Kn;
+    it++;
+    if (!(dlnK > NRTL_TOL)) break;
+  }
+  if (!K.every((k) => num(k))) return errObj('MB_NRTL_FLASH', 'NRTL flash produced non-finite K-values', 'params');
+  const converged = dlnK < 1e-7;
+  if (!converged) warnings.push(`flash(nrtl): not converged after ${it} iterations (max Δln K ${dlnK.toExponential(2)}) — strongly non-ideal or near a liquid-liquid split`);
+  const rr = rrSolve(z, K, warnings);
+  const xy = rrPhaseComps(z, K, rr.psi);
+  return { psi: rr.psi, regime: rr.regime, iterations: it, converged, K,
+    Ks: keys.map((key, i) => ({ key, K: K[i], method: active(i) ? 'nrtl_gamma_psat' : meth[i] })),
+    x: xy.x, y: xy.y,
+    extra: { gamma: keys.map((key, i) => ({ key, gamma: active(i) ? Math.exp(lnG[i]) : 1 })), ss_iterations: it, max_dlnK: dlnK, nrtl_pairs_used: mats.used } };
+}
+
+/**
+ * Isothermal flash. Feed = streams[0] at its own (T,P) — that state sets
+ * Hin, so Q covers both the temperature change to the flash condition and
+ * the phase split. params: { T_K, P_bar } (flash condition, required),
+ * model: 'raoult' (default, Step 8) | 'pr' (Peng-Robinson φ–φ, Step 21)
+ * | 'nrtl' (γ–Psat with params.nrtl.pairs, Step 21).
+ * VALIDITY: 'raoult' — near-ideal systems only. 'pr' — hydrocarbons, light
+ * gases, NH3 / syngas at pressure (tune kij in eos.js). 'nrtl' — polar
+ * liquids at low pressure with user binary parameters; VLE only.
+ * Stream enthalpies use the standard engine routes for every model.
+ * @param {{streams:Array, params:object}} input
+ * @returns {object} module result or error envelope
+ */
+function solveFlash(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const feed = mi.streams[0];
+  const { T_K, P_bar } = mi.params;
+  if (!num(T_K) || T_K <= 0) return errObj('MB_T', 'params.T_K (flash temperature) must be positive', 'T_K');
+  if (!num(P_bar) || P_bar <= 0) return errObj('MB_P', 'params.P_bar (flash pressure) must be positive', 'P_bar');
+  const model = mi.params.model === undefined || mi.params.model === null ? 'raoult' : mi.params.model;
+  if (!['raoult', 'pr', 'nrtl'].includes(model)) {
+    return errObj('MB_FLASH_MODEL', "params.model must be 'raoult' | 'pr' | 'nrtl'", 'model');
+  }
+  const warnings = [];
+
+  const eIn = streamEnthalpy(feed);
+  if (eIn.error) return eIn;
+  warnings.push(...eIn.warnings);
+  const mol = molarize(feed);
+  if (mol.error) return mol;
+
+  const z = mol.components.map((c) => c.mole_fraction);
+  let psi;
+  let regime;
+  let iterations = 0;
+  let converged = true;
+  let Ks;
+  let x;
+  let y;
+  let extra = {};
+  if (model === 'raoult') {
+    Ks = [];
+    for (const c of mol.components) {
+      const k = flashK(c.key, T_K, P_bar);
+      if (k.error) return k;
+      if (k.warning) warnings.push(`flash: ${k.warning}`);
+      Ks.push({ key: c.key, K: k.K, method: k.method });
+    }
+    const Kv = Ks.map((k) => k.K);
+    const rr = rrSolve(z, Kv, warnings);
+    ({ psi, regime, iterations, converged } = rr);
+    ({ x, y } = rrPhaseComps(z, Kv, psi));
+  } else {
+    const r = model === 'pr' ? flashPR(mol, T_K, P_bar, warnings) : flashNRTL(mol, T_K, P_bar, mi.params.nrtl, warnings);
+    if (r.error) return r;
+    ({ psi, regime, iterations, converged, Ks, x, y, extra } = r);
   }
 
   const nTot = mol.n_total_kmol_h;
@@ -1255,23 +1610,86 @@ function solveFlash(input) {
   liq.H_kJh = eL.H_kJh;
 
   const Hout = eV.H_kJh + eL.H_kJh;
+  const details = {
+    T_K, P_bar,
+    psi_VF: psi,
+    regime,
+    K: Ks,
+    x: mol.components.map((c, i) => ({ key: c.key, x: x[i] })),
+    y: mol.components.map((c, i) => ({ key: c.key, y: y[i] })),
+    vapor_kmol_h: psi * nTot,
+    liquid_kmol_h: (1 - psi) * nTot,
+  };
+  if (model !== 'raoult') Object.assign(details, { model }, extra);
   return {
     streams_out: [vap, liq],
     mass_balance: massBalance(feed.mass_flow_kg_h, vap.mass_flow_kg_h + liq.mass_flow_kg_h),
     energy_balance: energyBalance(eIn.H_kJh, Hout, 0),
-    details: {
-      T_K, P_bar,
-      psi_VF: psi,
-      regime,
-      K: Ks,
-      x: mol.components.map((c, i) => ({ key: c.key, x: x[i] })),
-      y: mol.components.map((c, i) => ({ key: c.key, y: y[i] })),
-      vapor_kmol_h: psi * nTot,
-      liquid_kmol_h: (1 - psi) * nTot,
-    },
+    details,
     converged,
     iterations,
-    warnings,
+    warnings: model === 'raoult' ? warnings : [...new Set(warnings)],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 3b. COMPONENT SPLITTER (Step 21) — 1 inlet → [separated, remainder].
+//     Pure split by component at feed T and P (an idealised wash / PSA /
+//     membrane / knock-out). params.splits: { key: fraction to outlet 0 }
+//     or [{key, f}]. Outlet enthalpies by the standard routes, so Q is the
+//     (small) non-additivity of the real-gas departure.
+// ---------------------------------------------------------------------------
+function solveComponentSplitter(input) {
+  const mi = moduleInput(input, 1, 1);
+  if (mi.error) return mi;
+  const feed = mi.streams[0];
+  const sp = mi.params.splits;
+  const fr = {};
+  if (Array.isArray(sp)) { for (const r of sp) if (r && typeof r.key === 'string') fr[r.key] = r.f; }
+  else if (sp && typeof sp === 'object') Object.assign(fr, sp);
+  else return errObj('MB_SPLITS', 'params.splits must be {key: fraction} or [{key, f}]', 'splits');
+  for (const k in fr) {
+    if (!num(fr[k]) || fr[k] < 0 || fr[k] > 1) return errObj('MB_SPLITS', `split fraction for '${k}' must be in [0, 1]`, 'splits');
+  }
+  const warnings = [];
+  const eIn = streamEnthalpy(feed);
+  if (eIn.error) return eIn;
+  const keys = feed.components.map((c) => c.key);
+  for (const k in fr) if (!keys.includes(k)) warnings.push(`component-splitter: '${k}' is not in the feed — ignored`);
+  const sum = feed.components.reduce((a, c) => a + c.mass_fraction, 0) || 1;
+  const top = [];
+  const bot = [];
+  let mt = 0;
+  let mb = 0;
+  for (const c of feed.components) {
+    const m = feed.mass_flow_kg_h * c.mass_fraction / sum;
+    const f = num(fr[c.key]) ? fr[c.key] : 0;
+    top.push(m * f); bot.push(m * (1 - f));
+    mt += m * f; mb += m * (1 - f);
+  }
+  const mk = (arr, tot) => ({
+    mass_flow_kg_h: tot, T_K: feed.T_K, P_bar: feed.P_bar,
+    components: feed.components.map((c, i) => ({ key: c.key,
+      mass_fraction: tot > 0 ? arr[i] / tot : c.mass_fraction / sum })).filter((c) => tot <= 0 || c.mass_fraction > 0),
+  });
+  const o1 = mk(top, mt);
+  const o2 = mk(bot, mb);
+  if (!(mt > 0)) warnings.push('component-splitter: “separated” outlet has zero flow');
+  if (!(mb > 0)) warnings.push('component-splitter: “remainder” outlet has zero flow');
+  const e1 = streamEnthalpy(o1);
+  if (e1.error) return e1;
+  const e2 = streamEnthalpy(o2);
+  if (e2.error) return e2;
+  o1.H_kJh = e1.H_kJh;
+  o2.H_kJh = e2.H_kJh;
+  return {
+    streams_out: [o1, o2],
+    mass_balance: massBalance(feed.mass_flow_kg_h, mt + mb),
+    energy_balance: energyBalance(eIn.H_kJh, e1.H_kJh + e2.H_kJh, 0),
+    details: { split_to_separated: fr, separated_kg_h: mt, remainder_kg_h: mb },
+    converged: true,
+    iterations: 0,
+    warnings: [...new Set(warnings.concat(eIn.warnings, e1.warnings, e2.warnings))],
   };
 }
 
@@ -4504,7 +4922,8 @@ function solveAbsorber(input) {
 const MODULES = {
   'mixer': solveMixer,
   'splitter': solveSplitter,
-  'flash': solveFlash,
+  'flash': solveFlash,                 // Step 21: model raoult | pr | nrtl
+  'component-splitter': solveComponentSplitter,   // Step 21
   'heat-exchanger': solveHeatExchanger,
   'rotating': solveRotating,
   'reactor': solveReactor,
@@ -4532,6 +4951,18 @@ Object.assign(MODULES, urea.register({
   waterMolarH, dhvapT, hGasMolar, hLiqMolar, hSolMolar, phaseOf,
   KJH_PER_KW, T_REF,
 }));
+
+// ---------------------------------------------------------------------------
+// STEP 21 — whole-flowsheet solver + design specs (mb-flowsheet.js). It
+// receives the LIVE MODULES object, so it can call every module above
+// (including the urea set) and is itself excluded from nesting.
+// ---------------------------------------------------------------------------
+// STEP 22 — rigorous units + column (registered before the flowsheet so the
+// flowsheet's validation sees them)
+const RIG = rigUnits.register(Object.assign({ column: rigColumn.solveColumn }, rigAnalysis.ANALYSIS_MODULES, rigKinetics.KINETIC_MODULES));
+Object.assign(MODULES, RIG);
+Object.assign(MODULES, flowsheet.register({ errObj, MODULES, runModule, streamEnthalpy, molarize, resolve,
+  rig: rigUnits, RIG_NAMES: new Set(Object.keys(RIG)) }));
 
 /**
  * Run a registered module by name — never throws (belt-and-braces for the
