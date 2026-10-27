@@ -40,6 +40,7 @@
 
 import crypto from 'node:crypto';
 import engine from './_lib/mb-engine.js';
+import compdb from './_lib/mb-compdb.js';   // STEP 22 — rigorous databank for the picker
 import mbData from './_lib/mb-data.js';
 import fluids from './_lib/fluids.js';
 
@@ -419,6 +420,22 @@ async function handleComponents(res) {
     components = pickerFromLocal();
     source = 'fallback';
   }
+  // STEP 22: append the rigorous (ChemSep) databank — keys already in the
+  // picker are flagged rigorous, the rest are added with their family
+  try {
+    // mw_r: the databank molecular weight the property-method units use for
+    // mass ↔ mole conversion (differs from the classic table by ~1e-5)
+    const have = new Set(components.map((c) => c.key));
+    for (const c of components) {
+      if (compdb.has(c.key)) { c.rigorous = true; c.mw_r = compdb.get(c.key).mw; } else c.rigorous = false;
+    }
+    for (const key of compdb.keys()) {
+      if (have.has(key)) continue;
+      const r = compdb.get(key);
+      components.push({ key, name: r.name, formula: r.formula || null, mw: r.mw, mw_r: r.mw, category: r.cat || 'other',
+        nonvolatile: false, data_quality: 'chemsep', rigorous: true });
+    }
+  } catch (_e) { /* picker still works without the databank */ }
   sendJson(res, 200, {
     ok: true,
     api_version: API_VERSION,
