@@ -130,7 +130,15 @@ const recR = rec.stream_results.rcy.mass_flow_kg_h, recP = rec.stream_results.pu
 
 /* ---------- E. Step 22: rigorous property packages, VLLE, columns, Gibbs ---------- */
 const getP = (o, path) => path.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o);
-const runVec = (id) => { const v = vec(id); const r = engine.runModule(...v.args); if (r.error) fail(id + ': ' + r.error.message); return { v, r }; };
+const runVec = (id) => {
+  const v = vec(id);
+  if (v.call === 'combine') {                     // sum of engine results (e.g. an integral heat of absorption from three enthalpies)
+    let value = 0;
+    for (const t of v.args.terms) { const q = engine[t.fn](...t.args); if (q.error) fail(id + ': ' + q.error.message); value += t.coef * getP(q, t.field); }
+    return { v, r: { value } };
+  }
+  const r = engine.runModule(...v.args); if (r.error) fail(id + ': ' + r.error.message); return { v, r };
+};
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => 'MB-' + String(a + i).padStart(3, '0'));
 const tolOf = (v, k) => (typeof v.tol === 'number' ? v.tol : (v.tol[k] !== undefined ? v.tol[k] : v.tol.default));
 const NICE = {
@@ -151,20 +159,38 @@ const NICE = {
   'details.rows.0.phases.liquid.acid_gas.water_activity': 'water activity', 'details.rows.0.phases.liquid.Cp_kJkgK': 'liquid Cp, kJ/kg·K', 'details.rows.0.phases.liquid.rho_kgm3': 'liquid density, kg/m³',
   'details.P_bar': 'bubble pressure, bar', 'details.duty_kW': 'heat released, kW', 'details.profile.0.y.benzene': 'top vapour y benzene', 'details.profile.0.T_K': 'condenser T, K',
 };
+const STEAM_NICE = {
+  'details.duty_kW': 'heater duty, kW', 'streams_out.0.vapour_fraction': 'outlet vapour fraction', 'streams_out.0.rig.props.phases.0.rho_kgm3': 'outlet density, kg/m³',
+  'streams_out.0.rig.props.phases.0.Cp_kJkgK': 'outlet cp, kJ/kg·K', 'streams_out.0.rig.props.phases.0.mu_cP': 'outlet viscosity, cP', 'streams_out.0.rig.props.phases.0.k_WmK': 'outlet conductivity, W/m·K',
+  'streams_out.0.rig.props.rho_kgm3': 'outlet density, kg/m³', 'details.power_kW': 'shaft power, kW', 'details.vapour_fraction_out': 'exhaust quality (vapour fraction)',
+  'details.T_out_K': 'outlet T, K', 'details.steam_rate_kg_kWh': 'steam rate, kg/kWh', 'details.efficiency': 'efficiency (calculated)', 'details.power_hp_kW': 'HP-section power, kW',
+  'details.power_lp_kW': 'LP-section power, kW', 'details.T_extract_K': 'extraction T, K', 'streams_out.0.mass_flow_kg_h': 'extraction flow, kg/h', 'streams_out.1.mass_flow_kg_h': 'exhaust flow, kg/h',
+  'mass_balance.closure_pct': 'mass closure, %', 'energy_balance.Q_kW': 'energy-balance residual, kW', 'details.rho_kgm3': 'inlet density, kg/m³', 'details.isentropic_power_kW': 'isentropic power, kW',
+  'block_results.b1.result.details.power_kW': 'turbine power, kW', 'block_results.b1.result.details.vapour_fraction_out': 'turbine exhaust quality', 'block_results.b2.result.details.duty_kW': 'condenser duty, kW',
+  'block_results.b3.result.details.power_kW': 'pump power, kW', 'stream_results.s5.T_K': 'feed-water T, K', 'stream_results.s2.T_K': 'process-steam T, K',
+};
+const MDEA_NICE = {
+  'details.P_bar': 'bubble pressure, bar (thesis condition 1.10)', 'value': 'heat of absorption, kJ/kmol CO2',
+  'details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa': 'equilibrium CO₂ pressure, kPa',
+  'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEA': 'true x MDEA', 'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEAH+': 'true x MDEAH⁺',
+  'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.HCO3-': 'true x HCO₃⁻', 'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO3--': 'true x CO₃²⁻',
+  'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO2': 'true x CO₂(aq)',
+};
+const AMDEA_NICE = { 'details.P_bar': 'bubble pressure, bar', 'details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa': 'equilibrium CO₂ pressure, kPa', 'details.rows.0.phases.liquid.rho_kgm3': 'liquid density, kg/m³' };
 const qName = (k) => NICE[k] || k.replace(/^details\./, '').replace(/^streams_out\.0\.rig\.x\./, 'distillate x ').replace(/^streams_out\.1\.rig\.x\./, 'bottoms x ')
   .replace(/^x1\./, 'light liquid x ').replace(/^x2\./, 'heavy liquid x ').replace(/^y\./, 'vapour y ').replace(/^outlet_mole_frac\./, 'outlet y ');
-let s22Worst = { flash: 0, three: 0, colPct: 0, colX: 0, gibbs: 0, env: 0, bin: 0, kin: 0, lhhw: 0, assocH: 0 }, s22N = 0, s22Pass = 0, s23N = 0, s23Pass = 0, s24N = 0, s24Pass = 0, s25N = 0, s25Pass = 0;
+let s22Worst = { flash: 0, three: 0, colPct: 0, colX: 0, gibbs: 0, env: 0, bin: 0, kin: 0, lhhw: 0, assocH: 0, steamRel: 0 }, s22N = 0, s22Pass = 0, s23N = 0, s23Pass = 0, s24N = 0, s24Pass = 0, s25N = 0, s25Pass = 0, s26N = 0, s26Pass = 0, s27N = 0, s27Pass = 0, s28N = 0, s28Pass = 0;
 const vecTable = (ids, kind) => {
   const rows = [];
   for (const id of ids) {
     const { v, r } = runVec(id);
     const keys = Object.keys(v.expect).filter((k) => typeof v.expect[k] === 'number' && k !== 'details.element_balance_max_rel');
-    const s23 = +id.slice(3) >= 143 && +id.slice(3) < 165, s24 = +id.slice(3) >= 165 && +id.slice(3) < 175, s25 = +id.slice(3) >= 175;
+    const s23 = +id.slice(3) >= 143 && +id.slice(3) < 165, s24 = +id.slice(3) >= 165 && +id.slice(3) < 175, s25 = +id.slice(3) >= 175 && +id.slice(3) < 196, s26 = +id.slice(3) >= 196 && +id.slice(3) < 208, s27 = +id.slice(3) >= 208 && +id.slice(3) < 219, s28 = +id.slice(3) >= 219;
     keys.forEach((k, i) => {
       const a = getP(r, k), e = v.expect[k];
       const d = Math.abs(a - e), tol = tolOf(v, k);
       if (!(d <= tol)) fail(id + ' ' + k + ': ' + a + ' vs ' + e);
-      if (s25) { s25N++; s25Pass++; } else if (s24) { s24N++; s24Pass++; } else if (s23) { s23N++; s23Pass++; } else { s22N++; s22Pass++; }
+      if (s28) { s28N++; s28Pass++; } else if (s27) { s27N++; s27Pass++; } else if (s26) { s26N++; s26Pass++; if (e !== 0) s22Worst.steamRel = Math.max(s22Worst.steamRel, d / Math.abs(e)); } else if (s25) { s25N++; s25Pass++; } else if (s24) { s24N++; s24Pass++; } else if (s23) { s23N++; s23Pass++; } else { s22N++; s22Pass++; }
       if (kind === 'lhhw' && /conversion|outlet_mole_frac/.test(k)) s22Worst.lhhw = Math.max(s22Worst.lhhw, d);
       if (kind === 'assoc' && /H_kJkmol/.test(k)) s22Worst.assocH = Math.max(s22Worst.assocH, d / 1000);
       if (kind === 'env' && /T_K/.test(k)) s22Worst.env = Math.max(s22Worst.env, d);
@@ -176,7 +202,7 @@ const vecTable = (ids, kind) => {
       if (kind === 'col') { if (pct !== null) s22Worst.colPct = Math.max(s22Worst.colPct, pct); else s22Worst.colX = Math.max(s22Worst.colX, d); }
       if (kind === 'gibbs') s22Worst.gibbs = Math.max(s22Worst.gibbs, d);
       const dig = Number.isInteger(e) && Math.abs(e) < 100 && !/T_K|T_out/.test(k) ? 0 : Math.abs(e) >= 100 ? 2 : Math.abs(e) >= 10 ? 3 : 6;
-      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
+      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : (kind === 'steam' && STEAM_NICE[k]) || (kind === 'mdea' && MDEA_NICE[k]) || (kind === 'amdea' && AMDEA_NICE[k]) || qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
     });
   }
   return rows.join('\n');
@@ -198,9 +224,95 @@ const k2Table = vecTable(range(182, 185), 'k2');
 const armandTable = vecTable(range(186, 188), 'armand');
 const murphTable = vecTable(range(189, 190), 'murph');
 const edgeTable = vecTable(range(193, 195), 'edge');
+/* ---------- G. Step 26: IAPWS-IF97 steam package, turbines and compressors ---------- */
+const steamTable = vecTable([...range(196, 204), 'MB-207'], 'steam');
 const R25 = REF.step25;
 const molS = (mol, T, P) => { const ks = Object.keys(mol); const m = ks.map((k) => mol[k] * compdb.get(k).mw); const t = m.reduce((a, b) => a + b, 0); return { mass_flow_kg_h: t, T_K: T, P_bar: P, components: ks.map((k, i) => ({ key: k, mass_fraction: m[i] / t })) }; };
-// every measured MEA point (Arshad et al. 2014)
+/* ---------- G2. Step 27: aqueous MDEA, Extended UNIQUAC (Sadegh 2013) ---------- */
+const mdeaTable = vecTable(range(208, 218), 'mdea');
+const amdeaTable = vecTable(range(219, 224), 'amdea');
+const R27 = REF.step27;
+const num = (x) => typeof x === "number" && Number.isFinite(x);
+const KMD = 'methyl-diethanolamine';
+const mdeaBubble = (wt, al, T) => {
+  const a = wt / 100 / 0.1191622, w = (1 - wt / 100) / 0.01801528;
+  const r = engine.runModule('r-flash', { streams: [molS({ H2O: w, [KMD]: a, CO2: al * a }, T, 5)], params: { property_package: { model: 'amine-mdea' }, T_K: T, vapour_fraction: 0 } });
+  if (r.error) throw new Error(r.error.message);
+  return r.details.P_bar;
+};
+const mdeaLoading = (wt, T) => {               // loading at 110 kPa total pressure (bisection on the bubble pressure)
+  let lo = 1e-4, hi = 1.4;
+  if (mdeaBubble(wt, lo, T) > 1.1 || mdeaBubble(wt, hi, T) < 1.1) return NaN;
+  for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (mdeaBubble(wt, m, T) > 1.1) hi = m; else lo = m; if (hi - lo < 2e-5) break; }
+  return 0.5 * (lo + hi);
+};
+const mdeaRows = [];
+let mdeaRepWorst = 0, mdeaRepN = 0;
+const mdeaExp = {};
+for (const [Tc, rows] of Object.entries(R27.loading_110kPa)) {
+  const T = +Tc + 273.15;
+  const o = mdeaExp[Tc] = { n: 0, dev: 0, nT: 0 };
+  for (const [wt, meas, thesisModel] of rows) {
+    let al;
+    try { al = mdeaLoading(wt, T); } catch (_e) { al = NaN; }
+    const dRep = Math.abs(al - thesisModel);
+    if (num(al) && wt <= 80) { mdeaRepWorst = Math.max(mdeaRepWorst, dRep); mdeaRepN++; }
+    if (num(al) && wt >= 20 && wt <= 80) { o.n++; o.dev += Math.abs(al - meas) / meas; o.nT += Math.abs(thesisModel - meas) / meas; }
+    mdeaRows.push(`<tr><td>${Tc}</td><td>${f(wt, 2)}</td><td>${f(meas, 2)}</td><td>${f(thesisModel, thesisModel < 0.01 ? 3 : 2)}</td><td>${num(al) ? f(al, 3) : '—'}</td><td>${num(al) ? f(al - thesisModel, 3) : '—'}</td></tr>`);
+  }
+}
+const mdeaExpRows = Object.entries(mdeaExp).map(([Tc, o]) => `<tr><td>${Tc}</td><td>${o.n}</td><td>${f(100 * o.dev / o.n, 1)} %</td><td>${f(100 * o.nT / o.n, 1)} %</td><td>${R27.model_aard_pct[Tc]} %</td></tr>`).join('\n');
+
+/* ---------- G3. Step 28: activated MDEA (piperazine) — fitted species vs measured CO2 pressures ---------- */
+const R28 = REF.step28;
+const KPZ = 'piperazine';
+const amP = (Tc, mM, mP, al) => {
+  const T = Tc + 273.15, g = al * (mM + 2 * mP);
+  const mol = mM > 0 ? { H2O: 1 / 0.01801528, [KMD]: mM, [KPZ]: mP, CO2: g } : { H2O: 1 / 0.01801528, [KPZ]: mP, CO2: g };
+  const r = engine.runModule('property-table', { streams: [molS(mol, T, 30)], params: { property_package: { model: 'amine-mdea' }, vary: 'T', from: T, to: T + 1, points: 2, P_bar: 30 } });
+  if (r.error) throw new Error('amine-mdea PZ: ' + r.error.message);
+  return r.details.rows[0].phases.liquid.acid_gas.P_CO2_eq_kPa;
+};
+const AM_SETS = [
+  ['chen72', '7 m MDEA / 2 m PZ', 'Chen (2011), Table 4.7', false, (r) => [r[0], 7, 2, r[1], r[2]]],
+  ['chen55', '5 m MDEA / 5 m PZ', 'Chen (2011), Table 4.8', true, (r) => [r[0], 5, 5, r[1], r[2]]],
+  ['xu72', '7:2 MDEA/PZ, 10.5–10.7 m alkalinity', 'Xu (2011), Table 2-8', false, (r) => [r[1], r[0] * 7 / 11, r[0] * 2 / 11, r[2], r[3]]],
+  ['xu55', '5:5 MDEA/PZ, 14.4–14.6 m alkalinity', 'Xu (2011), Table 2-9', false, (r) => [r[1], r[0] / 3, r[0] / 3, r[2], r[3]]],
+  ['xupz', 'aqueous PZ, 4.9–8.0 m', 'Xu (2011), Table 2-2', false, (r) => [r[1], 0, r[0], r[2], r[3]]],
+];
+const amSummary = [], amRows = [];
+let amHeld = 0, amAllN = 0, amAllDev = 0;
+for (const [key, label, src, held, conv] of AM_SETS) {
+  let n = 0, dev = 0, bias = 0, mx = 0;
+  const rows = [];
+  for (const raw of R28[key]) {
+    const [Tc, mM, mP, al, Pm] = conv(raw);
+    const Pc = amP(Tc, mM, mP, al);
+    const e = Pc / Pm - 1;
+    n++; dev += Math.abs(e); bias += e; mx = Math.max(mx, Math.abs(e));
+    rows.push(`<tr><td>${f(Tc, 0)}</td><td>${f(al, 3)}</td><td>${f(Pm, Pm < 10 ? 2 : 0)}</td><td>${f(Pc, Pc < 10 ? 2 : 0)}</td><td>${f(100 * e, 0)} %</td></tr>`);
+  }
+  amAllN += n; amAllDev += dev;
+  if (held) amHeld = dev / n;
+  amSummary.push(`<tr><td class="l">${esc(label)}</td><td class="l">${esc(src)}</td><td>${held ? '<b>held out</b>' : 'fitted'}</td><td>${n}</td><td>${f(100 * dev / n, 1)} %</td><td>${f(100 * bias / n, 1)} %</td><td>${f(100 * mx, 0)} %</td></tr>`);
+  amRows.push(`<tr><td class="l" colspan="5"><b>${esc(label)}</b> · ${esc(src)}${held ? ' · held out of the fit' : ''}</td></tr>` + rows.join(''));
+}
+// aqueous-PZ correlation of Xu (2011) at absorber temperatures (regressed to five literature data sets)
+const XC = R28.xu_pz_correlation;
+const xuCorr = (Tc, al) => { const T = Tc + 273.15; return Math.exp(XC.a + XC.b / T + XC.c * al + XC.d * al * al + XC.e * al / T + XC.f * al * al / T) / 1000; };
+const amCorrRows = [];
+for (const Tc of [40, 60, 80]) for (const al of [0.25, 0.3, 0.35, 0.4]) {
+  const Pm = xuCorr(Tc, al), Pc = amP(Tc, 0, 8, al);
+  amCorrRows.push(`<tr><td>${Tc}</td><td>${f(al, 2)}</td><td>${f(Pm, 2)}</td><td>${f(Pc, 2)}</td><td>${f(100 * (Pc / Pm - 1), 0)} %</td></tr>`);
+}
+// density of the blends (Frailie 2014, Table C-1)
+let amRhoWorst = 0;
+for (const [mM, mP, Tc, al, rho] of R28.frailie_density.rows) {
+  const T = Tc + 273.15, g = al * (mM + 2 * mP);
+  const r = engine.runModule('property-table', { streams: [molS({ H2O: 1 / 0.01801528, [KMD]: mM, [KPZ]: mP, CO2: g }, T, 5)], params: { property_package: { model: 'amine-mdea' }, vary: 'T', from: T, to: T + 1, points: 2, P_bar: 5 } });
+  if (r.error) throw new Error(r.error.message);
+  amRhoWorst = Math.max(amRhoWorst, Math.abs(r.details.rows[0].phases.liquid.rho_kgm3 / (1000 * rho) - 1));
+}// every measured MEA point (Arshad et al. 2014)
 const arshRows = [], arshDev = { lo: [], hi: [] };
 for (const pt of R25.arshad2014.points) {
   const r = engine.runModule('r-flash', { streams: [molS({ MEA: R25.arshad2014.MEA_mol_per_kg_water, H2O: 1000 / 18.01528, CO2: pt.CO2_mol_per_kg_water }, pt.T_K, 20)], params: { property_package: { model: 'amine-mea' }, T_K: pt.T_K, vapour_fraction: 0 } });
@@ -327,6 +439,9 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
   <div><b>${f(aad(arshDev.lo), 1)} %</b><span>mean deviation from measured total pressures over 30 wt % MEA up to a loading of 0.45 (${arshDev.lo.length} points)</span></div>
   <div><b>${f(pqLow, 3)} %</b><span>largest CO₂-pressure difference vs USGS PHREEQC, hot potassium carbonate 25–90 °C inside the model's stable range (${f(pqHigh, 2)} % up to 125 °C)</span></div>
   <div><b>${s25Pass} / ${s25N}</b><span>Step 25 checks inside tolerance (MEA, hot carbonate, Murphree trays)</span></div>
+  <div><b>${sci(s22Worst.steamRel)}</b><span>largest relative difference, IAPWS-IF97 steam package, turbines and compressors vs the iapws library (${s26N} quantities)</span></div>
+  <div><b>${f(mdeaRepWorst, 3)}</b><span>largest loading difference (mol/mol) from the published Extended UNIQUAC MDEA model's own results (${mdeaRepN} points, 40–80 °C, printed to 2 decimals)</span></div>
+  <div><b>${f(100 * amHeld, 0)} %</b><span>average deviation in CO₂ pressure, activated MDEA (5 m MDEA / 5 m PZ, 40–100 °C) — a measured data set held out of the piperazine fit</span></div>
 </div>
 
 <h2>1 · Peng–Robinson flash vs an independent implementation</h2>
@@ -353,7 +468,7 @@ ${nhRows.join('\n')}
 <p class="note">With matching inputs the two programs agree to about ${sci(dwWorst)}, so the gap below comes from input data, not from the flash. With DWSIM's own data the separator vapour carries ${pct(d3.y.NH3)} mol % NH₃ against the engine's ${pct(e3.y.NH3)} mol %, and the H₂ and N₂ dissolved in the liquid differ by a factor of about ${f(Math.max(d3.x.H2 / e3.x.H2, e3.x.H2 / d3.x.H2), 1)} and ${f(Math.max(d3.x.N2 / e3.x.N2, e3.x.N2 / d3.x.N2), 1)}. Dissolved N₂ follows the N₂–NH₃ k<sub>ij</sub>, which the engine sets to zero; dissolved H₂ follows how H₂ is represented (effective or true critical constants); the NH₃ in the vapour moves with both, in opposite directions. This comparison does not show which set is closer to a real loop; for loop work, check these numbers against plant separator data.</p>
 
 <h2>3 · NRTL activity coefficients</h2>
-<p>γ from the engine's NRTL flash at its converged liquid composition, against <i>thermo</i>'s NRTL model at the same composition and temperature (Aspen form τ<sub>ij</sub> = a<sub>ij</sub> + b<sub>ij</sub>/T, α = ${REF.nrtl.pairs[0].cij}; parameters are test inputs, not a recommended data set).</p>
+<p>The engine's NRTL flash against an independent calculation: <i>thermo</i>'s NRTL model for γ (Aspen form τ<sub>ij</sub> = a<sub>ij</sub> + b<sub>ij</sub>/T, α = ${REF.nrtl.pairs[0].cij}; parameters are test inputs, not a recommended data set). In the two-phase case the liquid composition is solved independently as well, from the bubble condition Σ x<sub>i</sub>γ<sub>i</sub>P<sub>sat,i</sub> = P with the IAPWS-IF97 water vapour pressure (<i>iapws</i> library) and the ethanol Antoine constants the engine lists.</p>
 <div class="tw"><table><thead><tr><th>Case</th><th class="l">System</th><th>x ethanol</th><th>γ engine (EtOH / H₂O)</th><th>γ reference</th><th>max |Δγ|</th></tr></thead><tbody>
 ${nrRows.join('\n')}
 </tbody></table></div>
@@ -487,8 +602,59 @@ ${edgeTable}
 ${murphTable}
 </tbody></table></div>
 
+<h2>18 · Steam (IAPWS-IF97) package, turbines and compressors</h2>
+<p>The Steam / water method evaluates every state with the IAPWS-IF97 industrial formulation (regions 1, 2, 3, 5 and the saturation line) and the IAPWS viscosity and thermal-conductivity correlations. Reference: the same states and machines worked with the independent Python <i>iapws</i> library — heater duties from compressed water to superheated and supercritical steam (region 3 near the critical point), outlet transport properties, a turbine specified by efficiency, by measured outlet temperature and by shaft power, an extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the simulator's steam-turbine example flowsheet. The steam calculators (properties, quench, turbine power, Rankine cycle) use the same formulation and are checked against the IAPWS verification tables in their own test suite.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Unit</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${steamTable}
+</tbody></table></div>
+
+<h2>19 · Aqueous MDEA — Extended UNIQUAC</h2>
+<p>The Aqueous MDEA method is the Extended UNIQUAC electrolyte model (UNIQUAC + Debye–Hückel) with the parameter set of N. Sadegh's DTU PhD thesis (2013): true species H₂O, CO₂, MDEA, MDEAH⁺, H⁺, OH⁻, HCO₃⁻, CO₃²⁻; equilibrium constants from the fitted standard-state properties; CO₂ Henry constant of Rumpf &amp; Maurer (1993). First check: the thesis printed the loading its model predicts at 110 kPa total pressure for 10–90 wt % MDEA at 40–80 °C; the engine solves the same condition (bubble pressure = 110 kPa) with the same parameters. The water vapour pressure comes from the databank rather than the model's own Cp integration, and the vapour is ideal rather than SRK, so agreement is to the printed two decimals, not to machine precision. Second check: an independent Python implementation of the model (scipy speciation) for the species distribution, and calorimetric heat of absorption.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Condition</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${mdeaTable}
+</tbody></table></div>
+<p>Loading at 110 kPa total pressure — measured in the thesis (volumetric method), the thesis model's printed value and the engine:</p>
+<div class="tw"><table><thead><tr><th>T, °C</th><th>MDEA, wt %</th><th>Measured</th><th>Thesis model</th><th>Engine</th><th>Engine − thesis model</th></tr></thead><tbody>
+${mdeaRows.join('\n')}
+</tbody></table></div>
+<p>Against the measurements (20–80 wt %; the 10 wt % points carry 7–10 % uncertainty and the 90 wt % points are outside the fitted range):</p>
+<div class="tw"><table><thead><tr><th>T, °C</th><th>Points</th><th>Engine AARD</th><th>Thesis model, same points</th><th>Thesis model, all points (as reported)</th></tr></thead><tbody>
+${mdeaExpRows}
+</tbody></table></div>
+<p class="note">The engine follows the thesis model's own deviation from these measurements point for point, as it should. The thesis explains the growth with temperature: the volume of CO₂ consumed in its cell shrinks as temperature rises, and at 80 °C a systematic error pulls all measured loadings down; below 70 wt % MDEA the model over-predicts solubility. The parameters were regressed to 1,597 literature points (pure MDEA, MDEA–water and CO₂–MDEA–water data) and represent the ternary data used within 16 % AARD; the stated validity range is 20–200 °C, CO₂ partial pressure up to 7,565 kPa, loading 0.0002–1.4 and 5–75 wt % MDEA. Piperazine-activated MDEA (aMDEA) is not part of this method yet — Neerup et al. (2025) give the MDEA–piperazine interaction parameters, but the piperazine species' standard-state data and UNIQUAC volume / area parameters they rest on are in Fosbøl et al. (2013), which is still to be added.</p>
+
+<h2>20 · Activated MDEA — piperazine added to the MDEA model</h2>
+<p>Piperazine (PZ) activates MDEA in most ammonia-plant CO₂ removal units. No complete, self-contained piperazine parameter set has been published for this model: the DTU group keeps its set in its consortium databank, and the University of Texas models depend on Aspen Plus databank values that are not printed. So the piperazine species were added here and fitted to measured data. Five species are added: PZ, PZH⁺, the carbamate PZCOO⁻, the protonated carbamate H⁺PZCOO⁻ and the dicarbamate PZ(COO)₂²⁻. The MDEA–CO₂–water part is the Sadegh (2013) set of section 19, unchanged.</p>
+<ul>
+<li><b>PZ protonation:</b> the constant comes from Gupta, da Silva &amp; Svendsen (2022), whose correlation reproduces the measured pKa values plotted in their paper.</li>
+<li><b>Interaction parameters:</b> each piperazine species takes its UNIQUAC size, area and interaction parameters from the nearest Sadegh species: PZ and the zwitterion from MDEA, PZH⁺ from MDEAH⁺, the carbamate from HCO₃⁻ and the dicarbamate from CO₃²⁻.</li>
+<li><b>Fitted values:</b> five water interactions and the three carbamate reaction constants (each a value at 40 °C plus a reaction enthalpy) were regressed to the measured CO₂ pressures below, weighting the deviation in ln p(CO₂).</li>
+<li><b>Held-out data:</b> the 5 m MDEA / 5 m PZ data of Chen (2011) were kept out of the regression to test it.</li>
+</ul>
+<div class="tw"><table><thead><tr><th class="l">Solvent</th><th class="l">Source</th><th>Role</th><th>Points</th><th>Average |Δ|</th><th>Bias</th><th>Largest |Δ|</th></tr></thead><tbody>
+${amSummary.join('\n')}
+</tbody></table></div>
+<p>Engine test set (CO₂ pressures, a bubble pressure against the measured total pressure and a density):</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Condition</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${amdeaTable}
+</tbody></table></div>
+<p>Every point (T in °C, loading in mol CO₂ per mol alkalinity = MDEA + 2 PZ, p(CO₂) in kPa):</p>
+<div class="tw"><table><thead><tr><th>T, °C</th><th>Loading</th><th>Measured</th><th>Engine</th><th>Δ</th></tr></thead><tbody>
+${amRows.join('\n')}
+</tbody></table></div>
+<p>Aqueous piperazine (8 m) at absorber temperatures, compared with Xu's (2011) correlation of five measured data sets (Hilliard 2008, Dugas 2008, Ermatchkov 2006, Nguyen 2010, Kamps 2003). These comparison points were also used in the regression, at half weight:</p>
+<div class="tw"><table><thead><tr><th>T, °C</th><th>Loading</th><th>Correlation</th><th>Engine</th><th>Δ</th></tr></thead><tbody>
+${amCorrRows.join('\n')}
+</tbody></table></div>
+<p class="note">Density of the loaded blends: piperazine and CO₂ apparent volumes were fitted to Frailie (2014, Table C-1). The largest deviation over its 31 points is ${f(100 * amRhoWorst, 2)} %. Limits of this extension:</p>
+<ul class="note">
+<li><b>Data range:</b> the data reach 0.3 bar CO₂ below 100 °C and 0.45 mol/mol alkalinity, so the rich end of a high-pressure absorber is an extrapolation and the stream warnings say so. There, most of the CO₂ is held by MDEA, whose model is validated to 75 bar CO₂.</li>
+<li><b>Speciation:</b> the split of piperazine between its species is a by-product of fitting CO₂ pressures, not a measurement.</li>
+<li><b>Heat of absorption:</b> no calorimetric data were used. The heat implied by the temperature trend of the fitted CO₂ pressures sits within about 15 % of the trend in Xu's correlations at 80–120 °C. At 40 °C it deviates by up to about 30 %: higher at low loading, lower at high loading.</li>
+</ul>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S, NH₃ or MDEA / activated MDEA chemistry), and tray efficiencies stand in for rate-based mass transfer. The inputs for every case above are in the engine test set, cases MB-089 to MB-195.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. The inputs for every case above are in the engine test set, cases MB-089 to MB-224.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
@@ -500,6 +666,9 @@ ${murphTable}
 `;
 fs.writeFileSync(OUT, html);
 console.log('Step 22:', s22Pass + '/' + s22N, 'in tolerance · column duty worst', s22Worst.colPct.toFixed(3) + ' %', '· three-phase worst', s22Worst.three.toExponential(2));
+console.log('Step 28:', s28Pass + '/' + s28N, 'in tolerance · activated MDEA AARD all', (100 * amAllDev / amAllN).toFixed(1) + '%', 'held-out', (100 * amHeld).toFixed(1) + '%', '· density worst', (100 * amRhoWorst).toFixed(2) + '%');
+console.log('Step 27:', s27Pass + '/' + s27N, 'in tolerance · MDEA reproduction worst Δα', mdeaRepWorst.toFixed(4), 'over', mdeaRepN, 'points', '· vs measured AARD', Object.entries(mdeaExp).map(([T, o]) => T + ':' + (100 * o.dev / o.n).toFixed(1) + '%').join(' '));
+console.log('Step 26:', s26Pass + '/' + s26N, 'in tolerance · steam worst relative', s22Worst.steamRel.toExponential(2));
 console.log('Step 25:', s25Pass + '/' + s25N, 'in tolerance · MEA vs Arshad AAD (α ≤ 0.45)', aad(arshDev.lo).toFixed(2) + ' %', '· PHREEQC worst ≤90 °C', pqLow.toFixed(4) + ' %', 'all', pqHigh.toFixed(3) + ' %', '· beyond stability (not graded)', pqBeyond.length);
 console.log('Step 24:', s24Pass + '/' + s24N, 'in tolerance · LHHW worst', s22Worst.lhhw.toExponential(2), '· acid liquid ΔfH worst', s22Worst.assocH.toFixed(2) + ' kJ/mol');
 console.log('Step 23:', s23Pass + '/' + s23N, 'in tolerance · envelope worst', s22Worst.env.toFixed(3) + ' K', '· binary T worst', s22Worst.bin.toExponential(2), '· kinetics worst', s22Worst.kin.toExponential(2));
