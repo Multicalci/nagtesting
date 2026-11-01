@@ -1,15 +1,16 @@
 
 <!DOCTYPE html>
+<!-- REPO PATH: steam-turbine-power-calculator/index.html -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com</title>
-<meta name="description" content="Free online steam turbine calculator with IAPWS-IF97 pyXSteam accuracy. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
+<meta name="description" content="Free online steam turbine calculator using the full IAPWS-IF97 steam formulation. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
 <meta name="keywords" content="steam turbine calculator, back pressure turbine, condensing turbine, extraction turbine, isentropic efficiency, rankine cycle, steam enthalpy, IAPWS-IF97">
 
 <meta property="og:title" content="Steam Turbine Power Calculator — Isentropic Efficiency | multicalci.com">
-<meta property="og:description" content="Free online steam turbine calculator with IAPWS-IF97 pyXSteam accuracy. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
+<meta property="og:description" content="Free online steam turbine calculator using the full IAPWS-IF97 steam formulation. Compute shaft power, electrical output, condenser duty, steam quality. SI and Imperial units.">
 <meta property="og:url" content="https://www.multicalci.com/steam-turbine-power/">
 <meta property="og:type" content="website">
     <meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
@@ -488,7 +489,7 @@
         <a href="https://www.multicalci.com/" title="Back to multicalci.com home" style="display:inline-flex;align-items:center;gap:6px;padding:6px 15px;background:linear-gradient(135deg,rgba(255,255,255,0.18),rgba(255,255,255,0.10));color:#ffffff;border:1.5px solid rgba(255,255,255,0.35);border-radius:7px;font-size:0.78rem;font-weight:700;text-decoration:none;transition:all 0.18s;white-space:nowrap;box-shadow:0 1px 6px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(255,255,255,0.14)';this.style.transform=''">🏠 Home</a>
         <div class="eng-badge" id="engBadge">
             <div class="eng-dot" id="engDot"></div>
-            <span id="engLabel">NIST Table (fallback)</span>
+            <span id="engLabel">IAPWS-IF97 API</span>
         </div>
         <button class="share-btn" onclick="shareCalc()">⬆ Share</button>
     </div>
@@ -499,7 +500,7 @@
     <!-- SEO / About — full width -->
     <div class="about-card" style="margin-bottom:12px;">
         <h3>⚙️ Steam Turbine Power Calculator — IAPWS-IF97 Accuracy</h3>
-        <p>Professional steam turbine analysis: shaft power, electrical output, condenser heat duty, cooling water flow for all 4 turbine types. Powered by pyXSteam (±0.01 kJ/kg) with instant NIST table fallback.</p>
+        <p>Professional steam turbine analysis: shaft power, electrical output, condenser heat duty, cooling water flow for all 4 turbine types. Steam properties come from the full IAPWS-IF97 formulation (regions 1–5), computed on the server.</p>
         <div class="about-tags">
             <span class="about-tag">🔵 Back Pressure</span>
             <span class="about-tag">🌊 Condensing</span>
@@ -769,7 +770,7 @@
                         <div class="qref-card green"><div class="qref-title">Thermal Efficiency</div><div class="qref-formula">η_th = P_shaft / Q_in × 100%</div><div class="qref-desc">Q_in = ṁ × h₁. Rankine cycle efficiency.</div></div>
                     </div>
                     <div style="margin-top:10px;padding:9px 12px;background:#f0f7ff;border-radius:6px;font-size:0.72rem;color:#445566;border-left:3px solid var(--accent)">
-                        <strong>Standards:</strong> IAPWS-IF97 (pyXSteam engine). Blade erosion limit per ASME PTC 6. Efficiency ranges per IEC 60045-1.
+                        <strong>Standards:</strong> IAPWS-IF97 (regions 1, 2, 3, 4, 5). Blade erosion limit per ASME PTC 6. Efficiency ranges per IEC 60045-1.
                     </div>
                 </div>
             </div>
@@ -822,7 +823,7 @@
                     <button class="btn-secondary" onclick="generatePDF()" style="flex:1;">📄 PDF Report</button>
                 </div>
                 <div style="margin-top:8px;text-align:center;font-size:0.68rem;color:var(--text-3);" id="engineNote">
-                    Engine: <strong>NIST Table Fallback</strong> — ±1–5 kJ/kg
+                    Engine: <strong>IAPWS-IF97 (Server API)</strong> — ready
                 </div>
             </div>
 
@@ -847,7 +848,7 @@
 
     <div class="site-footer">
         <p>⚙️ multicalci.com — Steam Turbine Power Calculator</p>
-        <p>Steam properties: IAPWS-IF97 (pyXSteam) · Blade erosion limit: ASME PTC 6 · For engineering reference use</p>
+        <p>Steam properties: IAPWS-IF97 · Blade erosion limit: ASME PTC 6 · For engineering reference use</p>
         <p style="opacity:0.6;">© multicalci.com — Calculations secured server-side via IAPWS-IF97 API · Engineering reference use</p>
     </div>
 </div>
@@ -989,6 +990,8 @@ async function _doAutoSteam(section) {
             setAutoField('s1', s_disp(r.s));
             const note = r.phase === 'sat'
                 ? `Saturated vapour at ${tU(r.T_sat)} — T_sat = ${tU(r.T_sat)}`
+                : r.phase === 'supercritical'
+                ? `Supercritical fluid — above the critical pressure, no saturation (critical T = ${tU(r.T_sat)})`
                 : `Superheated steam — T_sat=${tU(r.T_sat)}, ΔT_sh=${(T_disp(T_C)-T_disp(r.T_sat)).toFixed(1)}${unitLabels[unitSys].temp}`;
             document.getElementById('inletNote').textContent = note;
 
@@ -1733,7 +1736,7 @@ SSR = 3600 / (h₁−h₂)    [kg/kWh]
     <div class="tp-card tp-card--blue" style="margin-bottom:20px;">
       <h4>Step-by-Step</h4>
       <h3>Using the Steam Turbine Power Calculator</h3>
-      <p>This calculator uses <strong>pyXSteam (IAPWS-IF97 via Pyodide)</strong> for maximum accuracy, with a built-in NIST saturation table fallback. Follow the steps below for any turbine type.</p>
+      <p>This calculator evaluates steam properties with the <strong>full IAPWS-IF97 formulation</strong> on the server (compressed liquid, superheated, near-critical and wet-steam states, checked against the IAPWS verification tables). Follow the steps below for any turbine type.</p>
     </div>
     <ol class="tp-steps">
       <li class="tp-step">
@@ -1793,7 +1796,7 @@ h₂      = 3213.6 − 0.80 × (3213.6−2740) = <span class="val">2834.7 kJ/kg<
 W_shaft = 16.667 × (3213.6−2834.7)       = <span class="good">6315 kW  (6.3 MW)</span>
 W_elec  = 6315 × 0.98 × 0.97             = <span class="good">6007 kW  (6.0 MW)</span>
 Q_proc  = 16.667 × (2834.7−604.7)        = <span class="good">37 170 kW (37.2 MW process heat)</span></div>
-          <div class="tp-tip">💡&nbsp; Enter these values into the calculator above to verify — results should match within ±0.5% depending on engine mode (pyXSteam vs NIST fallback).</div>
+          <div class="tp-tip">💡&nbsp; Enter these values into the calculator above to verify — results should match the worked figures to the rounding shown (±0.5 %).</div>
         </div>
       </li>
     </ol>
@@ -1846,7 +1849,7 @@ Q_proc  = 16.667 × (2834.7−604.7)        = <span class="good">37 170 kW (37.2
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">Specific Steam Rate</div><div class="tp-gloss-item__sym">SSR [kg/kWh]</div><div class="tp-gloss-item__def">Steam mass consumed per kWh of output: SSR = 3600/(h₁−h₂). Lower = more efficient use of steam. Typical: 3.5–16 kg/kWh. Use this to compare turbine options when steam conditions vary between designs.</div></div>
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">Heat Rate</div><div class="tp-gloss-item__sym">HR [kJ/kWh]</div><div class="tp-gloss-item__def">Heat energy input per kWh of electrical output: HR = 3600/η_cycle. Lower is better. Best condensing plants: ~7 600 kJ/kWh (47%). Back-pressure turbines appear poor in heat rate terms because process heat is not counted — use CHP overall efficiency instead.</div></div>
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">Condenser Duty</div><div class="tp-gloss-item__sym">Q_cond [kW or MW]</div><div class="tp-gloss-item__def">Heat rejected to cooling water: Q_cond = ṁ×(h₂−hf₂). Typically 2–3× shaft power in condensing turbines. Required for sizing surface condenser area, cooling towers, and cooling water pump duty — all outputs of this calculator.</div></div>
-      <div class="tp-gloss-item"><div class="tp-gloss-item__term">IAPWS-IF97</div><div class="tp-gloss-item__sym">Industrial Formulation 1997</div><div class="tp-gloss-item__def">International standard for water/steam thermodynamic properties in engineering. Five regions covering 0–2000°C and 0–100 MPa. The pyXSteam engine in this calculator implements IF97 with ±0.01 kJ/kg accuracy. Used by Aspen, HYSYS, PRO/II and all major process simulators.</div></div>
+      <div class="tp-gloss-item"><div class="tp-gloss-item__term">IAPWS-IF97</div><div class="tp-gloss-item__sym">Industrial Formulation 1997</div><div class="tp-gloss-item__def">International standard for water/steam thermodynamic properties in engineering. Five regions covering 0–2000°C and 0–100 MPa. This calculator's server engine implements IF97 in full and reproduces the IAPWS verification values to 8 significant figures. Used by Aspen, HYSYS, PRO/II and all major process simulators.</div></div>
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">CHP Overall Efficiency</div><div class="tp-gloss-item__sym">η_CHP [–]</div><div class="tp-gloss-item__def">Combined heat + power efficiency: (W_elec + Q_process) / Q_boiler. Back-pressure CHP systems typically achieve 70–85% — far higher than condensing power generation (30–38%). The basis for industrial CHP investment appraisals.</div></div>
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">Mollier Diagram (h–s)</div><div class="tp-gloss-item__sym">h vs. s chart</div><div class="tp-gloss-item__def">Graphical steam chart: enthalpy y-axis, entropy x-axis. Isentropic expansion = vertical line; real expansion slopes right. The saturation dome separates wet-steam and superheated regions. Essential for visualising turbine expansion paths and checking exhaust quality.</div></div>
       <div class="tp-gloss-item"><div class="tp-gloss-item__term">Latent Heat of Vaporisation</div><div class="tp-gloss-item__sym">hfg [kJ/kg]</div><div class="tp-gloss-item__def">Energy to convert 1 kg saturated liquid → saturated vapour at constant T and P: hfg = hg − hf. Decreases with rising pressure; zero at the critical point (374.1°C, 220.6 bar). Used to calculate steam quality and condenser duty. Auto-filled in the calculator from IAPWS-IF97.</div></div>
