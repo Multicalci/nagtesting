@@ -1,3 +1,4 @@
+# REPO PATH: api/steam-calcs.py
 
 # ════════════════════════════════════════════════════════════════════════════
 # api/steam-calcs.py
@@ -21,7 +22,10 @@
 #   The handler reads the last URL path segment and dispatches internally.
 #
 # DEPENDENCY
-#   requirements.txt (repo root):  iapws
+#   none — the IAPWS-IF97 equations are implemented below (pure Python). The
+#   same formulation, with the same coefficients, serves the flowsheet
+#   simulator in api/_lib/steam-if97.js; both are checked against the IAPWS
+#   verification tables (.github/tests/test_steam_calcs.py, tests/run-tests.js).
 #
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -30,297 +34,521 @@ import json
 import math
 from datetime import datetime
 # ═══════════════════════════════════════════════════════════════════
-# Pure-Python IAPWS-IF97 replacement — NO external dependencies
-# Replaces: from iapws import IAPWS97
-# Uses lookup tables identical to the JS steam-calculators.js tables.
-# Accuracy: ±0.05% on h,s; ±0.1% on v (table interpolation) — fine for the
-#   enthalpy/entropy-based energy balances in every section below.
-# CAVEAT: transport & misc properties exposed on _SteamState (cp, cv, mu, k, w,
-#   sigma) are crude FIXED CONSTANTS, not real correlations — display/screening
-#   only. Do NOT use them for heat-exchanger or pipe-sizing duty.
+# IAPWS-IF97 water and steam properties — pure Python, no dependencies.
+# Python twin of api/_lib/steam-if97.js (same equations, same coefficients,
+# same branch logic); both are checked against the IAPWS verification tables.
+#   region 1 compressed liquid · region 2 steam · region 3 near-critical
+#   (f(ρ,T), solved for ρ at given p, T) · region 4 saturation · region 5
+#   high-temperature steam · B23 boundary.
+# Coefficients: IAPWS R7-97(2012). Transport: viscosity IAPWS R12-08
+# (industrial, μ2 = 1); thermal conductivity IAPWS R15-11 (industrial, with
+# the critical enhancement); surface tension IAPWS R1-76(2014).
+# Units inside: p MPa, T K, h kJ/kg, s kJ/(kg·K), v m³/kg.
 # ═══════════════════════════════════════════════════════════════════
 import math
 
-# ── Saturation table ──────────────────────────────────────────────
-# Columns: [P_bar, T_C, hf, hg, sf, sg, vf, vg]
-_SAT = [[0.00611, 0.01, 0.0, 2501.4, 0.0, 9.1562, 0.0010002, 206.14], [0.01, 6.98, 29.3, 2514.2, 0.1059, 8.9756, 0.0010001, 129.208], [0.015, 13.03, 54.7, 2525.3, 0.1956, 8.8278, 0.0010007, 87.98], [0.02, 17.5, 73.47, 2533.5, 0.2607, 8.7236, 0.0010013, 67.006], [0.03, 24.08, 101.03, 2545.5, 0.3545, 8.5775, 0.0010028, 45.665], [0.04, 28.96, 121.44, 2554.4, 0.4226, 8.4746, 0.0010041, 34.797], [0.05, 32.88, 137.79, 2561.4, 0.4763, 8.395, 0.0010053, 28.193], [0.075, 40.29, 168.76, 2574.8, 0.5763, 8.2514, 0.001008, 19.238], [0.1, 45.81, 191.81, 2584.6, 0.6492, 8.1501, 0.0010103, 14.674], [0.15, 53.97, 225.9, 2599.1, 0.7548, 8.0084, 0.0010146, 10.021], [0.2, 60.06, 251.38, 2609.7, 0.8319, 7.9085, 0.0010182, 7.649], [0.3, 69.1, 289.21, 2625.3, 0.9439, 7.7686, 0.0010243, 5.229], [0.5, 81.33, 340.47, 2645.9, 1.091, 7.5939, 0.0010341, 3.24], [0.7, 89.95, 376.7, 2660.1, 1.1919, 7.479, 0.0010416, 2.365], [1.0, 99.62, 417.44, 2675.5, 1.3025, 7.3593, 0.0010432, 1.694], [1.25, 105.99, 444.3, 2685.3, 1.3739, 7.2843, 0.0010479, 1.375], [1.5, 111.37, 467.08, 2693.5, 1.4335, 7.2232, 0.0010524, 1.159], [2.0, 120.23, 504.68, 2706.6, 1.53, 7.1271, 0.0010605, 0.8857], [2.5, 127.43, 535.34, 2716.9, 1.6072, 7.0526, 0.0010681, 0.7187], [3.0, 133.55, 561.45, 2725.3, 1.6717, 6.9918, 0.0010732, 0.6058], [4.0, 143.63, 604.73, 2738.5, 1.7766, 6.8958, 0.001084, 0.4624], [5.0, 151.86, 640.21, 2748.7, 1.8606, 6.8212, 0.001094, 0.3748], [6.0, 158.85, 670.54, 2756.8, 1.9311, 6.76, 0.0011006, 0.3156], [7.0, 164.97, 697.2, 2763.5, 1.9922, 6.708, 0.001108, 0.2728], [8.0, 170.43, 721.1, 2769.1, 2.0461, 6.6627, 0.0011148, 0.2404], [9.0, 175.38, 742.82, 2773.9, 2.0946, 6.6225, 0.0011213, 0.215], [10.0, 179.91, 762.79, 2778.1, 2.1386, 6.5864, 0.0011273, 0.1944], [12.0, 187.99, 798.64, 2784.8, 2.2165, 6.5233, 0.001139, 0.1633], [15.0, 198.32, 844.87, 2792.1, 2.315, 6.4448, 0.0011565, 0.1318], [20.0, 212.42, 908.77, 2799.5, 2.4473, 6.3408, 0.0011767, 0.0996], [25.0, 223.99, 962.09, 2803.1, 2.5546, 6.2574, 0.0011972, 0.08], [30.0, 233.9, 1008.41, 2804.1, 2.6456, 6.1869, 0.0012163, 0.0666], [35.0, 242.6, 1049.75, 2803.8, 2.7253, 6.1253, 0.0012347, 0.0571], [40.0, 250.4, 1087.29, 2801.4, 2.7963, 6.07, 0.0012524, 0.0498], [50.0, 263.99, 1154.21, 2794.3, 2.9201, 5.9733, 0.0012859, 0.0394], [60.0, 275.64, 1213.32, 2784.3, 3.0248, 5.8902, 0.001319, 0.0324], [70.0, 285.88, 1266.97, 2772.1, 3.121, 5.8132, 0.0013524, 0.0274], [80.0, 295.06, 1316.61, 2757.9, 3.2076, 5.745, 0.0013843, 0.0235], [90.0, 303.4, 1363.26, 2742.8, 3.2857, 5.6811, 0.0014184, 0.0205], [100.0, 311.06, 1407.53, 2724.7, 3.3595, 5.614, 0.0014526, 0.018], [110.0, 318.15, 1450.26, 2705.0, 3.4295, 5.5473, 0.001489, 0.016], [120.0, 324.75, 1491.24, 2684.8, 3.4961, 5.4923, 0.0015267, 0.0143], [130.0, 330.93, 1531.46, 2662.9, 3.5605, 5.4295, 0.001567, 0.0127], [140.0, 336.75, 1570.98, 2638.7, 3.6229, 5.3717, 0.0016107, 0.0115], [150.0, 342.24, 1609.02, 2614.5, 3.6834, 5.3108, 0.0016582, 0.0103], [160.0, 347.44, 1649.55, 2580.6, 3.7428, 5.2455, 0.0017105, 0.0094], [170.0, 352.37, 1690.73, 2548.5, 3.7996, 5.1832, 0.0017651, 0.0084], [180.0, 357.06, 1731.97, 2509.1, 3.8553, 5.1044, 0.0018403, 0.0075], [190.0, 361.54, 1776.53, 2468.4, 3.9102, 5.0218, 0.0019262, 0.0067], [200.0, 365.81, 1826.18, 2409.7, 4.0139, 4.9269, 0.002036, 0.0059], [210.0, 369.89, 1886.25, 2336.8, 4.1014, 4.8013, 0.002213, 0.0051], [220.0, 373.71, 2010.3, 2192.4, 4.2887, 4.5481, 0.00279, 0.0038], [220.64, 374.14, 2099.26, 2099.3, 4.412, 4.412, 0.003155, 0.0032]]
+_R = 0.461526
+_TC = 647.096
+_PC = 22.064
+_RHOC = 322.0
+_PMIN = 611.213e-6
 
-# ── Superheated steam table ───────────────────────────────────────
-# Each entry: {'P': bar, 'd': [[T_C, h, s, v], ...]}
-_SH = [{'P': 1.0, 'd': [[100.0, 2676.2, 7.361, 1.696], [150.0, 2776.5, 7.615, 1.937], [200.0, 2875.5, 7.835, 2.172], [250.0, 2974.5, 8.033, 2.406], [300.0, 3074.3, 8.217, 2.639], [350.0, 3175.8, 8.39, 2.871], [400.0, 3279.6, 8.545, 3.103], [500.0, 3488.1, 8.834, 3.565], [600.0, 3705.4, 9.102, 4.028], [700.0, 3928.7, 9.352, 4.49], [800.0, 4159.0, 9.586, 4.952]]}, {'P': 5.0, 'd': [[152.0, 2748.7, 6.821, 0.375], [200.0, 2855.4, 7.059, 0.425], [250.0, 2961.0, 7.272, 0.474], [300.0, 3064.2, 7.46, 0.523], [350.0, 3168.1, 7.633, 0.57], [400.0, 3272.3, 7.794, 0.617], [500.0, 3484.9, 8.087, 0.711], [600.0, 3704.3, 8.352, 0.804], [700.0, 3927.1, 8.605, 0.897], [800.0, 4157.8, 8.84, 0.99]]}, {'P': 10.0, 'd': [[180.0, 2778.1, 6.587, 0.1944], [200.0, 2827.9, 6.694, 0.206], [250.0, 2942.6, 6.925, 0.2328], [300.0, 3051.2, 7.123, 0.2579], [350.0, 3157.7, 7.301, 0.2825], [400.0, 3264.5, 7.465, 0.3066], [500.0, 3478.5, 7.762, 0.3541], [600.0, 3697.9, 8.029, 0.4011], [700.0, 3922.5, 8.281, 0.4479], [800.0, 4154.5, 8.516, 0.4945]]}, {'P': 20.0, 'd': [[213.0, 2799.5, 6.341, 0.0996], [250.0, 2902.5, 6.545, 0.1114], [300.0, 3023.5, 6.768, 0.1255], [350.0, 3137.0, 6.958, 0.1385], [400.0, 3248.7, 7.127, 0.152], [500.0, 3467.6, 7.432, 0.1757], [600.0, 3687.9, 7.702, 0.1996], [700.0, 3913.3, 7.955, 0.2233], [800.0, 4142.0, 8.192, 0.2467]]}, {'P': 40.0, 'd': [[251.0, 2801.4, 6.07, 0.0498], [300.0, 2962.0, 6.362, 0.0589], [350.0, 3092.5, 6.584, 0.0666], [400.0, 3213.6, 6.771, 0.0734], [500.0, 3445.3, 7.09, 0.0864], [600.0, 3670.3, 7.369, 0.0989], [700.0, 3894.9, 7.624, 0.1112], [800.0, 4122.0, 7.861, 0.1234]]}, {'P': 60.0, 'd': [[276.0, 2784.3, 5.89, 0.0324], [300.0, 2885.5, 6.07, 0.0362], [350.0, 3043.4, 6.336, 0.0421], [400.0, 3178.3, 6.545, 0.0474], [500.0, 3422.2, 6.883, 0.0567], [600.0, 3658.4, 7.169, 0.0653], [700.0, 3876.1, 7.428, 0.0736], [800.0, 4095.0, 7.667, 0.0818]]}, {'P': 80.0, 'd': [[295.0, 2758.4, 5.745, 0.0235], [300.0, 2786.5, 5.794, 0.0243], [350.0, 2988.1, 6.132, 0.0299], [400.0, 3139.4, 6.366, 0.0343], [500.0, 3398.3, 6.727, 0.0398], [600.0, 3633.2, 7.059, 0.048], [700.0, 3857.2, 7.321, 0.0543], [800.0, 4074.0, 7.562, 0.0604]]}, {'P': 100.0, 'd': [[311.0, 2725.5, 5.614, 0.018], [350.0, 2924.5, 5.945, 0.0228], [400.0, 3096.5, 6.212, 0.0264], [450.0, 3249.0, 6.419, 0.0297], [500.0, 3374.2, 6.599, 0.0328], [600.0, 3625.3, 6.903, 0.0384], [700.0, 3838.2, 7.176, 0.0427], [800.0, 4053.0, 7.418, 0.0487]]}, {'P': 120.0, 'd': [[325.0, 2684.9, 5.492, 0.0143], [360.0, 2820.0, 5.752, 0.0165], [400.0, 3051.6, 6.004, 0.0208], [450.0, 3215.9, 6.233, 0.0236], [500.0, 3350.7, 6.425, 0.0262], [600.0, 3582.3, 6.742, 0.0308], [700.0, 3793.5, 7.027, 0.0351], [800.0, 4032.0, 7.271, 0.0405]]}, {'P': 140.0, 'd': [[337.0, 2637.6, 5.372, 0.0115], [360.0, 2753.0, 5.581, 0.0132], [400.0, 3001.9, 5.845, 0.0166], [450.0, 3182.5, 6.086, 0.0191], [500.0, 3323.1, 6.285, 0.0214], [600.0, 3541.2, 6.604, 0.026], [700.0, 3762.2, 6.898, 0.0302], [800.0, 4011.0, 7.143, 0.0352]]}, {'P': 160.0, 'd': [[347.0, 2580.6, 5.246, 0.0093], [380.0, 2745.0, 5.508, 0.0115], [400.0, 2947.0, 5.693, 0.0132], [450.0, 3146.1, 5.951, 0.0157], [500.0, 3295.0, 6.156, 0.0178], [600.0, 3561.1, 6.513, 0.0214], [700.0, 3732.3, 6.781, 0.0256], [800.0, 3989.0, 7.029, 0.0302]]}, {'P': 180.0, 'd': [[357.0, 2509.1, 5.104, 0.0075], [390.0, 2748.0, 5.484, 0.01], [400.0, 2880.1, 5.554, 0.0107], [450.0, 3104.9, 5.827, 0.013], [500.0, 3266.1, 6.037, 0.0149], [600.0, 3542.0, 6.409, 0.0181], [700.0, 3701.4, 6.657, 0.0218], [800.0, 3968.0, 6.909, 0.026]]}, {'P': 200.0, 'd': [[366.0, 2409.7, 4.927, 0.0059], [395.0, 2702.0, 5.378, 0.0085], [400.0, 2818.1, 5.472, 0.0099], [450.0, 3060.1, 5.796, 0.0121], [500.0, 3239.3, 6.018, 0.0145], [600.0, 3532.0, 6.336, 0.0175], [700.0, 3670.6, 6.589, 0.021], [800.0, 3947.0, 6.845, 0.0249]]}]
+_R1_I = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 8, 8, 21, 23, 29, 30, 31, 32]
+_R1_J = [-2, -1, 0, 1, 2, 3, 4, 5, -9, -7, -1, 0, 1, 3, -3, 0, 1, 3, 17, -4, 0, 6, -5, -2, 10, -8, -11, -6, -29, -31, -38, -39, -40, -41]
+_R1_N = [0.14632971213167, -0.84548187169114, -3.756360367204, 3.3855169168385, -0.95791963387872, 0.15772038513228, -0.016616417199501, 0.00081214629983568, 0.00028319080123804, -0.00060706301565874, -0.018990068218419, -0.032529748770505, -0.021841717175414, -5.283835796993e-05, -0.00047184321073267, -0.00030001780793026, 4.7661393906987e-05, -4.4141845330846e-06, -7.2694996297594e-16, -3.1679644845054e-05, -2.8270797985312e-06, -8.5205128120103e-10, -2.2425281908e-06, -6.5171222895601e-07, -1.4341729937924e-13, -4.0516996860117e-07, -1.2734301741641e-09, -1.7424871230634e-10, -6.8762131295531e-19, 1.4478307828521e-20, 2.6335781662795e-23, -1.1947622640071e-23, 1.8228094581404e-24, -9.3537087292458e-26]
+_R2_J0 = [0, 1, -5, -4, -3, -2, -1, 2, 3]
+_R2_N0 = [-9.6927686500217, 10.086655968018, -0.005608791128302, 0.071452738081455, -0.40710498223928, 1.4240819171444, -4.383951131945, -0.28408632460772, 0.021268463753307]
+_R2_I = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 5, 6, 6, 6, 7, 7, 7, 8, 8, 9, 10, 10, 10, 16, 16, 18, 20, 20, 20, 21, 22, 23, 24, 24, 24]
+_R2_J = [0, 1, 2, 3, 6, 1, 2, 4, 7, 36, 0, 1, 3, 6, 35, 1, 2, 3, 7, 3, 16, 35, 0, 11, 25, 8, 36, 13, 4, 10, 14, 29, 50, 57, 20, 35, 48, 21, 53, 39, 26, 40, 58]
+_R2_N = [-0.0017731742473213, -0.017834862292358, -0.045996013696365, -0.057581259083432, -0.05032527872793, -3.3032641670203e-05, -0.00018948987516315, -0.0039392777243355, -0.043797295650573, -2.6674547914087e-05, 2.0481737692309e-08, 4.3870667284435e-07, -3.227767723857e-05, -0.0015033924542148, -0.040668253562649, -7.8847309559367e-10, 1.2790717852285e-08, 4.8225372718507e-07, 2.2922076337661e-06, -1.6714766451061e-11, -0.0021171472321355, -23.895741934104, -5.905956432427e-18, -1.2621808899101e-06, -0.038946842435739, 1.1256211360459e-11, -8.2311340897998, 1.9809712802088e-08, 1.0406965210174e-19, -1.0234747095929e-13, -1.0018179379511e-09, -8.0882908646985e-11, 0.10693031879409, -0.33662250574171, 8.9185845355421e-25, 3.0629316876232e-13, -4.2002467698208e-06, -5.9056029685639e-26, 3.7826947613457e-06, -1.2768608934681e-15, 7.3087610595061e-29, 5.5414715350778e-17, -9.436970724121e-07]
+_R3_I = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 8, 9, 9, 10, 10, 11]
+_R3_J = [0, 1, 2, 7, 10, 12, 23, 2, 6, 15, 17, 0, 2, 6, 7, 22, 26, 0, 2, 4, 16, 26, 0, 2, 4, 26, 1, 3, 26, 0, 2, 26, 2, 26, 2, 26, 0, 1, 26]
+_R3_N = [-15.732845290239, 20.944396974307, -7.6867707878716, 2.6185947787954, -2.808078114862, 1.2053369696517, -0.0084566812812502, -1.2654315477714, -1.1524407806681, 0.88521043984318, -0.64207765181607, 0.38493460186671, -0.85214708824206, 4.8972281541877, -3.0502617256965, 0.039420536879154, 0.12558408424308, -0.2799932969871, 1.389979956946, -2.018991502357, -0.0082147637173963, -0.47596035734923, 0.0439840744735, -0.44476435428739, 0.90572070719733, 0.70522450087967, 0.10770512626332, -0.32913623258954, -0.50871062041158, -0.022175400873096, 0.094260751665092, 0.16436278447961, -0.013503372241348, -0.014834345352472, 0.00057922953628084, 0.0032308904703711, 8.0964802996215e-05, -0.00016557679795037, -4.4923899061815e-05]
+_R5_J0 = [0, 1, -3, -2, -1, 2]
+_R5_N0 = [-13.179983674201, 6.8540841634434, -0.024805148933466, 0.36901534980333, -3.1161318213925, -0.32961626538917]
+_R5_I = [1, 1, 1, 2, 2, 3]
+_R5_J = [1, 2, 3, 3, 9, 7]
+_R5_N = [0.0015736404855259, 0.00090153761673944, -0.0050270077677648, 2.2440037409485e-06, -4.1163275453471e-06, 3.7919454822955e-08]
 
-def _lerp(x, x0, x1, y0, y1):
-    if x1 == x0: return y0
-    return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+_R3_N1 = 1.0658070028513
+_R4_N = (0, 0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2, 0.12020824702470e5,
+         -0.32325550322333e7, 0.14915108613530e2, -0.48232657361591e4, 0.40511340542057e6,
+         -0.23855557567849, 0.65017534844798e3)
+_B23_N = (0.34805185628969e3, -0.11671859879975e1, 0.10192970039326e-2, 0.57254459862746e3, 0.13918839778870e2)
 
-def _find_bracket(arr, val, col=0):
-    """Binary search — returns (lo, hi) index pair."""
-    lo, hi = 0, len(arr) - 2
-    while lo < hi:
-        mid = (lo + hi + 1) >> 1
-        if arr[mid][col] <= val: lo = mid
-        else: hi = mid - 1
-    return lo, lo + 1
 
-def _sat_by_P(P_bar):
-    """Interpolate sat table by pressure."""
-    P_bar = max(_SAT[0][0], min(_SAT[-1][0], P_bar))
-    lo, hi = _find_bracket(_SAT, P_bar, 0)
-    t = (P_bar - _SAT[lo][0]) / (_SAT[hi][0] - _SAT[lo][0]) if _SAT[hi][0] != _SAT[lo][0] else 0
-    return [_SAT[lo][i] + t * (_SAT[hi][i] - _SAT[lo][i]) for i in range(8)]
+class SteamRangeError(ValueError):
+    pass
 
-def _sat_by_T(T_C):
-    """Interpolate sat table by temperature."""
-    T_C = max(_SAT[0][1], min(_SAT[-1][1], T_C))
-    lo, hi = _find_bracket(_SAT, T_C, 1)
-    t = (T_C - _SAT[lo][1]) / (_SAT[hi][1] - _SAT[lo][1]) if _SAT[hi][1] != _SAT[lo][1] else 0
-    return [_SAT[lo][i] + t * (_SAT[hi][i] - _SAT[lo][i]) for i in range(8)]
 
-def _sh_by_PT(P_bar, T_C):
-    """Bilinear interpolation in superheated steam table."""
-    Ps = [e['P'] for e in _SH]
-    # Find P bracket
-    if P_bar <= Ps[0]:
-        pi0, pi1 = 0, 0
-    elif P_bar >= Ps[-1]:
-        pi0, pi1 = len(Ps)-1, len(Ps)-1
+def _fmtT(T): return '%.2f °C' % (T - 273.15)
+def _fmtP(p): return '%.5g bar' % (p * 10)
+
+
+def _psat(T):
+    if not (273.15 <= T <= _TC):
+        raise SteamRangeError('saturation needs 0–373.946 °C (got %s)' % _fmtT(T))
+    n = _R4_N
+    th = T + n[9] / (T - n[10])
+    A = th * th + n[1] * th + n[2]
+    B = n[3] * th * th + n[4] * th + n[5]
+    C = n[6] * th * th + n[7] * th + n[8]
+    return (2 * C / (-B + math.sqrt(B * B - 4 * A * C))) ** 4
+
+
+def _tsat(p):
+    if not (_PMIN * 0.999999 <= p <= _PC):
+        raise SteamRangeError('saturation needs 0.00611–220.64 bar (got %s)' % _fmtP(p))
+    n = _R4_N
+    b = p ** 0.25
+    E = b * b + n[3] * b + n[6]
+    F = n[1] * b * b + n[4] * b + n[7]
+    G = n[2] * b * b + n[5] * b + n[8]
+    D = 2 * G / (-F - math.sqrt(F * F - 4 * E * G))
+    return (n[10] + D - math.sqrt((n[10] + D) ** 2 - 4 * (n[9] + n[10] * D))) / 2
+
+
+def _p23(T): return _B23_N[0] + _B23_N[1] * T + _B23_N[2] * T * T
+
+
+def _gibbs_state(region, T, p, g, gp, gpp, gt, gtt, gpt, pi, tau):
+    v = pi * gp * _R * T / (p * 1000)
+    X = gp - tau * gpt
+    return dict(region=region, T=T, p=p, v=v, rho=1 / v, h=tau * gt * _R * T, s=_R * (tau * gt - g),
+                u=_R * T * (tau * gt - pi * gp), cp=-_R * tau * tau * gtt,
+                cv=_R * (-tau * tau * gtt + X * X / gpp),
+                w=math.sqrt(_R * T * 1000 * gp * gp / (X * X / (tau * tau * gtt) - gpp)),
+                kt=-pi * gpp / gp / p, alfav=(1 - tau * gpt / gp) / T)
+
+
+def _region1(T, p):
+    pi, tau = p / 16.53, 1386.0 / T
+    a, b = 7.1 - pi, tau - 1.222
+    g = gp = gpp = gt = gtt = gpt = 0.0
+    for I, J, n in zip(_R1_I, _R1_J, _R1_N):
+        aI, bJ = a ** I, b ** J
+        aI1, bJ1 = a ** (I - 1), b ** (J - 1)
+        g += n * aI * bJ
+        gp -= n * I * aI1 * bJ
+        gpp += n * I * (I - 1) * a ** (I - 2) * bJ
+        gt += n * J * aI * bJ1
+        gtt += n * J * (J - 1) * aI * b ** (J - 2)
+        gpt -= n * I * J * aI1 * bJ1
+    return _gibbs_state(1, T, p, g, gp, gpp, gt, gtt, gpt, pi, tau)
+
+
+def _ideal_plus_residual(region, T, p, tau, J0, N0, Ir, Jr, Nr, shift):
+    pi = p
+    g0, g0t, g0tt = math.log(pi), 0.0, 0.0
+    for j, n in zip(J0, N0):
+        g0 += n * tau ** j
+        g0t += n * j * tau ** (j - 1)
+        g0tt += n * j * (j - 1) * tau ** (j - 2)
+    g0p = 1 / pi
+    b = tau - shift
+    gr = grp = grpp = grt = grtt = grpt = 0.0
+    for i, j, n in zip(Ir, Jr, Nr):
+        pI, pI1 = pi ** i, pi ** (i - 1)
+        bJ, bJ1 = b ** j, b ** (j - 1)
+        gr += n * pI * bJ
+        grp += n * i * pI1 * bJ
+        grpp += n * i * (i - 1) * pi ** (i - 2) * bJ
+        grt += n * pI * j * bJ1
+        grtt += n * pI * j * (j - 1) * b ** (j - 2)
+        grpt += n * i * pI1 * j * bJ1
+    v = pi * (g0p + grp) * _R * T / (p * 1000)
+    A = 1 + pi * grp - tau * pi * grpt
+    return dict(region=region, T=T, p=p, v=v, rho=1 / v, h=_R * T * tau * (g0t + grt),
+                s=_R * (tau * (g0t + grt) - (g0 + gr)), u=_R * T * (tau * (g0t + grt) - pi * (g0p + grp)),
+                cp=-_R * tau * tau * (g0tt + grtt),
+                cv=_R * (-tau * tau * (g0tt + grtt) - A * A / (1 - pi * pi * grpp)),
+                w=math.sqrt(_R * T * 1000 * (1 + 2 * pi * grp + pi * pi * grp * grp)
+                            / ((1 - pi * pi * grpp) + A * A / (tau * tau * (g0tt + grtt)))),
+                kt=(1 - pi * pi * grpp) / (1 + pi * grp) / p, alfav=A / (1 + pi * grp) / T)
+
+
+def _region2(T, p): return _ideal_plus_residual(2, T, p, 540.0 / T, _R2_J0, _R2_N0, _R2_I, _R2_J, _R2_N, 0.5)
+def _region5(T, p): return _ideal_plus_residual(5, T, p, 1000.0 / T, _R5_J0, _R5_N0, _R5_I, _R5_J, _R5_N, 0.0)
+
+
+def _region3(rho, T):
+    d, tau = rho / _RHOC, _TC / T
+    f, fd, fdd = _R3_N1 * math.log(d), _R3_N1 / d, -_R3_N1 / (d * d)
+    ft = ftt = fdt = 0.0
+    for I, J, n in zip(_R3_I, _R3_J, _R3_N):
+        dI, dI1 = d ** I, d ** (I - 1)
+        tJ, tJ1 = tau ** J, tau ** (J - 1)
+        f += n * dI * tJ
+        fd += n * I * dI1 * tJ
+        fdd += n * I * (I - 1) * d ** (I - 2) * tJ
+        ft += n * J * dI * tJ1
+        ftt += n * J * (J - 1) * dI * tau ** (J - 2)
+        fdt += n * I * J * dI1 * tJ1
+    X, Y = d * fd - d * tau * fdt, 2 * d * fd + d * d * fdd
+    return dict(region=3, T=T, p=rho * _R * T * d * fd / 1000, v=1 / rho, rho=rho,
+                h=_R * T * (tau * ft + d * fd), s=_R * (tau * ft - f), u=_R * T * tau * ft,
+                cv=-_R * tau * tau * ftt, cp=_R * (-tau * tau * ftt + X * X / Y),
+                w=math.sqrt(max(0.0, _R * T * 1000 * (Y - X * X / (tau * tau * ftt)))),
+                kt=1000 / (rho * _R * T * Y), alfav=(fd - tau * fdt) / (2 * fd + d * fdd) / T)
+
+
+def _p3(rho, T):
+    d, tau = rho / _RHOC, _TC / T
+    fd, fdd = _R3_N1 / d, -_R3_N1 / (d * d)
+    for I, J, n in zip(_R3_I, _R3_J, _R3_N):
+        if not I:
+            continue
+        t = n * tau ** J
+        fd += t * I * d ** (I - 1)
+        fdd += t * I * (I - 1) * d ** (I - 2)
+    return rho * _R * T * d * fd / 1000, _R * T * (2 * d * fd + d * d * fdd) / 1000
+
+
+_last_rho = {'liquid': None, 'vapour': None}
+
+
+def _root_rho(T, p, branch):
+    f = lambda r: _p3(r, T)[0] - p
+    last = _last_rho[branch]
+    if last and abs(last[0] - T) < 30:
+        r = last[1]
+        for _ in range(25):
+            pp, dp = _p3(r, T)
+            if not dp > 0:
+                break
+            step = (pp - p) / dp
+            rn = r - step
+            if not (1e-6 < rn < 800):
+                break
+            r = rn
+            if abs(step) < 1e-12 * r:
+                ok = (T >= _TC or r > _RHOC * 0.98) if branch == 'liquid' else (T >= _TC or r < _RHOC * 1.02)
+                if ok and _p3(r, T)[1] > 0:
+                    _last_rho[branch] = (T, r)
+                    return r
+                break
+    if branch == 'liquid':
+        hi = 790.0
+        if not f(hi) > 0:
+            raise SteamRangeError('region 3: pressure %s at %s is above the formulation range' % (_fmtP(p), _fmtT(T)))
+        k = 0
+        while True:
+            lo = hi * 0.93
+            if lo < 100 or k > 60:
+                raise SteamRangeError('region 3: no liquid root at %s, %s' % (_fmtT(T), _fmtP(p)))
+            if f(lo) < 0:
+                break
+            hi = lo
+            k += 1
     else:
-        pi0 = next(i for i in range(len(Ps)-1) if Ps[i] <= P_bar <= Ps[i+1])
-        pi1 = pi0 + 1
-    
-    def interp_at_P(entry, T_C):
-        d = entry['d']
-        Ts = [r[0] for r in d]
-        if T_C <= Ts[0]:
-            return d[0][1], d[0][2], d[0][3]
-        if T_C >= Ts[-1]:
-            return d[-1][1], d[-1][2], d[-1][3]
-        i = next(j for j in range(len(Ts)-1) if Ts[j] <= T_C <= Ts[j+1])
-        t = (T_C - Ts[i]) / (Ts[i+1] - Ts[i])
-        h = d[i][1] + t*(d[i+1][1]-d[i][1])
-        s = d[i][2] + t*(d[i+1][2]-d[i][2])
-        v = d[i][3] + t*(d[i+1][3]-d[i][3])
-        return h, s, v
-    
-    h0, s0, v0 = interp_at_P(_SH[pi0], T_C)
-    if pi0 == pi1:
-        return h0, s0, v0
-    h1, s1, v1 = interp_at_P(_SH[pi1], T_C)
-    t = (P_bar - Ps[pi0]) / (Ps[pi1] - Ps[pi0])
-    return h0+t*(h1-h0), s0+t*(s1-s0), v0+t*(v1-v0)
-
-def _Tsat_from_P(P_bar):
-    row = _sat_by_P(P_bar)
-    return row[1]  # T_C
-
-def _Psat_from_T(T_C):
-    row = _sat_by_T(T_C)
-    return row[0]  # P_bar
-
-# ═══════════════════════════════════════════════════════════════════
-# Transport & misc properties — screening-grade correlations.
-# Ported from steam-calculators.js so the JS and Python APIs agree.
-#   viscosity     : IAPWS 2008 industrial μ0·μ1 (no critical enhancement)  → Pa·s
-#   conductivity  : IAPWS 2011 saturation-table interpolation              → W/m·K
-#   cp            : IAPWS-IF97 table interpolation                         → kJ/kg·K
-#   cv            : cp / γ (phase-typical ratio)                           → kJ/kg·K
-#   speed of sound: liquid fit / steam γRT method                         → m/s
-#   surface tension: IAPWS 1994 (saturation only)                         → N/m
-# Accuracy ~±5–15%. Use for screening/display, NOT detailed HX/pipe sizing.
-# ═══════════════════════════════════════════════════════════════════
-
-def _lerp1(xs, ys, x):
-    if x <= xs[0]:  return ys[0]
-    if x >= xs[-1]: return ys[-1]
-    i = 0
-    for i in range(len(xs) - 1):
-        if xs[i] <= x < xs[i + 1]:
+        lo = 0.4 * p * 1000 / (_R * T)
+        if not f(lo) < 0:
+            lo *= 0.25
+        k = 0
+        while True:
+            hi = lo * 1.12
+            if hi > 800 or k > 80:
+                raise SteamRangeError('region 3: no vapour root at %s, %s' % (_fmtT(T), _fmtP(p)))
+            if f(hi) > 0:
+                break
+            lo = hi
+            k += 1
+    r = 0.5 * (lo + hi)
+    for _ in range(100):
+        pp, dp = _p3(r, T)
+        fr = pp - p
+        if fr < 0:
+            lo = r
+        else:
+            hi = r
+        rn = r - fr / dp if dp > 0 else float('nan')
+        if not (lo < rn < hi):
+            rn = 0.5 * (lo + hi)
+        if abs(rn - r) < 1e-13 * r or hi - lo < 1e-13 * hi:
+            r = rn
             break
-    return ys[i] + (ys[i + 1] - ys[i]) * (x - xs[i]) / (xs[i + 1] - xs[i])
+        r = rn
+    _last_rho[branch] = (T, r)
+    return r
 
-def _dyn_visc(T_C, rho):
-    """IAPWS 2008 industrial viscosity → Pa·s"""
-    T = T_C + 273.15
-    Tstar, rhoStar = 647.096, 317.763
-    Tr, rhoR = T / Tstar, rho / rhoStar
-    if Tr <= 0:
-        return float('nan')
-    H0 = [1.67752, 2.20462, 0.6366564, -0.241605]
-    mu0 = sum(H0[i] / Tr ** i for i in range(4))
-    mu0 = 100.0 * math.sqrt(Tr) / mu0
-    H1 = [
-        [5.20094e-1, 2.22531e-1, -2.81378e-1, 1.61913e-1, -3.25372e-2, 0, 0],
-        [8.50895e-2, 9.99115e-1, -9.06851e-1, 2.57399e-1, 0, 0, 0],
-        [-1.08374,   1.88797,    -7.72479e-1, 0, 0, 0, 0],
-        [-2.89555e-1, 1.26613,   -4.89837e-1, 0, 6.98452e-2, 0, -4.35673e-3],
-        [0, 0, -2.57040e-1, 0, 0, 8.72102e-3, 0],
-        [0, 1.20573e-1, 0, 0, 0, 0, -5.93264e-4],
-    ]
-    mu1 = 0.0
+
+def _region_pt(p, T):
+    if not T >= 273.15 - 1e-9:
+        raise SteamRangeError('water/steam properties need T ≥ 0 °C (got %s)' % _fmtT(T))
+    if not T <= 2273.15:
+        raise SteamRangeError('water/steam properties need T ≤ 2000 °C (got %s)' % _fmtT(T))
+    if not p > 0:
+        raise SteamRangeError('pressure must be positive')
+    if T > 1073.15:
+        if p > 50:
+            raise SteamRangeError('above 800 °C the formulation covers p ≤ 500 bar (got %s)' % _fmtP(p))
+        return 5
+    if p > 100:
+        raise SteamRangeError('the formulation covers p ≤ 1000 bar (got %s)' % _fmtP(p))
+    if T <= 623.15:
+        return 1 if p >= _psat(max(T, 273.15)) else 2
+    if T <= 863.15 and p > _p23(T):
+        return 3
+    return 2
+
+
+def _phase_of(st):
+    if st['T'] >= _TC and st['p'] >= _PC:
+        return 'supercritical'
+    if st['region'] == 1:
+        return 'liquid'
+    if st['region'] == 3:
+        if st['T'] < _TC and st['p'] >= _psat(st['T']):
+            return 'liquid'
+        return 'liquid' if st['p'] >= _PC else 'vapour'
+    return 'vapour'
+
+
+def steam_pt(p, T):
+    r = _region_pt(p, T)
+    if r == 1:
+        st = _region1(max(T, 273.15), p)
+    elif r == 2:
+        st = _region2(T, p)
+    elif r == 5:
+        st = _region5(T, p)
+    else:
+        liquid = T < _TC and p >= _psat(T)
+        st = _region3(_root_rho(T, p, 'liquid' if liquid else 'vapour'), T)
+        st['p'] = p
+    st['phase'] = _phase_of(st)
+    st['x'] = 0.0 if st['phase'] == 'liquid' else 1.0 if st['phase'] == 'vapour' else None
+    return st
+
+
+def steam_sat_T(T):
+    if _TC - 1e-9 < T <= _TC:
+        T = _TC - 1e-9
+    p = _psat(T)
+    if T <= 623.15:
+        liq, vap = _region1(T, p), _region2(T, p)
+    else:
+        liq = _region3(_root_rho(T, p, 'liquid'), T)
+        vap = _region3(_root_rho(T, p, 'vapour'), T)
+        liq['p'] = vap['p'] = p
+    liq['phase'], liq['x'], vap['phase'], vap['x'] = 'liquid', 0.0, 'vapour', 1.0
+    return dict(T=T, p=p, liq=liq, vap=vap)
+
+
+def steam_sat_p(p):
+    s = steam_sat_T(_tsat(p))
+    s['p'] = s['liq']['p'] = s['vap']['p'] = p
+    return s
+
+
+def _liquid_side(p, T):
+    if T <= 623.15:
+        return _region1(max(T, 273.15), p)
+    if T < _TC:
+        st = _region3(_root_rho(T, p, 'liquid'), T)
+        st['p'] = p
+        return st
+    return steam_pt(p, T)
+
+
+def _vapour_side(p, T):
+    if T > 1073.15:
+        return _region5(T, p)
+    if T <= 623.15 or T > 863.15 or p <= _p23(T):
+        return _region2(T, p)
+    st = _region3(_root_rho(T, p, 'vapour'), T)
+    st['p'] = p
+    return st
+
+
+def _mix(sat, x):
+    L, V = sat['liq'], sat['vap']
+    v = L['v'] + x * (V['v'] - L['v'])
+    return dict(region=4, T=sat['T'], p=sat['p'], x=x,
+                phase='liquid' if x <= 0 else 'vapour' if x >= 1 else 'two-phase',
+                v=v, rho=1 / v, h=L['h'] + x * (V['h'] - L['h']), s=L['s'] + x * (V['s'] - L['s']),
+                u=L['u'] + x * (V['u'] - L['u']), cp=None, cv=None, w=None, kt=None, alfav=None, liq=L, vap=V)
+
+
+def steam_tx(T, x):
+    if not 0 <= x <= 1:
+        raise SteamRangeError('steam quality must be 0–1')
+    return _mix(steam_sat_T(T), x)
+
+
+def steam_px(p, x):
+    if not 0 <= x <= 1:
+        raise SteamRangeError('steam quality must be 0–1')
+    return _mix(steam_sat_p(p), x)
+
+
+def _solve_T(fn, a, b, target, what):
+    fa, fb = fn(a) - target, fn(b) - target
+    if fa == 0:
+        return a
+    if fb == 0:
+        return b
+    if (fa < 0) == (fb < 0):
+        raise SteamRangeError(what)
+    for k in range(200):
+        m = a - fa * (b - a) / (fb - fa)
+        if not (min(a, b) < m < max(a, b)) or k % 4 == 3:
+            m = 0.5 * (a + b)
+        fm = fn(m) - target
+        if abs(fm) < 1e-12 * max(1.0, abs(target)) or abs(b - a) < 1e-11:
+            return m
+        if (fm < 0) == (fa < 0):
+            a, fa = m, fm
+        else:
+            b, fb = m, fm
+    return 0.5 * (a + b)
+
+
+def _flash_by(p, target, key):
+    if not p > 0:
+        raise SteamRangeError('pressure must be positive')
+    if p > 100:
+        raise SteamRangeError('the formulation covers p ≤ 1000 bar (got %s)' % _fmtP(p))
+    Tmax = 2273.15 if p <= 50 else 1073.15
+    label = 'enthalpy' if key == 'h' else 'entropy'
+    if _PMIN <= p < _PC:
+        sat = steam_sat_p(p)
+        yl, yv = sat['liq'][key], sat['vap'][key]
+        if target < yl:
+            T = _solve_T(lambda t: _liquid_side(p, t)[key], 273.15, sat['T'], target,
+                         '%s below that of water at 0 °C and %s' % (label, _fmtP(p)))
+            st = _liquid_side(p, T)
+            st['p'], st['phase'], st['x'] = p, 'liquid', 0.0
+            return st
+        if target > yv:
+            T = _solve_T(lambda t: _vapour_side(p, t)[key], sat['T'], Tmax, target,
+                         "%s above the formulation's range at %s" % (label, _fmtP(p)))
+            st = _vapour_side(p, T)
+            st['p'] = p
+            st['phase'], st['x'] = _phase_of(st), 1.0
+            return st
+        return _mix(sat, (target - yl) / (yv - yl))
+    if p < _PMIN:
+        raise SteamRangeError('pressure below the triple-point pressure (got %s)' % _fmtP(p))
+    T = _solve_T(lambda t: steam_pt(p, t)[key], 273.15, Tmax, target,
+                 "%s outside the formulation's range at %s" % (label, _fmtP(p)))
+    return steam_pt(p, T)
+
+
+def steam_ph(p, h): return _flash_by(p, h, 'h')
+def steam_ps(p, s): return _flash_by(p, s, 's')
+
+
+_MU_H0 = (1.67752, 2.20462, 0.6366564, -0.241605)
+_MU_H = ((0.520094, 0.222531, -0.281378, 0.161913, -0.0325372, 0, 0),
+         (0.0850895, 0.999115, -0.906851, 0.257399, 0, 0, 0),
+         (-1.08374, 1.88797, -0.772479, 0, 0, 0, 0),
+         (-0.289555, 1.26613, -0.489837, 0, 0.0698452, 0, -0.00435673),
+         (0, 0, -0.25704, 0, 0, 0.00872102, 0),
+         (0, 0.120573, 0, 0, 0, 0, -0.000593264))
+
+
+def steam_viscosity(rho, T):
+    """Pa·s, IAPWS R12-08 industrial form (μ2 = 1)."""
+    Tr, dr = T / _TC, rho / _RHOC
+    mu0 = 100 * math.sqrt(Tr) / sum(h / Tr ** i for i, h in enumerate(_MU_H0))
+    s1 = 0.0
     for i in range(6):
-        ti = (1.0 / Tr - 1.0) ** i
-        s = sum(H1[i][j] * (rhoR - 1.0) ** j for j in range(7))
-        mu1 += ti * s
-    mu1 = math.exp(rhoR * mu1)
-    return mu0 * mu1 * 1e-6      # μPa·s → Pa·s
+        ti = (1 / Tr - 1) ** i
+        for j in range(7):
+            if _MU_H[i][j]:
+                s1 += _MU_H[i][j] * ti * (dr - 1) ** j
+    return mu0 * math.exp(dr * s1) * 1e-6
 
-def _therm_cond(T_C, rho):
-    """IAPWS 2011 reference-table conductivity → W/m·K"""
-    if rho > 200:   # liquid-like
-        Tl = list(range(0, 301, 10))
-        Ll = [561.0, 580.0, 598.4, 615.4, 630.5, 644.0, 655.8, 665.8, 674.1, 680.9,
-              679.1, 682.3, 683.2, 682.3, 680.0, 675.3, 669.5, 661.8, 652.3, 641.2,
-              628.7, 613.7, 596.7, 578.0, 557.5, 535.5, 511.9, 487.0, 461.5, 435.4, 407.8]
-        return _lerp1(Tl, Ll, min(max(T_C, 0), 300)) * 1e-3
-    Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600]
-    Ls = [25.1, 28.9, 33.1, 37.6, 43.1, 48.9, 55.1, 61.5, 68.0, 74.7, 81.5]
-    base = _lerp1(Ts, Ls, min(max(T_C, 100), 600))
-    corr = 0.01 * max(0.0, rho * 0.004615 * (T_C + 273.15) / 100.0 - 1.0)
-    return (base + corr) * 1e-3
 
-def _cp(T_C, P_bar, phase):
-    """IAPWS-IF97 table cp → kJ/kg·K"""
-    if phase in ('liquid', 'compressed', 'twophase'):
-        CpT = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,
-               200,210,220,230,240,250,260,270,280,290,300,320,340,360,374]
-        CpV = [4.218,4.194,4.182,4.179,4.179,4.182,4.185,4.190,4.198,4.208,4.216,4.229,
-               4.245,4.264,4.285,4.310,4.340,4.376,4.419,4.470,4.497,4.610,4.691,4.790,
-               4.906,5.062,5.267,5.545,5.932,6.550,7.500,12.00,18.00,40.00,100]
-        return _lerp1(CpT, CpV, min(max(T_C, 0), 370))
-    Ts = [100, 150, 200, 250, 300, 350, 400, 450, 500, 600]
-    Cs = [2.034,1.983,1.975,1.985,1.997,2.017,2.056,2.102,2.150,2.254]
-    base = _lerp1(Ts, Cs, min(max(T_C, 100), 600))
-    return base * (1 + 0.0004 * max(0.0, P_bar - 1))
+_K_L0 = (2.443221e-3, 1.323095e-2, 6.770357e-3, -3.454586e-3, 4.096266e-4)
+_K_L = ((1.60397357, -0.646013523, 0.111443906, 0.102997357, -0.0504123634, 0.00609859258),
+        (2.33771842, -2.78843778, 1.53616167, -0.463045512, 0.0832827019, -0.00719201245),
+        (2.19650529, -4.54580785, 3.55777244, -1.40944978, 0.275418278, -0.0205938816),
+        (-1.21051378, 1.60812989, -0.621178141, 0.0716373224, 0, 0),
+        (-2.720337, 4.57586331, -3.18369245, 1.1168348, -0.19268305, 0.012913842))
+_K_A = ((6.53786807199516, -5.61149954923348, 3.39624167361325, -2.27492629730878, 10.2631854662709, 1.97815050331519),
+        (6.52717759281799, -6.30816983387575, 8.08379285492595, -9.82240510197603, 12.1358413791395, -5.54349664571295),
+        (5.35500529896124, -3.96415689925446, 8.91990208918795, -12.033872950579, 9.19494865194302, -2.16866274479712),
+        (1.55225959906681, 0.464621290821181, 8.93237374861479, -11.0321960061126, 6.1678099993336, -0.965458722086812),
+        (1.11999926419994, 0.595748562571649, 9.8895256507892, -10.325505114704, 4.66861294457414, -0.503243546373828))
 
-def _cv(cp, phase):
-    ratio = 1.025 if phase in ('liquid', 'compressed', 'twophase') else 1.30
-    return cp / ratio
 
-def _speed_sound(T_C, P_bar, phase):
-    if phase in ('liquid', 'compressed', 'twophase'):
-        # Liquid-water quartic fit is only valid to ~100 C; above that it diverges
-        # (goes negative near saturation). Clamp the argument and floor the result
-        # so screening output stays physical. Real hot-liquid w is lower than this.
-        Tw = min(max(T_C, 0.0), 100.0)
-        w = (1402.4 + 5.038*Tw - 0.05799*Tw**2 + 3.287e-4*Tw**3
-             - 1.098e-6*Tw**4 + (0.16*P_bar if P_bar > 1 else 0.0))
-        return max(w, 900.0)
-    cp = _cp(T_C, P_bar, 'steam')
-    gamma = cp / _cv(cp, 'steam')
-    R = 8314.46 / 18.015
-    return math.sqrt(gamma * R * (T_C + 273.15))
+def steam_conductivity(rho, T, st=None):
+    """W/(m·K), IAPWS R15-11 industrial form; critical enhancement when a state is given."""
+    Tr, d = T / _TC, rho / _RHOC
+    k0 = math.sqrt(Tr) / sum(n / Tr ** i for i, n in enumerate(_K_L0))
+    s1 = 0.0
+    for i in range(5):
+        ti = (1 / Tr - 1) ** i
+        for j in range(6):
+            if _K_L[i][j]:
+                s1 += _K_L[i][j] * ti * (d - 1) ** j
+    k1 = math.exp(d * s1)
+    k2 = 0.0
+    if st and rho > 0 and st.get('cp') and st.get('cv') and st.get('kt'):
+        ai = (_K_A[0] if d <= 0.310559006 else _K_A[1] if d <= 0.776397516 else
+              _K_A[2] if d <= 1.242236025 else _K_A[3] if d <= 1.863354037 else _K_A[4])
+        drho_ref = 1 / sum(a * d ** i for i, a in enumerate(ai)) * _RHOC / _PC
+        drho = rho * st['kt']
+        dX = max(0.0, d * (_PC / _RHOC * drho - _PC / _RHOC * drho_ref * 1.5 / Tr))
+        xi = 0.13 * (dX / 0.06) ** (0.63 / 1.239)
+        y = xi / 0.4
+        if y >= 1.2e-7:
+            kap = st['cp'] / st['cv']
+            Z = 2 / math.pi / y * (((1 - 1 / kap) * math.atan(y) + y / kap)
+                                   - (1 - math.exp(-1 / (1 / y + y * y / 3 / (d * d)))))
+            k2 = 177.8514 * d * st['cp'] / 0.46151805 * Tr / (steam_viscosity(rho, T) * 1e6) * Z
+    return (k0 * k1 + k2) * 1e-3
 
-def _surf_tension(T_C):
-    """IAPWS 1994 surface tension → N/m (saturation)"""
-    T, Tc = T_C + 273.15, 647.096
-    if T >= Tc:
+
+def steam_surface_tension(T):
+    """N/m, IAPWS R1-76(2014)."""
+    if not T < _TC:
         return 0.0
-    tau = 1 - T / Tc
-    return 235.8 * tau**1.256 * (1 - 0.625*tau) * 1e-3   # mN/m → N/m
+    tau = 1 - T / _TC
+    return 0.2358 * tau ** 1.256 * (1 - 0.625 * tau)
 
-
-class _SteamState:
-    """Duck-type replacement for iapws.IAPWS97 objects."""
-    def __init__(self, h, s, T_K, P_MPa, v, phase='steam'):
-        self.h = h          # kJ/kg
-        self.s = s          # kJ/(kg·K)
-        self.T = T_K        # K
-        self.P = P_MPa      # MPa
-        self.v = v          # m³/kg
-        self.phase = phase
-        # Derived / approximated properties
-        self.u = h - P_MPa * 1000 * v          # kJ/kg  u = h - Pv
-        # Transport & misc — real T/ρ-dependent correlations (screening grade)
-        T_C   = T_K - 273.15
-        P_bar = P_MPa * 10.0
-        rho   = (1.0 / v) if (v and v > 0) else 0.0
-        self.cp    = _cp(T_C, P_bar, phase)              # kJ/(kg·K)
-        self.cv    = _cv(self.cp, phase)                 # kJ/(kg·K)
-        self.w     = _speed_sound(T_C, P_bar, phase)     # m/s
-        self.mu    = _dyn_visc(T_C, rho)                 # Pa·s
-        self.k     = _therm_cond(T_C, rho)               # W/(m·K)
-        self.sigma = _surf_tension(T_C)                  # N/m
-        self.Prandt = (self.cp * 1000 * self.mu / self.k
-                       if self.k else float('nan'))      # dimensionless
 
 class IAPWS97:
     """
-    Pure-Python IAPWS-IF97 steam properties.
-    Replaces the iapws library — no scipy/numpy required.
-    Supports the same call signatures used in steam-calcs.py:
-      IAPWS97(P=P_MPa, T=T_K)
-      IAPWS97(P=P_MPa, x=0)   saturated liquid
-      IAPWS97(P=P_MPa, x=1)   saturated vapour
-      IAPWS97(T=T_K, x=0/1)   saturation by temperature
+    Water/steam state, IAPWS-IF97 — call signatures as the iapws library:
+      IAPWS97(P=P_MPa, T=T_K)          single phase (region 1, 2, 3 or 5)
+      IAPWS97(P=P_MPa, x=0..1)         saturation by pressure (x = vapour quality)
+      IAPWS97(T=T_K,  x=0..1)          saturation by temperature
+      IAPWS97(P=P_MPa, h=kJ/kg) / IAPWS97(P=P_MPa, s=kJ/kgK)   flashes
+    Attributes: T [K], P [MPa], h, s, u [kJ/kg(K)], v [m³/kg], rho, x, cp, cv
+    [kJ/kgK], w [m/s], mu [Pa·s], k [W/mK], sigma [N/m], Prandt, region, phase.
+    Mixture (0 < x < 1) states carry no cp/cv/w/mu/k (use the saturated phases).
     """
-    def __init__(self, P=None, T=None, x=None):
-        # Convert: library uses MPa and K
-        # Our tables use bar and °C
-        if P is not None:
-            P_bar = P * 10.0   # MPa → bar
-        if T is not None:
-            T_C = T - 273.15   # K → °C
-
+    def __init__(self, P=None, T=None, x=None, h=None, s=None):
         if x is not None:
-            # Saturated state
-            if P is not None:
-                row = _sat_by_P(P_bar)
-            else:
-                row = _sat_by_T(T_C)
-                P_bar = row[0]
-            # row: [P_bar, T_C, hf, hg, sf, sg, vf, vg]
-            T_C_sat = row[1]
-            if x == 0:
-                h, s, v = row[2], row[4], row[6]
-                phase = 'liquid'
-            elif x == 1:
-                h, s, v = row[3], row[5], row[7]
-                phase = 'gas'
-            else:
-                # Wet steam: mixture
-                h = row[2] + x * (row[3] - row[2])
-                s = row[4] + x * (row[5] - row[4])
-                v = row[6] + x * (row[7] - row[6])
-                phase = 'twophase'
-            self._state = _SteamState(h, s, T_C_sat+273.15, P_bar/10.0, v, phase)
+            x = float(x)
+            sat = steam_sat_p(P) if P is not None else steam_sat_T(T)
+            st = sat['liq'] if x <= 0 else sat['vap'] if x >= 1 else _mix(sat, x)
+            if x <= 0 or x >= 1:
+                st = dict(st)
+                st['p'] = sat['p']
+        elif P is not None and T is not None:
+            st = steam_pt(P, T)
+        elif P is not None and h is not None:
+            st = steam_ph(P, h)
+        elif P is not None and s is not None:
+            st = steam_ps(P, s)
         else:
-            # P and T both specified → superheated or compressed liquid
-            T_sat_C = _Tsat_from_P(P_bar)
-            if T_C > T_sat_C + 0.05:
-                # Superheated steam
-                h, s, v = _sh_by_PT(P_bar, T_C)
-                phase = 'gas'
-            else:
-                # Compressed (subcooled) liquid.
-                # FIX: take saturated-liquid properties at the ACTUAL temperature
-                # (not at Tsat(P)), then add the Poynting pressure correction
-                #   h(T,P) = hf(T) + vf(T)*(P - Psat(T))
-                # The previous code returned hf/sf/vf at Tsat(P_bar), which ignored
-                # temperature entirely — e.g. 8 bar / 25 C water returned ~721 kJ/kg
-                # (hf at 170 C) instead of ~105 kJ/kg. That corrupted any subcooled
-                # state, including the quench-water enthalpy used in the mass balance.
-                rowT = _sat_by_T(min(max(T_C, 0.01), 373.9))  # [P,T,hf,hg,sf,sg,vf,vg]
-                Psat_bar = rowT[0]
-                hf, sf, vf = rowT[2], rowT[4], rowT[6]
-                dP_kPa = (P_bar - Psat_bar) * 100.0           # bar → kPa
-                h = hf + vf * dP_kPa                          # vf[m3/kg]·kPa = kJ/kg
-                s = sf                                        # ~pressure-independent
-                v = vf
-                phase = 'liquid'
-            # NOTE: T here is already in Kelvin (constructor takes K). The previous
-            # code passed T+273.15, double-converting and leaving .T (and now the
-            # T-dependent transport props) 273.15 K too high for superheated/
-            # compressed states. Use T directly.
-            self._state = _SteamState(h, s, (T if T is not None else T_C + 273.15),
-                                      P_bar / 10.0, v, phase)
-        
-        # Expose properties directly on self (iapws library does this)
-        st = self._state
-        self.h = st.h; self.s = st.s; self.T = st.T; self.P = st.P
-        self.v = st.v; self.u = st.u; self.cp = st.cp; self.cv = st.cv
-        self.w = st.w; self.mu = st.mu; self.k = st.k
-        self.sigma = st.sigma; self.Prandt = st.Prandt
-        self.phase = st.phase
+            raise SteamRangeError('IAPWS97 needs (P, T), (P, x), (T, x), (P, h) or (P, s)')
+        self.T = st['T']; self.P = st['p']; self.h = st['h']; self.s = st['s']
+        self.v = st['v']; self.rho = st['rho']; self.u = st['u']
+        self.x = st.get('x'); self.region = st['region']
+        self.phase = {'liquid': 'liquid', 'vapour': 'gas', 'supercritical': 'gas'}.get(st.get('phase'), 'twophase')
+        self.cp = st.get('cp'); self.cv = st.get('cv'); self.w = st.get('w')
+        if self.cp is not None and self.rho > 0:
+            self.mu = steam_viscosity(self.rho, self.T)
+            self.k = steam_conductivity(self.rho, self.T, st)
+            self.Prandt = self.cp * 1000 * self.mu / self.k if self.k else None
+        else:
+            self.mu = self.k = self.Prandt = None
+        self.sigma = steam_surface_tension(self.T)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -342,7 +570,13 @@ def _sat_pair(P_bar=None, T_C=None):
         return _sat_liq(P_bar=P_bar), _sat_vap(P_bar=P_bar)
     return _sat_liq(T_C=T_C), _sat_vap(T_C=T_C)
 
+T_CRIT_C = 647.096 - 273.15   # critical temperature, deg C
+
 def _superheated(P_bar, T_C):
+    # above the critical pressure there is no saturation: the boiler outlet is a
+    # supercritical fluid state (IF97 region 2 or 3)
+    if P_bar >= 220.64:
+        return IAPWS97(P=P_bar / 10, T=T_C + 273.15)
     liq = _sat_liq(P_bar=P_bar)
     if T_C + 273.15 <= liq.T:
         return _sat_vap(P_bar=P_bar)
@@ -358,17 +592,8 @@ def _isentropic_exhaust(s1, P2_bar, T2_C=None):
         st = IAPWS97(P=P2_MPa, T=T2_C + 273.15)
         return st.h, f'Superheated (T2={T2_C:.1f}C)'
     if s1 >= vap2.s:
-        T_lo = liq2.T + 0.5; T_hi = 1673.15
-        for _ in range(80):
-            T_mid = (T_lo + T_hi) / 2
-            if IAPWS97(P=P2_MPa, T=T_mid).s < s1:
-                T_lo = T_mid
-            else:
-                T_hi = T_mid
-            if T_hi - T_lo < 1e-4: break
-        T_exit = (T_lo + T_hi) / 2
-        st_exit = IAPWS97(P=P2_MPa, T=T_exit)
-        return st_exit.h, f'Superheated (T2s~{T_exit-273.15:.1f}C)'
+        st_exit = IAPWS97(P=P2_MPa, s=s1)
+        return st_exit.h, f'Superheated (T2s~{st_exit.T-273.15:.1f}C)'
     elif s1 >= liq2.s:
         x = (s1 - liq2.s) / max(vap2.s - liq2.s, 1e-9)
         x = max(0.0, min(1.0, x))
@@ -440,6 +665,9 @@ class handler(BaseHTTPRequestHandler):
         result = self._a_calc(phase, P_bar, T_C, x_in, specBy)
         if 'error' in result: return result
         if sys_ == 'IMP': result = self._a_imperial(result)
+        # the page treats a missing field as "not applicable"; a JSON null would break
+        # its number formatting — drop them
+        result = {k: v for k, v in result.items() if v is not None}
         return {'success': True, 'data': result}
 
     def _a_calc(self, phase, P_bar, T_C, x_in, specBy):
@@ -483,6 +711,17 @@ class handler(BaseHTTPRequestHandler):
         # A5: Superheated
         if phase == 'superheat':
             if P_bar is None or T_C is None: return {'error': 'P_bar and T_C required.'}
+            if P_bar >= _PC * 10:
+                # above the critical pressure there is no saturation line
+                st = IAPWS97(P=P_bar/10, T=T_C+273.15)
+                r  = self._a_state(st, None, None, None)
+                sc = T_C + 273.15 >= _TC
+                r.update({'phase': 'Supercritical Fluid' if sc else 'Compressed Liquid (above P_c)',
+                          'phaseCls': 'superheat' if sc else 'compressed',
+                          '_note': 'Above the critical pressure (220.64 bar) water has no saturation line, '
+                                   'so T_sat, h_f and h_g do not exist; properties from IAPWS-IF97 '
+                                   + ('region 3' if st.region == 3 else 'region %d' % st.region) + '.'})
+                return r
             liq, vap = _sat_pair(P_bar=P_bar)
             Tsat_C = liq.T - 273.15
             if T_C <= Tsat_C: return {'error': f'T must exceed T_sat={Tsat_C:.2f}C at {P_bar:.3f} bar.'}
@@ -493,21 +732,26 @@ class handler(BaseHTTPRequestHandler):
         return {'error': f'Unknown phase: {phase}'}
 
     def _a_state(self, st, liq, vap, x_val):
-        try: sigma = _safe(st.sigma, 1.0, 4)
-        except Exception: sigma = None
-        return {
+        # surface tension of the saturated liquid at T, in mN/m (the page's SI unit)
+        sigma = _safe(st.sigma, 1e3, 4) if st.T < _TC else None
+        r = {
             'T': round(st.T-273.15, 4), 'P': round(st.P*10, 4),
-            'Tsat': round(liq.T-273.15, 4), 'h': round(st.h, 3),
+            'h': round(st.h, 3),
             's': round(st.s, 5), 'v': round(st.v, 7), 'rho': round(1/st.v, 4),
             'u': round(st.u, 3), 'x': x_val,
-            'hf': round(liq.h, 3), 'hfg': round(vap.h-liq.h, 3), 'hg': round(vap.h, 3),
-            'sf': round(liq.s, 5), 'sfg': round(vap.s-liq.s, 5), 'sg': round(vap.s, 5),
-            'vf': round(liq.v, 7), 'vg': round(vap.v, 7),
             'mu': _safe(st.mu, 1e6, 4), 'lam': _safe(st.k, 1e3, 4),
             'Cp': _safe(st.cp, 1.0, 4), 'Cv': _safe(st.cv, 1.0, 4),
             'w':  _safe(st.w,  1.0, 3), 'Pr': _safe(st.Prandt, 1.0, 4),
             'sigma': sigma,
         }
+        if liq is not None:
+            r.update({
+                'Tsat': round(liq.T-273.15, 4),
+                'hf': round(liq.h, 3), 'hfg': round(vap.h-liq.h, 3), 'hg': round(vap.h, 3),
+                'sf': round(liq.s, 5), 'sfg': round(vap.s-liq.s, 5), 'sg': round(vap.s, 5),
+                'vf': round(liq.v, 7), 'vg': round(vap.v, 7),
+            })
+        return r
 
     def _a_imperial(self, r):
         tc=lambda v: round(v*9/5+32,3)   if v is not None else None
@@ -529,6 +773,7 @@ class handler(BaseHTTPRequestHandler):
         for k in ['lam']:                  c[k]=kc(c.get(k))
         for k in ['Cp','Cv']:              c[k]=cc(c.get(k))
         for k in ['w']:                    c[k]=wc(c.get(k))
+        if c.get('sigma') is not None: c['sigma']=round(c['sigma']*6.85218e-5, 8)   # mN/m → lbf/ft
         if c.get('dT_sh') is not None: c['dT_sh']=round(c['dT_sh']*9/5,4)
         return c
 
@@ -625,12 +870,12 @@ class handler(BaseHTTPRequestHandler):
 
         # ── B8: Uncertainty estimates ─────────────────────────────────────
         def _unc(P_bar_v, T_C_v, is_sh):
+            # IAPWS-IF97 equations: consistent to about 0.2 kJ/kg across region boundaries;
+            # close to the critical point properties are so steep that input errors dominate
             if T_C_v > 350 and P_bar_v > 165:
-                d = math.sqrt(((T_C_v-374.14)/24)**2+((P_bar_v-220.64)/56)**2)
-                return '+-15 kJ/kg critical' if d < 0.5 else '+-5 kJ/kg near-critical'
-            if is_sh:
-                return ('+-2 kJ/kg' if P_bar_v > 160 else '+-1 kJ/kg' if P_bar_v > 80 else '+-0.5 kJ/kg')
-            return '+-0.3 kJ/kg'
+                d = math.sqrt(((T_C_v-373.946)/24)**2+((P_bar_v-220.64)/56)**2)
+                return '+-2 kJ/kg near-critical' if d < 0.5 else '+-0.5 kJ/kg (region 3)'
+            return '+-0.2 kJ/kg'
         unc_h1 = _unc(P_s, T1, True)
         unc_h2 = _unc(P_s, T2, True)
         unc_hw = _unc(Pw,  Tw, False)
@@ -744,11 +989,16 @@ class handler(BaseHTTPRequestHandler):
             T_C   = float(body['T_C']) if body.get('T_C') is not None else None
             if not P_bar or P_bar <= 0:
                 return {'error': 'P_bar required and must be > 0'}
+            P_in  = P_bar
             P_bar = max(0.00611, min(220.64, P_bar))
             liq, vap = _sat_pair(P_bar=P_bar); Tsat_C = liq.T-273.15
+            if P_in >= 220.64 and T_C is not None:
+                # supercritical inlet: no saturation, the (p, T) state is used as given
+                st = IAPWS97(P=P_in/10, T=T_C+273.15)
+                return {'h':round(st.h,3),'s':round(st.s,5),'v':round(st.v,7),'T_sat':round(T_CRIT_C,3),'phase':'supercritical'}
             if T_C is None or T_C <= Tsat_C+0.5:
                 return {'h':round(vap.h,3),'s':round(vap.s,5),'v':round(vap.v,7),'T_sat':round(Tsat_C,3),'phase':'sat'}
-            st = IAPWS97(P=P_bar/10, T=T_C+273.15)
+            st = IAPWS97(P=P_in/10, T=T_C+273.15)
             return {'h':round(st.h,3),'s':round(st.s,5),'v':round(st.v,7),'T_sat':round(Tsat_C,3),'phase':'superheated'}
         except Exception as e:
             return {'error': f'inletProps error: {e}'}
@@ -873,6 +1123,7 @@ class handler(BaseHTTPRequestHandler):
         if cycle == 'tsat':
             P_MPa = float(params.get('P_MPa', 0))
             if P_MPa <= 0: return {'tsat': None}
+            if P_MPa >= 22.064: return {'tsat': None, 'supercritical': True, 'Tcrit': round(T_CRIT_C, 3)}
             try:
                 return {'tsat': round(_sat_liq(P_bar=P_MPa*10).T-273.15, 3)}
             except Exception: return {'tsat': None}
@@ -886,11 +1137,23 @@ class handler(BaseHTTPRequestHandler):
 
     # shared helpers
     def _d_isentropic_h(self, s1, liq, vap):
-        if s1 >= vap.s: return vap.h, 1.0
+        if s1 >= vap.s: return IAPWS97(P=liq.P, s=s1).h, 1.0
         x=(s1-liq.s)/max(vap.s-liq.s,1e-9); x=max(0.0,min(1.0,x))
         return liq.h+x*(vap.h-liq.h), x
 
-    def _d_tsat(self, P_MPa): return IAPWS97(P=P_MPa, x=0).T-273.15
+    def _d_tsat(self, P_MPa):
+        # no saturation above the critical pressure → None (callers use T_CRIT_C)
+        if P_MPa >= 22.064: return None
+        return IAPWS97(P=P_MPa, x=0).T-273.15
+
+    def _d_hot_check(self, T_C, P_MPa, Tsat, label):
+        # boiler outlet must be vapour (subcritical) or above the critical temperature
+        if Tsat is None:
+            if T_C <= T_CRIT_C:
+                return {'error': f'{label} must exceed the critical temperature {T_CRIT_C:.2f}C at supercritical pressure ({P_MPa:g} MPa).'}
+            return None
+        if T_C <= Tsat: return {'error': f'{label} must exceed Tsat={Tsat:.1f}C.'}
+        return None
 
     def _d_s1(self, liq, vap):
         return {'hf':round(liq.h,2),'sf':round(liq.s,5),
@@ -902,7 +1165,8 @@ class handler(BaseHTTPRequestHandler):
         etaT=float(p['etaT']); etaP=float(p['etaP']); etaG=float(p['etaG'])
         etaB=float(p['etaB']); mdot=float(p['mdot']); hhv=float(p['hhv'])
         TsatB=self._d_tsat(Ph)
-        if T3<=TsatB: return {'error':f'Boiler T must exceed Tsat={TsatB:.1f}C.'}
+        e=self._d_hot_check(T3,Ph,TsatB,'Boiler T')
+        if e: return e
         if Pc>=Ph: return {'error':'Condenser P must be < boiler P.'}
         st3=_superheated(Ph*10,T3); h3,s3=st3.h,st3.s
         liq1=IAPWS97(P=Pc,x=0); vap1=IAPWS97(P=Pc,x=1)
@@ -927,7 +1191,8 @@ class handler(BaseHTTPRequestHandler):
                 'h1':round(liq1.h,2),'h2':round(h2,2),'h3':round(h3,2),'h4':round(h4,2),
                 's1':self._d_s1(liq1,vap1),'s3':{'h':round(h3,2),'s':round(s3,5)},
                 'x4':round(x4,4),'moisture':round((1-x4)*100,2),
-                'TsatBoiler':round(TsatB,2),'T1':T1,'T3':T3,'Ph':Ph,'Pc':Pc,
+                'TsatBoiler':round(TsatB if TsatB is not None else T_CRIT_C,2),
+                'supercritical':TsatB is None,'T1':T1,'T3':T3,'Ph':Ph,'Pc':Pc,
                 'mdot':mdot,'etaG':etaG,'etaB':etaB}
 
     # D2: Superheat Rankine
@@ -935,7 +1200,9 @@ class handler(BaseHTTPRequestHandler):
         Tsh=float(p['Tsh']); Ph=float(p['Ph']); Tc=float(p['Tc']); Pc=float(p['Pc'])
         etaT=float(p['etaT']); etaP=float(p['etaP']); mdot=float(p['mdot'])
         TsatB=self._d_tsat(Ph)
-        if Tsh<=TsatB: return {'error':f'T_sh must exceed Tsat={TsatB:.1f}C.'}
+        e=self._d_hot_check(Tsh,Ph,TsatB,'T_sh')
+        if e: return e
+        Tref=TsatB if TsatB is not None else T_CRIT_C
         if Pc>=Ph: return {'error':'Condenser P must be < boiler P.'}
         st3=_superheated(Ph*10,Tsh); h3,s3=st3.h,st3.s
         liq1=IAPWS97(P=Pc,x=0); vap1=IAPWS97(P=Pc,x=1)
@@ -958,7 +1225,8 @@ class handler(BaseHTTPRequestHandler):
                 'h1':round(liq1.h,2),'h2':round(h2,2),'h3':round(h3,2),'h4':round(h4,2),
                 's1':self._d_s1(liq1,vap1),
                 'x4':round(x4,4),'moisture':round((1-x4)*100,2),
-                'dsh':round(Tsh-TsatB,2),'TsatB':round(TsatB,2),'Tsh':Tsh,'Ph':Ph,'Tc':Tc,'Pc':Pc}
+                'dsh':round(Tsh-Tref,2),'TsatB':round(Tref,2),'supercritical':TsatB is None,
+                'Tsh':Tsh,'Ph':Ph,'Tc':Tc,'Pc':Pc}
 
     # D3: Reheat Rankine
     def _d_reheat(self, p):
@@ -967,6 +1235,9 @@ class handler(BaseHTTPRequestHandler):
         etaHPT=float(p['etaHPT']); etaLPT=float(p['etaLPT'])
         etaP=float(p['etaP']); mdot=float(p['mdot'])
         Tc=float(p['Tc']) if p.get('Tc') is not None else self._d_tsat(Pc)
+        e=self._d_hot_check(T1,P1,self._d_tsat(P1),'HPT inlet T')
+        if e: return e
+        if not (Pc<P2<P1): return {'error':'Pressures must satisfy condenser < reheat < HPT inlet.'}
         st3=_superheated(P1*10,T1); h3,s3=st3.h,st3.s
         liq2=IAPWS97(P=P2,x=0); vap2=IAPWS97(P=P2,x=1)
         h4s,_=self._d_isentropic_h(s3,liq2,vap2); h4=h3-etaHPT*(h3-h4s)
@@ -994,7 +1265,8 @@ class handler(BaseHTTPRequestHandler):
                 'h4':round(h4,2),'h5':round(h5,2),'h6':round(h6,2),
                 's1':self._d_s1(liq_c,vap_c),
                 'x6':round(x6,4),'moisture':round((1-x6)*100,2),
-                'Tsat1':round(self._d_tsat(P1),2),'optP2':round(optP2,4),
+                'Tsat1':round(self._d_tsat(P1) if P1<22.064 else T_CRIT_C,2),
+                'supercritical':P1>=22.064,'optP2':round(optP2,4),
                 'Tc':Tc,'T1':T1,'P1':P1,'Trh':Trh,'P2':P2,'Pc':Pc}
 
     # D4: Regenerative Rankine
@@ -1003,6 +1275,9 @@ class handler(BaseHTTPRequestHandler):
         Pbleed=float(p['Pbleed']); Pc=float(p['Pc'])
         etaT=float(p['etaT']); etaP=float(p['etaP']); mdot=float(p['mdot'])
         Tc=float(p['Tc']) if p.get('Tc') is not None else self._d_tsat(Pc)
+        e=self._d_hot_check(Thi,Phi,self._d_tsat(Phi),'Turbine inlet T')
+        if e: return e
+        if not (Pc<Pbleed<Phi): return {'error':'Pressures must satisfy condenser < bleed < turbine inlet.'}
         stIn=_superheated(Phi*10,Thi); h_in,s_in=stIn.h,stIn.s
         liq_bl=IAPWS97(P=Pbleed,x=0); vap_bl=IAPWS97(P=Pbleed,x=1)
         h_bl_s,_=self._d_isentropic_h(s_in,liq_bl,vap_bl); h_bl=h_in-etaT*(h_in-h_bl_s)
@@ -1031,7 +1306,8 @@ class handler(BaseHTTPRequestHandler):
                 'h5':round(h5,2),'h6':round(h6,2),'h7':round(h7,2),
                 'h_bl':round(h_bl,2),'s1':self._d_s1(liq_c,vap_c),
                 'x4':round(x4,4),'moisture':round((1-x4)*100,2),
-                'TsatIn':round(self._d_tsat(Phi),2),'TsatBleed':round(self._d_tsat(Pbleed),2),
+                'TsatIn':round(self._d_tsat(Phi) if Phi<22.064 else T_CRIT_C,2),
+                'supercritical':Phi>=22.064,'TsatBleed':round(self._d_tsat(Pbleed),2),
                 'Thi':Thi,'Phi':Phi,'Pbleed':Pbleed,'Tc':Tc,'Pc':Pc}
 
     # D5: Carnot
