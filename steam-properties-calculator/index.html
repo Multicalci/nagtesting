@@ -1,5 +1,6 @@
 
 <!DOCTYPE html>
+<!-- REPO PATH: steam-properties-calculator/index.html -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -755,7 +756,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
             <span class="term-sym" style="background:var(--amb-p);color:var(--amb);">h_fg</span>
           </div>
           <div class="term-formula">h_fg = h_g − h_f</div>
-          <div class="term-desc">Energy required to convert saturated liquid → saturated vapor at constant T and P. At 100°C: 2257 kJ/kg. Decreases with rising pressure, reaching zero at the critical point (374.14°C, 220.9 bar).</div>
+          <div class="term-desc">Energy required to convert saturated liquid → saturated vapor at constant T and P. At 100°C: 2257 kJ/kg. Decreases with rising pressure, reaching zero at the critical point (373.946°C, 220.64 bar).</div>
           <div class="term-unit">SI: kJ/kg &nbsp;|&nbsp; Imperial: BTU/lb</div>
         </div>
 
@@ -774,8 +775,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
             <div class="term-name">Critical Point</div>
             <span class="term-sym" style="background:var(--pur-p);color:var(--pur);">Tc, Pc</span>
           </div>
-          <div class="term-formula">T_c = 374.14°C · P_c = 220.9 bar</div>
-          <div class="term-desc">Above this state, liquid and vapor phases become indistinguishable — h_fg = 0 and ρ_f = ρ_g = 317 kg/m³. Supercritical steam is used in advanced power plants for efficiencies above 45%.</div>
+          <div class="term-formula">T_c = 373.946°C · P_c = 220.64 bar</div>
+          <div class="term-desc">Above this state, liquid and vapor phases become indistinguishable — h_fg = 0 and ρ_f = ρ_g = 322 kg/m³. Supercritical steam is used in advanced power plants for efficiencies above 45%.</div>
           <div class="term-unit">IAPWS-IF97 reference values</div>
         </div>
 
@@ -784,7 +785,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
             <div class="term-name">Saturation Pressure</div>
             <span class="term-sym" style="background:var(--grn-p);color:var(--grn);">P_sat</span>
           </div>
-          <div class="term-formula">Wagner equation — ±0.003 bar</div>
+          <div class="term-formula">IAPWS-IF97 region-4 equation (exact)</div>
           <div class="term-desc">Equilibrium pressure at which phase change occurs at a given T. At 100°C = 1.01325 bar; at 200°C = 15.54 bar; at 300°C = 85.88 bar. Used for flash calculation and steam trap sizing.</div>
           <div class="term-unit">SI: bar / MPa &nbsp;|&nbsp; Imperial: psia</div>
         </div>
@@ -797,14 +798,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
           Calculation Method &amp; Error Bounds
         </div>
-        <pre><span class="hl">Saturation Pressure:</span>  Wagner equation (IAPWS-IF97 §8.1)  →  ±0.003 bar
-<span class="hl">T_sat from P:</span>         Newton iteration on Wagner           →  ±0.01°C
-<span class="hl">Sat. Properties:</span>      Interpolated reference tables (34 pts, 0.01–374°C)
-                      h_f, h_fg, h_g  →  ±0.3 kJ/kg
-                      s_f, s_fg, s_g  →  ±0.002 kJ/(kg·K)
-                      v_f, v_g        →  ±0.1%
-<span class="hl">Compressed Liquid:</span>    h = h_f(T) + v_f·ΔP  (IAPWS approx.)   →  ±0.5%
-<span class="hl">Superheated Steam:</span>    Cp polynomial + sat. boundary           →  ±0.5%
+        <pre><span class="hl">Formulation:</span>          IAPWS-IF97 (Revised Release 2012) — the full equations
+<span class="hl">P_sat(T), T_sat(P):</span>   region-4 saturation equation (closed form, exact)
+<span class="hl">Sat. Properties:</span>      regions 1 and 2 at P_sat (to 350°C), region 3 above
+<span class="hl">Compressed Liquid:</span>    region 1 (region 3 above 350°C)
+<span class="hl">Superheated Steam:</span>    region 2 (region 3 near the critical point, region 5 above 800°C)
+<span class="hl">Transport:</span>            viscosity IAPWS 2008 · conductivity IAPWS 2011 · σ IAPWS 1994
+<span class="hl">Check:</span>                reproduces the IAPWS verification tables to 9 significant figures
 
 For critical engineering decisions, always verify against certified IAPWS-IF97 tables.</pre>
       </div>
@@ -936,7 +936,7 @@ function renderFields(type) {
       <label>Pressure <span class="uh">(${u.P})</span></label>
       <input type="number" id="fPres" step="any" min="0" required
         placeholder="${SYS==='SI'?'e.g. 10.0':'e.g. 145.0'}" oninput="liveHint()">
-      <div class="range-hint" id="hintP">${SYS==='SI'?'Valid: 0.006 – 220.9 bar':'Valid: 0.09 – 3204 psia'}</div>
+      <div class="range-hint" id="hintP">${SYS==='SI'?'Valid: 0.006 – 220.64 bar':'Valid: 0.09 – 3204 psia'}</div>
     </div>`;
 
   const tField = (superh=false) => `
@@ -944,7 +944,7 @@ function renderFields(type) {
       <label>Temperature <span class="uh">(${u.T})</span>${superh?' <span style="color:var(--subtle);font-weight:500;font-size:.76rem;">— must exceed T_sat</span>':''}</label>
       <input type="number" id="fTemp" step="any" required
         placeholder="${SYS==='SI'?(superh?'e.g. 300':'e.g. 150'):(superh?'e.g. 572':'e.g. 302')}">
-      <div class="range-hint">${SYS==='SI'?(superh?'Valid: T > T_sat, max 800°C':'Valid: 0.01 – 374°C'):(superh?'Valid: T > T_sat, max 1472°F':'Valid: 32 – 705°F')}</div>
+      <div class="range-hint">${SYS==='SI'?(superh?'Valid: T > T_sat, max 800°C':'Valid: 0.01 – 373.9°C'):(superh?'Valid: T > T_sat, max 1472°F':'Valid: 32 – 705°F')}</div>
     </div>`;
 
   const byField = t => `
@@ -986,7 +986,7 @@ function _tSatHint(P) {
   const Tc=647.096,Pc=220.64;
   // For P > 80 bar the empirical guess overshoots Tc — seed from a table instead
   const _tbl=[[1,99.6],[5,151.8],[10,179.9],[20,212.4],[40,250.4],[60,275.6],[80,295.1],
-              [100,311.1],[120,324.8],[140,336.8],[160,347.4],[180,357.1],[200,365.8],[220,373.7],[220.64,374.14]];
+              [100,311.1],[120,324.8],[140,336.8],[160,347.4],[180,357.1],[200,365.8],[220,373.7],[220.64,373.95]];
   let T;
   if (P > 80) {
     let lo=0;
@@ -1012,13 +1012,13 @@ function liveHint() {
   if (!pEl || !hP) return;
   const Praw = parseFloat(pEl.value);
   if (!isFinite(Praw) || Praw <= 0) {
-    hP.textContent = SYS === 'SI' ? 'Valid: 0.006 – 220.9 bar' : 'Valid: 0.09 – 3204 psia';
+    hP.textContent = SYS === 'SI' ? 'Valid: 0.006 – 220.64 bar' : 'Valid: 0.09 – 3204 psia';
     hP.className = 'range-hint';
     return;
   }
   const P_bar = SYS === 'SI' ? Praw : Praw / 14.5038;
   if (P_bar < 0.006) { hP.textContent = '⚠ Pressure below minimum (0.006 bar)'; hP.className = 'range-hint'; return; }
-  const maxP = (_activeType === 'superheat') ? 1000 : 220.9;
+  const maxP = (_activeType === 'superheat') ? 1000 : 220.64;
   if (P_bar > maxP) { hP.textContent = `⚠ Exceeds maximum pressure (${maxP} bar) for this phase type`; hP.className = 'range-hint'; return; }
   const Ts = _tSatHint(P_bar);
   if (isFinite(Ts)) {
@@ -1314,8 +1314,8 @@ function showResults(r) {
   if (hasX && r.x < 0.88)
     notes += `<div class="warn wa fade-up">⚠️ <strong>Low quality steam:</strong> x = ${(r.x*100).toFixed(1)}%. Turbine exhaust should maintain x ≥ 88% to prevent blade erosion from liquid droplet impingement.</div>`;
   if (r.P > 210 && r.P < 222)
-    notes += `<div class="warn wa fade-up">⚠️ <strong>Near critical pressure:</strong> Properties change very rapidly approaching T_c = 374.14°C, P_c = 220.9 bar. Interpolation accuracy is reduced in this region.</div>`;
-  notes += `<div class="warn wi fade-up">ℹ &nbsp;<strong>IAPWS-IF97 · Server-Side Engine:</strong> All calculations run securely on the server. Wagner saturation + NIST cubic-spline interpolation — ±0.1–0.3% accuracy.</div>`;
+    notes += `<div class="warn wa fade-up">⚠️ <strong>Near critical pressure:</strong> Properties change very rapidly approaching T_c = 373.946°C, P_c = 220.64 bar — small changes in input give large changes in v, cp and the transport properties.</div>`;
+  notes += `<div class="warn wi fade-up">ℹ &nbsp;<strong>IAPWS-IF97 · Server-Side Engine:</strong> All calculations run securely on the server: the IAPWS-IF97 equations (regions 1–5) with the IAPWS viscosity, conductivity and surface-tension formulations.</div>`;
 
   document.getElementById('results').innerHTML = banHTML + stateHTML + thermHTML + satHTML + transportHTML + notes;
 }
@@ -1540,7 +1540,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
   <div class="def c-amb">
     <div class="def-head"><div class="def-name">Latent Heat of Vaporization</div><span class="def-sym" style="background:var(--amb-p);color:var(--amb);">h_fg</span></div>
     <div class="def-formula">h_fg = h_g − h_f &nbsp;&nbsp;[kJ/kg]</div>
-    <div class="def-desc">The energy required to convert one kilogram of saturated liquid into saturated vapor at constant temperature and pressure. At 100°C (atmospheric pressure): h_fg = 2257 kJ/kg. Decreases with rising pressure, approaching zero at the critical point (374.14°C, 220.9 bar).</div>
+    <div class="def-desc">The energy required to convert one kilogram of saturated liquid into saturated vapor at constant temperature and pressure. At 100°C (atmospheric pressure): h_fg = 2257 kJ/kg. Decreases with rising pressure, approaching zero at the critical point (373.946°C, 220.64 bar).</div>
     <div class="def-tip">💡 Steam is an excellent heat transfer medium because it releases h_fg on condensation.</div>
     <div class="def-unit">SI: kJ/kg &nbsp;|&nbsp; Imperial: BTU/lb</div>
   </div>
@@ -1555,7 +1555,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
 
   <div class="def c-pur">
     <div class="def-head"><div class="def-name">Critical Point</div><span class="def-sym" style="background:var(--pur-p);color:var(--pur);">T_c, P_c</span></div>
-    <div class="def-formula">T_c = 374.14°C · P_c = 220.9 bar</div>
+    <div class="def-formula">T_c = 373.946°C · P_c = 220.64 bar</div>
     <div class="def-desc">The thermodynamic state above which the distinction between liquid and vapor phases vanishes. At the critical point, h_fg = 0 and the density of liquid and vapor are equal (ρ_c = 317 kg/m³). Supercritical water/steam (above T_c and P_c simultaneously) is used in advanced power plants for efficiencies exceeding 45%.</div>
     <div class="def-tip">💡 Above the critical pressure, there is no phase change — fluid transforms continuously from liquid-like to gas-like properties.</div>
     <div class="def-unit">IAPWS-IF97 reference values (exact)</div>
@@ -1563,7 +1563,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
 
   <div class="def c-grn">
     <div class="def-head"><div class="def-name">Saturation Pressure</div><span class="def-sym" style="background:var(--grn-p);color:var(--grn);">P_sat</span></div>
-    <div class="def-formula">Wagner equation — IAPWS-IF97 §8.1</div>
+    <div class="def-formula">IAPWS-IF97 saturation equation (region 4)</div>
     <div class="def-desc">The equilibrium vapor pressure at which phase change (boiling/condensation) occurs at a given temperature. Increases sharply with temperature: at 100°C = 1.01325 bar (atmospheric), at 180°C = 10.02 bar, at 374.14°C = 220.9 bar (critical). Used to determine flash conditions, steam trap sizing, and boiler design pressure.</div>
     <div class="def-tip">💡 P_sat doubles approximately every 10°C increase near 100°C — critical for pipe pressure class selection.</div>
     <div class="def-unit">SI: bar / MPa &nbsp;|&nbsp; Imperial: psia</div>
@@ -1587,18 +1587,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
     </tr>
   </thead>
   <tbody>
-    <tr><td>Triple Point (0.01°C)</td><td class="num">0.006113</td><td class="num">0.00</td><td class="num">2501.4</td><td class="num">2501.4</td><td class="num">0.0000</td><td class="num">9.1562</td><td class="num">206.14</td></tr>
-    <tr><td>20°C</td><td class="num">0.02338</td><td class="num">83.91</td><td class="num">2453.6</td><td class="num">2537.5</td><td class="num">0.2966</td><td class="num">8.6671</td><td class="num">57.791</td></tr>
-    <tr><td>50°C</td><td class="num">0.1235</td><td class="num">209.3</td><td class="num">2382.0</td><td class="num">2591.3</td><td class="num">0.7037</td><td class="num">8.0762</td><td class="num">12.032</td></tr>
-    <tr><td>100°C (atmospheric)</td><td class="num">1.0133</td><td class="num">419.1</td><td class="num">2256.9</td><td class="num">2676.0</td><td class="num">1.3069</td><td class="num">7.3549</td><td class="num">1.6720</td></tr>
-    <tr><td>5 bar &nbsp;(151.8°C)</td><td class="num">5.000</td><td class="num">640.1</td><td class="num">2107.4</td><td class="num">2747.5</td><td class="num">1.8604</td><td class="num">6.8212</td><td class="num">0.3747</td></tr>
-    <tr><td>10 bar &nbsp;(179.9°C)</td><td class="num">10.00</td><td class="num">762.7</td><td class="num">2013.6</td><td class="num">2778.1</td><td class="num">2.1387</td><td class="num">6.5865</td><td class="num">0.1940</td></tr>
-    <tr><td>20 bar &nbsp;(212.4°C)</td><td class="num">20.00</td><td class="num">908.8</td><td class="num">1890.7</td><td class="num">2799.5</td><td class="num">2.4474</td><td class="num">6.3409</td><td class="num">0.09963</td></tr>
-    <tr><td>50 bar &nbsp;(264.0°C)</td><td class="num">50.00</td><td class="num">1154.2</td><td class="num">1639.6</td><td class="num">2794.0</td><td class="num">2.9202</td><td class="num">5.9737</td><td class="num">0.03944</td></tr>
-    <tr><td>100 bar &nbsp;(311.0°C)</td><td class="num">100.0</td><td class="num">1407.6</td><td class="num">1317.1</td><td class="num">2724.5</td><td class="num">3.3596</td><td class="num">5.6141</td><td class="num">0.01803</td></tr>
-    <tr><td>150 bar &nbsp;(342.2°C)</td><td class="num">150.0</td><td class="num">1609.9</td><td class="num">1000.0</td><td class="num">2609.9</td><td class="num">3.6844</td><td class="num">5.3108</td><td class="num">0.01034</td></tr>
-    <tr><td>200 bar &nbsp;(365.8°C)</td><td class="num">200.0</td><td class="num">1826.5</td><td class="num">585.5</td><td class="num">2412.0</td><td class="num">4.0139</td><td class="num">4.9320</td><td class="num">0.005862</td></tr>
-    <tr class="crit"><td>Critical Point (374.14°C)</td><td class="num">220.9</td><td class="num">2099.3</td><td class="num">0.0</td><td class="num">2099.3</td><td class="num">4.4120</td><td class="num">4.4120</td><td class="num">0.003155</td></tr>
+    <tr><td>Triple Point (0.01°C)</td><td class="num">0.006117</td><td class="num">0.00</td><td class="num">2500.9</td><td class="num">2500.9</td><td class="num">-0.0000</td><td class="num">9.1555</td><td class="num">205.997</td></tr>
+    <tr><td>20°C</td><td class="num">0.02339</td><td class="num">83.9</td><td class="num">2453.5</td><td class="num">2537.5</td><td class="num">0.2965</td><td class="num">8.6661</td><td class="num">57.761</td></tr>
+    <tr><td>50°C</td><td class="num">0.12351</td><td class="num">209.3</td><td class="num">2382.0</td><td class="num">2591.3</td><td class="num">0.7038</td><td class="num">8.0749</td><td class="num">12.028</td></tr>
+    <tr><td>100°C (atmospheric)</td><td class="num">1.0142</td><td class="num">419.1</td><td class="num">2256.5</td><td class="num">2675.6</td><td class="num">1.3070</td><td class="num">7.3541</td><td class="num">1.672</td></tr>
+    <tr><td>5 bar &nbsp;(151.8°C)</td><td class="num">5.00</td><td class="num">640.2</td><td class="num">2107.9</td><td class="num">2748.1</td><td class="num">1.8606</td><td class="num">6.8206</td><td class="num">0.3748</td></tr>
+    <tr><td>10 bar &nbsp;(179.9°C)</td><td class="num">10.00</td><td class="num">762.7</td><td class="num">2014.4</td><td class="num">2777.1</td><td class="num">2.1384</td><td class="num">6.5850</td><td class="num">0.1943</td></tr>
+    <tr><td>20 bar &nbsp;(212.4°C)</td><td class="num">20.00</td><td class="num">908.6</td><td class="num">1889.8</td><td class="num">2798.4</td><td class="num">2.4470</td><td class="num">6.3392</td><td class="num">0.09958</td></tr>
+    <tr><td>50 bar &nbsp;(263.9°C)</td><td class="num">50.00</td><td class="num">1154.5</td><td class="num">1639.7</td><td class="num">2794.2</td><td class="num">2.9207</td><td class="num">5.9737</td><td class="num">0.03945</td></tr>
+    <tr><td>100 bar &nbsp;(311.0°C)</td><td class="num">100.0</td><td class="num">1407.9</td><td class="num">1317.6</td><td class="num">2725.5</td><td class="num">3.3603</td><td class="num">5.6159</td><td class="num">0.01803</td></tr>
+    <tr><td>150 bar &nbsp;(342.2°C)</td><td class="num">150.0</td><td class="num">1610.2</td><td class="num">1000.7</td><td class="num">2610.9</td><td class="num">3.6844</td><td class="num">5.3108</td><td class="num">0.01034</td></tr>
+    <tr><td>200 bar &nbsp;(365.7°C)</td><td class="num">200.0</td><td class="num">1827.1</td><td class="num">584.3</td><td class="num">2411.4</td><td class="num">4.0154</td><td class="num">4.9299</td><td class="num">0.005858</td></tr>
+    <tr class="crit"><td>Critical Point (373.946°C)</td><td class="num">220.64</td><td class="num">2087.5</td><td class="num">0.0</td><td class="num">2087.5</td><td class="num">4.4120</td><td class="num">4.4120</td><td class="num">0.003106</td></tr>
   </tbody>
 </table>
 </div>
@@ -1609,33 +1609,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
     IAPWS-IF97 — Calculation Method &amp; Error Bounds
   </div>
-  <pre><span class="hl">Saturation Pressure P_sat(T):</span>
-  Wagner equation — IAPWS-IF97 Equation 30
-  n1·τ + n2·τ^1.5 + n3·τ^3 + n4·τ^3.5 + n5·τ^4 + n6·τ^7.5
-  Accuracy: ±0.003 bar vs official IAPWS-IF97 tables
+  <pre><span class="hl">Saturation Pressure P_sat(T) and Temperature T_sat(P):</span>
+  IAPWS-IF97 region-4 equation (Eq. 30 and its exact inverse, Eq. 31)
 
-<span class="hl">Saturation Temperature T_sat(P):</span>
-  Newton-Raphson iteration on Wagner equation
-  Accuracy: ±0.01°C · Converges in &lt;20 iterations
-
-<span class="hl">Saturated Properties (h, s, v):</span>
-  Linear interpolation on 34-point IAPWS-IF97 reference table (0.01–374.14°C)
-  h error: &lt;0.3 kJ/kg · s error: &lt;0.002 kJ/(kg·K) · v error: &lt;0.1%
-
-<span class="hl">Compressed Liquid:</span>
-  h = h_f(T) + v_f·(P − P_sat)   [IAPWS approximation]
-  s ≈ s_f(T)   [pressure correction negligible for liquids]
-  Accuracy: ±0.5% for typical subcooling
+<span class="hl">Compressed Liquid (Region 1):</span>
+  Gibbs free energy g(p,T), 34 terms — h, s, v, cp, cv, w from its derivatives
 
 <span class="hl">Superheated Steam (Region 2):</span>
-  Cp polynomial calibrated to IAPWS-IF97 Region 2 reference tables
-  h = h_g(P) + Cp·ΔT_sh   ·   s = s_g(P) + Cp·ln(T/T_sat)
-  v from ideal gas with compressibility correction: Z = 1 − 0.0004·P_bar
-  Accuracy: ±0.5% vs certified IAPWS-IF97 tables
+  Gibbs free energy g(p,T): ideal-gas part (9 terms) + residual part (43 terms)
+
+<span class="hl">Near-Critical Fluid (Region 3):</span>
+  Helmholtz free energy f(ρ,T), 40 terms — density found by solving p(ρ,T) = p
+  on the liquid or vapour branch; saturated states above 350°C come from here
+
+<span class="hl">High-Temperature Steam (Region 5):</span>
+  Gibbs free energy g(p,T), 800–2000°C up to 500 bar
+
+<span class="hl">Saturated Properties (h, s, v):</span>
+  the region equations evaluated at the saturation pressure (no interpolation)
+
+<span class="hl">Transport Properties:</span>
+  viscosity IAPWS 2008 (industrial) · thermal conductivity IAPWS 2011 (industrial,
+  with the critical enhancement) · surface tension IAPWS 1994
+
+<span class="hl">Verification:</span>
+  reproduces the IAPWS-IF97 verification tables (regions 1, 2, 3, 4, 5) to 9
+  significant figures; IF97 itself agrees with the scientific IAPWS-95
+  formulation within the tolerances IAPWS set for it
 
 <span class="hl">Applicability:</span>
-  T range: 0.01°C – 800°C   ·   P range: 0.006 – 1000 bar
-  Not valid for supercritical region (T &gt; 374°C AND P &gt; 220.9 bar)
+  T range: 0.01°C – 800°C (to 2000°C at up to 500 bar) · P range: 0.006 – 1000 bar
+  Above 220.64 bar there is no saturation line: the superheated mode gives the
+  supercritical / compressed state directly
 
 For critical engineering decisions, always verify against official IAPWS-IF97
 tables or certified thermodynamic software (e.g., REFPROP, CoolProp).</pre>
@@ -1816,14 +1821,14 @@ function genPDF() {
     startY: y, margin:{ left:M, right:M },
     head: [['State', 'T (°C)', 'P (bar)', 'h_f (kJ/kg)', 'h_fg (kJ/kg)', 'h_g (kJ/kg)', 's_f (kJ/kg·K)', 's_g (kJ/kg·K)', 'v_g (m³/kg)']],
     body: [
-      ['Triple Point',  '0.01',   '0.00611', '0.00',   '2501.4', '2501.4', '0.0000', '9.1562', '206.14'],
-      ['100°C (atm)',   '100.0',  '1.0133',  '419.1',  '2256.9', '2676.0', '1.3069', '7.3549', '1.6720'],
-      ['5 bar',         '151.8',  '5.000',   '640.1',  '2107.4', '2747.5', '1.8604', '6.8212', '0.3747'],
-      ['10 bar',        '179.9',  '10.00',   '762.7',  '2013.6', '2778.1', '2.1387', '6.5865', '0.1940'],
-      ['20 bar',        '212.4',  '20.00',   '908.8',  '1890.7', '2799.5', '2.4474', '6.3409', '0.09963'],
-      ['50 bar',        '264.0',  '50.00',   '1154.2', '1639.6', '2794.0', '2.9202', '5.9737', '0.03944'],
-      ['100 bar',       '311.0',  '100.0',   '1407.6', '1317.1', '2724.5', '3.3596', '5.6141', '0.01803'],
-      ['Critical Pt',   '374.14', '220.9',   '2099.3', '0.0',    '2099.3', '4.4120', '4.4120', '0.003155'],
+      ['Triple Point', '0.01', '0.006117', '0.00', '2500.9', '2500.9', '-0.0000', '9.1555', '205.997'],
+      ['100°C (atm)', '100.0', '1.0142', '419.1', '2256.5', '2675.6', '1.3070', '7.3541', '1.672'],
+      ['5 bar', '151.8', '5.0', '640.2', '2107.9', '2748.1', '1.8606', '6.8206', '0.3748'],
+      ['10 bar', '179.9', '10.0', '762.7', '2014.4', '2777.1', '2.1384', '6.5850', '0.1943'],
+      ['20 bar', '212.4', '20.0', '908.6', '1889.8', '2798.4', '2.4470', '6.3392', '0.09958'],
+      ['50 bar', '263.9', '50.0', '1154.5', '1639.7', '2794.2', '2.9207', '5.9737', '0.03945'],
+      ['100 bar', '311.0', '100.0', '1407.9', '1317.6', '2725.5', '3.3603', '5.6159', '0.01803'],
+      ['Critical Pt',   '373.946', '220.64',   '2087.5', '0.0',    '2087.5', '4.4120', '4.4120', '0.003106'],
     ],
     styles:{ fontSize:7.5, cellPadding:2.2, lineColor:GHOST, lineWidth:0.3 },
     headStyles:{ fillColor:TEAL, textColor:WHITE, fontStyle:'bold', fontSize:7 },
@@ -1840,7 +1845,7 @@ function genPDF() {
 
   // Accuracy note
   doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(...MID);
-  doc.text('IAPWS-IF97 · Wagner saturation equation + 34-point NIST table cubic-spline interpolation. Accuracy ±0.1–0.3%.', M, y);
+  doc.text('IAPWS-IF97 equations (regions 1-5, region-4 saturation) with IAPWS transport properties.', M, y);
   y += 5;
   doc.text('For critical engineering decisions, verify against official IAPWS-IF97 tables or certified software (REFPROP, CoolProp).', M, y);
 
