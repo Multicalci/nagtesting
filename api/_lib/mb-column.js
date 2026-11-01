@@ -262,7 +262,7 @@ function solveColumn(inp) {
       try {
         const rb = th.flashPVF(pp, zTot, Pst[Math.floor(N / 2)], 0);
         let light = 0;
-        for (let i = 0; i < C; i++) if (!['H2O', 'MEA', 'K2CO3'].includes(pp.keys[i]) && (pp.keys[i] === 'CO2' || rb.y[i] / Math.max(zTot[i], 1e-30) > 1)) light += zTot[i] * Ftot;
+        for (let i = 0; i < C; i++) if (!pp.electrolyte.heavy.includes(pp.keys[i]) && (pp.keys[i] === 'CO2' || rb.y[i] / Math.max(zTot[i], 1e-30) > 1)) light += zTot[i] * Ftot;
         if (light > 0) D0 = Math.min(0.9 * Ftot, Math.max(0.005 * Ftot, 1.08 * light));
       } catch (_e) { /* keep the flash estimate */ }
     }
@@ -329,7 +329,7 @@ function solveColumn(inp) {
   try { const rb = th.flashPVF(pp, zTot, Pmid, 0); Kf = rb.y.map((v, i) => v / Math.max(zTot[i], 1e-30)); } catch (_e) { Kf = null; }
   if (!Kf) Kf = pp.comps.map((c) => c.Pc / Pmid * Math.exp(5.373 * (1 + c.omega) * (1 - c.Tc / Tf)));
   let xD = zTot.slice(), xB = zTot.slice();
-  const lightSet = pp.electrolyte ? pp.keys.map((k) => !['H2O', 'MEA', 'K2CO3'].includes(k)) : null;
+  const lightSet = pp.electrolyte ? pp.keys.map((k) => !pp.electrolyte.heavy.includes(k)) : null;
   if (pp.electrolyte && D0 && D0 > 0 && D0 < Ftot) {
     // acid-gas regenerator: CO2 and the dissolved gases go up with a little water
     const lightF = zTot.reduce((a, z, i) => a + (lightSet[i] ? z * Ftot : 0), 0);

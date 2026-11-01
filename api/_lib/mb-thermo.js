@@ -13,6 +13,8 @@
 //              'nrtl' | 'uniquac' | 'wilson' | 'unifac'
 //                                         activity coefficient (γ–φ), vapour
 //                                         ideal or PR/SRK
+//              'steam'                    pure water / steam on IAPWS-IF97
+//                                         (api/_lib/steam-if97.js), Step 26
 //   flashes  : PT (with Michelsen stability test), PH, PS, PVF (bubble/dew/
 //              any vapour fraction at P), TVF (saturation pressure)
 //
@@ -30,8 +32,9 @@ import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 import mbData from './mb-data.js';
 import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS } from './mb-electrolyte.js';
+import steam from './steam-if97.js';
 
-export const THERMO_VERSION = 'mb-thermo 1.3.0';
+export const THERMO_VERSION = 'mb-thermo 1.6.0';
 
 const R = 8.314462618;          // J/(mol K)
 const T0 = 298.15;              // K — formation / entropy reference
@@ -739,6 +742,7 @@ export const PACKAGES = {
   wilson: 'Wilson (γ–φ)',
   unifac: 'UNIFAC (predictive γ–φ)',
   modunifac: 'Modified UNIFAC — Dortmund (predictive γ–φ)',
+  steam: 'Steam / water (IAPWS-IF97)',
   ...ELECTROLYTE_MODELS,
 };
 
@@ -759,6 +763,7 @@ export function createPackage(spec, keys) {
   const model = String(s.model || 'pr').toLowerCase();
   if (!PACKAGES[model]) fail('TH_PACKAGE', `unknown property package '${s.model}' (use ${Object.keys(PACKAGES).join(' | ')})`, 'property_package');
   if (!Array.isArray(keys) || !keys.length) fail('TH_KEYS', 'component list required');
+  if (model === 'steam') return makeSteamPackage(keys);
   const comps = keys.map(component);
   const n = keys.length;
   const warnings = [];
@@ -799,7 +804,8 @@ export function createPackage(spec, keys) {
   if (elec) {
     for (const i of elec.owned) owned[i] = true;
     if (!keys.includes('H2O')) warnings.push(`${PACKAGES[model]}: no water in this unit's components — the liquid model needs water`);
-    if (elecModel === 'amine-mea' && keys.includes('K2CO3')) fail('TH_ELECTROLYTE', "K2CO3 cannot be used with the MEA package", 'property_package');
+    if ((elecModel === 'amine-mea' || elecModel === 'amine-mdea') && keys.includes('K2CO3')) fail('TH_ELECTROLYTE', `K2CO3 cannot be used with the ${elecModel === 'amine-mea' ? 'MEA' : 'MDEA'} package`, 'property_package');
+    if (elecModel === 'amine-mdea' && keys.includes('MEA')) fail('TH_ELECTROLYTE', 'MEA cannot be mixed into the MDEA package (no MEA–MDEA parameters) — use one amine', 'components');
   }
   // Henry's law for dissolved gases (activity / ideal packages): a component is
   // a Henry component when it is a gas at ambient (Tb < 273.15 K, or no Tb and
@@ -833,7 +839,7 @@ export function createPackage(spec, keys) {
     const reactive = keys.filter((k) => ['H2S', 'NH3', 'SO2', 'HCl', 'Cl2', 'NO2', 'hydrogen-cyanide', 'carbonyl-sulfide', 'methyl-mercaptan', 'HNO3', 'formaldehyde'].includes(k));
     if (reactive.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${reactive.join(', ')} react with the solvent and are not modelled (CO2 chemistry only)`, 'components');
     const bad = keys.filter((k, i) => !owned[i] && !henry[i]);
-    if (bad.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${bad.join(', ')} not supported — the liquid holds H2O, CO2, ${elec.solvent} and gases with Henry data in water (N2, H2, O2, CH4, CO, Ar, …)`, 'components');
+    if (bad.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${bad.join(', ')} not supported — the liquid holds H2O, CO2, ${elec.heavy.filter((k) => k !== 'H2O').join(', ')} and gases with Henry data in water (N2, H2, O2, CH4, CO, Ar, …)`, 'components');
   }
   /** solvent-weighted ln H [Pa] and B [K] for Henry component i, or null when no solvent is present */
   function henryMix(i, T, x) {
@@ -942,7 +948,7 @@ export function createPackage(spec, keys) {
     return liquidVolume(comps, T, P, x, eos);
   }
   // ---- electrolyte liquid: partial molar properties by Gibbs–Helmholtz ----
-  // h̄_i = h_i,ig − ΔHvap,i (solvents) + (−RT² ∂ln a_i/∂T); CO2: h_ig − RT² ∂ln f/∂T;
+  // h̄_i = h_i,ig − ΔHvap,i (solvents) + (−RT² ∂ln a_i/∂T); CO2 (and MDEA, Extended UNIQUAC): h_ig − RT² ∂ln f/∂T;
   // K2CO3: aqueous standard state (NBS) − RT² ∂ln a/∂T. Henry gases as in the γ–φ packages.
   function elecPartials(T, P, x) {
     const xs = elec.sub(x);
@@ -951,7 +957,7 @@ export function createPackage(spec, keys) {
     const out = {};
     for (const i of elec.owned) {
       const key = elec.keyOf(i);
-      const xsub = key === 'H2O' ? xs.w : key === 'CO2' ? xs.g : xs.a;
+      const xsub = key === 'H2O' ? xs.w : key === 'CO2' ? xs.g : key === 'piperazine' ? xs.p : xs.a;
       const lnf = lp[key] + Math.log(xsub) + Math.log(xs.S);           // ln f_i [Pa], diluted by any Henry gases
       let h, sv;
       if (key === 'K2CO3') {
@@ -960,13 +966,18 @@ export function createPackage(spec, keys) {
         h = ref.h + hx.K2CO3;
         sv = ref.s + hx.K2CO3 / T - R * lnact - R * Math.log(xs.S);
       } else {
-        const hg = hig(i, T);
+        // gas-referenced keys (CO2; MDEA in the Extended UNIQUAC package) follow their fugacity
+        // directly; a model whose gas standard state carries its own ideal-gas Cp (igShape) keeps
+        // that Cp so the solution heat capacity is the one the model was fitted with
+        const shape = elec.igShape && elec.igShape[key];
+        const hg = shape ? hig(i, T0) + shape.cp * (T - T0) : hig(i, T);
+        const sg = shape ? sig(i, T0) + shape.cp * Math.log(T / T0) : sig(i, T);
         h = hg + (hx[key] || 0);
-        if (key !== 'CO2') {
+        if (!elec.gasRef.includes(key)) {
           h -= hvap(comps[i], T);
           if (T < comps[i].Tc) h += vLiq(comps[i], T) * (P - psat(comps[i], T));
         }
-        sv = sig(i, T) - R * (lnf - Math.log(P0)) + (h - hg) / T;
+        sv = sg - R * (lnf - Math.log(P0)) + (h - hg) / T;
       }
       out[i] = { h, s: sv };
     }
@@ -1004,12 +1015,94 @@ export function createPackage(spec, keys) {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
     henryKeys: keys.filter((k, i) => henry[i]), poynting,
     association: assoc ? { keys: assoc.keys, sources: assoc.src } : null,
-    electrolyte: elec ? { model: elecModel, solvent: elec.solvent, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
+    electrolyte: elec ? { model: elecModel, solvent: elec.solvent, heavy: elec.heavy, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
       saltLnAct: (T, x) => { const r = elec.rel(T, elec.sub(x)); return num(r.K2CO3) ? r.K2CO3 : 0; },
       nonvolatile: keys.map((k) => ELECTROLYTE_KEYS.includes(k)) } : null,
     eos, act, lnFug, lnK, hPhase, sPhase, volPhase, hig, sig,
     idealGasData: useNist ? 'nist+chemsep' : 'chemsep',
     MW: comps.map((c) => c.MW),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// STEP 26 — steam package: pure water / steam on IAPWS-IF97
+// ---------------------------------------------------------------------------
+// Every state comes from the full IF97 formulation (regions 1, 2, 3, 5 and the
+// saturation line) instead of the ChemSep correlations, and viscosity / thermal
+// conductivity from IAPWS R12-08 / R15-11 — the properties a steam turbine,
+// boiler feed pump, desuperheater or condenser is designed with. IF97 has its
+// own reference state (u = s = 0 for liquid at the triple point); it is moved
+// onto the package basis (formation enthalpy, third-law entropy at 101325 Pa)
+// by matching IF97's ideal-gas part to the ideal-gas H and S at 298.15 K, so
+// a steam stream carries the same H as it would on Peng–Robinson at low
+// pressure and the reaction / mixing balances of the other units stay valid.
+const IF97_TMIN = 273.15, IF97_TMAX = 2273.15;
+const STEAM_PC = steam.PC * 1e6;            // Pa
+
+/** IF97 single-phase state at T [K], P [Pa] on the branch of `phase` ('L' | 'V'). */
+function steamState(T, P, phase) {
+  if (!(T >= IF97_TMIN - 1e-9)) fail('TH_STEAM_RANGE', `IAPWS-IF97 covers water from 0 °C (got ${(T - 273.15).toFixed(2)} °C)`, 'T_K');
+  if (!(T <= IF97_TMAX)) fail('TH_STEAM_RANGE', `IAPWS-IF97 covers steam up to 2000 °C (got ${(T - 273.15).toFixed(1)} °C)`, 'T_K');
+  const p = P / 1e6;
+  try {
+    if (T >= steam.TC || p >= steam.PC) return steam.pt(p, T);            // one fluid above the critical point
+    const ps = steam.psat(Math.max(T, IF97_TMIN));
+    const want = phase === 'V' ? 'V' : 'L';
+    const stable = p >= ps ? 'L' : 'V';
+    if (want === stable || Math.abs(p / ps - 1) < 1e-9) return want === 'L' ? steam.liquidSide(p, T) : steam.vapourSide(p, T);
+    // a metastable phase (the other side of the saturation line): the IF97 equations
+    // extend a little past it; further out, the saturated phase at T stands in
+    try { return want === 'L' ? steam.liquidSide(p, T) : steam.vapourSide(p, T); } catch (_e) { const sat = steam.satT(T); return want === 'L' ? sat.liq : sat.vap; }
+  } catch (e) {
+    if (e instanceof ThermoError) throw e;
+    fail('TH_STEAM_RANGE', `IAPWS-IF97: ${e.message}`, 'P_bar');
+  }
+}
+
+function makeSteamPackage(keys) {
+  const ks = [...new Set(keys)];
+  if (ks.length !== 1 || ks[0] !== 'H2O') {
+    fail('TH_STEAM', `the Steam (IAPWS-IF97) package is for pure water and steam only — this unit also carries ${ks.filter((k) => k !== 'H2O').join(', ') || 'no water'}; use Peng–Robinson, NRTL or another package for mixtures`, 'property_package');
+  }
+  const c = component('H2O');
+  const MWw = c.MW;                               // g/mol — the same MW converts mass flows, so H per kg is IF97's h exactly
+  const kg = MWw;                                 // kJ/kg × g/mol = J/mol
+  const higW = (T) => (c._nist ? c._nist.at(T)[0] : hIG(c, T));
+  const sigW = (T) => (c._nist ? c._nist.at(T)[1] : sIG(c, T));
+  const ig0 = steam.idealGas(T0, P0 / 1e6);
+  const Ch = higW(T0) - kg * ig0.h;               // J/mol
+  const Cs = sigW(T0) - kg * ig0.s;               // J/(mol K)
+  const st = (T, P, phase) => steamState(T, P, phase);
+  return {
+    model: 'steam', label: PACKAGES.steam, keys: ks, comps: [c], n: 1, isEOS: false, vapourModel: 'if97', warnings: [],
+    kijUsed: {}, threePhase: false, henryKeys: [], poynting: false, association: null, electrolyte: null,
+    eos: null, act: null,
+    // pure component: the flashes take saturation from IF97 (region 4) through this hook
+    pureSat: {
+      Tc: steam.TC, Pc: STEAM_PC,
+      psat: (T) => steam.psat(Math.min(Math.max(T, IF97_TMIN), steam.TC)) * 1e6,
+      tsat: (P) => (P >= STEAM_PC ? Infinity : P < steam.PMIN * 1e6 ? NaN : steam.tsat(P / 1e6)),
+    },
+    lnFug(T, P, x, phase) {
+      if (phase === 'V' || T >= steam.TC) return [0];
+      return [Math.log(steam.psat(Math.max(T, IF97_TMIN)) * 1e6 / P)];
+    },
+    lnK(T, P) { return T >= steam.TC ? [0] : [Math.log(steam.psat(Math.max(T, IF97_TMIN)) * 1e6 / P)]; },
+    hPhase: (T, P, x, phase) => kg * st(T, P, phase).h + Ch,
+    sPhase: (T, P, x, phase) => kg * st(T, P, phase).s + Cs,
+    volPhase: (T, P, x, phase) => st(T, P, phase).v * MWw / 1000,
+    hig: (i, T) => higW(T), sig: (i, T) => sigW(T),
+    steam: {
+      state: st,
+      /** transport and caloric properties of one phase in the package's units */
+      phaseProps(T, P, phase) {
+        const s2 = st(T, P, phase);
+        return { cp: s2.cp * kg, mu: steam.viscosity(s2.rho, T), k: steam.conductivity(s2.rho, T, s2), w: s2.w,
+          sigma: phase === 'L' && T < steam.TC ? steam.surfaceTension(T) : undefined };
+      },
+    },
+    idealGasData: 'iapws-if97',
+    MW: [MWw],
   };
 }
 
@@ -1102,8 +1195,10 @@ export function flashPT(pp, z, T, P) {
   if (live.length === 1) {
     // pure component: saturation from the vapour-pressure correlation (as DWSIM / ChemSep)
     const c = pp.comps[live[0]];
-    if (T >= c.Tc || P >= c.Pc) return single(pp, z, T, P, T >= c.Tc ? 'V' : 'L');
-    return single(pp, z, T, P, psat(c, T) > P ? 'V' : 'L');
+    const sat = pp.pureSat;
+    const Tc = sat ? sat.Tc : c.Tc, Pc = sat ? sat.Pc : c.Pc;
+    if (T >= Tc || P >= Pc) return single(pp, z, T, P, T >= Tc ? 'V' : 'L');
+    return single(pp, z, T, P, (sat ? sat.psat(T) : psat(c, T)) > P ? 'V' : 'L');
   }
   return pp.isEOS ? flashPT_EOS(pp, z, T, P) : pp.electrolyte ? flashPT_elec(pp, z, T, P) : flashPT_act(pp, z, T, P);
 }
@@ -1832,7 +1927,8 @@ export function flashPVF(pp, z, P, beta, Tguess) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    const T = satT(c, P);
+    const T = pp.pureSat ? pp.pureSat.tsat(P) : satT(c, P);
+    if (Number.isNaN(T)) fail('TH_VF', `no saturation temperature at ${(P / 1e5).toFixed(5)} bar — below the triple-point pressure of water`);
     if (!isFinite(T)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${(P / 1e5).toFixed(3)} bar — no saturation temperature`);
     return { T, P, beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
   }
@@ -1866,8 +1962,8 @@ export function flashTVF(pp, z, T, beta, Pguess) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    if (T >= c.Tc) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${T.toFixed(2)} K — no saturation pressure`);
-    return { T, P: psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
+    if (T >= (pp.pureSat ? pp.pureSat.Tc : c.Tc)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${T.toFixed(2)} K — no saturation pressure`);
+    return { T, P: pp.pureSat ? pp.pureSat.psat(T) : psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
   }
   if (num(Pguess) && Pguess > 0) { try { return vfSolve(pp, z, beta, 'P', T, Math.log(Pguess)); } catch (_e) { /* restart from Wilson */ } }
   return vfSolve(pp, z, beta, 'P', T, undefined);
@@ -1886,7 +1982,7 @@ function stateFlash(pp, z, P, target, fn, Tguess, flashFn) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    const Ts = satT(c, P);
+    const Ts = pp.pureSat ? pp.pureSat.tsat(P) : satT(c, P);
     if (isFinite(Ts)) {
       const L = { T: Ts, P, beta: 0, x: z.slice(), y: z.slice(), phase: 'L' };
       const V = { T: Ts, P, beta: 1, x: z.slice(), y: z.slice(), phase: 'V' };
@@ -1993,7 +2089,9 @@ export function flashPS3(pp, z, P, S, Tguess) { return stateFlash(pp, z, P, S, '
 // ---------------------------------------------------------------------------
 
 function mixVisL(pp, T, x) {
-  if (pp.electrolyte && pp.electrolyte.viscosity) { try { const v = pp.electrolyte.viscosity(T, x); if (v > 0) return v; } catch (_e) { /* generic below */ } }
+  if (pp.electrolyte && pp.electrolyte.viscosity) {
+    try { const v = pp.electrolyte.viscosity(T, x); if (v > 0) return v; if (Number.isNaN(v)) return NaN; } catch (_e) { /* generic below */ }
+  }
   let lnmu = 0;
   for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
     const c = pp.comps[i];
@@ -2036,15 +2134,17 @@ export function properties(pp, r) {
     const MW = comp.reduce((s, v, i) => s + v * pp.MW[i], 0);
     const V = pp.volPhase(r.T, r.P, comp, type);
     const h = pp.hPhase(r.T, r.P, comp, type);
+    const sp = pp.steam ? pp.steam.phaseProps(r.T, r.P, type) : null;      // IAPWS caloric + transport
     const dT = 0.05;
-    const cp = (pp.hPhase(r.T + dT, r.P, comp, type) - pp.hPhase(r.T - dT, r.P, comp, type)) / (2 * dT);
+    const cp = sp ? sp.cp : (pp.hPhase(r.T + dT, r.P, comp, type) - pp.hPhase(r.T - dT, r.P, comp, type)) / (2 * dT);
     let Z = r.P * V / (R * r.T);
     const ph = {
       type: type === 'V' ? 'vapour' : 'liquid', fraction: frac, x: comp,
       MW, rho_kgm3: MW / 1000 / V, Z, H_Jmol: h, Cp_JmolK: cp,
-      mu_Pas: type === 'V' ? mixVisV(pp, r.T, comp) : mixVisL(pp, r.T, comp),
-      k_WmK: mixK(pp, r.T, comp, type),
+      mu_Pas: sp ? sp.mu : type === 'V' ? mixVisV(pp, r.T, comp) : mixVisL(pp, r.T, comp),
+      k_WmK: sp ? sp.k : mixK(pp, r.T, comp, type),
     };
+    if (sp && num(sp.sigma)) ph.sigma_Nm = sp.sigma;
     if (type === 'L' && pp.electrolyte) {
       try {
         const rep = pp.electrolyte.report(r.T, comp);

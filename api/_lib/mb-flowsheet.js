@@ -277,7 +277,7 @@ function clean(s) {
     components: comps.map((c) => ({ key: c.key, mass_fraction: c.mass_fraction / sum })) };
   // STEP 22: rigorous state (molar H, vapour fraction, package signature) lets
   // the next rigorous block reconstruct saturated / pure-component states
-  if (s.rig && typeof s.rig.sig === 'string') o.rig = { sig: s.rig.sig, h_Jmol: s.rig.h_Jmol, beta: s.rig.beta };
+  if (s.rig && typeof s.rig.sig === 'string') o.rig = { sig: s.rig.sig, h_Jmol: s.rig.h_Jmol, beta: s.rig.beta, phase: s.rig.phase };
   if (s.spec === 'PVF' && num(s.vapour_fraction)) { o.spec = 'PVF'; o.vapour_fraction = s.vapour_fraction; }
   return o;
 }

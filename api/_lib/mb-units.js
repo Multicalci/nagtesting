@@ -5,7 +5,7 @@
 // core (api/_lib/mb-thermo.js). Every module takes the engine's usual
 // {streams, params} input — mass-based streams {mass_flow_kg_h, T_K, P_bar,
 // components:[{key, mass_fraction}]} — plus params.property_package
-// ({model:'pr'|'srk'|'ideal'|'nrtl'|'uniquac'|'wilson'|'unifac'|'modunifac'|'amine-mea'|'hot-k2co3',
+// ({model:'pr'|'srk'|'ideal'|'nrtl'|'uniquac'|'wilson'|'unifac'|'modunifac'|'amine-mea'|'amine-mdea'|'hot-k2co3'|'steam',
 //   kij?, nrtl?, …}), and returns {streams_out, mass_balance, energy_balance,
 // details, converged, warnings}. Outlet streams carry H_kJh, vapour_fraction
 // and a `rig` block (package signature, molar H/S, phase compositions and
@@ -15,7 +15,8 @@
 //   valve         isenthalpic let-down
 //   pump          liquid pump: ΔP, efficiency → power, head
 //   compressor    isentropic or polytropic, efficiency → power, outlet T
-//   expander      turbine / expander: power recovered
+//   expander      turbine / expander: power recovered (spec: efficiency, outlet T or power)
+//   extraction-turbine  HP + LP sections with a controlled extraction (Step 26)
 //   r-flash       flash drum: T&P, P&duty (adiabatic), P&VF, T&VF
 //   r-flash3      three-phase separator / decanter (vapour + two liquids, VLLE)
 //   property-info pure-component / binary data the package will use
@@ -42,7 +43,7 @@ const th = Object.assign({}, thBase, {
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 
-export const UNITS_VERSION = 'mb-units 1.4.0';
+export const UNITS_VERSION = 'mb-units 1.5.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const R = th.R;
@@ -113,7 +114,14 @@ export function stateIn(pp, s, label) {
   let r;
   if (s.spec === 'PVF' && num(s.vapour_fraction)) r = th.flashPVF(pp, z, P, Math.min(1, Math.max(0, s.vapour_fraction)), s.T_K);
   else if (s.rig && s.rig.sig === pp.pkgSig && num(s.rig.h_Jmol) && num(s.rig.beta) && ((s.rig.beta > 1e-9 && s.rig.beta < 1 - 1e-9) || num(s.rig.beta2))) r = th.flashPH(pp, z, P, s.rig.h_Jmol, s.T_K);
-  else r = th.flashPT(pp, z, s.T_K, P);
+  else {
+    r = th.flashPT(pp, z, s.T_K, P);
+    // a stream that left the last unit exactly saturated (bubble / dew point — e.g. a
+    // condenser at vapour fraction 0) sits on the phase boundary, where a T–P flash can
+    // fall on either side by round-off: keep the phase the stream was produced in
+    const rp = s.rig && s.rig.sig === pp.pkgSig && num(s.rig.h_Jmol) ? (s.rig.phase || (s.rig.beta === 0 ? 'L' : s.rig.beta === 1 ? 'V' : null)) : null;
+    if ((rp === 'L' || rp === 'V') && r.phase !== rp) r = th.flashPH(pp, z, P, s.rig.h_Jmol, s.T_K);
+  }
   const h = th.hOf(pp, r);
   return { F, z, T: r.T, P, r, h, H_kJh: F * h, mass: s.mass_flow_kg_h };
 }
@@ -147,7 +155,7 @@ export function streamOut(pp, F, z, r, opt) {
       const pr = th.properties(pp, r);
       out.rig.props = { MW: pr.MW, rho_kgm3: pr.rho_kgm3,
         phases: pr.phases.map((p) => ({ type: p.type, fraction: p.fraction, MW: p.MW, rho_kgm3: p.rho_kgm3, Z: p.Z,
-          Cp_kJkgK: p.Cp_JmolK / p.MW, mu_cP: p.mu_Pas * 1000, k_WmK: p.k_WmK, acid_gas: p.acid_gas || undefined })) };
+          Cp_kJkgK: p.Cp_JmolK / p.MW, mu_cP: p.mu_Pas * 1000, k_WmK: p.k_WmK, sigma_mNm: num(p.sigma_Nm) ? p.sigma_Nm * 1000 : undefined, acid_gas: p.acid_gas || undefined })) };
     } catch (_e) { /* properties are informative only */ }
   }
   return out;
@@ -264,8 +272,59 @@ function solvePumpR(inp) {
 // ---------------------------------------------------------------------------
 // compressor / expander
 // ---------------------------------------------------------------------------
+// Outlet pressure (P_out_bar, pressure_ratio or dp_bar) plus ONE of:
+//   spec 'efficiency' (default)  efficiency → outlet state and power
+//   spec 'T_out'                 measured outlet temperature T_out_K → efficiency and power
+//   spec 'power'                 shaft power power_kW (absorbed by a compressor,
+//                                delivered by a turbine; sign ignored) → outlet state and efficiency
+// Efficiency basis: isentropic (adiabatic) or polytropic (20 equal pressure-ratio steps).
+
+/** Pressure path of a machine: outlet h for an efficiency on the chosen basis. */
+function machinePath(pp, a, P2, kind, mode) {
+  const s1 = th.sOf(pp, a.r);
+  const rs = th.flashPS(pp, a.z, P2, s1, a.T);
+  const hs = th.hOf(pp, rs);
+  const hOut = (eta) => {
+    if (mode === 'isentropic') return kind === 'compressor' ? a.h + (hs - a.h) / eta : a.h - eta * (a.h - hs);
+    const nst = 20, ratio = Math.pow(P2 / a.P, 1 / nst);
+    let h = a.h, rr = a.r, Pk = a.P, T = a.T;
+    for (let k = 0; k < nst; k++) {
+      const Pn = Pk * ratio;
+      const rk = th.flashPS(pp, a.z, Pn, th.sOf(pp, rr), T);
+      const hk = th.hOf(pp, rk);
+      h = kind === 'compressor' ? h + (hk - h) / eta : h - eta * (h - hk);
+      rr = th.flashPH(pp, a.z, Pn, h, rk.T); T = rr.T; Pk = Pn;
+    }
+    return h;
+  };
+  return { rs, hs, hOut };
+}
+
+/** Efficiency on the chosen basis that gives outlet enthalpy h2 (isentropic: closed form). */
+function etaFor(path, a, h2, kind, mode, label) {
+  const dhs = path.hs - a.h, dh = h2 - a.h;
+  if (kind === 'compressor' ? !(dh > 0) : !(dh < 0)) {
+    fail('MB_MACHINE_SPEC', `${label}: the specification gives ${kind === 'compressor' ? 'no enthalpy rise' : 'no enthalpy drop'} across the machine — check the outlet temperature or power`, 'params');
+  }
+  const etaIs = kind === 'compressor' ? dhs / dh : dh / dhs;
+  if (mode === 'isentropic' || !(etaIs > 0 && etaIs <= 1)) return etaIs;
+  // polytropic: the outlet h is monotonic in η — bisection. A compressor's polytropic
+  // efficiency lies above its isentropic one, a turbine's below (the reheat factor)
+  const f = (e) => path.hOut(e) - h2;
+  let lo = kind === 'compressor' ? etaIs * (1 - 1e-9) : Math.max(0.02, 0.4 * etaIs);
+  let hi = kind === 'compressor' ? 1.0 : Math.min(1, etaIs * (1 + 1e-9));
+  const flo = f(lo), fhi = f(hi);
+  if ((flo < 0) === (fhi < 0)) return Math.abs(fhi) < Math.abs(flo) ? (hi >= 1 ? 1.0001 : hi) : NaN;     // beyond η = 1 → reported as impossible
+  for (let k = 0; k < 60; k++) {
+    const m = 0.5 * (lo + hi), fm = f(m);
+    if ((fm < 0) === (flo < 0)) lo = m; else hi = m;
+    if (hi - lo < 1e-10) break;
+  }
+  return 0.5 * (lo + hi);
+}
+
 function machine(inp, kind) {
-  const label = kind;
+  const label = kind === 'expander' ? 'turbine' : kind;
   const { streams, params: p } = input(inp, 1, 1, label);
   const pp = pkg(p.property_package, keysOf(...streams));
   const a = stateIn(pp, streams[0], `${label} inlet`);
@@ -274,43 +333,111 @@ function machine(inp, kind) {
   if (num(p.pressure_ratio)) P2 = a.P * (kind === 'compressor' ? p.pressure_ratio : 1 / p.pressure_ratio);
   else P2 = pOut(p, streams[0].P_bar, label);
   if (kind === 'compressor' && P2 <= a.P) fail('MB_P', 'compressor: outlet pressure must exceed inlet pressure', 'P_out_bar');
-  if (kind === 'expander' && P2 >= a.P) fail('MB_P', 'expander: outlet pressure must be below inlet pressure', 'P_out_bar');
+  if (kind === 'expander' && P2 >= a.P) fail('MB_P', 'turbine: outlet pressure must be below inlet pressure', 'P_out_bar');
   const mode = p.mode === 'polytropic' ? 'polytropic' : 'isentropic';
-  const eta = num(p.efficiency) ? p.efficiency : 0.75;
-  if (!(eta > 0 && eta <= 1)) fail('MB_ETA', `${label}: efficiency must be in (0, 1]`, 'efficiency');
+  const spec = p.spec === 'T_out' || p.spec === 'power' ? p.spec : 'efficiency';
   if (a.r.phase !== 'V') w.push(`${label}: inlet contains liquid (vapour fraction ${(a.r.phase === 'L' ? 0 : a.r.beta).toFixed(4)})`);
-  const s1 = th.sOf(pp, a.r);
-  const rs = th.flashPS(pp, a.z, P2, s1, a.T);
-  const hs = th.hOf(pp, rs);
-  let h2;
-  if (mode === 'isentropic') h2 = kind === 'compressor' ? a.h + (hs - a.h) / eta : a.h - eta * (a.h - hs);
-  else {
-    // polytropic: 20 small isentropic steps at the stage efficiency
-    const nst = 20, ratio = Math.pow(P2 / a.P, 1 / nst);
-    let h = a.h, rr = a.r, Pk = a.P, T = a.T;
-    for (let k = 0; k < nst; k++) {
-      const Pn = Pk * ratio;
-      const sK = th.sOf(pp, rr);
-      const rk = th.flashPS(pp, a.z, Pn, sK, T);
-      const hk = th.hOf(pp, rk);
-      h = kind === 'compressor' ? h + (hk - h) / eta : h - eta * (h - hk);
-      rr = th.flashPH(pp, a.z, Pn, h, rk.T); T = rr.T; Pk = Pn;
+  const path = machinePath(pp, a, P2, kind, mode);
+  let eta, h2, r;
+  if (spec === 'efficiency') {
+    eta = num(p.efficiency) ? p.efficiency : 0.75;
+    if (!(eta > 0 && eta <= 1)) fail('MB_ETA', `${label}: efficiency must be in (0, 1]`, 'efficiency');
+    h2 = path.hOut(eta);
+    r = th.flashPH(pp, a.z, P2, h2, path.rs.T);
+  } else {
+    if (!(a.F > 0)) fail('MB_MACHINE_SPEC', `${label}: a zero-flow inlet cannot fix the efficiency from ${spec === 'power' ? 'power' : 'outlet temperature'}`, 'params');
+    if (spec === 'T_out') {
+      if (!num(p.T_out_K) || p.T_out_K <= 0) fail('MB_T', `${label}: outlet temperature T_out_K required for spec 'T_out'`, 'T_out_K');
+      r = th.flashPT(pp, a.z, p.T_out_K, P2);
+      if (r.phase !== 'V' && r.phase !== 'L') {
+        fail('MB_MACHINE_SPEC', `${label}: ${(p.T_out_K - 273.15).toFixed(2)} °C is the saturation temperature at the outlet pressure — the outlet is wet and its temperature does not fix the state; give the efficiency or the power instead`, 'T_out_K');
+      }
+      h2 = th.hOf(pp, r);
+    } else {
+      if (!num(p.power_kW) || p.power_kW === 0) fail('MB_MACHINE_SPEC', `${label}: shaft power power_kW required for spec 'power'`, 'power_kW');
+      const Wmag = Math.abs(p.power_kW);
+      h2 = a.h + (kind === 'compressor' ? 1 : -1) * Wmag * KJH_PER_KW / a.F;
+      r = th.flashPH(pp, a.z, P2, h2, path.rs.T);
     }
-    h2 = h;
+    eta = etaFor(path, a, h2, kind, mode, label);
+    if (!(eta > 0) || eta > 1 + 1e-9) {
+      fail('MB_MACHINE_SPEC', `${label}: the ${spec === 'power' ? 'power' : 'outlet temperature'} given implies ${num(eta) ? `an ${mode} efficiency of ${(eta * 100).toFixed(1)} %` : `an ${mode} efficiency outside 5–100 %`} — not physically possible (the ideal machine gives ${(Math.abs(a.F * (path.hs - a.h)) / KJH_PER_KW).toFixed(1)} kW${kind === 'compressor' ? ' absorbed' : ''})`, spec === 'power' ? 'power_kW' : 'T_out_K');
+    }
   }
-  const r = th.flashPH(pp, a.z, P2, h2, rs.T);
   const out = streamOut(pp, a.F, a.z, r);
   if (out.vapour_fraction < 1 - 1e-9) w.push(`${label}: outlet is two-phase (vapour fraction ${out.vapour_fraction.toFixed(4)})`);
-  const W = a.F * (h2 - a.h) / KJH_PER_KW;
+  if (kind === 'expander' && out.vapour_fraction < 0.88 && out.vapour_fraction > 0) w.push(`turbine: exhaust wetness ${((1 - out.vapour_fraction) * 100).toFixed(1)} % exceeds the usual 12 % blade-erosion limit`);
+  const W = (out.H_kJh - a.H_kJh) / KJH_PER_KW;          // from the converged outlet state: the energy balance closes exactly
   const props = out.rig.props && out.rig.props.phases[0];
-  return result([out], a.mass, a.H_kJh, out.H_kJh, W,
-    { pp: ppDetails(pp), power_kW: W, mode, efficiency: eta, pressure_ratio: P2 / a.P, T_out_K: r.T, T_isentropic_K: rs.T,
-      isentropic_power_kW: a.F * (hs - a.h) / KJH_PER_KW, head_kJkg: (h2 - a.h) / (out.mass_flow_kg_h > 0 ? out.mass_flow_kg_h / a.F : 1),
-      inlet_volume_m3_h: (() => { try { const pr = th.properties(pp, a.r); return a.mass / pr.rho_kgm3; } catch (_e) { return null; } })(),
-      Z_out: props ? props.Z : null }, w);
+  const etaIs = (kind === 'compressor' ? (path.hs - a.h) / (h2 - a.h) : (a.h - h2) / (a.h - path.hs));
+  const det = { pp: ppDetails(pp), spec, power_kW: W, mode, efficiency: eta, isentropic_efficiency: etaIs, pressure_ratio: P2 / a.P, P_out_bar: P2 / 1e5,
+    T_out_K: r.T, T_isentropic_K: path.rs.T, vapour_fraction_out: out.vapour_fraction, vapour_fraction_isentropic: path.rs.phase === 'V' ? 1 : path.rs.phase === 'L' ? 0 : path.rs.beta,
+    isentropic_power_kW: a.F * (path.hs - a.h) / KJH_PER_KW, head_kJkg: (h2 - a.h) / (out.mass_flow_kg_h > 0 ? out.mass_flow_kg_h / a.F : 1),
+    dh_kJkg: a.mass > 0 ? (h2 - a.h) * a.F / a.mass : null,
+    inlet_volume_m3_h: (() => { try { const pr = th.properties(pp, a.r); return a.mass / pr.rho_kgm3; } catch (_e) { return null; } })(),
+    Z_out: props ? props.Z : null };
+  if (kind === 'expander' && W < 0) det.steam_rate_kg_kWh = a.mass / -W;     // specific steam (or gas) consumption
+  return result([out], a.mass, a.H_kJh, out.H_kJh, W, det, w);
 }
 const solveCompressor = (inp) => machine(inp, 'compressor');
 const solveExpander = (inp) => machine(inp, 'expander');
+
+// ---------------------------------------------------------------------------
+// extraction turbine — HP section to the extraction pressure, a controlled
+// extraction (bleed) of part of the flow, LP section to the exhaust pressure.
+// Outlets: [0] extraction steam, [1] exhaust. Each section has its own
+// isentropic efficiency (efficiency_hp / efficiency_lp, or one efficiency for both).
+// Extraction amount: extraction_kg_h, or extraction_fraction of the inlet mass.
+// ---------------------------------------------------------------------------
+function solveExtractionTurbine(inp) {
+  const label = 'extraction turbine';
+  const { streams, params: p } = input(inp, 1, 1, label);
+  const pp = pkg(p.property_package, keysOf(...streams));
+  const a = stateIn(pp, streams[0], `${label} inlet`);
+  const w = pp.warnings.slice();
+  if (!num(p.P_extract_bar) || p.P_extract_bar <= 0) fail('MB_P', `${label}: extraction pressure P_extract_bar required`, 'P_extract_bar');
+  const Pe = p.P_extract_bar * 1e5;
+  const P2 = pOut(p, streams[0].P_bar, label);
+  if (!(Pe < a.P)) fail('MB_P', `${label}: extraction pressure must be below the inlet pressure`, 'P_extract_bar');
+  if (!(P2 < Pe)) fail('MB_P', `${label}: exhaust pressure must be below the extraction pressure`, 'P_out_bar');
+  const e1 = num(p.efficiency_hp) ? p.efficiency_hp : num(p.efficiency) ? p.efficiency : 0.8;
+  const e2 = num(p.efficiency_lp) ? p.efficiency_lp : num(p.efficiency) ? p.efficiency : 0.8;
+  for (const [e, k] of [[e1, 'efficiency_hp'], [e2, 'efficiency_lp']]) if (!(e > 0 && e <= 1)) fail('MB_ETA', `${label}: ${k === 'efficiency_hp' ? 'HP' : 'LP'} section efficiency must be in (0, 1]`, k);
+  let mx;
+  if (num(p.extraction_kg_h)) mx = p.extraction_kg_h;
+  else if (num(p.extraction_fraction)) mx = p.extraction_fraction * a.mass;
+  else fail('MB_EXTRACTION', `${label}: give the extraction flow (extraction_kg_h) or the extracted fraction of the inlet (extraction_fraction)`, 'extraction_kg_h');
+  if (!(mx >= 0) || mx > a.mass * (1 + 1e-12)) fail('MB_EXTRACTION', `${label}: extraction must be between 0 and the inlet flow (${a.mass.toFixed(3)} kg/h)`, 'extraction_kg_h');
+  mx = Math.min(mx, a.mass);
+  if (a.r.phase !== 'V') w.push(`${label}: inlet contains liquid (vapour fraction ${(a.r.phase === 'L' ? 0 : a.r.beta).toFixed(4)})`);
+  // HP section
+  const rsE = th.flashPS(pp, a.z, Pe, th.sOf(pp, a.r), a.T);
+  const hsE = th.hOf(pp, rsE);
+  const hE = a.h - e1 * (a.h - hsE);
+  const rE = th.flashPH(pp, a.z, Pe, hE, rsE.T);
+  // LP section from the extraction-stage state
+  const rs2 = th.flashPS(pp, a.z, P2, th.sOf(pp, rE), rE.T);
+  const hs2 = th.hOf(pp, rs2);
+  const h2 = hE - e2 * (hE - hs2);
+  const r2 = th.flashPH(pp, a.z, P2, h2, rs2.T);
+  const fx = a.mass > 0 ? mx / a.mass : 0;
+  const Fx = a.F * fx, Fl = a.F - Fx;
+  const outX = streamOut(pp, Fx, a.z, rE);
+  const outL = streamOut(pp, Fl, a.z, r2);
+  const W = (outX.H_kJh + outL.H_kJh - a.H_kJh) / KJH_PER_KW;      // from the converged outlet states
+  const Whp = a.F * (th.hOf(pp, rE) - a.h) / KJH_PER_KW, Wlp = W - Whp;
+  if (outX.vapour_fraction < 1 - 1e-9) w.push(`${label}: extraction steam is wet (vapour fraction ${outX.vapour_fraction.toFixed(4)})`);
+  if (outL.vapour_fraction < 0.88 && outL.vapour_fraction > 0) w.push(`${label}: exhaust wetness ${((1 - outL.vapour_fraction) * 100).toFixed(1)} % exceeds the usual 12 % blade-erosion limit`);
+  if (Fl <= 0) w.push(`${label}: all the steam is extracted — the LP section carries no flow`);
+  return result([outX, outL], a.mass, a.H_kJh, outX.H_kJh + outL.H_kJh, W,
+    { pp: ppDetails(pp), power_kW: W, power_hp_kW: Whp, power_lp_kW: Wlp, efficiency_hp: e1, efficiency_lp: e2,
+      extraction_kg_h: mx, extraction_fraction: fx, exhaust_kg_h: a.mass - mx,
+      P_extract_bar: Pe / 1e5, P_out_bar: P2 / 1e5, T_extract_K: rE.T, T_out_K: r2.T,
+      T_extract_isentropic_K: rsE.T, T_out_isentropic_K: rs2.T,
+      vapour_fraction_extract: outX.vapour_fraction, vapour_fraction_out: outL.vapour_fraction,
+      dh_hp_kJkg: a.mass > 0 ? (hE - a.h) * a.F / a.mass : null, dh_lp_kJkg: a.mass > 0 ? (h2 - hE) * a.F / a.mass : null,
+      steam_rate_kg_kWh: W < 0 ? a.mass / -W : null }, w);
+}
 
 // ---------------------------------------------------------------------------
 // flash drum
@@ -791,6 +918,8 @@ function propertyInfo(inp) {
       electrolyte: pp.electrolyte ? { model: pp.electrolyte.model, solvent: pp.electrolyte.solvent,
         method: pp.electrolyte.model === 'amine-mea'
           ? 'Chemical equilibrium (carbamate + bicarbonate, ideal molarity basis), Akula et al. (2021) as in the IDAES MEA property package; CO2 Henry constant by the N2O analogy (Jiru et al. 2012); H2O / MEA by Raoult on true mole fractions'
+          : pp.electrolyte.model === 'amine-mdea'
+          ? 'Extended UNIQUAC (UNIQUAC + Debye–Hückel) with the parameters of Sadegh (DTU PhD thesis, 2013): H2O, CO2, MDEA, MDEAH+, H+, OH−, HCO3−, CO3−−; equilibrium constants from the fitted standard-state ΔfG°, ΔfH°, Cp°; CO2 Henry constant of Rumpf & Maurer (1993)' + (pp.keys.includes('piperazine') ? '; activated MDEA: PZ, PZH+, PZCOO−, H+PZCOO−, PZ(COO)2−− with parameters by analogy to the Sadegh species and water interactions / carbamate equilibria fitted to measured CO2 pressures (Chen 2011, Xu 2011; 40–160 °C), PZH+ dissociation of Gupta et al. (2022)' : '')
           : 'Pitzer electrolyte model (Harvie–Møller–Weare) with the USGS PHREEQC pitzer.dat parameters and equilibrium constants: K+, CO3−−, HCO3−, CO2(aq), OH−, H+; water activity from the osmotic coefficient',
         enthalpy: 'Gibbs–Helmholtz on the liquid fugacities (heats of absorption consistent with the solubility model)' } : null,
       no_data: noData,
@@ -814,6 +943,7 @@ export const RIG_MODULES = {
   'pump': solvePumpR,
   'compressor': solveCompressor,
   'expander': solveExpander,
+  'extraction-turbine': solveExtractionTurbine,
   'r-flash': solveFlashR,
   'r-flash3': solveFlash3R,
   'r-mixer': solveMixerR,
