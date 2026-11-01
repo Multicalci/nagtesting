@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<!-- REPO PATH: flowsheet-user-guide.html -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flowsheet Simulator User Guide — Build, Run and Read a Process Simulation | multicalci.com</title>
+<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate), rigorous columns, reactors, recycles, design specs, sensitivity studies, results, reports and troubleshooting.">
+<link rel="canonical" href="https://www.multicalci.com/flowsheet-user-guide">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Flowsheet Simulator User Guide | multicalci.com">
+<meta property="og:description" content="How to build, run and read a steady-state process flowsheet in the free multicalci.com simulator.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://www.multicalci.com/flowsheet-user-guide">
+<meta property="og:image" content="https://www.multicalci.com/assets/flowsheet-guide/workspace.webp">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f6;--card:#fff;--line:#d6dfeb;--ink:#0d1726;--ink2:#2a3a52;--dim:#5f6f86;--accent:#0055bb;--ok:#157a3c;--warn:#9a5b00;--mono:'IBM Plex Mono',ui-monospace,monospace;--sans:Inter,system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font:15px/1.65 var(--sans);color:var(--ink);background:var(--bg)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.lm{width:32px;height:32px;border-radius:7px;border:2px solid var(--accent);color:var(--accent);display:grid;place-items:center;font:700 14px var(--mono);background:#e7f0fb}
+header a{color:inherit;text-decoration:none;display:flex;gap:10px;align-items:center;font-weight:700}
+header .sp{flex:1}
+header .btn,.cta a{font-weight:600;font-size:13px;color:#fff;background:var(--accent);padding:8px 14px;border-radius:8px;text-decoration:none}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 6px}
+.cta a.alt{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+main{max-width:1040px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:28px;line-height:1.25;margin-bottom:8px}
+h2{font-size:20px;margin:44px 0 8px;padding-top:6px;scroll-margin-top:12px}
+h3{font-size:16px;margin:24px 0 4px;scroll-margin-top:12px}
+p{color:var(--ink2);margin:8px 0}
+a{color:var(--accent)}
+ul,ol{margin:8px 0 8px 22px;color:var(--ink2)}
+li{margin:4px 0}
+.lead{font-size:16.5px;color:var(--ink2)}
+.toc{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:22px 0}
+.toc b{display:block;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.toc ol{columns:2;column-gap:28px;margin:0 0 0 20px}
+.toc li{break-inside:avoid}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+.steps{counter-reset:s;list-style:none;margin:10px 0;padding:0}
+.steps>li{counter-increment:s;position:relative;padding:10px 12px 10px 48px;background:#fff;border:1px solid var(--line);border-radius:10px;margin:8px 0}
+.steps>li::before{content:counter(s);position:absolute;left:12px;top:10px;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font:600 13px/26px var(--sans);text-align:center}
+.tip,.warn{border-radius:10px;padding:10px 14px;margin:12px 0;font-size:14px}
+.tip{background:#e9f5ee;border:1px solid #bfe0cb;color:#174a2c}
+.warn{background:#fff6e5;border:1px solid #f0d49c;color:#5c3a00}
+.tip b,.warn b{color:inherit}
+figure{margin:16px 0}
+figure img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+figcaption{font-size:13px;color:var(--dim);margin-top:6px}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start}
+.duo figure img{max-height:620px;width:auto;margin:0 auto}
+.tw{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:12px;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{background:#f3f6fa;text-align:left;padding:8px 12px;font-size:12.5px;color:var(--ink2);border-bottom:1px solid var(--line);vertical-align:bottom}
+td{padding:8px 12px;border-bottom:1px solid #eef2f7;text-align:left;vertical-align:top;color:var(--ink2)}
+td:first-child{color:var(--ink);font-weight:600;min-width:150px}
+tbody tr:last-child td{border-bottom:0}
+kbd{font:500 12px var(--mono);background:#f3f6fa;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
+code{font:500 13px var(--mono);background:#f3f6fa;border-radius:4px;padding:1px 5px}
+.ui{font-weight:600;color:var(--ink)}
+dl.faq dt{font-weight:600;color:var(--ink);margin-top:14px}
+dl.faq dd{margin:4px 0 0;color:var(--ink2)}
+footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:var(--dim)}
+@media (max-width:640px){.toc ol{columns:1}h1{font-size:23px}td:first-child{min-width:110px}}
+</style>
+</head>
+<body>
+<header><a href="https://www.multicalci.com/"><span class="lm">mc</span>multicalci.com</a><span class="sp"></span><a class="btn" href="/flowsheet-simulator">Open the flowsheet simulator</a></header>
+<main>
+<h1>Flowsheet Simulator — user guide</h1>
+<p class="lead">The multicalci.com Flowsheet Simulator solves steady-state material and energy balances for whole process flowsheets in your browser. You draw the units, connect them with streams, choose a property method and press Run. This guide takes you from a first run to rigorous columns, recycle loops, design specs and CO₂ removal.</p>
+<div class="cta"><a href="/flowsheet-simulator">Open the simulator</a><a class="alt" href="/flowsheet-validation">How the simulator is validated</a></div>
+
+<nav class="toc" aria-label="Contents"><b>Contents</b><ol>
+<li><a href="#start">Quick start</a></li>
+<li><a href="#tour">The workspace</a></li>
+<li><a href="#build">Building a flowsheet</a></li>
+<li><a href="#methods">Choosing a property method</a></li>
+<li><a href="#equipment">Equipment reference</a></li>
+<li><a href="#solve">Recycles, design specs and sensitivity studies</a></li>
+<li><a href="#results">Results, stream analysis and reports</a></li>
+<li><a href="#files">Saving, opening and sharing</a></li>
+<li><a href="#examples">Ready-made examples</a></li>
+<li><a href="#trouble">Troubleshooting</a></li>
+<li><a href="#limits">Accuracy and limits</a></li>
+<li><a href="#keys">Keyboard and phone</a></li>
+</ol></nav>
+
+<h2 id="start">1 · Quick start</h2>
+<h3>Run an example in one minute</h3>
+<ol class="steps">
+<li>Open the <a href="/flowsheet-simulator">simulator</a> and click <span class="ui">Examples ▾</span> in the toolbar.</li>
+<li>Choose <span class="ui">Gas cooling &amp; condensate knock-out</span>. The flowsheet appears with its feeds and units already specified.</li>
+<li>Press <span class="ui">Run</span> (or <kbd>F5</kbd>). When the status at the bottom reads <span class="ui">Results available</span>, the stream table fills in. Click any unit or stream to see its results in the panel on the right.</li>
+</ol>
+
+<h3>Build your first flowsheet: cool a wet gas and knock out the water</h3>
+<p>This ten-minute exercise covers everything you need for larger flowsheets. A hot, wet gas is cooled to 40 °C and the condensed water is separated in a flash drum.</p>
+<ol class="steps">
+<li><span class="ui">File ▾ → New flowsheet</span> clears the canvas.</li>
+<li>Click <span class="ui">Methods</span> in the toolbar and set <span class="ui">Base method</span> to <span class="ui">Peng–Robinson</span>. (Section 4 explains how to choose a method.)</li>
+<li>Drag <span class="ui">Heater / cooler</span> from the equipment palette onto the canvas. Then drag a <span class="ui">Flash drum</span> to its right. Each unit appears with its own feed and product arrows.</li>
+<li>Connect them: drag the <b>tip of the heater's outlet arrow</b> onto the flash drum's inlet port and release. The two units are now joined by one stream.</li>
+<li>Click the heater's feed arrow (the arrow on its inlet). In the panel on the right, add three components with <span class="ui">+ Add component</span>: nitrogen 75, water 20 and carbon dioxide 5 (basis <span class="ui">mole %</span>). Set <span class="ui">Total flow</span> 100 kmol/h, <span class="ui">Temperature</span> 150 °C and <span class="ui">Pressure</span> 5 bar(a). The <span class="ui">complete</span> badge appears when nothing is missing.</li>
+<li>Click the heater. Leave <span class="ui">Specification</span> on <span class="ui">Outlet temperature</span> and enter 40 °C.</li>
+<li>Click the flash drum. Leave <span class="ui">Flash specification</span> on <span class="ui">Temperature &amp; pressure</span> and enter 40 °C and 4.8 bar(a).</li>
+<li>Press <span class="ui">Run</span>. The liquid product carries about 340 kg/h, almost all of the water. The vapour leaves with the nitrogen, the CO₂ and the water that stays saturated at 40 °C. Click the heater to read its cooling duty.</li>
+</ol>
+<div class="tip"><b>Tip.</b> Rename any unit or stream by clicking its name at the top of the right-hand panel. Turn on <span class="ui">T·P·F tags</span> (top left of the canvas) to print temperature, pressure and flow next to every stream on the drawing.</div>
+
+<figure><img src="/assets/flowsheet-guide/workspace.webp" width="1440" height="860" loading="lazy" alt="The flowsheet simulator with a mixer, cooler and flash drum on the canvas, the equipment palette on the left, the flash drum's properties on the right and the stream table at the bottom"><figcaption>The workspace after a run: equipment palette (left), canvas with T·P·F tags (centre), properties of the selected flash drum (right), results dock with the stream table (bottom).</figcaption></figure>
+
+<h2 id="tour">2 · The workspace</h2>
+<div class="tw"><table><thead><tr><th>Area</th><th>What it is for</th></tr></thead><tbody>
+<tr><td>Toolbar</td><td><span class="ui">Examples</span> loads ready-made flowsheets. <span class="ui">File</span> handles new, open, save and share links, and exports the stream table. <span class="ui">Undo / Redo</span> and <span class="ui">Tidy</span> (auto-arrange left to right) edit the drawing. <span class="ui">Methods</span> sets the property method; its badge shows the current one (PR, NRTL, IF97 …). <span class="ui">Specs</span> holds the design specs. <span class="ui">Report</span> makes a printable PDF and <span class="ui">Help</span> gives a summary. <span class="ui">Run</span> solves the flowsheet.</td></tr>
+<tr><td>Equipment palette</td><td>All unit operations, grouped: mixers &amp; splitters, separators, heat transfer, pressure changers, reactors, columns, ammonia &amp; syngas, urea synthesis and solids. Type in <span class="ui">Search equipment…</span> to filter. Drag a unit onto the canvas, or click it to drop it in the middle.</td></tr>
+<tr><td>Canvas</td><td>The drawing. Drag empty space to pan and use <kbd>Ctrl</kbd>+wheel or pinch to zoom. <span class="ui">Fit</span> brings everything into view. <span class="ui">Snap</span> aligns blocks to the grid and <span class="ui">T·P·F tags</span> prints stream results on the drawing.</td></tr>
+<tr><td>Properties panel (right)</td><td>Shows whatever is selected. For a feed stream it holds the specification and results. For a unit it holds the specifications, connections and results, including profiles for columns and reactors. With nothing selected (click empty canvas) it holds the <b>flowsheet panel</b>: property method, design specs, sensitivity study and display units.</td></tr>
+<tr><td>Results dock (bottom)</td><td>A status lamp and six tabs: <span class="ui">Stream table</span>, <span class="ui">Units</span>, <span class="ui">Balance</span>, <span class="ui">Sensitivity</span>, <span class="ui">Run log</span> and <span class="ui">Issues</span>. Drag its top edge to resize it, or collapse it with the arrow on the right.</td></tr>
+</tbody></table></div>
+<p>The status lamp shows four states:</p>
+<ul>
+<li><b>red</b>: input incomplete, with the number of missing items;</li>
+<li><b>green</b>: results available, with the mass-balance closure;</li>
+<li><b>amber</b>: results with warnings, or inputs changed since the last run;</li>
+<li><b>grey</b>: an empty flowsheet.</li>
+</ul>
+<p>If a run fails, the status says so and the <span class="ui">Run log</span> explains why.</p>
+
+<h2 id="build">3 · Building a flowsheet</h2>
+<h3>3.1 Place equipment</h3>
+<p>Drag units from the palette. Each new unit gets a name (E1, F1, M1 …) and feed and product arrows on its ports. Units that take several feeds show a spare <span class="ui">+ inlet</span> port; connect a stream to it to add an inlet. These are the mixer (up to 12 inlets), and the rigorous column, three-phase separator, Gibbs reactor and kinetic reactors (up to 4 each). Select a unit or stream and press <kbd>Del</kbd> to remove it. The arrow keys nudge a selected block.</p>
+
+<h3>3.2 Connect streams</h3>
+<ul>
+<li><b>Red ports</b> are required inlets that still need a stream. Blue ports are outlets or optional inlets.</li>
+<li>Drag the <b>tip of an outlet arrow</b> onto the inlet port of the next unit. You can also drag from any free port and release on another port to connect, or on empty canvas to make a feed or product.</li>
+<li>To re-route a stream, select it and drag its end handle. Every unit's panel also has a <span class="ui">Ports &amp; connections</span> section with dropdowns, which is the easiest way on a phone.</li>
+<li>Streams with no source are <b>feeds</b> and must be specified. Streams with no destination are <b>products</b>.</li>
+</ul>
+
+<div class="duo">
+<div>
+<h3>3.3 Specify feeds</h3>
+<p>Click a feed arrow to open its specification:</p>
+<ul>
+<li><span class="ui">⚡ Load a typical stream…</span> fills in dry air, lean natural gas, water/steam, ammonia make-up gas (H₂/N₂ = 3) or a pure gas.</li>
+<li><span class="ui">+ Add component</span> searches more than 400 components with ChemSep pure-component data (by name or formula, e.g. “methane” or “CO2”). Components marked “classic units only” (urea, carbamate, biuret …) work only in the reformer and urea units.</li>
+<li>The composition basis can be mole %, mass %, kmol/h or kg/h. <span class="ui">Normalize</span> scales fractions to 100. The Σ line shows the current sum.</li>
+<li>Enter temperature, pressure and total flow in any listed unit:
+  <ul>
+  <li>temperature in °C, K or °F;</li>
+  <li>pressure in bar(a), bar(g), kg/cm²(g), kg/cm²(a), kPa(a), MPa(a), psia, psig or atm;</li>
+  <li>flow in kg/h, t/h, kg/s, lb/h, kmol/h or Nm³/h.</li>
+  </ul>
+  Gauge pressures are converted using 1.01325 bar atmospheric.</li>
+</ul>
+<h3>3.4 Specify units</h3>
+<p>Click a unit and fill its fields. Required fields carry a red asterisk. The grey hint under a field says what happens if you leave it blank (for example “blank = feed pressure”). A <span class="ui">complete</span> badge shows when the unit has everything it needs. Many units let you choose what you specify: a heater by outlet temperature, duty or vapour fraction; a flash drum by T &amp; P, P &amp; duty, P &amp; vapour fraction or T &amp; vapour fraction. Section 5 lists the inputs for every unit.</p>
+<h3>3.5 Run</h3>
+<p>Press <span class="ui">Run</span> or <kbd>F5</kbd>. The whole flowsheet is solved on the multicalci.com engine in one call: calculation order, recycle loops, design specs and any sensitivity study. If something is missing, the <span class="ui">Issues</span> tab lists it and clicking an entry selects the unit or stream.</p>
+</div>
+<figure><img src="/assets/flowsheet-guide/feed.webp" width="344" height="808" loading="lazy" alt="Feed specification panel with typical-stream selector, temperature, pressure, flow, composition basis and a list of components"><figcaption>A feed stream's panel: typical streams, T, P, flow and composition in any unit, then its results after a run.</figcaption></figure>
+</div>
+
+<h2 id="methods">4 · Choosing a property method</h2>
+<div class="duo">
+<div>
+<p>The property method decides how phase equilibrium, enthalpy and density are calculated. Set it for the whole flowsheet with <span class="ui">Methods</span> (or click empty canvas). With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become <b>rigorous</b>:</p>
+<ul>
+<li>every outlet is flashed, so a stream can leave two-phase;</li>
+<li>enthalpies include heats of vaporisation and mixing.</li>
+</ul>
+<p>A rigorous unit can override the flowsheet method in its own panel.</p>
+<p><span class="ui">🔍 Review pure-component &amp; binary data</span> lists exactly which constants and binary pairs will be used, and lets you override Peng–Robinson k<sub>ij</sub> or NRTL pairs. <span class="ui">Valid phases</span> switches on a second liquid phase (vapour–liquid–liquid) for free water or partially miscible solvents. <span class="ui">Automatic</span> turns it on for an equation of state when water and propane-or-heavier hydrocarbons are present.</p>
+</div>
+<figure><img src="/assets/flowsheet-guide/methods.webp" width="344" height="808" loading="lazy" alt="Flowsheet panel with the property method selector, design specs, sensitivity study and display units"><figcaption>The flowsheet panel (click empty canvas): property method, design specs, sensitivity study and display units.</figcaption></figure>
+</div>
+<div class="tw"><table><thead><tr><th>Method</th><th>Use it for</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Peng–Robinson, SRK</td><td>Hydrocarbons, light gases, syngas, ammonia loops, natural gas, anything at pressure</td><td>Built-in k<sub>ij</sub> where available. Without fitted k<sub>ij</sub>, water solubility in hydrocarbon liquids is over-predicted.</td></tr>
+<tr><td>NRTL, UNIQUAC, Wilson</td><td>Polar liquids at low to moderate pressure: alcohols, water–organic mixtures, esters, glycols</td><td>ChemSep binary parameters built in. Carboxylic acids dimerise in the vapour automatically. Wilson cannot predict two liquid phases.</td></tr>
+<tr><td>UNIFAC, Dortmund UNIFAC</td><td>Polar mixtures where no binary parameters exist</td><td>Predictive (group contribution), so less accurate than fitted binaries.</td></tr>
+<tr><td>Ideal</td><td>Quick estimates, near-ideal mixtures at low pressure</td><td>Raoult's law with ideal-gas vapour.</td></tr>
+<tr><td>Steam / water (IAPWS-IF97)</td><td>Boilers, steam turbines, condensers, feed-water pumps</td><td>The industrial steam-table standard, with IAPWS viscosity and conductivity. Pure water only.</td></tr>
+<tr><td>Aqueous MEA</td><td>CO₂ removal with monoethanolamine</td><td>Carbamate and bicarbonate chemistry. Over-predicts CO₂ pressure at high loadings.</td></tr>
+<tr><td>Aqueous MDEA / activated MDEA</td><td>CO₂ removal with MDEA, or MDEA + piperazine (aMDEA)</td><td>Extended UNIQUAC. Add piperazine to the components for aMDEA. The piperazine part is fitted to measured data and flagged outside the data range.</td></tr>
+<tr><td>Hot potassium carbonate</td><td>Benfield-type hot carbonate CO₂ removal</td><td>Pitzer model. Parameters are extrapolated above about 100 °C.</td></tr>
+<tr><td>Classic</td><td>The engine's per-unit models (needed for the reformer, shift, methanator and urea units)</td><td>Flash drums then offer Raoult, Peng–Robinson or NRTL individually.</td></tr>
+</tbody></table></div>
+<div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson. Water with organics at low pressure: NRTL. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; H₂S and NH₃ are not modelled.</div>
+
+<h2 id="equipment">5 · Equipment reference</h2>
+<p>“You give” lists the main inputs; optional fields such as pressure drops are described in each unit's panel. Units marked <b>rigorous only</b> always use a property method (Peng–Robinson when the flowsheet is on Classic).</p>
+<h3>Mixers, splitters and separators</h3>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Mixer</td><td>Combines any number of inlets</td><td>Thermal mode: adiabatic, a duty, or a specified outlet T. Outlet P (blank = lowest inlet).</td></tr>
+<tr><td>Splitter</td><td>Divides one stream into several of the same composition</td><td>Split fractions</td></tr>
+<tr><td>Component separator</td><td>Sends a set fraction of each component to the “Separated” outlet (e.g. a CO₂ wash or a black-box membrane)</td><td>Fraction per component</td></tr>
+<tr><td>Flash drum</td><td>Vapour–liquid separation</td><td>T &amp; P, P &amp; duty (0 = adiabatic), P &amp; vapour fraction, or T &amp; vapour fraction</td></tr>
+<tr><td>Three-phase separator <small>(rigorous only)</small></td><td>Vapour, light liquid and heavy (aqueous) liquid</td><td>P &amp; duty, or T &amp; P</td></tr>
+<tr><td>Solid–liquid separator, dryer</td><td>Solids handling (centrifuge or filter; product drying)</td><td>Solids recovery and cake moisture; product moisture and exhaust or product T</td></tr>
+</tbody></table></div>
+<h3>Heat transfer and pressure changers</h3>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Heater / cooler</td><td>One-sided heating or cooling; reports duty</td><td>Outlet T, duty, or outlet vapour fraction. Pressure drop or outlet P.</td></tr>
+<tr><td>Heat exchanger</td><td>Two-stream exchanger (hot and cold side)</td><td>Hot outlet T, cold outlet T, duty, minimum approach ΔT, or UA. ΔP for each side.</td></tr>
+<tr><td>Pump / compressor / turbine</td><td>Rotating machine with power</td><td>Pump: ΔP or outlet P and efficiency. Compressor or turbine: outlet P (or pressure ratio) plus one known value: efficiency, measured outlet T, or shaft power. Isentropic or polytropic basis.</td></tr>
+<tr><td>Valve</td><td>Isenthalpic let-down</td><td>Outlet P or pressure drop</td></tr>
+<tr><td>Extraction steam turbine <small>(rigorous only)</small></td><td>HP section to an extraction, controlled extraction, LP section to exhaust</td><td>Extraction P, extraction flow or fraction, exhaust P, HP and LP efficiencies</td></tr>
+</tbody></table></div>
+<h3>Reactors</h3>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Conversion reactor</td><td>Up to three reactions at set conversion</td><td>Stoichiometry and conversion of the limiting reactant. Isothermal, adiabatic or specified outlet T.</td></tr>
+<tr><td>Gibbs reactor <small>(rigorous only)</small></td><td>Chemical equilibrium by Gibbs-energy minimisation; no reactions needed</td><td>Species that may form, plus outlet T or duty</td></tr>
+<tr><td>Plug-flow reactor (kinetic) <small>(rigorous only)</small></td><td>Integrates rate laws along the reactor; axial T, P and composition profiles</td><td>Reactions (power-law or LHHW / Hougen–Watson, reversible or not), volume or tubes, and a thermal mode: isothermal, adiabatic, fixed duty, or heated / cooled through the wall</td></tr>
+<tr><td>CSTR (kinetic) <small>(rigorous only)</small></td><td>Well-mixed reactor with the same kinetics</td><td>Reacting volume, thermal mode, and a temperature estimate for non-isothermal cases</td></tr>
+</tbody></table></div>
+<p>Kinetic reactions take k₀ and an activation energy, optional orders (blank = elementary), a concentration or partial-pressure basis, and rates per m³ of reactor or per kg of catalyst. Reversible reactions can take their equilibrium constant from the databank's Gibbs energies.</p>
+<h3>Columns</h3>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Rigorous column (RadFrac-type) <small>(rigorous only)</small></td><td>Full stage-by-stage distillation, absorption or stripping with T, composition and flow profiles</td><td>Stages (condenser = stage 1, reboiler = stage N), condenser (total, partial, none), reboiler (kettle, none), feed stages, top P, ΔP per stage. Two operating specs when it has both condenser and reboiler (reflux ratio, distillate or bottoms rate, boil-up, duties, condenser T, a product mole fraction or a recovery). Optional Murphree efficiency per tray or per component, and side draws.</td></tr>
+<tr><td>Distillation (McCabe–Thiele)</td><td>Binary shortcut with a staircase diagram</td><td>x<sub>D</sub>, x<sub>W</sub>, feed quality, relative volatility or a model, reflux as R/R<sub>min</sub> or R</td></tr>
+<tr><td>Absorber / stripper (Kremser)</td><td>Dilute-solute shortcut</td><td>Equilibrium slope m, flows, and either the target purity or the number of stages</td></tr>
+</tbody></table></div>
+<figure><img src="/assets/flowsheet-guide/column.webp" width="1440" height="860" loading="lazy" alt="Benzene and toluene rigorous column example with the column selected and its specifications in the right-hand panel"><figcaption>The rigorous column example: stages, condenser, reboiler, feed stage, pressures and operating specifications in the right-hand panel. Profiles follow under Results after a run.</figcaption></figure>
+<h3>Ammonia, syngas and urea</h3>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Primary reformer (SMR), secondary reformer, ATR</td><td>Reforming and shift equilibria with heat balance</td><td>Primary: outlet T and approaches to equilibrium. Secondary: approaches to equilibrium, with process air as its second feed. ATR: steam/carbon and O₂/carbon ratios, oxidant and temperatures.</td></tr>
+<tr><td>Shift converter, methanator</td><td>Water-gas shift (HTS / LTS presets) or CO/CO₂ methanation at equilibrium</td><td>Adiabatic or isothermal, approach to equilibrium</td></tr>
+<tr><td>Urea reactor, HP carbamate stripper, urea HP loop</td><td>Urea synthesis section</td><td>Reactor T and P, with an optional conversion override. Stripper decomposition, temperatures, pressure and heating steam. Loop pressure. These are tuned empirical correlations that warn outside their validity range.</td></tr>
+</tbody></table></div>
+
+<h2 id="solve">6 · Recycles, design specs and sensitivity studies</h2>
+<h3>Recycle loops</h3>
+<p>Loops are found automatically. One stream in each loop is <b>torn</b>: guessed, calculated round the loop and updated with Wegstein acceleration until it stops changing (relative tolerance 10⁻⁵ by default). Torn streams are drawn dashed. If a loop is slow to converge, open the torn stream and fill in <span class="ui">Initial estimate</span> (used only if the stream is torn) with a sensible flow, T, P and composition.</p>
+<h3>Design specs</h3>
+<p>A design spec varies one input until a result hits a target. Examples: process air until H₂/N₂ = 3 in the make-up gas, or a cooler outlet temperature until the gas has a given water content. Press <span class="ui">Specs</span> → <span class="ui">+ Add design spec</span>. Choose the variable (any feed or unit input), the target (any stream or unit result) and its value. Bounds on the variable are optional but keep the search physical. Specs are solved on the server together with the recycles.</p>
+<h3>Sensitivity study</h3>
+<p>In the flowsheet panel, <span class="ui">+ Set up a sensitivity study</span> steps one input over a range and records up to eight results at each point (duties, purities, flows, temperatures …). After the run, the <span class="ui">Sensitivity</span> tab shows a chart and a table you can copy into Excel.</p>
+
+<h2 id="results">7 · Results, stream analysis and reports</h2>
+<ul>
+<li><b>Stream table</b>: T, P, flows, phase, enthalpy and composition of every stream. The <span class="ui">Composition</span> selector switches between component flows and fractions on a mass or mole basis, and the unit selectors change the display units. Use <span class="ui">Copy for Excel</span> or <span class="ui">CSV</span>.</li>
+<li><b>Units</b>: the key results of every unit (duties, powers, conversions, column specs).</li>
+<li><b>Balance</b>: overall mass closure and heating / cooling totals. Closure should be close to 0 %; a large value points to a problem.</li>
+<li><b>Run log</b> and <b>Issues</b>: what the solver did, warnings (for example a unit outside its validity range) and anything missing.</li>
+<li><b>Unit and stream panels</b>: detailed results. Columns and plug-flow reactors show profiles. Acid-gas streams show CO₂ loading, equilibrium CO₂ pressure and related values. With a property method, every stream also shows density, Cp, viscosity and thermal conductivity for each phase.</li>
+<li><b>Stream analysis</b> (in a stream's panel), using the flowsheet property method:
+  <ul>
+  <li><span class="ui">Phase envelope</span>: bubble and dew curves, critical point, cricondenbar and cricondentherm;</li>
+  <li><span class="ui">Property table</span>: sweeps T or P and tabulates the properties;</li>
+  <li><span class="ui">Binary diagram</span>: T–x–y, P–x–y and y–x curves with azeotropes.</li>
+  </ul>
+  The phase envelope is not available with the acid-gas methods.</li>
+<li><b>Report</b>: opens a printable page with the drawing, the stream table and the unit results, together with the browser's print dialog. Choose “Save as PDF” there for a PDF.</li>
+</ul>
+
+<h2 id="files">8 · Saving, opening and sharing</h2>
+<ul>
+<li><b>Autosave</b>: the current flowsheet is kept in this browser and reappears when you come back. It is not synchronised to other devices, and clearing the browser's site data removes it.</li>
+<li><span class="ui">File → Save to file</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) downloads a <code>.json</code> file. <span class="ui">Open file…</span> loads it again. Keep files for anything you need later.</li>
+<li><span class="ui">File → Copy share link</span> puts the whole flowsheet into one URL. Anyone who opens it gets their own copy; nothing is stored on a server.</li>
+<li><span class="ui">File → New flowsheet</span> clears the canvas (save first if needed).</li>
+<li>For a quick single-unit calculation without drawing, use the <a href="/material-balance">classic worksheet</a>.</li>
+</ul>
+
+<h2 id="examples">9 · Ready-made examples</h2>
+<p>Every example is fully specified. Open one, press Run, then change something and run again. It's the quickest way to learn a unit.</p>
+<div class="tw"><table><thead><tr><th>Example</th><th>Shows</th></tr></thead><tbody>
+<tr><td>Gas cooling &amp; condensate knock-out</td><td>Mixer → cooler → flash drum. The best first example.</td></tr>
+<tr><td>Extraction steam turbine + condenser</td><td>IAPWS-IF97 steam, extraction turbine, condenser, feed-water pump</td></tr>
+<tr><td>Ammonia front end (syngas train)</td><td>Primary and secondary reformers, HTS and LTS shift, CO₂ removal (as a component separator) and methanator. A design spec sets the process air for H₂/N₂ = 3.</td></tr>
+<tr><td>Shift reactor with condensate recycle</td><td>A recycle loop with a torn stream</td></tr>
+<tr><td>Ammonia loop separator &amp; let-down</td><td>Peng–Robinson flashes at loop pressure</td></tr>
+<tr><td>Benzene / toluene column</td><td>Rigorous column with condenser, reboiler and two specs</td></tr>
+<tr><td>Gas dew-point control (LTS)</td><td>Gas–gas exchanger, chiller, let-down valve and cold separator</td></tr>
+<tr><td>Steam reformer by Gibbs minimisation</td><td>Gibbs reactor with no reactions entered</td></tr>
+<tr><td>Methanol / water column (NRTL)</td><td>Activity-coefficient method in a rigorous column</td></tr>
+<tr><td>Three-phase separator (gas / oil / water)</td><td>Vapour–liquid–liquid flash</td></tr>
+<tr><td>Ethylene glycol: PFR vs CSTR</td><td>Kinetic reactors side by side</td></tr>
+<tr><td>Ethane cracking coil</td><td>Kinetic plug-flow reactor heated through the wall</td></tr>
+<tr><td>Steam reformer tubes (Xu–Froment)</td><td>LHHW catalytic kinetics with axial profiles</td></tr>
+<tr><td>Ethyl acetate esterification CSTR</td><td>Liquid-phase kinetics with acid association</td></tr>
+<tr><td>Syngas CO₂ removal: MEA, MDEA, activated MDEA, hot potassium carbonate</td><td>Absorber, flash let-down, lean/rich exchanger and regenerator with each solvent</td></tr>
+</tbody></table></div>
+
+<h2 id="trouble">10 · Troubleshooting</h2>
+<dl class="faq">
+<dt>Run does nothing, or the status lamp stays grey.</dt>
+<dd>Something is not specified. Open the <span class="ui">Issues</span> tab and click each entry. Look for red ports (an inlet with no stream) and units without the <span class="ui">complete</span> badge.</dd>
+<dt>The run stops with an error.</dt>
+<dd>Read the status line and the <span class="ui">Run log</span>; they name the unit and the reason. Common causes are a specification that cannot be met, such as a cooler outlet hotter than its inlet or a flash vapour fraction above 1, and a component the chosen method does not support.</dd>
+<dt>A recycle loop does not converge.</dt>
+<dd>Give the torn (dashed) stream an initial estimate close to the expected answer. Check that the loop has a way out for every component; a purge is often needed for inerts. Make sure no unit inside the loop has an impossible spec. Very high recycle ratios converge slowly.</dd>
+<dt>The rigorous column does not converge.</dt>
+<dd>Start with easy specs (reflux ratio and distillate rate), get a solution, then switch to purity or recovery specs. A distillate rate cannot exceed what the feed can supply. Check the top pressure, the feed stage and that there are enough stages for the separation. For an absorber, make sure the solvent can take up the solute at the column pressure.</dd>
+<dt>The heat exchanger reports a temperature cross.</dt>
+<dd>The requested outlet temperature is not reachable with the other stream. Specify the other side's outlet T, the duty or a minimum approach instead, or check the flows.</dd>
+<dt>“Pacing for the engine's rate limit”.</dt>
+<dd>The free engine allows about 60 runs per minute from one user, and many quick runs in a row trigger a short pause. Nothing is lost; the run continues after the pause.</dd>
+<dt>“Flowsheet exceeded the server time budget”.</dt>
+<dd>One run must finish in about 8 seconds on the server. Very large flowsheets, or several columns or electrolyte units inside recycle loops, can exceed this. Reduce stages or sensitivity points, or split the flowsheet into parts by turning internal streams into specified feeds.</dd>
+<dt>I expected two liquid phases (or got one I did not expect).</dt>
+<dd>Set <span class="ui">Valid phases</span> in the flowsheet panel. Use vapour–liquid–liquid for free water with hydrocarbons, and vapour–liquid where a second liquid is impossible.</dd>
+<dt>My results differ from another simulator.</dt>
+<dd>Compare the same property method with the same binary parameters. Use <span class="ui">Review pure-component &amp; binary data</span> to see what is used. The <a href="/flowsheet-validation">validation page</a> shows where this engine agrees with DWSIM and other references.</dd>
+</dl>
+
+<h2 id="limits">11 · Accuracy and limits</h2>
+<p>The simulator is meant for preliminary engineering, studies, debottleneck checks and teaching. Its methods are checked against independent references on the <a href="/flowsheet-validation">validation page</a>, but results are only as good as the property parameters and specifications behind them. Know these limits:</p>
+<ul>
+<li><b>Columns</b> are equilibrium-stage models. Tray efficiencies stand in for mass-transfer rates; there is no rate-based or packing hydraulics model.</li>
+<li><b>CO₂ removal methods</b> cover CO₂ only, not H₂S or NH₃. The piperazine part of activated MDEA is fitted to measured data, and the rich end of a high-pressure absorber is an extrapolation that the stream warnings flag.</li>
+<li><b>Urea units</b> are tuned empirical correlations and warn outside their validity range.</li>
+<li><b>Steam / water method</b>: pure water only.</li>
+<li><b>Not covered</b>: equipment sizing and costing, dynamics and safety studies.</li>
+</ul>
+<div class="warn"><b>Before design use</b>, check key results against plant data, vendor information or a second calculation.</div>
+
+<h2 id="keys">12 · Keyboard and phone</h2>
+<div class="tw"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><kbd>F5</kbd></td><td>Run the flowsheet</td></tr>
+<tr><td><kbd>Del</kbd></td><td>Delete the selected unit or stream</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save to file</td></tr>
+<tr><td>Arrow keys</td><td>Nudge the selected block</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close a menu or pop-up, cancel a drag, deselect</td></tr>
+<tr><td><kbd>Ctrl</kbd>+wheel, pinch</td><td>Zoom; drag empty canvas to pan</td></tr>
+</tbody></table></div>
+<p>On a phone, the bar at the bottom of the screen has <span class="ui">＋ Equipment</span>, <span class="ui">Edit</span> (the selected item's properties), <span class="ui">Results</span> and <span class="ui">Examples</span>. Connect units with the <span class="ui">Ports &amp; connections</span> dropdowns in a unit's properties rather than by dragging. A tablet or computer screen is more comfortable for large flowsheets.</p>
+</main>
+<footer>multicalci.com · Flowsheet Simulator user guide · results are for preliminary engineering — verify before design use</footer>
+</body>
+</html>

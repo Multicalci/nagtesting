@@ -487,6 +487,7 @@ table.st .clk:hover{color:var(--accent)}
           <li><b>Drag an outlet arrow tip</b> onto the next unit's inlet to connect them.</li>
           <li>Fill the unit's specs on the right, then press <b>Run</b>.</li>
         </ol>
+        <div style="color:var(--dim);font-size:13px;margin-top:6px">New here? Read the <a href="/flowsheet-user-guide" target="_blank" rel="noopener">step-by-step user guide</a>.</div>
         <div class="row" id="emptyBtns"></div>
       </div>
     </div>
@@ -526,6 +527,7 @@ table.st .clk:hover{color:var(--accent)}
 
 <section id="helpContent" hidden>
   <h2>Flowsheet Simulator — how to use</h2>
+  <p class="note">The full, illustrated <a href="/flowsheet-user-guide" target="_blank" rel="noopener">user guide</a> walks through a first flowsheet step by step and covers every unit, property method, results tab and common problem. This panel is the short version.</p>
   <p>This is a free, browser-based <b>process flowsheet simulator</b> for steady-state material and energy balances. It works like the drawing board of a commercial simulator: choose a property method, place unit operations, connect them with material streams, specify the feeds and the units, and run. The whole flowsheet — calculation order, recycle loops, design specs and sensitivity studies — is solved by the multicalci.com engine in one call.</p>
   <h3>1 · Place equipment</h3>
   <p>Drag a unit from the palette on the left onto the canvas (or click it to drop it in the middle). Feed arrows and product arrows are created automatically on its ports. Red port circles are required inlets that still need a stream; blue ones are optional or outlets.</p>
@@ -542,8 +544,11 @@ table.st .clk:hover{color:var(--accent)}
   <h3>Property method (Methods)</h3>
   <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
   <p>The component list holds more than 400 components with ChemSep pure-component data; components marked “classic units only” (urea, carbamate, biuret …) can be used in the reformer and urea units only.</p>
+  <h3>Steam turbines, compressors and the IAPWS-IF97 steam method</h3>
+  <p>For water and steam pick the <b>Steam / water (IAPWS-IF97)</b> property method: every state — compressed water, wet steam, superheated and supercritical steam — comes from the full IAPWS-IF97 industrial formulation (the one steam tables and turbine vendors use), with IAPWS viscosity and thermal conductivity; it takes pure water only. Drag a <b>pump / compressor / turbine</b> onto the canvas, connect the inlet and outlet arrows, give the outlet pressure and choose the <b>known value</b>: the efficiency (outlet temperature and power are calculated), the measured outlet temperature (efficiency and power are calculated) or the shaft power (outlet state and efficiency are calculated), on an isentropic or polytropic basis. Turbines report the exhaust steam quality, a wetness warning above 12 % and the steam rate in kg/kWh. The <b>extraction steam turbine</b> has an HP section to the extraction pressure, a controlled extraction (flow or fraction) and an LP section to the exhaust, each with its own efficiency; it uses the IAPWS-IF97 method by default. The “Extraction steam turbine + condenser” example shows both.</p>
   <h3>CO₂ removal — amine and hot-carbonate packages</h3>
-  <p>Two <b>electrolyte (acid-gas) methods</b> model chemical CO₂ absorption. <b>Aqueous MEA</b> solves the carbamate and bicarbonate equilibria of monoethanolamine (the published Akula et al. model used by IDAES): CO₂ dissolves by Henry's law on the free, unreacted CO₂, water and MEA follow Raoult's law on the true species. <b>Hot potassium carbonate</b> (Benfield-type solutions) uses the Pitzer electrolyte model with the USGS PHREEQC parameters for K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻ and the water activity. Enter the solvent as its apparent components — MEA or K₂CO₃, water and CO₂ (the CO₂ sets the lean loading or conversion); H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically. Heats of absorption follow from the solubility model (about −84 kJ/mol CO₂ in MEA, −30 kJ/mol in hot carbonate). Liquid streams show the loading or conversion to KHCO₃, the equilibrium CO₂ pressure and, for carbonate, the water activity. H₂S, NH₃ and MDEA / activated MDEA are not modelled. The two CO₂-removal examples build an absorber + regenerator with each solvent.</p>
+  <p>Two <b>electrolyte (acid-gas) methods</b> model chemical CO₂ absorption. <b>Aqueous MEA</b> solves the carbamate and bicarbonate equilibria of monoethanolamine (the published Akula et al. model used by IDAES): CO₂ dissolves by Henry's law on the free, unreacted CO₂, water and MEA follow Raoult's law on the true species. <b>Hot potassium carbonate</b> (Benfield-type solutions) uses the Pitzer electrolyte model with the USGS PHREEQC parameters for K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻ and the water activity. Enter the solvent as its apparent components — MEA or K₂CO₃, water and CO₂ (the CO₂ sets the lean loading or conversion); H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically. Heats of absorption follow from the solubility model (about −84 kJ/mol CO₂ in MEA, −30 kJ/mol in hot carbonate). Liquid streams show the loading or conversion to KHCO₃, the equilibrium CO₂ pressure and, for carbonate, the water activity. H₂S and NH₃ are not modelled. The two CO₂-removal examples build an absorber + regenerator with each solvent.</p>
+  <p>A third method, <b>Aqueous MDEA</b>, uses the <b>Extended UNIQUAC</b> electrolyte model (UNIQUAC + Debye–Hückel) with the parameters of Sadegh's DTU thesis (2013): true species H₂O, CO₂, MDEA, MDEAH⁺, HCO₃⁻, CO₃²⁻, OH⁻, H⁺, equilibrium constants from fitted standard-state properties and the Rumpf–Maurer CO₂ Henry constant. Enter the solvent as N-methyldiethanolamine + water + CO₂. Liquid streams show the loading, protonated-MDEA fraction, ionic strength and equilibrium CO₂ pressure. Add <b>piperazine</b> to the components for activated MDEA (aMDEA): piperazine and its four reaction products are added to the same model, with parameters fitted here to measured CO₂ pressures over MDEA/piperazine blends and aqueous piperazine (Chen 2011, Xu 2011; 40–160 °C) — no complete published parameter set exists — and the validation page shows every point. MDEA's slow reaction is represented by a low CO₂ tray efficiency; with piperazine it can be set higher.</p>
   <h3>Rigorous column, Gibbs reactor, three-phase separator</h3>
   <p>The <b>rigorous column</b> solves the full stage-by-stage MESH equations (Naphtali–Sandholm Newton): choose stages, condenser (total, partial or none), reboiler (kettle or none), feed stages, top pressure and two specifications (reflux ratio, distillate or bottoms rate, duties, condenser temperature, a product purity or a recovery). Without condenser and reboiler it is an absorber or stripper. Trays can carry a <b>Murphree vapour efficiency</b> — one value for every tray, or per component (for example a low CO₂ efficiency in a chemical-solvent absorber while water stays at equilibrium); the condenser and reboiler are always equilibrium stages. Its panel shows temperature, composition and flow profiles. The <b>Gibbs reactor</b> finds chemical equilibrium by minimising Gibbs energy — list the species that may form, no reactions needed. The <b>three-phase separator</b> splits vapour, light liquid and heavy (aqueous) liquid.</p>
   <h3>Kinetic reactors (plug flow and CSTR)</h3>
@@ -701,14 +706,16 @@ const PKGS = [
   ['modunifac', 'Modified UNIFAC (Dortmund)', 'γ', 'predictive, better temperature dependence and heats of mixing'],
   ['ideal', 'Ideal (Raoult + ideal gas)', 'ideal', 'close-boiling, chemically similar mixtures at low pressure'],
   ['amine-mea', 'Aqueous MEA — acid gas', 'elec', 'CO₂ absorbers and strippers with monoethanolamine: carbamate + bicarbonate chemical equilibrium (Akula et al. / IDAES), CO₂ by Henry’s law on the free CO₂ (N₂O analogy); H₂, N₂, CH₄, CO, Ar, O₂ dissolve physically'],
+  ['steam', 'Steam / water (IAPWS-IF97)', 'steam', 'pure water and steam — turbines, boiler feed pumps, desuperheaters, condensers, let-down valves: the full IAPWS-IF97 formulation (compressed water, wet, superheated and supercritical steam) with IAPWS viscosity and thermal conductivity'],
+  ['amine-mdea', 'Aqueous MDEA / activated MDEA — acid gas', 'elec', 'CO₂ removal with N-methyldiethanolamine, optionally activated with piperazine (aMDEA): Extended UNIQUAC electrolyte model — the MDEA part with the published parameters of Sadegh (DTU, 2013), the piperazine species (PZ, PZH⁺, carbamate, protonated carbamate, dicarbamate) fitted by multicalci to measured CO₂ pressures over MDEA/PZ blends (40–160 °C); H₂, N₂, CH₄, CO, Ar, O₂ dissolve physically'],
   ['hot-k2co3', 'Hot potassium carbonate — acid gas', 'elec', 'Benfield-type CO₂ removal (no activator chemistry): Pitzer electrolyte model with the USGS PHREEQC parameters — K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻; give the solvent as K₂CO₃ + water + CO₂'],
 ];
 const PKG_LABEL = Object.fromEntries([['classic', 'Classic engine models'], ...PKGS.map((p) => [p[0], p[1]])]);
-const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'hot-k2co3': 'K₂CO₃' };
+const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'amine-mdea': 'MDEA', 'hot-k2co3': 'K₂CO₃', steam: 'IF97' };
 const isActivityPkg = (m) => m === 'nrtl' || m === 'uniquac' || m === 'wilson' || m === 'unifac' || m === 'modunifac';
-const isElecPkg = (m) => m === 'amine-mea' || m === 'hot-k2co3';
+const isElecPkg = (m) => m === 'amine-mea' || m === 'amine-mdea' || m === 'hot-k2co3';
 /* acid-gas packages: what the liquid may hold besides water, CO2 and the solvent */
-const ELEC_SOLVENT = { 'amine-mea': 'MEA', 'hot-k2co3': 'K2CO3' };
+const ELEC_SOLVENT = { 'amine-mea': 'MEA', 'amine-mdea': 'methyl-diethanolamine', 'hot-k2co3': 'K2CO3' };
 const ELEC_GASES = ['N2', 'H2', 'O2', 'CH4', 'CO', 'Ar', 'He', 'C2H6', 'C2H4', 'C3H8', 'neon', 'krypton', 'xenon'];
 
 /* =====================================================================
@@ -1029,6 +1036,7 @@ const TYPES = {
   'rotating': {
     label: 'Pump / compressor / turbine', group: 'press', module: 'rotating',
     desc: 'ΔP·η pump, isentropic + η',
+    note: 'Classic model: pump by ΔP·v/η, compressor / turbine on an ideal-gas path. For a steam turbine, choose Property method → Steam / water (IAPWS-IF97) (click empty canvas): the block then works on real steam and you can give the efficiency, the outlet temperature or the power as the known value.',
     inlets: { min: 1, max: 1, initial: 1, label: () => 'Suction' },
     outlets: () => ['Discharge'],
     fields: [
@@ -1475,20 +1483,66 @@ TYPES.rotating.rig = {
     { key: 'P_out_bar', kind: 'pressure', label: 'Outlet pressure',
       required: (p) => (p.machine || 'pump') !== 'pump' && !num(p.pressure_ratio), hint: 'or a pressure ratio below' },
     { key: 'pressure_ratio', kind: 'number', label: 'Pressure ratio (alternative)', unit: '–', showIf: (p) => (p.machine || 'pump') !== 'pump' && !num(p.P_out_bar) },
-    { key: 'efficiency', kind: 'number', label: 'Efficiency η (0–1]', unit: '–', def: 0.75, required: () => true },
+    { key: 'mspec', kind: 'select', label: 'Known value', virtual: true, def: 'efficiency', showIf: (p) => (p.machine || 'pump') !== 'pump',
+      options: [['efficiency', 'Efficiency → outlet T and power'], ['T_out', 'Outlet temperature → efficiency and power'], ['power', 'Shaft power → outlet T and efficiency']] },
+    { key: 'efficiency', kind: 'number', label: 'Efficiency η (0–1]', unit: '–', def: 0.75,
+      showIf: (p) => (p.machine || 'pump') === 'pump' || mspec(p) === 'efficiency', required: (p) => (p.machine || 'pump') === 'pump' || mspec(p) === 'efficiency' },
+    { key: 'T_out_K', kind: 'temperature', label: 'Outlet temperature', showIf: (p) => (p.machine || 'pump') !== 'pump' && mspec(p) === 'T_out',
+      required: (p) => (p.machine || 'pump') !== 'pump' && mspec(p) === 'T_out', hint: 'e.g. the measured discharge / exhaust temperature' },
+    { key: 'power_kW', kind: 'number', label: 'Shaft power', unit: 'kW', showIf: (p) => (p.machine || 'pump') !== 'pump' && mspec(p) === 'power',
+      required: (p) => (p.machine || 'pump') !== 'pump' && mspec(p) === 'power', hint: 'absorbed by a compressor · delivered by a turbine' },
     { key: 'mode', kind: 'select', label: 'Efficiency basis', def: 'isentropic', showIf: (p) => (p.machine || 'pump') !== 'pump',
       options: [['isentropic', 'Isentropic (adiabatic)'], ['polytropic', 'Polytropic']] },
   ],
   api(p) {
-    const o = { efficiency: num(p.efficiency) ? p.efficiency : 0.75 };
-    if ((p.machine || 'pump') === 'pump') { if (num(p.P_out_bar)) o.P_out_bar = p.P_out_bar; else if (num(p.dP_bar)) o.dp_bar = -p.dP_bar; }
-    else {
+    const o = {};
+    if ((p.machine || 'pump') === 'pump') {
+      o.efficiency = num(p.efficiency) ? p.efficiency : 0.75;
+      if (num(p.P_out_bar)) o.P_out_bar = p.P_out_bar; else if (num(p.dP_bar)) o.dp_bar = -p.dP_bar;
+    } else {
       if (num(p.P_out_bar)) o.P_out_bar = p.P_out_bar; else if (num(p.pressure_ratio)) o.pressure_ratio = p.pressure_ratio;
       o.mode = p.mode === 'polytropic' ? 'polytropic' : 'isentropic';
+      const ms = mspec(p);
+      if (ms === 'T_out') { o.spec = 'T_out'; o.T_out_K = p.T_out_K; }
+      else if (ms === 'power') { o.spec = 'power'; o.power_kW = Math.abs(p.power_kW); }
+      else o.efficiency = num(p.efficiency) ? p.efficiency : 0.75;
     }
     return o;
   },
-  note: 'Pump: hydraulic power from the liquid density, head reported. Compressor / turbine: isentropic path by a P–S flash (or 20 polytropic steps); real-gas outlet T and power.',
+  note: 'Pump: hydraulic power from the liquid density, head reported. Compressor / turbine: give the outlet pressure and ONE known value — efficiency, outlet temperature or shaft power — and the rest is calculated: isentropic path by a P–S flash (or 20 polytropic steps), real-gas outlet state, power, efficiency and (turbines) steam rate and exhaust quality. With the Steam (IAPWS-IF97) method every state is IAPWS-IF97.',
+};
+const mspec = (p) => p.mspec || 'efficiency';
+/* extraction (pass-out) steam turbine — rigorous, defaults to the IAPWS-IF97 steam method */
+TYPES.xturbine = {
+  label: 'Extraction steam turbine', group: 'press', module: 'extraction-turbine', rigOnly: true, defaultPkg: 'steam',
+  desc: 'HP + LP sections · controlled extraction',
+  inlets: { min: 1, max: 1, initial: 1, label: () => 'Steam in' },
+  outlets: () => ['Extraction', 'Exhaust'],
+  fields: [
+    { key: 'P_extract_bar', kind: 'pressure', label: 'Extraction pressure', required: () => true },
+    { key: 'xspec', kind: 'select', label: 'Extraction amount', virtual: true, def: 'kg',
+      options: [['kg', 'Extraction flow'], ['frac', 'Fraction of the inlet steam']] },
+    { key: 'extraction_kg_h', kind: 'number', label: 'Extraction flow', unit: 'kg/h', showIf: (p) => (p.xspec || 'kg') === 'kg', required: (p) => (p.xspec || 'kg') === 'kg' },
+    { key: 'extraction_fraction', kind: 'number', label: 'Extracted fraction (0–1)', unit: '–', showIf: (p) => p.xspec === 'frac', required: (p) => p.xspec === 'frac' },
+    { key: 'P_out_bar', kind: 'pressure', label: 'Exhaust pressure', required: () => true },
+    { key: 'efficiency_hp', kind: 'number', label: 'HP-section isentropic η', unit: '–', def: 0.8, required: () => true },
+    { key: 'efficiency_lp', kind: 'number', label: 'LP-section isentropic η', unit: '–', def: 0.8, required: () => true },
+  ],
+  api(p) {
+    const o = { P_extract_bar: p.P_extract_bar, P_out_bar: p.P_out_bar,
+      efficiency_hp: num(p.efficiency_hp) ? p.efficiency_hp : 0.8, efficiency_lp: num(p.efficiency_lp) ? p.efficiency_lp : 0.8 };
+    if (p.xspec === 'frac') o.extraction_fraction = p.extraction_fraction; else o.extraction_kg_h = p.extraction_kg_h;
+    return o;
+  },
+  note: 'Extraction (pass-out) steam turbine: the HP section expands all the steam to the extraction pressure, the extraction leaves there, and the LP section expands the rest to the exhaust. Each section has its own isentropic efficiency. Works on the Steam (IAPWS-IF97) method unless you pick another in this panel. Reports power by section, exhaust quality and steam rate.',
+  lbl: (w, h) => [w * 0.92, h + 14, 'middle'],
+  geo() {
+    const w = 72, h = 56;
+    return { w, h, ins: [P(0, h / 2, -1, 0)], outs: [P(w * 0.5, h + 8, 0, 1), P(w, h / 2, 1, 0)] };
+  },
+  icon: (w, h, c) => `<path class="shape" d="M0,${h * 0.3} L${w},2 L${w},${h - 2} L0,${h * 0.7} Z" fill="url(#vg)" stroke="${c}"/>
+    <path d="M${w * 0.5},${h * 0.85} V${h + 8}" stroke="${c}" stroke-width="2"/>
+    <path d="M${w * 0.5},${h * 0.18} V${h * 0.82}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3"/>`,
 };
 TYPES.valve.rig = {
   module: 'valve', fields: TYPES.valve.fields, dp: null,
@@ -1809,10 +1863,13 @@ function isRig(b) { const T = TYPES[b.type]; return !!T.rigOnly || (!!T.rig && r
 function tdef(b) { const T = TYPES[b.type]; return T.rig && rigOn() ? Object.assign({}, T, T.rig, { rig: undefined }) : T; }
 function fieldsOf(b) { return tdef(b).fields; }
 function moduleOf(b) { const m = tdef(b).module; return typeof m === 'function' ? m(b.params) : m; }
+/** property method of a rigorous block: its own override, else the unit's default (extraction turbine → steam), else the flowsheet's */
+function blockPkg(b) { return b.params.pkg || TYPES[b.type].defaultPkg || pkgModel(); }
 /** the property_package object sent to the engine for a model key */
 function pkgSpec(model) {
   const m = model && model !== 'classic' ? model : 'pr';
   const o = { model: m };
+  if (m === 'steam') return o;
   const P = M.pkg || {};
   if ((isActivityPkg(m) || isElecPkg(m)) && (P.vapour === 'pr' || P.vapour === 'srk')) o.vapour = P.vapour;
   if (isElecPkg(m)) return o;          // acid-gas packages: no binary overrides, VL only
@@ -1878,7 +1935,7 @@ function apiParams(b, ins) {
   if (isRig(b)) {
     const D = tdef(b);
     const o = D.api ? D.api(b.params, ins || [], b) : genericParams(D, b.params);
-    o.property_package = pkgSpec(b.params.pkg || pkgModel());
+    o.property_package = pkgSpec(blockPkg(b));
     return o;
   }
   const T = TYPES[b.type];
@@ -1928,7 +1985,7 @@ function newBlock(type, x, y) {
   const T = TYPES[type];
   const b = {
     id: 'b' + (++M.seq.b), name: nextName(type === 'heater' ? 'E' : type === 'flash' ? 'F' : type === 'flash3' ? 'D' : type === 'mixer' ? 'M' :
-      type === 'splitter' ? 'SP' : type === 'valve' ? 'V' : type === 'rotating' ? 'P' : type === 'sep' ? 'X' :
+      type === 'splitter' ? 'SP' : type === 'valve' ? 'V' : type === 'rotating' ? 'P' : type === 'xturbine' ? 'ST' : type === 'sep' ? 'X' :
       T.group === 'col' ? 'C' : T.group === 'rx' || T.group === 'syn' || type === 'urea-reactor' ? 'R' : 'B', M.blocks),
     type, x, y,
     nIn: T.inlets.initial,
@@ -3070,7 +3127,7 @@ function inspectBlock(b, head, body) {
     if (M.blocks.some((x) => x !== b && x.name === v)) { toast('Name already used', 'err'); nm.value = b.name; return; }
     b.name = v; commit();
   });
-  head.append(ic, el('div', { class: 'tt' }, nm, el('small', null, T.label + (T.client && !SERVER_FS ? ' · client split' : ' · ' + moduleOf(b)) + (rig ? ' · ' + PKG_SHORT[b.params.pkg || (rigOn() ? pkgModel() : 'pr')] : ''))),
+  head.append(ic, el('div', { class: 'tt' }, nm, el('small', null, T.label + (T.client && !SERVER_FS ? ' · client split' : ' · ' + moduleOf(b)) + (rig ? ' · ' + PKG_SHORT[b.params.pkg || TYPES[b.type].defaultPkg || (rigOn() ? pkgModel() : 'pr')] : ''))),
     el('button', { class: 'x', title: 'Delete unit (Del)', 'aria-label': 'Delete unit', onclick: () => deleteSelection() }, '🗑'));
 
   const issues = blockIssues(b);
@@ -3809,8 +3866,10 @@ const DETAIL_PATHS = {
   'r-flash': [['vapour_fraction', 'Vapour fraction', 'raw'], ['duty_kW', 'Duty, kW', 'raw'], ['T_K', 'Temperature', 'T']],
   heater: [['duty_kW', 'Duty, kW', 'raw'], ['vapour_fraction_out', 'Outlet vapour fraction', 'raw'], ['T_out_K', 'Outlet temperature', 'T']],
   pump: [['power_kW', 'Power, kW', 'raw'], ['head_m', 'Head, m', 'raw']],
-  compressor: [['power_kW', 'Power, kW', 'raw'], ['T_out_K', 'Outlet temperature', 'T'], ['head_kJkg', 'Head, kJ/kg', 'raw']],
-  expander: [['power_kW', 'Power, kW', 'raw'], ['T_out_K', 'Outlet temperature', 'T']],
+  compressor: [['power_kW', 'Power, kW', 'raw'], ['T_out_K', 'Outlet temperature', 'T'], ['head_kJkg', 'Head, kJ/kg', 'raw'], ['efficiency', 'Efficiency', 'raw']],
+  expander: [['power_kW', 'Power, kW', 'raw'], ['T_out_K', 'Outlet temperature', 'T'], ['efficiency', 'Efficiency', 'raw'], ['vapour_fraction_out', 'Exhaust vapour fraction', 'raw'], ['steam_rate_kg_kWh', 'Steam rate, kg/kWh', 'raw']],
+  'extraction-turbine': [['power_kW', 'Power, kW', 'raw'], ['power_hp_kW', 'HP-section power, kW', 'raw'], ['power_lp_kW', 'LP-section power, kW', 'raw'],
+    ['T_extract_K', 'Extraction temperature', 'T'], ['T_out_K', 'Exhaust temperature', 'T'], ['vapour_fraction_out', 'Exhaust vapour fraction', 'raw'], ['steam_rate_kg_kWh', 'Steam rate, kg/kWh', 'raw']],
   'r-hx': [['duty_kW', 'Duty, kW', 'raw'], ['min_approach_K', 'Minimum approach, K', 'raw'], ['UA_kW_K', 'UA, kW/K', 'raw'], ['LMTD_K', 'LMTD, K', 'raw']],
   gibbs: [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw']],
   'r-reactor': [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw']],
@@ -3890,7 +3949,7 @@ function methodsSection() {
   s.id = 'methodsSec';
   const sel = el('select', { class: 'sel', 'aria-label': 'Property method' });
   sel.append(el('option', { value: 'classic' }, 'Classic — engine per-unit models'));
-  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['elec', 'Electrolyte — CO₂ removal (acid gas)']]) {
+  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['steam', 'Water & steam'], ['elec', 'Electrolyte — CO₂ removal (acid gas)']]) {
     const og = el('optgroup', { label: lbl });
     for (const p of PKGS.filter((x) => x[2] === grp)) og.append(el('option', { value: p[0] }, p[1]));
     sel.append(og);
@@ -3914,7 +3973,9 @@ function methodsSection() {
     const bad = ks.filter((k) => k !== 'H2O' && k !== 'CO2' && k !== solv && !ELEC_GASES.includes(k));
     if (!ks.includes(solv)) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, 'No ' + compLabel(solv) + ' in any feed — add the solvent (' + compLabel(solv) + ' + water' + (solv === 'K2CO3' ? ', with CO₂ for the lean conversion' : ', with CO₂ for the lean loading') + ').')));
     if (bad.length) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, bad.map(compLabel).join(', ') + ' — not supported by this package (the liquid holds water, CO₂, ' + compLabel(solv) + ' and light gases dissolved by Henry’s law; H₂S / NH₃ chemistry is not modelled).')));
-    s.append(el('div', { class: 'hint' }, P.model === 'amine-mea'
+    s.append(el('div', { class: 'hint' }, P.model === 'amine-mdea'
+      ? 'Extended UNIQUAC with the parameters of Sadegh (DTU PhD thesis 2013, fitted to about 1,000 VLE, total-pressure, heat-capacity and heat-of-absorption points from 20 to 200 °C, 5–75 wt % MDEA, loadings up to 1.4). The implementation reproduces the thesis’s own model results; the thesis reports 22 % average deviation in CO₂ partial pressure over the literature data and 10–12 % in heat of absorption (≈ −55 to −62 kJ/mol CO₂). MDEA reacts slowly with CO₂ — use a low CO₂ Murphree efficiency on absorber trays. Add piperazine to the components for activated MDEA: its species were fitted here to measured CO₂ pressures over 7 m MDEA / 2 m PZ, 5 m MDEA / 5 m PZ and aqueous PZ (Chen 2011; Xu 2011; 40–160 °C, up to ~0.3 bar CO₂ below 100 °C), with 12–21 % average deviation; the rich end of a high-pressure absorber is an extrapolation and is flagged. Liquid viscosity is not available for this package.'
+      : P.model === 'amine-mea'
       ? 'Compared with measured total pressures over 30 wt % MEA (Arshad et al. 2014): within 2 % up to a loading of 0.32 mol/mol at 120 °C and within 10 % to 0.44 at 80 °C; at higher loadings the CO₂ pressure is over-predicted (+19 % total pressure at 0.40 and 120 °C, about 2× CO₂ pressure at 0.6), so regenerator duties come out somewhat low. Heat of absorption ≈ −84 kJ/mol at low loading.'
       : 'Matches the USGS PHREEQC Pitzer database to 0.01 % below 90 °C and 0.6 % at 125 °C (CO₂ pressure, water activity). Above about 100 °C the Pitzer parameters are extrapolated, and very strong, highly converted solutions (e.g. 40 wt % at 90 % conversion below 90 °C — where KHCO₃ would crystallise) are held at the model\'s stability limit and flagged. Promoters (DEA, glycine, V₂O₅) affect rates, not equilibrium — model them with tray efficiencies.'));
   }
@@ -3930,7 +3991,13 @@ function methodsSection() {
     ac.addEventListener('change', () => { P.association = ac.checked ? undefined : false; commit(); });
     s.append(el('label', { class: 'chk' }, ac, el('span', null, 'Vapour association of carboxylic acids (acetic, propionic … dimerise in the vapour — chemical theory)')));
   }
-  if (P.model !== 'classic' && !isElecPkg(P.model)) {
+  if (P.model === 'steam') {
+    const bad = feedKeys().filter((k) => k !== 'H2O');
+    if (bad.length) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, bad.map(compLabel).join(', ') +
+      ' — the steam method handles pure water only. Units that carry ' + (bad.length > 1 ? 'these' : 'it') + ' need their own property method (unit panel → Property method).')));
+    s.append(el('div', { class: 'hint' }, 'IAPWS-IF97 (IAPWS R7-97, 2012 revision): regions 1–5 — compressed water, wet steam, superheated steam and supercritical fluid up to 1000 bar and 800 °C (2000 °C below 500 bar); saturation from the region-4 equation; viscosity IAPWS R12-08 and thermal conductivity R15-11. Checked against the release’s verification tables to 8 significant figures. Enthalpy is put on the same formation basis as the other methods, so steam streams balance with the rest of the flowsheet.'));
+  }
+  if (P.model !== 'classic' && P.model !== 'steam' && !isElecPkg(P.model)) {
     const ph = el('select', { class: 'sel', 'aria-label': 'Valid phases' });
     for (const [v, t] of [['auto', 'Automatic (free water with an EOS)'], ['vl', 'Vapour–liquid'], ['vll', 'Vapour–liquid–liquid']]) ph.append(el('option', { value: v }, t));
     ph.value = P.phases || 'auto';
@@ -4036,7 +4103,8 @@ async function showPropInfo(host, btn) {
 /** per-unit method override (rigorous units only) */
 function blockMethodField(b) {
   const s = el('select', { class: 'sel', 'aria-label': 'Property method for this unit' });
-  s.append(el('option', { value: '' }, 'Flowsheet method (' + (rigOn() ? PKG_LABEL[pkgModel()] : 'Classic → Peng–Robinson here') + ')'));
+  const dflt = TYPES[b.type].defaultPkg;
+  s.append(el('option', { value: '' }, dflt ? 'Unit default (' + PKG_LABEL[dflt] + ')' : 'Flowsheet method (' + (rigOn() ? PKG_LABEL[pkgModel()] : 'Classic → Peng–Robinson here') + ')'));
   for (const p of PKGS) s.append(el('option', { value: p[0] }, p[1]));
   s.value = b.params.pkg || '';
   s.addEventListener('change', () => { if (s.value) b.params.pkg = s.value; else delete b.params.pkg; commit(); renderInspector(); });
@@ -4264,11 +4332,18 @@ function rigPropRows(r) {
   for (const ph of (pr && pr.phases) || []) {
     const n = ph.type === 'vapour' ? 'Vapour' : ph.type === 'liquid 2' ? 'Liquid 2' : 'Liquid';
     out.push([n + ' density', fmt(ph.rho_kgm3, 5) + ' kg/m³'], [n + ' Cp', fmt(ph.Cp_kJkgK, 4) + ' kJ/kg·K'],
-      [n + ' viscosity', fmt(ph.mu_cP, 4) + ' cP'], [n + ' thermal cond.', fmt(ph.k_WmK, 4) + ' W/m·K']);
+      [n + ' viscosity', num(ph.mu_cP) ? fmt(ph.mu_cP, 4) + ' cP' : 'not available for this method'], [n + ' thermal cond.', fmt(ph.k_WmK, 4) + ' W/m·K']);
     if (ph.type === 'vapour' && num(ph.Z)) out.push(['Vapour Z', fmt(ph.Z, 5)]);
     const ag = ph.acid_gas;
     if (ag) {
       if (num(ag.loading_mol_CO2_per_mol_MEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MEA, 4) + ' mol/mol MEA']);
+      if (num(ag.loading_mol_CO2_per_mol_MDEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MDEA, 4) + ' mol/mol MDEA']);
+      if (num(ag.MDEA_wt_pct_CO2_free)) out.push(['MDEA (CO₂-free basis)', fmt(ag.MDEA_wt_pct_CO2_free, 4) + ' wt %']);
+      if (num(ag.protonated_MDEA_fraction)) out.push(['Protonated MDEA (MDEAH⁺)', fmt(100 * ag.protonated_MDEA_fraction, 3) + ' %']);
+      if (num(ag.piperazine_wt_pct_CO2_free)) out.push(['Piperazine (CO₂-free basis)', fmt(ag.piperazine_wt_pct_CO2_free, 4) + ' wt %']);
+      if (num(ag.loading_mol_CO2_per_mol_amine)) out.push(['CO₂ loading (MDEA + PZ)', fmt(ag.loading_mol_CO2_per_mol_amine, 4) + ' mol/mol amine']);
+      if (num(ag.piperazine_as_carbamate_fraction)) out.push(['Piperazine as carbamates', fmt(100 * ag.piperazine_as_carbamate_fraction, 3) + ' %']);
+      if (num(ag.ionic_strength_mol_kg)) out.push(['Ionic strength', fmt(ag.ionic_strength_mol_kg, 4) + ' mol/kg water']);
       if (num(ag.conversion_to_KHCO3)) out.push(['Conversion to KHCO₃', fmt(ag.conversion_to_KHCO3, 4)]);
       if (num(ag.P_CO2_eq_kPa)) out.push(['Equilibrium CO₂ pressure', fmt(ag.P_CO2_eq_kPa, 4) + ' kPa']);
       if (num(ag.free_MEA_fraction)) out.push(['Free (unreacted) MEA', fmt(100 * ag.free_MEA_fraction, 3) + ' %']);
@@ -5024,6 +5099,13 @@ function blockIssues(b) {
     const eta = rig ? p.efficiency : p.eta;
     if (num(eta) && (eta <= 0 || eta > 1)) add('efficiency must be in (0, 1]');
     if (rig && p.machine !== 'pump' && num(p.pressure_ratio) && !num(p.P_out_bar) && p.pressure_ratio <= 1) add('pressure ratio must be > 1');
+    if (rig && p.machine !== 'pump' && mspec(p) === 'power' && num(p.power_kW) && p.power_kW === 0) add('shaft power cannot be zero');
+  }
+  if (b.type === 'xturbine') {
+    if (num(p.P_extract_bar) && num(p.P_out_bar) && p.P_out_bar >= p.P_extract_bar) add('exhaust pressure must be below the extraction pressure');
+    for (const k of ['efficiency_hp', 'efficiency_lp']) if (num(p[k]) && (p[k] <= 0 || p[k] > 1)) add('section efficiencies must be in (0, 1]');
+    if (p.xspec === 'frac' && num(p.extraction_fraction) && (p.extraction_fraction < 0 || p.extraction_fraction > 1)) add('extracted fraction must be 0–1');
+    if ((p.xspec || 'kg') === 'kg' && num(p.extraction_kg_h) && p.extraction_kg_h < 0) add('extraction flow cannot be negative');
   }
   if (rig && (b.type === 'flash' || b.type === 'heater') && num(p.vapour_fraction) && (p.vapour_fraction < 0 || p.vapour_fraction > 1) &&
     (b.type === 'heater' ? hspec(p) === 'VF' : fmode(p).endsWith('VF'))) add('vapour fraction must be between 0 and 1');
@@ -5728,6 +5810,12 @@ function blockResults(b, br) {
   if (num(D.power_kW)) kv.append(el('b', null, 'Power'), el('span', null, fmt(D.power_kW, 6) + ' kW'));
   if (num(D.head_m)) kv.append(el('b', null, 'Head'), el('span', null, fmt(D.head_m, 5) + ' m'));
   if (num(D.T_isentropic_K)) kv.append(el('b', null, 'Isentropic outlet T'), el('span', null, fmt(dispT(D.T_isentropic_K), 5) + ' ' + PREFS.tu));
+  if (D.spec && num(D.efficiency)) kv.append(el('b', null, (D.spec === 'efficiency' ? 'Efficiency (given)' : 'Efficiency (calculated)') + ' · ' + (D.mode || 'isentropic')), el('span', null, fmt(D.efficiency, 5)));
+  if (D.mode === 'polytropic' && num(D.isentropic_efficiency)) kv.append(el('b', null, 'Isentropic efficiency'), el('span', null, fmt(D.isentropic_efficiency, 5)));
+  if (num(D.power_hp_kW)) kv.append(el('b', null, 'HP section → extraction'), el('span', null, fmt(D.power_hp_kW, 6) + ' kW · ' + fmt(dispT(D.T_extract_K), 5) + ' ' + PREFS.tu + ' at ' + fmt(dispP(D.P_extract_bar), 5) + ' ' + PREFS.pu));
+  if (num(D.power_lp_kW)) kv.append(el('b', null, 'LP section → exhaust'), el('span', null, fmt(D.power_lp_kW, 6) + ' kW · ' + fmt(D.exhaust_kg_h, 6) + ' kg/h'));
+  if ((D.spec || num(D.power_hp_kW)) && num(D.vapour_fraction_out) && D.vapour_fraction_out < 1) kv.append(el('b', null, 'Outlet steam quality'), el('span', null, fmt(D.vapour_fraction_out, 5) + ' (vapour fraction)'));
+  if (num(D.steam_rate_kg_kWh)) kv.append(el('b', null, 'Steam rate'), el('span', null, fmt(D.steam_rate_kg_kWh, 5) + ' kg/kWh'));
   if (D.pp && D.pp.label) kv.append(el('b', null, 'Property method'), el('span', null, D.pp.label));
   if (num(eb.W_kW) && eb.W_kW !== 0) kv.append(el('b', null, 'Shaft work W'), el('span', null, fmt(eb.W_kW, 6) + ' kW'));
   if (num(eb.Hin)) kv.append(el('b', null, 'H in'), el('span', null, fmt(eb.Hin, 6) + ' kJ/h'));
@@ -6395,6 +6483,28 @@ const sp = (T, Tu, P, Pu, flow, flowU, basis, comps) => ({
 });
 const EXAMPLES = [
   {
+    id: 'steam-turbine', label: 'Extraction steam turbine + condenser (IAPWS-IF97)',
+    desc: '100 bar / 500 °C steam · 10 bar process extraction · condensing exhaust · condensate pump',
+    model: {
+      pkg: { model: 'steam' },
+      blocks: [
+        { id: 'b1', name: 'ST-101', type: 'xturbine', x: 200, y: 160, nIn: 1, nOut: 2, params: {
+          P_extract_bar: 10, xspec: 'kg', extraction_kg_h: 20000, P_out_bar: 0.1, efficiency_hp: 0.82, efficiency_lp: 0.78 }, pu: {} },
+        { id: 'b2', name: 'E-101', type: 'heater', x: 390, y: 168, nIn: 1, nOut: 1, params: { spec: 'VF', vapour_fraction: 0 }, pu: {} },
+        { id: 'b3', name: 'P-101', type: 'rotating', x: 560, y: 168, nIn: 1, nOut: 1, params: { machine: 'pump', P_out_bar: 110, efficiency: 0.75 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'HP STEAM', from: null, to: { b: 'b1', p: 0 }, spec: sp(500, '°C', 100, 'bar(a)', 100000, 'kg/h', 'mole%', { H2O: 100 }) },
+        { id: 's2', name: 'PROCESS STEAM', from: { b: 'b1', p: 0 }, to: null },
+        { id: 's3', name: 'EXHAUST', from: { b: 'b1', p: 1 }, to: { b: 'b2', p: 0 } },
+        { id: 's4', name: 'CONDENSATE', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's5', name: 'BFW', from: { b: 'b3', p: 0 }, to: null },
+      ],
+      seq: { b: 3, s: 5 },
+    },
+    note: 'Steam / water (IAPWS-IF97) method. ST-101 expands 100 t/h of 100 bar / 500 °C steam, passes 20 t/h out at 10 bar and condenses the rest at 0.1 bar; E-101 is the condenser (outlet vapour fraction 0) and P-101 the condensate pump. Open ST-101 for the power of each section, exhaust quality and steam rate. Swap ST-101 for a pump / compressor / turbine block to back-calculate an efficiency from a measured exhaust temperature (Known value → Outlet temperature).',
+  },
+  {
     id: 'knockout', label: 'Gas cooling & condensate knock-out',
     desc: 'Mixer → cooler → flash drum · good first example',
     model: {
@@ -6777,6 +6887,86 @@ const EXAMPLES = [
       seq: { b: 8, s: 14 },
     },
     note: 'Aqueous-MEA package (Akula et al. / IDAES chemical equilibrium). The absorber trays have a CO₂ Murphree efficiency of 0.3 (water and the light gases stay at equilibrium); the regenerator is specified by its condenser temperature and reboiler duty, and the lean/rich exchanger closes an information recycle (torn at HOT LEAN). Compare LEAN TO C-101 with the LEAN MEA feed: same loading, a little water to make up. Open any liquid stream for the CO₂ loading and equilibrium CO₂ pressure.',
+  },
+  {
+    id: 'mdea-co2-removal', label: 'Syngas CO₂ removal — aqueous MDEA (Extended UNIQUAC)',
+    desc: 'Ammonia-plant raw syngas · 40 wt % MDEA · flash let-down · lean/rich exchanger · regenerator',
+    model: {
+      pkg: { model: 'amine-mdea', vapour: 'pr' },
+      blocks: [
+        { id: 'b1', name: 'C-101', type: 'rcol', x: 230, y: 110, nIn: 2, nOut: 2, params: {
+          stages: 20, condenser: 'none', reboiler: 'none', feed_stages: [1, 20], P_top_bar: 28, specs: [], side_draws: [],
+          comp_eff: [{ key: 'CO2', value: 0.2 }] }, pu: {} },
+        { id: 'b2', name: 'LV-101', type: 'valve', x: 380, y: 330, nIn: 1, nOut: 1, params: { pspec: 'P', P_out_bar: 5 }, pu: {} },
+        { id: 'b3', name: 'V-101', type: 'flash', x: 500, y: 300, nIn: 1, nOut: 2, params: { fmode: 'PQ', P_bar: 5, duty_kW: 0 }, pu: {} },
+        { id: 'b4', name: 'LV-102', type: 'valve', x: 650, y: 360, nIn: 1, nOut: 1, params: { pspec: 'P', P_out_bar: 2.2 }, pu: {} },
+        { id: 'b5', name: 'E-101', type: 'heat-exchanger', x: 780, y: 330, nIn: 2, nOut: 2, params: { xmode: 'cold_T', cold_T_out_K: 368.15 }, pu: {} },
+        { id: 'b6', name: 'C-102', type: 'rcol', x: 960, y: 100, nIn: 1, nOut: 2, params: {
+          stages: 12, condenser: 'partial', reboiler: 'kettle', feed_stages: [2], P_top_bar: 1.9, side_draws: [],
+          specs: [{ type: 'condenser_temperature', value: 313.15 }, { type: 'reboiler_duty', value: 6000 }] }, pu: {} },
+        { id: 'b7', name: 'E-102', type: 'heater', x: 720, y: 500, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 318.15 }, pu: {} },
+        { id: 'b8', name: 'P-101', type: 'rotating', x: 520, y: 500, nIn: 1, nOut: 1, params: { machine: 'pump', P_out_bar: 28.5, efficiency: 0.75 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'LEAN MDEA', from: null, to: { b: 'b1', p: 0 }, spec: sp(45, '°C', 28.5, 'bar(a)', 4500, 'kmol/h', 'mole%', { 'methyl-diethanolamine': 9.1342, H2O: 90.8201, CO2: 0.0457 }) },
+        { id: 's2', name: 'RAW SYNGAS', from: null, to: { b: 'b1', p: 1 }, spec: sp(45, '°C', 28.5, 'bar(a)', 997, 'kmol/h', 'mole%',
+          { H2: 60.68205, N2: 20.36108, CO2: 17.65296, CH4: 0.4012, Ar: 0.3009, CO: 0.3009, H2O: 0.3009 }) },
+        { id: 's3', name: 'TREATED GAS', from: { b: 'b1', p: 0 }, to: null },
+        { id: 's4', name: 'RICH MDEA', from: { b: 'b1', p: 1 }, to: { b: 'b2', p: 0 } },
+        { id: 's5', name: 'S5', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's6', name: 'FLASH GAS', from: { b: 'b3', p: 0 }, to: null },
+        { id: 's7', name: 'S7', from: { b: 'b3', p: 1 }, to: { b: 'b4', p: 0 } },
+        { id: 's8', name: 'S8', from: { b: 'b4', p: 0 }, to: { b: 'b5', p: 1 } },
+        { id: 's9', name: 'HOT RICH', from: { b: 'b5', p: 1 }, to: { b: 'b6', p: 0 } },
+        { id: 's10', name: 'CO₂ PRODUCT', from: { b: 'b6', p: 0 }, to: null },
+        { id: 's11', name: 'HOT LEAN', from: { b: 'b6', p: 1 }, to: { b: 'b5', p: 0 }, spec: sp(121, '°C', 1.9, 'bar(a)', 4500, 'kmol/h', 'mole%', { 'methyl-diethanolamine': 9.1342, H2O: 90.8201, CO2: 0.0457 }) },
+        { id: 's12', name: 'S12', from: { b: 'b5', p: 0 }, to: { b: 'b7', p: 0 } },
+        { id: 's13', name: 'S13', from: { b: 'b7', p: 0 }, to: { b: 'b8', p: 0 } },
+        { id: 's14', name: 'LEAN TO C-101', from: { b: 'b8', p: 0 }, to: null },
+      ],
+      seq: { b: 8, s: 14 },
+    },
+    note: 'Aqueous-MDEA package (Extended UNIQUAC, Sadegh 2013). MDEA forms no carbamate and reacts slowly, so the absorber trays carry a low CO₂ Murphree efficiency (0.2) — piperazine activation raises it (see the activated-MDEA example). The regenerator is specified by its condenser temperature and reboiler duty (6 MW is close to the minimum here: it heats 122 t/h of solvent from 95 to 121 °C and desorbs the CO₂ at about 55 kJ/mol); the lean/rich exchanger closes an information recycle (torn at HOT LEAN). Open a liquid stream for the loading, protonated-MDEA fraction and equilibrium CO₂ pressure.',
+  },
+  {
+    id: 'amdea-co2-removal', label: 'Syngas CO₂ removal — activated MDEA (MDEA + piperazine)',
+    desc: 'Ammonia-plant raw syngas · 40 wt % MDEA + 5 wt % piperazine · flash let-down · lean/rich exchanger · regenerator',
+    model: {
+      pkg: { model: 'amine-mdea', vapour: 'pr' },
+      blocks: [
+        { id: 'b1', name: 'C-101', type: 'rcol', x: 230, y: 110, nIn: 2, nOut: 2, params: {
+          stages: 20, condenser: 'none', reboiler: 'none', feed_stages: [1, 20], P_top_bar: 28, specs: [], side_draws: [],
+          comp_eff: [{ key: 'CO2', value: 0.35 }] }, pu: {} },
+        { id: 'b2', name: 'LV-101', type: 'valve', x: 380, y: 330, nIn: 1, nOut: 1, params: { pspec: 'P', P_out_bar: 5 }, pu: {} },
+        { id: 'b3', name: 'V-101', type: 'flash', x: 500, y: 300, nIn: 1, nOut: 2, params: { fmode: 'PQ', P_bar: 5, duty_kW: 0 }, pu: {} },
+        { id: 'b4', name: 'LV-102', type: 'valve', x: 650, y: 360, nIn: 1, nOut: 1, params: { pspec: 'P', P_out_bar: 2.2 }, pu: {} },
+        { id: 'b5', name: 'E-101', type: 'heat-exchanger', x: 780, y: 330, nIn: 2, nOut: 2, params: { xmode: 'cold_T', cold_T_out_K: 368.15 }, pu: {} },
+        { id: 'b6', name: 'C-102', type: 'rcol', x: 960, y: 100, nIn: 1, nOut: 2, params: {
+          stages: 12, condenser: 'partial', reboiler: 'kettle', feed_stages: [2], P_top_bar: 1.9, side_draws: [],
+          specs: [{ type: 'condenser_temperature', value: 313.15 }, { type: 'reboiler_duty', value: 6400 }] }, pu: {} },
+        { id: 'b7', name: 'E-102', type: 'heater', x: 720, y: 500, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 318.15 }, pu: {} },
+        { id: 'b8', name: 'P-101', type: 'rotating', x: 520, y: 500, nIn: 1, nOut: 1, params: { machine: 'pump', P_out_bar: 28.5, efficiency: 0.75 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'LEAN aMDEA', from: null, to: { b: 'b1', p: 0 }, spec: sp(45, '°C', 28.5, 'bar(a)', 4500, 'kmol/h', 'mole%', { 'methyl-diethanolamine': 9.6993, piperazine: 1.6766, H2O: 88.2155, CO2: 0.4086 }) },
+        { id: 's2', name: 'RAW SYNGAS', from: null, to: { b: 'b1', p: 1 }, spec: sp(45, '°C', 28.5, 'bar(a)', 997, 'kmol/h', 'mole%',
+          { H2: 60.68205, N2: 20.36108, CO2: 17.65296, CH4: 0.4012, Ar: 0.3009, CO: 0.3009, H2O: 0.3009 }) },
+        { id: 's3', name: 'TREATED GAS', from: { b: 'b1', p: 0 }, to: null },
+        { id: 's4', name: 'RICH aMDEA', from: { b: 'b1', p: 1 }, to: { b: 'b2', p: 0 } },
+        { id: 's5', name: 'S5', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's6', name: 'FLASH GAS', from: { b: 'b3', p: 0 }, to: null },
+        { id: 's7', name: 'S7', from: { b: 'b3', p: 1 }, to: { b: 'b4', p: 0 } },
+        { id: 's8', name: 'S8', from: { b: 'b4', p: 0 }, to: { b: 'b5', p: 1 } },
+        { id: 's9', name: 'HOT RICH', from: { b: 'b5', p: 1 }, to: { b: 'b6', p: 0 } },
+        { id: 's10', name: 'CO₂ PRODUCT', from: { b: 'b6', p: 0 }, to: null },
+        { id: 's11', name: 'HOT LEAN', from: { b: 'b6', p: 1 }, to: { b: 'b5', p: 0 }, spec: sp(121, '°C', 1.9, 'bar(a)', 4500, 'kmol/h', 'mole%', { 'methyl-diethanolamine': 9.6993, piperazine: 1.6766, H2O: 88.2155, CO2: 0.4086 }) },
+        { id: 's12', name: 'S12', from: { b: 'b5', p: 0 }, to: { b: 'b7', p: 0 } },
+        { id: 's13', name: 'S13', from: { b: 'b7', p: 0 }, to: { b: 'b8', p: 0 } },
+        { id: 's14', name: 'LEAN TO C-101', from: { b: 'b8', p: 0 }, to: null },
+      ],
+      seq: { b: 8, s: 14 },
+    },
+    note: 'Activated MDEA: the aqueous-MDEA package with piperazine added (MDEA part: Sadegh 2013; piperazine species fitted to measured CO₂ pressures over MDEA/PZ blends — see the validation page). Piperazine speeds up CO₂ absorption, so the absorber trays carry a higher CO₂ Murphree efficiency (0.35) than plain MDEA, and it binds CO₂ as carbamates at lean loadings, lowering the lean-end CO₂ pressure. The rich end of a 28-bar absorber lies above the CO₂ pressures of the piperazine data and is flagged as an extrapolation. The regenerator is specified by its condenser temperature and reboiler duty (6.4 MW returns the solvent at the feed loading — compare LEAN TO C-101 with LEAN aMDEA); the lean/rich exchanger closes an information recycle (torn at HOT LEAN). Open a liquid stream for the loadings, the share of piperazine bound as carbamates and the equilibrium CO₂ pressure.',
   },
   {
     id: 'benfield-co2-removal', label: 'Hot potassium carbonate (Benfield-type) CO₂ removal',
