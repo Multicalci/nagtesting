@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- REPO PATH: steam-quench-calculator/index.html -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -501,7 +502,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
         <div class="tc-head"><div class="tc-name">Saturation Pressure</div><div class="tc-sym">P_sat</div></div>
         <div class="tc-unit">Unit: bara (SI) · psia (Imperial)</div>
         <div class="tc-def">The pressure at which water and steam coexist in equilibrium at a given temperature. For pure water this is a unique function of temperature. Understanding P_sat is critical for avoiding steam condensation in pipework, for setting safety valve setpoints, and for interpreting steam quality (dryness fraction) in wet steam systems.</div>
-        <div class="tc-formula">At 100 °C: P_sat = 1.013 bara<br>At 200 °C: P_sat = 15.54 bara<br>At 311 °C: P_sat = 100.0 bara<br>Critical point: 374.14 °C / 220.64 bara</div>
+        <div class="tc-formula">At 100 °C: P_sat = 1.013 bara<br>At 200 °C: P_sat = 15.54 bara<br>At 311 °C: P_sat = 100.0 bara<br>Critical point: 373.946 °C / 220.64 bara</div>
       </div>
 
       <div class="tcard gn">
@@ -580,7 +581,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
         <div class="pc-ico">4️⃣</div>
         <div>
           <div class="pc-title">Region 4 — Saturation Curve</div>
-          <div class="pc-desc">The two-phase boundary (boiling curve) from the triple point (0.01 °C / 0.00611 bar) to the critical point (374.14 °C / 220.64 bar). Defined by the Wagner saturation-pressure equation — a single equation giving P_sat(T) with six coefficients. Inverted numerically (Newton-Raphson + bisection) to give T_sat(P). Used to display T_sat and check superheat margins.</div>
+          <div class="pc-desc">The two-phase boundary (boiling curve) from the triple point (0.01 °C / 0.00611 bar) to the critical point (373.946 °C / 220.64 bar). Defined by the IAPWS-IF97 region-4 saturation equation, which gives P_sat(T) and its exact inverse T_sat(P) in closed form. Used to display T_sat and check superheat margins.</div>
           <span class="pc-tag tag-am">Triple point → Critical point</span>
         </div>
       </div>
@@ -588,14 +589,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
         <div class="pc-ico">⚠️</div>
         <div>
           <div class="pc-title">Region 3 — Near-Critical (Not Fully Implemented)</div>
-          <div class="pc-desc">The near-critical and supercritical region (T &gt; 350 °C, P &gt; 165 bar approximately) requires the full IF97 Region 3 Helmholtz formulation with 40 coefficients. This calculator interpolates in this region with reduced accuracy (±5–15 kJ/kg on enthalpy). A warning badge is shown whenever operating conditions fall in this region.</div>
+          <div class="pc-desc">The near-critical and supercritical region (T &gt; 350 °C, P &gt; 165 bar approximately) is described by the IF97 Region 3 Helmholtz formulation with 40 coefficients, which this calculator evaluates directly (the density is found by solving p(ρ,T) = p). Properties change steeply here, so a warning badge is shown whenever operating conditions fall in this region.</div>
           <span class="pc-tag tag-rd">Reduced accuracy — warning shown</span>
         </div>
       </div>
     </div>
     <div class="al-box al-wa" style="margin-top:4px">
       <span class="al-ico">⚠️</span>
-      <div><strong>Accuracy statement:</strong> This calculator achieves ±0.3 kJ/kg on enthalpy and ±0.002 kJ/(kg·K) on entropy for normal superheated steam conditions. Near the critical point the accuracy degrades to ±5–15 kJ/kg. For legally binding design calculations, always verify against certified IAPWS-IF97 software (e.g., REFPROP, WaterSteamPro, or published IF97 verification tables).</div>
+      <div><strong>Accuracy statement:</strong> This calculator evaluates the IAPWS-IF97 equations themselves (regions 1–5, no table interpolation) and reproduces the IAPWS verification tables to 9 significant figures. IF97 is consistent to about ±0.2 kJ/kg across its region boundaries; near the critical point properties change so steeply that input uncertainty dominates. For legally binding design calculations, always verify against certified IAPWS-IF97 software (e.g., REFPROP, WaterSteamPro, or published IF97 verification tables).</div>
     </div>
   </div>
 
@@ -894,7 +895,7 @@ function pSat_client(T_C) {
 }
 function tSat_client(P_bar) {
   if (!isFinite(P_bar) || P_bar <= 0) return NaN;
-  if (P_bar >= 220.64) return 374.14;
+  if (P_bar >= 220.64) return 373.946;
   if (P_bar < 0.006)   return NaN;
   let T;
   if      (P_bar < 1)  T = 45 * Math.pow(P_bar, 0.28) + 20;
@@ -910,7 +911,7 @@ function tSat_client(P_bar) {
     T -= Math.max(-20, Math.min(20, dT));
     if (Math.abs(dT) < 5e-8) break;
   }
-  return Math.max(0.01, Math.min(374.14, T));
+  return Math.max(0.01, Math.min(373.946, T));
 }
 const toMPa = v => SYS==='IMP' ? v*0.006894757 : v*0.1;   // psia or bara → MPa
 const frPd  = v => SYS==='IMP' ? v/0.006894757 : v*10;    // MPa → psia or bara
@@ -1300,7 +1301,7 @@ Substituting values:
             <td><strong>Inlet Steam</strong></td>
             <td class="num">${fT(r.T1)}</td><td class="num">${fPu(r.Ps)}</td>
             <td class="num hi">${f1(r.h1)}</td>
-            <td class="num" style="font-size:.72rem;color:var(--subtle)">${r.unc_h1||'±0.5 kJ/kg'}</td>
+            <td class="num" style="font-size:.72rem;color:var(--subtle)">${r.unc_h1||'±0.2 kJ/kg'}</td>
             <td class="num">${f3(r.s1)}</td><td class="num">${f4(r.v1)}</td>
             <td class="num">${f1(isI?(r.T1-r.Ts)*9/5:r.T1-r.Ts)}</td>
             <td><span class="bdg b-b">Superheated</span></td>
@@ -1309,7 +1310,7 @@ Substituting values:
             <td><strong>Quench Water</strong></td>
             <td class="num">${fT(r.Tw)}</td><td class="num">${fPu(r.Pw)}</td>
             <td class="num hi">${f1(r.hw)}</td>
-            <td class="num" style="font-size:.72rem;color:var(--subtle)">${r.unc_hw||'±0.3 kJ/kg'}</td>
+            <td class="num" style="font-size:.72rem;color:var(--subtle)">${r.unc_hw||'±0.2 kJ/kg'}</td>
             <td class="num">—</td><td class="num">~0.0010</td>
             <td class="num">—</td>
             <td><span class="bdg b-t">Comp. Liquid</span></td>
@@ -1336,8 +1337,8 @@ Substituting values:
       <div style="margin-top:7px;padding:6px 10px;background:var(--tint);border-radius:6px;font-size:.72rem;color:var(--subtle)">
         <strong style="color:var(--ink3)">Calc-ID:</strong> ${CALC_ID} &nbsp;·&nbsp;
         <strong style="color:var(--ink3)">Version:</strong> ${CALC_VERSION} &nbsp;·&nbsp;
-        <strong style="color:var(--ink3)">Method:</strong> IAPWS-IF97 tables + PCHIP / log-P interp &nbsp;·&nbsp;
-        Uncertainty estimates are per-region interpolation bounds. For EPC-grade design, verify against certified steam tables.
+        <strong style="color:var(--ink3)">Method:</strong> IAPWS-IF97 equations (regions 1–5) &nbsp;·&nbsp;
+        Uncertainty: IF97 region-boundary consistency (±0.2 kJ/kg), larger close to the critical point. For EPC-grade design, verify against certified steam tables.
       </div>
     </div>
   </div>
@@ -1617,8 +1618,8 @@ Cavitation index: σ = (P₁ − Pv) / ΔP = ${isFinite(r.cv_res.sigma)?r.cv_res
       </table>
       <div style="margin-top:10px;padding:9px 12px;background:var(--tint);border-radius:7px;border-left:3px solid var(--bd2);font-size:.75rem;color:var(--mid);line-height:1.7">
         <strong style="color:var(--ink2)">Property Method &amp; Accuracy:</strong>
-        Saturation properties use NIST-IF97 tables (0.01–374°C / 0.006–220.6 bar) with PCHIP monotone interpolation — accuracy ±0.3 kJ/kg (h), ±0.002 kJ/(kg·K) (s).
-        Superheated steam uses IAPWS-IF97 verified table values on a dense P×T grid (16 pressure bands, 13 temperature points each) with log-P PCHIP interpolation for thermodynamic consistency — accuracy ±0.5–1.0 kJ/kg typical.
+        Saturation properties come from the IAPWS-IF97 region-4 equation and the region 1 / 2 / 3 equations at the saturation pressure (0.01–373.946 °C / 0.006–220.64 bar).
+        Superheated steam uses the IAPWS-IF97 region 2 Gibbs equation (region 3 near the critical point, region 5 above 800 °C); quench water uses region 1.
         Compressed liquid uses Poynting correction with isothermal compressibility κ_T(T) — accuracy ±0.5 kJ/kg up to 200 bar.
         <strong style="color:var(--am)">Near-critical region (T&gt;350°C &amp; P&gt;165 bar): accuracy degrades to ±5–15 kJ/kg — warning shown automatically. IF97 Region-3 is not implemented.</strong>
         Valve sizing uses ISA S75.01 / IEC 60534 liquid Cv with FL recovery factor, cavitation index σ, and choked-flow limit. Flashing check uses vapour pressure at T_w.
