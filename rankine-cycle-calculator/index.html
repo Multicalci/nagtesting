@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- REPO PATH: rankine-cycle-calculator/index.html -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -18,7 +19,7 @@
     <meta name="twitter:image" content="https://www.multicalci.com/assets/og-image.png">
 
 
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Rankine Cycle Calculator","description":"Steam power plant Rankine cycle efficiency calculator with NIST IF97 steam tables, reheat and regenerative cycles.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/rankine-cycle-calculator/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Rankine Cycle Calculator","description":"Steam power plant Rankine cycle efficiency calculator with IAPWS-IF97 steam properties, reheat and regenerative cycles.","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://www.multicalci.com/rankine-cycle-calculator/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 <meta name="robots" content="index, follow">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -812,7 +813,7 @@ input[readonly]{
   <div class="hdr-icon">♨</div>
   <div class="hdr-text">
     <div class="hdr-title">multicalci<span>.com</span></div>
-    <div class="hdr-sub">Thermodynamic Cycle Calculator · NIST IF97 Steam Tables · ±0.3 kJ/kg (subcritical) / ±2 kJ/kg (near-critical)</div>
+    <div class="hdr-sub">Thermodynamic Cycle Calculator · IAPWS-IF97 steam properties (regions 1–5) · sub- and supercritical boilers</div>
   </div>
   <div class="hdr-right">
     <a href="https://www.multicalci.com/" class="home-btn" title="Back to multicalci.com">
@@ -1862,8 +1863,8 @@ input[readonly]{
 <!-- END EFFICIENCY GUIDE TAB -->
 
 <div class="footer">
-  multicalci.com — Rankine Cycle Calculator · NIST IF97 Steam Tables · Wagner Equation for P_sat · Catmull–Rom Cubic Spline Interpolation<br>
-  <span style="font-size:.78rem;color:var(--text4)">Model assumptions: incompressible pump (v_f·ΔP), single open FWH (regenerative), isentropic efficiency applied to enthalpy drop. For pressures &gt;18 MPa, accuracy degrades near the critical point — validate against full IF97 software. <strong>Not for direct design use without independent verification.</strong></span>
+  multicalci.com — Rankine Cycle Calculator · IAPWS-IF97 (R7-97) steam properties, evaluated on the server · checked against the IAPWS verification tables<br>
+  <span style="font-size:.78rem;color:var(--text4)">Model assumptions: incompressible pump (v_f·ΔP), single open FWH (regenerative), isentropic efficiency applied to enthalpy drop. Steam states, including near-critical and supercritical boiler outlets, come from the full IF97 formulation. <strong>Not for direct design use without independent verification.</strong></span>
   <div class="print-timestamp"></div>
 </div>
 
@@ -2030,8 +2031,9 @@ async function autoTsat(pId, dId) {
   if (!el || isNaN(P_SI)) return;
   try {
     const r = await callAPI('tsat', { P_MPa: P_SI });
+    if (r.supercritical) { el.value = 'supercritical'; return; }
     const Ts = r.tsat;
-    if (isNaN(Ts)) { el.value = 'invalid'; return; }
+    if (Ts == null || isNaN(Ts)) { el.value = 'invalid'; return; }
     el.value = UNITS === 'SI' ? Ts.toFixed(1) + '°C' : C2F(Ts).toFixed(1) + '°F';
   } catch (e) { el.value = '—'; }
 }
@@ -2042,7 +2044,8 @@ async function updateDSH() {
   if (isNaN(Tsh_SI) || isNaN(Ph_SI)) return;
   try {
     const r = await callAPI('tsat', { P_MPa: Ph_SI });
-    const Ts = r.tsat;
+    const Ts = r.supercritical ? r.Tcrit : r.tsat;
+    if (Ts == null) return;
     const dsh = Tsh_SI - Ts;
     const el = document.getElementById('sh_dsh');
     el.value = isNaN(Ts) ? '—' : (UNITS === 'SI' ? dsh.toFixed(1) + '°C' : (dsh * 9 / 5).toFixed(1) + '°F');
@@ -2094,8 +2097,8 @@ function metalWarn(T_C) {
   return '';
 }
 function criticalWarn(P_MPa) {
-  if (P_MPa > 22.064) return `<div class="warn-inline">⚠ <strong>Supercritical pressure (${fmtP(P_MPa)} > 22.064 MPa).</strong> Tabular interpolation accuracy degrades — expect ±2–5 kJ/kg.</div>`;
-  if (P_MPa > 18) return `<div class="warn-inline">⚠ Near-critical region (${fmtP(P_MPa)} > 18 MPa). Verify critical outputs independently.</div>`;
+  if (P_MPa > 22.064) return `<div class="warn-inline">⚠ <strong>Supercritical pressure (${fmtP(P_MPa)} > 22.064 MPa).</strong> No boiling at this pressure: the boiler heats a supercritical fluid (IF97 region 2/3) and the critical temperature 373.95 °C is shown in place of T_sat.</div>`;
+  if (P_MPa > 18) return `<div class="warn-inline">⚠ Near-critical region (${fmtP(P_MPa)} > 18 MPa): small changes in T give large changes in h and v — check the margin to the critical point.</div>`;
   return '';
 }
 function pumpModelNote(Ph_MPa) {
@@ -2213,7 +2216,7 @@ document.getElementById('basicForm').addEventListener('submit', async function(e
       <div class="note n-blue" style="margin-top:8px">
         <div class="nt">📋 Key Thermodynamic Values</div>
         <div class="nb"><ul>
-          <li>T_sat at ${fmtP(Ph)} = <strong>${fmtT(TsatBoiler)}</strong></li>
+          <li>${r.supercritical ? `No saturation at ${fmtP(Ph)} (supercritical) — critical T = <strong>${fmtT(TsatBoiler)}</strong>` : `T_sat at ${fmtP(Ph)} = <strong>${fmtT(TsatBoiler)}</strong>`}</li>
           <li>η_Carnot = 1 − ${(T1+273.15).toFixed(2)} K / ${(T3+273.15).toFixed(2)} K = <strong>${(etaCarnot*100).toFixed(3)}%</strong></li>
           <li>2nd Law η = <strong>${(eta2nd*100).toFixed(1)}%</strong></li>
           <li>Cycle Heat Rate: <strong>${UNITS==='SI'?heatRate.toFixed(0)+' kJ/kWh':(heatRate*0.947817).toFixed(1)+' BTU/Wh'}</strong></li>
@@ -2250,7 +2253,7 @@ document.getElementById('superheatForm').addEventListener('submit', async functi
         ${kpi('2nd Law η',(eta2nd*100).toFixed(1),'%',eta2ndColor(eta2nd*100),'η_th / η_Carnot')}
         ${kpi('Net Power',UNITS==='SI'?WkW.toFixed(0):(kJs2BTUhr(WkW)).toFixed(0),wUnit_,'k-teal',UNITS==='SI'?(WkW/1000).toFixed(3)+' MW':(kJs2hp(WkW)).toFixed(1)+' hp')}
         ${kpi('Cycle Heat Rate',UNITS==='SI'?heatRate.toFixed(0):(heatRate*0.947817).toFixed(1),UNITS==='SI'?'kJ/kWh':'BTU/Wh','k-amber','Lower = more efficient')}
-        ${kpi('Superheat ΔT_sh',UNITS==='SI'?dsh.toFixed(1):(dsh*9/5).toFixed(1),tUnit(),'k-blue','Above saturation')}
+        ${kpi(r.supercritical?'Above critical T':'Superheat ΔT_sh',UNITS==='SI'?dsh.toFixed(1):(dsh*9/5).toFixed(1),tUnit(),'k-blue',r.supercritical?'Supercritical boiler':'Above saturation')}
         ${kpi('Exit Quality x₄',Math.min(x4*100,100).toFixed(1),'%',x4<0.88?'k-red':'k-teal','Wet = blade erosion risk')}
         ${kpi('Q_in',UNITS==='SI'?QkW.toFixed(0):(kJs2BTUhr(QkW)).toFixed(0),wUnit_,'k-blue','Boiler duty')}
       </div>
@@ -2454,7 +2457,7 @@ function printPDF(){
   if(ts) ts.textContent = 'Generated: ' + new Date().toLocaleString();
   window.print();
 }
-function getShareText(){ const tab=document.querySelector('.tab-btn.active'); return 'Check out multicalci.com — free Rankine Cycle calculator with NIST steam tables, SI/US units. '+(tab?tab.textContent.trim():''); }
+function getShareText(){ const tab=document.querySelector('.tab-btn.active'); return 'Check out multicalci.com — free Rankine Cycle calculator with IAPWS-IF97 steam properties, SI/US units. '+(tab?tab.textContent.trim():''); }
 function getShareURL(){ return window.location.href.split('?')[0]; }
 function shareTwitter(){ window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(getShareText())+'&url='+encodeURIComponent(getShareURL())+'&hashtags=thermodynamics,engineering','_blank','width=600,height=400'); }
 function shareLinkedIn(){ window.open('https://www.linkedin.com/sharing/share-offsite/?url='+encodeURIComponent(getShareURL()),'_blank','width=600,height=500'); }
