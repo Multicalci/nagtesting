@@ -1,10 +1,10 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 2.1 — + Step 25 (acid-gas electrolyte packages: aqueous MEA, hot potassium carbonate; Murphree tray efficiencies; electrolyte flash edge cases), vectors MB-001..MB-195",
+  "version": "mb-vectors 2.4 — + Step 28 (activated MDEA: piperazine species in the MDEA package), vectors MB-001..MB-224",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-  "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW)."
+  "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter."
  },
  "vectors": [
   {
@@ -4521,9 +4521,9 @@
     }
    ],
    "expect": {
-    "details.gamma.0.gamma": 1.8890402,
-    "details.gamma.1.gamma": 1.1545086,
-    "details.x.0.x": 0.26246488,
+    "details.gamma.0.gamma": 1.8791632967748282,
+    "details.gamma.1.gamma": 1.1566758891728777,
+    "details.x.0.x": 0.2645173233240005,
     "converged": true
    },
    "tol": {
@@ -4532,7 +4532,7 @@
     "details.x.0.x": 1e-07,
     "default": 1e-06
    },
-   "source": "Independent reference: 'thermo' 0.6.1 thermo.nrtl.NRTL(tau_as, tau_bs, alpha_cs) evaluated at the liquid composition x listed here; binary parameters are illustrative test inputs (not a recommended data set)."
+   "source": "Independent reference: 'thermo' 0.6.1 thermo.nrtl.NRTL(tau_as, tau_bs, alpha_cs) for the activity coefficients, water Psat from the 'iapws' 1.5.5 library (IAPWS-IF97 region 4, 0.5108013 bar at 355 K), ethanol Psat from the engine's listed Antoine constants (A 8.1122, B 1592.864, C 226.184; mmHg, \u00b0C \u2192 1.1642268 bar); the liquid composition x is the root of the modified-Raoult bubble condition x1\u00b7\u03b31\u00b7Psat1 + x2\u00b7\u03b32\u00b7Psat2 = P solved with scipy brentq, so x and \u03b3 are both computed outside the engine. Binary parameters are illustrative test inputs (not a recommended data set). Step 26: water Psat moved from the old interpolated table to exact IAPWS-IF97; x changed from 0.262465 to 0.264517."
   },
   {
    "id": "MB-096",
@@ -5462,15 +5462,15 @@
     "converged": true,
     "loops.0.converged": true,
     "loops.0.tears.0": "rcy",
-    "stream_results.rcy.mass_flow_kg_h": 20194.030910077905,
+    "stream_results.rcy.mass_flow_kg_h": 20195.28752279119,
     "mass_balance.closure_pct": 0
    },
    "tol": {
-    "stream_results.rcy.mass_flow_kg_h": 1e-06,
+    "stream_results.rcy.mass_flow_kg_h": 2e-05,
     "mass_balance.closure_pct": 0.005,
     "default": 1e-09
    },
-   "source": "Structural test: the DFS back edge (splitter → mixer) must be chosen as the tear; at convergence the 50/50 splitter makes recycle = purge exactly, and overall mass closes to the reactor MW-stoichiometry tolerance."
+   "source": "Structural test: the DFS back edge (splitter \u2192 mixer) must be chosen as the tear; at convergence the 50/50 splitter makes recycle = purge exactly, and overall mass closes to the reactor MW-stoichiometry tolerance. The recycle mass flow is an independent recompute (Python, no multicalci code): mole balances around the loop, 90 % CO conversion, Rachford\u2013Rice at 313.15 K / 29 bar with water K = Psat/P from the 'iapws' 1.5.5 library (IAPWS-IF97) and K = 1e6 for the four supercritical gases, fixed-point iteration to machine precision. Tolerance 2e-5 kg/h = the 1e-9 tear tolerance \u00d7 the flow."
   },
   {
    "id": "MB-101",
@@ -11075,6 +11075,1537 @@
    },
    "tol": 2e-05,
    "source": "water balance with a pure-water condensate and y_w = psat(360 K)/P, psat from IAPWS-IF97 = 0.62194 bar: β = (1 − z_w)/(1 − y_w) = 0.986055 (dissolved CO2 and gases shift it by ~5e-6)"
+  },
+  {
+   "id": "MB-196",
+   "desc": "steam package (IAPWS-IF97): heater 25 °C / 10 bar water → 300 °C steam, 3600 kg/h — duty and outlet density, cp, viscosity, conductivity",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "T_out_K": 573.15
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 2945.941903998562,
+    "streams_out.0.vapour_fraction": 1,
+    "streams_out.0.rig.props.phases.0.rho_kgm3": 3.8762816481861964,
+    "streams_out.0.rig.props.phases.0.Cp_kJkgK": 2.1408335635316678,
+    "streams_out.0.rig.props.phases.0.mu_cP": 0.020205468542513046,
+    "streams_out.0.rig.props.phases.0.k_WmK": 0.04512229277216797
+   },
+   "tol": {
+    "details.duty_kW": 1e-06,
+    "streams_out.0.rig.props.phases.0.rho_kgm3": 1e-07,
+    "streams_out.0.rig.props.phases.0.Cp_kJkgK": 1e-07,
+    "streams_out.0.rig.props.phases.0.mu_cP": 1e-09,
+    "streams_out.0.rig.props.phases.0.k_WmK": 1e-08,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): duty = ṁ·[h(300 °C, 1 MPa) − h(25 °C, 1 MPa)] with ṁ = 1 kg/s; ρ, cp, μ, λ of IAPWS97(P=1, T=573.15)."
+  },
+  {
+   "id": "MB-197",
+   "desc": "steam package: turbine 100 bar / 500 °C → 0.1 bar, isentropic η 0.85, 3600 kg/h — power and exhaust quality",
+   "call": "runModule",
+   "args": [
+    "expander",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 773.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 0.1,
+      "efficiency": 0.85
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": -1092.6053802507645,
+    "details.vapour_fraction_out": 0.8739864257211003,
+    "details.T_out_K": 318.9575482070235,
+    "details.steam_rate_kg_kWh": 3.294876691137803,
+    "details.spec": "efficiency"
+   },
+   "tol": {
+    "details.power_kW": 1e-05,
+    "details.vapour_fraction_out": 1e-08,
+    "details.T_out_K": 1e-06,
+    "details.steam_rate_kg_kWh": 1e-08,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): h2s = h(P=0.01 MPa, s=s1), h2 = h1 − 0.85·(h1 − h2s), x2 = IAPWS97(P=0.01, h=h2).x."
+  },
+  {
+   "id": "MB-198",
+   "desc": "steam package: turbine 40 bar / 400 °C → 5 bar with a MEASURED exhaust temperature of 200 °C, 1000 kg/h — the efficiency and power are calculated",
+   "call": "runModule",
+   "args": [
+    "expander",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 5,
+      "spec": "T_out",
+      "T_out_K": 473.15
+     }
+    }
+   ],
+   "expect": {
+    "details.efficiency": 0.7357071622154258,
+    "details.power_kW": -99.57703138283325,
+    "details.spec": "T_out"
+   },
+   "tol": {
+    "details.efficiency": 1e-09,
+    "details.power_kW": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): η = (h1 − h(200 °C, 0.5 MPa)) / (h1 − h(0.5 MPa, s1)); W = ṁ·(h2 − h1)."
+  },
+  {
+   "id": "MB-199",
+   "desc": "steam package: same turbine with the SHAFT POWER given (100 kW at 1000 kg/h) — outlet temperature and efficiency are calculated",
+   "call": "runModule",
+   "args": [
+    "expander",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 5,
+      "spec": "power",
+      "power_kW": 100
+     }
+    }
+   ],
+   "expect": {
+    "details.efficiency": 0.7388321905148291,
+    "details.T_out_K": 472.4403440606746,
+    "details.power_kW": -100.0
+   },
+   "tol": {
+    "details.efficiency": 1e-09,
+    "details.T_out_K": 1e-06,
+    "details.power_kW": 1e-05,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): h2 = h1 − 100 kW·3600/1000 kg/h = h1 − 360 kJ/kg; T2 = IAPWS97(P=0.5, h=h2).T; η = 360/(h1 − h2s)."
+  },
+  {
+   "id": "MB-200",
+   "desc": "steam package: extraction turbine 100 bar / 500 °C, 10 t/h; 3 t/h extracted at 10 bar; exhaust 0.1 bar; η_HP 0.85, η_LP 0.80",
+   "call": "runModule",
+   "args": [
+    "extraction-turbine",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000,
+       "T_K": 773.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_extract_bar": 10,
+      "P_out_bar": 0.1,
+      "efficiency_hp": 0.85,
+      "efficiency_lp": 0.8,
+      "extraction_kg_h": 3000
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": -2520.90441665775,
+    "details.power_hp_kW": -1396.416463961556,
+    "details.power_lp_kW": -1124.487952696194,
+    "details.T_extract_K": 491.7661795112692,
+    "details.vapour_fraction_out": 0.8788304899752872,
+    "streams_out.0.mass_flow_kg_h": 3000,
+    "streams_out.1.mass_flow_kg_h": 7000,
+    "mass_balance.closure_pct": 0,
+    "energy_balance.Q_kW": 0
+   },
+   "tol": {
+    "details.power_kW": 0.0001,
+    "details.power_hp_kW": 0.0001,
+    "details.power_lp_kW": 0.0001,
+    "details.T_extract_K": 1e-06,
+    "details.vapour_fraction_out": 1e-08,
+    "energy_balance.Q_kW": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): HP section h_e = h1 − 0.85·(h1 − h(1 MPa, s1)); LP section from s_e: h2 = h_e − 0.80·(h_e − h(0.01 MPa, s_e)); W = 10 t/h·(h_e − h1) + 7 t/h·(h2 − h_e)."
+  },
+  {
+   "id": "MB-201",
+   "desc": "steam package: pump 45 °C water 0.1 → 100 bar, η 0.80, 3600 kg/h — power from the IF97 liquid volume",
+   "call": "runModule",
+   "args": [
+    "pump",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 318.15,
+       "P_bar": 0.1,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 100,
+      "efficiency": 0.8
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 12.611299070437731,
+    "details.T_out_K": 319.0878450913772,
+    "details.rho_kgm3": 990.1834799296822
+   },
+   "tol": {
+    "details.power_kW": 1e-08,
+    "details.T_out_K": 1e-06,
+    "details.rho_kgm3": 1e-07,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): W = v(45 °C, 0.01 MPa)·ΔP/η per kg (the incompressible-pump rule the unit applies), outlet T = IAPWS97(P=10, h=h1+W).T."
+  },
+  {
+   "id": "MB-202",
+   "desc": "steam package: supercritical once-through heating at 250 bar, 45 °C → 380 °C (IF97 region 3, near-critical), 3600 kg/h",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 318.15,
+       "P_bar": 250,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "T_out_K": 653.15
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 1725.5067253876143,
+    "streams_out.0.rig.props.rho_kgm3": 450.78602900225013
+   },
+   "tol": {
+    "details.duty_kW": 1e-06,
+    "streams_out.0.rig.props.rho_kgm3": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): duty = h(380 °C, 25 MPa) − h(45 °C, 25 MPa) at 1 kg/s; IAPWS97 solves region 3 by its backward equations, the engine by Newton on p(ρ,T)."
+  },
+  {
+   "id": "MB-203",
+   "desc": "steam package: supercritical heating at 250 bar, 45 °C → 600 °C (region 2 above the B23 line)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 318.15,
+       "P_bar": 250,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "T_out_K": 873.15
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 3283.531776667908
+   },
+   "tol": {
+    "details.duty_kW": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): duty = h(600 °C, 25 MPa) − h(45 °C, 25 MPa) at 1 kg/s."
+  },
+  {
+   "id": "MB-204",
+   "desc": "steam package: mechanical vapour recompression — compressor 1.01325 bar / 105 °C steam → 2 bar, isentropic η 0.75, 3600 kg/h",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 378.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 2,
+      "efficiency": 0.75
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 169.37617926305393,
+    "details.T_out_K": 465.46759040129245,
+    "details.isentropic_power_kW": 127.03213444729045
+   },
+   "tol": {
+    "details.power_kW": 1e-05,
+    "details.T_out_K": 1e-06,
+    "details.isentropic_power_kW": 1e-05,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): W = (h(0.2 MPa, s1) − h1)/0.75 at 1 kg/s; T2 = IAPWS97(P=0.2, h=h1+W).T."
+  },
+  {
+   "id": "MB-205",
+   "desc": "steam package refuses a mixture (water + nitrogen) with a plain message instead of computing nonsense",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "T_out_K": 573.15
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "TH_STEAM"
+   },
+   "tol": 1e-09,
+   "source": "Structural test: the IAPWS-IF97 package covers pure water only."
+  },
+  {
+   "id": "MB-206",
+   "desc": "turbine spec 'T_out' with an exhaust temperature below what an ideal (isentropic) turbine could reach is rejected as η > 100 %",
+   "call": "runModule",
+   "args": [
+    "expander",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 5,
+      "spec": "T_out",
+      "T_out_K": 410
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_MACHINE_SPEC"
+   },
+   "tol": 1e-09,
+   "source": "Structural test: h(410 K, 0.5 MPa) lies below the isentropic exhaust enthalpy h(0.5 MPa, s1), which would need an efficiency above 1."
+  },
+  {
+   "id": "MB-207",
+   "desc": "flowsheet (Steam / water IAPWS-IF97): extraction turbine 100 t/h 100 bar / 500 °C, 20 t/h out at 10 bar, condensing at 0.1 bar → condenser (vapour fraction 0) → condensate pump to 110 bar — the client's ‘Extraction steam turbine + condenser’ example",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100000,
+       "T_K": 773.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "b1",
+        "name": "ST-101",
+        "module": "extraction-turbine",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "P_extract_bar": 10,
+         "P_out_bar": 0.1,
+         "efficiency_hp": 0.82,
+         "efficiency_lp": 0.78,
+         "extraction_kg_h": 20000,
+         "property_package": {
+          "model": "steam"
+         }
+        }
+       },
+       {
+        "id": "b2",
+        "name": "E-101",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "vapour_fraction": 0,
+         "property_package": {
+          "model": "steam"
+         }
+        }
+       },
+       {
+        "id": "b3",
+        "name": "P-101",
+        "module": "pump",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "efficiency": 0.75,
+         "P_out_bar": 110,
+         "property_package": {
+          "model": "steam"
+         }
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "name": "HP STEAM",
+        "from": null,
+        "to": {
+         "b": "b1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "name": "PROCESS STEAM",
+        "from": {
+         "b": "b1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s3",
+        "name": "EXHAUST",
+        "from": {
+         "b": "b1",
+         "p": 1
+        },
+        "to": {
+         "b": "b2",
+         "p": 0
+        }
+       },
+       {
+        "id": "s4",
+        "name": "CONDENSATE",
+        "from": {
+         "b": "b2",
+         "p": 0
+        },
+        "to": {
+         "b": "b3",
+         "p": 0
+        }
+       },
+       {
+        "id": "s5",
+        "name": "BFW",
+        "from": {
+         "b": "b3",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "specs": [],
+      "options": {
+       "tol": 1e-05,
+       "max_iter": 40
+      },
+      "property_package": {
+       "model": "steam"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "block_results.b1.result.details.power_kW": -26110.936285461576,
+    "block_results.b1.result.details.vapour_fraction_out": 0.8902296702473966,
+    "block_results.b2.result.details.duty_kW": -47322.12932748692,
+    "block_results.b3.result.details.power_kW": 328.9707761179397,
+    "stream_results.s5.T_K": 320.21908201112495,
+    "stream_results.s2.T_K": 499.4807759073666,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "block_results.b1.result.details.power_kW": 0.001,
+    "block_results.b1.result.details.vapour_fraction_out": 1e-08,
+    "block_results.b2.result.details.duty_kW": 0.001,
+    "block_results.b3.result.details.power_kW": 1e-06,
+    "stream_results.s5.T_K": 1e-06,
+    "stream_results.s2.T_K": 1e-06,
+    "mass_balance.closure_pct": 1e-09,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python 'iapws' 1.5.5 library (IAPWS97 class — IAPWS-IF97 R7-97(2012), viscosity R12-08, conductivity R15-11): the same cycle worked by hand — HP/LP sections as MB-200, condenser duty = 80 t/h·(h_f(0.01 MPa) − h_exhaust), pump W = v_f(0.01 MPa)·(110 − 0.1) bar/0.75, BFW T = IAPWS97(P=11, h=h_f+W).T. Also checks that the saturated condensate (vapour fraction 0) reaches the pump as liquid."
+  },
+  {
+   "id": "MB-208",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 20.003 wt % MDEA at 40 °C and the loading 0.87 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1064.2769529535917,
+       "T_K": 313.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7516558521538171
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.18795266825332282
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.06039147959286009
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 313.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0536,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-13: the thesis's Extended UNIQUAC model gives a loading of 0.87 mol CO2/mol MDEA for 20.003 wt % MDEA at 40 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-209",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 39.99 wt % MDEA at 40 °C and the loading 0.74 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1109.302073489426,
+       "T_K": 313.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.540970772832257
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.3605035929702406
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.09852563419750238
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 313.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0384,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-13: the thesis's Extended UNIQUAC model gives a loading of 0.74 mol CO2/mol MDEA for 39.99 wt % MDEA at 40 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-210",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 49.96 wt % MDEA at 40 °C and the loading 0.63 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1116.2554651393084,
+       "T_K": 313.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.44828447933963766
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.4475760607705394
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.10413945988982298
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 313.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0579,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-13: the thesis's Extended UNIQUAC model gives a loading of 0.63 mol CO2/mol MDEA for 49.96 wt % MDEA at 40 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-211",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 69.87 wt % MDEA at 40 °C and the loading 0.35 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1090.3309862160122,
+       "T_K": 313.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.27633810632646505
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.6408264175115023
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.08283547616203259
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 313.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0712,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-13: the thesis's Extended UNIQUAC model gives a loading of 0.35 mol CO2/mol MDEA for 69.87 wt % MDEA at 40 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-212",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 29.88 wt % MDEA at 60 °C and the loading 0.56 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1061.8049595166165,
+       "T_K": 333.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.6603849357788075
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.2814128093283201
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05820225489287236
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 333.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.052,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-15: the thesis's Extended UNIQUAC model gives a loading of 0.56 mol CO2/mol MDEA for 29.88 wt % MDEA at 60 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-213",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 49.96 wt % MDEA at 60 °C and the loading 0.37 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1068.2808258979524,
+       "T_K": 333.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.46841615787626306
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.46767592545779063
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.06390791666594621
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 333.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0415,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-15: the thesis's Extended UNIQUAC model gives a loading of 0.37 mol CO2/mol MDEA for 49.96 wt % MDEA at 60 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-214",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 20.003 wt % MDEA at 80 °C and the loading 0.34 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1025.1219785406176,
+       "T_K": 353.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7803656703750044
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.1951316011709312
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.024502728454064402
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 353.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0362,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-17: the thesis's Extended UNIQUAC model gives a loading of 0.34 mol CO2/mol MDEA for 20.003 wt % MDEA at 80 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-215",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 39.99 wt % MDEA at 80 °C and the loading 0.20 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1029.5464886706948,
+       "T_K": 353.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.5828780017256168
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.3884306222039753
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.028691376070407986
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 353.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0674,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-17: the thesis's Extended UNIQUAC model gives a loading of 0.20 mol CO2/mol MDEA for 39.99 wt % MDEA at 80 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-216",
+   "desc": "aqueous MDEA (Extended UNIQUAC): bubble pressure of 60 wt % MDEA at 80 °C and the loading 0.10 the thesis model gives for a total pressure of 110 kPa",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1022.1709466263848,
+       "T_K": 353.15,
+       "P_bar": 5.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.39132397699247523
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.5869968027589719
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.021679220248552792
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 353.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 1.1
+   },
+   "tol": {
+    "details.P_bar": 0.0854,
+    "default": 1e-09
+   },
+   "source": "Sadegh, N. (2013) PhD thesis, DTU, Table 7-17: the thesis's Extended UNIQUAC model gives a loading of 0.10 mol CO2/mol MDEA for 60 wt % MDEA at 80 °C and 110 kPa total pressure. Tolerance = the pressure span of the printed loading's rounding (±0.005) evaluated with an independent Python implementation of the same model (scipy speciation), ×1.15 + 0.005 bar for the SRK-vs-ideal vapour and the databank water vapour pressure."
+  },
+  {
+   "id": "MB-217",
+   "desc": "aqueous MDEA (Extended UNIQUAC): speciation and equilibrium CO2 pressure of 40 wt % MDEA at loading 0.5 and 40 °C",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1073.87361530715,
+       "T_K": 313.15,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.5587249667442361
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.37249018816252666
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.06878484509323726
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 313.15,
+      "to": 314.15,
+      "points": 2,
+      "P_bar": 20
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 31.931097474164027,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEA": 0.041677672668298256,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEAH+": 0.04987493780183984,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.HCO3-": 0.04147563411201003,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO3--": 0.0041996185108618125,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO2": 0.00010105261219717714
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 1e-06,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEA": 1e-10,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.MDEAH+": 1e-10,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.HCO3-": 1e-10,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO3--": 1e-10,
+    "details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO2": 1e-10,
+    "default": 1e-09
+   },
+   "source": "Independent Python implementation of the Sadegh (2013) Extended UNIQUAC model (all Table 5-2..5-7 parameters; speciation by scipy.optimize.root on all eight species, no multicalci code); CO2 Henry constant of Rumpf & Maurer (1993)."
+  },
+  {
+   "id": "MB-218",
+   "desc": "aqueous MDEA (Extended UNIQUAC): integral heat of CO2 absorption into 40 wt % MDEA at 60 °C, loading 0.05 → 0.40 (Gibbs–Helmholtz enthalpies of the package)",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 105.90918932345996,
+          "T_K": 333.15,
+          "P_bar": 30,
+          "components": [
+           {
+            "key": "H2O",
+            "mass_fraction": 0.5665230787174895
+           },
+           {
+            "key": "methyl-diethanolamine",
+            "mass_fraction": 0.3776820524783263
+           },
+           {
+            "key": "CO2",
+            "mass_fraction": 0.055794868804184224
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "amine-mdea"
+         },
+         "vary": "T",
+         "from": 333.15,
+         "to": 334.15,
+         "points": 2,
+         "P_bar": 30
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": 32.3478881736583
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100.73864866543249,
+          "T_K": 333.15,
+          "P_bar": 30,
+          "components": [
+           {
+            "key": "H2O",
+            "mass_fraction": 0.5956006040866064
+           },
+           {
+            "key": "methyl-diethanolamine",
+            "mass_fraction": 0.39706706939107095
+           },
+           {
+            "key": "CO2",
+            "mass_fraction": 0.0073323265223226575
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "amine-mdea"
+         },
+         "vary": "T",
+         "from": 333.15,
+         "to": 334.15,
+         "points": 2,
+         "P_bar": 30
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -31.3478881736583
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 44.0095,
+          "T_K": 333.15,
+          "P_bar": 1,
+          "components": [
+           {
+            "key": "CO2",
+            "mass_fraction": 1
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "ideal"
+         },
+         "vary": "T",
+         "from": 333.15,
+         "to": 334.15,
+         "points": 2,
+         "P_bar": 1
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": -56500.0
+   },
+   "tol": 5000.0,
+   "source": "Oscarson, Van Dam, Christensen, Izatt (1995), GPA Research Report RR-150, calorimetric heat of CO2 absorption into 40 wt % MDEA at 60 °C and 1121 kPa: −ΔH ≈ 56–57 kJ/mol CO2 for loadings below 0.8 (as plotted in Sadegh 2013, Fig. 5-25; the thesis model's deviation from these data is 12 % AARD). Tolerance 5 kJ/mol."
+  },
+  {
+   "id": "MB-219",
+   "desc": "activated MDEA (MDEA + piperazine, Extended UNIQUAC with fitted piperazine species): equilibrium CO2 pressure of 7 m MDEA / 2 m PZ at 40 °C, loading 0.237 mol CO2/mol alkalinity",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2121.1393665,
+       "T_K": 313.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.4714447413467492
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.3932487479011672
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.0812163513254941
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05409015942658947
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 313.15,
+      "to": 314.15,
+      "points": 2,
+      "P_bar": 30
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 2.84
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 0.994,
+    "default": 1e-09
+   },
+   "source": "Chen, X. (2011) PhD dissertation, University of Texas at Austin, Table 4.7: measured equilibrium CO2 partial pressure (wetted-wall column): 2.84 kPa. Tolerance 35 % (the fit's single-point deviations reach about 40 %; average 12–21 % per data set)."
+  },
+  {
+   "id": "MB-220",
+   "desc": "activated MDEA: equilibrium CO2 pressure of 5 m MDEA / 5 m PZ at 60 °C, loading 0.28 — a data set held out of the piperazine fit",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2211.3289,
+       "T_K": 333.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.45221676431760105
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.2694357225648342
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.19475981162277578
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.08358770149478896
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 333.15,
+      "to": 334.15,
+      "points": 2,
+      "P_bar": 30
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 8.77
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 3.07,
+    "default": 1e-09
+   },
+   "source": "Chen, X. (2011) PhD dissertation, University of Texas at Austin, Table 4.8: measured equilibrium CO2 partial pressure (wetted-wall column): 8.77 kPa (not used in the regression). Tolerance 35 %."
+  },
+  {
+   "id": "MB-221",
+   "desc": "activated MDEA: CO2 pressure of 7:2 MDEA/PZ (10.71 m alkalinity) at 120 °C, loading 0.223",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2084.9832714986364,
+       "T_K": 393.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.4796201550726226
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.3895208986749392
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.08044645106754873
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.050412495184889425
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 393.15,
+      "to": 394.15,
+      "points": 2,
+      "P_bar": 30
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 527.0
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 184.0,
+    "default": 1e-09
+   },
+   "source": "Xu, Q. (2011) PhD dissertation, University of Texas at Austin, Table 2-8: CO2 partial pressure from the measured total pressure: 527 kPa. Tolerance 35 %."
+  },
+  {
+   "id": "MB-222",
+   "desc": "aqueous piperazine in the MDEA package (no MDEA): CO2 pressure of 7.94 m PZ at 120 °C, loading 0.410 mol CO2/mol alkalinity",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1970.4537165999998,
+       "T_K": 393.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.5074973299679888
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.3470858809006141
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.14541678913139716
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 393.15,
+      "to": 394.15,
+      "points": 2,
+      "P_bar": 30
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 623.0
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 218.0,
+    "default": 1e-09
+   },
+   "source": "Xu, Q. (2011) PhD dissertation, University of Texas at Austin, Table 2-2: CO2 partial pressure from the measured total pressure: 623 kPa. Tolerance 35 %."
+  },
+  {
+   "id": "MB-223",
+   "desc": "activated MDEA: bubble pressure of 7:2 MDEA/PZ (10.71 m alkalinity) at 120 °C, loading 0.223 — total pressure measured in the same cell",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2084.9832714986364,
+       "T_K": 393.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.4796201550726226
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.3895208986749392
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.08044645106754873
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.050412495184889425
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "T_K": 393.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 6.98
+   },
+   "tol": {
+    "details.P_bar": 1.05,
+    "default": 1e-09
+   },
+   "source": "Xu, Q. (2011) PhD dissertation, University of Texas at Austin, Table 2-8: measured total pressure 698 kPa. Tolerance 15 %."
+  },
+  {
+   "id": "MB-224",
+   "desc": "activated MDEA: liquid density of 7 m MDEA / 2 m PZ at 40 °C, loading 0.25",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2127.432725,
+       "T_K": 313.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.47005011639087196
+        },
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.39208544185574656
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.08097609761079518
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05688834414258623
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea"
+      },
+      "vary": "T",
+      "from": 313.15,
+      "to": 314.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 1095.6
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 16.4,
+    "default": 1e-09
+   },
+   "source": "Frailie, P. (2014) PhD dissertation, University of Texas at Austin, Table C-1: 1.0956 g/cm3. Tolerance 1.5 %."
   }
  ]
 }
