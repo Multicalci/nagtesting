@@ -485,7 +485,7 @@ ${nrRows.join('\n')}
 <div class="tw"><table class="wrap"><colgroup><col style="width:40%"><col style="width:32%"><col style="width:28%"></colgroup><thead><tr><th class="l">Check</th><th>Result</th><th class="l">Expected</th></tr></thead><tbody>
 <tr><td class="l">Ammonia front end (primary + secondary reformer, HTS, LTS, CO₂ removal, methanator): design spec varies process air for H₂/N₂ = 3, starting 20 % low</td>
   <td>air ${f(spec.specs[0].varied, 3)} kg/h · H₂/N₂ ${f(spec.specs[0].target_value, 6)}</td><td class="l">${f(airRef, 3)} kg/h, the air rate the step-by-step template bisects for the same chain</td></tr>
-<tr><td class="l">Recycle loop (mixer → shift reactor → cooler → flash → 50/50 splitter → back), Wegstein on the torn recycle</td>
+<tr><td class="l">Recycle loop (mixer → shift reactor → cooler → flash → 50/50 splitter → back), Wegstein, then Broyden, on the torn recycle</td>
   <td>converged in ${rec.loops[0].iterations} iterations · recycle ${f(recR, 4)} / purge ${f(recP, 4)} kg/h · closure ${f(rec.mass_balance.closure_pct, 4)} %</td><td class="l">recycle = purge exactly; closure within the reactor's molecular-weight rounding</td></tr>
 <tr><td class="l">Two simultaneous design specs (splitter fraction → 300 kg/h recycle; flash T → 0.30 mol % water in gas)</td>
   <td>${f(two.specs[0].target_value, 3)} kg/h · ${f(two.specs[1].target_value * 100, 4)} mol % · ${two.specs[0].iterations} iterations</td><td class="l">both targets met</td></tr>
