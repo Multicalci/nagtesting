@@ -52,7 +52,7 @@
 import th from './mb-thermo.js';
 import units from './mb-units.js';
 
-export const COLUMN_VERSION = 'mb-column 1.2.0';
+export const COLUMN_VERSION = 'mb-column 1.3.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const fail = (code, msg, field) => { throw new units.UnitError(code, msg, field); };
@@ -181,6 +181,8 @@ function solveColumn(inp) {
   const t0 = Date.now();
   const S = setup(inp);
   const { p, N, cond, hasC, hasR, specs } = S;
+  // time cap: 7 s standalone; a flowsheet passes what is left of its own budget (STEP 30)
+  const capMs = num(p.budget_ms) && p.budget_ms > 0 ? Math.max(150, Math.min(p.budget_ms, 7000)) : 7000;
   const keysAll = [...new Set(inp.streams.flatMap((s) => (s.components || []).filter((c) => num(c.mass_fraction) && c.mass_fraction > 0).map((c) => c.key)))];
   const pp = units.pkg(p.property_package, keysAll);
   const C = pp.n, b = 2 * C + 1;
@@ -237,6 +239,14 @@ function solveColumn(inp) {
   if (cond === 'partial') border.push('Qc');
   if (hasR) border.push('Qr');
   const G = border.length;
+  // STEP 30 warm start: the converged state of this column from an earlier solve in the same
+  // flowsheet run (recycle iterations, design-spec and sensitivity evaluations) — used when the
+  // stages, components and border unknowns match; flows are scaled to the new feed total
+  const W0 = p.warm;
+  const warmOK = !!(W0 && W0.N === N && Array.isArray(W0.keys) && W0.keys.length === C && W0.keys.every((k, i) => k === pp.keys[i])
+    && Array.isArray(W0.border) && W0.border.join() === border.join() && num(W0.Ftot) && W0.Ftot > 0
+    && Array.isArray(W0.X) && W0.X.length === N && W0.X.every((r) => Array.isArray(r) && r.length === b && r.every(num))
+    && Array.isArray(W0.g) && W0.g.length === G && W0.g.every(num));
 
   // ------------------------------------------------------------- initial guess
   const est = p.estimates || {};
@@ -374,7 +384,7 @@ function solveColumn(inp) {
   }
   const kAt = (j, xx, yy) => pp.lnK(T[j], Pst[j], xx, yy).map(Math.exp);
   const bubble = (j, xx, Tg) => { try { return th.flashPVF(pp, xx, Pst[j], 0, Tg); } catch (_e) { return null; } };
-  if (hasC || hasR) y = x.map((xx, j) => {
+  if ((hasC || hasR) && !warmOK) y = x.map((xx, j) => {
     const rb = bubble(j, xx, T[j]);
     if (rb) return rb.y;
     const K = pp.comps.map((c) => c.Pc / Pst[j] * Math.exp(5.373 * (1 + c.omega) * (1 - c.Tc / T[j])));
@@ -394,7 +404,7 @@ function solveColumn(inp) {
   // solvent's CO2 K-value moves by decades with the loading), flows relaxed, and a
   // pass that blows the flows up is discarded (STEP 25)
   let Kprev = null;
-  for (let pass = 0; pass < preIt; pass++) {
+  for (let pass = 0; pass < (warmOK ? 0 : preIt); pass++) {
     let K = T.map((_, j) => kAt(j, x[j], y[j]));
     const saved = { x: x.map((r) => r.slice()), y: y.map((r) => r.slice()), L: L.slice(), V: V.slice(), T: T.slice() };
     if (!distil) {
@@ -447,8 +457,10 @@ function solveColumn(inp) {
   // ------------------------------------------------------------- Newton
   // state vector per stage: [l_1..l_C, v_1..v_C, T]
   const X = [];
-  for (let j = 0; j < N; j++) X.push(x[j].map((v) => v * L[j]).concat(y[j].map((v) => v * (j === 0 && totalCond ? 1 : V[j])), [T[j]]));
-  const g = border.map((bn) => (bn === 'sL' ? sLfix : 0));
+  const wsc = warmOK ? Ftot / W0.Ftot : 1;
+  if (warmOK) for (let j = 0; j < N; j++) X.push(W0.X[j].map((v, k) => (k < 2 * C && !(j === 0 && totalCond && k >= C) ? v * wsc : v)));
+  else for (let j = 0; j < N; j++) X.push(x[j].map((v) => v * L[j]).concat(y[j].map((v) => v * (j === 0 && totalCond ? 1 : V[j])), [T[j]]));
+  const g = warmOK ? W0.g.map((v, q) => (border[q] === 'sL' ? v : v * wsc)) : border.map((bn) => (bn === 'sL' ? sLfix : 0));
   const Hscale = Ftot * 2e4;                     // kJ/h
   const fScale = Ftot;
   const sumv = (arr, o) => { let s = 0; for (let i = 0; i < C; i++) s += arr[o + i]; return s; };
@@ -537,7 +549,7 @@ function solveColumn(inp) {
     return Math.sqrt(s);
   };
   // initial border values: Qr / Qc from energy balances of the start profile
-  {
+  if (!warmOK) {
     const P = allProps(X);
     if (hasR) {
       const j = N - 1;
@@ -560,7 +572,7 @@ function solveColumn(inp) {
   converged = false;
   res = norm2(P, X, g);
   for (it = 0; it < limit; it++, itTotal++) {
-    if (Date.now() - t0 > 7000) { warnings.push('column: stopped at the server time budget'); break; }
+    if (Date.now() - t0 > capMs) { warnings.push('column: stopped at the server time budget'); break; }
     if (res < tol) { converged = true; break; }
     // ---- Jacobian blocks
     const Dg = [], Sub = [], Sup = [], Rv = [];
@@ -703,7 +715,12 @@ function solveColumn(inp) {
   // from a reflux-ratio start-up instead of a guessed distillate rate
   const hardT = ['distillate_mole_frac', 'bottoms_mole_frac', 'recovery', 'condenser_duty', 'condenser_temperature'].concat(pp.electrolyte ? [] : ['reboiler_duty']);
   let aux = null;
-  if (specs.some((s) => hardT.includes(s.type)) && D0 > 0) {
+  if (warmOK) {
+    active = specs;
+    newton(maxIt, 5.0);
+    // the warm start failed (not merely ran out of time): cold restart with what is left of the time
+    if (!converged && Date.now() - t0 < capMs - 600) return solveColumn(Object.assign({}, inp, { params: Object.assign({}, p, { warm: null, budget_ms: Math.max(150, capMs - (Date.now() - t0)) }) }));
+  } else if (specs.some((s) => hardT.includes(s.type)) && D0 > 0) {
     const used = new Set(specs.filter((s) => !hardT.includes(s.type)).map((s) => s.type));
     aux = specs.map((s) => {
       if (!hardT.includes(s.type)) return s;
@@ -743,7 +760,7 @@ function solveColumn(inp) {
         let a = aux[q].value, fa = evalAt([a]).f[0];
         // bracket: expand away from the start in the downhill direction
         let step = 0.03 * Math.max(Math.abs(a), lo(q)), bpt = null, fb = null;
-        for (let k = 0; k < 40 && Date.now() - t0 < 6500; k++) {
+        for (let k = 0; k < 40 && Date.now() - t0 < capMs - 500; k++) {
           const tryU = (dir) => { const u = Math.min(hi(q), Math.max(lo(q), a + dir * step)); return { u, f: evalAt([u]).f[0] }; };
           const up = tryU(1), dn = tryU(-1);
           if (Math.sign(up.f) !== Math.sign(fa)) { bpt = up.u; fb = up.f; break; }
@@ -777,7 +794,7 @@ function solveColumn(inp) {
         }
         J = J[0].map((_, a2) => J.map((row) => row[a2]));
         e = evalAt(u);
-        for (let outer = 0; outer < 30 && Date.now() - t0 < 6500; outer++) {
+        for (let outer = 0; outer < 30 && Date.now() - t0 < capMs - 500; outer++) {
           if (Math.max(...e.f.map(Math.abs)) < 1e-8) { done = true; break; }
           const Fm = luFactor(J);
           if (!Fm) break;
@@ -847,6 +864,8 @@ function solveColumn(inp) {
   };
   const mIn = feeds.reduce((a, f) => a + f.mass, 0);
   const mOut = outs.reduce((a, s) => a + s.mass_flow_kg_h, 0);
+  if (warmOK) details.warm_start = true;
+  const budgetStop = !converged && Date.now() - t0 > capMs - 600;      // stopped by the time cap, not by divergence
   return {
     streams_out: outs,
     mass_balance: { in: mIn, out: mOut, closure_pct: mIn > 0 ? 100 * (mOut - mIn) / mIn : 0 },
@@ -855,6 +874,8 @@ function solveColumn(inp) {
     converged,
     iterations: it,
     warnings: [...new Set(warnings)],
+    // converged state for a warm start of the next solve of this column (flowsheet solver only)
+    warm_state: p.warm_out && (converged || budgetStop) && X.every((r) => r.every(num)) && g.every(num) ? { N, keys: pp.keys.slice(), Ftot, border: border.slice(), X: X.map((r) => r.slice()), g: g.slice() } : undefined,
   };
 }
 

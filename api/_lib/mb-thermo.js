@@ -34,7 +34,7 @@ import mbData from './mb-data.js';
 import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS } from './mb-electrolyte.js';
 import steam from './steam-if97.js';
 
-export const THERMO_VERSION = 'mb-thermo 1.6.0';
+export const THERMO_VERSION = 'mb-thermo 1.7.0';
 
 const R = 8.314462618;          // J/(mol K)
 const T0 = 298.15;              // K — formation / entropy reference
@@ -1189,7 +1189,7 @@ const liveIdx = (z) => z.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
  * @param {number} P Pa
  * @returns {{T,P,beta,x,y,phase:('V'|'L'|'VL'),iterations:number}}
  */
-export function flashPT(pp, z, T, P) {
+export function flashPT(pp, z, T, P, hint) {
   if (!(T > 0) || !(P > 0)) fail('TH_TP', 'flash needs T > 0 and P > 0');
   const live = liveIdx(z);
   if (live.length === 1) {
@@ -1200,7 +1200,7 @@ export function flashPT(pp, z, T, P) {
     if (T >= Tc || P >= Pc) return single(pp, z, T, P, T >= Tc ? 'V' : 'L');
     return single(pp, z, T, P, (sat ? sat.psat(T) : psat(c, T)) > P ? 'V' : 'L');
   }
-  return pp.isEOS ? flashPT_EOS(pp, z, T, P) : pp.electrolyte ? flashPT_elec(pp, z, T, P) : flashPT_act(pp, z, T, P);
+  return pp.isEOS ? flashPT_EOS(pp, z, T, P, hint && hint.phase === 'VL' && !hint.x2 ? kOf(hint) : null) : pp.electrolyte ? flashPT_elec(pp, z, T, P) : flashPT_act(pp, z, T, P);
 }
 
 /**
@@ -1513,7 +1513,18 @@ function labelSingleEOS(pp, z, T, P) {
   return T >= Tpc ? 'V' : 'L';
 }
 
-function flashPT_EOS(pp, z, T, P) {
+function kOf(r) { return r.y.map((v, i) => (r.x[i] > 0 && v > 0 ? v / r.x[i] : 1)); }
+function flashPT_EOS(pp, z, T, P, Kg) {
+  // STEP 30: K-values of a two-phase solution at a nearby temperature (the previous trial of
+  // a P–H / P–S flash) start the successive substitution; anything but a two-phase answer
+  // falls through to the full Wilson + stability path below
+  if (Kg && Kg.length === z.length) {
+    const rg = rachfordRice(z, Kg);
+    if (!rg.below && !rg.above && rg.beta > 0 && rg.beta < 1) {
+      const r = ssFlash(pp, z, T, P, Kg);
+      if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it };
+    }
+  }
   const Kw = wilsonK(pp, T, P);
   const rr = rachfordRice(z, Kw);
   if (!rr.below && !rr.above && rr.beta > 0 && rr.beta < 1) {
@@ -1673,7 +1684,8 @@ function ssLL(pp, z, T, P, x1, x2, maxIt) {
     if (rr.below || rr.above) return null;
     beta = rr.beta;
     ({ x: xa, y: xb } = phaseComps(z, K, beta));
-    const lnK = pp.lnFug(T, P, xa, 'L').map((v, i) => v - pp.lnFug(T, P, xb, 'L')[i]);
+    const fb = pp.lnFug(T, P, xb, 'L');
+    const lnK = pp.lnFug(T, P, xa, 'L').map((v, i) => v - fb[i]);
     let err = 0, triv = 0;
     for (const i of live) { err = Math.max(err, Math.abs(lnK[i] - Math.log(K[i]))); triv += lnK[i] * lnK[i]; }
     K = lnK.map(Math.exp);
@@ -1708,13 +1720,32 @@ function gibbsRT(pp, T, P, r) {
   return g;
 }
 
+/** can a vapour form from liquid x (bubble-point sum > 1)? — the test flashPT3 applies to a liquid–liquid answer */
+function vapourFrom(pp, T, P, x) {
+  const fl = pp.lnFug(T, P, x, 'L');
+  let yv = x.slice();
+  for (let k = 0; k < 40; k++) { const fv = pp.lnFug(T, P, yv, 'V'); yv = norm(x.map((xi, i) => xi * Math.exp(fl[i] - fv[i]))); }
+  const fv = pp.lnFug(T, P, yv, 'V');
+  let sb = 0; for (let i = 0; i < pp.n; i++) sb += x[i] * Math.exp(fl[i] - fv[i]);
+  return sb > 1 + 1e-9;
+}
 /** successive substitution for vapour + two liquids from starting K-values (relative to liquid 1) */
 function ss3(pp, z, T, P, KV, KL, b0) {
   const n = pp.n;
   let b = b0.slice(), rr, x1, y, x2, it;
+  const bAt = [];                 // phase fractions 20 iterations back
   for (it = 1; it <= 1500; it++) {
     rr = rachfordRice3(z, KV, KL, b);
     b = [rr.bV, rr.bL];
+    // STEP 30: a phase fraction that has settled clearly below zero (negative flash) means that
+    // phase does not form — stop now instead of running the iteration limit (same answer: null)
+    bAt.push(b);
+    if (it > 30) {
+      const o = bAt[bAt.length - 21];
+      if ((b[0] < -0.01 && Math.abs(b[0] - o[0]) < 0.2 * Math.abs(b[0])) || (b[1] < -0.01 && Math.abs(b[1] - o[1]) < 0.2 * Math.abs(b[1]))
+        || (1 - b[0] - b[1] < -0.01 && Math.abs(b[0] + b[1] - o[0] - o[1]) < 0.2 * Math.abs(1 - b[0] - b[1]))) return null;
+    }
+    if (bAt.length > 25) bAt.shift();
     x1 = norm(rr.x1.map((v) => Math.max(v, 0)));
     y = norm(x1.map((v, i) => v * KV[i]));
     x2 = norm(x1.map((v, i) => v * KL[i]));
@@ -1747,8 +1778,25 @@ function ss3(pp, z, T, P, KV, KL, b0) {
  * @returns {{T,P,beta,x,y,x2?,beta2?,phase:('V'|'L'|'VL'|'LL'|'VLL'),iterations}}
  *   beta = vapour fraction, x = liquid 1 (lighter), x2 = liquid 2 (heavier), beta2 = its fraction.
  */
-export function flashPT3(pp, z, T, P) {
-  const r2 = flashPT(pp, z, T, P);
+export function flashPT3(pp, z, T, P, hint) {
+  // STEP 30: a three-phase answer at a nearby temperature (previous trial of a P–H / P–S
+  // flash) starts the V/L/L substitution directly; any other outcome takes the full path
+  if (hint && hint.phase === 'VLL' && hint.x2 && hint.beta > 0 && hint.beta2 > 0) {
+    const KV0 = hint.y.map((y, i) => (z[i] > 0 ? Math.max(y, 1e-30) / Math.max(hint.x[i], 1e-30) : 1));
+    const KL0 = hint.x2.map((x2, i) => (z[i] > 0 ? Math.max(x2, 1e-30) / Math.max(hint.x[i], 1e-30) : 1));
+    const v = ss3(pp, z, T, P, KV0, KL0, [hint.beta, hint.beta2]);
+    if (v) { const best = pp.isEOS ? lightestAsVapour(pp, T, P, v) : v; return orderLiquids(pp, T, P, best); }
+  }
+  if (hint && hint.phase === 'LL' && hint.x2 && hint.beta2 > 0 && hint.beta2 < 1) {
+    // liquid–liquid answer nearby: converge the two liquids from it, and keep it when no vapour
+    // can form from the lighter liquid (bubble-point test as below); otherwise the full path
+    const ll = ssLL(pp, z, T, P, z.map((v, i) => (v > 0 ? Math.max(hint.x[i], 1e-12) : 0)), hint.x2);
+    if (ll) {
+      const rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it };
+      if (!vapourFrom(pp, T, P, rLL.x)) return orderLiquids(pp, T, P, rLL);
+    }
+  }
+  const r2 = flashPT(pp, z, T, P, hint && hint.phase === 'VL' && !hint.x2 ? hint : null);
   if (r2.phase === 'V' || liveIdx(z).length < 2) return r2;
   const xl = r2.phase === 'L' ? z : r2.x;
   const st = stabilityLiquid(pp, T, P, xl, z, r2.phase === 'VL' ? r2.y : null);
@@ -1973,10 +2021,15 @@ export function flashTVF(pp, z, T, beta, Pguess) {
 // PH / PS flashes
 // ---------------------------------------------------------------------------
 
-function stateFlash(pp, z, P, target, fn, Tguess, flashFn) {
+function stateFlash(pp, z, P, target, fn, Tguess, flashFn, hint0) {
   const val = (r) => (fn === 'h' ? hOf(pp, r) : sOf(pp, r));
   const ff = flashFn || flashPT;
-  const at = (T) => { const r = ff(pp, z, T, P); return { T, r, v: val(r) - target }; };
+  let hint = hint0 && hint0.x && hint0.y ? hint0 : null;        // last trial's answer: warm start of the next trial's flash (STEP 30)
+  const at = (T) => {
+    const r = ff(pp, z, T, P, hint);
+    hint = r;
+    return { T, r, v: val(r) - target };
+  };
   const tol = (fn === 'h' ? 1e-10 : 1e-12) * Math.abs(target) + (fn === 'h' ? 1e-6 : 1e-9);
   // pure component: plateau at Tsat is handled analytically
   const live = liveIdx(z);
@@ -1995,29 +2048,64 @@ function stateFlash(pp, z, P, target, fn, Tguess, flashFn) {
   }
   let A = at(num(Tguess) && Tguess > 20 ? Tguess : 300);
   if (Math.abs(A.v) < tol) return { ...A.r, iterations: 0 };
-  let step = 10, B = null;
+  // STEP 30 single-phase fast path: Newton on T with the phase's own enthalpy (entropy)
+  // function — no flash per step — then ONE full flash at the answer confirms the phase
+  // (stability test included); otherwise the bracketing search below runs as before
+  if ((A.r.phase === 'V' || A.r.phase === 'L') && !A.r.x2) {
+    const ph = A.r.phase;
+    try {
+      const f = (T) => (fn === 'h' ? pp.hPhase(T, P, z, ph) : pp.sPhase(T, P, z, ph)) - target;
+      let T = A.T, v = f(T), ok = false;
+      for (let k = 0; k < 12 && isFinite(v); k++) {
+        const d = Math.max(1e-3, 1e-5 * T);
+        const sl = (f(T + d) - v) / d;
+        if (!(sl > 0)) break;
+        T = Math.max(10, T + Math.max(-50, Math.min(50, -v / sl)));
+        v = f(T);
+        if (Math.abs(v) < tol) { ok = true; break; }
+      }
+      if (ok) {
+        const B = at(T);
+        if (B.r.phase === ph && !B.r.x2 && Math.abs(B.v) < tol) return { ...B.r, iterations: 0 };
+      }
+    } catch (_e) { /* model not valid along the path — bracketing below */ }
+  }
+  // bracket the root walking from the guess. STEP 30: the first trial is a short probe and,
+  // when it does not bracket, the next one jumps to the secant (≈ −Δ/Cp) prediction plus a
+  // small overshoot — a far guess no longer costs a long run of growing fixed steps
+  let step = 10, B = null, probe = true;
   for (let k = 0; k < 80; k++) {
-    const T2 = A.v < 0 ? A.T + step : Math.max(10, A.T - step);
+    let T2 = A.v < 0 ? A.T + step : Math.max(10, A.T - step);
+    if (probe) T2 = A.v < 0 ? A.T + 1 : Math.max(10, A.T - 1);
     try { B = at(T2); } catch (e) {
       // a state the model cannot represent (e.g. an electrolyte boiled dry) lies beyond
       // the target in this direction: retreat with a shorter step
       if (step < 0.05) throw e;
-      step /= 4; B = null; continue;
+      step /= 4; B = null; probe = false; continue;
     }
     if ((A.v < 0) !== (B.v < 0) || Math.abs(B.v) < tol) break;
     if (T2 <= 10 && B.v > 0) fail(fn === 'h' ? 'TH_PH' : 'TH_PS', `${fn === 'h' ? 'enthalpy' : 'entropy'} target below the 10 K limit`);
-    A = B; step *= 1.6;
+    const sl = (B.v - A.v) / (B.T - A.T);
+    A = B;
+    if (probe && sl > 0) {
+      const d = Math.abs(A.v / sl);                 // secant distance to the root
+      step = Math.min(Math.max(1.02 * d + 0.5, 1), 400);
+    } else step *= 1.6;
+    probe = false;
     if (T2 > 6000) fail(fn === 'h' ? 'TH_PH' : 'TH_PS', `${fn === 'h' ? 'enthalpy' : 'entropy'} target above the 6000 K limit`);
   }
   if (Math.abs(B.v) < tol) return { ...B.r, iterations: 0 };
   let lo = A.v < 0 ? A : B, hi = A.v < 0 ? B : A;
-  let it;
+  let it, side = 0, flo = lo.v, fhi = hi.v;
+  // Illinois regula falsi (the retained end's value is halved when the same end is kept
+  // twice running), with a bisection step whenever the secant point leaves the bracket
   for (it = 0; it < 200; it++) {
-    let T = lo.T - lo.v * (hi.T - lo.T) / (hi.v - lo.v);
-    if (!(T > lo.T && T < hi.T) || it % 3 === 2) T = 0.5 * (lo.T + hi.T);
+    let T = lo.T - flo * (hi.T - lo.T) / (fhi - flo);
+    if (!(T > lo.T && T < hi.T)) T = 0.5 * (lo.T + hi.T);
     const m = at(T);
     if (Math.abs(m.v) < tol) return { ...m.r, iterations: it };
-    if (m.v < 0) lo = m; else hi = m;
+    if (m.v < 0) { lo = m; flo = m.v; if (side === -1) fhi *= 0.5; side = -1; }
+    else { hi = m; fhi = m.v; if (side === 1) flo *= 0.5; side = 1; }
     if (hi.T - lo.T < 1e-9 * hi.T) break;
   }
   // a jump in H(T) that the bracket cannot resolve (pure-component-like
@@ -2076,13 +2164,13 @@ function leverState(ra, rb, lam, T, P, it) {
 }
 
 /** Flash at (P, H): H in J/mol. */
-export function flashPH(pp, z, P, H, Tguess) { return stateFlash(pp, z, P, H, 'h', Tguess); }
+export function flashPH(pp, z, P, H, Tguess, hint) { return stateFlash(pp, z, P, H, 'h', Tguess, null, hint); }
 /** Flash at (P, S): S in J/(mol K). */
-export function flashPS(pp, z, P, S, Tguess) { return stateFlash(pp, z, P, S, 's', Tguess); }
+export function flashPS(pp, z, P, S, Tguess, hint) { return stateFlash(pp, z, P, S, 's', Tguess, null, hint); }
 /** Three-phase flash at (P, H). */
-export function flashPH3(pp, z, P, H, Tguess) { return stateFlash(pp, z, P, H, 'h', Tguess, flashPT3); }
+export function flashPH3(pp, z, P, H, Tguess, hint) { return stateFlash(pp, z, P, H, 'h', Tguess, flashPT3, hint); }
 /** Three-phase flash at (P, S). */
-export function flashPS3(pp, z, P, S, Tguess) { return stateFlash(pp, z, P, S, 's', Tguess, flashPT3); }
+export function flashPS3(pp, z, P, S, Tguess, hint) { return stateFlash(pp, z, P, S, 's', Tguess, flashPT3, hint); }
 
 // ---------------------------------------------------------------------------
 // properties of a flash result (per phase and overall)

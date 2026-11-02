@@ -37,13 +37,13 @@ import thBase from './mb-thermo.js';
 // phases include a second liquid (pp.threePhase)
 const th = Object.assign({}, thBase, {
   flashPT: (pp, z, T, P) => (pp.threePhase ? thBase.flashPT3(pp, z, T, P) : thBase.flashPT(pp, z, T, P)),
-  flashPH: (pp, z, P, H, Tg) => (pp.threePhase ? thBase.flashPH3(pp, z, P, H, Tg) : thBase.flashPH(pp, z, P, H, Tg)),
-  flashPS: (pp, z, P, S, Tg) => (pp.threePhase ? thBase.flashPS3(pp, z, P, S, Tg) : thBase.flashPS(pp, z, P, S, Tg)),
+  flashPH: (pp, z, P, H, Tg, hint) => (pp.threePhase ? thBase.flashPH3(pp, z, P, H, Tg, hint) : thBase.flashPH(pp, z, P, H, Tg, hint)),
+  flashPS: (pp, z, P, S, Tg, hint) => (pp.threePhase ? thBase.flashPS3(pp, z, P, S, Tg, hint) : thBase.flashPS(pp, z, P, S, Tg, hint)),
 });
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 
-export const UNITS_VERSION = 'mb-units 1.5.0';
+export const UNITS_VERSION = 'mb-units 1.6.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const R = th.R;
@@ -531,6 +531,18 @@ function solveMixerR(inp) {
   if (num(p.T_out_K) && num(p.duty_kW)) fail('MB_MIXER_SPEC', 'r-mixer: give T_out_K or duty_kW, not both', 'params');
   const Tg = st.reduce((a, s) => a + s.T * s.F, 0) / (f.F || 1);
   const q = num(p.duty_kW) ? p.duty_kW * KJH_PER_KW : 0;            // optional heat input (kJ/h)
+  if (!(f.F > 0)) {
+    // every inlet empty (e.g. liquid outlets of all-vapour knock-out drums): an empty outlet at the
+    // inlets' mean temperature and average composition, so downstream units keep a valid state
+    const zz = pp.keys.map((_, i) => st.reduce((a, s) => a + (num(s.z[i]) ? s.z[i] : 0), 0) / st.length);
+    const zs = zz.reduce((a, v) => a + v, 0) || 1;
+    const z0 = zz.map((v) => v / zs);
+    const T0 = num(p.T_out_K) ? p.T_out_K : st.reduce((a, s) => a + s.T, 0) / st.length;
+    const r0 = th.flashPT(pp, z0, T0, P);
+    const out0 = streamOut(pp, 0, z0, r0);
+    return result([out0], f.mass, f.H_kJh, out0.H_kJh, 0, { pp: ppDetails(pp), T_out_K: r0.T, P_out_bar: P / 1e5, duty_kW: 0,
+      vapour_fraction_out: out0.vapour_fraction }, pp.warnings.concat(['r-mixer: all inlets are empty — empty outlet']));
+  }
   let r;
   if (num(p.T_out_K)) r = th.flashPT(pp, f.z, p.T_out_K, P);
   else r = f.F > 0 ? th.flashPH(pp, f.z, P, (f.H_kJh + q) / f.F, Tg) : th.flashPT(pp, f.z, Tg, P);
@@ -596,13 +608,16 @@ function solveHXR(inp) {
     const rh = th.flashPH(pp, hot.z, Ph, hot.h - dq / hot.F, hot.T);
     const rc = th.flashPH(pp, cold.z, Pc, cold.h + dq / cold.F, cold.T);
     // zones: hot side from inlet (T_h,in) to outlet; cold counter-current
-    let dTmin = Infinity, UA = 0, prev = null;
+    let dTmin = Infinity, UA = 0, prev = null, hP = hot.r, cP = rc;
     for (let k = 0; k <= NZ; k++) {
       const q = dq * k / NZ;           // heat transferred from hot inlet end
-      const Th = k === 0 ? hot.T : k === NZ ? rh.T : th.flashPH(pp, hot.z, hot.P + (Ph - hot.P) * k / NZ, hot.h - q / hot.F, hot.T).T;
+      // each zone's flash starts from the neighbouring zone's answer (STEP 30)
+      if (k > 0 && k < NZ) hP = th.flashPH(pp, hot.z, hot.P + (Ph - hot.P) * k / NZ, hot.h - q / hot.F, hP.T, hP);
+      const Th = k === 0 ? hot.T : k === NZ ? rh.T : hP.T;
       // cold at the same location has received (dq − q) counted from its inlet
       const qc = dq - q;
-      const Tc = k === NZ ? cold.T : k === 0 ? rc.T : th.flashPH(pp, cold.z, cold.P + (Pc - cold.P) * (NZ - k) / NZ, cold.h + qc / cold.F, cold.T).T;
+      if (k > 0 && k < NZ) cP = th.flashPH(pp, cold.z, cold.P + (Pc - cold.P) * (NZ - k) / NZ, cold.h + qc / cold.F, cP.T, cP);
+      const Tc = k === NZ ? cold.T : k === 0 ? rc.T : cP.T;
       const dT = Th - Tc;
       dTmin = Math.min(dTmin, dT);
       if (prev) {
