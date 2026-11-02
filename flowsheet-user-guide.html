@@ -235,7 +235,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 
 <h2 id="solve">6 · Recycles, design specs and sensitivity studies</h2>
 <h3>Recycle loops</h3>
-<p>Loops are found automatically. One stream in each loop is <b>torn</b>: guessed, calculated round the loop and updated with Wegstein acceleration until it stops changing (relative tolerance 10⁻⁵ by default). Torn streams are drawn dashed. If a loop is slow to converge, open the torn stream and fill in <span class="ui">Initial estimate</span> (used only if the stream is torn) with a sensible flow, T, P and composition.</p>
+<p>Loops are found automatically. The solver tears the <b>fewest</b> streams that break every loop: they are guessed, calculated round the loop and updated until they stop changing (relative tolerance 10⁻⁵ by default) — two Wegstein steps first, then Broyden's quasi-Newton method, which converges coupled loops in far fewer passes. Torn streams are drawn dashed. If you give streams an <span class="ui">Initial estimate</span> and those streams break every loop, they are the ones torn, so an estimate also lets you choose the tear. If a loop is slow to converge, fill in a sensible flow, T, P and composition there.</p>
+<p>Within one run every repeat solve starts from what is already known: recycle loops from their last converged torn streams, rigorous columns from their last converged stage profiles, and units whose inlets have not changed are not solved again. This is what makes design specs and sensitivity studies on large flowsheets fast.</p>
 <h3>Design specs</h3>
 <p>A design spec varies one input until a result hits a target. Examples: process air until H₂/N₂ = 3 in the make-up gas, or a cooler outlet temperature until the gas has a given water content. Press <span class="ui">Specs</span> → <span class="ui">+ Add design spec</span>. Choose the variable (any feed or unit input), the target (any stream or unit result) and its value. Bounds on the variable are optional but keep the search physical. Specs are solved on the server together with the recycles.</p>
 <h3>Sensitivity study</h3>
@@ -294,7 +295,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <dt>The run stops with an error.</dt>
 <dd>Read the status line and the <span class="ui">Run log</span>; they name the unit and the reason. Common causes are a specification that cannot be met, such as a cooler outlet hotter than its inlet or a flash vapour fraction above 1, and a component the chosen method does not support.</dd>
 <dt>A recycle loop does not converge.</dt>
-<dd>Give the torn (dashed) stream an initial estimate close to the expected answer. Check that the loop has a way out for every component; a purge is often needed for inerts. Make sure no unit inside the loop has an impossible spec. Very high recycle ratios converge slowly.</dd>
+<dd>Give the torn (dashed) stream an initial estimate close to the expected answer. Check that the loop has a way out for every component; a purge is often needed for inerts. When the run log says a component <i>builds up in</i> or <i>drains from</i> the loop on every pass, the loop has no steady state with those inputs — a closed solvent loop with a fixed make-up water flow is the usual case; let a design spec set the make-up flow, or add a purge. Make sure no unit inside the loop has an impossible spec. Very high recycle ratios converge slowly.</dd>
 <dt>The rigorous column does not converge.</dt>
 <dd>Start with easy specs (reflux ratio and distillate rate), get a solution, then switch to purity or recovery specs. A distillate rate cannot exceed what the feed can supply. Check the top pressure, the feed stage and that there are enough stages for the separation. For an absorber, make sure the solvent can take up the solute at the column pressure.</dd>
 <dt>The heat exchanger reports a temperature cross.</dt>
@@ -302,7 +303,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <dt>“Pacing for the engine's rate limit”.</dt>
 <dd>The free engine allows about 60 runs per minute from one user, and many quick runs in a row trigger a short pause. Nothing is lost; the run continues after the pause.</dd>
 <dt>“Flowsheet exceeded the server time budget”.</dt>
-<dd>One run must finish in about 8 seconds on the server. Very large flowsheets, or several columns or electrolyte units inside recycle loops, can exceed this. Reduce stages or sensitivity points, or split the flowsheet into parts by turning internal streams into specified feeds.</dd>
+<dd>One server call must finish in about 8 seconds. A larger flowsheet does not stop there: the call hands back where it got to (torn streams, column profiles, design-spec point, finished sensitivity points) and the page continues automatically with further calls — the status line shows <span class="ui">continuing on the server (call 2 of up to 8)</span>. This message appears only when even eight calls are not enough. Then reduce stages or sensitivity points, check that every recycle loop can converge (see above), or split the flowsheet into parts by turning internal streams into specified feeds.</dd>
 <dt>I expected two liquid phases (or got one I did not expect).</dt>
 <dd>Set <span class="ui">Valid phases</span> in the flowsheet panel. Use vapour–liquid–liquid for free water with hydrocarbons, and vapour–liquid where a second liquid is impossible.</dd>
 <dt>My results differ from another simulator.</dt>

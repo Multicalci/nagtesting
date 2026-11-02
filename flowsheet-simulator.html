@@ -9,7 +9,8 @@
     An Aspen-style drawing board: drag equipment onto a canvas, draw stream
     arrows between ports, fill feed streams from dropdowns, then run the
     whole flowsheet. Sequential-modular: blocks are solved one by one in
-    calculation order; recycle loops are torn and converged with Wegstein.
+    calculation order; recycle loops are torn (minimum tear set) and converged
+    with Wegstein + Broyden; large flowsheets continue over several calls.
 
   WHAT THIS PAGE IS NOT
     A thermodynamics engine. Every unit operation is solved server-side by
@@ -17,7 +18,8 @@
       GET  /api/material-balance?module=components
       POST /api/material-balance?module=flowsheet   (Step 21 — the WHOLE
            flowsheet in one call: calculation order, recycle tears,
-           Wegstein, design specs, PR / NRTL flashes — api/_lib/mb-flowsheet.js)
+           Wegstein/Broyden, design specs, PR / NRTL flashes, warm starts and
+           resumable continuation (Step 30) — api/_lib/mb-flowsheet.js)
     If the deployed engine predates the flowsheet module, the page falls back
     to POST ?module={name} per unit and sequences them itself (pacing to the
     60/min throttle, honouring 429 Retry-After, caching identical solves).
@@ -560,7 +562,7 @@ table.st .clk:hover{color:var(--accent)}
   <h3>Design specs</h3>
   <p>Press <b>Specs</b> to make the simulator vary a feed or unit input until a result hits a target — for example process air until H₂/N₂ = 3, or a flash temperature for a given water content. Specs are solved on the server together with the whole flowsheet.</p>
   <h3>Recycle loops</h3>
-  <p>Loops are detected automatically. One stream in each loop is torn and iterated with Wegstein acceleration until the tear converges (relative tolerance 1e-5 by default). Torn streams are drawn dashed. You can give a torn stream an initial estimate from its properties panel.</p>
+  <p>Loops are detected automatically. The fewest streams that break every loop are torn and iterated — two Wegstein steps, then Broyden's quasi-Newton method — until they converge (relative tolerance 1e-5 by default). Torn streams are drawn dashed. You can give a stream an initial estimate from its properties panel; when the estimated streams break every loop they are the ones torn. A flowsheet too large for one server call is continued automatically over further calls.</p>
   <h3>Results</h3>
   <p>The stream table shows T, P, flows, enthalpy and composition (mass or mole basis, flows or fractions) for every stream; copy it straight into Excel or download CSV. The Balance tab gives overall mass closure and heating / cooling utility totals. Turn on <b>T·P·F tags</b> to print results on the drawing, and use <b>Report</b> for a printable PDF.</p>
   <h3>Keyboard</h3>
@@ -5580,47 +5582,70 @@ function applyServer(R, r) {
   R.pkg = (r.details && r.details.property_package) || null;
   R.server = true;
 }
+/* one POST of the flowsheet body (rate-limit waits and network retries included) */
+async function postFlowsheet(text) {
+  let r = null, body = '';
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await takeToken(onWait);
+    try {
+      r = await fetch(API + '?module=flowsheet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text });
+      body = await r.text();
+    } catch (e) {
+      if (attempt < 2) { await sleep(900); continue; }
+      throw new Error('network error — ' + e.message);
+    }
+    if (r.status === 429) {
+      const ra = parseFloat(r.headers.get('Retry-After')) || 3;
+      onWait(ra * 1000); await sleep(ra * 1000 + 150); continue;
+    }
+    break;
+  }
+  try { return JSON.parse(body); } catch (_e) {
+    throw new Error('HTTP ' + (r && r.status) + ' — server did not return JSON: ' + body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140));
+  }
+}
+/* STEP 30: a flowsheet too large for one server call comes back with a continuation token
+   (params.resume); it is posted again with the same body and the solve picks up where it
+   stopped — up to FS_MAX_CALLS calls */
+const FS_MAX_CALLS = 8;
 async function runServer(R) {
   const body = buildServerBody();
   if (body.streams.length > 20) throw new Error('at most 20 feed streams per flowsheet');
   const key = JSON.stringify(body);
-  runText(body.params.specs.length ? 'Solving the flowsheet and design specs on the server…' : 'Solving the whole flowsheet on the server…');
+  const label = body.params.specs.length ? 'Solving the flowsheet and design specs on the server' : 'Solving the whole flowsheet on the server';
+  runText(label + '…');
   RUN.busy = null;
   let j = FS_CACHE.get(key);
   if (j) R.cached = 1;
   else {
-    let r = null, text = '';
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await takeToken(onWait);
-      try {
-        r = await fetch(API + '?module=flowsheet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: key });
-        text = await r.text();
-      } catch (e) {
-        if (attempt < 2) { await sleep(900); continue; }
-        throw new Error('network error — ' + e.message);
+    let resume = null;
+    for (let call = 1; call <= FS_MAX_CALLS; call++) {
+      if (resume) {
+        const sens = resume.rows ? ' · ' + resume.rows.length + ' sensitivity point' + (resume.rows.length === 1 ? '' : 's') + ' done' : '';
+        runText('Large flowsheet — continuing on the server (call ' + call + ' of up to ' + FS_MAX_CALLS + sens + ')…');
       }
-      if (r.status === 429) {
-        const ra = parseFloat(r.headers.get('Retry-After')) || 3;
-        onWait(ra * 1000); await sleep(ra * 1000 + 150); continue;
+      j = await postFlowsheet(resume ? JSON.stringify(Object.assign({}, body, { params: Object.assign({}, body.params, { resume }) })) : key);
+      R.calls = call;
+      if (j && j.error && j.error.code === 'MB_UNKNOWN_MODULE' && /flowsheet/.test(j.error.message || '')) {
+        SERVER_FS = false;
+        R.log.push(['w', 'The deployed engine has no flowsheet module yet — solving unit by unit instead.']);
+        return 'fallback';
       }
-      break;
+      const tok = j && (j.ok ? j.result && j.result.resume : j.partial && j.partial.resume);
+      if (!tok || call === FS_MAX_CALLS) {
+        if (tok && j.error) j.error.message += ` (stopped after ${FS_MAX_CALLS} server calls)`;
+        break;
+      }
+      resume = tok;
     }
-    try { j = JSON.parse(text); } catch (_e) {
-      throw new Error('HTTP ' + (r && r.status) + ' — server did not return JSON: ' + text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140));
-    }
-    if (j && j.error && j.error.code === 'MB_UNKNOWN_MODULE' && /flowsheet/.test(j.error.message || '')) {
-      SERVER_FS = false;
-      R.log.push(['w', 'The deployed engine has no flowsheet module yet — solving unit by unit instead.']);
-      return 'fallback';
-    }
-    R.calls = 1;
-    if (j && j.ok) { FS_CACHE.set(key, j); if (FS_CACHE.size > 30) FS_CACHE.delete(FS_CACHE.keys().next().value); }
+    if (j && j.ok && !j.result.resume) { FS_CACHE.set(key, j); if (FS_CACHE.size > 30) FS_CACHE.delete(FS_CACHE.keys().next().value); }
   }
   if (j.error) {
     if (j.partial) applyServer(R, j.partial);
     throw new Error('[' + (j.error.code || 'error') + '] ' + j.error.message);
   }
   applyServer(R, j.result);
+  if (R.calls > 1) R.log.push(['h', `⇄ solved in ${R.calls} server calls (the flowsheet needed more than one call's time budget)`]);
   R.engine = j.engine_version || '';
   R.serverMs = j.result.ms;
   return 'server';
@@ -6068,7 +6093,7 @@ function balanceView() {
     card('Shaft work', fmt(o.work, 6) + ' kW in', num(o.workOut) && o.workOut ? fmt(o.workOut, 6) + ' kW recovered' : null),
     card('ΔH products − feeds', fmt(o.dH_kW, 6) + ' kW', 'formation-enthalpy basis'),
     card('Property method', PKG_LABEL[RES.pkg || 'classic'] || RES.pkg, RES.pkg ? 'rigorous units: ' + M.blocks.filter(isRig).length + ' of ' + M.blocks.length : 'per-unit engine models'),
-    card('Engine', (RES.engine || '—').split(' (')[0], RES.server ? 'whole flowsheet in 1 call · server ' + fmt(RES.serverMs, 4) + ' ms' + (RES.cached ? ' · reused' : '') : RES.calls + ' calls · ' + RES.cached + ' reused · ' + ((RES.ms || 0) / 1000).toFixed(1) + ' s'));
+    card('Engine', (RES.engine || '—').split(' (')[0], RES.server ? 'whole flowsheet in ' + (RES.calls > 1 ? RES.calls + ' calls' : '1 call') + ' · server ' + fmt(RES.serverMs, 4) + ' ms' + (RES.cached ? ' · reused' : '') : RES.calls + ' calls · ' + RES.cached + ' reused · ' + ((RES.ms || 0) / 1000).toFixed(1) + ' s'));
   for (const sp of RES.specs || []) {
     const def = (M.specs || []).find((x) => x.id === sp.id);
     const vu = uConv(def ? varyUnit(def.vary) : 'raw'), tu = uConv(def ? targetUnit(def.target || {}) : 'raw');
@@ -6589,7 +6614,7 @@ const EXAMPLES = [
       ],
       seq: { b: 5, s: 9 },
     },
-    note: 'Half the condensate is recycled to the mixer. RCY is the tear stream; Wegstein converges it in a handful of iterations.',
+    note: 'Half the condensate is recycled to the mixer. RCY is the tear stream; the solver converges it in a handful of iterations.',
   },
   {
     id: 'nh3-separator', label: 'Ammonia loop separator & let-down (Peng–Robinson)',
