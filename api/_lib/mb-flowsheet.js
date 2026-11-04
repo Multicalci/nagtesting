@@ -75,7 +75,7 @@
 
 'use strict';
 
-const FS_VERSION = 'mb-flowsheet 1.3.0';
+const FS_VERSION = 'mb-flowsheet 1.3.1';
 const FS_MAX_SENS_POINTS = 25;
 const FS_MAX_SENS_OUT = 8;
 const FS_MAX_BLOCKS = 60;
@@ -1023,6 +1023,23 @@ function solveFlowsheet(input) {
     }
     return fail('MB_FS_THROW', 'flowsheet solver exception: ' + e.message, 'params', null);
   }
+  // STEP 31: units whose vapour above about 5 bar is an ideal gas (activity / Raoult methods with
+  // "Vapour phase: Ideal gas") — one summary line in the run log and the warning list
+  {
+    const hits = M.blocks.filter((b) => ev.BR[b.id] && ev.BR[b.id].result && ev.BR[b.id].result.ideal_vapour).map((b) => [b, ev.BR[b.id].result.ideal_vapour]);
+    if (hits.length) {
+      const Pm = Math.max(...hits.map((h) => h[1].P_bar));
+      const worst = hits.reduce((a, h) => (Math.abs(h[1].dh_kJkg || 0) > Math.abs(a[1].dh_kJkg || 0) ? h : a));
+      const adv = [...new Set(hits.map((h) => h[1].advice))];
+      const dh = Math.abs(worst[1].dh_kJkg || 0);
+      const m = `Property method: vapour above 5 bar is treated as an ideal gas in ${hits.map((h) => label(h[0])).join(', ')} (up to ${Pm.toPrecision(3)} bar) — ` +
+        `the real-gas enthalpy correction left out is about ${dh >= 10 ? dh.toFixed(0) : dh.toPrecision(2)} kJ/kg${hits.length > 1 ? ' in ' + label(worst[0]) : ''} (Peng–Robinson estimate), ` +
+        `so duties and turbine / compressor power can be well off — ${adv.join('; ')}.`;
+      ev.log.push(['w', '⚠ ' + m]);
+      ev.alerts.push(m);
+      ev.method_check = { ideal_vapour: hits.map((h) => Object.assign({ block: h[0].id }, h[1])) };
+    }
+  }
   const mainTears = snapTears(wc);
   wc.itBase = null; wc.itDone = null;
   let resume;
@@ -1148,7 +1165,8 @@ function solveFlowsheet(input) {
     converged: loopsOk && specsOk,
     iterations: totalSolves,
     warnings: ev.warnings,
-    alerts: ev.alerts,           // loop / spec non-convergence only (UI status lamp)
+    alerts: ev.alerts,           // loop / spec non-convergence and property-method misuse (UI status lamp)
+    method_check: ev.method_check,
     log: ev.log,
     ms,
     resume,                      // set when the sensitivity study stopped at the time budget (post again with params.resume)

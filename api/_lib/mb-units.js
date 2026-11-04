@@ -43,7 +43,7 @@ const th = Object.assign({}, thBase, {
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 
-export const UNITS_VERSION = 'mb-units 1.6.0';
+export const UNITS_VERSION = 'mb-units 1.7.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const R = th.R;
@@ -77,6 +77,52 @@ export function pkg(spec, keys) {
     PKG_CACHE.set(sig, p);
   }
   return p;
+}
+
+// ---------------------------------------------------------------------------
+// STEP 31 — ideal-gas vapour at pressure. Activity-coefficient (and Raoult) methods with
+// "Vapour phase: Ideal gas" leave out the real-gas enthalpy of the vapour; above about 5 bar
+// that error enters duties and machine power directly (a steam turbine at 62 bar comes out
+// ~30 % high). Every inlet and outlet of the unit being solved is checked: the size of the
+// missing correction is estimated with Peng–Robinson and reported when it matters.
+// ---------------------------------------------------------------------------
+const IGV_P = 5e5;               // Pa — "above about 5 bar"
+const IGV_H = 500;               // J/mol — smallest real-gas enthalpy correction worth a warning
+let IGV = null;                  // check state of the unit call in progress (calls are synchronous)
+function noteVapour(pp, r) {
+  if (!IGV || !r || pp.vapourModel !== 'ideal' || pp.model === 'steam' || !(r.P >= IGV_P)) return;
+  if (!(r.phase === 'V' || (r.beta > 0 && r.phase !== 'L' && r.phase !== 'LL'))) return;
+  const y = r.y;
+  if (!Array.isArray(y) || y.length !== pp.n) return;
+  let hd;
+  try {
+    const pr = pkg({ model: 'pr' }, pp.keys);
+    if (pr.n !== pp.n || !pr.eos) return;
+    hd = pr.eos.state(r.T, r.P, y, 'V').hDep;
+  } catch (_e) { return; }
+  if (!num(hd) || Math.abs(hd) < IGV_H) return;
+  const MWv = y.reduce((a, v, i) => a + v * pp.MW[i], 0);
+  if (!IGV.hit || Math.abs(hd) > Math.abs(IGV.hDep)) Object.assign(IGV, { hDep: hd, T: r.T, dh_kJkg: MWv > 0 ? hd / MWv : null });
+  IGV.P = Math.max(IGV.P || 0, r.P);
+  IGV.hit = true;
+  IGV.water = pp.keys.length === 1 && pp.keys[0] === 'H2O';
+  IGV.gas = pp.keys.every(gasLike);
+  IGV.model = pp.model;
+}
+const fmtKJ = (v) => { const a = Math.abs(v); return a >= 10 ? a.toFixed(0) : a.toPrecision(2); };
+/** the advice for a unit that hit the check (also used by the flowsheet summary) */
+const IGV_GASES = ['N2', 'O2', 'H2', 'CO', 'CO2', 'Ar', 'He', 'H2S', 'NH3', 'neon', 'krypton', 'xenon'];
+/** light gas or hydrocarbon (formula CxHy) — the mixtures an equation of state is meant for */
+function gasLike(k) {
+  if (IGV_GASES.includes(k)) return true;
+  const c = compdb.get(k);
+  return !!(c && /^C\d*H\d+$/.test(String(c.formula || '')));
+}
+function igvAdvice(c) {
+  return c.water ? 'use Steam / water (IAPWS-IF97) for water and steam'
+    : c.gas ? 'use Peng–Robinson (or SRK) for hydrocarbons and gases'
+    : c.model === 'ideal' ? 'use Peng–Robinson (or SRK) for gases and hydrocarbons, or NRTL / UNIQUAC with a Peng–Robinson vapour for polar liquids'
+    : 'set Vapour phase to Peng–Robinson';
 }
 
 const keysOf = (...streams) => [...new Set(streams.flatMap((s) => (s && Array.isArray(s.components) ? s.components.filter((c) => num(c.mass_fraction) && c.mass_fraction > 0).map((c) => c.key) : [])))];
@@ -123,6 +169,7 @@ export function stateIn(pp, s, label) {
     if ((rp === 'L' || rp === 'V') && r.phase !== rp) r = th.flashPH(pp, z, P, s.rig.h_Jmol, s.T_K);
   }
   const h = th.hOf(pp, r);
+  noteVapour(pp, r);
   return { F, z, T: r.T, P, r, h, H_kJh: F * h, mass: s.mass_flow_kg_h };
 }
 
@@ -142,6 +189,7 @@ export function streamOut(pp, F, z, r, opt) {
   const comps = [];
   pp.keys.forEach((k, i) => { if (z[i] > 0 || mass === 0) comps.push({ key: k, mass_fraction: mass > 0 ? m[i] / mass : z[i] }); });
   const h = th.hOf(pp, r), s = th.sOf(pp, r);
+  if (F > 0) noteVapour(pp, r);
   const beta = r.phase === 'V' ? 1 : r.phase === 'L' ? 0 : r.beta;
   const out = {
     mass_flow_kg_h: mass, T_K: r.T, P_bar: r.P / 1e5, components: comps,
@@ -946,10 +994,23 @@ function propertyInfo(inp) {
 // registration
 // ---------------------------------------------------------------------------
 const wrap = (fn) => (inp) => {
-  try { return fn(inp); } catch (e) {
+  const outer = IGV;
+  IGV = { hit: false };
+  try {
+    const r = fn(inp);
+    if (r && !r.error && IGV.hit) {
+      // STEP 31: an ideal-gas vapour above about 5 bar with a significant real-gas correction
+      const c = IGV;
+      r.ideal_vapour = { P_bar: c.P / 1e5, T_K: c.T, dh_kJkg: c.dh_kJkg, hDep_Jmol: c.hDep, water_only: c.water, model: c.model, advice: igvAdvice(c) };
+      r.warnings = (r.warnings || []).concat([`property method: vapour at up to ${(c.P / 1e5).toPrecision(3)} bar is treated as an ideal gas — the real-gas enthalpy ` +
+        `correction there is about ${num(c.dh_kJkg) ? fmtKJ(c.dh_kJkg) + ' kJ/kg' : fmtKJ(c.hDep / 1000) + ' kJ/mol'} ` +
+        `(Peng–Robinson estimate) and is missing from duties and machine power — ${igvAdvice(c)}`]);
+    }
+    return r;
+  } catch (e) {
     if (e instanceof UnitError || e instanceof th.ThermoError) return { error: { code: e.code, message: e.message, field: e.field || null } };
     return { error: { code: 'MB_RIG_THROW', message: e.message, field: null } };
-  }
+  } finally { IGV = outer; }
 };
 
 export const RIG_MODULES = {
