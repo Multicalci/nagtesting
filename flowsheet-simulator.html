@@ -263,6 +263,9 @@ input,select,textarea{font:inherit;color:var(--ink)}
 .banner.err{background:var(--err-soft);border-color:#f3c3c9;color:var(--err)}
 .banner.info{background:var(--accent-soft);border-color:#c5d9f2;color:var(--accent2)}
 .mini{width:100%;border-collapse:collapse;font-size:12px}
+.mguide{width:100%;border-collapse:collapse;font-size:12px}
+.mguide td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.35;color:var(--ink2)}
+.mguide td:first-child{width:52%;color:var(--dim)}
 .mini th{font-size:10.5px;color:var(--dim);font-weight:600;text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
 .mini td{padding:4px 6px;border-bottom:1px solid #eef2f7;text-align:right;font-family:var(--mono);white-space:nowrap}
 .mini th:first-child,.mini td:first-child{text-align:left;font-family:var(--sans)}
@@ -545,6 +548,7 @@ table.st .clk:hover{color:var(--accent)}
   <p>Click a unit and fill its specifications. The status lamp at the bottom turns green when everything needed is entered; the Issues tab lists anything missing. Press <b>Run</b> (or <kbd>F5</kbd>).</p>
   <h3>Property method (Methods)</h3>
   <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
+  <p><b>Which method to apply:</b> water / steam only → Steam / water (IAPWS-IF97); hydrocarbons and light gases → Peng–Robinson or SRK; NRTL, UNIQUAC or UNIFAC for polar liquids above about 5 bar → set <b>Vapour phase</b> to Peng–Robinson. The flowsheet panel suggests the method from your feeds (with a button that applies it), and after a run the log warns when a vapour above about 5 bar was treated as an ideal gas — that leaves out the real-gas enthalpy and changes duties and turbine / compressor power (a 62 bar steam turbine comes out about 30 % high with NRTL and an ideal-gas vapour).</p>
   <p>The component list holds more than 400 components with ChemSep pure-component data; components marked “classic units only” (urea, carbamate, biuret …) can be used in the reformer and urea units only.</p>
   <h3>Steam turbines, compressors and the IAPWS-IF97 steam method</h3>
   <p>For water and steam pick the <b>Steam / water (IAPWS-IF97)</b> property method: every state — compressed water, wet steam, superheated and supercritical steam — comes from the full IAPWS-IF97 industrial formulation (the one steam tables and turbine vendors use), with IAPWS viscosity and thermal conductivity; it takes pure water only. Drag a <b>pump / compressor / turbine</b> onto the canvas, connect the inlet and outlet arrows, give the outlet pressure and choose the <b>known value</b>: the efficiency (outlet temperature and power are calculated), the measured outlet temperature (efficiency and power are calculated) or the shaft power (outlet state and efficiency are calculated), on an isentropic or polytropic basis. Turbines report the exhaust steam quality, a wetness warning above 12 % and the steam rate in kg/kWh. The <b>extraction steam turbine</b> has an HP section to the extraction pressure, a controlled extraction (flow or fraction) and an LP section to the exhaust, each with its own efficiency; it uses the IAPWS-IF97 method by default. The “Extraction steam turbine + condenser” example shows both.</p>
@@ -3945,6 +3949,87 @@ function feedKeys() {
   return ks;
 }
 function noRigData(key) { const c = compByKey[key]; return !!(c && c.rigorous === false); }
+
+/* ---------------- STEP 31: which property method to apply ----------------
+   Rules shown to the user (panel advice + the "Which method?" guide):
+     water / steam only                 → Steam / water (IAPWS-IF97)
+     hydrocarbons and light gases only  → Peng–Robinson or SRK
+     γ methods (NRTL, UNIQUAC, UNIFAC …) above about 5 bar → Peng–Robinson vapour
+   After a run the engine's own check (real-gas correction estimated with
+   Peng–Robinson, units named) replaces the pressure rule. */
+const GAS_KEYS = ['N2', 'O2', 'H2', 'CO', 'CO2', 'Ar', 'He', 'H2S', 'NH3', 'neon', 'krypton', 'xenon'];
+function isHydrocarbonOrGas(k) {
+  if (GAS_KEYS.includes(k)) return true;
+  const c = compByKey[k];
+  const f = String((c && c.formula) || k);
+  return /^C\d*H\d+$/.test(f);
+}
+/** highest pressure given anywhere in the flowsheet (feeds and unit pressure settings), bar */
+function maxPressureBar() {
+  let p = 0;
+  for (const s of M.streams) if (!s.from && s.spec) { try { const r = specToSI(s.spec); if (r.stream && num(r.stream.P_bar)) p = Math.max(p, r.stream.P_bar); } catch (_e) { /* incomplete feed */ } }
+  for (const b of M.blocks) {
+    let ap = null;
+    try { ap = apiParams(b, []); } catch (_e) { ap = b.params; }
+    for (const k of ['P_out_bar', 'P_bar', 'P_top_bar', 'P_extract_bar']) if (ap && num(ap[k])) p = Math.max(p, ap[k]);
+  }
+  return p;
+}
+/** advice items {level, text, act?, apply?} for the flowsheet's property method */
+function methodAdvice() {
+  const P = M.pkg || { model: 'classic' }, m = P.model;
+  const ks = feedKeys();
+  const out = [];
+  if (!ks.length) return out;
+  const gammaLike = isActivityPkg(m) || m === 'ideal';
+  if (ks.length === 1 && ks[0] === 'H2O' && m !== 'steam') {
+    out.push({ level: 'info', text: 'Water / steam only — Steam / water (IAPWS-IF97) is the exact method for this flowsheet (turbines, pumps, boilers, let-down valves). Other methods treat steam less accurately; an activity method with an ideal-gas vapour misses the real-gas enthalpy of steam at pressure.',
+      act: 'Use Steam / water (IAPWS-IF97)', apply: () => { P.model = 'steam'; } });
+    return out;
+  }
+  if (gammaLike && ks.every(isHydrocarbonOrGas)) {
+    out.push({ level: 'info', text: 'Hydrocarbons and light gases only — Peng–Robinson (or SRK) is the usual method; activity-coefficient methods are meant for polar liquids.',
+      act: 'Use Peng–Robinson', apply: () => { P.model = 'pr'; P.vapour = undefined; } });
+  }
+  const run = RES && !RES.stale && RES.methodCheck && RES.methodCheck.ideal_vapour && RES.methodCheck.ideal_vapour.length ? RES.methodCheck.ideal_vapour : null;
+  const idealVap = (isActivityPkg(m) || isElecPkg(m)) && !P.vapour;
+  if (run && (idealVap || m === 'ideal')) {
+    const w = run.reduce((a, h) => (Math.abs(h.dh_kJkg || 0) > Math.abs(a.dh_kJkg || 0) ? h : a));
+    const names = run.map((h) => (blockById(h.block) || { name: h.block }).name).join(', ');
+    out.push({ level: 'warn', text: 'Last run: the vapour in ' + names + ' (up to ' + fmt(Math.max(...run.map((h) => h.P_bar)), 3) + ' bar) was treated as an ideal gas — its real-gas enthalpy correction, about ' +
+      fmt(Math.abs(w.dh_kJkg || 0), 2) + ' kJ/kg (Peng–Robinson estimate), is missing from duties and turbine / compressor power.',
+      act: m === 'ideal' ? 'Use NRTL with a Peng–Robinson vapour' : 'Set vapour phase to Peng–Robinson', apply: () => { if (m === 'ideal') P.model = 'nrtl'; P.vapour = 'pr'; } });
+  } else if ((idealVap || m === 'ideal') && !out.length && !(RES && !RES.stale && RES.server)) {
+    // before a run (a fresh run is checked by the engine itself, unit by unit)
+    const pm = maxPressureBar();
+    if (pm >= 5) out.push({ level: 'info', text: 'Pressures up to ' + fmt(pm, 3) + ' bar with an ideal-gas vapour: wherever vapour exists above about 5 bar its real-gas enthalpy is left out, so duties and turbine / compressor power come out wrong (a steam turbine at 60 bar by about 30 %). Set the vapour phase to Peng–Robinson, or run and check the log — the engine flags it.',
+      act: m === 'ideal' ? 'Use NRTL with a Peng–Robinson vapour' : 'Set vapour phase to Peng–Robinson', apply: () => { if (m === 'ideal') P.model = 'nrtl'; P.vapour = 'pr'; } });
+  }
+  return out;
+}
+function adviceBox() {
+  const box = el('div', { id: 'methodAdvice' });
+  for (const a of methodAdvice()) {
+    const b = el('div', { class: 'banner ' + a.level }, el('span', null, a.level === 'warn' ? '●' : '💡'), el('span', null, a.text));
+    box.append(b);
+    if (a.act) box.append(el('div', { class: 'btns', style: 'margin:-2px 0 8px' }, el('button', { class: 'btn sm', onclick: () => { a.apply(); commit(); renderInspector(); toast('Property method changed — press Run', 'ok'); } }, a.act)));
+  }
+  return box;
+}
+function methodGuide() {
+  const rows = [
+    ['Water / steam only (turbines, boilers, pumps, let-down)', 'Steam / water (IAPWS-IF97)'],
+    ['Hydrocarbons and light gases (H₂, N₂, CO₂, NH₃, natural gas, refinery gases) at any pressure', 'Peng–Robinson or SRK'],
+    ['Polar or non-ideal liquids (water with alcohols, glycols, acids, ketones)', 'NRTL or UNIQUAC — above about 5 bar set Vapour phase to Peng–Robinson'],
+    ['As above with no binary data', 'UNIFAC / Modified UNIFAC (Dortmund) — same vapour rule'],
+    ['CO₂ removal with MEA, MDEA / activated MDEA or hot potassium carbonate', 'the matching acid-gas package, vapour Peng–Robinson'],
+    ['Close-boiling, similar compounds near atmospheric pressure', 'Ideal (Raoult + ideal gas)'],
+  ];
+  const t = el('table', { class: 'mguide' });
+  for (const [w, u] of rows) t.append(el('tr', null, el('td', null, w), el('td', null, el('b', null, u))));
+  return el('details', { class: 'dd' }, el('summary', null, 'Which method should I use?'), el('div', null, t,
+    el('div', { class: 'hint', style: 'margin-top:6px' }, '“Ideal gas” vapour ignores the effect of pressure on gas enthalpy: harmless near atmospheric pressure, but above about 5 bar it changes duties and machine power — the run log flags it.')));
+}
 function methodsSection() {
   const P = M.pkg = M.pkg || { model: 'classic' };
   const s = sec('Property method', pillEl(PKG_SHORT[P.model] || P.model, P.model === 'classic' ? '' : 'ok'));
@@ -3962,6 +4047,7 @@ function methodsSection() {
   const d = PKGS.find((x) => x[0] === P.model);
   s.append(el('div', { class: 'note', style: 'margin-bottom:10px' }, d ? d[3] + '.' :
     'Each unit uses its own engine model (NIST ideal-gas enthalpies; flash drums offer Raoult, Peng–Robinson or NRTL individually). Choose a property method to make mixers, heaters, flashes, exchangers, pumps, compressors, valves and reactors rigorous.'));
+  s.append(adviceBox());
   if (isActivityPkg(P.model) || isElecPkg(P.model)) {
     const vs = el('select', { class: 'sel', 'aria-label': 'Vapour phase model' });
     for (const [v, t] of [['ideal', 'Ideal gas'], ['pr', 'Peng–Robinson'], ['srk', 'Soave–Redlich–Kwong']]) vs.append(el('option', { value: v }, t));
@@ -4013,6 +4099,7 @@ function methodsSection() {
     const btn = el('button', { class: 'btn sm', onclick: () => showPropInfo(host, btn) }, '🔍 Review pure-component & binary data');
     s.append(el('div', { class: 'btns' }, btn), host);
   }
+  s.append(methodGuide());
   s.append(el('div', { class: 'hint', style: 'margin-top:8px' }, 'Reformers, shift, methanator, urea units, McCabe–Thiele and Kremser columns always keep their own models. The rigorous column and the Gibbs reactor always use a property method (Peng–Robinson when this is Classic). Any rigorous unit can override the method in its own panel.'));
   return s;
 }
@@ -5580,6 +5667,7 @@ function applyServer(R, r) {
   R.specs = r.specs || [];
   R.sens = r.sensitivity || null;
   R.pkg = (r.details && r.details.property_package) || null;
+  R.methodCheck = r.method_check || null;          // STEP 31: ideal-gas vapour above 5 bar
   R.server = true;
 }
 /* one POST of the flowsheet body (rate-limit waits and network retries included) */

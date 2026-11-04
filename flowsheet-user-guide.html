@@ -12,7 +12,7 @@
 <meta property="og:description" content="How to build, run and read a steady-state process flowsheet in the free multicalci.com simulator.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://www.multicalci.com/flowsheet-user-guide">
-<meta property="og:image" content="https://www.multicalci.com/assets/flowsheet-guide/workspace.webp">
+<meta property="og:image" content="https://www.multicalci.com/assets/workspace.webp">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#eef1f6;--card:#fff;--line:#d6dfeb;--ink:#0d1726;--ink2:#2a3a52;--dim:#5f6f86;--accent:#0055bb;--ok:#157a3c;--warn:#9a5b00;--mono:'IBM Plex Mono',ui-monospace,monospace;--sans:Inter,system-ui,sans-serif}
@@ -111,7 +111,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 </ol>
 <div class="tip"><b>Tip.</b> Rename any unit or stream by clicking its name at the top of the right-hand panel. Turn on <span class="ui">T·P·F tags</span> (top left of the canvas) to print temperature, pressure and flow next to every stream on the drawing.</div>
 
-<figure><img src="/assets/flowsheet-guide/workspace.webp" width="1440" height="860" loading="lazy" alt="The flowsheet simulator with a mixer, cooler and flash drum on the canvas, the equipment palette on the left, the flash drum's properties on the right and the stream table at the bottom"><figcaption>The workspace after a run: equipment palette (left), canvas with T·P·F tags (centre), properties of the selected flash drum (right), results dock with the stream table (bottom).</figcaption></figure>
+<figure><img src="/assets/workspace.webp" width="1440" height="860" loading="lazy" alt="The flowsheet simulator with a mixer, cooler and flash drum on the canvas, the equipment palette on the left, the flash drum's properties on the right and the stream table at the bottom"><figcaption>The workspace after a run: equipment palette (left), canvas with T·P·F tags (centre), properties of the selected flash drum (right), results dock with the stream table (bottom).</figcaption></figure>
 
 <h2 id="tour">2 · The workspace</h2>
 <div class="tw"><table><thead><tr><th>Area</th><th>What it is for</th></tr></thead><tbody>
@@ -163,7 +163,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <h3>3.5 Run</h3>
 <p>Press <span class="ui">Run</span> or <kbd>F5</kbd>. The whole flowsheet is solved on the multicalci.com engine in one call: calculation order, recycle loops, design specs and any sensitivity study. If something is missing, the <span class="ui">Issues</span> tab lists it and clicking an entry selects the unit or stream.</p>
 </div>
-<figure><img src="/assets/flowsheet-guide/feed.webp" width="344" height="808" loading="lazy" alt="Feed specification panel with typical-stream selector, temperature, pressure, flow, composition basis and a list of components"><figcaption>A feed stream's panel: typical streams, T, P, flow and composition in any unit, then its results after a run.</figcaption></figure>
+<figure><img src="/assets/feed.webp" width="344" height="808" loading="lazy" alt="Feed specification panel with typical-stream selector, temperature, pressure, flow, composition basis and a list of components"><figcaption>A feed stream's panel: typical streams, T, P, flow and composition in any unit, then its results after a run.</figcaption></figure>
 </div>
 
 <h2 id="methods">4 · Choosing a property method</h2>
@@ -177,11 +177,11 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <p>A rigorous unit can override the flowsheet method in its own panel.</p>
 <p><span class="ui">🔍 Review pure-component &amp; binary data</span> lists exactly which constants and binary pairs will be used, and lets you override Peng–Robinson k<sub>ij</sub> or NRTL pairs. <span class="ui">Valid phases</span> switches on a second liquid phase (vapour–liquid–liquid) for free water or partially miscible solvents. <span class="ui">Automatic</span> turns it on for an equation of state when water and propane-or-heavier hydrocarbons are present.</p>
 </div>
-<figure><img src="/assets/flowsheet-guide/methods.webp" width="344" height="808" loading="lazy" alt="Flowsheet panel with the property method selector, design specs, sensitivity study and display units"><figcaption>The flowsheet panel (click empty canvas): property method, design specs, sensitivity study and display units.</figcaption></figure>
+<figure><img src="/assets/methods.webp" width="344" height="808" loading="lazy" alt="Flowsheet panel with the property method selector, design specs, sensitivity study and display units"><figcaption>The flowsheet panel (click empty canvas): property method, design specs, sensitivity study and display units.</figcaption></figure>
 </div>
 <div class="tw"><table><thead><tr><th>Method</th><th>Use it for</th><th>Notes</th></tr></thead><tbody>
 <tr><td>Peng–Robinson, SRK</td><td>Hydrocarbons, light gases, syngas, ammonia loops, natural gas, anything at pressure</td><td>Built-in k<sub>ij</sub> where available. Without fitted k<sub>ij</sub>, water solubility in hydrocarbon liquids is over-predicted.</td></tr>
-<tr><td>NRTL, UNIQUAC, Wilson</td><td>Polar liquids at low to moderate pressure: alcohols, water–organic mixtures, esters, glycols</td><td>ChemSep binary parameters built in. Carboxylic acids dimerise in the vapour automatically. Wilson cannot predict two liquid phases.</td></tr>
+<tr><td>NRTL, UNIQUAC, Wilson</td><td>Polar liquids: alcohols, water–organic mixtures, esters, glycols</td><td>ChemSep binary parameters built in. Carboxylic acids dimerise in the vapour automatically. Wilson cannot predict two liquid phases. <b>Above about 5 bar set Vapour phase to Peng–Robinson.</b></td></tr>
 <tr><td>UNIFAC, Dortmund UNIFAC</td><td>Polar mixtures where no binary parameters exist</td><td>Predictive (group contribution), so less accurate than fitted binaries.</td></tr>
 <tr><td>Ideal</td><td>Quick estimates, near-ideal mixtures at low pressure</td><td>Raoult's law with ideal-gas vapour.</td></tr>
 <tr><td>Steam / water (IAPWS-IF97)</td><td>Boilers, steam turbines, condensers, feed-water pumps</td><td>The industrial steam-table standard, with IAPWS viscosity and conductivity. Pure water only.</td></tr>
@@ -190,7 +190,16 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Hot potassium carbonate</td><td>Benfield-type hot carbonate CO₂ removal</td><td>Pitzer model. Parameters are extrapolated above about 100 °C.</td></tr>
 <tr><td>Classic</td><td>The engine's per-unit models (needed for the reformer, shift, methanator and urea units)</td><td>Flash drums then offer Raoult, Peng–Robinson or NRTL individually.</td></tr>
 </tbody></table></div>
-<div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson. Water with organics at low pressure: NRTL. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; H₂S and NH₃ are not modelled.</div>
+<div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson. Water with organics: NRTL, with a Peng–Robinson vapour above about 5 bar. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; H₂S and NH₃ are not modelled.</div>
+<h3>The simulator tells you which method to apply</h3>
+<p>The flowsheet panel looks at the feed components and pressures and suggests a method, with a button that applies it:</p>
+<ul>
+<li><b>Water / steam only</b> → <span class="ui">Use Steam / water (IAPWS-IF97)</span>.</li>
+<li><b>Hydrocarbons and light gases only</b> with an activity method → <span class="ui">Use Peng–Robinson</span>.</li>
+<li><b>An activity or acid-gas method with pressures above about 5 bar</b> → <span class="ui">Set vapour phase to Peng–Robinson</span>.</li>
+</ul>
+<p><span class="ui">Which method should I use?</span> in the same panel lists the choices. After a run the engine checks every unit: where a vapour above about 5 bar is described as an ideal gas and its real-gas enthalpy correction (estimated with Peng–Robinson) is significant, the <span class="ui">Run log</span> and <span class="ui">Issues</span> name the units, the pressure and the size of the error.</p>
+<div class="tip"><b>Why it matters.</b> “Vapour phase: Ideal gas” ignores the effect of pressure on gas enthalpy. A turbine taking 2,000 kg/h of steam from 62 bar / 410 °C to 3.5 bar / 225 °C gives −158 kW with IAPWS-IF97 and −156 kW with Peng–Robinson, but −207 kW with NRTL or UNIFAC and an ideal-gas vapour: about 30 % too much power, because real steam at 62 bar sits about 100 kJ/kg below the ideal gas.</div>
 
 <h2 id="equipment">5 · Equipment reference</h2>
 <p>“You give” lists the main inputs; optional fields such as pressure drops are described in each unit's panel. Units marked <b>rigorous only</b> always use a property method (Peng–Robinson when the flowsheet is on Classic).</p>
@@ -225,7 +234,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Distillation (McCabe–Thiele)</td><td>Binary shortcut with a staircase diagram</td><td>x<sub>D</sub>, x<sub>W</sub>, feed quality, relative volatility or a model, reflux as R/R<sub>min</sub> or R</td></tr>
 <tr><td>Absorber / stripper (Kremser)</td><td>Dilute-solute shortcut</td><td>Equilibrium slope m, flows, and either the target purity or the number of stages</td></tr>
 </tbody></table></div>
-<figure><img src="/assets/flowsheet-guide/column.webp" width="1440" height="860" loading="lazy" alt="Benzene and toluene rigorous column example with the column selected and its specifications in the right-hand panel"><figcaption>The rigorous column example: stages, condenser, reboiler, feed stage, pressures and operating specifications in the right-hand panel. Profiles follow under Results after a run.</figcaption></figure>
+<figure><img src="/assets/column.webp" width="1440" height="860" loading="lazy" alt="Benzene and toluene rigorous column example with the column selected and its specifications in the right-hand panel"><figcaption>The rigorous column example: stages, condenser, reboiler, feed stage, pressures and operating specifications in the right-hand panel. Profiles follow under Results after a run.</figcaption></figure>
 <h3>Ammonia, syngas and urea</h3>
 <div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
 <tr><td>Primary reformer (SMR), secondary reformer, ATR</td><td>Reforming and shift equilibria with heat balance</td><td>Primary: outlet T and approaches to equilibrium. Secondary: approaches to equilibrium, with process air as its second feed. ATR: steam/carbon and O₂/carbon ratios, oxidant and temperatures.</td></tr>
@@ -300,6 +309,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <dd>Start with easy specs (reflux ratio and distillate rate), get a solution, then switch to purity or recovery specs. A distillate rate cannot exceed what the feed can supply. Check the top pressure, the feed stage and that there are enough stages for the separation. For an absorber, make sure the solvent can take up the solute at the column pressure.</dd>
 <dt>The heat exchanger reports a temperature cross.</dt>
 <dd>The requested outlet temperature is not reachable with the other stream. Specify the other side's outlet T, the duty or a minimum approach instead, or check the flows.</dd>
+<dt>Turbine or compressor power changes a lot when I change the property method.</dt>
+<dd>Usually the vapour is being treated as an ideal gas at high pressure (an activity method with <span class="ui">Vapour phase: Ideal gas</span>). The run log says so and names the units. For water and steam use Steam / water (IAPWS-IF97); for hydrocarbons and gases use Peng–Robinson or SRK; with NRTL, UNIQUAC or UNIFAC set the vapour phase to Peng–Robinson. See <a href="#methods">Choosing a property method</a>.</dd>
 <dt>“Pacing for the engine's rate limit”.</dt>
 <dd>The free engine allows about 60 runs per minute from one user, and many quick runs in a row trigger a short pause. Nothing is lost; the run continues after the pause.</dd>
 <dt>“Flowsheet exceeded the server time budget”.</dt>
