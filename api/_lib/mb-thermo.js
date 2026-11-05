@@ -15,8 +15,13 @@
 //                                         ideal or PR/SRK
 //              'steam'                    pure water / steam on IAPWS-IF97
 //                                         (api/_lib/steam-if97.js), Step 26
-//   flashes  : PT (with Michelsen stability test), PH, PS, PVF (bubble/dew/
-//              any vapour fraction at P), TVF (saturation pressure)
+//   flashes  : PT (with Michelsen stability test; Newton on ln K when
+//              substitution stalls, STEP 32), PH, PS, PVF (bubble/dew/
+//              any vapour fraction at P), TVF (saturation pressure); every
+//              flash result carries `converged`
+//   free water (STEP 32, PR / SRK, on by default): liquid water and steam on
+//              IAPWS-IF97, gases dissolved in water on IAPWS G7-04 Henry
+//              constants — see createPackage
 //
 // Basis (same as the legacy engine): enthalpy on the FORMATION basis — ideal
 // gas elements at 298.15 K have H = 0, so H_ig,i(T) = ΔHf,i + ∫Cp,ig dT.
@@ -30,11 +35,14 @@
 
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
+import bipExtra from './mb-bip-extra.js';
 import mbData from './mb-data.js';
 import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS } from './mb-electrolyte.js';
 import steam from './steam-if97.js';
 
-export const THERMO_VERSION = 'mb-thermo 1.7.0';
+export const THERMO_VERSION = 'mb-thermo 1.8.0';
+// STEP 32: calibrated / sourced binary parameters that fill gaps in the ChemSep tables
+export const BIP_EXTRA_USED = bipExtra.applyExtra(bip);
 
 const R = 8.314462618;          // J/(mol K)
 const T0 = 298.15;              // K — formation / entropy reference
@@ -129,11 +137,20 @@ function prepComponent(key, c) {
   // and equilibrium constants — ChemSep's ΔHf / S° for e.g. CH4 put the SMR
   // equilibrium constant 2–5 % off NIST.
   const nd = mbData.get(key);
-  if (nd && nd.data_quality === 'nist' && Array.isArray(nd.shomate) && nd.shomate.length && num(nd.hf_gas_298)) c._nist = nistShomate(nd);
+  if (nd && nd.data_quality === 'nist' && Array.isArray(nd.shomate) && nd.shomate.length && num(nd.hf_gas_298)) c._nist = nistShomate(nd, c._cp);
   c._prep = true;
 }
 
-function nistShomate(nd) {
+/**
+ * NIST Shomate ideal-gas H, S on the formation basis. Below the lowest fitted
+ * range (H2O: the NIST set starts at 500 K) the ChemSep Cp shape carries the
+ * curve down to 298.15 K, offset by a constant so H(298.15) = ΔHf and H(Tmin)
+ * meets the Shomate value (STEP 32 — a constant-Cp extrapolation from 500 K
+ * put water vapour 0.19 kJ/mol low at 25 °C and its Cp 1.6 J/(mol K) high).
+ * @param {object} nd mb-data record
+ * @param {{at:Function}} [cp] ChemSep integrals (∫Cp dT, ∫Cp/T dT from 298.15 K)
+ */
+function nistShomate(nd, cp) {
   const rs = nd.shomate.slice().sort((a, b) => a.tmin - b.tmin);
   const pick = (T) => { for (const r of rs) if (T <= r.tmax) return r; return rs[rs.length - 1]; };
   const HS = (r, T) => {
@@ -150,7 +167,11 @@ function nistShomate(nd) {
     at(T) {
       if (T === lastT) return [lastH, lastS];
       let v;
-      if (T < lo) { const a = HS(pick(lo), lo); v = { H: a.H + a.Cp * (T - lo), S: a.S + a.Cp * Math.log(T / lo) }; }
+      if (T < lo && cp && lo > T0 + 1) {
+        const a = HS(pick(lo), lo), cl = cp.at(lo), ct = cp.at(T);
+        const k = (a.H - cl[0]) / (lo - T0);                    // constant Cp offset that closes H at both ends
+        v = { H: ct[0] + k * (T - T0), S: a.S - (cl[1] - ct[1]) - k * Math.log(lo / T) };
+      } else if (T < lo) { const a = HS(pick(lo), lo); v = { H: a.H + a.Cp * (T - lo), S: a.S + a.Cp * Math.log(T / lo) }; }
       else if (T > hi) { const a = HS(pick(hi), hi); v = { H: a.H + a.Cp * (T - hi), S: a.S + a.Cp * Math.log(T / hi) }; }
       else v = HS(pick(T), T);
       lastT = T; lastH = nd.hf_gas_298 * 1000 + v.H; lastS = v.S + S1atm;
@@ -758,6 +779,33 @@ export const PACKAGES = {
  * @param {string[]} keys component keys (compdb)
  * @returns {object} package
  */
+// ---------------------------------------------------------------------------
+// STEP 32 — IAPWS G7-04 (2004) Henry's constants of gases in liquid water,
+// kH = lim f2/x2 at the saturation pressure of water (Fernández-Prini, Alvarez
+// & Harvey, J. Phys. Chem. Ref. Data 32 (2003) 903):
+//   ln(kH / p1*) = A/Tr + B·τ^0.355/Tr + C·Tr^−0.41·e^τ,  Tr = T/647.096, τ = 1 − Tr
+// with p1* from the guideline's Eq. 4. [A, B, C, Tmin, Tmax] per databank key.
+// ---------------------------------------------------------------------------
+const G704 = {
+  He: [-3.52839, 7.12983, 4.47770, 273.21, 553.18], neon: [-3.18301, 5.31448, 5.43774, 273.20, 543.36],
+  Ar: [-8.40954, 4.29587, 10.52779, 273.19, 568.36], krypton: [-8.97358, 3.61508, 11.29963, 273.19, 525.56],
+  xenon: [-14.21635, 4.00041, 15.60999, 273.22, 574.85], H2: [-4.73284, 6.08954, 6.06066, 273.15, 636.09],
+  N2: [-9.67578, 4.72162, 11.70585, 278.12, 636.46], O2: [-9.44833, 4.43822, 11.42005, 274.15, 616.52],
+  CO: [-10.52862, 5.13259, 12.01421, 278.15, 588.67], CO2: [-8.55445, 4.01195, 9.52345, 274.19, 642.66],
+  H2S: [-4.51499, 5.23538, 4.42126, 273.15, 533.09], CH4: [-10.44708, 4.66491, 12.12986, 275.46, 633.11],
+  C2H6: [-19.67563, 4.51222, 20.62567, 275.44, 473.46], 'sulfur-hexafluoride': [-16.56118, 2.15289, 20.35440, 283.14, 505.55],
+};
+const G704_PS = [[-7.85951783, 1], [1.84408259, 1.5], [-11.7866497, 3], [22.6807411, 3.5], [-15.9618719, 4], [1.80122502, 7.5]];
+/** ln kH [Pa] of gas `key` in water at T by IAPWS G7-04 (T clamped to 273.15 K – 0.995 Tc) */
+function lnKhG704(key, T) {
+  const c = G704[key];
+  const Tc = 647.096, Pc = 22.064e6;
+  const Tr = Math.min(Math.max(T, 273.15), 0.995 * Tc) / Tc, tau = 1 - Tr;
+  let sp = 0; for (const [a, b] of G704_PS) sp += a * Math.pow(tau, b);
+  return Math.log(Pc) + sp / Tr + c[0] / Tr + c[1] * Math.pow(tau, 0.355) / Tr + c[2] * Math.pow(Tr, -0.41) * Math.exp(tau);
+}
+export { lnKhG704 };
+
 export function createPackage(spec, keys) {
   const s = spec || {};
   const model = String(s.model || 'pr').toLowerCase();
@@ -788,7 +836,19 @@ export function createPackage(spec, keys) {
       if (v && i < j) kijUsed[pair] = v;
     }
   }
-  const eos = vapourModel !== 'ideal' ? makeEOS(vapourModel, comps, kij) : null;
+  // STEP 32: gas–ammonia pairs with no k_ij — the NH3 content of loop gas and the gases
+  // dissolved in liquid ammonia depend on them; say so instead of staying silent
+  if ((isEOS || vapourModel !== 'ideal') && keys.includes('NH3')) {
+    const zero = ['H2', 'CH4', 'CO', 'He'].filter((g) => {
+      if (!keys.includes(g)) return false;
+      const [a, b] = [g, 'NH3'].sort();
+      return !(kij[keys.indexOf(a)][keys.indexOf(b)]) && !(s.kij && (num(s.kij[a + '|' + b]) || num(s.kij[b + '|' + a])));
+    });
+    if (zero.length) warnings.push(`${PACKAGES[model]}: no binary interaction parameter for ${zero.map((g) => g + '–NH3').join(', ')} (k_ij = 0) — ` +
+      'the NH3 left in separator vapour and the gases dissolved in liquid ammonia are uncertain; calibrate k_ij against separator analyses (Methods → binary data)');
+  }
+  // `eos` is replaced below by a free-water-corrected view when that applies (STEP 32)
+  let eos = vapourModel !== 'ideal' ? makeEOS(vapourModel, comps, kij) : null;
   let act = null;
   if (model === 'nrtl') act = makeNRTL(keys, s.nrtl, warnings);
   else if (model === 'uniquac') act = makeUNIQUAC(keys, comps, s.uniquac, warnings);
@@ -856,6 +916,181 @@ export function createPackage(spec, keys) {
   const useNist = s.ideal_gas_data !== 'chemsep';
   const hig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[0] : hIG(comps[i], T));
   const sig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[1] : sIG(comps[i], T));
+
+  // ---- STEP 32 free water: liquid water on IAPWS-IF97 inside the cubic EOS ----
+  // A cubic EOS overstates the latent heat of water (PR: liquid h at 25 °C is
+  // 1.9 kJ/mol too low — boiler and condenser duties come out ~5 % high) and
+  // understates its vapour pressure (PR: 15 % low at 27 °C). As in a commercial
+  // simulator's free-water option, the water in a liquid phase is referred to
+  // IAPWS-IF97 instead: the liquid Gibbs energy gains n_w·Δμ(T, P) with
+  //   Δμ = μ_IF97,liq(T, P) − μ_EOS,pure liq(T, P),
+  // so ln φ_w gains Δμ/RT, H gains x_w·Δh and S gains x_w·Δs (Δh, Δs the
+  // matching differences — exact for pure liquid water, consistent by
+  // construction). A phase takes the correction by how liquid-like its EOS root
+  // is (packing fraction b/V from 0.15 to 0.25), so a vapour root gets none and
+  // a single supercritical-like root gets the same value whatever it is called.
+  // The correction fades out between 0.95 and 0.99 Tc of water; below 0 °C it
+  // is extrapolated with Δh, Δs held at their 0 °C values. free_water:false
+  // switches it off.
+  const iw = keys.indexOf('H2O');
+  let freeWater = null;
+  if (isEOS && iw >= 0 && s.free_water !== false) {
+    const TCw = steam.TC, T1 = 0.95 * TCw, T2 = 0.99 * TCw, TL = 273.15;
+    const kgw = comps[iw].MW;                                   // kJ/kg × g/mol = J/mol
+    const ig0w = steam.idealGas(T0, P0 / 1e6);
+    const ChW = hig(iw, T0) - kgw * ig0w.h, CsW = sig(iw, T0) - kgw * ig0w.s;   // IF97 → package basis
+    const eosRaw = eos;
+    const unit = new Array(n).fill(0); unit[iw] = 1;
+    let cT = NaN, cP = NaN, cV = null;
+    /** Δμ/RT, Δh [J/mol], Δs [J/(mol K)] for water at (T, P), or null outside the range */
+    const corr = (T, P) => {
+      if (T === cT && P === cP) return cV;
+      cT = T; cP = P; cV = null;
+      if (!(T < T2)) return null;
+      const Te = Math.max(T, TL);
+      const Pe = Math.max(P, steam.psat(Te) * 1e6 * (1 + 1e-6));
+      let st;
+      try { st = steam.liquidSide(Pe / 1e6, Te); } catch (_e) { return null; }
+      const ref = eosRaw.state(Te, Pe, unit, 'L');
+      if (!(ref.B / ref.Z > 0.2)) return null;                    // no liquid-like EOS root: leave the EOS alone
+      let dh = (kgw * st.h + ChW) - (hig(iw, Te) + ref.hDep);
+      let ds = (kgw * st.s + CsW) - (sig(iw, Te) - R * Math.log(Pe / P0) + ref.sDep);
+      let dmu = dh - T * ds;                                        // below 0 °C: Δh, Δs frozen, Δμ linear in T
+      if (T > T1) {
+        const w = T2 - T1, t = (T - T1) / w, lam = 1 - t * t * (3 - 2 * t), dlam = -6 * t * (1 - t) / w;
+        dh = lam * dh - T * dlam * dmu;
+        ds = lam * ds - dlam * dmu;
+        dmu = lam * dmu;
+      }
+      cV = { C: dmu / (R * T), dh, ds };
+      return cV;
+    };
+    const weight = (stt) => {
+      const eta = stt.B / stt.Z, t = (eta - 0.15) / 0.10;
+      return t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+    };
+    // Gases dissolved in the aqueous liquid (STEP 32): with a constant k_ij a
+    // cubic cannot give the solubility of gases in water (PR with the databank
+    // k_ij puts CH4 about 28×, CO2 about 30× and CO about 150× too insoluble at
+    // 25 °C, with the wrong temperature trend). Their infinite-dilution fugacity in water is moved
+    // onto IAPWS G7-04 (13 gases), or Sander's (2015) Henry constants for other
+    // gases (Tb < 0 °C; ammonia keeps the cubic, it is not sparingly soluble):
+    // Δ_g(T) = ln kH,ref − ln kH,EOS (raw cubic, pure water at Psat). The
+    // liquid gains G/RT = Σ_g n_g·x_w·Δ_g, so ln φ_k += (δ_kw − x_w)·S + x_w·Δ_k
+    // (S = Σ_g x_g Δ_g), H += −R T² x_w Σ_g x_g Δ_g', S from (H − G)/T —
+    // exact at infinite dilution, consistent at any composition. Same weight
+    // and the same fade-out near the critical point of water as above.
+    const hIdx = [];
+    for (let i = 0; i < n; i++) {
+      if (i === iw || keys[i] === 'NH3') continue;
+      const c = comps[i];
+      const gas = num(c.tb) ? c.tb < 273.15 : c.Tc < 310;
+      if (G704[keys[i]]) hIdx.push([i, 'g704']);
+      else if (gas && bip.HENRY[keys[i] + '|H2O']) hIdx.push([i, 'sander']);
+    }
+    let hT = NaN, hV = null;
+    const lnKhRef = (i, src, T) => (src === 'g704' ? lnKhG704(keys[i], T) : (() => { const h = bip.HENRY[keys[i] + '|H2O']; return h[0] + h[1] / Math.min(Math.max(T, 273.15), 473.15); })());
+    const lnKhEos = (T) => {
+      const Te = Math.min(Math.max(T, TL), T2);
+      const Ps = steam.psat(Te) * 1e6;
+      const st = eosRaw.state(Te, Ps, unit, 'L');
+      return st.lnphi.map((v) => v + Math.log(Ps));
+    };
+    /** Δ_g and dΔ_g/dT per component (0 for non-Henry), λ-faded; null when none apply */
+    const henryCorr = (T) => {
+      if (!hIdx.length || !(T < T2)) return null;
+      if (T === hT) return hV;
+      const Te = Math.max(T, TL), h = 0.01;
+      const D = new Array(n).fill(0), Dp = new Array(n).fill(0);
+      const e0 = lnKhEos(Te), ep = lnKhEos(Te + h), em = lnKhEos(Te - h);
+      let lam = 1, dlam = 0;
+      if (T > T1) { const w = T2 - T1, t = (T - T1) / w; lam = 1 - t * t * (3 - 2 * t); dlam = -6 * t * (1 - t) / w; }
+      for (const [i, src] of hIdx) {
+        const d0 = lnKhRef(i, src, Te) - e0[i];
+        const d1 = T > TL ? ((lnKhRef(i, src, Te + h) - ep[i]) - (lnKhRef(i, src, Te - h) - em[i])) / (2 * h) : 0;
+        D[i] = lam * d0; Dp[i] = lam * d1 + dlam * d0;
+      }
+      hT = T; hV = { D, Dp };
+      return hV;
+    };
+    // Vapour side: water vapour is moved onto IF97 too. Its residual Gibbs energy
+    // at its partial pressure p_w = y_w·P replaces the cubic's (pure-component
+    // values, Lewis–Randall-like): the vapour gains n_w·Δg(T, p_w) with
+    //   Δg = g^R_IF97,vap(T, p_w) − g^R_EOS,pure vap(T, p_w),
+    // exact for steam and equal to the second-virial correction y_w²·(B_IF97 −
+    // B_EOS)·P for dilute water (PR's B for steam is about half IF97's). Hence
+    //   ln φ_w += [Δg + y_w(1 − y_w)·P·Δv]/RT,  ln φ_j −= y_w²·P·Δv/RT,
+    //   H += y_w·Δh,  S += y_w·Δs,  V += y_w²·Δv.
+    // Above Psat(T) (supersaturated vapour) Δg continues linearly in p; below
+    // 0 °C and above 800 °C the second-virial form is used.
+    const eosW = makeEOS(vapourModel, [comps[iw]], [[0]]);
+    const MWkg = kgw / 1000;
+    const Beos = (T) => eosW.b[0] - eosW.ai(T)[0] / (R * T);
+    let vT = NaN, vP = NaN, vV = null;
+    const vcorr = (T, p) => {
+      if (T === vT && p === vP) return vV;
+      vT = T; vP = p; vV = null;
+      if (!(p > 1e-3)) { vV = { dg: 0, dh: 0, ds: 0, dv: 0 }; return vV; }
+      if (T < TL || T > 1073.15) {
+        const Tv = Math.min(Math.max(T, TL), 2273.15), bv = steam.secondVirial(Tv), h = 1e-3 * Tv;
+        const d = bv.B * MWkg - Beos(Tv), dd = bv.dBdT * MWkg - (Beos(Tv + h) - Beos(Tv - h)) / (2 * h);
+        vV = { dg: d * p, dh: p * (d - T * dd), ds: -p * dd, dv: d };
+        return vV;
+      }
+      const pe = T < TCw ? Math.min(p, steam.psat(T) * 1e6) : p;
+      let st, ig;
+      try { st = steam.vapourSide(pe / 1e6, T); ig = steam.idealGas(T, pe / 1e6); } catch (_e) { vV = { dg: 0, dh: 0, ds: 0, dv: 0 }; return vV; }
+      const e1 = eosW.state(T, pe, [1], 'V');
+      const hR = kgw * (st.h - ig.h), sR = kgw * (st.s - ig.s);
+      const dh0 = hR - e1.hDep, ds0 = sR - e1.sDep, dv = st.v * MWkg - e1.V;
+      const dg0 = dh0 - T * ds0;
+      vV = { dg: dg0 + dv * (p - pe), dh: dh0 + dv * (p - pe), ds: ds0, dv };
+      return vV;
+    };
+    eos = Object.assign({}, eosRaw, {
+      raw: eosRaw,
+      state(T, P, x, phase) {
+        const stt = eosRaw.state(T, P, x, phase);
+        if (!(x[iw] > 0)) return stt;
+        const w = weight(stt);
+        const lnphi = stt.lnphi.slice();
+        let hDep = stt.hDep, sDep = stt.sDep, V = stt.V;
+        if (w > 0) {
+          const c = corr(T, P);
+          if (c) { lnphi[iw] += w * c.C; hDep += w * x[iw] * c.dh; sDep += w * x[iw] * c.ds; }
+          const hc = henryCorr(T);
+          if (hc) {
+            const xw = x[iw];
+            let S = 0, Sp = 0;
+            for (const [i] of hIdx) { S += x[i] * hc.D[i]; Sp += x[i] * hc.Dp[i]; }
+            for (let i = 0; i < n; i++) lnphi[i] += w * (((i === iw ? 1 : 0) - xw) * S + xw * hc.D[i]);
+            const dH = -R * T * T * xw * Sp, dG = R * T * xw * S;
+            hDep += w * dH;
+            sDep += w * (dH - dG) / T;
+          }
+        }
+        if (w < 1) {
+          const wv = 1 - w, yw = x[iw], v = vcorr(T, yw * P), RT = R * T;
+          for (let i = 0; i < n; i++) lnphi[i] += i === iw ? wv * (v.dg + yw * (1 - yw) * P * v.dv) / RT : -wv * yw * yw * P * v.dv / RT;
+          hDep += wv * yw * v.dh;
+          sDep += wv * yw * v.ds;
+          V += wv * yw * yw * v.dv;
+        }
+        return Object.assign({}, stt, { lnphi, hDep, sDep, V, freeWater: w });
+      },
+    });
+    freeWater = {
+      index: iw,
+      // pure water saturates on IF97, as in the steam package
+      sat: {
+        Tc: TCw, Pc: steam.PC * 1e6,
+        psat: (T) => steam.psat(Math.min(Math.max(T, TL), TCw)) * 1e6,
+        tsat: (P) => (P >= steam.PC * 1e6 ? Infinity : P < steam.PMIN * 1e6 ? NaN : steam.tsat(P / 1e6)),
+      },
+      correction: corr,
+      henry: hIdx.map(([i, src]) => ({ key: keys[i], source: src === 'g704' ? 'IAPWS G7-04' : 'Sander (2015)' })),
+    };
+  }
 
   // ---- K-values / fugacity ----
   /** ln φ (EOS) or ln(γ Psat / P) (activity/ideal liquid) for one phase. */
@@ -1014,6 +1249,9 @@ export function createPackage(spec, keys) {
   return {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
     henryKeys: keys.filter((k, i) => henry[i]), poynting,
+    // STEP 32: free water (IAPWS-IF97 liquid water inside the EOS) and the pure-water saturation it implies
+    freeWater: freeWater ? { index: iw, correction: freeWater.correction, henry: freeWater.henry } : null,
+    pureSatOf: (i) => (freeWater && i === iw ? freeWater.sat : null),
     association: assoc ? { keys: assoc.keys, sources: assoc.src } : null,
     electrolyte: elec ? { model: elecModel, solvent: elec.solvent, heavy: elec.heavy, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
       saltLnAct: (T, x) => { const r = elec.rel(T, elec.sub(x)); return num(r.K2CO3) ? r.K2CO3 : 0; },
@@ -1179,6 +1417,9 @@ function stabilityEOS(pp, T, P, z) {
 // PT flash
 // ---------------------------------------------------------------------------
 
+/** saturation hook of a pure component: the package's own (steam) or free water's IF97 line (STEP 32) */
+const satHook = (pp, i) => pp.pureSat || (pp.pureSatOf ? pp.pureSatOf(i) : null);
+
 const liveIdx = (z) => z.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
 
 /**
@@ -1195,7 +1436,7 @@ export function flashPT(pp, z, T, P, hint) {
   if (live.length === 1) {
     // pure component: saturation from the vapour-pressure correlation (as DWSIM / ChemSep)
     const c = pp.comps[live[0]];
-    const sat = pp.pureSat;
+    const sat = satHook(pp, live[0]);
     const Tc = sat ? sat.Tc : c.Tc, Pc = sat ? sat.Pc : c.Pc;
     if (T >= Tc || P >= Pc) return single(pp, z, T, P, T >= Tc ? 'V' : 'L');
     return single(pp, z, T, P, (sat ? sat.psat(T) : psat(c, T)) > P ? 'V' : 'L');
@@ -1461,22 +1702,81 @@ function single(pp, z, T, P, ph) {
 }
 
 /**
+ * Newton–Raphson on ln K (STEP 32): residual F_i = ln K_i − [ln φ_i,L(x) −
+ * ln φ_i,V(y)] with x, y from the Rachford–Rice solution at K (negative flash
+ * allowed), Jacobian by forward differences, step limited to 1 in ln K and a
+ * backtracking line search on ‖F‖. Used where successive substitution
+ * crawls — near a critical point, where its convergence ratio tends to 1.
+ * Works for every package (pp.lnK). Returns null when it cannot improve.
+ */
+function newtonFlash(pp, z, T, P, K0, maxIt) {
+  const live = liveIdx(z);
+  const m = live.length;
+  const evalAt = (lnKl) => {
+    const K = z.map(() => 1);
+    live.forEach((i, a) => { K[i] = Math.exp(lnKl[a]); });
+    const rr = rachfordRice(z, K);
+    if (rr.below || rr.above) return null;
+    const { x, y } = phaseComps(z, K, rr.beta);
+    const lc = pp.lnK(T, P, x, y);
+    const F = live.map((i, a) => lnKl[a] - lc[i]);
+    let nr = 0; for (const v of F) nr = Math.max(nr, Math.abs(v));
+    if (!isFinite(nr)) return null;
+    return { F, nr, beta: rr.beta, x, y, K };
+  };
+  let lk = live.map((i) => Math.log(K0[i]));
+  let cur = evalAt(lk);
+  if (!cur) return null;
+  let it;
+  for (it = 0; it < (maxIt || 30); it++) {
+    if (cur.nr < 1e-11) break;
+    const J = [];
+    for (let a = 0; a < m; a++) J.push(new Array(m).fill(0));
+    for (let b = 0; b < m; b++) {
+      const h = 1e-7 * Math.max(1, Math.abs(lk[b]));
+      const l2 = lk.slice(); l2[b] += h;
+      const e2 = evalAt(l2);
+      if (!e2) return null;
+      for (let a = 0; a < m; a++) J[a][b] = (e2.F[a] - cur.F[a]) / h;
+    }
+    const d = solveLin(J, cur.F.map((v) => -v));
+    if (!d || !d.every(isFinite)) return null;
+    let mx = 0; for (const v of d) mx = Math.max(mx, Math.abs(v));
+    let lam = mx > 1 ? 1 / mx : 1, nxt = null;
+    for (let k = 0; k < 12; k++) {
+      const l2 = lk.map((v, a) => v + lam * d[a]);
+      const e2 = evalAt(l2);
+      if (e2 && e2.nr < (1 - 1e-4 * lam) * cur.nr) { nxt = { l: l2, e: e2 }; break; }
+      lam *= 0.5;
+    }
+    if (!nxt) break;
+    lk = nxt.l; cur = nxt.e;
+    let triv = 0; for (const v of lk) triv += v * v;
+    if (triv < 1e-10) return null;                    // collapsed onto the trivial solution
+  }
+  return { beta: cur.beta, x: cur.x, y: cur.y, K: cur.K, it, residual: cur.nr, converged: cur.nr < 1e-9 };
+}
+
+/**
  * Successive substitution on K with dominant-eigenvalue acceleration.
  * Negative flash is allowed while iterating; a converged β outside (0,1)
- * means the feed is single-phase.
+ * means the feed is single-phase. STEP 32: when substitution has not
+ * converged after 100 steps, Newton (newtonFlash) takes over from the
+ * current K; the result carries `converged` and the final residual.
  */
 function ssFlash(pp, z, T, P, K0, maxIt) {
   const n = pp.n;
-  let K = K0.slice(), x, y, beta = 0.5, it = 0;
+  const cap = maxIt || 500;
+  let K = K0.slice(), x, y, beta = 0.5, it = 0, err = Infinity, newtonTried = false;
   let lnKprev = K.map(Math.log);
   const hist = [];
-  for (it = 1; it <= (maxIt || 500); it++) {
+  for (it = 1; it <= cap; it++) {
     const rr = rachfordRice(z, K);
     if (rr.below || rr.above) return { beta: rr.below ? 0 : 1, single: rr.below ? 'L' : 'V', K, it };
     beta = rr.beta;
     ({ x, y } = phaseComps(z, K, beta));
     const lnKn = pp.lnK(T, P, x, y);
-    let err = 0; for (let i = 0; i < n; i++) if (z[i] > 0) err = Math.max(err, Math.abs(lnKn[i] - lnKprev[i]));
+    err = 0; for (let i = 0; i < n; i++) if (z[i] > 0) err = Math.max(err, Math.abs(lnKn[i] - lnKprev[i]));
     hist.push(lnKn);
     let lnKu = lnKn;
     if (it % 5 === 0 && hist.length >= 3) {
@@ -1484,19 +1784,28 @@ function ssFlash(pp, z, T, P, K0, maxIt) {
       let nu1 = 0, de1 = 0;
       for (let i = 0; i < n; i++) if (z[i] > 0) { const d1 = hb[i] - ha[i], d2 = hc[i] - hb[i]; nu1 += d2 * d1; de1 += d1 * d1; }
       const lam = de1 > 0 ? nu1 / de1 : 0;
-      if (lam > 0 && lam < 0.995) lnKu = hc.map((v, i) => v + lam / (1 - lam) * (hc[i] - hb[i]));
+      if (lam > 0 && lam < 0.995) lnKu = hc.map((v, i) => v + lam * (hc[i] - hb[i]) / (1 - lam));
     }
     K = lnKu.map(Math.exp);
     lnKprev = lnKu;
     let triv = 0; for (let i = 0; i < n; i++) if (z[i] > 0) triv += lnKn[i] * lnKn[i];
     if (triv < 1e-10) return { beta, trivial: true, K, it };
     if (err < 1e-11) break;
+    if (it === 100 && !newtonTried) {
+      newtonTried = true;
+      const nw = newtonFlash(pp, z, T, P, K);
+      if (nw && nw.converged) {
+        if (nw.beta <= 0 || nw.beta >= 1) return { beta: nw.beta, single: nw.beta <= 0 ? 'L' : 'V', K: nw.K, it: it + nw.it };
+        return { beta: nw.beta, x: nw.x, y: nw.y, K: nw.K, it: it + nw.it, converged: true, residual: nw.residual, method: 'newton' };
+      }
+    }
   }
+  const converged = err < 1e-8;
   const rr = rachfordRice(z, K);
   if (rr.below || rr.above) return { beta: rr.below ? 0 : 1, single: rr.below ? 'L' : 'V', K, it };
-  if (rr.beta <= 0 || rr.beta >= 1) return { beta: rr.beta, single: rr.beta <= 0 ? 'L' : 'V', K, it };
+  if (rr.beta <= 0 || rr.beta >= 1) return { beta: rr.beta, single: rr.beta <= 0 ? 'L' : 'V', K, it, converged };
   ({ x, y } = phaseComps(z, K, rr.beta));
-  return { beta: rr.beta, x, y, K, it };
+  return { beta: rr.beta, x, y, K, it, converged, residual: err };
 }
 
 function labelSingleEOS(pp, z, T, P) {
@@ -1522,14 +1831,14 @@ function flashPT_EOS(pp, z, T, P, Kg) {
     const rg = rachfordRice(z, Kg);
     if (!rg.below && !rg.above && rg.beta > 0 && rg.beta < 1) {
       const r = ssFlash(pp, z, T, P, Kg);
-      if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it };
+      if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it, converged: r.converged !== false, residual: r.residual };
     }
   }
   const Kw = wilsonK(pp, T, P);
   const rr = rachfordRice(z, Kw);
   if (!rr.below && !rr.above && rr.beta > 0 && rr.beta < 1) {
     const r = ssFlash(pp, z, T, P, Kw);
-    if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it };
+    if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it, converged: r.converged !== false, residual: r.residual };
   }
   const st = stabilityEOS(pp, T, P, z);
   if (!st) return single(pp, z, T, P, labelSingleEOS(pp, z, T, P));
@@ -1538,7 +1847,7 @@ function flashPT_EOS(pp, z, T, P, Kg) {
     : st.W.map((w, i) => (z[i] > 0 && w > 0 ? z[i] / w : 1));
   const r = ssFlash(pp, z, T, P, K0, 1000);
   if (r.single || r.trivial) return single(pp, z, T, P, labelSingleEOS(pp, z, T, P));
-  return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it };
+  return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it, converged: r.converged !== false, residual: r.residual };
 }
 
 function flashPT_act(pp, z, T, P) {
@@ -1546,7 +1855,7 @@ function flashPT_act(pp, z, T, P) {
   let K = pp.lnK(T, P, z, z).map(Math.exp);
   for (let outer = 0; outer < 4; outer++) {
     const r = ssFlash(pp, z, T, P, K, 600);
-    if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it };
+    if (!r.single && !r.trivial) return { T, P, beta: r.beta, x: r.x, y: r.y, phase: 'VL', iterations: r.it, converged: r.converged !== false, residual: r.residual };
     if (r.single === 'L' || (r.trivial && r.beta <= 0.5)) {
       // incipient-vapour test at x = z
       let y = z.slice(), Kb = K;
@@ -1678,7 +1987,7 @@ export function rachfordRice3(z, KV, KL, b0) {
 function ssLL(pp, z, T, P, x1, x2, maxIt) {
   const n = pp.n, live = liveIdx(z);
   let K = z.map((zi, i) => (zi > 0 ? Math.max(x2[i], 1e-30) / Math.max(x1[i], 1e-30) : 1));
-  let beta = 0.5, xa = x1, xb = x2, it;
+  let beta = 0.5, xa = x1, xb = x2, it, err = Infinity;
   for (it = 1; it <= (maxIt || 800); it++) {
     const rr = rachfordRice(z, K);
     if (rr.below || rr.above) return null;
@@ -1686,7 +1995,8 @@ function ssLL(pp, z, T, P, x1, x2, maxIt) {
     ({ x: xa, y: xb } = phaseComps(z, K, beta));
     const fb = pp.lnFug(T, P, xb, 'L');
     const lnK = pp.lnFug(T, P, xa, 'L').map((v, i) => v - fb[i]);
-    let err = 0, triv = 0;
+    let triv = 0;
+    err = 0;
     for (const i of live) { err = Math.max(err, Math.abs(lnK[i] - Math.log(K[i]))); triv += lnK[i] * lnK[i]; }
     K = lnK.map(Math.exp);
     if (triv < 1e-8) return null;
@@ -1694,7 +2004,7 @@ function ssLL(pp, z, T, P, x1, x2, maxIt) {
   }
   if (!(beta > 0 && beta < 1)) return null;
   void n;
-  return { beta, x1: xa, x2: xb, it };
+  return { beta, x1: xa, x2: xb, it, converged: err < 1e-8, residual: err };
 }
 
 /** order two liquids: liquid 1 = lighter (lower mass density) */
@@ -1732,7 +2042,7 @@ function vapourFrom(pp, T, P, x) {
 /** successive substitution for vapour + two liquids from starting K-values (relative to liquid 1) */
 function ss3(pp, z, T, P, KV, KL, b0) {
   const n = pp.n;
-  let b = b0.slice(), rr, x1, y, x2, it;
+  let b = b0.slice(), rr, x1, y, x2, it, lastErr = Infinity;
   const bAt = [];                 // phase fractions 20 iterations back
   for (it = 1; it <= 1500; it++) {
     rr = rachfordRice3(z, KV, KL, b);
@@ -1758,6 +2068,7 @@ function ss3(pp, z, T, P, KV, KL, b0) {
       if (z[i] > 0) { err = Math.max(err, Math.abs(lv - Math.log(KV[i])), Math.abs(ll - Math.log(KL[i]))); trivL += ll * ll; trivV += lv * lv; }
     }
     KV = KVn; KL = KLn;
+    lastErr = err;
     if (trivL < 1e-8 || trivV < 1e-8) return null;
     if (err < 1e-10) break;
     if (it > 60 && (b[0] < -0.5 || b[1] < -0.5 || b[0] + b[1] > 1.5)) return null;   // a phase is vanishing — another candidate wins
@@ -1766,7 +2077,7 @@ function ss3(pp, z, T, P, KV, KL, b0) {
   const bV = rr.bV, bL2 = rr.bL, bL1 = 1 - bV - bL2;
   if (!(bV > 1e-12 && bL2 > 1e-12 && bL1 > 1e-12)) return null;
   x1 = norm(rr.x1.map((v) => Math.max(v, 0))); y = norm(x1.map((v, i) => v * KV[i])); x2 = norm(x1.map((v, i) => v * KL[i]));
-  return { T, P, beta: bV, beta2: bL2, x: x1, y, x2, phase: 'VLL', iterations: it };
+  return { T, P, beta: bV, beta2: bL2, x: x1, y, x2, phase: 'VLL', iterations: it, converged: lastErr < 1e-8, residual: lastErr };
 }
 
 /**
@@ -1792,7 +2103,7 @@ export function flashPT3(pp, z, T, P, hint) {
     // can form from the lighter liquid (bubble-point test as below); otherwise the full path
     const ll = ssLL(pp, z, T, P, z.map((v, i) => (v > 0 ? Math.max(hint.x[i], 1e-12) : 0)), hint.x2);
     if (ll) {
-      const rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it };
+      const rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it, converged: ll.converged, residual: ll.residual };
       if (!vapourFrom(pp, T, P, rLL.x)) return orderLiquids(pp, T, P, rLL);
     }
   }
@@ -1806,7 +2117,7 @@ export function flashPT3(pp, z, T, P, hint) {
   const xs = z.map((v, i) => (v > 0 ? Math.max(xl[i], 1e-12) : 0));
   const ll = ssLL(pp, z, T, P, xs, st.w);
   let rLL = null;
-  if (ll) { rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it }; cands.push(rLL); }
+  if (ll) { rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it, converged: ll.converged, residual: ll.residual }; cands.push(rLL); }
   // vapour + two liquids, from the V/L answer and from the L/L answer
   const KL0 = xl.map((v, i) => (z[i] > 0 ? Math.max(st.w[i], 1e-30) / Math.max(v, 1e-12) : 1));
   if (r2.phase === 'VL') {
@@ -1975,7 +2286,8 @@ export function flashPVF(pp, z, P, beta, Tguess) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    const T = pp.pureSat ? pp.pureSat.tsat(P) : satT(c, P);
+    const sat = satHook(pp, live[0]);
+    const T = sat ? sat.tsat(P) : satT(c, P);
     if (Number.isNaN(T)) fail('TH_VF', `no saturation temperature at ${(P / 1e5).toFixed(5)} bar — below the triple-point pressure of water`);
     if (!isFinite(T)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${(P / 1e5).toFixed(3)} bar — no saturation temperature`);
     return { T, P, beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
@@ -2010,8 +2322,9 @@ export function flashTVF(pp, z, T, beta, Pguess) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    if (T >= (pp.pureSat ? pp.pureSat.Tc : c.Tc)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${T.toFixed(2)} K — no saturation pressure`);
-    return { T, P: pp.pureSat ? pp.pureSat.psat(T) : psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
+    const sat = satHook(pp, live[0]);
+    if (T >= (sat ? sat.Tc : c.Tc)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${T.toFixed(2)} K — no saturation pressure`);
+    return { T, P: sat ? sat.psat(T) : psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
   }
   if (num(Pguess) && Pguess > 0) { try { return vfSolve(pp, z, beta, 'P', T, Math.log(Pguess)); } catch (_e) { /* restart from Wilson */ } }
   return vfSolve(pp, z, beta, 'P', T, undefined);
@@ -2035,7 +2348,8 @@ function stateFlash(pp, z, P, target, fn, Tguess, flashFn, hint0) {
   const live = liveIdx(z);
   if (live.length === 1) {
     const c = pp.comps[live[0]];
-    const Ts = pp.pureSat ? pp.pureSat.tsat(P) : satT(c, P);
+    const sat = satHook(pp, live[0]);
+    const Ts = sat ? sat.tsat(P) : satT(c, P);
     if (isFinite(Ts)) {
       const L = { T: Ts, P, beta: 0, x: z.slice(), y: z.slice(), phase: 'L' };
       const V = { T: Ts, P, beta: 1, x: z.slice(), y: z.slice(), phase: 'V' };
@@ -2095,6 +2409,7 @@ function stateFlash(pp, z, P, target, fn, Tguess, flashFn, hint0) {
     if (T2 > 6000) fail(fn === 'h' ? 'TH_PH' : 'TH_PS', `${fn === 'h' ? 'enthalpy' : 'entropy'} target above the 6000 K limit`);
   }
   if (Math.abs(B.v) < tol) return { ...B.r, iterations: 0 };
+  const bracketed = (A.v < 0) !== (B.v < 0);
   let lo = A.v < 0 ? A : B, hi = A.v < 0 ? B : A;
   let it, side = 0, flo = lo.v, fhi = hi.v;
   // Illinois regula falsi (the retained end's value is halved when the same end is kept
@@ -2114,7 +2429,14 @@ function stateFlash(pp, z, P, target, fn, Tguess, flashFn, hint0) {
   // material balance closes exactly
   const vl = lo.v + target, vh = hi.v + target;
   const lam = Math.min(1, Math.max(0, (target - vl) / (vh - vl)));
-  return leverState(lo.r, hi.r, lam, hi.T, P, it);
+  const out = leverState(lo.r, hi.r, lam, hi.T, P, it);
+  // STEP 32: a lever-rule answer is genuine only when the bracket closed on a jump in H(T)
+  // (or S(T)) and both sides' flashes converged
+  if (!bracketed || !(hi.T - lo.T < 1e-6 * hi.T) || lo.r.converged === false || hi.r.converged === false) {
+    out.converged = false;
+    out.residual = Math.min(Math.abs(lo.v), Math.abs(hi.v));
+  }
+  return out;
 }
 function phasesOf(r) {
   if (r.x2 && r.beta2 > 0) {
@@ -2267,5 +2589,5 @@ export default {
   THERMO_VERSION, PACKAGES, ThermoError, R, T0, P0,
   corr, component, hIG, sIG, psat, hvap, vLiq, satT,
   createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashTVF,
-  hOf, sOf, properties,
+  hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED,
 };

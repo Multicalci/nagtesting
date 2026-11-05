@@ -43,7 +43,7 @@ const th = Object.assign({}, thBase, {
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 
-export const UNITS_VERSION = 'mb-units 1.7.0';
+export const UNITS_VERSION = 'mb-units 1.8.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const R = th.R;
@@ -109,6 +109,27 @@ function noteVapour(pp, r) {
   IGV.gas = pp.keys.every(gasLike);
   IGV.model = pp.model;
 }
+/**
+ * STEP 32 — per-unit checks on every state that enters or leaves the unit:
+ *  · a flash that did not converge (flash result `converged: false`) marks the
+ *    unit unconverged and names the worst state;
+ *  · liquid water on a cubic equation of state with free water switched off
+ *    (latent heat of water about 5 % high, vapour pressure up to 15 % low).
+ */
+function noteState(pp, r) {
+  if (!IGV || !r) return;
+  if (r.converged === false) {
+    const res = num(r.residual) ? r.residual : NaN;
+    if (!IGV.flash || !(res <= IGV.flash.residual)) IGV.flash = { T: r.T, P: r.P, residual: res, phase: r.phase };
+    IGV.flashCount = (IGV.flashCount || 0) + 1;
+  }
+  if (pp.isEOS && !pp.freeWater && pp.index && pp.index.H2O !== undefined && r.phase !== 'V') {
+    const iw = pp.index.H2O, liq = [];
+    if (r.x && (r.phase === 'L' || r.phase === 'VL' || r.phase === 'LL' || r.phase === 'VLL')) liq.push(r.x);
+    if (r.x2) liq.push(r.x2);
+    for (const x of liq) if (x[iw] >= 0.05) { IGV.wet = Math.max(IGV.wet || 0, x[iw]); break; }
+  }
+}
 const fmtKJ = (v) => { const a = Math.abs(v); return a >= 10 ? a.toFixed(0) : a.toPrecision(2); };
 /** the advice for a unit that hit the check (also used by the flowsheet summary) */
 const IGV_GASES = ['N2', 'O2', 'H2', 'CO', 'CO2', 'Ar', 'He', 'H2S', 'NH3', 'neon', 'krypton', 'xenon'];
@@ -170,6 +191,7 @@ export function stateIn(pp, s, label) {
   }
   const h = th.hOf(pp, r);
   noteVapour(pp, r);
+  if (F > 0) noteState(pp, r);
   return { F, z, T: r.T, P, r, h, H_kJh: F * h, mass: s.mass_flow_kg_h };
 }
 
@@ -189,7 +211,7 @@ export function streamOut(pp, F, z, r, opt) {
   const comps = [];
   pp.keys.forEach((k, i) => { if (z[i] > 0 || mass === 0) comps.push({ key: k, mass_fraction: mass > 0 ? m[i] / mass : z[i] }); });
   const h = th.hOf(pp, r), s = th.sOf(pp, r);
-  if (F > 0) noteVapour(pp, r);
+  if (F > 0) { noteVapour(pp, r); noteState(pp, r); }
   const beta = r.phase === 'V' ? 1 : r.phase === 'L' ? 0 : r.beta;
   const out = {
     mass_flow_kg_h: mass, T_K: r.T, P_bar: r.P / 1e5, components: comps,
@@ -953,7 +975,7 @@ function propertyInfo(inp) {
       const u = spec.kij && (num(spec.kij[x + '|' + y]) ? spec.kij[x + '|' + y] : num(spec.kij[y + '|' + x]) ? spec.kij[y + '|' + x] : null);
       const v = num(u) ? u : bip.PR[x + '|' + y];
       row.kij = num(v) ? v : 0;
-      row.kij_source = num(u) ? 'user' : num(v) ? 'ChemSep' : 'none (0)';
+      row.kij_source = num(u) ? 'user' : th.BIP_EXTRA_USED && th.BIP_EXTRA_USED.PR[x + '|' + y] ? th.BIP_EXTRA_USED.PR[x + '|' + y] : num(v) ? 'ChemSep' : 'none (0)';
     }
     if (model === 'nrtl') {
       const ua = userOf(spec.nrtl, a, b), ub = userOf(spec.nrtl, b, a);
@@ -977,6 +999,10 @@ function propertyInfo(inp) {
   const henry = (pp.henryKeys || []).slice();
   return { streams_out: [], mass_balance: {}, energy_balance: {},
     details: { model, label: pp.label, vapour_model: pp.vapourModel, poynting: !!pp.poynting, components: comps, pairs, henry_components: henry,
+      // STEP 32: free water — liquid water on IAPWS-IF97 and the gases dissolved in it on Henry constants
+      free_water: pp.isEOS && pp.keys.includes('H2O')
+        ? (pp.freeWater ? { on: true, water: 'IAPWS-IF97 (liquid; vapour residual at the water partial pressure)', henry: pp.freeWater.henry } : { on: false })
+        : null,
       association: pp.association || null,
       electrolyte: pp.electrolyte ? { model: pp.electrolyte.model, solvent: pp.electrolyte.solvent,
         method: pp.electrolyte.model === 'amine-mea'
@@ -1005,6 +1031,18 @@ const wrap = (fn) => (inp) => {
       r.warnings = (r.warnings || []).concat([`property method: vapour at up to ${(c.P / 1e5).toPrecision(3)} bar is treated as an ideal gas — the real-gas enthalpy ` +
         `correction there is about ${num(c.dh_kJkg) ? fmtKJ(c.dh_kJkg) + ' kJ/kg' : fmtKJ(c.hDep / 1000) + ' kJ/mol'} ` +
         `(Peng–Robinson estimate) and is missing from duties and machine power — ${igvAdvice(c)}`]);
+    }
+    if (r && !r.error && IGV.flash) {
+      // STEP 32: a phase-equilibrium calculation behind one of the unit's streams did not converge
+      const f = IGV.flash;
+      r.converged = false;
+      r.flash_unconverged = { count: IGV.flashCount, T_K: f.T, P_bar: f.P / 1e5, residual: num(f.residual) ? f.residual : null };
+      r.warnings = (r.warnings || []).concat([`flash did not converge at ${(f.T - 273.15).toFixed(2)} °C, ${(f.P / 1e5).toPrecision(4)} bar` +
+        (num(f.residual) ? ` (residual ${f.residual.toExponential(1)})` : '') + ' — phase split and enthalpy there are approximate; the state is probably close to a critical point or a phase boundary']);
+    }
+    if (r && !r.error && IGV.wet) {
+      r.warnings = (r.warnings || []).concat([`free water is switched off: liquid water (up to ${(100 * IGV.wet).toFixed(0)} mol % of a liquid) is on the cubic equation of state, ` +
+        'which puts the latent heat of water about 5 % high and its vapour pressure up to 15 % low — turn Free water on for this method']);
     }
     return r;
   } catch (e) {

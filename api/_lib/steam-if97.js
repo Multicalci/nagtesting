@@ -171,6 +171,26 @@ function gibbsIdealPlusResidual(region, T, p, tau, J0, N0, I, J, N, tauShift) {
 export function region2(T, p) {
   return gibbsIdealPlusResidual(2, T, p, 540 / T, R2_J0, R2_N0, R2_I, R2_J, R2_N, 0.5);
 }
+/**
+ * Second virial coefficient of steam from the region-2 residual (the terms
+ * with I = 1): B = (R T / p*) Σ n (τ − 0.5)^J, p* = 1 MPa. Returns B and dB/dT
+ * in m³/kg and m³/(kg K). Used by the free-water option of the cubic
+ * equations of state (mb-thermo.js, STEP 32).
+ * @param {number} T K
+ * @returns {{B:number, dBdT:number}}
+ */
+export function secondVirial(T) {
+  const tau = 540 / T, b = tau - 0.5;
+  let s = 0, ds = 0;                         // Σ n b^J and d/dτ
+  for (let k = 0; k < R2_I.length; k++) {
+    if (R2_I[k] !== 1) continue;
+    s += R2_N[k] * Math.pow(b, R2_J[k]);
+    ds += R2_N[k] * R2_J[k] * Math.pow(b, R2_J[k] - 1);
+  }
+  const B = R * T / 1000 * s;                 // kJ/(kg K)·K / (1000 kPa) → m³/kg
+  const dBdT = R / 1000 * s + R * T / 1000 * ds * (-540 / (T * T));
+  return { B, dBdT };
+}
 /** Region 5, high-temperature steam. */
 export function region5(T, p) {
   return gibbsIdealPlusResidual(5, T, p, 1000 / T, R5_J0, R5_N0, R5_I, R5_J, R5_N, 0);
@@ -570,7 +590,7 @@ export function selfTest() {
 
 export default {
   IF97_VERSION, R, TC, PC, RHOC, PT, PMIN, MW,
-  psat, tsat, p23, t23, region1, region2, region3, region5, idealGas, regionPT,
+  psat, tsat, p23, t23, region1, region2, region3, region5, idealGas, regionPT, secondVirial,
   pt, ph, ps, tx, px, satT, satP, liquidSide, vapourSide, viscosity, conductivity, surfaceTension, withTransport,
   VERIFY, selfTest,
 };

@@ -75,7 +75,7 @@
 
 'use strict';
 
-const FS_VERSION = 'mb-flowsheet 1.3.1';
+const FS_VERSION = 'mb-flowsheet 1.4.0';
 const FS_MAX_SENS_POINTS = 25;
 const FS_MAX_SENS_OUT = 8;
 const FS_MAX_BLOCKS = 60;
@@ -526,6 +526,7 @@ const snapTears = (wc) => Object.fromEntries(Object.entries(wc.tear).map(([k, a]
 // ---------------------------------------------------------------------------
 function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
   const SV = {}, BR = {}, log = [], warnings = [], loops = [], alerts = [];
+  const WMAP = new Map();
   wc = wc || newWarm();
   if (sink) { sink.SV = SV; sink.BR = BR; sink.log = log; }
   let solves = 0;
@@ -590,9 +591,18 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       const cp = r.mass_balance && r.mass_balance.closure_pct;
       L('o', `✓ ${label(b)} (${b.module})` + (num(cp) ? ` · closure ${cp.toPrecision(3)} %` : ''));
     }
-    for (const w of r.warnings || []) { const t = `${label(b)}: ${typeof w === 'string' ? w : (w && w.message) || ''}`; if (!warnings.includes(t)) warnings.push(t); }
+    for (const w of r.warnings || []) {
+      // the same message from several units (property-method notes) is listed once, naming every unit
+      const msg = typeof w === 'string' ? w : (w && w.message) || '';
+      const k = WMAP.get(msg);
+      if (k === undefined) { WMAP.set(msg, { i: warnings.length, units: [label(b)] }); warnings.push(`${label(b)}: ${msg}`); }
+      else if (!k.units.includes(label(b))) { k.units.push(label(b)); warnings[k.i] = `${k.units.join(', ')}: ${msg}`; }
+    }
     if (r.converged === false && !quiet) {
-      const m = `${label(b)} (${b.module}) did not converge — results are the last iterate`;
+      const fu = r.flash_unconverged;
+      const m = fu
+        ? `${label(b)} (${b.module}): a phase-equilibrium flash did not converge (${(fu.T_K - 273.15).toFixed(1)} °C, ${fu.P_bar.toPrecision(4)} bar) — the phase split there is approximate`
+        : `${label(b)} (${b.module}) did not converge — results are the last iterate`;
       if (!alerts.includes(m)) { alerts.push(m); L('w', '⚠ ' + m); }
     }
   };
@@ -1121,7 +1131,7 @@ function solveFlowsheet(input) {
     if (!s.from) { feedsL.push(sname(s)); mIn += r.mass_flow_kg_h; if (num(r.H_kJh)) hIn += r.H_kJh; else hOk = false; }
     else if (!s.to) { prodsL.push(sname(s)); mOut += r.mass_flow_kg_h; if (num(r.H_kJh)) hOut += r.H_kJh; else hOk = false; }
   }
-  let heat = 0, cool = 0, work = 0, workOut = 0;
+  let heat = 0, cool = 0, work = 0, workOut = 0, qMissing = [];
   for (const b of M.blocks) {
     const br = ev.BR[b.id];
     if (!br) continue;
@@ -1137,7 +1147,59 @@ function solveFlowsheet(input) {
     const dl = br.result.details && Array.isArray(br.result.details.duties) ? br.result.details.duties : null;
     if (dl) { for (const d of dl) if (num(d.kW)) { if (d.kW > 0) heat += d.kW; else cool += d.kW; } }   // column: condenser and reboiler separately
     else if (num(eb.Q_kW)) { if (eb.Q_kW > 0) heat += eb.Q_kW; else cool += eb.Q_kW; }
+    else if ((br.result.streams_out || []).length) qMissing.push(label(b));
     if (num(eb.W_kW)) { if (eb.W_kW > 0) work += eb.W_kW; else workOut += eb.W_kW; }
+  }
+  /* STEP 32: energy-balance reconciliation — the enthalpy change from feeds to products must
+     equal the sum of the unit duties and shaft work. A gap means two units evaluated the same
+     stream on different enthalpy bases (a classic unit next to a property-method unit, or two
+     units with different property methods), or an unconverged recycle carried an error. */
+  let recon = null;
+  if (hOk && !qMissing.length) {
+    const dHk = (hOut - hIn) / 3600, sumQ = heat + cool, sumW = work + workOut;
+    const gap = dHk - sumQ - sumW;
+    const gross = Math.abs(heat) + Math.abs(cool) + Math.abs(work) + Math.abs(workOut);
+    let hAbs = 0;
+    for (const s of M.streams) { const r = SR[s.id]; if (r && (!s.from || !s.to) && num(r.H_kJh)) hAbs += Math.abs(r.H_kJh) / 3600; }
+    const tolK = Math.max(1e-3 * gross, 2e-5 * hAbs, 0.05);
+    // where the gap arises: each unit's ΔH across its streams in the stream table against its own duty + work
+    const byBlock = [];
+    for (const b of M.blocks) {
+      const br = ev.BR[b.id];
+      if (!br) continue;
+      let hi = 0, ho = 0, okH = true;
+      for (const st of M.streams) {
+        const r = SR[st.id];
+        if (st.to && st.to.b === b.id) { if (r && num(r.H_kJh)) hi += r.H_kJh; else okH = false; }
+        if (st.from && st.from.b === b.id) { if (r && num(r.H_kJh)) ho += r.H_kJh; else okH = false; }
+      }
+      for (let j = 0; j < b.n_out; j++) {
+        if (M.streams.some((st) => st.from && st.from.b === b.id && st.from.p === j)) continue;
+        const o = (br.result.streams_out || [])[j];
+        if (o && num(o.H_kJh)) ho += o.H_kJh;
+      }
+      if (!okH) continue;
+      const eb = br.result.energy_balance || {};
+      const dl = br.result.details && Array.isArray(br.result.details.duties) ? br.result.details.duties : null;
+      const q = dl ? dl.reduce((a, d) => a + (num(d.kW) ? d.kW : 0), 0) : (num(eb.Q_kW) ? eb.Q_kW : 0);
+      const g = (ho - hi) / 3600 - q - (num(eb.W_kW) ? eb.W_kW : 0);
+      if (Math.abs(g) > 0.1 * tolK) byBlock.push({ block: b.id, name: label(b), module: b.module, gap_kW: g });
+    }
+    byBlock.sort((a, b) => Math.abs(b.gap_kW) - Math.abs(a.gap_kW));
+    recon = { dH_kW: dHk, sum_duties_kW: sumQ, sum_work_kW: sumW, imbalance_kW: gap,
+      imbalance_pct: gross > 0 ? 100 * gap / gross : null, tolerance_kW: tolK, ok: Math.abs(gap) <= tolK, by_block: byBlock.slice(0, 6) };
+    if (!recon.ok) {
+      const fm = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toPrecision(3));
+      const where = byBlock.length ? ' — it arises in ' + byBlock.slice(0, 4).map((x) => `${x.name} (${x.module}, ${fm(x.gap_kW)} kW)`).join(', ') : '';
+      const classic = byBlock.length && byBlock.slice(0, 4).every((x) => !(TB.RIG_NAMES && TB.RIG_NAMES.has(x.module)));
+      const m = `Energy balance does not close: products − feeds ΔH = ${fm(dHk)} kW but the units' duties and shaft work add up to ${fm(sumQ + sumW)} kW ` +
+        `(gap ${fm(gap)} kW${gross > 0 ? ', ' + (100 * Math.abs(gap) / gross).toPrecision(2) + ' % of the gross duty' : ''})${where}. ` +
+        (classic ? 'The classic unit models (reformers, shift, methanator, component separator, classic heaters and valves) compute their duty on their own enthalpy route, which differs slightly from the stream-table enthalpies — a known limitation of the classic models; with a property method the standard units are on one basis.'
+          : 'Usually a classic unit next to a property-method unit, or units with different property methods, evaluating the same stream on different enthalpy bases.');
+      ev.warnings.push(m); ev.alerts.push(m); ev.log.push(['w', '⚠ ' + m]);
+    }
+  } else if (qMissing.length) {
+    recon = { ok: null, note: `no duty reported by ${qMissing.join(', ')}` };
   }
   const closure = mIn > 0 ? (mOut - mIn) / mIn * 100 : 0;
   const loopsOk = ev.loops.every((l) => l.converged);
@@ -1157,7 +1219,7 @@ function solveFlowsheet(input) {
     feeds_varied: V.specs.length ? M.feeds : undefined,
     overall: { feeds: feedsL, products: prodsL, mIn, mOut, closure, dH_kW: hOk ? (hOut - hIn) / 3600 : null, heat, cool, work, workOut },
     mass_balance: { in: mIn, out: mOut, closure_pct: closure },
-    energy_balance: { Hin: hOk ? hIn : null, Hout: hOk ? hOut : null, Q_kW: hOk ? (hOut - hIn) / 3600 - (work + workOut) : null, W_kW: work + workOut },
+    energy_balance: { Hin: hOk ? hIn : null, Hout: hOk ? hOut : null, Q_kW: hOk ? (hOut - hIn) / 3600 - (work + workOut) : null, W_kW: work + workOut, reconciliation: recon },
     details: { blocks: M.blocks.length, streams: M.streams.length, unit_solves: totalSolves, reused_results: wc.hits, warm_column_starts: wc.warmCols,
       server_calls: tot.calls, unit_solves_all_calls: tot.solves, ms_all_calls: tot.ms, solver: FS_VERSION,
       property_package: M.pkg ? M.pkg.model : null },
