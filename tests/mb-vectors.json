@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 2.5 — + Step 32 (free water, gas solubility in water, flash convergence, energy reconciliation), vectors MB-001..MB-230",
+  "version": "mb-vectors 2.6 — + Step 33 (fugacity Gibbs, carbon, syngas units on the property method, ammonia kinetics in fugacities, pipe, dense-gas viscosity, valve sizing data), vectors MB-001..MB-247",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -4160,17 +4160,17 @@
     }
    ],
    "expect": {
-    "details.psi_VF": 0.73730045,
+    "details.psi_VF": 0.74319349,
     "converged": true,
     "mass_balance.closure_pct": 0,
-    "details.x.0.x": 0.23026829,
-    "details.y.0.y": 0.86736502,
-    "details.x.1.x": 0.14855543,
-    "details.y.1.y": 0.082699739,
-    "details.x.2.x": 0.27427804,
-    "details.y.2.y": 0.037904875,
-    "details.x.3.x": 0.34689823,
-    "details.y.3.y": 0.012030363
+    "details.x.0.x": 0.22058913,
+    "details.y.0.y": 0.86565784,
+    "details.x.1.x": 0.1475376,
+    "details.y.1.y": 0.083573638,
+    "details.x.2.x": 0.27822944,
+    "details.y.2.y": 0.038413775,
+    "details.x.3.x": 0.35364383,
+    "details.y.3.y": 0.012354742
    },
    "tol": {
     "details.psi_VF": 0.0002,
@@ -4185,7 +4185,7 @@
     "details.x.3.x": 0.0002,
     "details.y.3.y": 0.0002
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. Vapour/liquid matched by H2/CH4 enrichment."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-090",
@@ -4219,13 +4219,13 @@
     }
    ],
    "expect": {
-    "details.psi_VF": 0.4299969,
+    "details.psi_VF": 0.43886335,
     "converged": true,
     "mass_balance.closure_pct": 0,
-    "details.x.0.x": 0.13167227,
-    "details.y.0.y": 0.75569475,
-    "details.x.1.x": 0.86832773,
-    "details.y.1.y": 0.24430525
+    "details.x.0.x": 0.12697554,
+    "details.y.0.y": 0.74909279,
+    "details.x.1.x": 0.87302446,
+    "details.y.1.y": 0.25090721
    },
    "tol": {
     "details.psi_VF": 0.0002,
@@ -4236,7 +4236,7 @@
     "details.x.1.x": 0.0002,
     "details.y.1.y": 0.0002
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. Vapour/liquid matched by H2/CH4 enrichment."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-091",
@@ -4282,19 +4282,19 @@
     }
    ],
    "expect": {
-    "details.psi_VF": 0.85003434,
+    "details.psi_VF": 0.85251138,
     "converged": true,
     "mass_balance.closure_pct": 0,
-    "details.x.0.x": 0.0035762726,
-    "details.y.0.y": 0.7052229,
-    "details.x.1.x": 0.0042731356,
-    "details.y.1.y": 0.23453073,
-    "details.x.2.x": 0.9888153,
-    "details.y.2.y": 0.025542097,
-    "details.x.3.x": 0.0025038751,
-    "details.y.3.y": 0.02308672,
-    "details.x.4.x": 0.00083141656,
-    "details.y.4.y": 0.01161755
+    "details.x.0.x": 0.0060195227,
+    "details.y.0.y": 0.70276152,
+    "details.x.1.x": 0.001248725,
+    "details.y.1.y": 0.23438494,
+    "details.x.2.x": 0.98836103,
+    "details.y.2.y": 0.028419555,
+    "details.x.3.x": 0.0022277176,
+    "details.y.3.y": 0.023074691,
+    "details.x.4.x": 0.002143001,
+    "details.y.4.y": 0.011359299
    },
    "tol": {
     "details.psi_VF": 0.0002,
@@ -4311,7 +4311,7 @@
     "details.x.4.x": 0.0002,
     "details.y.4.y": 0.0002
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. Vapour/liquid matched by H2/CH4 enrichment."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-092",
@@ -4355,7 +4355,7 @@
     "mass_balance.closure_pct": 1e-06,
     "default": 1e-06
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. thermo phase = L."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-093",
@@ -4399,7 +4399,7 @@
     "mass_balance.closure_pct": 1e-06,
     "default": 1e-06
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. thermo phase = V."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-094",
@@ -4445,19 +4445,19 @@
     }
    ],
    "expect": {
-    "details.psi_VF": 0.03996659,
+    "details.psi_VF": 0.039269286,
     "converged": true,
     "mass_balance.closure_pct": 0,
-    "details.x.0.x": 0.99630524,
-    "details.y.0.y": 0.33812441,
-    "details.x.1.x": 0.00050285466,
-    "details.y.1.y": 0.36323446,
-    "details.x.2.x": 0.00085910058,
-    "details.y.2.y": 0.17953082,
-    "details.x.3.x": 0.001510595,
-    "details.y.3.y": 0.063797746,
-    "details.x.4.x": 0.00082220632,
-    "details.y.4.y": 0.055312561
+    "details.x.0.x": 0.99580851,
+    "details.y.0.y": 0.3385898,
+    "details.x.1.x": 0.0009197538,
+    "details.y.1.y": 0.35947596,
+    "details.x.2.x": 0.000364433,
+    "details.y.2.y": 0.19480563,
+    "details.x.3.x": 0.0015000188,
+    "details.y.3.y": 0.065162525,
+    "details.x.4.x": 0.0014072848,
+    "details.y.4.y": 0.041966087
    },
    "tol": {
     "details.psi_VF": 0.0002,
@@ -4474,7 +4474,7 @@
     "details.x.4.x": 0.0002,
     "details.y.4.y": 0.0002
    },
-   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX, Gibbs-stability flash) with the SAME Tc/Pc/ω (fluids.js), H2 effective constants (Tc 43.6 K, Pc 20.5 bar, ω 0) and kij table (eos.js). Checks the φ–φ implementation, not PR's accuracy against experiment. Vapour/liquid matched by H2/CH4 enrichment."
+   "source": "Independent reference: Caleb Bell's open-source 'thermo' 0.6.1 (FlashVL, PRMIX phases, Gibbs-stability flash) given the engine's ChemSep critical constants (true H2 constants 33.19 K / 13.13 bar / ω −0.216) and the engine's k_ij matrix (tests/validation-references.json → pr_rig). STEP 33: the classic 'pr' flash now runs on the same Peng–Robinson package as the rigorous units (the separate eos.js copy with effective H2 constants is retired). Checks the φ–φ implementation, not PR's accuracy against experiment."
   },
   {
    "id": "MB-095",
@@ -6634,7 +6634,7 @@
   },
   {
    "id": "MB-117",
-   "desc": "Gibbs reactor: equimolar CO + H2O at 1000 K, 10 bar (ideal gas) — water-gas-shift equilibrium",
+   "desc": "Gibbs reactor: equimolar CO + H2O at 1000 K, 10 bar (ideal gas, phase_model ideal) — water-gas-shift equilibrium",
    "call": "runModule",
    "args": [
     "gibbs",
@@ -6661,6 +6661,7 @@
        "model": "pr"
       },
       "T_out_K": 1000,
+      "phase_model": "ideal",
       "products": [
        "CO2",
        "H2"
@@ -12958,6 +12959,1055 @@
     "default": 1e-09
    },
    "source": "Structural check: the classic shift module and the Peng–Robinson units evaluate the HTS outlet on different enthalpy bases, so ΔH(products − feeds) ≠ Σ duties by more than 0.1 % of the gross duty and must be flagged (the all-Peng–Robinson chain closes to machine precision)."
+  },
+  {
+   "id": "MB-231",
+   "desc": "Gibbs reactor (STEP 33): H2/N2 = 3 at 450 °C, 300 atm with Peng–Robinson fugacity coefficients — ammonia equilibrium (ideal gas gives 32.0 mol %)",
+   "call": "runModule",
+   "args": [
+    "gibbs",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 851.5260000000001,
+       "T_K": 723.15,
+       "P_bar": 303.975,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.17755300484072123
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.8224469951592788
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 723.15,
+      "products": [
+       "NH3"
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.358,
+    "details.phase_model": "eos",
+    "converged": true
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 0.006,
+    "default": 1e-09
+   },
+   "source": "Measured equilibrium: Larson & Dodge (J. Am. Chem. Soc. 45, 1923, 2918) / Larson (JACS 46, 1924, 367), 35.8 mol % NH3 at 450 °C and 300 atm for a 3:1 H2/N2 feed (as quoted by UNIDO, Ammonia production technology). Tolerance 0.6 mol % covers Peng–Robinson with the databank k_ij."
+  },
+  {
+   "id": "MB-232",
+   "desc": "Gibbs reactor (STEP 33): CH4 + 0.5 H2O at 1000 K, 1 bar, ideal gas, graphite allowed — carbon deposited and gas at unit carbon activity",
+   "call": "runModule",
+   "args": [
+    "gibbs",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1670.0066666666662,
+       "T_K": 1000,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6404150083233201
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.35958499167668
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 1000,
+      "P_out_bar": 1.0,
+      "phase_model": "ideal",
+      "products": [
+       "H2",
+       "CO",
+       "CO2"
+      ],
+      "carbon": true
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.H2": 0.7684685,
+    "details.outlet_mole_frac.CH4": 0.05663885,
+    "solids_out.kmol_h": 31.754506,
+    "details.carbon_activity_max": 1.0,
+    "mass_balance.closure_pct": 0,
+    "details.element_balance_max_rel": 0
+   },
+   "tol": {
+    "details.outlet_mole_frac.H2": 0.0003,
+    "details.outlet_mole_frac.CH4": 0.0003,
+    "solids_out.kmol_h": 0.05,
+    "details.carbon_activity_max": 1e-06,
+    "mass_balance.closure_pct": 1e-06,
+    "details.element_balance_max_rel": 1e-09,
+    "default": 1e-09
+   },
+   "source": "Independent reference (scipy fsolve on CH4 = C + 2H2, CO + H2O = CO2 + H2, 2CO = C + CO2 with three element balances) from NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite] at 1000 K: n_C = 0.47632 per mol CH4 fed, y_H2 = 0.76847."
+  },
+  {
+   "id": "MB-233",
+   "desc": "Gibbs reactor (STEP 33): CH4 + H2O (1:1) at 1000 K, 1 bar, ideal gas, no carbon allowed — carbon activity of the equilibrium gas",
+   "call": "runModule",
+   "args": [
+    "gibbs",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1702.887,
+       "T_K": 1000,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.4710371269497036
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.5289628730502963
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 1000,
+      "P_out_bar": 1.0,
+      "phase_model": "ideal",
+      "products": [
+       "H2",
+       "CO",
+       "CO2"
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.carbon_activity_max": 1.329002,
+    "details.outlet_mole_frac.H2": 0.6794197
+   },
+   "tol": {
+    "details.carbon_activity_max": 0.003,
+    "details.outlet_mole_frac.H2": 0.0002,
+    "default": 1e-09
+   },
+   "source": "Independent reference: SMR + WGS equilibrium solved with scipy from NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite] at 1000 K; a_C = K(CH4 = C + 2H2)·p_CH4/p_H2² = 1.3290 (graphite favoured)."
+  },
+  {
+   "id": "MB-234",
+   "desc": "primary reformer on the property method (STEP 33): CH4/H2O/H2/N2 = 1/3/0.05/0.02 to 1100 K, 25 bar, ideal-gas equilibrium — methane slip and H2/CO",
+   "call": "runModule",
+   "args": [
+    "r-smr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 17.383135626535626,
+       "T_K": 773.15,
+       "P_bar": 25,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.22675059599830738
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7639056872343246
+        },
+        {
+         "key": "H2",
+         "mass_fraction": 0.001424663023816385
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.007919053743551781
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "mode": "fired",
+      "T_out_K": 1100,
+      "P_out_bar": 25,
+      "ate_smr_K": 0,
+      "ate_wgs_K": 0,
+      "phase_model": "ideal"
+     }
+    }
+   ],
+   "expect": {
+    "details.ch4_slip_dry_pct": 7.008103047422738,
+    "details.h2_co_ratio": 6.058187525604386
+   },
+   "tol": {
+    "details.ch4_slip_dry_pct": 0.02,
+    "details.h2_co_ratio": 0.01,
+    "default": 1e-09
+   },
+   "source": "Independent reference: two equilibria (CH4 + H2O = CO + 3H2, CO + H2O = CO2 + H2) solved with scipy from NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite] at 1100 K, 25 bar."
+  },
+  {
+   "id": "MB-235",
+   "desc": "primary reformer (STEP 33): as MB-234 with a methane approach of −100 K (reforming equilibrium at 1000 K, shift at 1100 K)",
+   "call": "runModule",
+   "args": [
+    "r-smr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 17.383135626535626,
+       "T_K": 773.15,
+       "P_bar": 25,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.22675059599830738
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7639056872343246
+        },
+        {
+         "key": "H2",
+         "mass_fraction": 0.001424663023816385
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.007919053743551781
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "mode": "fired",
+      "T_out_K": 1100,
+      "P_out_bar": 25,
+      "ate_smr_K": -100,
+      "ate_wgs_K": 0,
+      "phase_model": "ideal"
+     }
+    }
+   ],
+   "expect": {
+    "details.ch4_slip_dry_pct": 18.292718846950017,
+    "details.T_eq_smr_K": 1000
+   },
+   "tol": {
+    "details.ch4_slip_dry_pct": 0.03,
+    "details.T_eq_smr_K": 1e-09,
+    "default": 1e-09
+   },
+   "source": "Independent reference: as MB-234 with K(CH4 + H2O = CO + 3H2) at 1000 K and K(shift) at 1100 K (NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite])."
+  },
+  {
+   "id": "MB-236",
+   "desc": "shift converter on the property method (STEP 33): HTS gas at 700 K, 29 bar, isothermal, approach 0 K, ideal gas — CO slip",
+   "call": "runModule",
+   "args": [
+    "r-shift",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 16.03230818,
+       "T_K": 633.15,
+       "P_bar": 29,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.047780668347905966
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.1747103391821152
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.16470304652040438
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.0030018996303999438
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.2620963839281687
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.004983437138494427
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3427242252525113
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "preset": "hts",
+      "mode": "isothermal",
+      "T_out_K": 700,
+      "ate_K": 0,
+      "phase_model": "ideal"
+     }
+    }
+   ],
+   "expect": {
+    "details.co_slip_dry_pct": 3.564311378889583
+   },
+   "tol": {
+    "details.co_slip_dry_pct": 0.01,
+    "default": 1e-09
+   },
+   "source": "Independent reference: CO + H2O = CO2 + H2 with K from NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite] at 700 K (scipy); 3.5643 mol % dry CO."
+  },
+  {
+   "id": "MB-237",
+   "desc": "methanator on the property method (STEP 33): 0.4 % CO + 0.1 % CO2 in H2/N2 at 600 K, 25 bar, isothermal, ideal gas — residual CO and CO2 (10⁻⁷ ppm range: precision of the equilibrium solver)",
+   "call": "runModule",
+   "args": [
+    "r-methanator",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 8.74914378,
+       "T_K": 573.15,
+       "P_bar": 25,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.17050253573498825
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.7844519615381151
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.007334413699622615
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.013697797523222324
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.01280587024482526
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.005030149361655593
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.006177271897570759
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "mode": "isothermal",
+      "T_out_K": 600,
+      "P_out_bar": 25,
+      "phase_model": "ideal"
+     }
+    }
+   ],
+   "expect": {
+    "details.co_ppm_dry": 1.6960451466632924e-07,
+    "details.co2_ppm_dry": 5.981629305687653e-08,
+    "converged": true
+   },
+   "tol": {
+    "details.co_ppm_dry": 5e-10,
+    "details.co2_ppm_dry": 3e-10,
+    "default": 1e-09
+   },
+   "source": "Independent reference: CH4 + H2O = CO + 3H2 and CO + H2O = CO2 + H2 solved with scipy in ln n_CO, ln n_CO2 (no cancellation) from NIST-JANAF ΔfG° (1 bar) from janaf.nist.gov tables C-067 CH4, C-093 CO, C-095 CO2, H-064 H2O(g) [and C-002 graphite] at 600 K, 25 bar."
+  },
+  {
+   "id": "MB-238",
+   "desc": "kinetic PFR (STEP 33): ammonia synthesis, Temkin–Pyzhev rate in fugacities (Dyson & Simon), Peng–Robinson φ, 150 bar, isothermal 700 K, 1 m³ — outlet NH3",
+   "call": "runModule",
+   "args": [
+    "r-pfr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10342.78488,
+       "T_K": 700,
+       "P_bar": 150,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.12834618484301302
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.5945150528935685
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.04116521854991922
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.09306464469364463
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.1429088990198547
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "phase": "V",
+      "thermal": "isothermal",
+      "T_K": 700,
+      "P_bar": 150,
+      "volume_m3": 1.0,
+      "reactions": [
+       {
+        "stoich": {
+         "N2": -1,
+         "H2": -3,
+         "NH3": 2
+        },
+        "model": "temkin",
+        "k0": 884900000000000.0,
+        "Ea_kJmol": 170.56,
+        "alpha": 0.5
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.07975817459312987
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 2e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: the Dyson & Simon (1968) rate (k0 8.849e14 kmol/(m³ h), Ea 170.56 kJ/mol, α 0.5, Gillespie–Beattie K_a) with fugacity coefficients from Caleb Bell's thermo 0.6.1 PRMIX (engine ChemSep constants and k_ij), integrated with scipy solve_ivp (Radau, rtol 1e-11)."
+  },
+  {
+   "id": "MB-239",
+   "desc": "kinetic PFR (STEP 33): as MB-238 at 750 K, 0.5 m³",
+   "call": "runModule",
+   "args": [
+    "r-pfr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10342.78488,
+       "T_K": 700,
+       "P_bar": 150,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.12834618484301302
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.5945150528935685
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.04116521854991922
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.09306464469364463
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.1429088990198547
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "phase": "V",
+      "thermal": "isothermal",
+      "T_K": 750,
+      "P_bar": 150,
+      "volume_m3": 0.5,
+      "reactions": [
+       {
+        "stoich": {
+         "N2": -1,
+         "H2": -3,
+         "NH3": 2
+        },
+        "model": "temkin",
+        "k0": 884900000000000.0,
+        "Ea_kJmol": 170.56,
+        "alpha": 0.5
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.07835358036761829
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 2e-06,
+    "default": 1e-09
+   },
+   "source": "Independent reference: as MB-238 (thermo 0.6.1 PRMIX φ + scipy Radau)."
+  },
+  {
+   "id": "MB-240",
+   "desc": "kinetic PFR (STEP 33): Temkin rate with K_a from the databank, long isothermal bed at 450 °C / 300 atm — must stop at the Gibbs-reactor equilibrium with the same fugacity coefficients",
+   "call": "runModule",
+   "args": [
+    "r-pfr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 8682.225882352941,
+       "T_K": 723.15,
+       "P_bar": 303.975,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.1707240431160781
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.7908144184223835
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.038461538461538464
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "phase": "V",
+      "thermal": "isothermal",
+      "T_K": 723.15,
+      "volume_m3": 200,
+      "reactions": [
+       {
+        "stoich": {
+         "N2": -1,
+         "H2": -3,
+         "NH3": 2
+        },
+        "model": "temkin",
+        "k0": 884900000000000.0,
+        "Ea_kJmol": 170.56,
+        "alpha": 0.5,
+        "K_a": "databank"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.3541154
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 2e-06,
+    "default": 1e-09
+   },
+   "source": "Consistency check: the Gibbs reactor at the same T, P and feed (Peng–Robinson fugacity coefficients) gives y_NH3 = 0.3541154; a kinetic rate whose reverse term uses the same K must reach it."
+  },
+  {
+   "id": "MB-241",
+   "desc": "pipe segment (STEP 33): 100 t/h water, 25 °C, 10 bar, 500 m of 102.26 mm ID, ε 0.0457 mm — friction pressure drop",
+   "call": "runModule",
+   "args": [
+    "r-pipe",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100000,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "length_m": 500,
+      "diameter_m": 0.10226,
+      "roughness_mm": 0.0457,
+      "segments": 20
+     }
+    }
+   ],
+   "expect": {
+    "details.dp_bar": 4.960703538930937
+   },
+   "tol": {
+    "details.dp_bar": 0.03,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Darcy–Weisbach with fluids 1.3.1 Churchill_1977 friction factor and IAPWS-95 density and viscosity (CoolProp 8.0.0): ΔP = 4.9607 bar. Tolerance 0.6 % covers the viscosity of the liquid-water correlation."
+  },
+  {
+   "id": "MB-242",
+   "desc": "pipe segment (STEP 33): as MB-241 rising 30 m — friction plus static head",
+   "call": "runModule",
+   "args": [
+    "r-pipe",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100000,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "length_m": 500,
+      "diameter_m": 0.10226,
+      "roughness_mm": 0.0457,
+      "elevation_m": 30,
+      "segments": 20
+     }
+    }
+   ],
+   "expect": {
+    "details.dp_bar": 7.895204297462453
+   },
+   "tol": {
+    "details.dp_bar": 0.04,
+    "default": 1e-09
+   },
+   "source": "Independent reference: MB-241 plus ρ g Δz with IAPWS-95 ρ (CoolProp 8.0.0): 7.8952 bar."
+  },
+  {
+   "id": "MB-243",
+   "desc": "pipe segment (STEP 33): 72 t/h methane, 15 °C, 50 bar, 20 km of 0.3 m ID, isothermal — gas-line pressure drop with acceleration",
+   "call": "runModule",
+   "args": [
+    "r-pipe",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 72000,
+       "T_K": 288.15,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "length_m": 20000,
+      "diameter_m": 0.3,
+      "roughness_mm": 0.0457,
+      "thermal": "isothermal",
+      "segments": 100
+     }
+    }
+   ],
+   "expect": {
+    "details.dp_bar": 10.821812422608012
+   },
+   "tol": {
+    "details.dp_bar": 0.35,
+    "default": 1e-09
+   },
+   "source": "Independent reference: dP/dL = −f G²/(2Dρ) − G² d(1/ρ)/dL integrated with scipy, Churchill f (fluids 1.3.1), methane ρ and μ from the Setzmann–Wagner reference equation (CoolProp 8.0.0): 10.82 bar. Tolerance 3.2 %: Peng–Robinson methane density is 2.2 % high at these conditions."
+  },
+  {
+   "id": "MB-244",
+   "desc": "vapour viscosity at pressure (STEP 33): methane at 15 °C, 50 bar — dense-gas correction (Jossi–Stiel–Thodos) on the dilute-gas correlation",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 288.15,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 288.15,
+      "P_bar": 50
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.rig.props.phases.0.mu_cP": 0.011843385
+   },
+   "tol": {
+    "streams_out.0.rig.props.phases.0.mu_cP": 0.0002,
+    "default": 1e-09
+   },
+   "source": "Independent reference: CoolProp 8.0.0 methane viscosity (Quiñones-Cisneros & Deiters) at 288.15 K, 50 bar: 11.843 µPa·s (the dilute-gas correlation alone gives 10.83)."
+  },
+  {
+   "id": "MB-245",
+   "desc": "valve sizing data (STEP 33): water at 60 °C, 12 bar let down to 4 bar — inlet vapour pressure sent to the control-valve tool",
+   "call": "runModule",
+   "args": [
+    "valve",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 333.15,
+       "P_bar": 12,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_out_bar": 4
+     }
+    }
+   ],
+   "expect": {
+    "details.sizing.pv_bar": 0.19946434,
+    "details.sizing.phase": "liquid"
+   },
+   "tol": {
+    "details.sizing.pv_bar": 0.0005,
+    "default": 1e-09
+   },
+   "source": "IAPWS-95 saturation pressure at 333.15 K (CoolProp 8.0.0): 0.199464 bar."
+  },
+  {
+   "id": "MB-246",
+   "desc": "flowsheet on Peng–Robinson (STEP 33): fired reformer → cooler → HTS → cooler → methanator — every unit on one enthalpy basis, so the energy balance closes (the classic chain left a 0.47 kW gap)",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 80.29916300000001,
+       "T_K": 1073.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.17980528638885063
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.02246776096532911
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.01647425141903409
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.007238207451801209
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7740144937749849
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "R1",
+        "name": "SMR",
+        "module": "r-smr",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "fired",
+         "T_out_K": 1073.15,
+         "P_out_bar": 30
+        }
+       },
+       {
+        "id": "E1",
+        "name": "WHB",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 633.15
+        }
+       },
+       {
+        "id": "R2",
+        "name": "HTS",
+        "module": "r-shift",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "preset": "hts",
+         "mode": "adiabatic"
+        }
+       },
+       {
+        "id": "E2",
+        "name": "E2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 573.15
+        }
+       },
+       {
+        "id": "R3",
+        "name": "METH",
+        "module": "r-methanator",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "adiabatic"
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "R1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S1",
+        "from": {
+         "b": "R1",
+         "p": 0
+        },
+        "to": {
+         "b": "E1",
+         "p": 0
+        }
+       },
+       {
+        "id": "S2",
+        "from": {
+         "b": "E1",
+         "p": 0
+        },
+        "to": {
+         "b": "R2",
+         "p": 0
+        }
+       },
+       {
+        "id": "S3",
+        "from": {
+         "b": "R2",
+         "p": 0
+        },
+        "to": {
+         "b": "E2",
+         "p": 0
+        }
+       },
+       {
+        "id": "S4",
+        "from": {
+         "b": "E2",
+         "p": 0
+        },
+        "to": {
+         "b": "R3",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "R3",
+         "p": 0
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "energy_balance.reconciliation.ok": true,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "mass_balance.closure_pct": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Structural check: with the reformer, shift converter and methanator on the property method, ΔH(products − feeds) equals Σ duties to round-off."
+  },
+  {
+   "id": "MB-247",
+   "desc": "flowsheet (STEP 33): Gibbs reactor depositing graphite — the solid leaves as a product of its own and the overall mass and energy balances close",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1670.0066666666662,
+       "T_K": 1000,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6404150083233201
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.35958499167668
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "G1",
+        "name": "G1",
+        "module": "gibbs",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 1000,
+         "P_out_bar": 1.0,
+         "products": [
+          "H2",
+          "CO",
+          "CO2"
+         ],
+         "carbon": true
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "G1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "G1",
+         "p": 0
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "mass_balance.closure_pct": 0,
+    "energy_balance.reconciliation.ok": true
+   },
+   "tol": {
+    "mass_balance.closure_pct": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Structural check: feed mass = gas product + deposited carbon (solids_out), and ΔH including the graphite enthalpy equals the reactor duty."
   }
  ]
 }
