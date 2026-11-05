@@ -20,14 +20,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import engineModule from '../api/_lib/mb-engine.js';
-import eosModule from '../api/_lib/eos.js';
 import compdb from '../api/_lib/mb-compdb.js';
 import thermoModule from '../api/_lib/mb-thermo.js';
 import steamModule from '../api/_lib/steam-if97.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const engine = engineModule.default || engineModule;
-const eos = eosModule.default || eosModule;
 const REF = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/validation-references.json'), 'utf8'));
 const OUT = path.join(ROOT, 'flowsheet-validation.html');
 
@@ -44,7 +42,7 @@ const fail = (m) => { console.error('BUILD FAILED: ' + m); process.exit(1); };
 
 /* ---------- A. Peng–Robinson flash vs thermo — the DEFAULT rigorous path (r-flash, PR) ---------- */
 const prRows = [];
-const ENG = {};          // classic flash drum (Methods → Classic) — section 2's same-data DWSIM check
+const ENG = {};          // classic flash drum (Methods → Classic) — STEP 33: on the same PR package as the rigorous flash
 const ENGR = {};         // rigorous flash with the default property method
 let prWorst = 0;
 const PRR = REF.pr_rig.cases;
@@ -80,15 +78,17 @@ const diffs = (e, d, keys) => {
   if (d.x && e.vf > 0 && e.vf < 1) { out.dx = 0; out.dy = 0; for (const k of keys) { out.dx = Math.max(out.dx, Math.abs(e.x[k] - d.x[k])); out.dy = Math.max(out.dy, Math.abs(e.y[k] - d.y[k])); } }
   return out;
 };
+// STEP 33 — the classic flash drum's Peng–Robinson now runs on mb-thermo's package (eos.js, with its
+// effective H2 constants and short k_ij table, is retired): classic and rigorous must agree exactly
 const dwRows = [];
 let dwWorst = 0;
 for (const [id, c] of Object.entries(REF.pr)) {
-  const d = DW.cases[id].same_data, keys = Object.keys(c.zs), e = engXY(ENG[id]);
+  const keys = Object.keys(c.zs), e = engXY(ENG[id]), d = ENGR[id];
   const q = diffs(e, d, keys);
   dwWorst = Math.max(dwWorst, q.dv, q.dx || 0, q.dy || 0);
   dwRows.push(`<tr><td>${esc(id)}</td><td class="l">${esc(c.desc)}</td><td>${f(e.vf, 5)}</td><td>${f(d.vf, 5)}</td><td>${sci(q.dv)}</td><td>${q.dx == null ? '—' : sci(q.dx)}</td><td>${q.dy == null ? '—' : sci(q.dy)}</td></tr>`);
 }
-if (dwWorst > 2e-4) fail('engine vs DWSIM (same data) differs by ' + dwWorst);
+if (dwWorst > 5e-5) fail('classic PR flash differs from the rigorous PR flash by ' + dwWorst);
 // DWSIM with its own data — the ammonia-loop cases, in plant units
 const pct = (v) => f(v * 100, 3);
 const nhRows = [];
@@ -483,6 +483,89 @@ const rcC = mixC.energy_balance.reconciliation, rcR = mixR.energy_balance.reconc
 if (rcC.ok !== false || rcR.ok !== true) fail('energy reconciliation did not flag the mixed chain / pass the rigorous one');
 const recRow = (label, r, run) => `<tr><td class="l">${esc(label)}</td><td>${f(r.dH_kW, 1)}</td><td>${f(r.sum_duties_kW + r.sum_work_kW, 1)}</td><td>${f(r.imbalance_kW, 3)}</td><td>${f(r.tolerance_kW, 2)}</td><td>${r.ok ? 'closes' : '<b>flagged</b>'}</td></tr>`;
 
+/* ---------- I. STEP 33: fugacity Gibbs, carbon, syngas units, ammonia kinetics, pipe ---------- */
+const S33 = REF.step33;
+const run33 = (mod, streams, params) => { const r = engine.runModule(mod, { streams, params: Object.assign({ property_package: { model: 'pr' } }, params) }); if (r.error) fail('step 33 ' + mod + ': ' + r.error.message); return r; };
+const molS33 = (kmol, T, P, comps) => { const t = Object.values(comps).reduce((a, b) => a + b, 0); let m = 0; const ms = {};
+  for (const k in comps) { ms[k] = comps[k] / t * kmol * compdb.get(k).mw; m += ms[k]; }
+  return { mass_flow_kg_h: m, T_K: T, P_bar: P, components: Object.keys(ms).map((k) => ({ key: k, mass_fraction: ms[k] / m })) }; };
+// 25: ammonia equilibrium, ideal gas vs Peng–Robinson fugacity coefficients vs measured
+let nhWorst300 = 0;
+const nh33Rows = S33.nh3_measured.points.map((pt) => {
+  const st = molS33(100, S33.nh3_measured.T_K, pt.P_atm * 1.01325, { H2: 3, N2: 1 });
+  const yi = run33('gibbs', [st], { T_out_K: S33.nh3_measured.T_K, products: ['NH3'], phase_model: 'ideal' }).details.outlet_mole_frac.NH3 * 100;
+  const rf = run33('gibbs', [st], { T_out_K: S33.nh3_measured.T_K, products: ['NH3'] });
+  const yf = rf.details.outlet_mole_frac.NH3 * 100;
+  if (pt.P_atm <= 300) nhWorst300 = Math.max(nhWorst300, Math.abs(yf - pt.y_NH3_pct));
+  const phi = rf.details.fugacity_coeff || {};
+  return `<tr><td>${f(pt.P_atm, 0)}</td><td>${f(yi, 2)}</td><td>${f(yf, 2)}</td><td>${f(pt.y_NH3_pct, 1)}</td><td>${f(yf - pt.y_NH3_pct, 2)}</td><td>${f(phi.H2, 3)} / ${f(phi.N2, 3)} / ${f(phi.NH3, 3)}</td></tr>`;
+}).join('\n');
+if (nhWorst300 > 0.6) fail('ammonia equilibrium with fugacity coefficients off measured by ' + nhWorst300 + ' mol %');
+// 26: carbon
+const c133 = S33.carbon.C1, c1r33 = run33('gibbs', [molS33(100, c133.T_K, c133.P_bar, c133.feed)], { T_out_K: c133.T_K, P_out_bar: c133.P_bar, phase_model: 'ideal', products: ['H2', 'CO', 'CO2'], carbon: true });
+const c1n33 = c1r33.solids_out.kmol_h / (100 * c133.feed.CH4 / (c133.feed.CH4 + c133.feed.H2O));
+const cRows = [`<tr><td>C1</td><td class="l">${esc(c133.desc)}</td><td class="l">graphite, mol per mol CH₄ fed</td><td>${f(c1n33, 5)}</td><td>${f(c133.nC_per_CH4, 5)}</td></tr>`,
+  `<tr><td>C1</td><td class="l"></td><td class="l">H₂ in the gas, mol %</td><td>${f(100 * c1r33.details.outlet_mole_frac.H2, 3)}</td><td>${f(100 * c133.y.H2, 3)}</td></tr>`];
+let cWorst = Math.abs(c1n33 / c133.nC_per_CH4 - 1);
+for (const id of ['C2', 'C3']) {
+  const c = S33.carbon[id], r = run33('gibbs', [molS33(100, c.T_K, c.P_bar, c.feed)], { T_out_K: c.T_K, P_out_bar: c.P_bar, phase_model: 'ideal', products: ['H2', 'CO', 'CO2'] });
+  cWorst = Math.max(cWorst, Math.abs(r.details.carbon_activity_max / c.aC - 1));
+  cRows.push(`<tr><td>${id}</td><td class="l">${esc(c.desc)}</td><td class="l">carbon activity of the gas</td><td>${f(r.details.carbon_activity_max, 4)}</td><td>${f(c.aC, 4)}</td></tr>`);
+}
+if (cWorst > 0.005) fail('carbon vs JANAF differs by ' + cWorst);
+// 27: syngas units vs JANAF, and the classic modules on the same cases
+const sg33 = S33.syngas;
+const smrFeed = molS33(1, 773.15, 25, { CH4: 1, H2O: 3, H2: 0.05, N2: 0.02 });
+const htsFeed = molS33(1, 633.15, 29, { H2: 0.38, CO: 0.10, CO2: 0.06, CH4: 0.003, N2: 0.15, Ar: 0.002, H2O: 0.305 });
+const mFeed = molS33(1, 573.15, 25, { H2: 0.74, N2: 0.245, CH4: 0.004, Ar: 0.003, CO: 0.004, CO2: 0.001, H2O: 0.003 });
+const cls33 = (mod, st, prm) => { const r = engine.runModule(mod, { streams: [st], params: prm }); if (r.error) fail('classic ' + mod + ': ' + r.error.message); return r; };
+const dryOf33 = (r, k) => (r.details.composition_dry.find((x) => x.key === k) || {}).mole_fraction;
+const synCases = [
+  ['SMR1', 'CH₄ slip, mol % dry', run33('r-smr', [smrFeed], { mode: 'fired', T_out_K: 1100, P_out_bar: 25, ate_smr_K: 0, ate_wgs_K: 0, phase_model: 'ideal' }), cls33('smr', smrFeed, { mode: 'fired', T_out_K: 1100, P_out_bar: 25, ate_smr_K: 0, ate_wgs_K: 0 }), (r) => 100 * dryOf33(r, 'CH4'), 100 * sg33.SMR1.dry.CH4, 3],
+  ['SMR1', 'H₂ / CO', null, null, null, sg33.SMR1.dry.H2 / sg33.SMR1.dry.CO, 3],
+  ['SMR2', 'CH₄ slip, mol % dry', run33('r-smr', [smrFeed], { mode: 'fired', T_out_K: 1100, P_out_bar: 25, ate_smr_K: -100, ate_wgs_K: 0, phase_model: 'ideal' }), cls33('smr', smrFeed, { mode: 'fired', T_out_K: 1100, P_out_bar: 25, ate_smr_K: -100, ate_wgs_K: 0 }), (r) => 100 * dryOf33(r, 'CH4'), 100 * sg33.SMR2.dry.CH4, 3],
+  ['HTS', 'CO slip, mol % dry', run33('r-shift', [htsFeed], { preset: 'hts', mode: 'isothermal', T_out_K: 700, ate_K: 0, phase_model: 'ideal' }), cls33('shift', htsFeed, { preset: 'hts', mode: 'isothermal', T_out_K: 700, ate_K: 0 }), (r) => 100 * dryOf33(r, 'CO'), 100 * sg33.HTS.dry.CO, 4],
+  ['METH', 'CO, ppm dry', run33('r-methanator', [mFeed], { mode: 'isothermal', T_out_K: 600, P_out_bar: 25, phase_model: 'ideal' }), cls33('methanator', mFeed, { mode: 'isothermal', T_out_K: 600, P_out_bar: 25 }), (r) => 1e6 * dryOf33(r, 'CO'), 1e6 * sg33.METH.dry.CO, 9],
+];
+synCases[1][2] = synCases[0][2]; synCases[1][3] = synCases[0][3]; synCases[1][4] = (r) => dryOf33(r, 'H2') / dryOf33(r, 'CO');
+let synWorst = 0;
+const synRows = synCases.map(([id, q, rr, rc, get, ref, dg]) => {
+  const a = get(rr), c = get(rc), rel = Math.abs(a / ref - 1);
+  synWorst = Math.max(synWorst, rel);
+  return `<tr><td>${id}</td><td class="l">${esc(sg33[id].desc)}</td><td class="l">${q}</td><td>${dg > 6 ? a.toExponential(4) : f(a, dg)}</td><td>${dg > 6 ? ref.toExponential(4) : f(ref, dg)}</td><td>${f(100 * rel, 2)} %</td><td>${dg > 6 ? c.toExponential(3) : f(c, dg)}</td></tr>`;
+}).join('\n');
+if (synWorst > 0.005) fail('syngas units vs JANAF differ by ' + synWorst);
+// 28: ammonia kinetics in fugacities
+const kn33 = S33.kinetics, rxT = [{ stoich: { N2: -1, H2: -3, NH3: 2 }, model: 'temkin', k0: 8.849e14, Ea_kJmol: 170.56, alpha: 0.5 }];
+const knFeed = molS33(Object.values(kn33.feed_kmol_h).reduce((a, b) => a + b, 0), 700, kn33.P_bar, kn33.feed_kmol_h);
+let knWorst = 0;
+const knRows = ['K1', 'K2'].map((id) => {
+  const c = kn33[id], r = run33('r-pfr', [knFeed], { phase: 'V', thermal: 'isothermal', T_K: c.T_K, P_bar: kn33.P_bar, volume_m3: c.V_m3, reactions: rxT });
+  const a = r.details.outlet_mole_frac.NH3; knWorst = Math.max(knWorst, Math.abs(a - c.y.NH3));
+  return `<tr><td>${id}</td><td class="l">Isothermal ${f(c.T_K - 273.15, 0)} °C, ${f(kn33.P_bar, 0)} bar, ${f(c.V_m3, 1)} m³ catalyst</td><td>${f(100 * a, 4)}</td><td>${f(100 * c.y.NH3, 4)}</td><td>${sci(Math.abs(a - c.y.NH3))}</td></tr>`;
+}).join('\n');
+const longF = molS33(1000, 723.15, 303.975, { H2: 0.75, N2: 0.25, NH3: 0.02 });
+const longK = run33('r-pfr', [longF], { phase: 'V', thermal: 'isothermal', T_K: 723.15, volume_m3: 200, reactions: [Object.assign({}, rxT[0], { K_a: 'databank' })] }).details.outlet_mole_frac.NH3;
+const longG = run33('gibbs', [longF], { T_out_K: 723.15, products: ['NH3'] }).details.outlet_mole_frac.NH3;
+if (knWorst > 2e-6 || Math.abs(longK - longG) > 2e-6) fail('ammonia kinetics check failed');
+// 29: pipe + dense-gas viscosity
+const pw33 = (kgh, T, P, k) => ({ mass_flow_kg_h: kgh, T_K: T, P_bar: P, components: [{ key: k, mass_fraction: 1 }] });
+const pipeCases = [['P1', run33('r-pipe', [pw33(100000, 298.15, 10, 'H2O')], { length_m: 500, diameter_m: 0.10226, roughness_mm: 0.0457, segments: 20 })],
+  ['P2', run33('r-pipe', [pw33(100000, 298.15, 10, 'H2O')], { length_m: 500, diameter_m: 0.10226, roughness_mm: 0.0457, elevation_m: 30, segments: 20 })],
+  ['P3', run33('r-pipe', [pw33(72000, 288.15, 50, 'CH4')], { length_m: 20000, diameter_m: 0.3, roughness_mm: 0.0457, thermal: 'isothermal', segments: 100 })]];
+let pipeWorstW = 0, pipeG = 0;
+const pipeRows = pipeCases.map(([id, r]) => {
+  const ref = S33.pipe[id].dp_bar, rel = (r.details.dp_bar / ref - 1) * 100;
+  if (id === 'P3') pipeG = rel; else pipeWorstW = Math.max(pipeWorstW, Math.abs(rel));
+  return `<tr><td>${id}</td><td class="l">${esc(S33.pipe[id].desc)}</td><td>${f(r.details.dp_bar, 3)}</td><td>${f(ref, 3)}</td><td>${rel >= 0 ? '+' : '−'}${f(Math.abs(rel), 2)} %</td><td>${f(r.details.velocity_out_ms, 2)}</td><td>${f(100 * r.details.erosional_ratio_max, 0)} %</td></tr>`;
+}).join('\n');
+if (pipeWorstW > 0.6 || Math.abs(pipeG) > 3.5) fail('pipe pressure drops off the reference');
+const visRows = Object.entries(S33.viscosity.mu_uPas).map(([Pb, ref]) => {
+  const r = run33('r-flash', [pw33(1000, 288.15, +Pb, 'CH4')], { T_K: 288.15, P_bar: +Pb });
+  const mu = r.streams_out[0].rig.props.phases[0].mu_cP * 1000;
+  return `<tr><td>${f(+Pb, 0)}</td><td>${f(mu, 3)}</td><td>${f(ref, 3)}</td><td>${f((mu / ref - 1) * 100, 2)} %</td></tr>`;
+}).join('\n');
+
 const ncomp = compdb.keys().length;
 
 const today = new Date().toISOString().slice(0, 10);
@@ -542,7 +625,10 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
   <div><b>${f(fwWorst, 2)} %</b><span>largest difference from IAPWS-95, Peng–Robinson with free water: heater, boiler, condensers, pump (${f(fwOffWorst, 1)} % without free water)</span></div>
   <div><b>${sci(khWorst)}</b><span>largest relative difference in Henry's constant of 9 gases in water vs IAPWS G7-04, 25–150 °C (up to ${f(khOffWorst, 0)}× off without free water)</span></div>
   <div><b>${ncUnconv} / ${ncN}</b><span>unconverged flashes in a near-critical scan; worst fugacity residual ${sci(ncWorst)}</span></div>
-  <div><b>${sci(dwWorst)}</b><span>largest difference vs DWSIM ${esc(dwVer)} given the same input data, classic flash drum (6 cases)</span></div>
+  <div><b>${f(nhWorst300, 2)} mol %</b><span>largest difference from measured ammonia equilibrium up to 300 atm, Gibbs reactor with Peng–Robinson fugacity coefficients</span></div>
+  <div><b>${f(100 * synWorst, 2)} %</b><span>largest difference from NIST-JANAF equilibria, reformers, shift and methanator on the property method (5 quantities)</span></div>
+  <div><b>${sci(knWorst)}</b><span>largest NH₃ mole-fraction difference, ammonia kinetics in fugacities vs an independent integration</span></div>
+  <div><b>${sci(dwWorst)}</b><span>largest difference between the classic flash drum and the default Peng–Robinson flash — one equation of state for the whole site (6 cases)</span></div>
   <div><b>${sci(nrWorst)}</b><span>largest difference in activity coefficient, NRTL vs thermo</span></div>
   <div><b>${f(koDev, 2)} %</b><span>wet-gas cooler + knock-out duty vs CoolProp / IAPWS-95</span></div>
   <div><b>${f(spec.specs[0].target_value, 6)}</b><span>H₂/N₂ reached by the design spec (target 3.000000) in ${spec.specs[0].iterations} Newton iteration${spec.specs[0].iterations === 1 ? '' : 's'}</span></div>
@@ -571,9 +657,9 @@ ${prRows.join('\n')}
 
 <h2>2 · Peng–Robinson flash vs DWSIM</h2>
 <p>Reference: DWSIM ${esc(dwVer)}, the open-source process simulator (Peng–Robinson property package, default flash), run through its automation interface on the same six feeds.</p>
-<h3>Same input data — classic flash drum</h3>
-<p>This table checks the classic flash drum (property method <i>Classic</i>, flash model Peng–Robinson), which carries its own data: H₂ effective constants (43.6 K / 20.5 bar / 0) and a short k<sub>ij</sub> table. DWSIM was given those same inputs — a second, separately written implementation of the same flash.</p>
-<div class="tw"><table><thead><tr><th>Case</th><th class="l">System</th><th>V/F engine</th><th>V/F DWSIM</th><th>|ΔV/F|</th><th>max |Δx|</th><th>max |Δy|</th></tr></thead><tbody>
+<h3>Classic flash drum on the same equation of state</h3>
+<p>The classic flash drum (property method <i>Classic</i>, flash model Peng–Robinson) used to carry its own copy of the equation of state, with effective H₂ constants (43.6 K / 20.5 bar / 0) and a short k<sub>ij</sub> table. It now calls the same Peng–Robinson package as the rigorous units — ChemSep constants, the k<sub>ij</sub> databank, free water, stability test and Newton fallback — so the two agree; the small remaining differences come only from the molar masses each path uses to turn the mass-based feed into mole fractions:</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">System</th><th>V/F classic</th><th>V/F default (PR)</th><th>|ΔV/F|</th><th>max |Δx|</th><th>max |Δy|</th></tr></thead><tbody>
 ${dwRows.join('\n')}
 </tbody></table></div>
 <h3>DWSIM's own data — ammonia loop</h3>
@@ -806,8 +892,47 @@ ${recRow('HTS → cooler → knock-out, all units on Peng–Robinson', rcR)}
 ${recRow('Same chain with the classic shift converter feeding Peng–Robinson units', rcC)}
 </tbody></table></div>
 
+<h2>25 · Gibbs reactor with fugacity coefficients — ammonia equilibrium vs measurement</h2>
+<p>A 3:1 H₂/N₂ feed brought to equilibrium at 450 °C. With Peng–Robinson the Gibbs reactor now minimises μ<sub>i</sub> = μ°<sub>i</sub> + RT ln(y<sub>i</sub> φ<sub>i</sub> P/P°) with φ from the property method (successive substitution on ln φ); ideal gas is kept as an option. Measured: Larson &amp; Dodge (1923) and Larson (1924).</p>
+<div class="tw"><table><thead><tr><th>P, atm</th><th>Ideal gas, mol % NH₃</th><th>Peng–Robinson φ, mol % NH₃</th><th>Measured, mol % NH₃</th><th>Δ (PR − measured)</th><th>φ H₂ / N₂ / NH₃</th></tr></thead><tbody>
+${nh33Rows}
+</tbody></table></div>
+<p class="note">Up to 300 atm the fugacity correction removes most of the ideal-gas error. At 1000 atm Peng–Robinson with van der Waals mixing and the databank k<sub>ij</sub> still under-predicts; ammonia converters run at 100–300 bar.</p>
+
+<h2>26 · Solid carbon and carbon activity vs NIST-JANAF</h2>
+<p>With carbon allowed, graphite (NASA polynomials, McBride, Gordon &amp; Reno 1993) deposits until the gas is at unit carbon activity; the deposit leaves as a solid product of its own and the flowsheet mass and energy balances include it. Without carbon, the outlet carbon activity by methane cracking, Boudouard and CO reduction is reported and flagged above 1. Reference: three equilibrium constants from NIST-JANAF ΔfG° at 1000 K solved with scipy, independent of the element-potential method.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Feed and conditions</th><th class="l">Quantity</th><th>Engine</th><th>JANAF</th></tr></thead><tbody>
+${cRows.join('\n')}
+</tbody></table></div>
+
+<h2>27 · Reformers, shift and methanator on the property method</h2>
+<p>The primary and secondary reformer, autothermal reformer, shift converter and methanator now solve the restricted equilibrium of reforming and shift — each reaction at outlet T + its approach — with ΔG° from the databank, vapour fugacity coefficients and enthalpies from the flowsheet's property method. Ideal-gas cases are compared with equilibria solved from NIST-JANAF; the last column is the classic module (Twigg / Moe correlations) on the same case.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Conditions</th><th class="l">Quantity</th><th>Engine</th><th>JANAF</th><th>Δ</th><th>Classic module</th></tr></thead><tbody>
+${synRows}
+</tbody></table></div>
+<p class="note">With every unit on the property method, the ammonia front-end example closes its energy balance to round-off (it left a 0.47 kW gap with the classic reformers, shift and methanator). The classic flash drum's Peng–Robinson also runs on the same package now (section 2).</p>
+
+<h2>28 · Ammonia synthesis kinetics in fugacities</h2>
+<p>The kinetic plug-flow reactor takes rates in fugacities a<sub>i</sub> = y<sub>i</sub> φ<sub>i</sub> P from the property method, and the Temkin–Pyzhev rate in the form of Dyson &amp; Simon (1968): R<sub>NH₃</sub> = η k [K<sub>a</sub>² f<sub>N₂</sub> (f<sub>H₂</sub>³/f<sub>NH₃</sub>²)<sup>α</sup> − (f<sub>NH₃</sub>²/f<sub>H₂</sub>³)<sup>1−α</sup>], k<sub>0</sub> = 8.849·10¹⁴ kmol/(m³·h), E = 170.56 kJ/mol, α = 0.5, K<sub>a</sub> of Gillespie &amp; Beattie (1930). Reference: the same rate with <i>thermo</i> 0.6.1 PRMIX fugacity coefficients (engine constants and k<sub>ij</sub>) integrated by scipy (Radau).</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Bed</th><th>NH₃ out, mol % (engine)</th><th>NH₃ out, mol % (reference)</th><th>|Δy|</th></tr></thead><tbody>
+${knRows}
+<tr><td>K3</td><td class="l">Long isothermal bed, 450 °C / 300 atm, K<sub>a</sub> from the databank</td><td>${f(100 * longK, 4)}</td><td>${f(100 * longG, 4)} (Gibbs reactor)</td><td>${sci(Math.abs(longK - longG))}</td></tr>
+</tbody></table></div>
+<p class="note">With K<sub>a</sub> from the databank the rate vanishes exactly at the Gibbs-reactor equilibrium (K3). Gillespie &amp; Beattie's K<sub>a</sub> is about 7 % below NIST-JANAF at 450 °C. The three-bed converter example uses this rate with adiabatic beds and interbed coolers.</p>
+
+<h2>29 · Pipe segment</h2>
+<p>A pipe marched in segments with a P–H flash of the property method at each node: Darcy–Weisbach friction with the Churchill (1977) factor, elevation, acceleration and fittings, homogeneous two-phase flow, the API RP 14E erosional velocity and the Mach number of a gas. Reference: <i>fluids</i> 1.3.1 Churchill factor with CoolProp reference-equation densities and viscosities.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Line</th><th>ΔP engine, bar</th><th>ΔP reference, bar</th><th>Δ</th><th>Outlet velocity, m/s</th><th>Share of erosional velocity</th></tr></thead><tbody>
+${pipeRows}
+</tbody></table></div>
+<p>Vapour viscosity now carries the Jossi–Stiel–Thodos dense-gas correction (the databank correlations are for the dilute gas):</p>
+<div class="tw"><table><thead><tr><th>Methane at 15 °C, bar</th><th>Engine, µPa·s</th><th>CoolProp, µPa·s</th><th>Δ</th></tr></thead><tbody>
+${visRows}
+</tbody></table></div>
+<p class="note">P3: Peng–Robinson puts the density of methane at 50 bar about 2.2 % high, which lowers the pressure drop by about the same amount. Two-phase lines use the no-slip model; slip and flow patterns (Beggs–Brill and similar) are not modelled.</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–24 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-230.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–29 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-247.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
@@ -825,4 +950,5 @@ console.log('Step 26:', s26Pass + '/' + s26N, 'in tolerance · steam worst relat
 console.log('Step 25:', s25Pass + '/' + s25N, 'in tolerance · MEA vs Arshad AAD (α ≤ 0.45)', aad(arshDev.lo).toFixed(2) + ' %', '· PHREEQC worst ≤90 °C', pqLow.toFixed(4) + ' %', 'all', pqHigh.toFixed(3) + ' %', '· beyond stability (not graded)', pqBeyond.length);
 console.log('Step 24:', s24Pass + '/' + s24N, 'in tolerance · LHHW worst', s22Worst.lhhw.toExponential(2), '· acid liquid ΔfH worst', s22Worst.assocH.toFixed(2) + ' kJ/mol');
 console.log('Step 23:', s23Pass + '/' + s23N, 'in tolerance · envelope worst', s22Worst.env.toFixed(3) + ' K', '· binary T worst', s22Worst.bin.toExponential(2), '· kinetics worst', s22Worst.kin.toExponential(2));
-console.log('wrote', path.relative(ROOT, OUT), '— PR worst', prWorst.toExponential(2), '· DWSIM (same data) worst', dwWorst.toExponential(2), '· NRTL worst', nrWorst.toExponential(2), '· wet gas', koDev.toFixed(3) + ' %');
+console.log('Step 33: NH3 vs measured ≤300 atm', nhWorst300.toFixed(2), 'mol % · carbon', cWorst.toExponential(2), '· syngas vs JANAF', (100 * synWorst).toFixed(3) + ' %', '· kinetics', knWorst.toExponential(2), '· pipe water', pipeWorstW.toFixed(2) + ' %', 'gas', pipeG.toFixed(2) + ' %');
+console.log('wrote', path.relative(ROOT, OUT), '— PR worst', prWorst.toExponential(2), '· classic vs rigorous PR', dwWorst.toExponential(2), '· NRTL worst', nrWorst.toExponential(2), '· wet gas', koDev.toFixed(3) + ' %');
