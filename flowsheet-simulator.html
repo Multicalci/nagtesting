@@ -154,6 +154,12 @@ input,select,textarea{font:inherit;color:var(--ink)}
 .blk.busy .selbox{stroke:var(--accent);stroke-width:2.5;fill:none;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{stroke-opacity:.2}}
 .blk .bad{fill:var(--err);stroke:#fff;stroke-width:1.5}
+.rflag path{stroke:#fff;stroke-width:1.2}
+.rflag.warn path{fill:#d98a00}
+.rflag.err path{fill:var(--err)}
+.rflag text{font:700 8.5px var(--sans);fill:#fff;text-anchor:middle;pointer-events:none}
+th .rfl{color:var(--warn);font-weight:700;margin-left:3px}
+th .rfl.err{color:var(--err)}
 .port .pv{fill:#fff;stroke-width:1.6}
 .port.req .pv{stroke:var(--err)}
 .port.opt .pv{stroke:#2f6fcf}
@@ -556,7 +562,7 @@ table.st .clk:hover{color:var(--accent)}
   <p>Two <b>electrolyte (acid-gas) methods</b> model chemical CO₂ absorption. <b>Aqueous MEA</b> solves the carbamate and bicarbonate equilibria of monoethanolamine (the published Akula et al. model used by IDAES): CO₂ dissolves by Henry's law on the free, unreacted CO₂, water and MEA follow Raoult's law on the true species. <b>Hot potassium carbonate</b> (Benfield-type solutions) uses the Pitzer electrolyte model with the USGS PHREEQC parameters for K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻ and the water activity. Enter the solvent as its apparent components — MEA or K₂CO₃, water and CO₂ (the CO₂ sets the lean loading or conversion); H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically. Heats of absorption follow from the solubility model (about −84 kJ/mol CO₂ in MEA, −30 kJ/mol in hot carbonate). Liquid streams show the loading or conversion to KHCO₃, the equilibrium CO₂ pressure and, for carbonate, the water activity. H₂S and NH₃ are not modelled. The two CO₂-removal examples build an absorber + regenerator with each solvent.</p>
   <p>A third method, <b>Aqueous MDEA</b>, uses the <b>Extended UNIQUAC</b> electrolyte model (UNIQUAC + Debye–Hückel) with the parameters of Sadegh's DTU thesis (2013): true species H₂O, CO₂, MDEA, MDEAH⁺, HCO₃⁻, CO₃²⁻, OH⁻, H⁺, equilibrium constants from fitted standard-state properties and the Rumpf–Maurer CO₂ Henry constant. Enter the solvent as N-methyldiethanolamine + water + CO₂. Liquid streams show the loading, protonated-MDEA fraction, ionic strength and equilibrium CO₂ pressure. Add <b>piperazine</b> to the components for activated MDEA (aMDEA): piperazine and its four reaction products are added to the same model, with parameters fitted here to measured CO₂ pressures over MDEA/piperazine blends and aqueous piperazine (Chen 2011, Xu 2011; 40–160 °C) — no complete published parameter set exists — and the validation page shows every point. MDEA's slow reaction is represented by a low CO₂ tray efficiency; with piperazine it can be set higher.</p>
   <h3>Rigorous column, Gibbs reactor, three-phase separator</h3>
-  <p>The <b>rigorous column</b> solves the full stage-by-stage MESH equations (Naphtali–Sandholm Newton): choose stages, condenser (total, partial or none), reboiler (kettle or none), feed stages, top pressure and two specifications (reflux ratio, distillate or bottoms rate, duties, condenser temperature, a product purity or a recovery). Without condenser and reboiler it is an absorber or stripper. Trays can carry a <b>Murphree vapour efficiency</b> — one value for every tray, or per component (for example a low CO₂ efficiency in a chemical-solvent absorber while water stays at equilibrium); the condenser and reboiler are always equilibrium stages. Its panel shows temperature, composition and flow profiles. The <b>Gibbs reactor</b> finds chemical equilibrium by minimising Gibbs energy — list the species that may form, no reactions needed. The <b>three-phase separator</b> splits vapour, light liquid and heavy (aqueous) liquid.</p>
+  <p>The <b>rigorous column</b> solves the full stage-by-stage MESH equations (Naphtali–Sandholm Newton): choose stages, condenser (total, partial or none), reboiler (kettle or none), feed stages, top pressure and two specifications (reflux ratio, distillate or bottoms rate, duties, condenser temperature, a product purity or a recovery). Without condenser and reboiler it is an absorber or stripper. Trays can carry a <b>Murphree vapour efficiency</b> — one value for every tray, or per component (for example a low CO₂ efficiency in a chemical-solvent absorber while water stays at equilibrium); the condenser and reboiler are always equilibrium stages. Its panel shows temperature, composition and flow profiles. The <b>Gibbs reactor</b> finds chemical equilibrium by minimising Gibbs energy — list the species that may form, no reactions needed. Vapour fugacity coefficients come from the property method (switch to ideal gas if you need to compare), a temperature approach shifts the equilibrium to T + ΔT, graphite can be allowed to deposit at unit activity, and the equilibrium can be restricted to listed reactions each with its own approach (methane and shift approaches of a reformer). The carbon activity of the outlet gas is always reported. The <b>three-phase separator</b> splits vapour, light liquid and heavy (aqueous) liquid. The <b>pipe segment</b> marches a line in segments with a flash at every node (Darcy–Churchill friction, elevation, acceleration, fittings, homogeneous two-phase flow) and checks the erosional velocity and Mach number. With a property method, the reformers, shift converters and methanator solve their equilibria on it too. A valve’s results carry a <b>Size this valve</b> link to the control-valve tool, and a heat exchanger’s a <b>Rate in HeatXpert</b> link — both open with the stream data filled in.</p>
   <h3>Kinetic reactors (plug flow and CSTR)</h3>
   <p>The <b>plug-flow</b> and <b>CSTR</b> reactors take power-law or <b>LHHW / Hougen–Watson</b> kinetics: for each reaction give the stoichiometry, k0 and the activation energy (optionally about a reference temperature), optional orders (blank = elementary, negative orders allowed), a concentration or partial-pressure basis, and whether it is reversible — with a thermodynamically consistent driving force from the Gibbs-energy equilibrium constant of the databank or your own ln K correlation, or your own reverse Arrhenius rate. For catalytic kinetics add an adsorption term (Σ Kₜ Π aᵢ^eₜᵢ)^m — the Steam reformer example carries the full Xu–Froment model. Rates can be per m³ of reactor or per kg of catalyst (with the bed density). The plug-flow reactor is isothermal, adiabatic, fixed-duty or heated / cooled through the wall (U and coolant or furnace temperature) and shows axial temperature, pressure and composition profiles; fast, equilibrium-limited kinetics are integrated with a stiff (Rosenbrock) solver. Each reactor reports conversions, the heat of every reaction in the reacting phase and the residence time.</p>
   <h3>Stream analysis — phase envelope, property table, binary diagrams</h3>
@@ -879,7 +885,7 @@ const TYPES = {
     icon: (w, h, c) => `<path class="shape" d="M0,${h / 2} L${w},0 L${w},${h} Z" fill="url(#vg)" stroke="${c}"/>`,
   },
   'sep': {
-    label: 'Component separator', group: 'mix', module: 'component-splitter', client: true,
+    label: 'Component separator', group: 'mix', module: 'component-splitter',
     desc: 'Split by component (e.g. CO₂ wash)',
     inlets: { min: 1, max: 1, initial: 1, label: () => 'Feed' },
     outlets: () => ['Separated', 'Remainder'],
@@ -1420,7 +1426,7 @@ TYPES.mixer.rig = {
 };
 TYPES.splitter.rig = { module: 'r-splitter', fields: TYPES.splitter.fields };
 TYPES.sep.rig = {
-  module: 'r-component-splitter', fields: TYPES.sep.fields, api: TYPES.sep.api, client: false,
+  module: 'r-component-splitter', fields: TYPES.sep.fields, api: TYPES.sep.api,
   note: 'Split by component at feed T and P; both outlets are flashed with the property method (phase and enthalpy are rigorous).',
 };
 TYPES.flash.rig = {
@@ -1579,6 +1585,98 @@ TYPES.reactor.rig = {
   note: 'Reactions in series at the given conversion of the key (limiting) reactant; heats of reaction come from the formation enthalpies of the property databank.',
 };
 
+/* STEP 33 — pipe segment on the property method */
+const pth = (p) => p.thermal || 'adiabatic';
+TYPES.pipe = {
+  label: 'Pipe segment', group: 'press', module: 'r-pipe', rigOnly: true,
+  desc: 'ΔP · Darcy–Churchill · two-phase',
+  inlets: { min: 1, max: 1, initial: 1, label: () => 'Inlet' },
+  outlets: () => ['Outlet'],
+  fields: [
+    { key: 'length_m', kind: 'number', label: 'Length', unit: 'm', required: () => true },
+    { key: 'diameter_mm', kind: 'number', label: 'Inside diameter', unit: 'mm', required: () => true, hint: 'e.g. 102.3 for 4″ Sch 40' },
+    { key: 'roughness_mm', kind: 'number', label: 'Absolute roughness', unit: 'mm', hint: 'blank = 0.0457 (commercial steel)' },
+    { key: 'elevation_m', kind: 'number', label: 'Elevation change (outlet − inlet)', unit: 'm', hint: 'blank = 0' },
+    { key: 'fittings_K', kind: 'number', label: 'Fittings, Σ K', unit: '–', hint: 'bends, tees, valves — blank = 0' },
+    { key: 'thermal', kind: 'select', label: 'Heat transfer', def: 'adiabatic',
+      options: [['adiabatic', 'Adiabatic'], ['isothermal', 'Isothermal'], ['heat_loss', 'Heat loss to surroundings (U, T)']] },
+    { key: 'U_W_m2K', kind: 'number', label: 'U (inside area)', unit: 'W/m²·K', showIf: (p) => pth(p) === 'heat_loss', required: (p) => pth(p) === 'heat_loss' },
+    { key: 'T_ambient_K', kind: 'temperature', label: 'Ambient temperature', showIf: (p) => pth(p) === 'heat_loss', required: (p) => pth(p) === 'heat_loss' },
+    { key: 'segments', kind: 'number', label: 'Segments', unit: '–', hint: 'blank = 20', noVary: true },
+    { key: 'erosional_C', kind: 'number', label: 'Erosional C (API RP 14E)', unit: '–', hint: 'blank = 100 (continuous service)' },
+  ],
+  api(p) {
+    const o = { length_m: p.length_m, diameter_m: num(p.diameter_mm) ? p.diameter_mm / 1000 : p.diameter_mm, thermal: pth(p) };
+    for (const k of ['roughness_mm', 'elevation_m', 'fittings_K', 'erosional_C']) if (num(p[k])) o[k] = p[k];
+    if (num(p.segments)) o.segments = Math.round(p.segments);
+    if (o.thermal === 'heat_loss') { o.U_W_m2K = p.U_W_m2K; o.T_ambient_K = p.T_ambient_K; }
+    return o;
+  },
+  note: 'Marched in segments with a P–H flash of the property method at every node: Darcy–Weisbach friction (Churchill factor, laminar to fully rough), elevation, acceleration and fittings; homogeneous (no-slip) two-phase flow. Reports the pressure-drop breakdown, velocities, the API RP 14E erosional velocity and the Mach number of a gas.',
+  geo() { const w = 120, h = 22; return { w, h, ins: [P(0, h / 2, -1, 0)], outs: [P(w, h / 2, 1, 0)] }; },
+  icon: (w, h, c) => `<rect class="shape" x="6" y="3" width="${w - 12}" height="${h - 6}" fill="url(#vg)" stroke="${c}"/>
+      <rect x="0" y="0" width="6" height="${h}" fill="#fff" stroke="${c}" stroke-width="1.2"/><rect x="${w - 6}" y="0" width="6" height="${h}" fill="#fff" stroke="${c}" stroke-width="1.2"/>
+      <path d="M${w * 0.3},${h / 2} H${w * 0.7} M${w * 0.66},${h / 2 - 3} L${w * 0.7},${h / 2} L${w * 0.66},${h / 2 + 3}" fill="none" stroke="${c}" stroke-width="1.1"/>`,
+};
+
+/* STEP 33 — syngas units on the property method: restricted equilibrium of reforming and shift with
+   ΔG° from the databank, vapour fugacity coefficients and enthalpies from the flowsheet's property method */
+const F_PHASE_MODEL = { key: 'phase_model', kind: 'select', label: 'Vapour non-ideality', def: 'eos',
+  options: [['eos', 'Fugacity coefficients (property method)'], ['ideal', 'Ideal gas (φ = 1)']] };
+const synCommon = (p, o) => { if (p.phase_model === 'ideal') o.phase_model = 'ideal'; if (num(p.P_out_bar)) o.P_out_bar = p.P_out_bar; return o; };
+TYPES.smr.rig = {
+  module: 'r-smr',
+  fields: TYPES.smr.fields.concat([F_PHASE_MODEL]),
+  api(p) {
+    const o = { mode: 'fired', T_out_K: p.T_out_K };
+    for (const k of ['ate_smr_K', 'ate_wgs_K']) if (num(p[k])) o[k] = p[k];
+    return synCommon(p, o);
+  },
+  note: 'Fired primary reformer: methane reforming and shift each at outlet T + its approach, equilibrium constants from the databank Gibbs energies, fugacity coefficients and enthalpies from the property method — the furnace duty is on the same basis as the rest of the flowsheet. C2+ hydrocarbons are reformed completely. The outlet carbon activity is reported.',
+};
+TYPES.smr2.rig = {
+  module: 'r-smr',
+  fields: TYPES.smr2.fields.concat([F_PHASE_MODEL]),
+  api(p) {
+    const o = { mode: 'secondary' };
+    for (const k of ['ate_smr_K', 'ate_wgs_K']) if (num(p[k])) o[k] = p[k];
+    return synCommon(p, o);
+  },
+  note: 'Adiabatic air-blown secondary reformer on the property method: all oxygen burns, then reforming and shift reach equilibrium at the adiabatic outlet temperature (each with its approach). Meter the air for H₂/N₂ ≈ 3 in the make-up gas, or let a design spec do it.',
+};
+TYPES.atr.rig = {
+  module: 'r-atr',
+  fields: TYPES.atr.fields.concat([F_PHASE_MODEL]),
+  api(p) {
+    const o = { s_c_ratio: p.s_c_ratio, o2_c_ratio: p.o2_c_ratio, oxidant: p.oxidant || 'O2' };
+    for (const k of ['steam_T_K', 'oxidant_T_K', 'ate_smr_K', 'ate_wgs_K']) if (num(p[k])) o[k] = p[k];
+    return synCommon(p, o);
+  },
+  note: 'Steam and oxidant are added from the carbon count of the feed (steam below its saturation temperature is taken as saturated vapour); the outlet temperature follows from the energy balance on the property method.',
+};
+TYPES.shift.rig = {
+  module: 'r-shift',
+  fields: TYPES.shift.fields.concat([F_PHASE_MODEL]),
+  api(p) {
+    const o = { preset: p.preset || 'hts', mode: p.mode || 'adiabatic' };
+    if (o.mode === 'isothermal') o.T_out_K = p.T_out_K;
+    if (num(p.ate_K)) o.ate_K = p.ate_K;
+    return synCommon(p, o);
+  },
+  note: 'Water-gas shift to equilibrium at outlet T + approach (HTS 10 K, LTS 5 K unless set); methane is inert. Equilibrium constant from the databank, enthalpies from the property method.',
+};
+TYPES.methanator.rig = {
+  module: 'r-methanator',
+  fields: TYPES.methanator.fields.concat([F_PHASE_MODEL]),
+  api(p) {
+    const o = { mode: p.mode || 'adiabatic' };
+    if (o.mode === 'isothermal') o.T_out_K = p.T_out_K;
+    if (num(p.ate_K)) o.ate_K = p.ate_K;
+    return synCommon(p, o);
+  },
+  note: 'CO and CO₂ are methanated to equilibrium (residuals in dry ppm) with the property method’s enthalpies — the temperature rise is about 74 K per mol % CO and 60 K per mol % CO₂.',
+};
+
 /* ---------------- new, always-rigorous units ---------------- */
 const COL_SPECS = [
   ['reflux_ratio', 'Reflux ratio (molar)', '–', 'C'], ['distillate_rate', 'Distillate rate', 'kmol/h', ''],
@@ -1715,6 +1813,11 @@ TYPES.gibbs = {
     { key: 'duty_kW', kind: 'number', label: 'Duty (+ = heat added)', unit: 'kW', showIf: (p) => gmode(p) === 'duty', required: (p) => gmode(p) === 'duty' },
     { key: 'P_out_bar', kind: 'pressure', label: 'Outlet pressure', hint: 'blank = lowest inlet P' },
     { key: 'products', kind: 'complist', label: 'Species that may form', hint: 'feed species are always allowed — list the products (e.g. CO, CO₂, H₂ for reforming)' },
+    { key: 'phase_model', kind: 'select', label: 'Vapour non-ideality', def: 'eos',
+      options: [['eos', 'Fugacity coefficients (property method)'], ['ideal', 'Ideal gas (φ = 1)']] },
+    { key: 'approach_K', kind: 'number', label: 'Temperature approach ΔT', unit: 'K', hint: 'equilibrium at T + ΔT · negative = short of equilibrium for an endothermic reaction · blank = 0' },
+    { key: 'carbon', kind: 'select', label: 'Solid carbon (graphite)', def: 'no', options: [['no', 'Not allowed — report carbon activity'], ['yes', 'May deposit (unit activity)']] },
+    { key: 'reactions', kind: 'reactions', equil: true, label: 'Restrict to reactions' },
   ],
   api(p) {
     const o = {};
@@ -1722,9 +1825,14 @@ TYPES.gibbs = {
     if (num(p.P_out_bar)) o.P_out_bar = p.P_out_bar;
     const pr = (p.products || []).filter(Boolean);
     if (pr.length) o.products = pr;
+    if (p.phase_model === 'ideal') o.phase_model = 'ideal';
+    if (num(p.approach_K) && p.approach_K !== 0) o.approach_K = p.approach_K;
+    const rx = equilApiReactions(p);
+    if (rx.length) o.reactions = rx;
+    else if (p.carbon === 'yes') o.carbon = true;
     return o;
   },
-  note: 'Chemical and phase-free equilibrium by minimising the total Gibbs energy (element-potential method) — no reactions to write. Ideal-gas vapour phase; ΔG° from the databank / NIST data.',
+  note: 'Chemical equilibrium by minimising the total Gibbs energy (element-potential method) — no reactions to write. Vapour fugacity coefficients from the property method (Peng–Robinson, SRK…) or ideal gas; standard Gibbs energies from the databank. Optional temperature approach, graphite at unit activity, or equilibrium restricted to listed reactions each with its own approach (as in a reformer: methane approach and shift approach). The outlet carbon activity is always reported.',
   geo(b, nIn) {
     const w = 62, h = 88;
     return { w, h, ins: side('L', nIn, w, h, nIn > 1 ? 0.2 : 0.3, nIn > 1 ? 0.6 : 0.3), outs: [P(w, h * 0.8, 1, 0)] };
@@ -1746,8 +1854,18 @@ function kinApiReactions(p) {
       if (num(r.order)) { orders[r.key] = r.order; anyOrder = true; } else orders[r.key] = r.nu < 0 ? -r.nu : 0;
     }
     const o = { stoich, k0: rx.k0, Ea_kJmol: num(rx.Ea_kJmol) ? rx.Ea_kJmol : 0 };
+    if (rx.form === 'temkin') {
+      // STEP 33: Temkin–Pyzhev in fugacities (Dyson & Simon): k0 per hour per kmol NH3, activities in atm
+      o.model = 'temkin';
+      o.alpha = num(rx.alpha) ? rx.alpha : 0.5;
+      if (rx.ka === 'databank') o.K_a = 'databank';
+      if (num(rx.eta) && rx.eta !== 1) o.effectiveness = rx.eta;
+      if (rx.kref === 'tref' && num(rx.T_ref_K)) o.T_ref_K = rx.T_ref_K;
+      return o;
+    }
     if (anyOrder) o.orders = orders;
     if (rx.basis === 'partial_pressure') o.basis = 'partial_pressure';
+    else if (rx.basis === 'fugacity') o.basis = 'fugacity';
     if (rx.kref === 'tref' && num(rx.T_ref_K)) o.T_ref_K = rx.T_ref_K;
     if (rx.form === 'lhhw' && Array.isArray(rx.ads_terms) && rx.ads_terms.length) {
       o.adsorption = { exponent: num(rx.ads_m) ? rx.ads_m : 1, terms: rx.ads_terms.map((t) => {
@@ -1813,7 +1931,7 @@ TYPES.kpfr = {
     if (num(p.dp_bar) && p.dp_bar !== 0) o.dp_bar = p.dp_bar;
     return kinCommon(p, o);
   },
-  note: 'Plug flow with power-law (Arrhenius) kinetics in the chosen phase of the property method: molar flows and enthalpy integrated along the volume (Dormand–Prince RK5(4), switching to the L-stable RODAS3 method when fast, equilibrium-limited reactions make the equations stiff). Reverse rates from the ideal-gas equilibrium constant of the databank, or your own reverse Arrhenius rate. The outlet is flashed rigorously.',
+  note: 'Plug flow with power-law (Arrhenius), Hougen–Watson or Temkin (ammonia, in fugacities) kinetics in the chosen phase of the property method — rates in concentrations, partial pressures or fugacities from the property method: molar flows and enthalpy integrated along the volume (Dormand–Prince RK5(4), switching to the L-stable RODAS3 method when fast, equilibrium-limited reactions make the equations stiff). Reverse rates from the ideal-gas equilibrium constant of the databank, or your own reverse Arrhenius rate. The outlet is flashed rigorously.',
   lbl: (w, h) => [w / 2, h + 15, 'middle'],
   geo() {
     const w = 132, h = 40;
@@ -1865,7 +1983,7 @@ function pkgModel() { return (M && M.pkg && M.pkg.model) || 'classic'; }
 function rigOn() { return pkgModel() !== 'classic'; }
 /** is this block solved by a rigorous (property-package) module? */
 function isRig(b) { const T = TYPES[b.type]; return !!T.rigOnly || (!!T.rig && rigOn()); }
-/** effective definition {fields, api, module, note, client, internalQ, dp} */
+/** effective definition {fields, api, module, note, internalQ, dp} */
 function tdef(b) { const T = TYPES[b.type]; return T.rig && rigOn() ? Object.assign({}, T, T.rig, { rig: undefined }) : T; }
 function fieldsOf(b) { return tdef(b).fields; }
 function moduleOf(b) { const m = tdef(b).module; return typeof m === 'function' ? m(b.params) : m; }
@@ -2009,6 +2127,17 @@ function newBlock(type, x, y) {
   return b;
 }
 function blankReaction() { return { stoich: [{ key: '', nu: -1 }, { key: '', nu: 1 }], limiting: '', conversion: 0.9 }; }
+function blankEquilReaction() { return { stoich: [{ key: '', nu: -1 }, { key: '', nu: 1 }], approach_K: null }; }
+/** equilibrium-reaction rows (Gibbs reactor, syngas units) → engine reactions; incomplete rows are left out */
+function equilApiReactions(p) {
+  return (p.reactions || []).map((rx) => {
+    const stoich = {};
+    for (const r of rx.stoich || []) if (r.key && num(r.nu) && r.nu !== 0) stoich[r.key] = r.nu;
+    const o = { stoich };
+    if (num(rx.approach_K)) o.approach_K = rx.approach_K;
+    return o;
+  }).filter((rx) => Object.keys(rx.stoich).length >= 2);
+}
 function blankKinReaction() { return { stoich: [{ key: '', nu: -1 }, { key: '', nu: 1 }], k0: null, Ea_kJmol: 0, basis: 'concentration', rev: 'none' }; }
 
 function blankSpec() {
@@ -2293,6 +2422,8 @@ function streamSVG(s, temp) {
   h += `<g class="slbl${feed ? ' feed' : ''}${bad ? ' bad' : ''}" ${endKind ? `data-k="end" data-id="${s.id}" data-w="${endKind}"` : ''}>` +
     `<rect x="${(cx - w / 2).toFixed(1)}" y="${(cy - hh / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${hh}" rx="${feed || prod ? 3 : 8}"/>` +
     `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}">${esc(nm)}</text></g>`;
+  const rfs = resultFlags(), sf = rfs && rfs.S.get(s.id);
+  if (sf) h += flagSVG(cx + w / 2 + 2, cy - hh / 2 - 1, sf);
   if (prod) {
     const z = pts[pts.length - 1];
     h += `<circle class="freeend" data-k="end" data-id="${s.id}" data-w="end" cx="${z.x}" cy="${z.y}" r="10"/>`;
@@ -2344,6 +2475,51 @@ function portSVG(b, io, i, p, ghost, label, cls, conn) {
     `<text class="plbl" x="${ox}" y="${oy}" text-anchor="${anchor}">${esc(label)}</text></g>`;
 }
 
+/* STEP 33 — where the last run raised warnings: per block (its own warnings, convergence, an
+   energy-balance gap) and per stream (unconverged recycle tear or flash, no flow, a phase the next
+   machine cannot take, an unmet design-spec target). Shown as badges on the canvas and in the
+   stream table; hover for the reasons. */
+let RFLAGS = null, RFLAGS_FOR = null;
+function resultFlags() {
+  if (!RES || RES.stale) return null;
+  if (RFLAGS_FOR === RES) return RFLAGS;
+  const B = new Map(), S = new Map();
+  const put = (m, id, level, msg) => { const o = m.get(id) || { level: 'warn', msgs: [] }; if (level === 'err') o.level = 'err'; if (!o.msgs.includes(msg)) o.msgs.push(msg); m.set(id, o); };
+  for (const b of M.blocks) {
+    const br = RES.blocks && RES.blocks[b.id];
+    if (!br || !br.result) continue;
+    const R = br.result;
+    if (R.converged === false) put(B, b.id, 'err', R.flash_unconverged ? 'phase equilibrium did not converge' : 'unit did not converge');
+    // property-method notes (missing binary parameters, Henry's law, association) repeat in every unit
+    // on that method: they stay in the unit's warning list but do not raise a badge
+    for (const w of br.warnings || []) if (!/^(NRTL|UNIQUAC|Wilson|UNIFAC|Dortmund UNIFAC|vapour association|Henry's law used)\b|no binary interaction parameter/.test(String(w))) put(B, b.id, 'warn', String(w).replace(/^[a-z0-9-]+:\s*/i, ''));
+    if (R.flash_unconverged) {
+      const fu = R.flash_unconverged;
+      for (let j = 0; j < b.nOut; j++) { const so = streamFrom(b.id, j), r = so && RES.streams[so.id];
+        if (r && Math.abs(r.T_K - fu.T_K) < 0.05 && Math.abs(r.P_bar - fu.P_bar) < 1e-4 * fu.P_bar) put(S, so.id, 'err', 'phase equilibrium of this stream did not converge'); }
+    }
+  }
+  for (const g of (RES.recon && RES.recon.ok === false && RES.recon.by_block) || []) put(B, g.block, 'warn', 'energy balance gap ' + fmt(g.gap_kW, 3) + ' kW');
+  for (const L of RES.loops || []) if (L.converged === false) for (const t of L.tears || []) put(S, t, 'err', 'recycle (tear) stream not converged');
+  for (const sp of RES.specs || []) if (sp.converged === false) { const d = (M.specs || []).find((x) => x.id === sp.id); if (d && d.target && d.target.stream) put(S, d.target.stream, 'warn', 'design spec “' + (sp.name || sp.id) + '” not met'); }
+  for (const st of M.streams) {
+    const r = RES.streams && RES.streams[st.id];
+    if (!r) continue;
+    if (!(r.mass_flow_kg_h > 1e-9)) put(S, st.id, 'warn', 'no flow');
+    const to = st.to && blockById(st.to.b);
+    if (!to || !num(r.vapour_fraction)) continue;
+    const m = moduleOf(to);
+    if (m === 'pump' && r.vapour_fraction > 1e-6) put(S, st.id, 'warn', 'vapour entering a pump (vapour fraction ' + fmt(r.vapour_fraction, 3) + ')');
+    if (m === 'compressor' && r.vapour_fraction < 1 - 1e-6) put(S, st.id, 'warn', 'liquid entering a compressor (vapour fraction ' + fmt(r.vapour_fraction, 4) + ')');
+  }
+  RFLAGS = { B, S }; RFLAGS_FOR = RES;
+  return RFLAGS;
+}
+function flagSVG(x, y, f) {
+  const tip = f.msgs.slice(0, 8).map((m) => '• ' + m).join('\n') + (f.msgs.length > 8 ? '\n… ' + (f.msgs.length - 8) + ' more' : '');
+  return `<g class="rflag ${f.level}" transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><title>${esc(tip)}</title>` +
+    `<path d="M0,-7 L7,5.5 L-7,5.5 Z"/><text x="0" y="4">!</text></g>`;
+}
 function blockSVG(b) {
   const T = TYPES[b.type], g = geoOf(b), c = typeColor(b.type);
   const sel = SEL && SEL.kind === 'block' && SEL.id === b.id;
@@ -2367,6 +2543,8 @@ function blockSVG(b) {
     if (q) h += `<text class="duty" x="${lx}" y="${ly + 12}" text-anchor="${la}">${esc(q)}</text>`;
   }
   if (ISSUE_MAP.get(b.id) === 'error') h += `<circle class="bad" cx="${g.w + 2}" cy="-2" r="5.5"><title>Input incomplete</title></circle>`;
+  const rf = resultFlags(), bf = rf && rf.B.get(b.id);
+  if (bf) h += flagSVG(ISSUE_MAP.get(b.id) === 'error' ? g.w - 12 : g.w + 2, -4, bf);
   g.ins.forEach((p, i) => {
     const ghost = i === g.ghostIn;
     const conn = !ghost && connectedIn(b, i);
@@ -3134,7 +3312,7 @@ function inspectBlock(b, head, body) {
     if (M.blocks.some((x) => x !== b && x.name === v)) { toast('Name already used', 'err'); nm.value = b.name; return; }
     b.name = v; commit();
   });
-  head.append(ic, el('div', { class: 'tt' }, nm, el('small', null, T.label + (T.client && !SERVER_FS ? ' · client split' : ' · ' + moduleOf(b)) + (rig ? ' · ' + PKG_SHORT[b.params.pkg || TYPES[b.type].defaultPkg || (rigOn() ? pkgModel() : 'pr')] : ''))),
+  head.append(ic, el('div', { class: 'tt' }, nm, el('small', null, T.label + ' · ' + moduleOf(b) + (rig ? ' · ' + PKG_SHORT[b.params.pkg || TYPES[b.type].defaultPkg || (rigOn() ? pkgModel() : 'pr')] : ''))),
     el('button', { class: 'x', title: 'Delete unit (Del)', 'aria-label': 'Delete unit', onclick: () => deleteSelection() }, '🗑'));
 
   const issues = blockIssues(b);
@@ -3144,7 +3322,7 @@ function inspectBlock(b, head, body) {
   for (const f of fieldsOf(b)) {
     if (f.showIf && !f.showIf(b.params)) continue;
     if (f.kind === 'fractions') s1.append(fractionsField(b));
-    else if (f.kind === 'reactions') s1.append(reactionsField(b));
+    else if (f.kind === 'reactions') s1.append(f.equil ? equilReactionsField(b) : reactionsField(b));
     else if (f.kind === 'splits') s1.append(splitsField(b));
     else if (f.kind === 'nrtl') s1.append(nrtlField(b));
     else if (f.kind === 'colfeeds') s1.append(colFeedsField(b));
@@ -3276,6 +3454,30 @@ function reactionsField(b) {
     wrap.append(box);
   });
   if (rxs.length < 3) wrap.append(el('button', { class: 'btn sm', onclick: () => { rxs.push(blankReaction()); commit(); renderInspector(); } }, '＋ Reaction'));
+  return wrap;
+}
+/* equilibrium reactions with a temperature approach each (Gibbs reactor) — empty = full minimisation */
+function equilReactionsField(b) {
+  const wrap = el('div', { class: 'fld' }, el('label', null, 'Restrict equilibrium to reactions (optional)'));
+  const rxs = b.params.reactions = Array.isArray(b.params.reactions) ? b.params.reactions : [];
+  rxs.forEach((rx, j) => {
+    const box = el('div', { style: 'border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0;background:var(--panel2)' });
+    box.append(el('div', { style: 'font-size:11px;font-weight:700;color:var(--dim);margin-bottom:4px' }, 'REACTION ' + (j + 1)));
+    rx.stoich.forEach((row, i) => {
+      box.append(el('div', { class: 'comp-row', style: 'grid-template-columns:minmax(0,1fr) 70px 28px' },
+        compSelectEl(row.key, (k) => { row.key = k; commit(); renderInspector(); }),
+        numInput(() => row.nu, (v) => { row.nu = num(v) ? v : 0; }, { aria: 'stoichiometric coefficient' }),
+        el('button', { class: 'rm', title: 'Remove species', onclick: () => { rx.stoich.splice(i, 1); commit(); renderInspector(); } }, '✕')));
+    });
+    box.append(fld('Approach ΔT, K (blank = unit value)', numInput(() => rx.approach_K, (v) => { rx.approach_K = num(v) ? v : null; }), null, true));
+    box.append(el('div', { class: 'btns' },
+      el('button', { class: 'btn sm', onclick: () => { rx.stoich.push({ key: '', nu: 1 }); commit(); renderInspector(); } }, '＋ Species'),
+      el('button', { class: 'btn sm dng', onclick: () => { rxs.splice(j, 1); commit(); renderInspector(); } }, 'Remove reaction')));
+    wrap.append(box);
+  });
+  if (rxs.length < 6) wrap.append(el('button', { class: 'btn sm', onclick: () => { rxs.push(blankEquilReaction()); commit(); renderInspector(); } }, '＋ Reaction'));
+  wrap.append(el('div', { class: 'hint' }, rxs.length ? 'Only these reactions reach equilibrium (each at T + its ΔT); every other species is inert. Reactions must balance in C, H, O, N. Solid carbon is not available in this mode.'
+    : 'None listed: full Gibbs minimisation over the feed species and the species that may form.'));
   return wrap;
 }
 function syncLimiting(rx) { if (rx.limiting && !rx.stoich.some((r) => r.key === rx.limiting && r.nu < 0)) rx.limiting = ''; }
@@ -3878,7 +4080,7 @@ const DETAIL_PATHS = {
   'extraction-turbine': [['power_kW', 'Power, kW', 'raw'], ['power_hp_kW', 'HP-section power, kW', 'raw'], ['power_lp_kW', 'LP-section power, kW', 'raw'],
     ['T_extract_K', 'Extraction temperature', 'T'], ['T_out_K', 'Exhaust temperature', 'T'], ['vapour_fraction_out', 'Exhaust vapour fraction', 'raw'], ['steam_rate_kg_kWh', 'Steam rate, kg/kWh', 'raw']],
   'r-hx': [['duty_kW', 'Duty, kW', 'raw'], ['min_approach_K', 'Minimum approach, K', 'raw'], ['UA_kW_K', 'UA, kW/K', 'raw'], ['LMTD_K', 'LMTD, K', 'raw']],
-  gibbs: [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw']],
+  gibbs: [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw'], ['approach_K', 'Temperature approach, K', 'raw']],
   'r-reactor': [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw']],
   valve: [['T_out_K', 'Outlet temperature', 'T'], ['vapour_fraction_out', 'Outlet vapour fraction', 'raw']],
   'r-pfr': [['T_out_K', 'Outlet temperature', 'T'], ['duty_kW', 'Duty, kW', 'raw'], ['T_reactor_out_K', 'Reactor exit T (reacting phase)', 'T']],
@@ -4689,17 +4891,18 @@ function kinOrderSum(rx, rev) {
   return s;
 }
 function kinK0Unit(b, rx, rev) {
+  if (rx.form === 'temkin') return b.params.rate_basis === 'catalyst' ? 'kmol NH₃/(kg cat·h)' : 'kmol NH₃/(m³ catalyst·h)';
   const rate = b.params.rate_basis === 'catalyst' ? 'kmol/(kg cat·s)' : 'kmol/(m³·s)';
   const n = kinOrderSum(rx, rev);
   if (Math.abs(n) < 1e-12) return rate;
-  return rate + ' ÷ ' + (rx.basis === 'partial_pressure' ? 'bar' : '(kmol/m³)') + (Math.abs(n - 1) < 1e-12 ? '' : '^' + fmt(n, 3));
+  return rate + ' ÷ ' + (rx.basis === 'partial_pressure' || rx.basis === 'fugacity' ? 'bar' : '(kmol/m³)') + (Math.abs(n - 1) < 1e-12 ? '' : '^' + fmt(n, 3));
 }
 function kinEquation(rx) {
   const side = (sg) => (rx.stoich || []).filter((r) => r.key && num(r.nu) && Math.sign(r.nu) === sg)
     .map((r) => (Math.abs(r.nu) === 1 ? '' : fmt(Math.abs(r.nu), 4) + ' ') + compLabel(r.key)).join(' + ');
   const l = side(-1), r = side(1);
   if (!l && !r) return '';
-  return (l || '?') + (rx.rev === 'equilibrium' || rx.rev === 'rate' ? ' ⇌ ' : ' → ') + (r || '?');
+  return (l || '?') + (rx.rev === 'equilibrium' || rx.rev === 'rate' || rx.form === 'temkin' ? ' ⇌ ' : ' → ') + (r || '?');
 }
 function kineticsField(b) {
   const p = b.params;
@@ -4720,14 +4923,31 @@ function kineticsField(b) {
     });
     box.append(el('div', { class: 'btns', style: 'margin:2px 0 8px' }, el('button', { class: 'btn sm', onclick: () => { rx.stoich.push({ key: '', nu: 1 }); commit(); renderInspector(); } }, '＋ Species')));
     box.append(el('div', { class: 'hint', style: 'margin:-4px 0 8px' }, 'Blank order = elementary (|ν| for reactants, 0 for products).'));
-    const bs = el('select', null, el('option', { value: 'concentration' }, 'Concentration, kmol/m³'), el('option', { value: 'partial_pressure' }, 'Partial pressure, bar (vapour)'));
-    bs.value = rx.basis === 'partial_pressure' ? 'partial_pressure' : 'concentration';
-    bs.addEventListener('change', () => { rx.basis = bs.value; commit(); renderInspector(); });
-    box.append(fld('Rate expressed in', bs));
-    const fs2 = el('select', null, el('option', { value: 'power' }, 'Power law'), el('option', { value: 'lhhw' }, 'LHHW / Hougen–Watson (adsorption term)'));
-    fs2.value = rx.form === 'lhhw' ? 'lhhw' : 'power';
-    fs2.addEventListener('change', () => { rx.form = fs2.value; if (rx.form === 'lhhw' && !Array.isArray(rx.ads_terms)) { rx.ads_m = 1; rx.ads_terms = [{ K0: 1, dH: 0, orders: [] }]; } commit(); renderInspector(); });
+    const fs2 = el('select', null, el('option', { value: 'power' }, 'Power law'), el('option', { value: 'lhhw' }, 'LHHW / Hougen–Watson (adsorption term)'),
+      el('option', { value: 'temkin' }, 'Temkin–Pyzhev in fugacities (ammonia synthesis, Dyson–Simon)'));
+    fs2.value = rx.form === 'lhhw' || rx.form === 'temkin' ? rx.form : 'power';
+    fs2.addEventListener('change', () => {
+      rx.form = fs2.value;
+      if (rx.form === 'lhhw' && !Array.isArray(rx.ads_terms)) { rx.ads_m = 1; rx.ads_terms = [{ K0: 1, dH: 0, orders: [] }]; }
+      if (rx.form === 'temkin') { if (!num(rx.k0)) rx.k0 = 8.849e14; if (!num(rx.Ea_kJmol) || !rx.Ea_kJmol) rx.Ea_kJmol = 170.56; if (!num(rx.alpha)) rx.alpha = 0.5; rx.rev = 'none'; }
+      commit(); renderInspector();
+    });
     box.append(fld('Rate form', fs2));
+    if (rx.form === 'temkin') {
+      box.append(el('div', { class: 'hint', style: 'margin:-4px 0 8px' }, 'R_NH₃ = η·k·[K_a²·f_N₂·(f_H₂³/f_NH₃²)^α − (f_NH₃²/f_H₂³)^(1−α)], f = y·φ·P in atm from the property method; for N₂ + 3 H₂ ⇌ 2 NH₃. Dyson & Simon (1968): k0 = 8.849·10¹⁴, Ea = 170.56 kJ/mol, α = 0.5. Keep some NH₃ in the feed.'));
+      box.append(fld('α', numInput(() => rx.alpha, (v) => { rx.alpha = num(v) ? v : 0.5; }, { aria: 'Temkin alpha', ph: '0.5' }), '0.5–0.75'));
+      const ka = el('select', null, el('option', { value: 'gb' }, 'Gillespie & Beattie (1930) — as published'), el('option', { value: 'databank' }, 'From the databank Gibbs energies (same as the Gibbs reactor)'));
+      ka.value = rx.ka === 'databank' ? 'databank' : 'gb';
+      ka.addEventListener('change', () => { rx.ka = ka.value; commit(); });
+      box.append(fld('Equilibrium constant K_a', ka));
+      box.append(fld('Effectiveness / activity factor η', numInput(() => rx.eta, (v) => { rx.eta = num(v) ? v : 1; }, { aria: 'effectiveness factor', ph: '1' }), 'pellet effectiveness × catalyst activity'));
+    } else {
+      const bs = el('select', null, el('option', { value: 'concentration' }, 'Concentration, kmol/m³'), el('option', { value: 'partial_pressure' }, 'Partial pressure, bar (vapour)'),
+        el('option', { value: 'fugacity' }, 'Fugacity, bar (property method)'));
+      bs.value = rx.basis === 'partial_pressure' || rx.basis === 'fugacity' ? rx.basis : 'concentration';
+      bs.addEventListener('change', () => { rx.basis = bs.value; commit(); renderInspector(); });
+      box.append(fld('Rate expressed in', bs));
+    }
     box.append(fld('Pre-exponential factor k0', numInput(() => rx.k0, (v) => { rx.k0 = num(v) ? v : null; }, { aria: 'k0' }), kinK0Unit(b, rx, false) + (rx.form === 'lhhw' ? ' (× units of the adsorption term^m)' : ''), true));
     box.append(fld('Activation energy Ea (kJ/mol)', numInput(() => rx.Ea_kJmol, (v) => { rx.Ea_kJmol = num(v) ? v : 0; }, { aria: 'activation energy', ph: '0' })));
     const ks = el('select', null, el('option', { value: 'abs' }, 'k = k0 · exp(−Ea / RT)'), el('option', { value: 'tref' }, 'k = k0 · exp(−Ea/R · (1/T − 1/T_ref)) — k0 at T_ref'));
@@ -4735,13 +4955,15 @@ function kineticsField(b) {
     ks.addEventListener('change', () => { rx.kref = ks.value; commit(); renderInspector(); });
     box.append(fld('Arrhenius form', ks));
     if (rx.kref === 'tref') box.append(fld('Reference temperature T_ref (K)', numInput(() => rx.T_ref_K, (v) => { rx.T_ref_K = num(v) ? v : null; }, { aria: 'reference temperature' }), null, true));
-    const rs = el('select', null, el('option', { value: 'none' }, 'Irreversible'),
+    const rs = rx.form === 'temkin' ? null : el('select', null, el('option', { value: 'none' }, 'Irreversible'),
       el('option', { value: 'equilibrium' }, 'Reversible — K from Gibbs energies (vapour)'), el('option', { value: 'equilibrium_user' }, 'Reversible — K from my correlation'),
       el('option', { value: 'rate' }, 'Reversible — reverse Arrhenius rate'));
-    rs.value = rx.rev === 'equilibrium' ? (rx.keq === 'user' ? 'equilibrium_user' : 'equilibrium') : rx.rev === 'rate' ? 'rate' : 'none';
-    rs.addEventListener('change', () => { if (rs.value === 'equilibrium_user') { rx.rev = 'equilibrium'; rx.keq = 'user'; } else { rx.rev = rs.value; rx.keq = 'db'; } commit(); renderInspector(); });
-    box.append(fld('Reversibility', rs, rx.rev === 'equilibrium' ? 'driving force [Π a^order] · (1 − Q/K), Q = Π a^ν — thermodynamically consistent for any orders' : null));
-    if (rx.rev === 'equilibrium' && rx.keq === 'user') {
+    if (rs) {
+      rs.value = rx.rev === 'equilibrium' ? (rx.keq === 'user' ? 'equilibrium_user' : 'equilibrium') : rx.rev === 'rate' ? 'rate' : 'none';
+      rs.addEventListener('change', () => { if (rs.value === 'equilibrium_user') { rx.rev = 'equilibrium'; rx.keq = 'user'; } else { rx.rev = rs.value; rx.keq = 'db'; } commit(); renderInspector(); });
+      box.append(fld('Reversibility', rs, rx.rev === 'equilibrium' ? 'driving force [Π a^order] · (1 − Q/K), Q = Π a^ν — thermodynamically consistent for any orders' : null));
+    }
+    if (rx.form !== 'temkin' && rx.rev === 'equilibrium' && rx.keq === 'user') {
       const g = el('div', { style: 'display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px' });
       for (const [k, t] of [['KA', 'A'], ['KB', 'B (K)'], ['KC', 'C'], ['KD', 'D (1/K)']]) {
         const inp = numInput(() => rx[k], (v) => { rx[k] = num(v) ? v : null; }, { aria: 'ln K coefficient ' + t, ph: '0' });
@@ -4751,7 +4973,7 @@ function kineticsField(b) {
       box.append(fld('ln K = A + B/T + C·ln T + D·T', g, 'K in the units of the rate basis (bar^Δν for partial pressures, (kmol/m³)^Δν for concentrations)', true));
     }
     if (rx.form === 'lhhw') box.append(adsorptionEditor(rx));
-    if (rx.rev === 'rate') {
+    if (rx.form !== 'temkin' && rx.rev === 'rate') {
       box.append(fld('Reverse k0', numInput(() => rx.reverse_k0, (v) => { rx.reverse_k0 = num(v) ? v : null; }, { aria: 'reverse k0' }), kinK0Unit(b, rx, true) + ' · orders = product ν', true));
       box.append(fld('Reverse Ea (kJ/mol)', numInput(() => rx.reverse_Ea_kJmol, (v) => { rx.reverse_Ea_kJmol = num(v) ? v : 0; }, { aria: 'reverse activation energy', ph: '0' })));
     }
@@ -4805,6 +5027,13 @@ function kinIssues(b, add) {
     if ((rx.stoich || []).some((r) => !r.key)) add(nm + 'pick every component (or remove the empty row)');
     if (!num(rx.k0) || rx.k0 < 0) add(nm + 'k0 must be a number ≥ 0');
     if (liq && rx.basis === 'partial_pressure') add(nm + 'partial-pressure rates need the vapour phase');
+    if (rx.form === 'temkin') {
+      const st = Object.fromEntries(rows.map((r) => [r.key, r.nu]));
+      const sc = -(st.N2 || 0);
+      if (!(sc > 0) || Math.abs((st.H2 || 0) + 3 * sc) > 1e-9 || Math.abs((st.NH3 || 0) - 2 * sc) > 1e-9 || rows.length !== 3) add(nm + 'the Temkin model is for N₂ + 3 H₂ ⇌ 2 NH₃');
+      if (liq) add(nm + 'the Temkin model is a gas-phase (catalytic) rate');
+      if (num(rx.alpha) && !(rx.alpha > 0 && rx.alpha < 1)) add(nm + 'α must be between 0 and 1');
+    }
     if (liq && rx.rev === 'equilibrium' && rx.keq !== 'user') add(nm + 'equilibrium constants from the databank are for vapour reactions — give your own K correlation or a reverse rate');
     if (rx.rev === 'equilibrium' && rx.keq === 'user' && !num(rx.KA) && !num(rx.KB)) add(nm + 'give A and/or B of the ln K correlation');
     if (rx.kref === 'tref' && !(num(rx.T_ref_K) && rx.T_ref_K > 0)) add(nm + 'give the reference temperature');
@@ -5211,6 +5440,19 @@ function blockIssues(b) {
     (b.type === 'heater' ? hspec(p) === 'VF' : fmode(p).endsWith('VF'))) add('vapour fraction must be between 0 and 1');
   if (b.type === 'rcol') out.push(...colIssues(b, add));
   if (b.type === 'kpfr' || b.type === 'kcstr') kinIssues(b, add);
+  if (b.type === 'pipe') {
+    if (num(p.length_m) && p.length_m <= 0) add('length must be positive');
+    if (num(p.diameter_mm) && (p.diameter_mm <= 0 || p.diameter_mm > 10000)) add('inside diameter must be between 0 and 10 000 mm');
+    if (num(p.elevation_m) && num(p.length_m) && Math.abs(p.elevation_m) > p.length_m) add('elevation change cannot exceed the length');
+    if (num(p.roughness_mm) && p.roughness_mm < 0) add('roughness cannot be negative');
+  }
+  if (b.type === 'gibbs') {
+    (p.reactions || []).forEach((rx, j) => {
+      const rows = (rx.stoich || []).filter((r) => r.key && num(r.nu) && r.nu !== 0);
+      if (rows.length < 2 || !rows.some((r) => r.nu < 0) || !rows.some((r) => r.nu > 0)) add('reaction ' + (j + 1) + ' needs a reactant (ν<0) and a product (ν>0)');
+    });
+    if (num(p.approach_K) && Math.abs(p.approach_K) > 200) add('temperature approach should be within ±200 K');
+  }
   if (b.type === 'reactor') {
     (p.reactions || []).forEach((rx, j) => {
       const rows = rx.stoich.filter((r) => r.key && num(r.nu) && r.nu !== 0);
@@ -5273,8 +5515,9 @@ function inputSig() {
 }
 
 /* =====================================================================
-   10. RUNNER — sequential-modular, Tarjan SCCs, DFS tear selection,
-       bounded Wegstein. Every unit solve is one POST to the engine.
+   10. RUNNER — the flowsheet is solved by the engine (?module=flowsheet:
+       Tarjan SCCs, tear selection, Wegstein / Broyden, design specs).
+       buildPlan() below is kept for the tidy layout only.
 ===================================================================== */
 const SOLVE_CACHE = new Map();
 const BUCKET = { tokens: 9, last: 0 };
@@ -5396,191 +5639,12 @@ function buildPlan() {
 }
 
 /* ---- tear-stream state as {m:{key:kg/h}, T, P} ---- */
-function sObj(s) {
-  const m = {};
-  for (const c of s.components || []) m[c.key] = (m[c.key] || 0) + c.mass_fraction * s.mass_flow_kg_h;
-  return { m, T: s.T_K, P: s.P_bar };
-}
-function objS(o) {
-  let keys = Object.keys(o.m).filter((k) => o.m[k] > 0);
-  let tot = keys.reduce((a, k) => a + o.m[k], 0);
-  if (!(tot > 0)) { keys = Object.keys(o.m).slice(0, 1); tot = 1e-9; o.m[keys[0]] = tot; }
-  return { mass_flow_kg_h: tot, T_K: o.T, P_bar: o.P, components: keys.map((k) => ({ key: k, mass_fraction: o.m[k] / tot })) };
-}
-function keysOf(...os) { const s = new Set(); for (const o of os) if (o) for (const k in o.m) s.add(k); return [...s]; }
-function relErr(x, g) {
-  const sx = Object.values(x.m).reduce((a, b) => a + b, 0), sg = Object.values(g.m).reduce((a, b) => a + b, 0);
-  const tot = Math.max(sx, sg, 1e-12);
-  let e = 0;
-  for (const k of keysOf(x, g)) e = Math.max(e, Math.abs((g.m[k] || 0) - (x.m[k] || 0)) / tot);
-  e = Math.max(e, Math.abs(g.T - x.T) / Math.max(g.T, 1), Math.abs(g.P - x.P) / Math.max(g.P, 1e-6));
-  return e;
-}
-/** bounded Wegstein (q ∈ [−5, 0]); direct substitution until two points exist */
-function wegstein(x, g, xp, gp) {
-  const step = (xv, gv, xpv, gpv) => {
-    if (!xp) return gv;
-    const dx = xv - xpv;
-    if (!(Math.abs(dx) > 1e-14 * (Math.abs(xv) + 1e-30))) return gv;
-    const s = (gv - gpv) / dx;
-    let q = s / (s - 1);
-    if (!isFinite(q)) q = 0;
-    q = clamp(q, -5, 0);
-    return q * xv + (1 - q) * gv;
-  };
-  const n = { m: {}, T: 0, P: 0 };
-  for (const k of keysOf(x, g, xp, gp)) {
-    n.m[k] = Math.max(0, step(x.m[k] || 0, g.m[k] || 0, xp ? xp.m[k] || 0 : 0, gp ? gp.m[k] || 0 : 0));
-  }
-  n.T = Math.max(1, step(x.T, g.T, xp && xp.T, gp && gp.T));
-  n.P = Math.max(1e-6, step(x.P, g.P, xp && xp.P, gp && gp.P));
-  return n;
-}
-
 function runText(t) { $('runTxt').textContent = t; }
 function onWait(ms) { runText('Pacing for the engine’s rate limit · ' + (ms / 1000).toFixed(1) + ' s'); }
 function wlist(arr) {
   const out = [];
   for (const w of arr || []) { const t = typeof w === 'string' ? w : (w && w.message) || JSON.stringify(w); if (!out.includes(t)) out.push(t); }
   return out;
-}
-
-async function solveBlock(b, SV, R, quiet) {
-  const T = tdef(b);
-  RUN.busy = b.id; renderSoon();
-  runText('Solving ' + b.name + ' · ' + T.label);
-  const ins = [];
-  for (let i = 0; i < b.nIn; i++) {
-    const s = streamTo(b.id, i);
-    if (!s) break;
-    const v = SV[s.id];
-    if (!v) throw new Error(b.name + ': inlet “' + inletLabel(b, i) + '” has no value yet');
-    ins.push(apiStream(v));
-  }
-  let res;
-  if (T.client && !SERVER_FS) res = solveSepClient(b, ins);
-  else {
-    try { res = await apiSolve(moduleOf(b), { streams: ins, params: apiParams(b, ins) }, onWait); }
-    catch (e) { throw new Error(b.name + ' (' + T.label + '): ' + e.message); }
-    R.calls += res.cached ? 0 : 1;
-    if (res.cached) R.cached++;
-    if (res.engine) R.engine = res.engine;
-  }
-  const out = res.result.streams_out || [];
-  R.blocks[b.id] = { result: res.result, warnings: wlist([].concat(res.warnings || [], res.result.warnings || [])), ins };
-  for (let j = 0; j < b.nOut; j++) {
-    const s = streamFrom(b.id, j);
-    if (s && out[j]) { SV[s.id] = out[j]; R.streams[s.id] = Object.assign({}, out[j]); }
-  }
-  if (!quiet) {
-    const cp = res.result.mass_balance && res.result.mass_balance.closure_pct;
-    R.log.push(['o', '✓ ' + b.name + ' (' + T.label + ')' + (num(cp) ? ' · closure ' + fmt(cp, 3) + ' %' : '') + (res.cached ? ' · cached' : '')]);
-    for (const w of R.blocks[b.id].warnings) R.log.push(['w', '  ⚠ ' + w]);
-  }
-  return res;
-}
-
-/** component separator — pure mass split, done here (no thermodynamics) */
-function solveSepClient(b, ins) {
-  const f = ins[0];
-  const fr = {};
-  for (const r of b.params.splits || []) if (r.key) fr[r.key] = clamp(num(r.f) ? r.f : 0, 0, 1);
-  const top = {}, bot = {};
-  let mt = 0, mb = 0;
-  for (const c of f.components) {
-    const m = c.mass_fraction * f.mass_flow_kg_h, x = fr[c.key] || 0;
-    if (m * x > 0) { top[c.key] = m * x; mt += m * x; }
-    if (m * (1 - x) > 0) { bot[c.key] = m * (1 - x); mb += m * (1 - x); }
-  }
-  const mk = (o, tot) => ({
-    mass_flow_kg_h: tot, T_K: f.T_K, P_bar: f.P_bar,
-    components: tot > 0 ? Object.keys(o).map((k) => ({ key: k, mass_fraction: o[k] / tot })) : [{ key: f.components[0].key, mass_fraction: 1 }],
-  });
-  const warnings = [];
-  if (!(mt > 0)) warnings.push('“Separated” outlet has zero flow — check the split list');
-  if (!(mb > 0)) warnings.push('“Remainder” outlet has zero flow');
-  return { result: {
-    streams_out: [mk(top, mt), mk(bot, mb)],
-    mass_balance: { in: f.mass_flow_kg_h, out: mt + mb, closure_pct: f.mass_flow_kg_h > 0 ? (mt + mb - f.mass_flow_kg_h) / f.mass_flow_kg_h * 100 : 0 },
-    energy_balance: {}, details: { split_to_separated: fr }, converged: true, iterations: 0, warnings,
-  }, warnings: [] };
-}
-
-async function solveLoop(L, SV, R) {
-  const names = L.blocks.map((id) => blockById(id).name).join(' → ');
-  const tn = L.tears.map((id) => streamById(id).name).join(', ');
-  R.log.push(['h', '⟲ Recycle loop ' + names + ' · tear stream ' + tn]);
-  R.tears.push(...L.tears);
-  const rec = { blocks: L.blocks, tears: L.tears, iters: 0, err: NaN, converged: false };
-  R.loops.push(rec);
-  let x = L.tears.map((tid) => initialGuess(tid, L, SV));
-  let xp = null, gp = null;
-  for (let it = 1; it <= PREFS.maxIt; it++) {
-    L.tears.forEach((tid, k) => { SV[tid] = objS(x[k]); });
-    for (const bid of L.blocks) await solveBlock(blockById(bid), SV, R, true);
-    const g = L.tears.map((tid) => sObj(SV[tid]));
-    const err = Math.max(...g.map((gk, k) => relErr(x[k], gk)));
-    rec.iters = it; rec.err = err;
-    R.log.push(['', '   iteration ' + it + ' · max relative change ' + err.toExponential(2)]);
-    runText('Loop ' + names + ' · iteration ' + it + ' · error ' + err.toExponential(1));
-    if (err <= PREFS.tol) { rec.converged = true; break; }
-    const xn = x.map((xk, k) => wegstein(xk, g[k], xp && xp[k], gp && gp[k]));
-    xp = x; gp = g; x = xn;
-  }
-  for (const bid of L.blocks) for (const w of (R.blocks[bid] || {}).warnings || []) R.log.push(['w', '  ⚠ ' + blockById(bid).name + ': ' + w]);
-  if (rec.converged) R.log.push(['o', '✓ loop converged in ' + rec.iters + ' iterations (error ' + rec.err.toExponential(2) + ')']);
-  else {
-    const m = 'Recycle loop ' + names + ' did not converge in ' + rec.iters + ' iterations (error ' + rec.err.toExponential(2) + ') — results shown are the last iterate';
-    R.log.push(['w', '⚠ ' + m]); R.warnings.push(m);
-  }
-}
-function initialGuess(tid, L, SV) {
-  const s = streamById(tid);
-  if (s.spec && !specIsBlank(s.spec)) { const r = specToSI(s.spec); if (r.ok) return sObj(r.stream); }
-  let best = null;
-  for (const st of M.streams) {
-    if (st.to && L.blocks.includes(st.to.b) && (!st.from || !L.blocks.includes(st.from.b))) {
-      const v = SV[st.id];
-      if (v && (!best || v.mass_flow_kg_h > best.mass_flow_kg_h)) best = v;
-    }
-  }
-  if (!best) throw new Error('recycle loop has no fresh feed entering it');
-  const o = sObj(best);
-  for (const k in o.m) o.m[k] *= 0.01;
-  return o;
-}
-
-/** feeds and separator outlets carry no enthalpy yet — ask the engine (single-inlet mixer at the same T, P) */
-async function enthalpyPass(R) {
-  const todo = M.streams.filter((s) => { const r = R.streams[s.id]; return r && !num(r.H_kJh) && r.mass_flow_kg_h > 0; });
-  for (const s of todo) {
-    const r = R.streams[s.id];
-    runText('Evaluating enthalpy of ' + s.name);
-    try {
-      const res = await apiSolve('mixer', { streams: [apiStream(r)], params: { T_out_K: r.T_K, P_out_bar: r.P_bar } }, onWait);
-      R.calls += res.cached ? 0 : 1;
-      const o = res.result.streams_out && res.result.streams_out[0];
-      if (o && num(o.H_kJh)) {
-        r.H_kJh = o.H_kJh; r.H_eval = true;
-        const ph = {}; for (const c of o.components || []) if (c.phase) ph[c.key] = c.phase;
-        r.components = (r.components || []).map((c) => (ph[c.key] && !c.phase ? Object.assign({}, c, { phase: ph[c.key] }) : c));
-      }
-    } catch (e) { R.warnings.push(s.name + ': enthalpy not evaluated (' + e.message + ')'); }
-  }
-  for (const b of M.blocks) {
-    if (!tdef(b).client || !R.blocks[b.id]) continue;
-    const sin = streamTo(b.id, 0);
-    const hin = sin && R.streams[sin.id] ? R.streams[sin.id].H_kJh : NaN;
-    let hout = 0, ok = num(hin);
-    for (let j = 0; j < b.nOut; j++) {
-      const so = streamFrom(b.id, j);
-      const ro = so && R.streams[so.id];
-      const o = R.blocks[b.id].result.streams_out[j];
-      if (o.mass_flow_kg_h <= 0) continue;
-      if (ro && num(ro.H_kJh)) { hout += ro.H_kJh; o.H_kJh = ro.H_kJh; } else ok = false;
-    }
-    if (ok) R.blocks[b.id].result.energy_balance = { Hin: hin, Hout: hout, Q_kW: (hout - hin) / 3600, W_kW: 0 };
-  }
 }
 
 function computeOverall(R) {
@@ -5623,10 +5687,9 @@ function computeOverall(R) {
 /* ---------------------------------------------------------------------
    SERVER RUN (Step 21): the whole flowsheet in ONE POST to
    ?module=flowsheet — order, recycle tears, Wegstein and design specs are
-   all solved inside the engine. Falls back to the unit-by-unit runner
-   below when the deployed engine predates the flowsheet module.
+   all solved inside the engine (STEP 33: the page's own unit-by-unit
+   runner is retired — one solver, on the server).
 --------------------------------------------------------------------- */
-let SERVER_FS = true;
 const FS_CACHE = new Map();
 function serverSpec(sp) {
   const v = sp.vary, t = sp.target;
@@ -5727,9 +5790,7 @@ async function runServer(R) {
       j = await postFlowsheet(resume ? JSON.stringify(Object.assign({}, body, { params: Object.assign({}, body.params, { resume }) })) : key);
       R.calls = call;
       if (j && j.error && j.error.code === 'MB_UNKNOWN_MODULE' && /flowsheet/.test(j.error.message || '')) {
-        SERVER_FS = false;
-        R.log.push(['w', 'The deployed engine has no flowsheet module yet — solving unit by unit instead.']);
-        return 'fallback';
+        throw new Error('the deployed engine has no flowsheet module — redeploy the API (api/_lib) together with this page');
       }
       const tok = j && (j.ok ? j.result && j.result.resume : j.partial && j.partial.resume);
       if (!tok || call === FS_MAX_CALLS) {
@@ -5751,33 +5812,6 @@ async function runServer(R) {
   return 'server';
 }
 
-/* unit-by-unit runner (fallback, and the reference implementation) */
-async function runClient(R) {
-  if ((M.specs || []).some((x) => x.active !== false)) {
-    R.warnings.push('Design specs need the updated engine (flowsheet module) — they were skipped in this run');
-  }
-  if (M.sens && M.sens.active) R.warnings.push('Sensitivity studies need the updated engine (flowsheet module) — skipped in this run');
-  if (M.blocks.some((b) => !isRig(b) && b.type === 'flash' && b.params.model && b.params.model !== 'raoult')) {
-    R.warnings.push('Peng–Robinson / NRTL flash need the updated engine — this engine solved those drums with Raoult’s law');
-  }
-  const SV = {};
-  for (const s of M.streams) {
-    if (s.from || !s.to) continue;
-    const r = specToSI(s.spec);
-    SV[s.id] = r.stream;
-    R.streams[s.id] = Object.assign({ src: 'feed' }, r.stream);
-  }
-  const plan = buildPlan();
-  R.log.push(['h', 'Calculation order: ' + plan.map((p) => p.loop ? '[' + p.blocks.map((id) => blockById(id).name).join(' → ') + ']⟲' : blockById(p.blocks[0]).name).join('  →  ')]);
-  for (const step of plan) {
-    if (step.loop) await solveLoop(step, SV, R);
-    else await solveBlock(blockById(step.blocks[0]), SV, R, false);
-  }
-  await enthalpyPass(R);
-  computeOverall(R);
-  R.log.push(['o', '■ Run complete · ' + R.calls + ' engine call' + (R.calls === 1 ? '' : 's') + (R.cached ? ' + ' + R.cached + ' reused' : '') + ' · ' + ((Date.now() - R.t0) / 1000).toFixed(1) + ' s']);
-}
-
 async function runFlowsheet() {
   if (RUN.on) return;
   closeMenus();
@@ -5795,8 +5829,7 @@ async function runFlowsheet() {
   setRunUI(true);
   const R = { streams: {}, blocks: {}, tears: [], loops: [], log: [], warnings: [], specs: [], t0: Date.now(), sig: inputSig(), calls: 0, cached: 0, engine: '' };
   try {
-    let mode = SERVER_FS ? await runServer(R) : 'fallback';
-    if (mode === 'fallback') await runClient(R);
+    await runServer(R);
     R.ok = true;
   } catch (e) {
     R.failed = e.message;
@@ -5948,10 +5981,19 @@ function blockResults(b, br) {
   if ((D.spec || num(D.power_hp_kW)) && num(D.vapour_fraction_out) && D.vapour_fraction_out < 1) kv.append(el('b', null, 'Outlet steam quality'), el('span', null, fmt(D.vapour_fraction_out, 5) + ' (vapour fraction)'));
   if (num(D.steam_rate_kg_kWh)) kv.append(el('b', null, 'Steam rate'), el('span', null, fmt(D.steam_rate_kg_kWh, 5) + ' kg/kWh'));
   if (D.pp && D.pp.label) kv.append(el('b', null, 'Property method'), el('span', null, D.pp.label));
+  // STEP 33: equilibrium reactors — method, approach, carbon activity, deposited carbon
+  if (D.method) kv.append(el('b', null, 'Equilibrium'), el('span', null, D.method));
+  if (num(D.equilibrium_T_K) && num(D.approach_K) && D.approach_K !== 0) kv.append(el('b', null, 'Equilibrium temperature'), el('span', null, fmt(dispT(D.equilibrium_T_K), 5) + ' ' + PREFS.tu + ' (ΔT ' + fmt(D.approach_K, 4) + ' K)'));
+  if (num(D.carbon_activity_max)) kv.append(el('b', null, 'Carbon activity (max)'), el('span', { style: D.carbon_activity_max > 1 && !R.solids_out ? 'color:var(--warn);font-weight:700' : '' }, fmt(D.carbon_activity_max, 4) + (D.carbon_activity_max > 1 && !R.solids_out ? ' — graphite favoured' : '')));
+  if (R.solids_out) kv.append(el('b', null, 'Graphite deposited'), el('span', null, fmt(R.solids_out.mass_flow_kg_h, 5) + ' kg/h'));
+  if (Array.isArray(D.reactions) && D.reactions.length && num(D.reactions[0].lnK)) for (const rx of D.reactions) kv.append(el('b', null, rx.label), el('span', null, 'extent ' + fmt(rx.extent_kmol_h, 5) + ' kmol/h' + (num(rx.approach_K) && rx.approach_K ? ' · ΔT ' + fmt(rx.approach_K, 4) + ' K' : '')));
   if (num(eb.W_kW) && eb.W_kW !== 0) kv.append(el('b', null, 'Shaft work W'), el('span', null, fmt(eb.W_kW, 6) + ' kW'));
   if (num(eb.Hin)) kv.append(el('b', null, 'H in'), el('span', null, fmt(eb.Hin, 6) + ' kJ/h'));
   if (num(eb.Hout)) kv.append(el('b', null, 'H out'), el('span', null, fmt(eb.Hout, 6) + ' kJ/h'));
   box.append(kv);
+  if (moduleOf(b) === 'r-pipe') box.append(pipeResults(D));
+  const lk = toolLinks(b, br);
+  if (lk) box.append(lk);
   /* outlets */
   const t = el('table', { class: 'mini', style: 'margin-top:8px' }, el('thead', null, el('tr', null,
     el('th', null, 'Outlet'), el('th', null, 'kg/h'), el('th', null, PREFS.tu), el('th', null, PREFS.pu))));
@@ -5983,6 +6025,84 @@ function blockResults(b, br) {
   dd.append(el('div', null, kd));
   box.append(dd);
   return box;
+}
+/* STEP 33 — pipe results: pressure-drop breakdown and the velocity checks */
+function pipeResults(D) {
+  const wrap = el('div', { style: 'margin-top:8px' });
+  const kv = el('div', { class: 'kv' });
+  const add = (k, v, warn) => kv.append(el('b', null, k), el('span', warn ? { style: 'color:var(--warn);font-weight:700' } : null, v));
+  add('Pressure drop', fmt(D.dp_bar, 5) + ' bar · ' + fmt(D.dp_per_100m_bar, 4) + ' bar/100 m');
+  add('  friction / elevation', fmt(D.dp_friction_bar, 4) + ' / ' + fmt(D.dp_elevation_bar, 4) + ' bar');
+  add('  acceleration / fittings', fmt(D.dp_acceleration_bar, 3) + ' / ' + fmt(D.dp_fittings_bar, 3) + ' bar');
+  add('Velocity in → out', fmt(D.velocity_in_ms, 4) + ' → ' + fmt(D.velocity_out_ms, 4) + ' m/s');
+  add('Erosional velocity (RP 14E)', fmt(D.erosional_velocity_ms, 4) + ' m/s · ' + fmt(100 * D.erosional_ratio_max, 3) + ' % of it', D.erosional_ratio_max > 1);
+  add('ρv² at outlet', fmt(D.rhov2_out_Pa, 4) + ' Pa');
+  if (num(D.mach_out)) add('Mach (outlet)', fmt(D.mach_out, 3), D.mach_out > 0.3);
+  add('Reynolds in / out', fmt(D.reynolds_in, 4) + ' / ' + fmt(D.reynolds_out, 4));
+  add('Friction factor (Darcy)', fmt(D.friction_factor_out, 4));
+  if (num(D.heat_kW) && Math.abs(D.heat_kW) > 1e-6) add('Heat exchanged', fmt(D.heat_kW, 5) + ' kW');
+  wrap.append(kv);
+  if (Array.isArray(D.profile) && D.profile.length > 2) {
+    const t = el('table', { class: 'mini', style: 'margin-top:8px' }, el('thead', null, el('tr', null,
+      el('th', null, 'L, m'), el('th', null, PREFS.pu), el('th', null, PREFS.tu), el('th', null, 'VF'), el('th', null, 'v, m/s'))));
+    const tb = el('tbody');
+    const step = Math.max(1, Math.ceil(D.profile.length / 12));
+    D.profile.forEach((r, i) => { if (i % step && i !== D.profile.length - 1) return;
+      tb.append(el('tr', null, el('td', null, fmt(r.L_m, 5)), el('td', null, fmt(dispP(r.P_bar), 5)), el('td', null, fmt(dispT(r.T_K), 5)), el('td', null, fmt(r.vapour_fraction, 3)), el('td', null, fmt(r.v_ms, 4)))); });
+    t.append(tb);
+    wrap.append(t);
+  }
+  return wrap;
+}
+
+/* STEP 33 — open the result in the site's equipment tools: control-valve sizing for a valve,
+   HeatXpert rating for a heat exchanger (all values stay editable there) */
+const b64json = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+const HX_FLUID = { H2O: (vf) => (vf > 0.5 ? 'steam' : 'water'), N2: 'nitrogen', O2: 'oxygen', H2: 'hydrogen', CH4: 'methane', CO2: 'co2',
+  NH3: (vf) => (vf > 0.5 ? 'ammonia-gas' : 'ammonia-liquid'), benzene: 'benzene', toluene: 'toluene', 'o-xylene': 'xylene', 'm-xylene': 'xylene', 'p-xylene': 'xylene',
+  methanol: 'methanol', ethanol: 'ethanol', acetone: 'acetone', 'acetic-acid': 'acetic-acid' };
+function hxFluidOf(r) {
+  const comps = (r.components || []).filter((c) => c.mass_fraction > 0).sort((a, c) => c.mass_fraction - a.mass_fraction);
+  const vf = num(r.vapour_fraction) ? r.vapour_fraction : 1;
+  const w = Object.fromEntries(comps.map((c) => [c.key, c.mass_fraction]));
+  if ((w.N2 || 0) > 0.7 && (w.O2 || 0) > 0.18) return { fluid: 'air', exact: true };
+  const top = comps[0];
+  if (!top) return { fluid: vf > 0.5 ? 'nitrogen' : 'water', exact: false };
+  const m = HX_FLUID[top.key];
+  if (m && top.mass_fraction > 0.9) return { fluid: typeof m === 'function' ? m(vf) : m, exact: true };
+  const hc = comps.filter((c) => /^(CH4|C2H6|C3H8|[in]C4H10|n-|i-)/.test(c.key)).reduce((a, c) => a + c.mass_fraction, 0);
+  if (vf > 0.5 && hc > 0.6) return { fluid: 'natural-gas', exact: false, top: top.key };
+  if (m) return { fluid: typeof m === 'function' ? m(vf) : m, exact: false, top: top.key };
+  return { fluid: vf > 0.5 ? (hc > 0.5 ? 'natural-gas' : 'nitrogen') : (hc > 0.5 ? 'crude-oil-light' : 'water'), exact: false, top: top.key };
+}
+function toolLinks(b, br) {
+  const R = br.result, D = R.details || {}, mod = moduleOf(b);
+  const box = el('div', { class: 'btns', style: 'margin-top:8px;flex-wrap:wrap' });
+  const note = el('div', { class: 'hint', style: 'margin-top:4px' });
+  if (mod === 'valve' && D.sizing) {
+    const z = D.sizing, sIn = streamTo(b.id, 0), rin = sIn && RES.streams[sIn.id];
+    if (z.phase === 'two-phase') { note.textContent = 'Inlet is two-phase — IEC 60534 has no two-phase sizing method; size the liquid and vapour parts separately.'; return el('div', null, note); }
+    const d = { name: b.name, phase: z.phase, flow_kg_h: rin ? rin.mass_flow_kg_h : R.mass_balance.in, P1_bar: z.P_bar, P2_bar: D.P_out_bar, T_C: z.T_K - 273.15,
+      sg: z.sg, MW: z.MW, pv_bar: z.pv_bar, visc_cP: z.visc_cP, k: z.k, Z: z.Z, Pc_bar: z.Pc_bar, Tc_K: z.Tc_K, omega: z.omega, superheated: z.superheated };
+    box.append(el('a', { class: 'btn sm', href: '/control-valve-sizing#mb=' + b64json(d), target: '_blank', rel: 'noopener' }, 'Size this valve ↗'));
+    note.textContent = 'Opens the control-valve sizing tool (IEC 60534) with this inlet: ' + (z.phase === 'liquid' ? 'SG ' + fmt(z.sg, 4) + ', vapour pressure ' + (num(z.pv_bar) ? fmt(z.pv_bar, 4) + ' bar' : '—') : 'MW ' + fmt(z.MW, 4) + ', Z ' + fmt(z.Z, 4) + ', k ' + fmt(z.k, 3)) + ', pseudo-critical Pc ' + fmt(z.Pc_bar, 4) + ' bar.';
+  } else if (mod === 'r-hx') {
+    const sh = streamTo(b.id, 0), sc = streamTo(b.id, 1);
+    const hi = sh && RES.streams[sh.id], ci = sc && RES.streams[sc.id];
+    const ho = (R.streams_out || [])[0], co = (R.streams_out || [])[1];
+    if (!hi || !ci || !ho || !co) return null;
+    const fh = hxFluidOf(hi), fc = hxFluidOf(ci);
+    const cond = (hi.vapour_fraction || 0) > 0.99 && (ho.vapour_fraction || 0) < 0.01;
+    const boil = (ci.vapour_fraction || 0) < 0.01 && (co.vapour_fraction || 0) > 0.99;
+    const v = { st_shellMode: cond ? 'condensing' : boil ? 'evaporating' : 'single-phase', st_type: '1-2', st_flow: 'counter',
+      st_hFl: fh.fluid, st_hTi: +(hi.T_K - 273.15).toFixed(3), st_hTo: +(ho.T_K - 273.15).toFixed(3), st_hF: +hi.mass_flow_kg_h.toPrecision(6), st_hFunit: 'kgh', st_hPop: +hi.P_bar.toPrecision(5),
+      st_cFl: fc.fluid, st_cTi: +(ci.T_K - 273.15).toFixed(3), st_cF: +ci.mass_flow_kg_h.toPrecision(6), st_cFunit: 'kgh', st_cPop: +ci.P_bar.toPrecision(5) };
+    box.append(el('a', { class: 'btn sm', href: '/heat-exchanger-design#case=' + b64json({ t: 'shell-tube', u: 'metric', coldMode: 'flow', v }), target: '_blank', rel: 'noopener' }, 'Rate in HeatXpert ↗'));
+    const ph = (hi.vapour_fraction || 0) !== (ho.vapour_fraction || 0) || (ci.vapour_fraction || 0) !== (co.vapour_fraction || 0);
+    note.textContent = 'Opens a shell-and-tube design with these temperatures, flows and pressures (duty ' + fmt(D.duty_kW, 5) + ' kW). HeatXpert uses its own property set: hot side “' + fh.fluid + '”' + (fh.exact ? '' : ' (nearest to ' + (fh.top || 'the mixture') + ')') +
+      ', cold side “' + fc.fluid + '”' + (fc.exact ? '' : ' (nearest to ' + (fc.top || 'the mixture') + ')') + (ph && !cond && !boil ? '. A side changes phase only partly — the case opens as single-phase; check the shell mode.' : '.');
+  } else return null;
+  return el('div', null, box, note);
 }
 function flattenDetails(obj, prefix, kv) {
   for (const k in obj) {
@@ -6111,6 +6231,7 @@ function streamTableView() {
     unitSelect(FLOW_UNITS, PREFS.fu, (v) => { PREFS.fu = v; savePrefs(); refreshView(); }),
     el('span', { class: 'grow', style: 'flex:1' }),
     el('button', { class: 'btn sm', onclick: copyTable, title: 'Copy as tab-separated text — paste straight into Excel' }, '⧉ Copy for Excel'),
+    el('button', { class: 'btn sm', onclick: downloadXLSX, title: 'Heat and material balance workbook: streams, units, summary, warnings' }, '⬇ Excel H&MB'),
     el('button', { class: 'btn sm', onclick: downloadCSV }, '⬇ CSV'));
   if (RES.stale) tools.append(el('span', { class: 'pill warn' }, 'inputs changed — out of date'));
   box.append(tools);
@@ -6118,7 +6239,12 @@ function streamTableView() {
   if (!cols.length) { box.append(noResults('No stream results.')); return box; }
   const t = el('table', { class: 'st' });
   const tr = el('tr');
-  H.forEach((h, i) => tr.append(el('th', i ? { class: 'clk' + (SEL && SEL.kind === 'stream' && cols[i - 1].id === SEL.id ? ' selc' : ''), onclick: () => select({ kind: 'stream', id: cols[i - 1].id }, true) } : null, h)));
+  const rfT = resultFlags();
+  H.forEach((h, i) => {
+    const f = i && rfT ? rfT.S.get(cols[i - 1].id) : null;
+    tr.append(el('th', i ? { class: 'clk' + (SEL && SEL.kind === 'stream' && cols[i - 1].id === SEL.id ? ' selc' : ''), onclick: () => select({ kind: 'stream', id: cols[i - 1].id }, true) } : null, h,
+      f ? el('span', { class: 'rfl' + (f.level === 'err' ? ' err' : ''), title: f.msgs.join('\n') }, '⚠') : null));
+  });
   t.append(el('thead', null, tr));
   const tb = el('tbody');
   for (const r of rows) {
@@ -6163,6 +6289,195 @@ function download(name, text, type) {
   const a = el('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
   document.body.append(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* =====================================================================
+   STEP 33 — heat & material balance workbook (.xlsx), written here with no
+   library: SpreadsheetML parts in an uncompressed (stored) zip. Sheets:
+   H&MB (streams), Units, Summary, Warnings, and Sensitivity when run.
+===================================================================== */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+/** stored (method 0) zip of [{name, data: Uint8Array}] */
+function zipStore(files) {
+  const enc = new TextEncoder(), parts = [], cen = [];
+  const d = new Date();
+  const dosT = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), dosD = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let off = 0;
+  for (const f of files) {
+    const nm = enc.encode(f.name), data = f.data, crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, dosT, true); lh.setUint16(12, dosD, true); lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, nm.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), nm, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, dosT, true); ch.setUint16(14, dosD, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, nm.length, true); ch.setUint32(42, off, true);
+    cen.push(new Uint8Array(ch.buffer), nm);
+    off += 30 + nm.length + data.length;
+  }
+  const csz = cen.reduce((a, u) => a + u.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, csz, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(end.buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const XS = { text: 0, bold: 1, head: 2, f2: 3, f2c: 4, f6: 5, f4: 6, num: 7, title: 8, f1c: 9, f3: 10 };
+const xesc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+function xcol(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+/** sheet XML; rows: arrays of cells — a cell is a value or {v, s}; numbers keep full precision */
+function sheetXML(sh) {
+  const cols = (sh.widths || []).map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+  const fz = sh.freeze ? `<sheetViews><sheetView workbookViewId="0"><pane xSplit="${sh.freeze.c}" ySplit="${sh.freeze.r}" topLeftCell="${xcol(sh.freeze.c)}${sh.freeze.r + 1}" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>`
+    : '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+  const rows = sh.rows.map((row, r) => {
+    const cells = (row || []).map((c, i) => {
+      if (c === null || c === undefined || c === '') return '';
+      const o = typeof c === 'object' ? c : { v: c };
+      const ref = xcol(i) + (r + 1), st = num(o.s) ? ` s="${o.s}"` : '';
+      if (typeof o.v === 'number') return Number.isFinite(o.v) ? `<c r="${ref}"${st}><v>${o.v}</v></c>` : '';
+      return `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${xesc(o.v)}</t></is></c>`;
+    }).join('');
+    return `<row r="${r + 1}">${cells}</row>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${fz}<sheetFormatPr defaultRowHeight="15"/>${cols ? '<cols>' + cols + '</cols>' : ''}<sheetData>${rows}</sheetData><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" paperSize="9"/><headerFooter><oddFooter>&amp;L${xesc(sh.footer || 'multicalci.com')}&amp;R&amp;P / &amp;N</oddFooter></headerFooter></worksheet>`;
+}
+function xlsxBlob(sheets, title) {
+  const enc = new TextEncoder(), now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`;
+  const core = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xesc(title)}</dc:title><dc:creator>multicalci.com</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
+  const app = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>multicalci.com flowsheet simulator</Application></Properties>`;
+  const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh, i) => `<sheet name="${xesc(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`;
+  const wbr = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="6"><numFmt numFmtId="164" formatCode="0.00"/><numFmt numFmtId="165" formatCode="#,##0.00"/><numFmt numFmtId="166" formatCode="0.000000"/><numFmt numFmtId="167" formatCode="0.0000"/><numFmt numFmtId="168" formatCode="#,##0.0"/><numFmt numFmtId="169" formatCode="0.000"/></numFmts>` +
+    `<fonts count="3"><font><sz val="10"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="10"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="12"/><name val="Arial"/><family val="2"/></font></fonts>` +
+    `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
+    `<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color auto="1"/></bottom><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="11">` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" wrapText="1"/></xf>` +
+    `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    `<xf numFmtId="168" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="169" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const files = [['[Content_Types].xml', ct], ['_rels/.rels', rels], ['docProps/core.xml', core], ['docProps/app.xml', app], ['xl/workbook.xml', wb], ['xl/_rels/workbook.xml.rels', wbr], ['xl/styles.xml', styles],
+    ...sheets.map((sh, i) => ['xl/worksheets/sheet' + (i + 1) + '.xml', sheetXML(sh)])];
+  return zipStore(files.map(([name, t]) => ({ name, data: enc.encode(t) })));
+}
+/** the workbook: H&MB, Units, Summary, Warnings (+ Sensitivity) */
+function hmbWorkbook() {
+  const cols = streamCols();
+  const when = new Date();
+  const stamp = when.toISOString().slice(0, 10) + ' ' + when.toTimeString().slice(0, 5);
+  const method = PKG_LABEL[pkgModel()] || pkgModel();
+  const foot = 'multicalci.com · flowsheet simulator · ' + stamp;
+  const N = (v, st) => (num(v) ? { v, s: st } : '');
+  // --- H&MB
+  const R = (id) => RES.streams[id];
+  const hdr = [{ v: 'Stream', s: XS.head }, ...cols.map((c) => ({ v: c.name, s: XS.head }))];
+  const rows = [
+    [{ v: 'Heat and material balance', s: XS.title }],
+    ['Property method: ' + method + ' · ' + stamp + ' · multicalci.com flowsheet simulator'],
+    [],
+    hdr,
+    ['From', ...cols.map((c) => (c.from ? blockById(c.from.b).name : 'feed'))],
+    ['To', ...cols.map((c) => (c.to ? blockById(c.to.b).name : 'product'))],
+    ['Phase', ...cols.map((c) => phaseOf(R(c.id)))],
+    ['Vapour fraction (molar)', ...cols.map((c) => N(R(c.id).vapour_fraction, XS.f4))],
+    ['Temperature, ' + PREFS.tu, ...cols.map((c) => N(dispT(R(c.id).T_K), XS.f2))],
+    ['Pressure, ' + PREFS.pu, ...cols.map((c) => N(dispP(R(c.id).P_bar), XS.f3))],
+    ['Mass flow, kg/h', ...cols.map((c) => N(R(c.id).mass_flow_kg_h, XS.f2c))],
+    ['Molar flow, kmol/h', ...cols.map((c) => N(molarFlow(R(c.id)), XS.f2c))],
+    ['Molar mass, kg/kmol', ...cols.map((c) => { const r = R(c.id), n = molarFlow(r); return N(n > 0 ? r.mass_flow_kg_h / n : NaN, XS.f3); })],
+    ['Enthalpy flow, kW', ...cols.map((c) => N(num(R(c.id).H_kJh) ? R(c.id).H_kJh / 3600 : NaN, XS.f2c))],
+    ['Density, kg/m³', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props; return N(p ? p.rho_kgm3 : NaN, XS.f3); })],
+    ['Vapour Z', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props, ph = p && (p.phases || []).find((x) => x.type === 'vapour'); return N(ph ? ph.Z : NaN, XS.f4); })],
+    ['Vapour viscosity, cP', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props, ph = p && (p.phases || []).find((x) => x.type === 'vapour'); return N(ph ? ph.mu_cP : NaN, XS.f6); })],
+    ['Liquid viscosity, cP', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props, ph = p && (p.phases || []).find((x) => x.type === 'liquid'); return N(ph ? ph.mu_cP : NaN, XS.f4); })],
+  ];
+  const keys = [];
+  for (const c of cols) for (const k of (R(c.id).components || [])) if (!keys.includes(k.key)) keys.push(k.key);
+  const nk = (c, k) => { const r = R(c.id), x = (r.components || []).find((q) => q.key === k), mw = mwOf(k); return x && mw ? x.mass_fraction * r.mass_flow_kg_h / mw : 0; };
+  rows.push([], [{ v: 'Component molar flow, kmol/h', s: XS.bold }]);
+  for (const k of keys) rows.push([compLabel(k) + ' — ' + compName(k), ...cols.map((c) => N(nk(c, k), XS.f4))]);
+  rows.push([{ v: 'Total', s: XS.bold }, ...cols.map((c) => N(keys.reduce((a, k) => a + nk(c, k), 0), XS.f4))]);
+  rows.push([], [{ v: 'Composition, mol %', s: XS.bold }]);
+  for (const k of keys) rows.push([compLabel(k) + ' — ' + compName(k), ...cols.map((c) => { const t = keys.reduce((a, q) => a + nk(c, q), 0); return N(t > 0 ? 100 * nk(c, k) / t : NaN, XS.f4); })]);
+  rows.push([], [{ v: 'Component mass flow, kg/h', s: XS.bold }]);
+  for (const k of keys) rows.push([compLabel(k) + ' — ' + compName(k), ...cols.map((c) => { const r = R(c.id), x = (r.components || []).find((q) => q.key === k); return N(x ? x.mass_fraction * r.mass_flow_kg_h : 0, XS.f2c); })]);
+  const sh1 = { name: 'H&MB', rows, widths: [34, ...cols.map(() => 13)], freeze: { r: 4, c: 1 }, footer: foot };
+  // --- Units
+  const urows = [[{ v: 'Unit operations', s: XS.title }], ['Property method: ' + method + ' · ' + stamp], [],
+    ['Unit', 'Type', 'Model', 'Duty, kW', 'Power, kW', 'Mass in, kg/h', 'Mass out, kg/h', 'Closure, %', 'Outlet T, ' + PREFS.tu, 'Outlet P, ' + PREFS.pu, 'Converged', 'Warnings', 'Key result'].map((v) => ({ v, s: XS.head }))];
+  for (const b of M.blocks.slice().sort((a, c) => natSort(a.name, c.name))) {
+    const br = RES.blocks[b.id], Rr = br && br.result;
+    if (!Rr) { urows.push([b.name, TYPES[b.type].label, moduleOf(b), '', '', '', '', '', '', '', 'not run']); continue; }
+    const eb = Rr.energy_balance || {}, mb = Rr.mass_balance || {}, D = Rr.details || {}, o0 = (Rr.streams_out || [])[0];
+    const q = tdef(b).internalQ && num(D.duty_kW) ? D.duty_kW : eb.Q_kW;
+    let key = '';
+    if (num(D.dp_bar) && moduleOf(b) === 'r-pipe') key = 'ΔP ' + fmt(D.dp_bar, 4) + ' bar, v ' + fmt(D.velocity_out_ms, 3) + ' m/s';
+    else if (D.conversion && typeof D.conversion === 'object') key = Object.entries(D.conversion).map(([k, v]) => 'X ' + compLabel(k) + ' ' + fmt(100 * v, 4) + ' %').join(', ');
+    else if (num(D.ch4_slip_dry_pct) && /smr|atr/.test(moduleOf(b))) key = 'CH4 slip ' + fmt(D.ch4_slip_dry_pct, 4) + ' mol % dry';
+    else if (num(D.co_slip_dry_pct)) key = 'CO slip ' + fmt(D.co_slip_dry_pct, 4) + ' mol % dry';
+    else if (num(D.co_co2_ppm_dry)) key = 'CO + CO2 ' + fmt(D.co_co2_ppm_dry, 4) + ' ppm dry';
+    else if (num(D.vapour_fraction)) key = 'vapour fraction ' + fmt(D.vapour_fraction, 4);
+    else if (num(D.min_approach_K)) key = 'min approach ' + fmt(D.min_approach_K, 4) + ' K';
+    urows.push([b.name, TYPES[b.type].label, moduleOf(b), N(Math.abs(q) < 1e-9 ? 0 : q, XS.f2c), N(eb.W_kW, XS.f2c), N(mb.in, XS.f2c), N(mb.out, XS.f2c), N(mb.closure_pct, XS.f6),
+      N(o0 ? dispT(o0.T_K) : NaN, XS.f2), N(o0 ? dispP(o0.P_bar) : NaN, XS.f3), Rr.converged === false ? 'NO' : 'yes', (br.warnings || []).length, key]);
+  }
+  const sh2 = { name: 'Units', rows: urows, widths: [12, 26, 16, 13, 12, 14, 14, 11, 12, 12, 10, 10, 40], freeze: { r: 4, c: 1 }, footer: foot };
+  // --- Summary
+  const o = RES.overall || {};
+  const srows = [[{ v: 'Flowsheet summary', s: XS.title }], [], ['Prepared with', 'multicalci.com flowsheet simulator'], ['Date', stamp], ['Property method', method],
+    ['Engine', (RES.engine || '').split(' (')[0]], ['Units in this workbook', 'temperature ' + PREFS.tu + ', pressure ' + PREFS.pu + ', flows kg/h and kmol/h, duties kW'], [],
+    [{ v: 'Overall balance', s: XS.bold }], ['Feeds, kg/h', N(o.mIn, XS.f2c)], ['Products, kg/h', N(o.mOut, XS.f2c)], ['Mass closure, %', N(o.closure, XS.f6)],
+    ['Heating duty Σ Q > 0, kW', N(o.heat, XS.f2c)], ['Cooling duty Σ Q < 0, kW', N(o.cool, XS.f2c)], ['Shaft work in, kW', N(o.work, XS.f2c)], ['Shaft work recovered, kW', N(o.workOut, XS.f2c)],
+    ['ΔH products − feeds, kW', N(o.dH_kW, XS.f2c)]];
+  if (RES.recon) srows.push(['Energy balance check', RES.recon.ok ? 'closes' : 'does not close'], ['  imbalance, kW', N(RES.recon.imbalance_kW, XS.f6)], ['  tolerance, kW', N(RES.recon.tolerance_kW, XS.f6)]);
+  if ((RES.specs || []).length) {
+    srows.push([], [{ v: 'Design specifications', s: XS.bold }], ['Specification', 'Target', 'Reached', 'Varied value', 'Converged'].map((v) => ({ v, s: XS.head })));
+    for (const sp of RES.specs) srows.push([sp.name || sp.id, N(sp.target, XS.f6), N(sp.target_value, XS.f6), N(sp.varied, XS.f6), sp.converged ? 'yes' : 'NO']);
+  }
+  if ((RES.loops || []).length) {
+    srows.push([], [{ v: 'Recycle loops', s: XS.bold }], ['Tear streams', 'Iterations', 'Converged'].map((v) => ({ v, s: XS.head })));
+    for (const L of RES.loops) srows.push([(L.tears || []).map((t) => (streamById(t) || {}).name || t).join(', '), N(L.iters, XS.num), L.converged === false ? 'NO' : 'yes']);
+  }
+  const sh3 = { name: 'Summary', rows: srows, widths: [34, 22, 14, 14, 12], footer: foot };
+  // --- Warnings
+  const wrows = [[{ v: 'Warnings', s: XS.title }], [], [{ v: 'Where', s: XS.head }, { v: 'Message', s: XS.head }]];
+  for (const w of RES.warnings || []) wrows.push(['Flowsheet', w]);
+  const rf = resultFlags();
+  if (rf) for (const [id, f] of rf.S) for (const m of f.msgs) wrows.push(['Stream ' + ((streamById(id) || {}).name || id), m]);
+  for (const b of M.blocks) { const br = RES.blocks[b.id]; for (const w of (br && br.warnings) || []) wrows.push(['Unit ' + b.name, w]); }
+  if (wrows.length === 3) wrows.push(['', 'none']);
+  const sh4 = { name: 'Warnings', rows: wrows, widths: [18, 120], footer: foot };
+  const out = [sh1, sh2, sh3, sh4];
+  // --- Sensitivity
+  if (RES.sens && Array.isArray(RES.sens.rows) && RES.sens.rows.length && M.sens) {
+    const outs = (M.sens.outputs || []).map((q) => (q.stream ? 'Stream ' + ((streamById(q.stream) || {}).name || q.stream) : 'Unit ' + ((blockById(q.block) || {}).name || q.block)) + ' · ' + (q.key ? q.metric + ' ' + q.key : q.path ? q.metric + ' ' + q.path : q.metric));
+    const vary = M.sens.vary ? (M.sens.vary.block ? ((blockById(M.sens.vary.block) || {}).name || '') + ' · ' + (M.sens.vary.path || M.sens.vary.kind) : M.sens.vary.kind + ' ' + ((streamById(M.sens.vary.stream) || {}).name || '')) : 'varied';
+    const rr = [[{ v: 'Sensitivity study', s: XS.title }], ['Values in SI units (K, bar, kg/h, kW) as solved'], [], [{ v: vary, s: XS.head }, ...outs.map((v) => ({ v, s: XS.head })), { v: 'Converged', s: XS.head }]];
+    for (const row of RES.sens.rows) rr.push([N(row.value, XS.f4), ...(row.outputs || []).map((v) => N(v, XS.f6)), row.converged === false ? 'NO' : 'yes']);
+    out.push({ name: 'Sensitivity', rows: rr, widths: [24, ...outs.map(() => 24), 10], freeze: { r: 4, c: 1 }, footer: foot });
+  }
+  return out;
+}
+function downloadXLSX() {
+  if (!RES) { toast('Run the flowsheet first', 'err'); return; }
+  try {
+    const blob = xlsxBlob(hmbWorkbook(), 'Heat and material balance');
+    const a = el('a', { href: URL.createObjectURL(blob), download: 'heat-material-balance.xlsx' });
+    document.body.append(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  } catch (e) { toast('Excel export failed — ' + e.message, 'err'); }
 }
 
 function blockTableView() {
@@ -6329,6 +6644,7 @@ function fileItems() {
     { label: 'Copy share link', sub: 'the whole flowsheet in one URL', run: shareLink },
     'hr',
     { label: 'Copy stream table for Excel', run: copyTable, disabled: !RES },
+    { label: 'Download heat & material balance (Excel)', run: downloadXLSX, disabled: !RES },
     { label: 'Download stream table (CSV)', run: downloadCSV, disabled: !RES },
     { label: 'Printable report / PDF', run: openReport },
   ];
@@ -6663,6 +6979,7 @@ const EXAMPLES = [
     id: 'ammonia-front-end', label: 'Ammonia front end (syngas train)',
     desc: 'Primary + secondary reformer → HTS → LTS → CO₂ removal → methanator',
     model: {
+      v: 2, pkg: { model: 'pr' },
       blocks: [
         { id: 'b1', name: '101-B', type: 'smr', x: 100, y: 150, nIn: 1, nOut: 1, params: { T_out_K: 1073.15, P_out_bar: 30 }, pu: {} },
         { id: 'b2', name: '103-D', type: 'smr2', x: 300, y: 150, nIn: 2, nOut: 1, params: { P_out_bar: 30 }, pu: {} },
@@ -6695,7 +7012,7 @@ const EXAMPLES = [
         target: { stream: 's12', metric: 'ratio', num: 'H2', den: 'N2' }, value: 3 }],
       seq: { b: 9, s: 12 },
     },
-    note: 'Same chain and basis as the worksheet template (1 kmol/h dry NG, S/C 3.0). A design spec meters the process air so SYNGAS leaves at H₂/N₂ = 3 — see Specs.',
+    note: 'Same chain and basis as the worksheet template (1 kmol/h dry NG, S/C 3.0), solved on Peng–Robinson: reformers, shift and methanator use databank equilibrium constants with fugacity coefficients, and every duty is on one enthalpy basis. A design spec meters the process air so SYNGAS leaves at H₂/N₂ = 3 — see Specs.',
   },
   {
     id: 'shift-recycle', label: 'Shift reactor with condensate recycle',
@@ -6962,6 +7279,39 @@ const EXAMPLES = [
       seq: { b: 3, s: 5 },
     },
     note: 'Xu & Froment (1989) intrinsic kinetics for CH₄ + H₂O ⇌ CO + 3H₂, CO + H₂O ⇌ CO₂ + H₂ and CH₄ + 2H₂O ⇌ CO₂ + 4H₂ — Hougen–Watson rates with the adsorption term (1 + K_CO·p_CO + K_H₂·p_H₂ + K_CH₄·p_CH₄ + K_H₂O·p_H₂O/p_H₂)², their equilibrium constants, and k0 × 0.03 for the catalyst effectiveness factor. Open H-101 for the axial temperature and composition profiles.',
+  },
+  {
+    id: 'nh3-converter', label: 'Ammonia converter — three intercooled beds, fugacity kinetics (PR)',
+    desc: 'Syngas 150 bar → 3 adiabatic Fe-catalyst beds with interbed coolers → chilled separator',
+    model: {
+      pkg: { model: 'pr' },
+      blocks: [
+        { id: 'b1', name: 'E-1', type: 'heater', x: 120, y: 214, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 653.15 }, pu: {} },
+        { id: 'b2', name: 'R-1', type: 'kpfr', x: 250, y: 210, nIn: 1, nOut: 1, params: { phase: 'V', thermal: 'adiabatic', geom: 'volume', volume_m3: 1.5, dp_bar: 0.5, rate_basis: 'volume', reactions: [{ stoich: [{ key: 'N2', nu: -1 }, { key: 'H2', nu: -3 }, { key: 'NH3', nu: 2 }], k0: 8.849e14, Ea_kJmol: 170.56, form: 'temkin', alpha: 0.5, ka: 'gb', eta: 1, rev: 'none' }] }, pu: {} },
+        { id: 'b3', name: 'E-2', type: 'heater', x: 450, y: 214, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 663.15 }, pu: {} },
+        { id: 'b4', name: 'R-2', type: 'kpfr', x: 580, y: 210, nIn: 1, nOut: 1, params: { phase: 'V', thermal: 'adiabatic', geom: 'volume', volume_m3: 3, dp_bar: 0.5, rate_basis: 'volume', reactions: [{ stoich: [{ key: 'N2', nu: -1 }, { key: 'H2', nu: -3 }, { key: 'NH3', nu: 2 }], k0: 8.849e14, Ea_kJmol: 170.56, form: 'temkin', alpha: 0.5, ka: 'gb', eta: 1, rev: 'none' }] }, pu: {} },
+        { id: 'b5', name: 'E-3', type: 'heater', x: 780, y: 214, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 668.15 }, pu: {} },
+        { id: 'b6', name: 'R-3', type: 'kpfr', x: 910, y: 210, nIn: 1, nOut: 1, params: { phase: 'V', thermal: 'adiabatic', geom: 'volume', volume_m3: 5, dp_bar: 0.5, rate_basis: 'volume', reactions: [{ stoich: [{ key: 'N2', nu: -1 }, { key: 'H2', nu: -3 }, { key: 'NH3', nu: 2 }], k0: 8.849e14, Ea_kJmol: 170.56, form: 'temkin', alpha: 0.5, ka: 'gb', eta: 1, rev: 'none' }] }, pu: {} },
+        { id: 'b7', name: 'E-4', type: 'heater', x: 1110, y: 214, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 268.15 }, pu: {} },
+        { id: 'b8', name: 'V-1', type: 'flash', x: 1240, y: 160, nIn: 1, nOut: 2, params: { T_K: 268.15, P_bar: 147 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'SYNGAS', from: null, to: { b: 'b1', p: 0 }, spec: sp(250, '°C', 150, 'bar(a)', 1000, 'kmol/h', 'mole%', { H2: 65.55, N2: 21.85, NH3: 3.5, CH4: 6.0, Ar: 3.1 }) },
+        { id: 's2', name: 'BED-1 IN', from: { b: 'b1', p: 0 }, to: { b: 'b2', p: 0 } },
+        { id: 's3', name: 'BED-1 OUT', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's4', name: 'BED-2 IN', from: { b: 'b3', p: 0 }, to: { b: 'b4', p: 0 } },
+        { id: 's5', name: 'BED-2 OUT', from: { b: 'b4', p: 0 }, to: { b: 'b5', p: 0 } },
+        { id: 's6', name: 'BED-3 IN', from: { b: 'b5', p: 0 }, to: { b: 'b6', p: 0 } },
+        { id: 's7', name: 'CONV OUT', from: { b: 'b6', p: 0 }, to: { b: 'b7', p: 0 } },
+        { id: 's8', name: 'CHILLED', from: { b: 'b7', p: 0 }, to: { b: 'b8', p: 0 } },
+        { id: 's9', name: 'RECYCLE GAS', from: { b: 'b8', p: 0 }, to: null },
+        { id: 's10', name: 'LIQUID NH3', from: { b: 'b8', p: 1 }, to: null },
+      ],
+      sens: { active: true, vary: { kind: 'param', block: 'b1', path: 'T_out_K' }, from: 623.15, to: 683.15, points: 5,
+        outputs: [{ stream: 's3', metric: 'T_K' }, { stream: 's7', metric: 'mole_frac', key: 'NH3' }, { stream: 's10', metric: 'mass_flow_kg_h' }] },
+      seq: { b: 8, s: 10 },
+    },
+    note: 'Temkin–Pyzhev rate in fugacities (Dyson & Simon 1968: k0 = 8.849·10¹⁴ kmol NH₃/(m³·h), Ea = 170.56 kJ/mol, α = 0.5, K_a of Gillespie & Beattie) with φ from Peng–Robinson. Each bed is adiabatic; the interbed coolers stand for the exchangers or steam raisers between beds. Open a bed for its temperature and NH₃ profile, and compare its outlet with a Gibbs reactor at the same T and P for the approach to equilibrium. The sensitivity study scans the bed-1 inlet temperature.',
   },
   {
     id: 'etoac-cstr', label: 'Ethyl acetate esterification CSTR — acid association (UNIQUAC)',
