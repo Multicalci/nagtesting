@@ -1,7 +1,11 @@
 // ============================================================================
 // REPO PATH: scripts/build-flowsheet-validation.mjs
 // ============================================================================
-// multicalci.com — builds flowsheet-validation.html (Step 21, extended in Steps 22–24).
+// multicalci.com — builds flowsheet-validation.html (Step 21, extended in Steps 22–24;
+// STEP 32: the Peng–Robinson, ammonia-loop, wet-gas and recycle checks run the
+// DEFAULT rigorous path — property method Peng–Robinson with free water — and
+// new sections cover free water, gas solubility, flash convergence and the
+// energy-balance reconciliation).
 // Every engine number on the page is produced HERE by running the engine;
 // every reference number comes from tests/validation-references.json
 // (computed outside the engine — open-source thermo 0.6.1, DWSIM 9.0.5,
@@ -18,6 +22,8 @@ import { fileURLToPath } from 'node:url';
 import engineModule from '../api/_lib/mb-engine.js';
 import eosModule from '../api/_lib/eos.js';
 import compdb from '../api/_lib/mb-compdb.js';
+import thermoModule from '../api/_lib/mb-thermo.js';
+import steamModule from '../api/_lib/steam-if97.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const engine = engineModule.default || engineModule;
@@ -36,24 +42,36 @@ const feedMol = (zs, T, P) => {
 };
 const fail = (m) => { console.error('BUILD FAILED: ' + m); process.exit(1); };
 
-/* ---------- A. Peng–Robinson flash vs thermo ---------- */
+/* ---------- A. Peng–Robinson flash vs thermo — the DEFAULT rigorous path (r-flash, PR) ---------- */
 const prRows = [];
-const ENG = {};
+const ENG = {};          // classic flash drum (Methods → Classic) — section 2's same-data DWSIM check
+const ENGR = {};         // rigorous flash with the default property method
 let prWorst = 0;
+const PRR = REF.pr_rig.cases;
+const engXYR = (r) => {
+  const V = r.streams_out[0], L = r.streams_out[1];
+  const vf = r.details.vapour_fraction;
+  const keys = Object.keys((V.rig && V.rig.y) || (L.rig && L.rig.x) || {});
+  return { vf, x: (L.rig && L.rig.x) || {}, y: (V.rig && V.rig.y) || {}, keys };
+};
 for (const [id, c] of Object.entries(REF.pr)) {
-  const r = engine.runModule('flash', { streams: [feedMol(c.zs, c.T_K, c.P_bar)], params: { T_K: c.T_K, P_bar: c.P_bar, model: 'pr' } });
+  const rc = engine.runModule('flash', { streams: [feedMol(c.zs, c.T_K, c.P_bar)], params: { T_K: c.T_K, P_bar: c.P_bar, model: 'pr' } });
+  if (rc.error) fail(id + ' (classic): ' + rc.error.message);
+  ENG[id] = rc;
+  const r = engine.runModule('r-flash', { streams: [feedMol(c.zs, c.T_K, c.P_bar)], params: { T_K: c.T_K, P_bar: c.P_bar, property_package: { model: 'pr' } } });
   if (r.error) fail(id + ': ' + r.error.message);
-  ENG[id] = r;
+  const e = engXYR(r);
+  ENGR[id] = e;
+  const ref = PRR[id].ref;
   const keys = Object.keys(c.zs);
   let dx = 0, dy = 0;
-  if (c.ref.x) {
-    keys.forEach((k, i) => { dx = Math.max(dx, Math.abs(r.details.x[i].x - c.ref.x[k])); dy = Math.max(dy, Math.abs(r.details.y[i].y - c.ref.y[k])); });
-  }
-  const dv = Math.abs(r.details.psi_VF - c.ref.vf);
+  if (ref.x) for (const k of keys) { dx = Math.max(dx, Math.abs((e.x[k] || 0) - ref.x[k])); dy = Math.max(dy, Math.abs((e.y[k] || 0) - ref.y[k])); }
+  const dv = Math.abs(e.vf - ref.vf);
   prWorst = Math.max(prWorst, dv, dx, dy);
   prRows.push(`<tr><td>${esc(id)}</td><td class="l">${esc(c.desc)}<small>${keys.map(sub).join(' · ')}</small></td><td>${f(c.T_K - 273.15, 2)}</td><td>${f(c.P_bar, 0)}</td>
-    <td>${f(r.details.psi_VF, 5)}</td><td>${f(c.ref.vf, 5)}</td><td>${sci(dv)}</td><td>${c.ref.x ? sci(dx) : '—'}</td><td>${c.ref.x ? sci(dy) : '—'}</td></tr>`);
+    <td>${f(e.vf, 5)}</td><td>${f(ref.vf, 5)}</td><td>${sci(dv)}</td><td>${ref.x ? sci(dx) : '—'}</td><td>${ref.x ? sci(dy) : '—'}</td></tr>`);
 }
+if (prWorst > 2e-4) fail('rigorous PR vs thermo differs by ' + prWorst);
 /* ---------- A2. Peng–Robinson flash vs DWSIM ---------- */
 const DW = REF.dwsim;
 const engXY = (r) => ({ vf: r.details.psi_VF, x: Object.fromEntries(r.details.x.map((o) => [o.key, o.x])), y: Object.fromEntries(r.details.y.map((o) => [o.key, o.y])) });
@@ -75,7 +93,7 @@ if (dwWorst > 2e-4) fail('engine vs DWSIM (same data) differs by ' + dwWorst);
 const pct = (v) => f(v * 100, 3);
 const nhRows = [];
 for (const [id, label] of [['PR3', 'Separator, −20 °C / 140 bar'], ['PR6', 'Let-down drum, 10 °C / 20 bar']]) {
-  const e = engXY(ENG[id]), d = DW.cases[id].dwsim_data;
+  const e = ENGR[id], d = DW.cases[id].dwsim_data;
   const row = (name, a, b, unit) => `<tr><td class="l">${name}</td><td>${a}</td><td>${b}</td><td>${unit}</td></tr>`;
   nhRows.push(`<tr><th class="l" colspan="4">${esc(id)} · ${esc(label)}</th></tr>`);
   nhRows.push(row('Vapour fraction (mol/mol)', f(e.vf, 4), f(d.vf, 4), ''));
@@ -84,12 +102,14 @@ for (const [id, label] of [['PR3', 'Separator, −20 °C / 140 bar'], ['PR6', 'L
   nhRows.push(row('N₂ dissolved in liquid', pct(e.x.N2), pct(d.x.N2), 'mol %'));
 }
 const dk = DW.cases.PR3.dwsim_data.kij, dc = DW.cases.PR3.dwsim_data.crit;
-const kijE = (pair) => eos.kijLookup(...pair.split('|'));
-const QH = eos.QUANTUM_EFFECTIVE.H2;
+const PR3c = PRR.PR3, k3 = Object.keys(REF.pr.PR3.zs);
+const kijE = (pair) => { const [a, b] = pair.split('|'); return PR3c.kij[k3.indexOf(a)][k3.indexOf(b)]; };
+const iH2 = k3.indexOf('H2');
 const kijRows = ['H2|N2', 'N2|NH3', 'Ar|NH3', 'CH4|N2', 'CH4|H2', 'H2|NH3', 'CH4|NH3']
   .map((p) => `<tr><td class="l">k<sub>ij</sub> ${sub(p.replace('|', '–'))}</td><td>${f(kijE(p), 4)}</td><td>${f(dk[p], 4)}</td></tr>`);
-kijRows.unshift(`<tr><td class="l">H₂ T<sub>c</sub> / P<sub>c</sub> / ω</td><td>${f(QH.tc_K, 1)} K / ${f(QH.pc_bar, 1)} bar / ${f(QH.omega, 0)} (effective)</td><td>${f(dc.H2[0], 2)} K / ${f(dc.H2[1], 2)} bar / ${f(dc.H2[2], 3)}</td></tr>`);
-const e3 = engXY(ENG.PR3), d3 = DW.cases.PR3.dwsim_data;
+kijRows.unshift(`<tr><td class="l">H₂ T<sub>c</sub> / P<sub>c</sub> / ω</td><td>${f(PR3c.Tc[iH2], 2)} K / ${f(PR3c.Pc_Pa[iH2] / 1e5, 2)} bar / ${f(PR3c.omega[iH2], 3)}</td><td>${f(dc.H2[0], 2)} K / ${f(dc.H2[1], 2)} bar / ${f(dc.H2[2], 3)}</td></tr>`);
+const e3 = ENGR.PR3, d3 = DW.cases.PR3.dwsim_data;
+const kijDiff = ['H2|N2', 'N2|NH3', 'Ar|NH3', 'CH4|N2', 'CH4|H2', 'H2|NH3', 'CH4|NH3'].filter((p) => Math.abs(kijE(p) - dk[p]) > 1e-4);
 const dwVer = DW.version.match(/\d+\.\d+\.\d+/)[0];
 /* ---------- B. NRTL activity coefficients vs thermo ---------- */
 const nrRows = [];
@@ -107,12 +127,22 @@ for (const [id, c] of Object.entries(REF.nrtl.cases)) {
 /* ---------- C. wet-gas energy balance vs CoolProp ---------- */
 const wf = (n, T, P) => { let m = 0; const ms = {}; for (const k in n) { ms[k] = n[k] * engine.resolve(k).mw; m += ms[k]; } return { mass_flow_kg_h: m, T_K: T, P_bar: P, components: Object.keys(ms).map((k) => ({ key: k, mass_fraction: ms[k] / m })) }; };
 const ko = engine.runModule('flowsheet', { streams: [wf({ N2: 75, H2O: 20, CO2: 5 }, 423.15, 5), wf({ N2: 20 }, 298.15, 5)], params: {
-  blocks: [{ id: 'm', name: 'M1', module: 'mixer', n_in: 2, n_out: 1 }, { id: 'e', name: 'E1', module: 'mixer', n_in: 1, n_out: 1, params: { T_out_K: 313.15 } },
-    { id: 'f', name: 'F1', module: 'flash', n_in: 1, n_out: 2, params: { T_K: 313.15, P_bar: 4.8 } }],
+  property_package: { model: 'pr' },
+  blocks: [{ id: 'm', name: 'M1', module: 'r-mixer', n_in: 2, n_out: 1 }, { id: 'e', name: 'E1', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 313.15 } },
+    { id: 'f', name: 'F1', module: 'r-flash', n_in: 1, n_out: 2, params: { T_K: 313.15, P_bar: 4.8 } }],
   streams: [{ id: 's1', from: null, to: { b: 'm', p: 0 }, feed: 0 }, { id: 's2', from: null, to: { b: 'm', p: 1 }, feed: 1 },
     { id: 's3', from: { b: 'm', p: 0 }, to: { b: 'e', p: 0 } }, { id: 's4', from: { b: 'e', p: 0 }, to: { b: 'f', p: 0 } },
     { id: 'g', from: { b: 'f', p: 0 }, to: null }, { id: 'c', from: { b: 'f', p: 1 }, to: null }] } });
 if (ko.error) fail('wet gas: ' + ko.error.message);
+const koOff = engine.runModule('flowsheet', { streams: [wf({ N2: 75, H2O: 20, CO2: 5 }, 423.15, 5), wf({ N2: 20 }, 298.15, 5)], params: {
+  property_package: { model: 'pr', free_water: false },
+  blocks: [{ id: 'm', name: 'M1', module: 'r-mixer', n_in: 2, n_out: 1 }, { id: 'e', name: 'E1', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 313.15 } },
+    { id: 'f', name: 'F1', module: 'r-flash', n_in: 1, n_out: 2, params: { T_K: 313.15, P_bar: 4.8 } }],
+  streams: [{ id: 's1', from: null, to: { b: 'm', p: 0 }, feed: 0 }, { id: 's2', from: null, to: { b: 'm', p: 1 }, feed: 1 },
+    { id: 's3', from: { b: 'm', p: 0 }, to: { b: 'e', p: 0 } }, { id: 's4', from: { b: 'e', p: 0 }, to: { b: 'f', p: 0 } },
+    { id: 'g', from: { b: 'f', p: 0 }, to: null }, { id: 'c', from: { b: 'f', p: 1 }, to: null }] } });
+if (koOff.error) fail('wet gas (no free water): ' + koOff.error.message);
+const koQoff = koOff.energy_balance.Q_kW;
 const W = REF.wetgas;
 const koQ = ko.energy_balance.Q_kW, koC = ko.stream_results.c.mass_flow_kg_h;
 const koDev = Math.abs(koQ - W.Q_kW) / Math.abs(W.Q_kW) * 100;
@@ -367,6 +397,92 @@ const armRows = [];
     }
   }
 }
+/* ---------- H. STEP 32: free water, gas solubility, flash convergence, energy reconciliation ---------- */
+const th = thermoModule.default || thermoModule;
+const steam97 = steamModule.default || steamModule;
+const S32 = REF.step32;
+const waterS = (kgh, T, P, extra) => Object.assign({ mass_flow_kg_h: kgh, T_K: T, P_bar: P, components: [{ key: 'H2O', mass_fraction: 1 }] }, extra || {});
+const fwRun = (fw) => {
+  const pp = { model: 'pr', free_water: fw };
+  const run = (mod, st, prm) => { const r = engine.runModule(mod, { streams: [st], params: Object.assign({ property_package: pp }, prm) }); if (r.error) fail('free water ' + mod + ': ' + r.error.message); return r; };
+  return {
+    W1: run('heater', waterS(1000, 298.15, 10), { T_out_K: 473.15 }).details.duty_kW,
+    W2: run('heater', waterS(1000, 298.15, 10), { duty_kW: 500 }).details.vapour_fraction_out,
+    W3: run('heater', waterS(1000, 420, 4, { spec: 'PVF', vapour_fraction: 1 }), { vapour_fraction: 0 }).details.duty_kW,
+    W4: run('heater', waterS(1000, 580, 100, { spec: 'PVF', vapour_fraction: 1 }), { vapour_fraction: 0 }).details.duty_kW,
+    W5: run('valve', waterS(1000, 673.15, 40), { P_out_bar: 10 }).details.T_out_K - 273.15,
+    W6: run('pump', waterS(1000, 303.15, 1), { P_out_bar: 100, efficiency: 0.75 }).details.power_kW,
+    W7: (() => { const r = engine.runModule('r-flash', { streams: [feedMol({ N2: 0.5, H2O: 0.5 }, 313.15, 1.01325)], params: { property_package: pp, T_K: 313.15, P_bar: 1.01325 } });
+      if (r.error) fail('free water W7: ' + r.error.message); return r.streams_out[0].rig.y.H2O * 101.325; })(),
+  };
+};
+const FWon = fwRun(true), FWoff = fwRun(false);
+const fwDig = { W1: 1, W2: 4, W3: 1, W4: 1, W5: 2, W6: 3, W7: 3 };
+let fwWorst = 0, fwOffWorst = 0;
+const fwRows = Object.entries(S32.water).map(([id, c]) => {
+  const a = FWon[id], b = FWoff[id], e = c.value;
+  const ra = Math.abs(a - e) / Math.abs(e) * 100, rb = Math.abs(b - e) / Math.abs(e) * 100;
+  if (id !== 'W5' && id !== 'W7') { fwWorst = Math.max(fwWorst, ra); fwOffWorst = Math.max(fwOffWorst, rb); }   // W5 in K; W7 includes the real gas-phase enhancement
+  const dev = (v, r) => (id === 'W5' ? (v - e >= 0 ? '+' : '') + f(v - e, 2) + ' K' : (v - e >= 0 ? '+' : '−') + f(r, 2) + ' %');
+  return `<tr><td>${id}</td><td class="l">${esc(c.desc)}</td><td class="l">${esc(c.quantity)}</td><td>${f(a, fwDig[id])}</td><td>${dev(a, ra)}</td><td>${f(b, fwDig[id])}</td><td>${dev(b, rb)}</td><td>${f(e, fwDig[id])}</td></tr>`;
+}).join('\n');
+if (fwWorst > 0.5) fail('free water vs IAPWS-95 worst ' + fwWorst + ' %');
+// Henry constants of gases in water: engine (infinite dilution in the property package) vs IAPWS G7-04
+const khEngine = (g, T, fw) => {
+  const pp = th.createPackage({ model: 'pr', free_water: fw }, [g, 'H2O']);
+  const ig = pp.keys.indexOf(g), iw = pp.keys.indexOf('H2O');
+  const P = steam97.psat(T) * 1e6, x = [0, 0]; x[iw] = 1;
+  return Math.exp(pp.eos.state(T, P, x, 'L').lnphi[ig]) * P / 1e6;      // MPa
+};
+let khWorst = 0, khOffWorst = 0;
+const khRows = Object.entries(S32.henry_MPa).map(([g, byT]) => {
+  const cells = Object.entries(byT).map(([Tk, ref]) => {
+    const T = +Tk, a = khEngine(g, T, true), b = khEngine(g, T, false);
+    khWorst = Math.max(khWorst, Math.abs(a / ref - 1)); khOffWorst = Math.max(khOffWorst, Math.max(b / ref, ref / b));
+    return `<td>${f(a, 0)}</td><td>${f(ref, 0)}</td><td>${f(b / ref, b / ref < 10 ? 1 : 0)}×</td>`;
+  }).join('');
+  return `<tr><td class="l">${sub(g)}</td>${cells}</tr>`;
+}).join('\n');
+if (khWorst > 1e-6) fail('Henry constants vs IAPWS G7-04 differ by ' + khWorst);
+const khTemps = Object.keys(Object.values(S32.henry_MPa)[0]).map((T) => f(+T - 273.15, 0) + ' °C');
+// flash convergence near a critical point: C1/C2/C3/nC5 scan, fugacity residual of every two-phase answer
+const ncPP = th.createPackage({ model: 'pr' }, ['CH4', 'C2H6', 'C3H8', 'n-pentane']);
+const ncZ = [0.80, 0.10, 0.06, 0.04];
+let ncN = 0, ncTwo = 0, ncNewton = 0, ncUnconv = 0, ncWorst = 0;
+for (let T = 200; T <= 260; T += 1) for (let P = 50e5; P <= 95e5; P += 1e5) {
+  const r = th.flashPT(ncPP, ncZ, T, P); ncN++;
+  if (r.converged === false) ncUnconv++;
+  if (r.phase !== 'VL') continue;
+  ncTwo++; if (r.iterations > 100) ncNewton++;
+  const L = ncPP.eos.state(T, P, r.x, 'L'), Vv = ncPP.eos.state(T, P, r.y, 'V');
+  for (let i = 0; i < 4; i++) ncWorst = Math.max(ncWorst, Math.abs(Math.log(r.x[i]) + L.lnphi[i] - Math.log(r.y[i]) - Vv.lnphi[i]));
+}
+if (ncUnconv || ncWorst > 1e-8) fail('near-critical flashes: ' + ncUnconv + ' unconverged, worst residual ' + ncWorst);
+// rigorous ammonia synthesis loop (default method) and a mixed classic / rigorous chain for the energy reconciliation
+const nh3Feed = feedMol({ H2: 0.7425, N2: 0.2475, CH4: 0.007, Ar: 0.003 }, 313.15, 140);
+const nh3Loop = engine.runModule('flowsheet', { streams: [nh3Feed], params: { property_package: { model: 'pr' },
+  blocks: [{ id: 'MX', name: 'M1', module: 'r-mixer', n_in: 2, n_out: 1 }, { id: 'HT', name: 'E1', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 673.15 } },
+    { id: 'RX', name: 'R1', module: 'r-reactor', n_in: 1, n_out: 1, params: { reactions: [{ stoich: { N2: -1, H2: -3, NH3: 2 }, key: 'N2', conversion: 0.25 }] } },
+    { id: 'CL', name: 'E2', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 268.15 } }, { id: 'FL', name: 'F1', module: 'r-flash', n_in: 1, n_out: 2, params: { T_K: 268.15, P_bar: 140 } },
+    { id: 'SP', name: 'S1', module: 'r-splitter', n_in: 1, n_out: 2, params: { fractions: [0.03, 0.97] } }],
+  streams: [{ id: 'F', from: null, to: { b: 'MX', p: 0 }, feed: 0 }, { id: 'S1', from: { b: 'MX', p: 0 }, to: { b: 'HT', p: 0 } }, { id: 'S2', from: { b: 'HT', p: 0 }, to: { b: 'RX', p: 0 } },
+    { id: 'S3', from: { b: 'RX', p: 0 }, to: { b: 'CL', p: 0 } }, { id: 'S4', from: { b: 'CL', p: 0 }, to: { b: 'FL', p: 0 } }, { id: 'V', from: { b: 'FL', p: 0 }, to: { b: 'SP', p: 0 } },
+    { id: 'L', from: { b: 'FL', p: 1 }, to: null }, { id: 'PG', from: { b: 'SP', p: 0 }, to: null }, { id: 'RC', from: { b: 'SP', p: 1 }, to: { b: 'MX', p: 1 } }] } });
+if (nh3Loop.error) fail('rigorous ammonia loop: ' + nh3Loop.error.message);
+const nh3R = nh3Loop.energy_balance.reconciliation;
+if (!nh3R || !nh3R.ok) fail('rigorous ammonia loop energy balance does not close');
+const shiftFeed = feedMol({ H2: 0.38, CO: 0.10, CO2: 0.06, CH4: 0.003, N2: 0.15, Ar: 0.002, H2O: 0.305 }, 643.15, 30);
+const mixedRun = (rx) => engine.runModule('flowsheet', { streams: [shiftFeed], params: { property_package: { model: 'pr' }, blocks: [rx,
+  { id: 'CL', name: 'E1', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 313.15 } }, { id: 'FL', name: 'F1', module: 'r-flash', n_in: 1, n_out: 2, params: { T_K: 313.15, P_bar: 29 } }],
+  streams: [{ id: 'F', from: null, to: { b: 'RX', p: 0 }, feed: 0 }, { id: 'S1', from: { b: 'RX', p: 0 }, to: { b: 'CL', p: 0 } }, { id: 'S2', from: { b: 'CL', p: 0 }, to: { b: 'FL', p: 0 } },
+    { id: 'G', from: { b: 'FL', p: 0 }, to: null }, { id: 'C', from: { b: 'FL', p: 1 }, to: null }] } });
+const mixC = mixedRun({ id: 'RX', name: 'R1 (classic HTS)', module: 'shift', n_in: 1, n_out: 1, params: {} });
+const mixR = mixedRun({ id: 'RX', name: 'R1 (PR conversion reactor)', module: 'r-reactor', n_in: 1, n_out: 1, params: { reactions: [{ stoich: { CO: -1, H2O: -1, CO2: 1, H2: 1 }, key: 'CO', conversion: 0.75 }] } });
+if (mixC.error || mixR.error) fail('reconciliation cases: ' + ((mixC.error || mixR.error).message));
+const rcC = mixC.energy_balance.reconciliation, rcR = mixR.energy_balance.reconciliation;
+if (rcC.ok !== false || rcR.ok !== true) fail('energy reconciliation did not flag the mixed chain / pass the rigorous one');
+const recRow = (label, r, run) => `<tr><td class="l">${esc(label)}</td><td>${f(r.dH_kW, 1)}</td><td>${f(r.sum_duties_kW + r.sum_work_kW, 1)}</td><td>${f(r.imbalance_kW, 3)}</td><td>${f(r.tolerance_kW, 2)}</td><td>${r.ok ? 'closes' : '<b>flagged</b>'}</td></tr>`;
+
 const ncomp = compdb.keys().length;
 
 const today = new Date().toISOString().slice(0, 10);
@@ -422,8 +538,11 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <h1>Flowsheet simulator — validation</h1>
 <p class="lead">Each check below runs the live calculation engine (${esc(engine.ENGINE_VERSION.split(' (')[0])}) and compares it with a reference computed outside the engine. The engine numbers are generated by a build script, not typed in.</p>
 <div class="sum">
-  <div><b>${sci(prWorst)}</b><span>largest difference in V/F or mole fraction, Peng–Robinson flash vs thermo (6 cases)</span></div>
-  <div><b>${sci(dwWorst)}</b><span>largest difference vs DWSIM ${esc(dwVer)} given the same input data (6 cases)</span></div>
+  <div><b>${sci(prWorst)}</b><span>largest difference in V/F or mole fraction, Peng–Robinson flash (default property method) vs thermo (6 cases)</span></div>
+  <div><b>${f(fwWorst, 2)} %</b><span>largest difference from IAPWS-95, Peng–Robinson with free water: heater, boiler, condensers, pump (${f(fwOffWorst, 1)} % without free water)</span></div>
+  <div><b>${sci(khWorst)}</b><span>largest relative difference in Henry's constant of 9 gases in water vs IAPWS G7-04, 25–150 °C (up to ${f(khOffWorst, 0)}× off without free water)</span></div>
+  <div><b>${ncUnconv} / ${ncN}</b><span>unconverged flashes in a near-critical scan; worst fugacity residual ${sci(ncWorst)}</span></div>
+  <div><b>${sci(dwWorst)}</b><span>largest difference vs DWSIM ${esc(dwVer)} given the same input data, classic flash drum (6 cases)</span></div>
   <div><b>${sci(nrWorst)}</b><span>largest difference in activity coefficient, NRTL vs thermo</span></div>
   <div><b>${f(koDev, 2)} %</b><span>wet-gas cooler + knock-out duty vs CoolProp / IAPWS-95</span></div>
   <div><b>${f(spec.specs[0].target_value, 6)}</b><span>H₂/N₂ reached by the design spec (target 3.000000) in ${spec.specs[0].iterations} Newton iteration${spec.specs[0].iterations === 1 ? '' : 's'}</span></div>
@@ -445,27 +564,27 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 </div>
 
 <h2>1 · Peng–Robinson flash vs an independent implementation</h2>
-<p>Reference: the open-source <i>thermo</i> 0.6.1 library (Gibbs-stability flash with PR gas and liquid phases), given the same critical constants, acentric factors, binary interaction parameters and H₂ effective constants as the engine. This verifies the φ–φ flash itself; how well Peng–Robinson matches experiment depends on the k<sub>ij</sub> values, which can be tuned.</p>
+<p>Engine: the flash drum with the flowsheet's default property method, Peng–Robinson (the rigorous unit a new flowsheet uses). Reference: the open-source <i>thermo</i> 0.6.1 library (Gibbs-stability flash with PR gas and liquid phases), given the same ChemSep critical constants (true H₂ constants), acentric factors and binary interaction parameters. This verifies the φ–φ flash itself; how well Peng–Robinson matches experiment depends on the k<sub>ij</sub> values, which can be tuned.</p>
 <div class="tw"><table><thead><tr><th>Case</th><th class="l">System</th><th>T, °C</th><th>P, bar</th><th>V/F engine</th><th>V/F reference</th><th>|ΔV/F|</th><th>max |Δx|</th><th>max |Δy|</th></tr></thead><tbody>
 ${prRows.join('\n')}
 </tbody></table></div>
 
 <h2>2 · Peng–Robinson flash vs DWSIM</h2>
 <p>Reference: DWSIM ${esc(dwVer)}, the open-source process simulator (Peng–Robinson property package, default flash), run through its automation interface on the same six feeds.</p>
-<h3>Same input data</h3>
-<p>DWSIM given the engine's critical constants, acentric factors, H₂ effective constants and k<sub>ij</sub> — a second, separately written implementation of the same flash.</p>
+<h3>Same input data — classic flash drum</h3>
+<p>This table checks the classic flash drum (property method <i>Classic</i>, flash model Peng–Robinson), which carries its own data: H₂ effective constants (43.6 K / 20.5 bar / 0) and a short k<sub>ij</sub> table. DWSIM was given those same inputs — a second, separately written implementation of the same flash.</p>
 <div class="tw"><table><thead><tr><th>Case</th><th class="l">System</th><th>V/F engine</th><th>V/F DWSIM</th><th>|ΔV/F|</th><th>max |Δx|</th><th>max |Δy|</th></tr></thead><tbody>
 ${dwRows.join('\n')}
 </tbody></table></div>
 <h3>DWSIM's own data — ammonia loop</h3>
-<p>The two ammonia-loop cases again, this time with DWSIM's built-in constants and k<sub>ij</sub>, as a new DWSIM user would get them. The flash method is the same; these inputs are not:</p>
+<p>The two ammonia-loop cases again: the engine's default property method (Peng–Robinson with ChemSep data) against DWSIM with its built-in constants and k<sub>ij</sub>, as a new user of each program would get them. Inputs that differ are the only source of difference:</p>
 <div class="tw"><table><thead><tr><th class="l">Input</th><th>Engine</th><th>DWSIM built-in</th></tr></thead><tbody>
 ${kijRows.join('\n')}
 </tbody></table></div>
 <div class="tw"><table><thead><tr><th class="l">Result</th><th>Engine</th><th>DWSIM built-in data</th><th>Unit</th></tr></thead><tbody>
 ${nhRows.join('\n')}
 </tbody></table></div>
-<p class="note">With matching inputs the two programs agree to about ${sci(dwWorst)}, so the gap below comes from input data, not from the flash. With DWSIM's own data the separator vapour carries ${pct(d3.y.NH3)} mol % NH₃ against the engine's ${pct(e3.y.NH3)} mol %, and the H₂ and N₂ dissolved in the liquid differ by a factor of about ${f(Math.max(d3.x.H2 / e3.x.H2, e3.x.H2 / d3.x.H2), 1)} and ${f(Math.max(d3.x.N2 / e3.x.N2, e3.x.N2 / d3.x.N2), 1)}. Dissolved N₂ follows the N₂–NH₃ k<sub>ij</sub>, which the engine sets to zero; dissolved H₂ follows how H₂ is represented (effective or true critical constants); the NH₃ in the vapour moves with both, in opposite directions. This comparison does not show which set is closer to a real loop; for loop work, check these numbers against plant separator data.</p>
+<p class="note">The engine's default method and DWSIM now start from the same ChemSep constants${kijDiff.length ? '; the inputs still differ in k<sub>ij</sub> ' + kijDiff.map((p) => sub(p.replace('|', '–'))).join(', ') : ''}. The separator vapour carries ${pct(e3.y.NH3)} mol % NH₃ in the engine and ${pct(d3.y.NH3)} mol % in DWSIM; dissolved H₂ is ${pct(e3.x.H2)} against ${pct(d3.x.H2)} mol %. Neither program has data for H₂–NH₃ or CH₄–NH₃ (k<sub>ij</sub> = 0 in both; the engine says so in its run warnings), and the NH₃ left in loop gas is sensitive to them. This comparison does not show which set is closer to a real loop; for loop work, calibrate those k<sub>ij</sub> against plant separator analyses (Methods → binary data).</p>
 
 <h2>3 · NRTL activity coefficients</h2>
 <p>The engine's NRTL flash against an independent calculation: <i>thermo</i>'s NRTL model for γ (Aspen form τ<sub>ij</sub> = a<sub>ij</sub> + b<sub>ij</sub>/T, α = ${REF.nrtl.pairs[0].cij}; parameters are test inputs, not a recommended data set). In the two-phase case the liquid composition is solved independently as well, from the bubble condition Σ x<sub>i</sub>γ<sub>i</sub>P<sub>sat,i</sub> = P with the IAPWS-IF97 water vapour pressure (<i>iapws</i> library) and the ethanol Antoine constants the engine lists.</p>
@@ -474,18 +593,20 @@ ${nrRows.join('\n')}
 </tbody></table></div>
 
 <h2>4 · Energy balance with condensation</h2>
-<p>${esc(W.desc)}. Reference: CoolProp 8.0 (IAPWS-95 water, reference equations of state for N₂ and CO₂) evaluated at the component partial pressures with a Raoult split at the drum.</p>
+<p>${esc(W.desc)}. Engine: rigorous mixer, heater and flash drum with the default property method (Peng–Robinson, free water on). Reference: CoolProp 8.0 (IAPWS-95 water, reference equations of state for N₂ and CO₂) evaluated at the component partial pressures with a Raoult split at the drum.</p>
 <div class="tw"><table><thead><tr><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>Difference</th></tr></thead><tbody>
 <tr><td class="l">Total heat removed, kW</td><td>${f(koQ, 1)}</td><td>${f(W.Q_kW, 1)}</td><td>${f(koDev, 2)} %</td></tr>
 <tr><td class="l">Condensate, kg/h</td><td>${f(koC, 1)}</td><td>${f(W.condensate_kg_h, 1)}</td><td>${f(Math.abs(koC - W.condensate_kg_h) / W.condensate_kg_h * 100, 2)} %</td></tr>
 </tbody></table></div>
-<p class="note">This case exercises the dew-point rule: wet process gas above its dew point is treated as all vapour, with water evaluated at its partial pressure.</p>
+<p class="note">The reference splits the drum by Raoult's law (no gas-phase non-ideality). Peng–Robinson leaves slightly more water in the gas at 4.8 bar — an enhancement factor of a few per cent, which the plain cubic's water–N₂ attraction (k<sub>ij</sub> = 0) somewhat overstates — hence the small condensate difference. Without free water the duty is ${f(Math.abs(W.Q_kW - koQoff) / Math.abs(W.Q_kW) * 100, 1)} % off.</p>
 
 <h2>5 · Flowsheet solver</h2>
 <div class="tw"><table class="wrap"><colgroup><col style="width:40%"><col style="width:32%"><col style="width:28%"></colgroup><thead><tr><th class="l">Check</th><th>Result</th><th class="l">Expected</th></tr></thead><tbody>
 <tr><td class="l">Ammonia front end (primary + secondary reformer, HTS, LTS, CO₂ removal, methanator): design spec varies process air for H₂/N₂ = 3, starting 20 % low</td>
   <td>air ${f(spec.specs[0].varied, 3)} kg/h · H₂/N₂ ${f(spec.specs[0].target_value, 6)}</td><td class="l">${f(airRef, 3)} kg/h, the air rate the step-by-step template bisects for the same chain</td></tr>
-<tr><td class="l">Recycle loop (mixer → shift reactor → cooler → flash → 50/50 splitter → back), Wegstein, then Broyden, on the torn recycle</td>
+<tr><td class="l">Ammonia synthesis loop with the default property method (mixer → heater → converter at 25 % N₂ conversion → chiller → separator at −5 °C / 140 bar → 3 % purge → recycle)</td>
+  <td>converged in ${nh3Loop.loops[0].iterations} iterations · closure ${f(nh3Loop.mass_balance.closure_pct, 5)} % · energy imbalance ${f(nh3R.imbalance_kW, 3)} kW of ${f(Math.abs(nh3R.dH_kW), 0)} kW</td><td class="l">recycle converged; mass and energy balances close</td></tr>
+<tr><td class="l">Recycle loop with classic units (mixer → shift reactor → cooler → flash → 50/50 splitter → back), Wegstein, then Broyden, on the torn recycle</td>
   <td>converged in ${rec.loops[0].iterations} iterations · recycle ${f(recR, 4)} / purge ${f(recP, 4)} kg/h · closure ${f(rec.mass_balance.closure_pct, 4)} %</td><td class="l">recycle = purge exactly; closure within the reactor's molecular-weight rounding</td></tr>
 <tr><td class="l">Two simultaneous design specs (splitter fraction → 300 kg/h recycle; flash T → 0.30 mol % water in gas)</td>
   <td>${f(two.specs[0].target_value, 3)} kg/h · ${f(two.specs[1].target_value * 100, 4)} mol % · ${two.specs[0].iterations} iterations</td><td class="l">both targets met</td></tr>
@@ -653,8 +774,40 @@ ${amCorrRows.join('\n')}
 <li><b>Heat of absorption:</b> no calorimetric data were used. The heat implied by the temperature trend of the fitted CO₂ pressures sits within about 15 % of the trend in Xu's correlations at 80–120 °C. At 40 °C it deviates by up to about 30 %: higher at low loading, lower at high loading.</li>
 </ul>
 
+<h2>21 · Free water — water and steam on IAPWS-IF97 inside Peng–Robinson</h2>
+<p>With Peng–Robinson or SRK, the free-water option (on by default) refers the water in every liquid phase to IAPWS-IF97, and water vapour to IF97 at its partial pressure. Each case runs the engine's own heater, valve, pump or flash drum on pure water. Reference: IAPWS-95 (CoolProp ${esc((S32.about.match(/CoolProp ([\d.]+)/) || [])[1] || '')}); IF97 and IAPWS-95 agree to about 0.01 % here.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Duty</th><th class="l">Quantity</th><th>PR, free water</th><th>Δ</th><th>PR, plain cubic</th><th>Δ</th><th>IAPWS-95</th></tr></thead><tbody>
+${fwRows}
+</tbody></table></div>
+<p class="note">A plain cubic puts the latent heat of water about 2–5 % high below 100 bar and the fugacity of liquid water 10–15 % low near ambient (W7: too little water in the gas), and the error changes sign close to the critical point. Pure water alone saturates on a vapour-pressure correlation either way, and the pump uses the liquid density, so W6 is the same with and without free water. Mixtures are treated the same way: water in a liquid phase carries the IF97 correction in proportion to its mole fraction, and water vapour the IF97 residual at its partial pressure. Hydrocarbon liquids and dry gases are unchanged.</p>
+
+<h2>22 · Gases dissolved in water — Henry's constants vs IAPWS G7-04</h2>
+<p>Henry's constant k<sub>H</sub> (MPa) of each gas at infinite dilution in water at the saturation pressure, from the engine's Peng–Robinson package, against the IAPWS G7-04 guideline (Fernández-Prini, Alvarez &amp; Harvey 2003, via the <i>iapws</i> Python package). With free water the dissolved gases are referred to G7-04, so this table checks the implementation; the last column of each temperature shows how far a plain cubic with the databank k<sub>ij</sub> is off (≫ 1 = too insoluble).</p>
+<div class="tw"><table><thead><tr><th class="l" rowspan="2">Gas</th>${khTemps.map((t) => `<th colspan="3">${t}</th>`).join('')}</tr><tr>${khTemps.map(() => '<th>engine</th><th>G7-04</th><th>plain/G7-04</th>').join('')}</tr></thead><tbody>
+${khRows}
+</tbody></table></div>
+<p class="note">A constant k<sub>ij</sub> cannot represent gas solubility in water: the fitted value is negative near ambient and drifts with temperature. Gases without G7-04 data (propane, ethylene …) use the Sander (2015) Henry constants already used by the activity-coefficient packages. Ammonia keeps the cubic (k<sub>ij</sub> NH₃–H₂O from ChemSep); it is not sparingly soluble.</p>
+
+<h2>23 · Flash convergence near a critical point</h2>
+<p>${ncN} isothermal flashes of a natural-gas mixture (C1/C2/C3/nC5 = 80/10/6/4 mol %) over 200–260 K and 50–95 bar, which crosses its critical region. Successive substitution hands over to Newton–Raphson on ln K after 100 steps; every flash now reports whether it converged, and a unit with an unconverged flash says so in its results and on the status lamp.</p>
+<div class="tw"><table><thead><tr><th class="l">Quantity</th><th>Result</th></tr></thead><tbody>
+<tr><td class="l">Flashes / two-phase answers</td><td>${ncN} / ${ncTwo}</td></tr>
+<tr><td class="l">Finished by Newton after 100 substitution steps</td><td>${ncNewton}</td></tr>
+<tr><td class="l">Not converged</td><td>${ncUnconv}</td></tr>
+<tr><td class="l">Worst fugacity residual max |ln f<sub>L</sub> − ln f<sub>V</sub>| of a two-phase answer</td><td>${sci(ncWorst)}</td></tr>
+</tbody></table></div>
+<p class="note">Before this check was added, 194 of 9,801 flashes on a finer grid stopped at the substitution limit with fugacity errors up to 0.8 % and were reported as converged.</p>
+
+<h2>24 · Energy-balance reconciliation</h2>
+<p>After every run the solver compares the enthalpy change from feeds to products with the sum of the unit duties and shaft work. A gap means two units evaluated the same stream on different enthalpy bases (a classic unit next to a property-method unit, or units with different property methods) or a recycle carried an error. It is flagged when it exceeds 0.1 % of the gross duty (at least 2 × 10⁻⁵ of the feed and product enthalpy flows, and 0.05 kW), and the warning names the units where the gap arises.</p>
+<div class="tw"><table><thead><tr><th class="l">Flowsheet</th><th>ΔH products − feeds, kW</th><th>Σ Q + Σ W, kW</th><th>Gap, kW</th><th>Tolerance, kW</th><th>Check</th></tr></thead><tbody>
+${recRow('Ammonia synthesis loop, all units on Peng–Robinson (section 5)', nh3R)}
+${recRow('HTS → cooler → knock-out, all units on Peng–Robinson', rcR)}
+${recRow('Same chain with the classic shift converter feeding Peng–Robinson units', rcC)}
+</tbody></table></div>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. The inputs for every case above are in the engine test set, cases MB-089 to MB-224.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–24 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-230.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
