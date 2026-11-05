@@ -1,10 +1,10 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 2.4 — + Step 28 (activated MDEA: piperazine species in the MDEA package), vectors MB-001..MB-224",
+  "version": "mb-vectors 2.5 — + Step 32 (free water, gas solubility in water, flash convergence, energy reconciliation), vectors MB-001..MB-230",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
-  "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter."
+  "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
  },
  "vectors": [
   {
@@ -6228,7 +6228,7 @@
   },
   {
    "id": "MB-108",
-   "desc": "three-phase flash (PR): CH4 / nC6H14 / H2O z=0.3/0.3/0.4 at 320 K, 20.00 bar — vapour, hydrocarbon liquid and free water",
+   "desc": "three-phase flash (PR): CH4 / nC6H14 / H2O z=0.3/0.3/0.4 at 320 K, 20.00 bar — vapour, hydrocarbon liquid and free water (plain cubic: free_water off for this code-to-code check)",
    "call": "runModule",
    "args": [
     "r-flash3",
@@ -6257,6 +6257,7 @@
      "params": {
       "property_package": {
        "model": "pr",
+       "free_water": false,
        "poynting": false,
        "henry": false
       },
@@ -6318,7 +6319,7 @@
   },
   {
    "id": "MB-110",
-   "desc": "three-phase flash (PR): CH4 / C3H8 / nC6H14 / H2O z=0.4/0.1/0.2/0.3 at 300 K, 50.00 bar — vapour, hydrocarbon liquid and free water",
+   "desc": "three-phase flash (PR): CH4 / C3H8 / nC6H14 / H2O z=0.4/0.1/0.2/0.3 at 300 K, 50.00 bar — vapour, hydrocarbon liquid and free water (plain cubic: free_water off for this code-to-code check)",
    "call": "runModule",
    "args": [
     "r-flash3",
@@ -6351,6 +6352,7 @@
      "params": {
       "property_package": {
        "model": "pr",
+       "free_water": false,
        "poynting": false,
        "henry": false
       },
@@ -6369,7 +6371,7 @@
   },
   {
    "id": "MB-111",
-   "desc": "three-phase flash (PR): CO2 / nC6H14 / H2O z=0.2/0.3/0.5 at 310 K, 30.00 bar — vapour, hydrocarbon liquid and free water",
+   "desc": "three-phase flash (PR): CO2 / nC6H14 / H2O z=0.2/0.3/0.5 at 310 K, 30.00 bar — vapour, hydrocarbon liquid and free water (plain cubic: free_water off for this code-to-code check)",
    "call": "runModule",
    "args": [
     "r-flash3",
@@ -6398,6 +6400,7 @@
      "params": {
       "property_package": {
        "model": "pr",
+       "free_water": false,
        "poynting": false,
        "henry": false
       },
@@ -12606,6 +12609,355 @@
     "default": 1e-09
    },
    "source": "Frailie, P. (2014) PhD dissertation, University of Texas at Austin, Table C-1: 1.0956 g/cm3. Tolerance 1.5 %."
+  },
+  {
+   "id": "MB-225",
+   "desc": "free water (STEP 32): 1,000 kg/h water heated from 25 °C to 200 °C at 10 bar with the default property method (Peng–Robinson) — the plain cubic gives about +4.3 %",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 473.15
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 756.2535
+   },
+   "tol": {
+    "details.duty_kW": 0.5,
+    "default": 1e-09
+   },
+   "source": "CoolProp 8.0.0 (IAPWS-95 reference equation for water, HEOS backend) — independent of the engine; IF97 and IAPWS-95 agree to ~0.01 % here. h(200 °C, 10 bar) − h(25 °C, 10 bar) = 2722.51 kJ/kg → 756.25 kW. Tolerance 0.07 %."
+  },
+  {
+   "id": "MB-226",
+   "desc": "free water: 1,000 kg/h water at 25 °C, 10 bar with 500 kW added (Peng–Robinson) — boiling, outlet vapour fraction (plain cubic 0.520)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "duty_kW": 500
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction_out": 0.567478
+   },
+   "tol": {
+    "details.vapour_fraction_out": 0.002,
+    "default": 1e-09
+   },
+   "source": "CoolProp 8.0.0 (IAPWS-95 reference equation for water, HEOS backend) — independent of the engine; IF97 and IAPWS-95 agree to ~0.01 % here. quality at h = h(25 °C, 10 bar) + 1800 kJ/kg, 10 bar."
+  },
+  {
+   "id": "MB-227",
+   "desc": "free water: 1,000 kg/h saturated steam condensed to saturated liquid at 100 bar (Peng–Robinson) — latent heat at boiler-drum pressure (plain cubic −373.5 kW)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 580,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ],
+       "spec": "PVF",
+       "vapour_fraction": 1
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": -365.9524
+   },
+   "tol": {
+    "details.duty_kW": 0.5,
+    "default": 1e-09
+   },
+   "source": "CoolProp 8.0.0 (IAPWS-95 reference equation for water, HEOS backend) — independent of the engine; IF97 and IAPWS-95 agree to ~0.01 % here. h_fg(100 bar) = 1317.43 kJ/kg → −365.95 kW. Tolerance 0.14 %."
+  },
+  {
+   "id": "MB-228",
+   "desc": "free water: CO2 dissolved in water at 25 °C, 1.01325 bar (CO2 / H2O 50:50 feed, Peng–Robinson) — the plain cubic with the databank k_ij makes CO2 about 30× too insoluble",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 310.12390000000005,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.709547055225347
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.29045294477465294
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 298.15,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.1.rig.x.CO2": 0.000592564
+   },
+   "tol": {
+    "streams_out.1.rig.x.CO2": 1e-05,
+    "default": 1e-09
+   },
+   "source": "IAPWS G7-04 (Fernández-Prini, Alvarez & Harvey, J. Phys. Chem. Ref. Data 32 (2003) 903), kH(CO2, 25 °C) = 165.6 MPa via the iapws 1.5.5 Python package; x = y_CO2·P/kH with y_CO2 = 1 − Psat(IAPWS-95)/P. Tolerance 1.7 % covers the vapour fugacity coefficient and Poynting factor left out of the hand calculation."
+  },
+  {
+   "id": "MB-229",
+   "desc": "flash convergence (STEP 32): C1/C2/C3/nC5 = 80/10/6/4 at 243 K, 89.5 bar, close to the mixture critical point (Peng–Robinson) — substitution alone stopped at its limit and returned V/F 0.65 here",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 213.72560399999998,
+       "T_K": 243,
+       "P_bar": 89.5,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6004880912630384
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.14068992875556458
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.12379130766194957
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.13503067231944754
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 243.0,
+      "P_bar": 89.5
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.5813164,
+    "converged": true,
+    "streams_out.0.rig.y.CH4": 0.8708797
+   },
+   "tol": {
+    "details.vapour_fraction": 2e-05,
+    "streams_out.0.rig.y.CH4": 2e-05,
+    "default": 1e-09
+   },
+   "source": "Caleb Bell thermo 0.6.1 FlashVL (PRMIX gas + liquid) with the same ChemSep Tc/Pc/ω and k_ij: V/F 0.5813164, y CH4 0.8708797."
+  },
+  {
+   "id": "MB-230",
+   "desc": "energy-balance reconciliation (STEP 32): classic HTS converter feeding Peng–Robinson cooler and knock-out — the enthalpy bases differ at the interface and the solver must flag the gap",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1603.230818,
+       "T_K": 643.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.04778066834790597
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.1747103391821152
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.1647030465204044
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.0030018996303999438
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.26209638392816875
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.004983437138494427
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.34272422525251134
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "RX",
+        "name": "R1",
+        "module": "shift",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {}
+       },
+       {
+        "id": "CL",
+        "name": "E1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 313.15
+        }
+       },
+       {
+        "id": "FL",
+        "name": "F1",
+        "module": "r-flash",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "T_K": 313.15,
+         "P_bar": 29
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "RX",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S1",
+        "from": {
+         "b": "RX",
+         "p": 0
+        },
+        "to": {
+         "b": "CL",
+         "p": 0
+        }
+       },
+       {
+        "id": "S2",
+        "from": {
+         "b": "CL",
+         "p": 0
+        },
+        "to": {
+         "b": "FL",
+         "p": 0
+        }
+       },
+       {
+        "id": "G",
+        "from": {
+         "b": "FL",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "C",
+        "from": {
+         "b": "FL",
+         "p": 1
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "energy_balance.reconciliation.ok": false,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "mass_balance.closure_pct": 0.01,
+    "default": 1e-09
+   },
+   "source": "Structural check: the classic shift module and the Peng–Robinson units evaluate the HTS outlet on different enthalpy bases, so ΔH(products − feeds) ≠ Σ duties by more than 0.1 % of the gross duty and must be flagged (the all-Peng–Robinson chain closes to machine precision)."
   }
  ]
 }
