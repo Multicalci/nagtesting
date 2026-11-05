@@ -4200,6 +4200,40 @@ function cvPrintReport(){
   window.print();
 }
 window.addEventListener('DOMContentLoaded',()=>{ setTimeout(mcUpdateUnits,60); });
+
+// ── Prefill from the flowsheet simulator (#mb=…) ───────────────────────────
+// A valve in a flowsheet sends its inlet stream as the property method computed
+// it (phase, flow, P1, P2, T, SG or MW, vapour pressure, viscosity, k, Z and the
+// pseudo-critical constants). Everything stays editable; press Calculate.
+function applyMbPrefill(){
+  const m=location.hash.match(/#mb=([^&]+)/); if(!m) return;
+  let d=null;
+  try{ d=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/'))))); }catch(e){ return; }
+  const ok=(x)=>typeof x==='number'&&isFinite(x);
+  if(!d||!ok(d.flow_kg_h)||!ok(d.P1_bar)||!ok(d.P2_bar)||!ok(d.T_C)) return;
+  const set=(id,v,dig)=>{ const e=document.getElementById(id); if(e&&ok(v)) e.value=+v.toPrecision(dig||6); };
+  setUnits('met');
+  const ph=d.phase==='steam'?'steam':d.phase==='gas'?'gas_gen':'liq_gen';
+  setPhase(ph);
+  if(ph==='steam'){
+    const f=FLUID_DB.steam[d.superheated?1:0]; if(f) selectFluid(f);
+  } else {
+    onFluidSelect('__custom__');
+    set('custSG', ph==='liq_gen'?d.sg:d.MW, 6);
+    set('custPv', ph==='liq_gen'&&ok(d.pv_bar)?d.pv_bar:0, 6);
+    syncCustomFluid();
+    if(ok(d.Pc_bar)){ set('custPc',d.Pc_bar,5); if(ph==='gas_gen'){ set('custTc',d.Tc_K,5); set('custOmega',d.omega,4); } _critUserOverride=true; }
+    if(ph==='liq_gen'){ if(ok(d.sg)){ set('sg',d.sg,6); _sgUserOverride=true; } if(ok(d.pv_bar)){ set('pv',d.pv_bar,6); _pvUserOverride=true; } if(ok(d.visc_cP)){ set('visc',d.visc_cP,5); _viscUserOverride=true; } }
+    else { if(ok(d.MW)) set('sg',d.MW,6); if(ok(d.k)) set('kval',d.k,4); if(ok(d.Z)){ set('zf',d.Z,5); _zUserOverride=true; } }
+  }
+  TUNIT='C'; document.getElementById('tUnit').value='C'; set('temp',d.T_C,6);
+  setFlowType('mass'); FUNIT='kgh'; buildFlowUnitSelect(); set('flow',d.flow_kg_h,6);
+  set('p1',d.P1_bar,6); set('p2',d.P2_bar,6);
+  calc();
+  const n=document.getElementById('calcNote');
+  if(n){ n.classList.remove('alert'); n.textContent='Process data from the flowsheet'+(d.name?' ('+String(d.name).slice(0,40)+')':'')+' — check the fluid data and press Calculate'; }
+}
+window.addEventListener('DOMContentLoaded',()=>{ setTimeout(applyMbPrefill,150); });
 </script>
 
 </body>
