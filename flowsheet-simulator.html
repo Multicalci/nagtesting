@@ -547,7 +547,7 @@ table.st .clk:hover{color:var(--accent)}
   <h3>4 · Specify units and run</h3>
   <p>Click a unit and fill its specifications. The status lamp at the bottom turns green when everything needed is entered; the Issues tab lists anything missing. Press <b>Run</b> (or <kbd>F5</kbd>).</p>
   <h3>Property method (Methods)</h3>
-  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
+  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. With Peng–Robinson or SRK, <b>Free water</b> (on by default) puts liquid water and steam on IAPWS-IF97 and the gases dissolved in water on the IAPWS Henry constants, so boilers, condensers, wet-gas coolers and process condensate come out right — a plain cubic overstates the latent heat of water by about 5 % and makes gases 10–100× too insoluble in it. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
   <p><b>Which method to apply:</b> water / steam only → Steam / water (IAPWS-IF97); hydrocarbons and light gases → Peng–Robinson or SRK; NRTL, UNIQUAC or UNIFAC for polar liquids above about 5 bar → set <b>Vapour phase</b> to Peng–Robinson. The flowsheet panel suggests the method from your feeds (with a button that applies it), and after a run the log warns when a vapour above about 5 bar was treated as an ideal gas — that leaves out the real-gas enthalpy and changes duties and turbine / compressor power (a 62 bar steam turbine comes out about 30 % high with NRTL and an ideal-gas vapour).</p>
   <p>The component list holds more than 400 components with ChemSep pure-component data; components marked “classic units only” (urea, carbamate, biuret …) can be used in the reformer and urea units only.</p>
   <h3>Steam turbines, compressors and the IAPWS-IF97 steam method</h3>
@@ -1880,6 +1880,7 @@ function pkgSpec(model) {
   if ((isActivityPkg(m) || isElecPkg(m)) && (P.vapour === 'pr' || P.vapour === 'srk')) o.vapour = P.vapour;
   if (isElecPkg(m)) return o;          // acid-gas packages: no binary overrides, VL only
   if (P.henry === false && m !== 'pr' && m !== 'srk') o.henry = false;
+  if (P.free_water === false && (m === 'pr' || m === 'srk')) o.free_water = false;   // STEP 32
   if (P.association === false && m !== 'pr' && m !== 'srk') o.association = false;
   if (P.phases === 'vll') o.three_phase = true; else if (P.phases === 'vl') o.three_phase = false;
   const kij = {};
@@ -4073,6 +4074,16 @@ function methodsSection() {
     hc.addEventListener('change', () => { P.henry = hc.checked ? undefined : false; commit(); });
     s.append(el('label', { class: 'chk' }, hc, el('span', null, 'Henry’s law for light gases (H₂, N₂, CO₂, CH₄ … dissolved in water / solvents)')));
   }
+  if (P.model === 'pr' || P.model === 'srk') {
+    // STEP 32: free water — liquid water and the gases dissolved in it referred to IAPWS
+    const fc = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+    fc.checked = P.free_water !== false;
+    fc.addEventListener('change', () => { P.free_water = fc.checked ? undefined : false; commit(); renderInspector(); });
+    s.append(el('label', { class: 'chk' }, fc, el('span', null, 'Free water — water on IAPWS-IF97 and dissolved gases (H₂, N₂, CO, CO₂, CH₄, Ar, H₂S …) on IAPWS Henry constants')));
+    s.append(el('div', { class: 'hint', style: 'margin:-2px 0 8px' }, P.free_water === false
+      ? 'Off: water is on the cubic equation of state alone — its latent heat comes out about 5 % high, its vapour pressure up to 15 % low and gases are 10–100× too insoluble in water. Keep it on unless you are checking against another program’s plain cubic.'
+      : 'On (recommended): boilers, condensers and wet-gas coolers match IAPWS-IF97 steam tables, and gases dissolved in process condensate follow the IAPWS G7-04 Henry constants. Hydrocarbon phases and dry gases are unchanged.'));
+  }
   if ((isActivityPkg(P.model) || P.model === 'ideal') && !P.vapour && !isElecPkg(P.model)) {
     const ac = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
     ac.checked = P.association !== false;
@@ -5664,6 +5675,7 @@ function applyServer(R, r) {
   R.log = (r.log || []).slice();
   R.warnings = (r.alerts || []).slice();
   if (r.overall) R.overall = Object.assign({}, r.overall, { prods: r.overall.products || [] });
+  R.recon = (r.energy_balance && r.energy_balance.reconciliation) || null;        // STEP 32
   R.specs = r.specs || [];
   R.sens = r.sensitivity || null;
   R.pkg = (r.details && r.details.property_package) || null;
@@ -5904,7 +5916,13 @@ function blockResults(b, br) {
   const good = num(cp) && Math.abs(cp) < 0.01, conv = R.converged !== false;
   box.append(el('div', { class: 'banner ' + (good && conv ? 'ok' : conv ? 'warn' : 'err') },
     el('span', null, '●'), el('span', { class: 'mono', style: 'font-size:12px' }, 'mass closure ' + fmt(cp, 4) + ' % · in ' + fmt(mb.in, 6) + ' / out ' + fmt(mb.out, 6) + ' kg/h' +
-      (conv ? '' : ' · NOT CONVERGED (' + (R.iterations || 0) + ' it)'))));
+      (conv ? '' : R.flash_unconverged ? ' · FLASH NOT CONVERGED' : ' · NOT CONVERGED (' + (R.iterations || 0) + ' it)'))));
+  if (R.flash_unconverged) {
+    // STEP 32: a phase-equilibrium calculation behind one of this unit's streams did not converge
+    const fu = R.flash_unconverged;
+    box.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, 'Phase equilibrium did not converge at ' + fmt(fu.T_K - 273.15, 4) + ' °C, ' + fmt(fu.P_bar, 4) + ' bar' +
+      (num(fu.residual) ? ' (residual ' + fu.residual.toExponential(1) + ')' : '') + ' — the phase split there is approximate; the state is probably close to a critical point.')));
+  }
   const D = R.details || {};
   if (D.estimate_flag) {
     const co = D.correlation || (D.reactor && D.reactor.correlation) || {};
@@ -6180,6 +6198,10 @@ function balanceView() {
     card('Cooling duty (Σ Q < 0)', fmt(o.cool, 6) + ' kW', 'exchanger internal duties excluded'),
     card('Shaft work', fmt(o.work, 6) + ' kW in', num(o.workOut) && o.workOut ? fmt(o.workOut, 6) + ' kW recovered' : null),
     card('ΔH products − feeds', fmt(o.dH_kW, 6) + ' kW', 'formation-enthalpy basis'),
+    RES.recon && RES.recon.ok !== null && RES.recon.ok !== undefined
+      ? card('Energy balance check', RES.recon.ok ? 'closes' : 'does NOT close',
+        'ΔH − (Σ Q + Σ W) = ' + fmt(RES.recon.imbalance_kW, 4) + ' kW' + (num(RES.recon.imbalance_pct) ? ' (' + fmt(RES.recon.imbalance_pct, 3) + ' % of gross duty)' : '') + ' · tolerance ' + fmt(RES.recon.tolerance_kW, 3) + ' kW')
+      : null,
     card('Property method', PKG_LABEL[RES.pkg || 'classic'] || RES.pkg, RES.pkg ? 'rigorous units: ' + M.blocks.filter(isRig).length + ' of ' + M.blocks.length : 'per-unit engine models'),
     card('Engine', (RES.engine || '—').split(' (')[0], RES.server ? 'whole flowsheet in ' + (RES.calls > 1 ? RES.calls + ' calls' : '1 call') + ' · server ' + fmt(RES.serverMs, 4) + ' ms' + (RES.cached ? ' · reused' : '') : RES.calls + ' calls · ' + RES.cached + ' reused · ' + ((RES.ms || 0) / 1000).toFixed(1) + ' s'));
   for (const sp of RES.specs || []) {
