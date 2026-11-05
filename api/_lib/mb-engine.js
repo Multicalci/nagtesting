@@ -22,7 +22,7 @@
 //
 // ROUTING RULES (per spec / project report):
 //   gas     : NIST Shomate closed form where present, else Smith-Van Ness
-//             Cp/R polynomial integral; + PR enthalpy departure (eos.js)
+//             Cp/R polynomial integral; + PR enthalpy departure (mb-thermo)
 //             when opts.P_bar > 30 and the point is a gas.
 //   liquid  : hf_liq_298 + cp_liq·(T−298.15) when both known,
 //             else h_gas(T) − ΔHvap(T) (Watson, 0.38 exp, clamp 0.98·Tc,
@@ -55,7 +55,6 @@
 import fluids from './fluids.js';
 import mbData from './mb-data.js';
 import if97 from './if97.js';
-import eos from './eos.js';
 import urea from './mb-urea.js';
 import flowsheet from './mb-flowsheet.js';
 import compdb from './mb-compdb.js';           // STEP 22 — ChemSep databank
@@ -64,6 +63,44 @@ import rigUnits from './mb-units.js';           // STEP 22 — rigorous unit ope
 import rigColumn from './mb-column.js';         // STEP 22 — rigorous column
 import rigAnalysis from './mb-analysis.js';     // STEP 23 — phase envelope, property table, binary diagram
 import rigKinetics from './mb-kinetics.js';     // STEP 23 — kinetic PFR / CSTR on the property packages
+import rigSyngas from './mb-syngas.js';         // STEP 33 — reformers, shift, methanator on the property packages
+import rigPipe from './mb-pipe.js';             // STEP 33 — pipe segment (Darcy–Churchill, homogeneous two-phase)
+
+// ---------------------------------------------------------------------------
+// STEP 33 — the classic modules' Peng–Robinson (enthalpy departure above
+// 30 bar, the 'pr' flash, compressor densities) runs on mb-thermo's package:
+// ChemSep critical constants, the k_ij databank and free water — one equation
+// of state for the whole site. (The separate eos.js copy is retired.)
+// ---------------------------------------------------------------------------
+const PR_CACHE = new Map();
+/** mb-thermo Peng–Robinson package for these keys (null when a key is not in the databank) */
+function prPackage(keys) {
+  const ks = [...new Set(keys)].sort();
+  if (!ks.length || !ks.every((k) => compdb.has(k))) return null;
+  const sig = ks.join('|');
+  let p = PR_CACHE.get(sig);
+  if (!p) {
+    p = thermo.createPackage({ model: 'pr' }, ks);
+    p.index = Object.fromEntries(ks.map((k, i) => [k, i]));
+    if (PR_CACHE.size > 60) PR_CACHE.delete(PR_CACHE.keys().next().value);
+    PR_CACHE.set(sig, p);
+  }
+  return p;
+}
+/** pure-gas PR enthalpy departure [kJ/mol] at T [K], P [bar] (vapour root) */
+function prHDeparture(key, T_K, P_bar) {
+  const pp = prPackage([key]);
+  if (!pp) throw new Error(`'${key}' is not in the property databank`);
+  return pp.eos.state(T_K, P_bar * 1e5, [1], 'V').hDep / 1000;
+}
+/** PR vapour compressibility of a mixture {key: y} */
+function prZ(ys, T_K, P_bar) {
+  const pp = prPackage(Object.keys(ys));
+  if (!pp) throw new Error('component not in the property databank');
+  const y = pp.keys.map((k) => ys[k] || 0);
+  const t = y.reduce((a, b) => a + b, 0);
+  return pp.eos.state(T_K, P_bar * 1e5, y.map((v) => v / t), 'V').Z;
+}
 
 const ENGINE_VERSION = 'mb-engine 0.22.0 (parts 1-7 + steps 21–32 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate, aqueous MDEA / activated MDEA (piperazine) by Extended UNIQUAC), Murphree tray efficiencies, IAPWS-IF97 steam package (water/steam on api/_lib/steam-if97.js), turbine / compressor specs by efficiency, outlet temperature or power, extraction steam turbine), fast flowsheet solver: minimum tear sets, Broyden acceleration, warm starts, resumable continuation, ideal-gas vapour check above 5 bar, free water in the cubic equations of state (IAPWS-IF97 water and steam, IAPWS G7-04 dissolved gases), Newton fallback and convergence flags on every flash, energy-balance reconciliation';
 
@@ -311,10 +348,7 @@ function hGasMolar(key, T_K, opts) {
   if (num(o.P_bar) && o.P_bar > PR_P_THRESHOLD) {
     if (num(rec.tc_K) && num(rec.pc_bar)) {
       try {
-        const dep = eos.hDeparture({ T_K, P_bar: o.P_bar, comps: [{
-          key: rec.key, tc_K: rec.tc_K, pc_bar: rec.pc_bar,
-          omega: num(rec.omega) ? rec.omega : 0, y: 1 }] });
-        hDep = dep.hDep_kJmol;
+        hDep = prHDeparture(rec.key, T_K, o.P_bar);
         method += '+pr_departure';
       } catch (e) {
         warnings.push(`hGasMolar(${key}): PR departure failed (${e.message}) — ideal-gas value used`);
@@ -1322,12 +1356,11 @@ const PR_FLASH_TOL = 1e-10;        // max |Δ ln K| at convergence
 const WILSON_C = 5.373;            // Wilson K-value constant
 
 /**
- * PR equation-of-state flash: Kᵢ = φᵢᴸ(x)/φᵢⱽ(y), Wilson initial guess,
- * successive substitution on K with Rachford-Rice inside. Uses eos.js
- * (vdW one-fluid mixing, KIJ table, H2/He effective constants). Nonvolatile
- * components (salts, urea…) are held in the liquid (K = 0) and excluded from
- * the EOS mixture. Single-phase (trivial K → 1) results are classified by
- * Kay's pseudo-critical temperature.
+ * PR equation-of-state flash on mb-thermo's Peng–Robinson package (STEP 33 —
+ * replaces the separate eos.js copy): ChemSep critical constants, the k_ij
+ * databank, free water, Michelsen stability test, successive substitution with
+ * the Newton fallback. Nonvolatile components (salts, urea…) are held in the
+ * liquid (K = 0) and excluded from the EOS mixture.
  * @param {object} mol molarize() result of the feed
  * @param {number} T_K
  * @param {number} P_bar
@@ -1336,81 +1369,58 @@ const WILSON_C = 5.373;            // Wilson K-value constant
  */
 function flashPR(mol, T_K, P_bar, warnings) {
   const z = mol.components.map((c) => c.mole_fraction);
-  const props = [];
+  const keys = mol.components.map((c) => c.key);
+  const inert = [];
   for (const c of mol.components) {
     const rec = resolve(c.key);
     if (rec.error) return rec;
-    if (rec.nonvolatile) { props.push({ key: c.key, inert: true }); continue; }
-    if (!num(rec.tc_K) || !num(rec.pc_bar)) {
-      return errObj('MB_PR_CRIT', `PR flash needs Tc and Pc for '${c.key}' — use model 'raoult' for this feed`, 'components');
+    inert.push(!!rec.nonvolatile);
+    if (!rec.nonvolatile && !compdb.has(c.key)) {
+      return errObj('MB_PR_CRIT', `PR flash: '${c.key}' is not in the property databank — use model 'raoult' for this feed`, 'components');
     }
-    if (!num(rec.omega)) warnings.push(`flash(pr): no acentric factor for ${c.key} — ω = 0 assumed`);
-    props.push({ key: c.key, tc_K: rec.tc_K, pc_bar: rec.pc_bar, omega: num(rec.omega) ? rec.omega : 0 });
   }
-  const live = props.map((p, i) => (p.inert ? -1 : i)).filter((i) => i >= 0);
-  const kOut = (K) => props.map((p, i) => ({ key: p.key, K: K[i], method: p.inert ? 'nonvolatile' : 'pr_phi' }));
+  const live = keys.map((k, i) => (inert[i] ? -1 : i)).filter((i) => i >= 0);
+  const kOut = (K) => keys.map((k, i) => ({ key: k, K: K[i], method: inert[i] ? 'nonvolatile' : 'pr_phi' }));
   if (!live.length) {
     const K0 = z.map(() => 0);
     return { psi: 0, regime: 'all_liquid', iterations: 0, converged: true, K: K0, Ks: kOut(K0),
       x: z.slice(), y: z.map(() => 0), extra: { ss_iterations: 0 } };
   }
-  const phiOf = (frac, root) => {
-    let s = 0;
-    for (const i of live) s += frac[i];
-    const sub = live.map((i) => ({ key: props[i].key, tc_K: props[i].tc_K, pc_bar: props[i].pc_bar,
-      omega: props[i].omega, y: s > 0 ? frac[i] / s : 1 / live.length }));
-    const r = eos.phiCoefficients({ T_K, P_bar, comps: sub, root });
-    const out = new Array(z.length).fill(NaN);
-    live.forEach((i, k) => { out[i] = r.phi[k]; });
-    return { phi: out, Z: r.Z };
-  };
-  let K = props.map((p) => (p.inert ? 0
-    : (p.pc_bar / P_bar) * Math.exp(WILSON_C * (1 + p.omega) * (1 - p.tc_K / T_K))));
-  let it = 0;
-  let dlnK = Infinity;
-  let ZL = NaN;
-  let ZV = NaN;
-  try {
-    for (; it < PR_FLASH_MAX_ITER;) {
-      const rr = rrSolve(z, K, null);
-      const xy = rrPhaseComps(z, K, rr.psi);
-      const fl = phiOf(xy.x, 'liquid');
-      const fv = phiOf(xy.y, 'vapour');
-      ZL = fl.Z; ZV = fv.Z;
-      dlnK = 0;
-      const Kn = K.map((k, i) => {
-        if (props[i].inert) return 0;
-        const kn = fl.phi[i] / fv.phi[i];
-        dlnK = Math.max(dlnK, Math.abs(Math.log(kn / k)));
-        return kn;
-      });
-      K = Kn;
-      it++;
-      if (!(dlnK > PR_FLASH_TOL)) break;
-    }
-  } catch (e) {
+  // merge duplicate keys, normalise the volatile part
+  const lk = [...new Set(live.map((i) => keys[i]))];
+  const pp = prPackage(lk);
+  const zl = new Array(pp.n).fill(0);
+  let zs = 0;
+  for (const i of live) { zl[pp.index[keys[i]]] += z[i]; zs += z[i]; }
+  const zn = zl.map((v) => v / zs);
+  let r;
+  try { r = thermo.flashPT(pp, zn, T_K, P_bar * 1e5); } catch (e) {
     return errObj('MB_PR_FLASH', `PR flash failed: ${e.message}`, 'params');
   }
-  if (!K.every((k) => num(k))) return errObj('MB_PR_FLASH', 'PR flash produced non-finite K-values', 'params');
-  const converged = dlnK < 1e-7;
-  if (!converged) warnings.push(`flash(pr): K-values not converged after ${it} iterations (max Δln K ${dlnK.toExponential(2)}) — near-critical state?`);
-  const rr = rrSolve(z, K, warnings);
-  let { psi, regime } = rr;
-  let { x, y } = rrPhaseComps(z, K, psi);
-  const trivial = live.every((i) => Math.abs(Math.log(K[i])) < 1e-3);
-  if (trivial) {
-    let zs = 0, tpc = 0;
-    for (const i of live) { zs += z[i]; tpc += z[i] * props[i].tc_K; }
-    tpc /= zs || 1;
-    const vap = T_K > tpc;
-    psi = vap ? 1 : 0;
-    regime = vap ? 'all_vapor' : 'all_liquid';
-    x = vap ? z.map(() => 0) : z.slice();
-    y = vap ? z.slice() : z.map(() => 0);
-    warnings.push(`flash(pr): single phase (trivial solution) — classified ${vap ? 'vapour' : 'liquid'} by Kay's rule (T ${T_K.toFixed(1)} K vs pseudo-Tc ${tpc.toFixed(1)} K)`);
-  }
-  return { psi, regime, iterations: it, converged, K, Ks: kOut(K), x, y,
-    extra: { Z_liquid: ZL, Z_vapour: ZV, ss_iterations: it, max_dlnK: dlnK, trivial } };
+  const beta = r.phase === 'V' ? 1 : r.phase === 'L' ? 0 : r.beta;
+  let Kl;
+  if (beta > 0 && beta < 1) Kl = pp.keys.map((k, j) => r.y[j] / r.x[j]);
+  else { const lL = pp.lnFug(T_K, P_bar * 1e5, zn, 'L'), lV = pp.lnFug(T_K, P_bar * 1e5, zn, 'V'); Kl = lL.map((v, j) => Math.exp(v - lV[j])); }
+  // back to the feed's component list; nonvolatiles stay in the liquid
+  const fv = beta * zs;                                  // vapour moles per mole of feed
+  const K = keys.map((k, i) => (inert[i] ? 0 : Kl[pp.index[k]]));
+  // per original component: vapour / liquid moles per mole of feed (a duplicated key splits in feed proportion)
+  const xd = 1 - fv;
+  const vM = keys.map((k, i) => (inert[i] || !(fv > 0) ? 0 : fv * r.y[pp.index[k]] * z[i] / zl[pp.index[k]]));
+  const lM = keys.map((k, i) => (inert[i] ? z[i] : !(beta < 1) ? 0 : (1 - beta) * zs * r.x[pp.index[k]] * z[i] / zl[pp.index[k]]));
+  const y = vM.map((v) => (fv > 0 ? v / fv : 0));
+  const x = lM.map((v) => (xd > 0 ? v / xd : 0));
+  const psi = fv;
+  const regime = psi <= 0 ? 'all_liquid' : psi >= 1 ? 'all_vapor' : 'two_phase';
+  const converged = r.converged !== false;
+  if (!converged) warnings.push(`flash(pr): phase equilibrium not converged at ${T_K.toFixed(1)} K / ${P_bar} bar — near-critical state?`);
+  let ZL = NaN, ZV = NaN;
+  try {
+    if (beta < 1) ZL = pp.eos.state(T_K, P_bar * 1e5, beta > 0 ? r.x : zn, 'L').Z;
+    if (beta > 0) ZV = pp.eos.state(T_K, P_bar * 1e5, beta < 1 ? r.y : zn, 'V').Z;
+  } catch (_e) { /* informative */ }
+  return { psi, regime, iterations: r.iterations || 0, converged, K, Ks: kOut(K), x, y,
+    extra: { Z_liquid: ZL, Z_vapour: ZV, ss_iterations: r.iterations || 0, method: 'mb-thermo Peng–Robinson', free_water: pp.freeWater ? true : undefined } };
 }
 
 // ---- Step 21: NRTL (gamma-phi, modified Raoult) flash --------------------
@@ -1535,7 +1545,7 @@ function flashNRTL(mol, T_K, P_bar, nrtl, warnings) {
  * model: 'raoult' (default, Step 8) | 'pr' (Peng-Robinson φ–φ, Step 21)
  * | 'nrtl' (γ–Psat with params.nrtl.pairs, Step 21).
  * VALIDITY: 'raoult' — near-ideal systems only. 'pr' — hydrocarbons, light
- * gases, NH3 / syngas at pressure (tune kij in eos.js). 'nrtl' — polar
+ * gases, NH3 / syngas at pressure (k_ij from the mb-thermo databank). 'nrtl' — polar
  * liquids at low pressure with user binary parameters; VLE only.
  * Stream enthalpies use the standard engine routes for every model.
  * @param {{streams:Array, params:object}} input
@@ -1963,7 +1973,7 @@ function solvePump(feed, p) {
  * (T1+T2s)/2 mean), T2s = T1·r^((γ−1)/γ), isentropic work from the
  * formation-basis enthalpy at T2s (PR departure applies automatically above
  * 30 bar), real work = Ws/η (compressor) or Ws·η (turbine), outlet T solved
- * from H(T2) = H1 + W. Densities via eos.solveZ at inlet and outlet.
+ * from H(T2) = H1 + W. Densities from the mb-thermo Peng–Robinson Z at inlet and outlet.
  * @param {object} feed inlet stream
  * @param {object} p params
  * @param {('compressor'|'turbine')} machine
@@ -2033,18 +2043,10 @@ function solveCompressorTurbine(feed, p, machine) {
 
   /** PR density [kg/m³] at (T,P); Z = 1 fallback when criticals are missing */
   const density = (T, P) => {
-    const comps = [];
-    let ok = true;
-    for (const c of mol.components) {
-      const rec = resolve(c.key);
-      if (rec.error || !num(rec.tc_K) || !num(rec.pc_bar)) { ok = false; break; }
-      comps.push({ key: c.key, tc_K: rec.tc_K, pc_bar: rec.pc_bar,
-        omega: num(rec.omega) ? rec.omega : 0, y: c.mole_fraction });
-    }
-    let Z = 1;
-    if (ok) {
-      try { Z = eos.solveZ({ T_K: T, P_bar: P, comps }).Z; } catch (e) { ok = false; }
-    }
+    const ys = {};
+    for (const c of mol.components) ys[c.key] = (ys[c.key] || 0) + c.mole_fraction;
+    let Z = 1, ok = true;
+    try { Z = prZ(ys, T, P); if (!num(Z)) { Z = 1; ok = false; } } catch (e) { ok = false; }
     if (!ok) warnings.push(`rotating: PR density unavailable at ${T.toFixed(1)} K/${P} bar — ideal gas (Z = 1) used`);
     return { rho: (P * 1e5 * (mol.mw_avg / 1000)) / (Z * R_J * T), Z };
   };
@@ -4959,7 +4961,7 @@ Object.assign(MODULES, urea.register({
 // ---------------------------------------------------------------------------
 // STEP 22 — rigorous units + column (registered before the flowsheet so the
 // flowsheet's validation sees them)
-const RIG = rigUnits.register(Object.assign({ column: rigColumn.solveColumn }, rigAnalysis.ANALYSIS_MODULES, rigKinetics.KINETIC_MODULES));
+const RIG = rigUnits.register(Object.assign({ column: rigColumn.solveColumn }, rigAnalysis.ANALYSIS_MODULES, rigKinetics.KINETIC_MODULES, rigSyngas.SYNGAS_MODULES, rigPipe.PIPE_MODULES));
 Object.assign(MODULES, RIG);
 Object.assign(MODULES, flowsheet.register({ errObj, MODULES, runModule, streamEnthalpy, molarize, resolve,
   rig: rigUnits, RIG_NAMES: new Set(Object.keys(RIG)) }));

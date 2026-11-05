@@ -101,7 +101,7 @@ O2: F({ key:'O2', name:'Oxygen', formula:'O2', cas:'7782-44-7', mw:32.000,
   mu_cp:0.0201, data_quality:'nist', category:'gas' }),
 H2: F({ key:'H2', name:'Hydrogen', formula:'H2', cas:'1333-74-0', mw:2.016,
   tb_K:20.28, tm_K:13.99, tc_K:33.2, pc_bar:13.0, omega:-0.216, // true criticals;
-  // eos.js substitutes quantum effective constants automatically by key
+  // (the flowsheet's Peng–Robinson uses these true constants — mb-thermo.js)
   mu_cp:0.0089, data_quality:'nist', category:'gas' }),
 He: F({ key:'He', name:'Helium', formula:'He', cas:'7440-59-7', mw:4.003,
   tb_K:4.22, tm_K:null, tc_K:5.2, pc_bar:2.3, omega:-0.390, // no Tm at 1 atm

@@ -2511,7 +2511,7 @@ function mixVisL(pp, T, x) {
   }
   return Math.exp(lnmu);
 }
-function mixVisV(pp, T, y) {
+function mixVisV(pp, T, y, V) {
   let num1 = 0, den = 0;
   for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
     const c = pp.comps[i];
@@ -2520,7 +2520,26 @@ function mixVisV(pp, T, y) {
     const s = Math.sqrt(c.MW);
     num1 += y[i] * mu * s; den += y[i] * s;
   }
-  return num1 / den;
+  const mu0 = num1 / den;
+  // STEP 33 — dense-gas correction (Jossi, Stiel & Thodos 1962; Poling, Prausnitz & O'Connell,
+  // 5th ed., §9-6) with Kay's-rule pseudo-criticals; the databank correlations are for the dilute
+  // gas, about 9 % low for methane at 50 bar. Applied for ρr = Vc/V up to 3 (its validity range).
+  if (!(V > 0)) return mu0;
+  let Tc = 0, Pc = 0, Vc = 0, MW = 0, ok = true;
+  for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
+    const c = pp.comps[i];
+    if (!(c.vc > 0 && c.Tc > 0 && c.Pc > 0)) { ok = false; break; }
+    Tc += y[i] * c.Tc; Pc += y[i] * c.Pc; Vc += y[i] * c.vc / 1000; MW += y[i] * c.MW;
+  }
+  if (!ok) return mu0;
+  const rr = Math.min(Vc / V, 3);
+  if (!(rr > 0.01)) return mu0;
+  // [(μ − μ°)ξ + 1]^¼ = 1.0230 + 0.23364 ρr + 0.58533 ρr² − 0.40758 ρr³ + 0.093324 ρr⁴,
+  // μ in micropoise, ξ = Tc^(1/6) / (M^½ Pc^(2/3)) with Tc in K, Pc in atm
+  const xi = Math.pow(Tc, 1 / 6) / (Math.sqrt(MW) * Math.pow(Pc / 101325, 2 / 3));
+  const lhs = 1.0230 + 0.23364 * rr + 0.58533 * rr * rr - 0.40758 * rr ** 3 + 0.093324 * rr ** 4;
+  const dmu = (Math.pow(lhs, 4) - 1) / xi;                                                 // μP
+  return mu0 + Math.max(dmu, 0) * 1e-7;
 }
 function mixK(pp, T, x, phase) {
   let k = 0, s = 0;
@@ -2551,7 +2570,7 @@ export function properties(pp, r) {
     const ph = {
       type: type === 'V' ? 'vapour' : 'liquid', fraction: frac, x: comp,
       MW, rho_kgm3: MW / 1000 / V, Z, H_Jmol: h, Cp_JmolK: cp,
-      mu_Pas: sp ? sp.mu : type === 'V' ? mixVisV(pp, r.T, comp) : mixVisL(pp, r.T, comp),
+      mu_Pas: sp ? sp.mu : type === 'V' ? mixVisV(pp, r.T, comp, V) : mixVisL(pp, r.T, comp),
       k_WmK: sp ? sp.k : mixK(pp, r.T, comp, type),
     };
     if (sp && num(sp.sigma)) ph.sigma_Nm = sp.sigma;

@@ -1143,6 +1143,9 @@ function solveFlowsheet(input) {
       mOut += o.mass_flow_kg_h;
       if (num(o.H_kJh)) hOut += o.H_kJh; else if (o.mass_flow_kg_h > 0) hOk = false;
     }
+    // STEP 33: solid carbon leaving a Gibbs reactor (or reformer) is a product of its own
+    const so = br.result.solids_out;
+    if (so && so.mass_flow_kg_h > 0) { prodsL.push(`${label(b)}·solids`); mOut += so.mass_flow_kg_h; if (num(so.H_kJh)) hOut += so.H_kJh; }
     const eb = br.result.energy_balance || {};
     const dl = br.result.details && Array.isArray(br.result.details.duties) ? br.result.details.duties : null;
     if (dl) { for (const d of dl) if (num(d.kW)) { if (d.kW > 0) heat += d.kW; else cool += d.kW; } }   // column: condenser and reboiler separately
@@ -1178,6 +1181,7 @@ function solveFlowsheet(input) {
         const o = (br.result.streams_out || [])[j];
         if (o && num(o.H_kJh)) ho += o.H_kJh;
       }
+      if (br.result.solids_out && num(br.result.solids_out.H_kJh)) ho += br.result.solids_out.H_kJh;
       if (!okH) continue;
       const eb = br.result.energy_balance || {};
       const dl = br.result.details && Array.isArray(br.result.details.duties) ? br.result.details.duties : null;

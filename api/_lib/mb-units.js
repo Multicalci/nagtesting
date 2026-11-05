@@ -43,7 +43,7 @@ const th = Object.assign({}, thBase, {
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 
-export const UNITS_VERSION = 'mb-units 1.8.0';
+export const UNITS_VERSION = 'mb-units 1.9.0';
 const KJH_PER_KW = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const R = th.R;
@@ -310,7 +310,38 @@ function solveValve(inp) {
   const r = a.F > 0 ? phFlash(pp, a.z, P2, a.h, a.T) : th.flashPT(pp, a.z, a.T, P2);
   const out = streamOut(pp, a.F, a.z, r);
   return result([out], a.mass, a.H_kJh, out.H_kJh, 0,
-    { pp: ppDetails(pp), T_out_K: r.T, dT_K: r.T - a.T, P_out_bar: P2 / 1e5, vapour_fraction_out: out.vapour_fraction }, pp.warnings.slice());
+    { pp: ppDetails(pp), T_out_K: r.T, dT_K: r.T - a.T, P_out_bar: P2 / 1e5, vapour_fraction_out: out.vapour_fraction, sizing: valveSizingData(pp, a) }, pp.warnings.slice());
+}
+/**
+ * STEP 33 — inlet data for control-valve sizing (IEC 60534 / ISA-75.01): phase, SG or MW,
+ * vapour pressure (bubble pressure at the inlet T), viscosity, k = Cp/Cv, Z and Kay's-rule
+ * pseudo-critical constants. Sent with the "Size this valve" link of the flowsheet page.
+ */
+function valveSizingData(pp, a) {
+  try {
+    const pr = th.properties(pp, a.r);
+    const vf = a.r.phase === 'V' ? 1 : a.r.phase === 'L' || a.r.phase === 'LL' ? 0 : a.r.beta;
+    const z = a.z;
+    let Tc = 0, Pc = 0, om = 0;
+    for (let i = 0; i < pp.n; i++) { Tc += z[i] * pp.comps[i].Tc; Pc += z[i] * pp.comps[i].Pc; om += z[i] * (pp.comps[i].omega || 0); }
+    const o = { phase: vf >= 1 - 1e-9 ? (pp.model === 'steam' || (pp.keys.length === 1 && pp.keys[0] === 'H2O') ? 'steam' : 'gas') : vf <= 1e-9 ? 'liquid' : 'two-phase',
+      T_K: a.T, P_bar: a.P / 1e5, MW: pr.MW, rho_kgm3: pr.rho_kgm3, Tc_K: Tc, Pc_bar: Pc / 1e5, omega: om };
+    const ph = pr.phases[0];
+    if (o.phase === 'liquid') {
+      o.sg = pr.rho_kgm3 / 999.0;                                  // water at 15.6 °C
+      o.visc_cP = ph.mu_Pas * 1000;
+      try { const b = th.flashTVF(pp, z, a.T, 0); if (b && num(b.P)) o.pv_bar = b.P / 1e5; } catch (_e) { /* supercritical or no bubble point */ }
+    } else if (o.phase !== 'two-phase') {
+      // ideal-gas k = Cp°/(Cp° − R), the value the sizing standards use with Z for real-gas effects
+      let cp = 0;
+      for (let i = 0; i < pp.n; i++) if (z[i] > 0) cp += z[i] * (pp.hig(i, a.T + 0.05) - pp.hig(i, a.T - 0.05)) / 0.1;
+      o.k = cp / (cp - R);
+      o.Z = ph.Z;
+      o.visc_cP = ph.mu_Pas * 1000;
+      if (o.phase === 'steam') { try { const sat = th.flashPVF(pp, z, a.P, 1, a.T); o.superheated = sat && num(sat.T) ? a.T > sat.T + 0.5 : true; } catch (_e) { o.superheated = true; } }
+    }
+    return o;
+  } catch (_e) { return undefined; }
 }
 
 // ---------------------------------------------------------------------------
@@ -752,14 +783,18 @@ function elements(key) {
 // factors, so trace species (down to ~1e-300) and limiting elements converge
 // from a uniform starting composition.
 // ---------------------------------------------------------------------------
-function gibbsEquilibrium(pp, nIn, T, P, keysAllowed) {
+function gibbsEquilibrium(pp, nIn, T, P, keysAllowed, opt) {
+  const o = opt || {};
   const n = pp.n;
   const act = pp.keys.map((k) => keysAllowed.includes(k));
   const El = [...new Set(pp.keys.flatMap((k, i) => (act[i] || nIn[i] > 0 ? Object.keys(elements(k) || {}) : [])))];
   const A = El.map((e) => pp.keys.map((k) => (elements(k) || {})[e] || 0));
-  const b0 = El.map((e, r) => A[r].reduce((s, a, i) => s + a * nIn[i], 0));
+  const b0 = El.map((e, r) => A[r].reduce((s, a, i) => s + a * nIn[i], 0) - (e === 'C' && num(o.carbonOut) ? o.carbonOut : 0));
   const E = El.length;
-  const mu0 = pp.comps.map((c, i) => (pp.hig(i, T) - T * pp.sig(i, T)) / (R * T));
+  // STEP 33: standard potentials at the equilibrium temperature (temperature approach) plus
+  // ln φ of the vapour from the property method (held fixed during this solve)
+  const Teq = num(o.Teq) ? o.Teq : T;
+  const mu0 = pp.comps.map((c, i) => (pp.hig(i, Teq) - Teq * pp.sig(i, Teq)) / (R * Teq) + (o.lnphi ? o.lnphi[i] : 0));
   const lnP = Math.log(P / th.P0);
   const J = pp.keys.map((_, i) => i).filter((i) => act[i]);
   const NS = J.length;
@@ -838,6 +873,238 @@ function gauss(M, b) {
   return x;
 }
 
+// ---------------------------------------------------------------------------
+// STEP 33 — equilibrium core shared by the Gibbs reactor and the syngas units
+// (mb-syngas.js): fugacity coefficients from the property method, temperature
+// approaches, restricted equilibrium by reactions, and solid carbon.
+// ---------------------------------------------------------------------------
+
+// Graphite, C(gr): NASA TM-4513 (McBride, Gordon & Reno 1993) 7-coefficient
+// polynomials, 200–1000–5000 K; H(298.15 K) = 0, S°(298.15 K) = 5.734 J/(mol K).
+const C_GR = { Tmid: 1000,
+  lo: [-0.310872072, 4.40353686e-03, 1.90394118e-06, -6.38546966e-09, 2.98964248e-12, -108.650794, 1.11382953],
+  hi: [1.45571829, 1.71702216e-03, -6.97562786e-07, 1.35277032e-10, -9.67590652e-15, -695.138814, -8.52583033] };
+/** graphite H [J/mol] (formation basis, 0 at 298.15 K) and S [J/(mol K)] at T */
+export function graphite(T) {
+  const Tc = Math.min(Math.max(T, 200), 5000);
+  const a = Tc < C_GR.Tmid ? C_GR.lo : C_GR.hi;
+  const t = Tc;
+  const H = R * t * (a[0] + a[1] * t / 2 + a[2] * t * t / 3 + a[3] * t ** 3 / 4 + a[4] * t ** 4 / 5 + a[5] / t);
+  const S = R * (a[0] * Math.log(t) + a[1] * t + a[2] * t * t / 2 + a[3] * t ** 3 / 3 + a[4] * t ** 4 / 4 + a[6]);
+  return { H, S, mu: H - T * S };
+}
+
+/** true when the package's vapour is not an ideal gas (EOS vapour or associating vapour) */
+function hasRealVapour(pp) { return !!pp.eos || !!pp.association; }
+/** ln φ of a vapour of composition y from the package (zeros for an ideal-gas vapour) */
+function vapLnPhi(pp, T, P, y) {
+  if (!hasRealVapour(pp)) return new Array(pp.n).fill(0);
+  try { const l = pp.lnFug(T, P, y, 'V'); return l.every(Number.isFinite) ? l : new Array(pp.n).fill(0); } catch (_e) { return new Array(pp.n).fill(0); }
+}
+
+/**
+ * Gibbs-energy minimisation with the options of a commercial RGibbs:
+ *   opt.fugacity  true → μ_i = μ°_i + RT ln(y_i φ_i P/P°), φ from the property
+ *                 method's vapour (successive substitution on ln φ)
+ *   opt.approach_K equilibrium evaluated at T + ΔT (energy balance stays at T)
+ *   opt.carbon    true → solid graphite may form (unit activity); the element
+ *                 potential of carbon is held at μ°_C(gr)/RT when it does
+ * Always returns the carbon activity a_C = exp(π_C − μ°_C(gr)/RT) of the gas.
+ */
+export function gibbsSolve(pp, nIn, T, P, allowed, opt) {
+  const o = opt || {};
+  const Teq = T + (num(o.approach_K) ? o.approach_K : 0);
+  const useFug = o.fugacity !== false && hasRealVapour(pp);
+  const iC = (() => { const El = new Set(pp.keys.flatMap((k, i) => (allowed.includes(k) || nIn[i] > 0 ? Object.keys(elements(k) || {}) : []))); return El.has('C') ? [...El].indexOf('C') : -1; })();
+  const muGr = graphite(Teq).mu / (R * Teq);
+  const atCarbon = (nC) => {
+    let lnphi = new Array(pp.n).fill(0), g = null, k;
+    for (k = 0; k < (useFug ? 60 : 1); k++) {
+      g = gibbsEquilibrium(pp, nIn, T, P, allowed, { Teq, lnphi, carbonOut: nC });
+      if (!useFug) break;
+      const F = g.n.reduce((a, v) => a + v, 0);
+      const y = g.n.map((v) => v / F);
+      const ln2 = vapLnPhi(pp, T, P, y);
+      let d = 0; for (let i = 0; i < pp.n; i++) if (allowed.includes(pp.keys[i]) || nIn[i] > 0) d = Math.max(d, Math.abs(ln2[i] - lnphi[i]));
+      lnphi = ln2;
+      if (d < 1e-10) break;
+    }
+    const piC = iC >= 0 && g.elements.indexOf('C') >= 0 ? g.lambda[g.elements.indexOf('C')] : NaN;
+    return { g, lnphi, lnaC: piC - muGr, fugIt: k + 1 };
+  };
+  let res = atCarbon(0), nC = 0;
+  const bC = pp.keys.reduce((a, kk, i) => a + ((elements(kk) || {}).C || 0) * nIn[i], 0);
+  if (o.carbon && num(res.lnaC) && res.lnaC > 1e-10 && bC > 0) {
+    // carbon deposits until the gas is at unit carbon activity: ln a_C(n_C) falls monotonically
+    // bracket: step toward the total carbon until the gas falls below unit activity
+    let lo = 0, flo = res.lnaC, hi = 0.5 * bC, rh = atCarbon(hi), fhi = rh.lnaC, side = 0;
+    for (let k = 0; k < 40 && num(fhi) && fhi > 0; k++) { lo = hi; flo = fhi; hi = hi + 0.5 * (bC - hi); rh = atCarbon(hi); fhi = rh.lnaC; }
+    if (!(num(fhi) && fhi < 0)) { nC = lo; res = lo > 0 ? atCarbon(lo) : res; }
+    else {
+      for (let it = 0; it < 100; it++) {
+        let m = lo - flo * (hi - lo) / (fhi - flo);
+        if (!(m > lo && m < hi)) m = 0.5 * (lo + hi);
+        const rm = atCarbon(m);
+        if (rm.lnaC > 0) { lo = m; flo = rm.lnaC; if (side === -1) fhi *= 0.5; side = -1; } else { hi = m; fhi = rm.lnaC; if (side === 1) flo *= 0.5; side = 1; }
+        nC = m; res = rm;
+        if (Math.abs(rm.lnaC) < 1e-9 || hi - lo < 1e-14 * bC) break;
+      }
+    }
+  }
+  return { n: res.g.n, nC, carbonActivity: num(res.lnaC) ? Math.exp(nC > 0 ? 0 : res.lnaC) : null, carbonActivityGas: num(res.lnaC) ? Math.exp(res.lnaC) : null,
+    converged: res.g.converged, iterations: res.g.iterations, fugIterations: res.fugIt, elements: res.g.elements, lambda: res.g.lambda, lnphi: res.lnphi, Teq };
+}
+
+/**
+ * Restricted chemical equilibrium (a commercial REquil, or RGibbs with
+ * specified reactions): extents ξ_r of the given reactions such that
+ *   Σ_i ν_ir ln(y_i φ_i P/P°) = ln K_r(T + ΔT_r),  ln K_r = −Σ_i ν_ir μ°_i(T_r)/RT_r.
+ * Newton on the convex function G̃(ξ) = Σ_r ξ_r ΔG°_r/RT_r + Σ_i n_i ln(n_i P/(N P°))
+ * (+ Σ n_i ln φ_i with φ held fixed, refreshed in an outer loop), whose
+ * gradient is that residual, with a step kept inside n_i ≥ 0 and an Armijo
+ * line search — converges from any interior start. Species absent from the
+ * feed but formed by a reaction are seeded at 1e-12 of the flow.
+ * reactions: [{ stoich: {key: ν}, approach_K?, fixed_extent? }]
+ * @returns {{n:number[], xi:number[], converged:boolean, iterations:number, lnK:number[], lnQ:number[]}}
+ */
+export function equilReactions(pp, nIn, T, P, reactions, opt) {
+  const o = opt || {};
+  const useFug = o.fugacity !== false && hasRealVapour(pp);
+  const nS = pp.n, NR = reactions.length;
+  const nu = reactions.map((rx) => { const v = new Array(nS).fill(0); for (const [k, c] of Object.entries(rx.stoich || {})) { const i = pp.index[k]; if (i === undefined) fail('MB_RXN', `reaction species '${k}' is not in the component list`, 'reactions'); v[i] += c; } return v; });
+  const dnu = nu.map((v) => v.reduce((a, b) => a + b, 0));
+  const Tr = reactions.map((rx) => T + (num(rx.approach_K) ? rx.approach_K : 0));
+  const dG = nu.map((v, r) => { let g = 0; for (let i = 0; i < nS; i++) if (v[i]) g += v[i] * (pp.hig(i, Tr[r]) - Tr[r] * pp.sig(i, Tr[r])); return g / (R * Tr[r]); });
+  const N0 = nIn.reduce((a, b) => a + b, 0) || 1;
+  const n0 = nIn.slice();
+  for (let i = 0; i < nS; i++) if (!(n0[i] > 0) && nu.some((v) => v[i] !== 0)) n0[i] = 1e-12 * N0;
+  const lnPP = Math.log(P / th.P0);
+  const fixed = reactions.map((rx) => num(rx.fixed_extent));
+  // extents are accumulated on a moving base composition (nb): every accepted step is folded
+  // into nb, so a species driven to 1e-14 of the flow (CO in a methanator) is carried as its
+  // own small number instead of the difference of two large ones
+  let nb = n0.slice();
+  const xi = new Array(NR).fill(0);
+  const molesAt = (x) => { const m = nb.slice(); for (let r = 0; r < NR; r++) if (x[r]) for (let i = 0; i < nS; i++) if (nu[r][i]) m[i] += nu[r][i] * x[r]; return m; };
+  const fold = (x) => { nb = molesAt(x); for (let r = 0; r < NR; r++) xi[r] += x[r]; };
+  { const x0 = reactions.map((rx) => (num(rx.fixed_extent) ? rx.fixed_extent : 0)); if (x0.some((v) => v)) { if (molesAt(x0).some((v) => v < 0)) fail('MB_RXN', 'fixed reaction extent exceeds the feed', 'reactions'); fold(x0); } }
+  let lnphi = new Array(nS).fill(0);
+  const Gt = (x) => { const m = molesAt(x); if (m.some((v) => v < 0)) return Infinity; const N = m.reduce((a, b) => a + b, 0); let g = 0; for (let r = 0; r < NR; r++) g += x[r] * dG[r]; for (let i = 0; i < nS; i++) if (m[i] > 0) g += m[i] * (Math.log(m[i] / N) + lnPP + lnphi[i]); return g; };
+  const grad = (m) => { const N = m.reduce((a, b) => a + b, 0); return nu.map((v, r) => { let s = dG[r]; for (let i = 0; i < nS; i++) if (v[i]) s += v[i] * (Math.log(Math.max(m[i], 1e-300) / N) + lnPP + lnphi[i]); return s; }); };
+  const zero = new Array(NR).fill(0);
+  let it = 0, conv = false, outer;
+  for (outer = 0; outer < (useFug ? 40 : 1); outer++) {
+    for (let k = 0; k < 200; k++, it++) {
+      const m = nb, N = m.reduce((a, b) => a + b, 0);
+      const F = grad(m);
+      let fmax = 0; for (let r = 0; r < NR; r++) if (!fixed[r]) fmax = Math.max(fmax, Math.abs(F[r]));
+      if (fmax < 1e-10) { conv = true; break; }
+      const H = [];
+      for (let r = 0; r < NR; r++) {
+        H.push(new Array(NR).fill(0));
+        for (let q = 0; q < NR; q++) { let h = -dnu[r] * dnu[q] / N; for (let i = 0; i < nS; i++) if (nu[r][i] && nu[q][i]) h += nu[r][i] * nu[q][i] / Math.max(m[i], 1e-300); H[r][q] = h; }
+      }
+      for (let r = 0; r < NR; r++) if (fixed[r]) { for (let q = 0; q < NR; q++) H[r][q] = H[q][r] = 0; H[r][r] = 1; F[r] = 0; }
+      for (let r = 0; r < NR; r++) H[r][r] += 1e-14 * Math.max(1, Math.abs(H[r][r]));
+      const d = gauss(H, F.map((v) => -v));
+      if (!d || !d.every(Number.isFinite)) break;
+      // largest step keeping every species positive (99 % of the way to the boundary)
+      let amax = 1;
+      for (let i = 0; i < nS; i++) { let dn = 0; for (let r = 0; r < NR; r++) dn += nu[r][i] * d[r]; if (dn < 0) amax = Math.min(amax, -0.99 * m[i] / dn); }
+      const g0 = Gt(zero); let a = amax, slope = 0; for (let r = 0; r < NR; r++) slope += F[r] * d[r];
+      let moved = false;
+      for (let ls = 0; ls < 60; ls++) {
+        const x2 = d.map((v) => a * v);
+        const g2 = Gt(x2);
+        // near the solution G̃ is flat to round-off: accept a Newton step that lowers the gradient instead
+        const flat = Math.abs(g2 - g0) <= 1e-13 * Math.max(1, Math.abs(g0));
+        if (g2 <= g0 + 1e-4 * a * slope || (flat && Math.max(...grad(molesAt(x2)).map((v, r) => (fixed[r] ? 0 : Math.abs(v)))) < fmax)) { fold(x2); moved = true; break; }
+        a *= 0.5;
+      }
+      if (!moved) break;
+    }
+    if (!useFug) break;
+    const N = nb.reduce((a, b) => a + b, 0);
+    const ln2 = vapLnPhi(pp, T, P, nb.map((v) => v / N));
+    let dd = 0; for (let i = 0; i < nS; i++) dd = Math.max(dd, Math.abs(ln2[i] - lnphi[i]));
+    lnphi = ln2;
+    if (dd < 1e-10 && conv) break;
+    conv = false;
+  }
+  if (useFug && !conv) {      // the last φ refresh moved the answer: accept if the residual is still small
+    const F = grad(nb); conv = F.every((v, r) => fixed[r] || Math.abs(v) < 1e-8);
+  }
+  const molesFinal = nb;
+  const nOut = molesFinal.map((v, i) => (nIn[i] > 0 || v > 1e-11 * N0 ? Math.max(v, 0) : 0));
+  const N = nOut.reduce((a, b) => a + b, 0);
+  const lnQ = nu.map((v) => { let q = 0; for (let i = 0; i < nS; i++) if (v[i]) q += v[i] * (Math.log(Math.max(nOut[i], 1e-300) / N) + lnPP + lnphi[i]); return q; });
+  return { n: nOut, xi, converged: conv, iterations: it, lnK: dG.map((g) => -g), lnQ, lnphi, Teq: Tr };
+}
+
+/** Illinois-regula-falsi search for the outlet T where f(T) = 0 (energy balance), with an expanding bracket */
+export function solveEnergyT(f, Tguess, Tmin, Tmax, label) {
+  let a = Math.max(Tmin, Math.min(Tmax, Tguess - 50)), b = Math.min(Tmax, Math.max(Tmin, Tguess + 50));
+  let fa = f(a), fb = f(b);
+  for (let k = 0; k < 40 && fa * fb > 0; k++) {
+    if (Math.abs(fa) < Math.abs(fb)) { a = Math.max(Tmin, a - (b - a)); fa = f(a); } else { b = Math.min(Tmax, b + (b - a)); fb = f(b); }
+    if (a <= Tmin && b >= Tmax && fa * fb > 0) break;
+  }
+  if (fa * fb > 0) fail('MB_ENERGY_T', `${label}: no outlet temperature between ${Tmin.toFixed(0)} and ${Tmax.toFixed(0)} K satisfies the energy balance`, 'params');
+  let side = 0, c = a, fc = fa;
+  for (let it = 0; it < 100; it++) {
+    c = (a * fb - b * fa) / (fb - fa);
+    if (!(c > Math.min(a, b) && c < Math.max(a, b))) c = 0.5 * (a + b);
+    fc = f(c);
+    if (Math.abs(fc) < 1e-7 * Math.max(1, Math.abs(fa), Math.abs(fb)) || Math.abs(b - a) < 1e-5) break;
+    if (fc * fb < 0) { a = b; fa = fb; b = c; fb = fc; side = 0; }
+    else { b = c; fb = fc; if (side === 1) fa *= 0.5; side = 1; }
+  }
+  return c;
+}
+
+/**
+ * Carbon activities of a gas by the three carbon-forming reactions used in
+ * reformer and shift practice (principle of the equilibrated gas, Rostrup-Nielsen):
+ *   CH4 ⇌ C + 2 H2,  2 CO ⇌ C + CO2,  CO + H2 ⇌ C + H2O,
+ *   a_C = K_r(T) · Π (y_i φ_i P/P°)^(−ν_i) over the gas species.
+ * A value above 1 means graphite is thermodynamically favoured.
+ */
+export function carbonActivities(pp, n, T, P, lnphi) {
+  const N = n.reduce((a, b) => a + b, 0);
+  if (!(N > 0)) return null;
+  const muGr = graphite(T).mu / (R * T), lnPP = Math.log(P / th.P0);
+  const lnf = (k) => { const i = pp.index[k]; if (i === undefined || !(n[i] > 0)) return null; return Math.log(n[i] / N) + lnPP + (lnphi ? lnphi[i] : 0); };
+  const mu0 = (k) => { const i = pp.index[k]; return (pp.hig(i, T) - T * pp.sig(i, T)) / (R * T); };
+  const out = {};
+  const rx = [['CH4 = C + 2H2', { CH4: 1 }, { H2: 2 }], ['2CO = C + CO2', { CO: 2 }, { CO2: 1 }], ['CO + H2 = C + H2O', { CO: 1, H2: 1 }, { H2O: 1 }]];
+  for (const [name, re, pr] of rx) {
+    let ok = true, lnA = -muGr, g = 0;
+    for (const [k, v] of Object.entries(re)) { const f = lnf(k); if (f === null) { ok = false; break; } lnA += v * f; g += v * mu0(k); }
+    if (!ok) continue;
+    for (const [k, v] of Object.entries(pr)) { const f = lnf(k); if (f === null) { ok = false; break; } lnA -= v * f; g -= v * mu0(k); }
+    if (!ok) continue;
+    out[name] = Math.exp(lnA + g);
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** parse and check params.reactions for the restricted-equilibrium mode */
+function equilRxns(p, pp, unit) {
+  if (!Array.isArray(p.reactions) || !p.reactions.length) return null;
+  return p.reactions.map((rx, r) => {
+    if (!rx || typeof rx.stoich !== 'object') fail('MB_RXN', `${unit}: reactions[${r}].stoich {key: coefficient} is required`, 'reactions');
+    const bal = {};
+    for (const [k, v] of Object.entries(rx.stoich)) {
+      if (!num(v)) fail('MB_RXN', `${unit}: reactions[${r}] coefficient for '${k}' is not a number`, 'reactions');
+      for (const [e, a] of Object.entries(elements(k) || {})) bal[e] = (bal[e] || 0) + a * v;
+    }
+    const bad = Object.entries(bal).filter(([, v]) => Math.abs(v) > 1e-9);
+    if (bad.length) fail('MB_RXN_BALANCE', `${unit}: reactions[${r}] is not element-balanced (${bad.map(([e, v]) => `${e} ${v > 0 ? '+' : ''}${+v.toFixed(4)}`).join(', ')})`, 'reactions');
+    if (rx.approach_K !== undefined && !num(rx.approach_K)) fail('MB_RXN', `${unit}: reactions[${r}].approach_K must be a number (K)`, 'reactions');
+    return { stoich: rx.stoich, approach_K: num(rx.approach_K) ? rx.approach_K : (num(p.approach_K) ? p.approach_K : 0), label: rx.label };
+  });
+}
+
 function solveGibbs(inp) {
   const { streams, params: p } = input(inp, 1, 6, 'gibbs');
   const prodKeys = Array.isArray(p.products) ? p.products.filter((k) => typeof k === 'string') : [];
@@ -856,12 +1123,29 @@ function solveGibbs(inp) {
   if (p.remove_feed === true) for (const k of feedKeys) if (!allowed.includes(k)) w.push(`gibbs: feed component '${k}' is not in the product list — it can only react away`);
   const P = num(p.P_out_bar) ? p.P_out_bar * 1e5 : pOut(p, Math.min(...streams.map((s) => s.P_bar)), 'gibbs');
   const nIn = f.z.map((v) => v * f.F);
+  // STEP 33 options
+  const pm = p.phase_model === undefined ? (hasRealVapour(pp) ? 'eos' : 'ideal') : p.phase_model;
+  if (pm !== 'eos' && pm !== 'ideal') fail('MB_GIBBS_PHASE', "gibbs: phase_model must be 'eos' (fugacity coefficients from the property method) or 'ideal'", 'phase_model');
+  const fug = pm === 'eos' && hasRealVapour(pp);
+  if (pm === 'eos' && !hasRealVapour(pp)) w.push(`gibbs: property method ${pp.label || pp.model} has an ideal-gas vapour — equilibrium uses φ = 1`);
+  if (p.approach_K !== undefined && !num(p.approach_K)) fail('MB_GIBBS_APPROACH', 'gibbs: approach_K must be a number (K)', 'approach_K');
+  const dT = num(p.approach_K) ? p.approach_K : 0;
+  const rxns = equilRxns(p, pp, 'gibbs');
+  const allowC = p.carbon === true;
+  if (allowC && rxns) fail('MB_GIBBS_CARBON', 'gibbs: carbon: true needs the unrestricted (no reactions list) mode', 'carbon');
+  const MW_C = 12.0107;           // g/mol, same atomic weights as the databank (CH4 16.04246, CO 28.0101)
   const solveAt = (T) => {
-    const g = gibbsEquilibrium(pp, nIn, T, P, allowed);
+    let g;
+    if (rxns) {
+      const e = equilReactions(pp, nIn, T, P, rxns, { fugacity: fug });
+      g = { n: e.n, nC: 0, converged: e.converged, iterations: e.iterations, lnphi: e.lnphi, xi: e.xi, lnK: e.lnK, lnQ: e.lnQ };
+    } else g = gibbsSolve(pp, nIn, T, P, allowed, { fugacity: fug, approach_K: dT, carbon: allowC });
     const F = g.n.reduce((s, v) => s + v, 0);
     const z = g.n.map((v) => v / F);
-    const r = { T, P, beta: 1, x: z, y: z, phase: 'V' };
-    return { g, F, z, r, H: F * th.hOf(pp, r) };
+    let r = th.flashPT(pp, z, T, P);
+    if (!r || !num(r.beta)) r = { T, P, beta: 1, x: z, y: z, phase: 'V' };
+    const hC = g.nC > 0 ? graphite(T).H : 0;
+    return { g, F, z, r, H: F * th.hOf(pp, r) + g.nC * hC, Hs: g.nC * hC };
   };
   let res, T;
   if (num(p.T_out_K)) { T = p.T_out_K; res = solveAt(T); }
@@ -869,28 +1153,36 @@ function solveGibbs(inp) {
     // adiabatic (or given duty): find T with H_out = H_in + Q
     const Q = num(p.duty_kW) ? p.duty_kW * KJH_PER_KW : 0;
     const target = f.H_kJh + Q;
-    let lo = 300, hi = 2500;
-    let flo = solveAt(lo).H - target, fhi = solveAt(hi).H - target;
-    if (flo > 0 || fhi < 0) fail('MB_GIBBS_T', 'gibbs: adiabatic temperature outside 300–2500 K', 'params');
-    for (let it = 0; it < 80; it++) {
-      const m = 0.5 * (lo + hi), fm = solveAt(m).H - target;
-      if (fm > 0) hi = m; else lo = m;
-      if (hi - lo < 1e-6) break;
-    }
-    T = 0.5 * (lo + hi); res = solveAt(T);
+    const Tg = num(p.T_guess_K) ? p.T_guess_K : Math.max(...streams.map((s) => s.T_K || 600));
+    T = solveEnergyT((t) => (res = solveAt(t)).H - target, Tg, 250, 3000, 'gibbs');
+    if (res.r.T !== T) res = solveAt(T);
   }
-  if (!res.g.converged) w.push('gibbs: element-potential iteration did not fully converge');
+  if (!res.g.converged) w.push('gibbs: equilibrium iteration did not fully converge');
   const out = streamOut(pp, res.F, res.z, res.r);
-  w.push('gibbs: vapour-phase ideal-gas equilibrium (no condensed phases)');
-  // equilibrium approach report: ln Kp check for each species pair is implicit; report element balance
-  const elemErr = res.g.elements.map((e) => {
+  const lp = fug ? vapLnPhi(pp, T, P, res.z) : null;
+  const aC = carbonActivities(pp, res.g.n, T, P, lp);
+  const aMax = aC ? Math.max(...Object.values(aC)) : null;
+  const method = (`vapour-phase ${fug ? `equilibrium with fugacity coefficients from ${pp.label || pp.model}` : 'ideal-gas equilibrium'}${res.g.nC > 0 ? ' plus solid graphite' : ''}${rxns ? ' restricted to the listed reactions' : ''}${dT && !rxns ? `, approach ${dT > 0 ? '+' : ''}${dT} K` : ''}`);
+  if (res.r.beta < 1 - 1e-9) w.push(`gibbs: outlet contains ${(100 * (1 - res.r.beta)).toFixed(2)} mol % liquid at ${T.toFixed(1)} K — liquid-phase equilibrium is not included (vapour-phase Gibbs minimisation)`);
+  if (aMax !== null && aMax > 1 && !(res.g.nC > 0)) w.push(`gibbs: carbon activity ${aMax.toFixed(2)} > 1 at the outlet (${Object.entries(aC).filter(([, v]) => v > 1).map(([k]) => k).join('; ')}) — graphite is thermodynamically favoured${rxns ? '' : '; set carbon: true to let it deposit'}`);
+  if (res.g.nC > 0) w.push(`gibbs: ${(res.g.nC * MW_C).toPrecision(4)} kg/h graphite deposits at equilibrium — reported as solids_out, not in the outlet stream`);
+  const nAll = res.g.n.slice();
+  const elemErr = [...new Set(pp.keys.flatMap((k) => Object.keys(elements(k) || {})))].map((e) => {
     const a = pp.keys.map((k) => (elements(k) || {})[e] || 0);
-    const bin = a.reduce((s, v, i) => s + v * nIn[i], 0), bout = a.reduce((s, v, i) => s + v * res.g.n[i], 0);
+    const bin = a.reduce((s, v, i) => s + v * nIn[i], 0), bout = a.reduce((s, v, i) => s + v * nAll[i], 0) + (e === 'C' ? res.g.nC : 0);
     return Math.abs(bout - bin) / Math.max(bin, 1e-12);
   });
-  return result([out], f.mass, f.H_kJh, out.H_kJh, 0,
-    { pp: ppDetails(pp), T_out_K: T, P_out_bar: P / 1e5, duty_kW: (out.H_kJh - f.H_kJh) / KJH_PER_KW, iterations: res.g.iterations,
-      element_balance_max_rel: Math.max(...elemErr), outlet_mole_frac: compObj(pp, res.z) }, w, { converged: res.g.converged });
+  const solids = res.g.nC > 0 ? { component: 'C(graphite)', kmol_h: res.g.nC, mass_flow_kg_h: res.g.nC * MW_C, H_kJh: res.Hs, T_K: T } : null;
+  const details = { pp: ppDetails(pp), T_out_K: T, P_out_bar: P / 1e5, duty_kW: (out.H_kJh + res.Hs - f.H_kJh) / KJH_PER_KW, iterations: res.g.iterations,
+    method, phase_model: fug ? 'eos' : 'ideal', approach_K: rxns ? undefined : dT, equilibrium_T_K: rxns ? undefined : T + dT,
+    element_balance_max_rel: Math.max(...elemErr), outlet_mole_frac: compObj(pp, res.z),
+    carbon_activity: aC || undefined, carbon_activity_max: aMax === null ? undefined : aMax, solids_out: solids || undefined,
+    fugacity_coeff: lp ? compObj(pp, lp.map(Math.exp)) : undefined };
+  if (rxns) details.reactions = rxns.map((rx, r) => ({ label: rx.label || Object.entries(rx.stoich).map(([k, v]) => `${v}${k}`).join(' '), approach_K: rx.approach_K,
+    extent_kmol_h: res.g.xi[r], lnK: res.g.lnK[r], lnQ: res.g.lnQ[r] }));
+  const R0 = result([out], f.mass, f.H_kJh, out.H_kJh + res.Hs, 0, details, w, { converged: res.g.converged, solids_out: solids || undefined });
+  if (solids) { R0.mass_balance.out += solids.mass_flow_kg_h; R0.mass_balance.closure_pct = f.mass > 0 ? 100 * (R0.mass_balance.out - f.mass) / f.mass : 0; }
+  return R0;
 }
 
 // ---------------------------------------------------------------------------
@@ -1091,6 +1383,9 @@ export function describeStream(spec, s) {
 }
 
 export { UnitError, elements, gibbsEquilibrium, gauss, stateIn as rigStateIn };
+/** helpers shared with the rigorous syngas units (mb-syngas.js) and the pipe (mb-pipe.js) */
+export const KIT = { th, num, fail, R, KJH_PER_KW, input, result, combine, keysOf, pOut, pkg, stateIn, streamOut, ppDetails, compObj,
+  elements, equilReactions, carbonActivities, solveEnergyT, hasRealVapour, vapLnPhi, graphite };
 /** component and total molar flows of a stream with the databank molecular weights (rigorous streams) */
 export function moles(s) {
   const n = {};
@@ -1104,4 +1399,4 @@ export function moles(s) {
   return { n, tot };
 }
 
-export default { UNITS_VERSION, RIG_MODULES, register, pkg, stateIn, streamOut, describeStream, elements, UnitError, moles };
+export default { UNITS_VERSION, RIG_MODULES, register, pkg, stateIn, streamOut, describeStream, elements, UnitError, moles, KIT };

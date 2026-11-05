@@ -45,7 +45,9 @@ import th from './mb-thermo.js';
 import units from './mb-units.js';
 import compdb from './mb-compdb.js';
 
-export const KINETICS_VERSION = 'mb-kinetics 1.1.0';
+export const KINETICS_VERSION = 'mb-kinetics 1.2.0';
+/** pressure units of partial-pressure / fugacity activities [Pa] */
+const PUNIT = { Pa: 1, kPa: 1e3, bar: 1e5, MPa: 1e6, atm: 101325 };
 const R = 8.314462618, P0 = 101325, KJH = 3600;
 const num = (x) => typeof x === 'number' && isFinite(x);
 const fail = (code, msg, field) => { throw new units.UnitError(code, msg, field); };
@@ -74,8 +76,14 @@ function setupKinetics(pp, p, label) {
       nu[pp.index[k]] = v;
     }
     if (!nu.some((v) => v < 0) || !nu.some((v) => v > 0)) fail('MB_KIN_RXN', `${label}: ${at} needs reactants (ν < 0) and products (ν > 0)`, 'reactions');
-    const basis = r.basis === 'partial_pressure' ? 'partial_pressure' : 'concentration';
+    const temkin = r.model === 'temkin';
+    // STEP 33: fugacity basis a_i = y_i φ_i P from the property method (any phase), in a pressure unit
+    const basis = r.basis === 'partial_pressure' ? 'partial_pressure' : r.basis === 'fugacity' || (temkin && r.basis === undefined) ? 'fugacity' : 'concentration';
     if (basis === 'partial_pressure' && phase === 'L') fail('MB_KIN_BASIS', `${label}: ${at}: partial-pressure rates need the vapour phase`, 'reactions');
+    const unitDef = temkin ? 'atm' : 'bar';
+    const aUnit = r.activity_unit === undefined ? unitDef : r.activity_unit;
+    if (!(aUnit in PUNIT)) fail('MB_KIN_UNIT', `${label}: ${at}.activity_unit must be one of ${Object.keys(PUNIT).join(', ')}`, 'reactions');
+    if (basis === 'concentration' && r.activity_unit !== undefined) fail('MB_KIN_UNIT', `${label}: ${at}: activity_unit applies to partial-pressure and fugacity rates`, 'reactions');
     if (!num(r.k0) || r.k0 < 0) fail('MB_KIN_K', `${label}: ${at}.k0 must be ≥ 0`, 'reactions');
     const Ea = num(r.Ea_kJmol) ? r.Ea_kJmol : 0;
     const ord = new Array(n).fill(0);
@@ -123,7 +131,42 @@ function setupKinetics(pp, p, label) {
       ads = { m, terms };
     }
     const dn = nu.reduce((a, v) => a + v, 0);
-    return { nu, ord, k0: r.k0, Ea, Tref, basis, rev, ads, dn, name: r.name || `reaction ${j + 1}` };
+    // k0 per hour (published converter kinetics) and/or per mole of one species rather than per extent
+    const perH = r.k0_time === 'h' || (temkin && r.k0_time === undefined);
+    let perSp = 1;
+    const rp = r.rate_species !== undefined ? r.rate_species : (temkin ? 'NH3' : undefined);
+    if (rp !== undefined) {
+      if (!(rp in pp.index) || !nu[pp.index[rp]]) fail('MB_KIN_RATESP', `${label}: ${at}.rate_species '${rp}' must take part in the reaction`, 'reactions');
+      perSp = Math.abs(nu[pp.index[rp]]);
+    }
+    const eta = num(r.effectiveness) ? r.effectiveness : 1;
+    if (!(eta > 0)) fail('MB_KIN_ETA', `${label}: ${at}.effectiveness must be > 0`, 'reactions');
+    const scale = eta / perSp / (perH ? 3600 : 1);
+    let tk = null;
+    if (temkin) {
+      // Temkin–Pyzhev in the fugacity form of Dyson & Simon (1968) for N2 + 3 H2 ⇌ 2 NH3:
+      //   R_NH3 = η k [K_a² a_N2 (a_H2³/a_NH3²)^α − (a_NH3²/a_H2³)^(1−α)],  a in atm
+      const iN = pp.index.N2, iH = pp.index.H2, iA = pp.index.NH3;
+      if (iN === undefined || iH === undefined || iA === undefined || !nu[iN] || !nu[iH] || !nu[iA]) fail('MB_KIN_TEMKIN', `${label}: ${at}: the Temkin model is for N2 + 3 H2 = 2 NH3`, 'reactions');
+      const sc = -nu[iN];
+      if (!(sc > 0) || Math.abs(nu[iH] + 3 * sc) > 1e-9 * sc || Math.abs(nu[iA] - 2 * sc) > 1e-9 * sc || nu.some((v, i) => v && i !== iN && i !== iH && i !== iA)) fail('MB_KIN_TEMKIN', `${label}: ${at}: the Temkin model needs the stoichiometry N2 + 3 H2 = 2 NH3 (any multiple)`, 'reactions');
+      const alpha = num(r.alpha) ? r.alpha : 0.5;
+      if (!(alpha > 0 && alpha < 1)) fail('MB_KIN_TEMKIN', `${label}: ${at}.alpha must be between 0 and 1`, 'reactions');
+      let Ka;
+      const kaSrc = r.K_a === undefined ? 'gillespie-beattie' : r.K_a;
+      if (kaSrc === 'gillespie-beattie') {
+        // Gillespie & Beattie (1930), K_a of ½N2 + 3/2 H2 ⇌ NH3 in atm⁻¹
+        Ka = (T) => Math.pow(10, -2.691122 * Math.log10(T) - 5.519265e-5 * T + 1.848863e-7 * T * T + 2001.6 / T + 2.6899) * PUNIT[aUnit] / PUNIT.atm;
+      } else if (kaSrc === 'databank') {
+        Ka = null;                    // from the databank Gibbs energies, same basis as the Gibbs reactor
+      } else {
+        const lf = lnKform(kaSrc, `${label}: ${at}.K_a`);
+        Ka = (T) => Math.exp(lf(T));
+      }
+      if (rev) fail('MB_KIN_TEMKIN', `${label}: ${at}: the Temkin rate carries its own reverse term — leave reversible / reverse out`, 'reactions');
+      tk = { iN, iH, iA, alpha, Ka, kaSrc };
+    }
+    return { nu, ord, k0: r.k0, Ea, Tref, basis, aUnit, rev, ads, dn, scale, tk, name: r.name || `reaction ${j + 1}` };
   });
   return { rx: out, phase, catalyst, rhoCat: catalyst ? p.catalyst_density_kgm3 : 1 };
 }
@@ -156,16 +199,32 @@ function rates(pp, K, T, P, F) {
   const y = F.map((v) => Math.max(v, 0) / (Ft || 1));
   let v = null;                                         // m³/mol
   const conc = () => { if (v === null) v = pp.volPhase(T, P, y, K.phase); return y.map((yi) => yi / v / 1000); };
-  let C = null, pb = null;
-  const lnK = K.rx.some((r) => r.rev && r.rev.kind === 'eq' && !r.rev.user) ? lnKeq(pp, K, T) : null;
+  let C = null, phi = null;
+  const pa = {};
+  const lnK = K.rx.some((r) => (r.rev && r.rev.kind === 'eq' && !r.rev.user) || (r.tk && !r.tk.Ka)) ? lnKeq(pp, K, T) : null;
   return K.rx.map((r, j) => {
     let a;
-    if (r.basis === 'partial_pressure') { if (!pb) pb = y.map((yi) => yi * P / 1e5); a = pb; } else { if (!C) C = conc(); a = C; }
+    if (r.basis === 'concentration') { if (!C) C = conc(); a = C; }
+    else {
+      const key = r.basis + '|' + r.aUnit;
+      if (!pa[key]) {
+        let f = y.map((yi) => yi * P / PUNIT[r.aUnit]);
+        if (r.basis === 'fugacity') { if (!phi) phi = pp.lnFug(T, P, y, K.phase).map(Math.exp); f = f.map((v, i) => v * phi[i]); }
+        pa[key] = f;
+      }
+      a = pa[key];
+    }
     // a^e: positive exponents of an absent species give 0; negative exponents (inhibition, LHHW
     // terms such as p_H2O/p_H2) are bounded by a floor of 1e-12 of the total activity
     const floor = 1e-12 * a.reduce((s2, v2) => s2 + Math.max(v2, 0), 0);
     const pw = (x, e) => (e > 0 ? Math.pow(Math.max(x, 0), e) : Math.pow(Math.max(x, floor), e));
     const kf = arrh(r.k0, r.Ea, T, r.Tref);
+    if (r.tk) {
+      const t = r.tk, aN = Math.max(a[t.iN], 0), aH = Math.max(a[t.iH], floor), aA = Math.max(a[t.iA], floor);
+      const Ka2 = t.Ka ? t.Ka(T) ** 2 : Math.exp(lnK[j] / (r.nu[t.iA] / 2) - 2 * Math.log(P0 / PUNIT[r.aUnit]));   // K of N2 + 3H2 = 2NH3 in unit⁻²
+      const q = aH ** 3 / (aA * aA);
+      return kf * (Ka2 * aN * Math.pow(q, t.alpha) - Math.pow(1 / q, 1 - t.alpha)) * r.scale * K.rhoCat;
+    }
     let fwd = kf;
     for (let i = 0; i < n; i++) if (r.ord[i]) fwd *= pw(a[i], r.ord[i]);
     let back = 0;
@@ -178,7 +237,7 @@ function rates(pp, K, T, P, F) {
       if (r.rev.user) Kb = r.rev.user(T);
       else {
         Kb = lnK[j];
-        if (r.basis === 'partial_pressure') Kb += r.dn * Math.log(P0 / 1e5);
+        if (r.basis !== 'concentration') Kb += r.dn * Math.log(P0 / PUNIT[r.aUnit]);
         else Kb += r.dn * Math.log(P0 / (R * T) / 1000);
       }
       back = kf / Math.exp(Kb);
@@ -194,7 +253,7 @@ function rates(pp, K, T, P, F) {
       }
       den = Math.pow(sum, r.ads.m);
     }
-    return (fwd - back) / den * K.rhoCat;
+    return (fwd - back) / den * r.scale * K.rhoCat;
   });
 }
 
