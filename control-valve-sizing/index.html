@@ -1977,13 +1977,30 @@ function toggleMixPanel(){
   const p=document.getElementById('mixPanel'); if(!p) return;
   const open=!p.classList.contains('open');
   p.classList.toggle('open',open);
+  if(open && !_mixApplied()) _mixClearStaleFluid();   // FIX MX-3
   if(open && MIX.length===0){ mixAddRow(); mixAddRow(); }
 }
 
-function mixAddRow(){ MIX.push({n:'',y:0}); mixRender(); }
+// FIX MX-3: opening the mixture builder means the fluid is now a blend. The MW
+// (and Tc/Pc/ω) still on screen belong to the previously selected single fluid,
+// so blank them; Kay's rule fills them when the user presses Apply.
+function _mixClearStaleFluid(){
+  clearChipSel();
+  ['sg','custSG'].forEach(id=>{ const e=document.getElementById(id); if(e){ e.value=''; e.placeholder='from mixture'; } });
+  _sgUserOverride=false; _hideTag('sgAutoTag');
+  _zUserOverride=false;
+  clearCustomCrit();
+  calc(); autoZ();
+}
+
+function mixAddRow(){ MIX.push({n:'',y:NaN}); mixRender(); }   // blank cell, not a leading 0
 function mixDelRow(i){ MIX.splice(i,1); mixRender(); }
-function mixSetName(i,v){ MIX[i].n=v; mixRender(); }
-function mixSetY(i,v){ MIX[i].y=parseFloat(v); mixRender(); }
+// FIX MX-1/MX-2: these used to call mixRender(), which rebuilds every row via
+// innerHTML on each keystroke — the cell being typed in was destroyed (focus
+// lost after one digit) and rewritten as parseFloat("12.") = 12 (decimal point
+// dropped). Only the summary needs refreshing; the inputs already hold the text.
+function mixSetName(i,v){ MIX[i].n=v; mixSummary(); }
+function mixSetY(i,v){ MIX[i].y=parseFloat(v); mixSummary(); }
 
 function mixRender(){
   const host=document.getElementById('mixRows'); if(!host) return;
@@ -1993,7 +2010,7 @@ function mixRender(){
       comps.map(f=>'<option value="'+f.n+'"'+(f.n===r.n?' selected':'')+'>'+f.n+'</option>')).join('');
     return '<div class="mix-row">'+
       '<select onchange="mixSetName('+i+',this.value)">'+opts+'</select>'+
-      '<input type="number" step="0.01" min="0" placeholder="mol %" value="'+(isFinite(r.y)?r.y:'')+'" oninput="mixSetY('+i+',this.value)">'+
+      '<input type="number" step="any" min="0" inputmode="decimal" placeholder="mol %" value="'+(isFinite(r.y)?r.y:'')+'" oninput="mixSetY('+i+',this.value)">'+
       '<button type="button" class="mix-del" onclick="mixDelRow('+i+')" title="Remove">&times;</button>'+
     '</div>';
   }).join('');
@@ -2426,6 +2443,14 @@ function markStale(){
 
 async function runCalc(){
   const btn = document.getElementById('btnCalc');
+  // FIX MX-3: MW is blank while a mixture is being built — stop before sending NaN
+  if(PHASE.includes('gas')){
+    const _mw = parseFloat(document.getElementById('sg').value);
+    if(!(isFinite(_mw) && _mw>0)){
+      renderWarnings([{cls:'warn-red',txt:'❌ Molecular weight is empty — press “✓ Apply to Tc / Pc / ω” in the mixture builder, or enter MW.'}]);
+      return;
+    }
+  }
   if(btn){ btn.disabled = true; btn.textContent = '⏳ CALCULATING…'; }
   try{
     // refresh Z at the current T/P first (gas + named fluid, unless overridden)
