@@ -23,6 +23,8 @@ import engineModule from '../api/_lib/mb-engine.js';
 import compdb from '../api/_lib/mb-compdb.js';
 import thermoModule from '../api/_lib/mb-thermo.js';
 import steamModule from '../api/_lib/steam-if97.js';
+import pseudoMod from '../api/_lib/mb-pseudo.js';
+import usercompMod from '../api/_lib/mb-usercomp.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const engine = engineModule.default || engineModule;
@@ -232,7 +234,7 @@ const vecTable = (ids, kind) => {
       if (kind === 'col') { if (pct !== null) s22Worst.colPct = Math.max(s22Worst.colPct, pct); else s22Worst.colX = Math.max(s22Worst.colX, d); }
       if (kind === 'gibbs') s22Worst.gibbs = Math.max(s22Worst.gibbs, d);
       const dig = Number.isInteger(e) && Math.abs(e) < 100 && !/T_K|T_out/.test(k) ? 0 : Math.abs(e) >= 100 ? 2 : Math.abs(e) >= 10 ? 3 : 6;
-      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : (kind === 'steam' && STEAM_NICE[k]) || (kind === 'mdea' && MDEA_NICE[k]) || (kind === 'amdea' && AMDEA_NICE[k]) || qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
+      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : kind === 'fill' && k === 'details.T_K' ? 'bubble T, K' : (kind === 'steam' && STEAM_NICE[k]) || (kind === 'mdea' && MDEA_NICE[k]) || (kind === 'amdea' && AMDEA_NICE[k]) || qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
     });
   }
   return rows.join('\n');
@@ -569,6 +571,265 @@ const visRows = Object.entries(S33.viscosity.mu_uPas).map(([Pb, ref]) => {
 const ncomp = compdb.keys().length;
 
 const today = new Date().toISOString().slice(0, 10);
+
+// ---------------------------------------------------------------------------
+// STEP 34 — urea synthesis method, machine curves, compressor train,
+// calculators, pseudo-components
+// ---------------------------------------------------------------------------
+const R34 = REF.step34;
+const thermo = th;
+const MW34 = (k) => compdb.get(k).mw;
+const st34 = (mol, T, P) => { const ks = Object.keys(mol).filter((k) => mol[k] > 0); const m = ks.map((k) => mol[k] * MW34(k)); const t = m.reduce((a, b) => a + b, 0); return { mass_flow_kg_h: t, T_K: T, P_bar: P, components: ks.map((k, i) => ({ key: k, mass_fraction: m[i] / t })) }; };
+// Table 8 / Table 9 over every point
+const yRows34 = [], pRows34 = [];
+let ySe = 0, yN = 0, yWorst = 0, pSe = 0, pN = 0, pWorst = 0;
+for (const L of R34.urea_L) for (const t of R34.urea_t_C) {
+  const ydev = [], pdev = [];
+  R34.urea_W.forEach((W, j) => {
+    const T = +t + 273.15;
+    const ry = engine.runModule('r-urea-reactor', { streams: [st34({ NH3: 100 * +L, CO2: 100, H2O: 100 * W }, T, 350)], params: { mode: 'specified_T', T_out_K: T, P_out_bar: 350 } });
+    const Y = 100 * ry.details.co2_conversion_equilibrium, Yr = R34.urea_Y_pct[L][t][j];
+    ydev.push(Y - Yr); ySe += (Y - Yr) ** 2; yN++; yWorst = Math.max(yWorst, Math.abs(Y - Yr));
+    const y = Yr / 100;
+    const rp = engine.runModule('r-flash', { streams: [st34({ NH3: 100 * (+L - 2 * y), CO2: 100 * (1 - y), H2O: 100 * (W + y), urea: 100 * y }, T, 100)], params: { property_package: { model: 'urea' }, T_K: T, vapour_fraction: 0 } });
+    const Pm = rp.error ? NaN : rp.streams_out[0].P_bar / 10, Pr = R34.urea_P_MPa[L][t][j];
+    const e = (Pm - Pr) / Pr; pdev.push(e); if (num34(e)) { pSe += e * e; pN++; pWorst = Math.max(pWorst, Math.abs(e)); }
+  });
+  yRows34.push(`<tr><td>${L}</td><td>${t}</td>${ydev.map((v) => `<td>${f(v, 2)}</td>`).join('')}</tr>`);
+  pRows34.push(`<tr><td>${L}</td><td>${t}</td>${pdev.map((v) => `<td>${f(100 * v, 1)}</td>`).join('')}</tr>`);
+}
+function num34(v) { return typeof v === 'number' && isFinite(v); }
+const yRms34 = Math.sqrt(ySe / yN), pRms34 = Math.sqrt(pSe / pN);
+// liquid enthalpies at 185 °C, 250 bar (all liquid)
+const ppU = thermo.createPackage({ model: 'urea' }, ['CO2', 'H2O', 'NH3', 'urea']);
+const ppI = thermo.createPackage({ model: 'ideal' }, ['CO2', 'H2O', 'NH3']);
+const zU = (a) => { const S = a.reduce((x, y) => x + y, 0); return a.map((v) => v / S); };
+const Hl = (a, T) => a.reduce((x, y) => x + y, 0) * ppU.hPhase(T, 250e5, zU(a), 'L');
+const Hig = (a, T) => { const b = a.slice(0, 3); return b.reduce((x, y) => x + y, 0) * ppI.hPhase(T, 1e5, zU(b), 'V'); };
+const a0 = [1, 0.5, 3, 0], a1 = [0.5, 1.0, 2, 0.5];
+const dHc34 = (Hl(a0, 458.15) - Hig(a0, 458.15)) / 1000, dHu34 = (Hl(a1, 458.15) - Hl(a0, 458.15)) / 0.5 / 1000;
+// machine curves
+const rhoW = 992.2674305831472;
+const pc34 = { flow_m3_h: [0, 40, 80, 100, 120, 140], head_m: [110, 108, 102, 96, 88, 77], efficiency: [0.05, 0.5, 0.72, 0.76, 0.74, 0.66], speed_rpm: 2950 };
+const mcRows = [];
+for (const [Q, N] of [[100, 2950], [90, 2655], [60, 2950]]) {
+  const r = engine.runModule('pump', { streams: [{ mass_flow_kg_h: Q * rhoW, T_K: 313.15, P_bar: 2, components: [{ key: 'H2O', mass_fraction: 1 }] }], params: { property_package: { model: 'steam' }, curve: pc34, speed_rpm: N } });
+  const c = r.details.curve;
+  const hand = Q === 100 && N === 2950 ? 96 : Q === 90 ? 96 * 0.81 : null;
+  mcRows.push(`<tr><td class="l">Pump, water 40 °C</td><td>${Q} m³/h, ${N} rpm</td><td>${f(c.head_m, 3)} m</td><td>${hand === null ? 'interpolated' : f(hand, 3) + ' m'}</td><td>${f(r.details.P_out_bar, 4)}</td><td>${f(100 * c.efficiency, 2)} %</td><td>${f(r.details.power_kW, 2)} kW</td></tr>`);
+}
+const cc34 = { flow_m3_h: [15000, 18000, 21000, 24000, 27000], head_kJkg: [118, 115, 110, 102, 90], efficiency: [0.74, 0.79, 0.81, 0.79, 0.72], speed_rpm: 7000, surge_flow_m3_h: 15500 };
+const gas34 = (m) => ({ mass_flow_kg_h: m, T_K: 313.15, P_bar: 1.5, components: [{ key: 'CO2', mass_fraction: 0.99 }, { key: 'N2', mass_fraction: 0.01 }] });
+const rhoG = 1000 / engine.runModule('compressor', { streams: [gas34(1000)], params: { property_package: { model: 'pr' }, P_out_bar: 2, efficiency: 0.8 } }).details.inlet_volume_m3_h;
+for (const [Q, N] of [[21000, 7000], [21000, 6300], [15000, 7000]]) {
+  const m = Q * rhoG;
+  const r = engine.runModule('compressor', { streams: [gas34(m)], params: { property_package: { model: 'pr' }, curve: cc34, speed_rpm: N } });
+  const c = r.details.curve;
+  mcRows.push(`<tr><td class="l">CO₂ compressor, PR</td><td>${Q} m³/h, ${N} rpm</td><td>${f(c.head_kJkg, 2)} kJ/kg</td><td>${f(c.efficiency * (r.energy_balance.W_kW * 3600 / m), 2)} kJ/kg (η·Δh)</td><td>${f(r.details.P_out_bar, 3)}</td><td>${f(100 * c.efficiency, 2)} %</td><td>${f(r.energy_balance.W_kW, 0)} kW${c.surge ? ' — SURGE' : ' · surge margin ' + f(c.surge_margin_pct, 1) + ' %'}</td></tr>`);
+}
+const tr34 = engine.runModule('r-compressor-train', { streams: [st34({ CO2: 1000, H2O: 40, N2: 6 }, 313.15, 1.4)], params: { property_package: { model: 'pr' }, stages: 4, P_out_bar: 145, intercooler_T_K: 313.15, intercooler_dp_bar: [0.1, 0.3, 0.8, 0], efficiency: 0.78 } });
+const trRows = tr34.details.stages.map((r) => `<tr><td>${r.stage}</td><td>${f(r.P_suction_bar, 2)} → ${f(r.P_discharge_bar, 2)}</td><td>${f(r.pressure_ratio, 4)}</td><td>${f(r.T_discharge_K - 273.15, 1)}</td><td>${f(r.power_kW, 0)}</td><td>${f(r.cooler_duty_kW, 0)}</td><td>${f(r.condensate_kg_h, 1)}</td></tr>`).join('\n');
+const trQgap = Math.abs(tr34.energy_balance.Q_kW - tr34.details.total_cooling_kW);
+// calculators
+const gasC = st34({ CH4: 100, N2: 2 }, 600, 30), steamC = st34({ H2O: 50 }, 600, 30);
+const baseC = { property_package: { model: 'pr' }, blocks: [{ id: 'H1', module: 'heater', n_in: 1, n_out: 1, params: { T_out_K: 700 } }, { id: 'M1', module: 'r-mixer', n_in: 2, n_out: 1, params: {} }],
+  streams: [{ id: 'G', from: null, to: { b: 'H1', p: 0 }, feed: 0 }, { id: 'S', from: null, to: { b: 'M1', p: 1 }, feed: 1 }, { id: 'G2', from: { b: 'H1', p: 0 }, to: { b: 'M1', p: 0 } }, { id: 'P', from: { b: 'M1', p: 0 }, to: null }] };
+const cff = engine.runModule('flowsheet', { streams: [gasC, steamC], params: Object.assign({}, baseC, { calculators: [{ name: 'S/C', imports: [{ name: 'ch4', stream: 'G2', metric: 'comp_kmol_h', key: 'CH4' }], code: 'steam = 3.0 * ch4 * 18.01528', exports: [{ name: 'steam', kind: 'feed_flow', stream: 'S' }] }] }) });
+const cfb = engine.runModule('flowsheet', { streams: [gasC, steamC], params: Object.assign({}, baseC, { calculators: [{ name: 'Tctl', imports: [{ name: 'Tp', stream: 'P', metric: 'T_K' }, { name: 'Th', kind: 'param', block: 'H1', path: 'T_out_K' }], code: 'Tnew = Th + 1.5 * (650 - Tp)', exports: [{ name: 'Tnew', kind: 'param', block: 'H1', path: 'T_out_K' }] }] }) });
+// pseudo-components vs databank hydrocarbons
+const hcs = compdb.keys().map((k) => [k, compdb.get(k)]).filter(([, c]) => /^C\d+H\d+$/.test(c.formula || '') && c.tb >= 300 && c.tb <= 800 && c.rhol && c.tc && c.pc && num34(c.w) && +c.formula.match(/^C(\d+)/)[1] >= 5);
+const st = {}; for (const m of ['twu', 'riazi', 'lee-kesler']) st[m] = { Tc: [], Pc: [], MW: [], w: [] };
+const showK = ['nC7H16', 'n-decane', 'n-hexadecane', 'n-eicosane', 'cyclohexane', 'benzene', 'toluene', 'naphthalene'];
+const psRows = [];
+for (const [k, c] of hcs) {
+  const SG = thermo.corr(c.rhol, 288.71, c.tc) * c.mw / 999.0;
+  const row = [];
+  for (const m of ['twu', 'riazi', 'lee-kesler']) {
+    const r = pseudoMod.pseudoRecord({ Tb_K: c.tb, SG, method: m });
+    const q = st[m]; q.Tc.push((r.tc - c.tc) / c.tc); q.Pc.push((r.pc - c.pc) / c.pc); q.MW.push((r.mw - c.mw) / c.mw); q.w.push(r.w - c.w);
+    row.push(r);
+  }
+  if (showK.includes(k)) psRows.push(`<tr><td class="l">${c.name}</td><td>${f(c.tb, 1)}</td><td>${f(SG, 4)}</td><td>${f(c.tc, 1)} / ${f(row[0].tc, 1)} / ${f(row[1].tc, 1)} / ${f(row[2].tc, 1)}</td><td>${f(c.pc / 1e5, 2)} / ${f(row[0].pc / 1e5, 2)} / ${f(row[1].pc / 1e5, 2)} / ${f(row[2].pc / 1e5, 2)}</td><td>${f(c.mw, 1)} / ${f(row[0].mw, 1)} / ${f(row[1].mw, 1)}</td><td>${f(c.w, 3)} / ${f(row[0].w, 3)}</td></tr>`);
+}
+const rms34 = (a) => 100 * Math.sqrt(a.reduce((x, v) => x + v * v, 0) / a.length);
+const psStat = ['twu', 'riazi', 'lee-kesler'].map((m) => `<tr><td class="l">${m === 'twu' ? 'Twu (1984)' : m === 'riazi' ? 'Riazi–Daubert (1987)' : 'Kesler–Lee (1976), M Riazi–Daubert'}</td><td>${f(rms34(st[m].Tc), 2)} %</td><td>${f(rms34(st[m].Pc), 2)} %</td><td>${f(rms34(st[m].MW), 2)} %</td><td>${f(rms34(st[m].w) / 100, 3)}</td></tr>`).join('\n');
+// n-decane-like pseudo vs n-decane on PR
+const kPs = pseudoMod.registerPseudos([{ Tb_K: 447.3, SG: 0.7342 }])[0];
+const decRows = [];
+for (const [key, lbl] of [['n-decane', 'n-decane (databank)'], [kPs, 'pseudo-component, Tb 447.3 K, SG 0.7342']]) {
+  const pp = thermo.createPackage({ model: 'pr' }, [key]);
+  const pr = thermo.properties(pp, thermo.flashPT(pp, [1], 298.15, 1.01325e5));
+  const nbp = thermo.flashPVF(pp, [1], 1.01325e5, 0).T, ps = thermo.flashTVF(pp, [1], 373.15, 0, 1e4).P;
+  const dh = (thermo.hOf(pp, thermo.flashPT(pp, [1], 500, 1e5)) - thermo.hOf(pp, thermo.flashPT(pp, [1], 300, 1e5))) / 1000;
+  decRows.push(`<tr><td class="l">${lbl}</td><td>${f(nbp, 2)}</td><td>${f(ps / 1000, 3)}</td><td>${f(pr.rho_kgm3, 1)}</td><td>${f(dh, 2)}</td><td>${f(pr.phases[0].mu_Pas * 1000, 3)}</td></tr>`);
+}
+
+// ---------------------------------------------------------------------------
+// STEP 35 — solver transparency: the same recycle with each accelerator, and the design-spec Newton record
+// ---------------------------------------------------------------------------
+const rcB = engine.runModule(...vec('MB-276').args), rcW = engine.runModule(...vec('MB-277').args);
+const spH = engine.runModule(...vec('MB-278').args);
+const rcRef = vec('MB-100').expect['stream_results.rcy.mass_flow_kg_h'];
+const M35 = { guess: 'guess', estimate: 'estimate', warm: 'warm', continued: 'continued', substitution: 'S', wegstein: 'W', broyden: 'B', retreat: 'R' };
+const accRows = [['Broyden (default)', rcB], ['Wegstein only', rcW]].map(([lab, r]) => {
+  const L = r.loops[0];
+  return `<tr><td class="l">${lab}</td><td>${L.iterations}</td><td>${sci(L.err)}</td><td class="l">${L.history.map((h) => M35[h.method]).join(' → ')}</td><td>${f(r.stream_results.rcy.mass_flow_kg_h, 4)}</td><td>${f(rcRef, 4)}</td></tr>`;
+}).join('\n');
+const SH35 = spH.convergence.spec_history;
+const spRows = SH35.steps.map((st) => `<tr><td>${st.iteration}</td><td>${f(st.varied[0], 5)}</td><td>${sci(st.residuals[0])}</td><td>${sci(st.scaled)}</td><td>${st.lambda == null ? '—' : f(st.lambda, 2)}</td><td>${st.evaluations}</td><td>${st.jacobian ? sci(st.jacobian[0][0]) : '—'}</td></tr>`).join('\n');
+// ---------------------------------------------------------------------------
+// STEP 36 — pinch analysis, equipment / utility costing and optimisation
+// ---------------------------------------------------------------------------
+const run36 = (id) => engine.runModule(...vec(id).args);
+const pinchCases = [['MB-280', 'Four-stream problem, ΔTmin 10 K (Kemp, ch. 2)'], ['MB-281', 'Same streams, ΔTmin 20 K (hand problem table)'], ['MB-282', 'Threshold problem (hand)'], ['MB-283', 'Boiler feed 25 → 200 °C at 10 bar on IAPWS-IF97 vs hot oil']];
+let s36Pass = 0, s36N = 0;
+const chk36 = (a, b, tol) => { s36N++; const ok = Math.abs(a - b) <= tol; if (ok) s36Pass++; return ok; };
+const pinchRows = pinchCases.map(([id, lab]) => {
+  const d = run36(id).details, e = vec(id).expect, t = vec(id).tol;
+  const tl = (k) => (typeof t[k] === 'number' ? t[k] : t.default);
+  const pc = (k) => (e['details.' + k] === undefined ? '—' : f(e['details.' + k], 2));
+  chk36(d.Q_hot_min_kW, e['details.Q_hot_min_kW'] === undefined ? d.Q_hot_min_kW : e['details.Q_hot_min_kW'], 1e-6);
+  if (e['details.pinch_cold_K'] !== undefined) chk36(d.pinch_cold_K, e['details.pinch_cold_K'], tl('details.pinch_cold_K'));
+  return `<tr><td class="l">${lab}</td><td>${f(d.Q_hot_min_kW, 2)}</td><td>${pc('Q_hot_min_kW')}</td><td>${f(d.Q_cold_min_kW, 2)}</td><td>${pc('Q_cold_min_kW')}</td><td>${d.threshold ? 'none' : f(d.pinch_hot_K - 273.15, 3) + ' / ' + f(d.pinch_cold_K - 273.15, 3)}</td><td>${e['details.threshold'] === true ? 'none' : e['details.pinch_cold_K'] !== undefined ? f(e['details.pinch_hot_K'] - 273.15, 3) + ' / ' + f(e['details.pinch_cold_K'] - 273.15, 3) : '—'}</td></tr>`;
+}).join('\n');
+const ec36 = run36('MB-284').economics;
+const lg36 = Math.log10, esc36 = ec36.basis.cepci / ec36.basis.cepci_base;
+const vesHand = Math.pow(10, 3.4974 + 0.4485 * lg36(20) + 0.1074 * lg36(20) ** 2) * esc36;
+const dpA = ec36.items[0].parts[0].size, dpHand = Math.pow(10, 3.3444 + 0.2745 * lg36(dpA) - 0.0472 * lg36(dpA) ** 2) * esc36;
+const crfHand = 0.1 * 1.1 ** 10 / (1.1 ** 10 - 1);
+const sumBM = ec36.items.reduce((a, it) => a + it.CBM, 0), sumBM0 = ec36.items.reduce((a, it) => a + it.CBM0, 0);
+const cgrHand = 1.18 * sumBM + 0.5 * sumBM0, tacHand = cgrHand * crfHand + 100 * 28.8 * 14;
+const costRows = [
+  ['Vertical vessel 20 m³, purchased (Cp⁰), USD', ec36.items[1].parts[0].Cp0, vesHand, 0],
+  ['Vertical vessel, bare module (FBM 4.07), USD', ec36.items[1].parts[0].CBM, vesHand * 4.07, 0],
+  ['Double-pipe exchanger ' + f(dpA, 3) + ' m², purchased, USD', ec36.items[0].parts[0].Cp0, dpHand, 0],
+  ['Capital recovery factor, 10 % over 10 years', ec36.basis.crf, crfHand, 6],
+  ['Grassroots capital 1.18 ΣC_BM + 0.5 ΣC_BM⁰, USD', ec36.totals.grassroots, cgrHand, 0],
+  ['LP steam, 100 kW × 8000 h × 14 USD/GJ, USD/y', ec36.utilities[0].cost_y, 40320, 0],
+  ['Total annual cost, USD/y', ec36.totals.total_annual_cost_y, tacHand, 0],
+].map(([lab, a, b, d]) => { chk36(a, b, Math.max(1e-6, 2e-5 * Math.abs(b))); return `<tr><td class="l">${lab}</td><td>${f(a, d)}</td><td>${f(b, d)}</td><td>${sci((a - b) / b)}</td></tr>`; }).join('\n');
+const optCases = [['MB-287', 'One variable, T₁ 300–420 K (Brent)', [350], 1600], ['MB-288', 'One variable with T₁ ≤ 340 K', [340], null], ['MB-289', 'Two variables, T₁ and P₁ 2–9 bar (Nelder–Mead)', [350, 4], 1500]];
+const optRows = optCases.map(([id, lab, xs, fo]) => {
+  const O = run36(id).optimization;
+  O.variables.forEach((v, k) => chk36(v.value, xs[k], 0.005 * (v.hi - v.lo)));
+  return `<tr><td class="l">${lab}</td><td>${O.variables.map((v) => f(v.value, 4)).join(', ')}</td><td>${xs.join(', ')}</td><td>${f(O.objective, 2)}</td><td>${fo === null ? f(1000 + 500 + 1000 + 100, 2) + ' at 340 K' : f(fo, 2)}</td><td>${O.evaluations}</td><td>${O.feasible ? 'yes' : 'NO'}</td></tr>`;
+}).join('\n');
+
+/* ---------- STEP 37: structure-based components, UNIFAC fill-in, transport properties ---------- */
+const R37 = REF.step37;
+const TH37 = thermoModule.default || thermoModule, UC37 = usercompMod.default || usercompMod;
+const ucRun = (list) => engine.runModule('user-components', { streams: [], params: { user_components: list } });
+// (a) group assignment against thermo + RDKit
+const gKey = (o) => JSON.stringify(Object.keys(o || {}).map(Number).sort((a, b) => a - b).map((k) => [k, o[k]]));
+const gList = (a) => gKey(Object.fromEntries((a || []).map((g) => [g.id, g.n])));
+const fragAgree = { unifac: 0, modunifac: 0, joback: 0 }, fragMiss = [];
+for (const m of R37.frag) {
+  const r = ucRun([{ name: m.key, smiles: m.smiles }]);
+  if (r.error) { fragMiss.push(`${m.key}: ${r.error.message}`); continue; }
+  const c = r.details.components[0];
+  if (gList(c.unifac) === gKey(m.unifac)) fragAgree.unifac++; else fragMiss.push(`${m.key} UNIFAC ${gList(c.unifac)} vs ${gKey(m.unifac)}`);
+  if (gList(c.modunifac) === gKey(m.modunifac)) fragAgree.modunifac++; else fragMiss.push(`${m.key} Dortmund ${gList(c.modunifac)} vs ${gKey(m.modunifac)}`);
+  if (gList(c.joback.groups) === gKey(m.joback)) fragAgree.joback++; else fragMiss.push(`${m.key} Joback ${gList(c.joback.groups)} vs ${gKey(m.joback)}`);
+}
+const nFrag = R37.frag.length;
+if (fragAgree.unifac < nFrag - 2 || fragAgree.modunifac < nFrag - 2 || fragAgree.joback < nFrag - 1) fail('group assignment: ' + fragMiss.join('; '));
+const FO = R37.frag_offline;
+const fragRows = [['UNIFAC (original)', fragAgree.unifac, FO.unifac_pct, FO.ddbst_unifac_pct, FO.thermo_ddbst_unifac_pct], ['Modified UNIFAC (Dortmund)', fragAgree.modunifac, FO.modunifac_pct, FO.ddbst_modunifac_pct, FO.thermo_ddbst_modunifac_pct], ['Joback', fragAgree.joback, FO.joback_pct, null, null]]
+  .map(([lab, a, off, dd, td]) => `<tr><td class="l">${lab}</td><td>${a} / ${nFrag}</td><td>${f(off, 1)} %</td><td>${dd === null ? '—' : f(dd, 1) + ' % / ' + f(td, 1) + ' %'}</td></tr>`).join('\n');
+// (b) estimates against the ChemSep databank (structure only, then with the measured Tb)
+const est37 = {}, addE = (k, e) => { if (Number.isFinite(e)) (est37[k] = est37[k] || []).push(e); };
+let estFail = 0, estN = 0;
+const estKeys = compdb.keys().filter((k) => { const c = compdb.get(k); return c.smiles && !c.user && !c.pseudo && !/^UC[0-9A-F]{8}$/.test(k) && c.cat !== 'inorganic' && c.cat !== 'mixture' && /C/.test(c.formula || ''); });
+for (const withTb of [false, true]) for (const k of estKeys) {
+  const c = TH37.component(k);
+  let r;
+  try { r = UC37.userRecord(withTb ? { smiles: c.smiles, Tb_K: c.tb } : { smiles: c.smiles }); } catch (e) { if (!withTb) estFail++; continue; }
+  if (!withTb) estN++;
+  const rel = (a, b) => (a - b) / b * 100, p = withTb ? 'tb' : 's';
+  if (!withTb) addE('s Tb', rel(r.tb, c.tb));
+  addE(p + ' Tc', rel(r.tc, c.Tc)); addE(p + ' Pc', rel(r.pc, c.Pc)); addE(p + ' Vc', rel(r.vc, c.vc)); addE(p + ' w', r.w - c.omega);
+  if (withTb) continue;
+  addE('Hf', (r.hf - c.hf) / 1e6);
+  const T0 = 298.15, cpU = (r.cpig[1] + T0 * (r.cpig[2] + T0 * (r.cpig[3] + T0 * r.cpig[4]))) / 1000;
+  addE('cp', rel(cpU, (c._cp.at(T0 + 0.05)[0] - c._cp.at(T0 - 0.05)[0]) / 0.1));
+  const T = c.tb > 320 ? T0 : 0.8 * c.tb;
+  if (c.rhol) addE('rho', rel(TH37.corr(r.rhol, T, r.tc) * r.mw, TH37.corr(c.rhol, T, c.Tc) * c.mw));
+  const tmp = Object.assign({}, r, { key: 'tmp', MW: r.mw, Tc: r.tc, Pc: r.pc, omega: r.w });
+  const inR = (q, t) => q && t >= q[6] && t <= q[7];
+  if (inR(c.mul, T)) addE('muL', rel(TH37.pureMuL(tmp, T), corr37Safe(c.mul, T, c.Tc)));
+  if (inR(c.kl, T)) addE('kL', rel(TH37.pureKL(tmp, T), corr37Safe(c.kl, T, c.Tc)));
+  if (inR(c.st, T)) addE('sig', rel(TH37.pureSigma(tmp, T), corr37Safe(c.st, T, c.Tc)));
+  const Tv = Math.max(c.tb * 1.1, 350);
+  if (inR(c.muv, Tv)) addE('muV', rel(TH37.pureMuV(tmp, Tv), corr37Safe(c.muv, Tv, c.Tc)));
+}
+function corr37Safe(q, T, Tc) { try { return TH37.corr(q, T, Tc); } catch (e) { return NaN; } }
+const qtl = (a, q) => { const s2 = a.slice().sort((x, y) => x - y); return s2[Math.floor(q * (s2.length - 1))]; };
+const estRow = (lab, k, unit, d) => {
+  const a = est37[k]; if (!a || a.length < 50) fail('estimate statistics: too few points for ' + k);
+  const abs = a.map(Math.abs);
+  return `<tr><td class="l">${lab}</td><td>${a.length}</td><td>${f(qtl(abs, 0.5), d)}${unit}</td><td>${f(qtl(abs, 0.9), d)}${unit}</td><td>${f(a.reduce((x, y) => x + y, 0) / a.length, d)}${unit}</td></tr>`;
+};
+const estRows = [
+  ['Normal boiling point Tb (Joback)', 's Tb', ' %', 1], ['Critical temperature Tc (Joback through the estimated Tb)', 's Tc', ' %', 1], ['Tc with the measured Tb', 'tb Tc', ' %', 1],
+  ['Critical pressure Pc (Joback)', 's Pc', ' %', 1], ['Critical volume Vc (Joback)', 's Vc', ' %', 1], ['Acentric factor ω (Lee–Kesler; the same with the measured Tb, since Joback fixes Tc/Tb), absolute', 's w', '', 3],
+  ['ΔHf° ideal gas (Joback), kJ/mol', 'Hf', '', 1], ['Ideal-gas Cp at 25 °C (Joback)', 'cp', ' %', 1], ['Liquid density (Rackett, Tyn–Calus anchor)', 'rho', ' %', 1],
+  ['Liquid viscosity (Joback; n-paraffin reference where Joback has no groups)', 'muL', ' %', 1], ['Liquid thermal conductivity (Sato–Riedel)', 'kL', ' %', 1],
+  ['Surface tension (Brock–Bird; Sastri–Rao for alcohols and acids)', 'sig', ' %', 1], ['Low-pressure vapour viscosity (Chung)', 'muV', ' %', 1],
+].map((a) => estRow(...a)).join('\n');
+// (c) UNIFAC fill-in against ChemSep NRTL for pairs that have data
+const fillPairs = [['EtOH', 'H2O'], ['acetone', 'H2O'], ['MeOH', 'H2O'], ['acetone', 'MeOH'], ['EtOH', 'benzene'], ['chloroform', 'acetone'], ['nC6H14', 'EtOH'], ['toluene', 'MeOH'], ['MeOH', 'benzene'], ['acetone', 'benzene']];
+const NM37 = { EtOH: 'ethanol', H2O: 'water', MeOH: 'methanol', nC6H14: 'n-hexane' };
+let fillWorst = 0;
+const fillRows = fillPairs.map(([a, b]) => {
+  const fit = TH37.fitPairFromUNIFAC('nrtl', TH37.component(a), TH37.component(b));
+  if (!fit) fail('fill-in: no fit for ' + a + '–' + b);
+  const ppC = TH37.createPackage({ model: 'nrtl', fill_missing: 'none' }, [a, b]);
+  const ppE = TH37.createPackage({ model: 'nrtl', fill_missing: 'none', nrtl: { [a + '|' + b]: { a: fit.a12, b: fit.b12, alpha: 0.3 }, [b + '|' + a]: { a: fit.a21, b: fit.b21, alpha: 0.3 } } }, [a, b]);
+  const dT = [0.1, 0.3, 0.5, 0.7, 0.9].map((x) => TH37.flashPVF(ppE, [x, 1 - x], 101325, 0).T - TH37.flashPVF(ppC, [x, 1 - x], 101325, 0).T);
+  const w = Math.max(...dT.map(Math.abs)); fillWorst = Math.max(fillWorst, w);
+  return `<tr><td class="l">${esc(NM37[a] || a)} – ${esc(NM37[b] || b)}</td><td class="l">${esc(fit.source)}</td><td>${f(fit.rms, 3)}</td>${dT.map((v) => `<td>${f(v, 2)}</td>`).join('')}</tr>`;
+}).join('\n');
+if (fillWorst > 4) fail('fill-in: bubble-temperature difference ' + fillWorst + ' K');
+// (d) vectors
+const C0 = 'details.components.0.';
+Object.assign(NICE, { [C0 + 'MW']: 'molar mass, kg/kmol', [C0 + 'Tb_K']: 'Tb, K', [C0 + 'Tc_K']: 'Tc, K', [C0 + 'Pc_bar']: 'Pc, bar', [C0 + 'Vc_m3kmol']: 'Vc, m³/kmol',
+  [C0 + 'Hf_kJmol']: 'ΔHf° (gas), kJ/mol', [C0 + 'Gf_kJmol']: 'ΔGf° (gas), kJ/mol', [C0 + 'cp298_JmolK']: 'Cp ideal gas 25 °C, J/(mol·K)', [C0 + 'omega']: 'acentric factor ω',
+  [C0 + 'joback.groups.2.id']: 'Joback group 3 (−OH alcohol = 20)', [C0 + 'unifac.0.id']: 'UNIFAC group 1, id', [C0 + 'unifac.0.n']: 'UNIFAC group 1, count', [C0 + 'unifac.1.id']: 'UNIFAC group 2, id',
+  [C0 + 'unifac.1.n']: 'UNIFAC group 2, count', [C0 + 'modunifac.0.id']: 'Dortmund group 1, id', [C0 + 'modunifac.0.n']: 'Dortmund group 1, count', [C0 + 'modunifac.1.id']: 'Dortmund group 2, id',
+  [C0 + 'modunifac.1.n']: 'Dortmund group 2, count', [C0 + 'modunifac.2.id']: 'Dortmund group 3, id', 'details.y.benzene': 'vapour y benzene', 'details.y.UC5ADF6CCF': 'vapour y ethanol (user component)',
+  'details.rows.0.phases.vapour.mu_cP': 'vapour viscosity, cP', 'details.rows.0.phases.vapour.k_WmK': 'vapour conductivity, W/(m·K)', 'details.rows.0.phases.liquid.k_WmK': 'liquid conductivity, W/(m·K)',
+  'details.rows.0.phases.liquid.sigma_mNm': 'surface tension, mN/m' });
+const ucVecTable = vecTable(range(291, 295), 'uc');
+const fillVecTable = vecTable(['MB-298', 'MB-299', 'MB-300', 'MB-302'], 'fill');
+// (e) transport against CoolProp
+const ptab37 = (comps, T, extra) => {
+  const r = engine.runModule('property-table', { streams: [{ mass_flow_kg_h: 100, T_K: T, P_bar: 1.01325, components: comps }],
+    params: Object.assign({ property_package: { model: 'pr' }, vary: 'T', from: T, to: T + 50, points: 2, P_bar: 1.01325 }, extra || {}) });
+  if (r.error) fail('property-table: ' + r.error.message);
+  return r.details.rows[0].phases;
+};
+const tpDev = { db: { rho: [], mu: [], k: [], sig: [] }, est: { rho: [], mu: [], k: [], sig: [] } };
+const tpCell = (v, ref, bucket, key) => { const d = (v - ref) / ref * 100; if (bucket) bucket[key].push(Math.abs(d)); return `<td>${f(v, key === 'rho' ? 1 : key === 'sig' ? 2 : 4)} <span class="dim">(${d >= 0 ? '+' : ''}${f(d, 1)} %)</span></td>`; };
+const tpRows = R37.coolprop_liquids.map((q) => {
+  const ld = ptab37([{ key: q.key, mass_fraction: 1 }], q.T_K).liquid;
+  const u = ucRun([{ name: q.fluid, smiles: q.smiles }]); if (u.error) fail(q.fluid + ': ' + u.error.message);
+  const uk = u.details.components[0].key;
+  const le = ptab37([{ key: uk, mass_fraction: 1 }], q.T_K, { user_components: [{ name: q.fluid, smiles: q.smiles }] }).liquid;
+  const row = (lab, ph, b) => `<tr><td class="l">${lab}</td>${tpCell(ph.rho_kgm3, q.rho_kgm3, b, 'rho')}${tpCell(ph.mu_cP, q.mu_cP, b, 'mu')}${tpCell(ph.k_WmK, q.k_WmK, b, 'k')}${tpCell(ph.sigma_mNm, q.sigma_mNm, b, 'sig')}</tr>`;
+  return `<tr><td class="l" colspan="5"><b>${esc(q.fluid)}</b> · CoolProp: ρ ${f(q.rho_kgm3, 1)}, μ ${f(q.mu_cP, 4)}, k ${f(q.k_WmK, 4)}, σ ${f(q.sigma_mNm, 2)}</td></tr>\n` +
+    row('databank (ChemSep correlations)', ld, tpDev.db) + '\n' + row('from the SMILES alone', le, tpDev.est);
+}).join('\n');
+const avg37 = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+const MWa = { N2: 28.0134, O2: 31.9988, Ar: 39.948 }, xa = { N2: 0.7812, O2: 0.2096, Ar: 0.0092 };
+const mma = Object.keys(xa).reduce((t, k) => t + xa[k] * MWa[k], 0);
+const airC = Object.keys(xa).map((k) => ({ key: k, mass_fraction: xa[k] * MWa[k] / mma }));
+const airRows = R37.coolprop_air.map((q) => {
+  const v = ptab37(airC, q.T_K).vapour;
+  return `<tr><td>${f(q.T_K, 0)}</td><td>${f(v.mu_cP * 1e3, 3)}</td><td>${f(q.mu_cP * 1e3, 3)}</td><td>${f((v.mu_cP - q.mu_cP) / q.mu_cP * 100, 1)} %</td><td>${f(v.k_WmK * 1e3, 2)}</td><td>${f(q.k_WmK * 1e3, 2)}</td><td>${f((v.k_WmK - q.k_WmK) / q.k_WmK * 100, 1)} %</td></tr>`;
+}).join('\n');
+const s37vec = vecTable(range(303, 305), 'tp');
+console.log(`Step 37: groups ${fragAgree.unifac}/${fragAgree.modunifac}/${fragAgree.joback} of ${nFrag} · estimates over ${estN} molecules · fill-in worst ΔTbub ${f(fillWorst, 2)} K · transport vs CoolProp mean |Δ| databank μ ${f(avg37(tpDev.db.mu), 1)} % SMILES μ ${f(avg37(tpDev.est.mu), 1)} %`);
+
 const html = `<!DOCTYPE html>
 <!-- REPO PATH: flowsheet-validation.html — GENERATED by scripts/build-flowsheet-validation.mjs (${today}); do not edit by hand -->
 <html lang="en">
@@ -612,6 +873,7 @@ h3{font-size:15px;margin:22px 0 4px}
 .wrap td:nth-child(2){font-size:12.5px;text-align:left}
 .wrap th:nth-child(2){text-align:left}
 .note{font-size:13px;color:var(--dim)}
+.dim{color:var(--dim);font-size:12px}
 footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color:var(--dim)}
 </style>
 </head>
@@ -931,8 +1193,113 @@ ${visRows}
 </tbody></table></div>
 <p class="note">P3: Peng–Robinson puts the density of methane at 50 bar about 2.2 % high, which lowers the pressure drop by about the same amount. Two-phase lines use the no-slip model; slip and flow patterns (Beggs–Brill and similar) are not modelled.</p>
 
+
+<h2>30 · Urea synthesis method — Voskov et al. (2016)</h2>
+<p>The liquid is UNIQUAC over the true species NH₃, CO₂, H₂O, urea, ammonium carbamate and ammonium bicarbonate, with the carbamate and bicarbonate equilibria solved in every flash and urea formation solved by the urea reactor; parameters of Voskov, Pilaar &amp; Rietveld (2016), the bicarbonate equilibrium constant refitted and no Poynting term in the chemical equilibria (the form that reproduces their tables); vapour Peng–Robinson with k<sub>ij</sub>(NH₃–CO₂) = 0.10 fitted here. Reference: the paper's Table 8 (equilibrium conversion of the closed liquid) and Table 9 (its bubble pressure), every point.</p>
+<p><b>Equilibrium CO₂ → urea conversion, engine − paper, percentage points</b> (H/C across): rms ${f(yRms34, 3)}, worst ${f(yWorst, 3)} over ${yN} points.</p>
+<div class="tw"><table><thead><tr><th>N/C</th><th>t, °C</th>${R34.urea_W.map((w) => `<th>H/C ${w}</th>`).join('')}</tr></thead><tbody>
+${yRows34.join('\n')}
+</tbody></table></div>
+<p><b>Bubble pressure, (engine − paper)/paper, %</b>: rms ${f(100 * pRms34, 1)} %, worst ${f(100 * pWorst, 1)} % over ${pN} points.</p>
+<div class="tw"><table><thead><tr><th>N/C</th><th>t, °C</th>${R34.urea_W.map((w) => `<th>H/C ${w}</th>`).join('')}</tr></thead><tbody>
+${pRows34.join('\n')}
+</tbody></table></div>
+<p>Heats at 185 °C, 250 bar (all liquid): forming the liquid from NH₃, CO₂ and H₂O gases (N/C 3, H/C 0.5) ${f(dHc34, 1)} kJ per mol CO₂ — carbamate formation from the gases is about −117 to −159 kJ/mol, plus the solution of the excess ammonia; urea formation in the liquid ${f(dHu34, 1)} kJ per mol urea (the dehydration of carbamate to urea is endothermic, +15.5 kJ/mol in the literature). The urea HP synthesis example on the simulator page (adiabatic reactor at N/C 2.94, H/C 0.47) gives 56 % conversion at 185 °C and a stripping efficiency of 77 % with 0.83 t steam per t urea.</p>
+<p class="note">The worst bubble-pressure deviations are at N/C 2.5 and 200 °C, where the paper's own vapour model departs most from Peng–Robinson. Liquid density uses the model's partial molar volumes and liquid viscosity a log-mixing estimate — both indicative. Biuret and urea hydrolysis are not modelled.</p>
+
+<h2>31 · Machine performance curves and the multistage compressor</h2>
+<p>Pump and compressor curves (head, efficiency against flow at a rated speed) interpolated by monotone cubic Hermite; other speeds by the affinity laws Q ∝ N, H ∝ N². A pump's head sets the discharge pressure through ΔP = ρgH; a compressor's polytropic head sets the discharge pressure through the rigorous polytropic path of the property method, so H<sub>p</sub> = η<sub>p</sub>Δh. Reference: hand calculation with the IAPWS-IF97 density of water (992.267 kg/m³ at 40 °C, 2 bar) and the curve points.</p>
+<div class="tw"><table><thead><tr><th class="l">Machine</th><th>Operating point</th><th>Head, engine</th><th>Head, reference</th><th>P out, bar</th><th>η</th><th>Power</th></tr></thead><tbody>
+${mcRows.join('\n')}
+</tbody></table></div>
+<p>Four-stage CO₂ compressor 1.4 → 145 bar, intercoolers to 40 °C with pressure drops 0.1 / 0.3 / 0.8 bar, polytropic η 0.78 (Peng–Robinson; wet CO₂ with 3.8 mol % water). The equal stage ratio is found with the cooler drops included; the unit's ΔH − W equals the summed cooler duties to ${sci(trQgap)} kW.</p>
+<div class="tw"><table><thead><tr><th>Stage</th><th>P, bar</th><th>Ratio</th><th>T disch, °C</th><th>Power, kW</th><th>Cooler, kW</th><th>Condensate, kg/h</th></tr></thead><tbody>
+${trRows}
+</tbody></table></div>
+
+<h2>32 · Calculator blocks</h2>
+<p>Calculators read stream and unit results (or inputs), evaluate the user's formulas in a sandboxed arithmetic language and write the answers into feeds or unit specifications. A feed-forward calculator joins the calculation order after the units it reads and before the units it sets; one that reads a result its own exports change is converged around the solve (substitution with Wegstein acceleration).</p>
+<div class="tw"><table><thead><tr><th class="l">Case</th><th class="l">Order / convergence</th><th>Result</th><th>Reference</th></tr></thead><tbody>
+<tr><td class="l">Steam = 3 × CH₄ (kmol/h) × 18.01528</td><td class="l">${(cff.log || []).find((l) => /Calculation order/.test(l[1]))[1].replace('Calculation order: ', '')}</td><td>${f(cff.stream_results.S.mass_flow_kg_h, 3)} kg/h</td><td>${f(3 * cff.calculators[0].imports.ch4 * 18.01528, 3)} kg/h</td></tr>
+<tr><td class="l">Heater outlet T ← T + 1.5 (650 K − T<sub>mix</sub>)</td><td class="l">feedback, ${cfb.calculators[0].passes} passes</td><td>${f(cfb.stream_results.P.T_K, 4)} K</td><td>650 K</td></tr>
+</tbody></table></div>
+
+<h2>33 · Petroleum pseudo-components and TBP assay cutting</h2>
+<p>Pseudo-components from the normal boiling point and specific gravity: critical constants by Twu (1984), Riazi–Daubert (1987) or Kesler–Lee (1976), the Kesler–Lee acentric factor, the Lee–Kesler vapour pressure, Riedel ΔH<sub>vap</sub> with the Watson exponent, Rackett liquid density through the SG, and an ideal-gas heat capacity in the Watson K fitted here to the databank. Reference: ${hcs.length} C5+ hydrocarbons of the databank (paraffins, naphthenes, olefins, aromatics, Tb 300–800 K), using only their Tb and SG.</p>
+<div class="tw"><table><thead><tr><th class="l">Method</th><th>Tc, rms</th><th>Pc, rms</th><th>M, rms</th><th>ω, rms</th></tr></thead><tbody>
+${psStat}
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th class="l">Compound</th><th>Tb, K</th><th>SG</th><th>Tc, K: data / Twu / R–D / K–L</th><th>Pc, bar: data / Twu / R–D / K–L</th><th>M: data / Twu / R–D</th><th>ω: data / K–L</th></tr></thead><tbody>
+${psRows.join('\n')}
+</tbody></table></div>
+<p>On Peng–Robinson, a pseudo-component with the Tb and SG of n-decane against n-decane itself:</p>
+<div class="tw"><table><thead><tr><th class="l">Component</th><th>NBP, K</th><th>P<sub>sat</sub> 100 °C, kPa</th><th>ρ<sub>L</sub> 25 °C, kg/m³</th><th>Δh 300 → 500 K at 1 bar (liquid → vapour), kJ/mol</th><th>μ<sub>L</sub> 25 °C, mPa·s</th></tr></thead><tbody>
+${decRows.join('\n')}
+</tbody></table></div>
+<p class="note">Twu reproduces the n-alkanes by construction and is the default; aromatics carry the largest Pc errors for every method. The heat-capacity correlation has 5 % rms over the reference set; liquid viscosity is the n-paraffin of the same Tb at the same T/Tb — an estimate. A TBP assay is cut into equal-temperature (or given) cuts at constant Watson K scaled to the bulk SG (vectors MB-273 and MB-275).</p>
+
+<h2>34 · Solver transparency</h2>
+<p>Every run returns the history of each recycle loop — the largest relative change of the torn streams at every pass and how that pass was started — the final change of each torn stream, the design-spec Newton steps and the feedback-calculator passes; the simulator plots them in its Convergence tab. The recycle of vector MB-100 (mixer → shift reactor → cooler → flash → 50 / 50 splitter, tolerance 10⁻⁹) with each accelerator (S = direct substitution, W = Wegstein, B = Broyden):</p>
+<div class="tw"><table><thead><tr><th class="l">Accelerator</th><th>Passes</th><th>Final change</th><th class="l">Passes started by</th><th>Recycle, kg/h</th><th>Reference, kg/h</th></tr></thead><tbody>
+${accRows}
+</tbody></table></div>
+<p>The design spec of vector MB-099 (process air varied until H₂/N₂ = 3.000 in the methanated make-up gas, tolerance 10⁻⁶ relative): scaled residual = |H₂/N₂ − 3| ÷ ${sci(SH35.specs[0].tol)}, met at 1 or below; each Newton step costs one evaluation for the finite-difference Jacobian and one for the step.</p>
+<div class="tw"><table><thead><tr><th>Iteration</th><th>Air, kg/h</th><th>H₂/N₂ − 3</th><th>Scaled residual</th><th>Step λ</th><th>Evaluations</th><th>∂(H₂/N₂)/∂air, h/kg</th></tr></thead><tbody>
+${spRows}
+</tbody></table></div>
+<p class="note">Both accelerators land on the same recycle flow — the steady state does not depend on how it is reached. With a single torn stream, as here, Wegstein alone is as quick; Broyden's quasi-Newton update is meant for loops with several coupled torn streams, where Wegstein's one-variable-at-a-time steps ignore the coupling. The air rate reached is ${f(spH.specs[0].varied, 4)} kg/h against ${f(vec('MB-099').expect['specs.0.varied'], 4)} kg/h frozen in the templates (vectors MB-276 to MB-279).</p>
+
+<h2>35 · Pinch analysis, equipment costing and optimisation</h2>
+<p>Energy targets by the problem-table algorithm (hot streams shifted down and cold streams up by ΔT<sub>min</sub>/2, interval heat surpluses cascaded from the top). A stream given as a process state is flashed with the property method along its path, so boiling and condensation appear as corners of its curve — here at the IAPWS-IF97 saturation temperature.</p>
+<div class="tw"><table><thead><tr><th class="l">Case</th><th>Q<sub>H,min</sub>, kW</th><th>Reference</th><th>Q<sub>C,min</sub>, kW</th><th>Reference</th><th>Pinch hot / cold, °C</th><th>Reference</th></tr></thead><tbody>
+${pinchRows}
+</tbody></table></div>
+<p>Equipment costs by module costing (Turton et al., <i>Analysis, Synthesis and Design of Chemical Processes</i>, App. A, at CEPCI 397) escalated to CEPCI ${f(ec36.basis.cepci, 1)}, against the same correlations evaluated by hand for vector MB-284 (a 100 kW LP-steam heater and a 20 m³ atmospheric vertical vessel):</p>
+<div class="tw"><table><thead><tr><th class="l">Quantity</th><th>Engine</th><th>Hand calculation</th><th>Relative difference</th></tr></thead><tbody>
+${costRows}
+</tbody></table></div>
+<p>Optimisation over whole-flowsheet solves, on a flowsheet whose product flow is the analytic function 1000 + 500 + 1000((T₁ − 350)/10)² + 100(P₁ − 4)² kg/h (a calculator block sets a feed from feed S1's temperature and pressure); tolerance 0.5 % of each variable's range:</p>
+<div class="tw"><table><thead><tr><th class="l">Problem</th><th>Optimum found</th><th>Exact</th><th>Objective, kg/h</th><th>Exact</th><th>Evaluations</th><th>Feasible</th></tr></thead><tbody>
+${optRows}
+</tbody></table></div>
+<p class="note">The cost correlations are study-estimate grade (about −20 % / +30 %). The constants for exchangers, vertical vessels and towers, sieve trays, centrifugal pumps, compressors and drives, the exchanger pressure and material factors and the bare-module constants of exchangers, pumps and vertical vessels were checked against a second copy of Turton's tables; the pump pressure and material factors, horizontal-vessel bare-module constants, alloy vessel material factors, the tray quantity factor and the fired-heater bare-module factors are transcribed from Turton App. A without a second check. Utility prices are examples. A pinch analysis of a flowsheet uses the duties of its last run; isothermal duties (condensers, reboilers, reactors) are spread over 1 K (vectors MB-280 to MB-290).</p>
+
+<h2>36 · Components from a structure, UNIFAC fill-in and transport properties</h2>
+<p>A component missing from the databank can be entered as a SMILES string. The structure is parsed (rings, aromaticity, charges, the five-valent nitro form normalised) and split into UNIFAC, Dortmund-UNIFAC and Joback groups by SMARTS matching with the priority algorithm of the open-source thermo library. Joback & Reid give Tb, Tc, Pc, Vc, ΔHf°, ΔGf° and the ideal-gas Cp; Lee–Kesler gives ω and the vapour pressure; the liquid density is Rackett through the Tyn–Calus volume at Tb. Any measured constant the user enters replaces its estimate. Group assignment of ${nFrag} molecules against thermo 0.6.1 with RDKit SMARTS matching:</p>
+<div class="tw"><table><thead><tr><th class="l">Group set</th><th>Same groups as thermo, this sample</th><th>Same as thermo, 4,416 molecules (separate run)</th><th>Same as DDBST's published assignment, this code / thermo (separate run)</th></tr></thead><tbody>
+${fragRows}
+</tbody></table></div>
+<p>Joback values and group assignments for single molecules (Joback & Reid 1987 with the Tb base of 198 K; thermo uses 198.2 K, so its Tb and Tc are rebased):</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${ucVecTable}
+</tbody></table></div>
+<p>How good the estimates are: every organic molecule of the ChemSep databank that the groups cover (${estN} molecules; ${estFail} not covered by Joback) entered by its SMILES alone and compared with its own databank constants and correlations — Tb and liquid properties at 25 °C (or 0.8 Tb for light compounds), vapour viscosity at 1.1 Tb:</p>
+<div class="tw"><table><thead><tr><th class="l">Property</th><th>n</th><th>Median |error|</th><th>90th percentile |error|</th><th>Mean error (bias)</th></tr></thead><tbody>
+${estRows}
+</tbody></table></div>
+<p>Missing NRTL, UNIQUAC and Wilson pairs are filled by fitting the pair's parameters (a + b/T; NRTL α = 0.3) to Dortmund UNIFAC activity coefficients at three temperatures and seven compositions (original UNIFAC where Dortmund has no groups); supercritical gases keep Henry's law. For pairs that do have ChemSep NRTL data, the bubble temperature at 1 atm from the filled parameters minus that from ChemSep NRTL, K:</p>
+<div class="tw"><table><thead><tr><th class="l">Pair</th><th class="l">Fitted to</th><th>rms ln γ</th><th>x₁ = 0.1</th><th>0.3</th><th>0.5</th><th>0.7</th><th>0.9</th></tr></thead><tbody>
+${fillRows}
+</tbody></table></div>
+<p>Against measured data where the databank has no NRTL pair, and a user component in a flash:</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${fillVecTable}
+</tbody></table></div>
+<p>Transport properties of liquids at 25 °C against CoolProp reference correlations — from the databank correlations and from the structure alone (deviation in brackets). Units: ρ kg/m³, μ mPa·s, k W/(m·K), σ mN/m. Mean absolute deviation, databank: ρ ${f(avg37(tpDev.db.rho), 1)} %, μ ${f(avg37(tpDev.db.mu), 1)} %, k ${f(avg37(tpDev.db.k), 1)} %, σ ${f(avg37(tpDev.db.sig), 1)} %; from the SMILES: ρ ${f(avg37(tpDev.est.rho), 1)} %, μ ${f(avg37(tpDev.est.mu), 1)} %, k ${f(avg37(tpDev.est.k), 1)} %, σ ${f(avg37(tpDev.est.sig), 1)} %.</p>
+<div class="tw"><table><thead><tr><th class="l">Source</th><th>ρ</th><th>μ</th><th>k</th><th>σ</th></tr></thead><tbody>
+${tpRows}
+</tbody></table></div>
+<p>Mixture rules on databank gases — dry air at 1 atm (Herning–Zipperer viscosity, Wassiljewa–Mason–Saxena conductivity) against CoolProp's pseudo-pure air (Lemmon & Jacobsen 2004):</p>
+<div class="tw"><table><thead><tr><th>T, K</th><th>μ, μPa·s</th><th>CoolProp</th><th>Δ</th><th>k, mW/(m·K)</th><th>CoolProp</th><th>Δ</th></tr></thead><tbody>
+${airRows}
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s37vec}
+</tbody></table></div>
+<p class="note">The few group assignments that differ from thermo over the large set are fused polycyclic hydrocarbons and quinodimethanes written in Kekulé form, where which rings count as aromatic is a convention. Group-contribution estimates are screening values: a large or strongly polar molecule can be off by more than the 90th percentile above, and Joback has no groups for some structures (formates, sulfones, furfural-type rings) — enter Tb, Tc and Pc for those. Estimated liquid viscosity is the weakest property; one measured value anchors it. Filled binary pairs are predictions, flagged in the run log and the property information; replace them with fitted data for design (vectors MB-291 to MB-305).</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the urea units remain empirical correlations. Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–29 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-247.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–36 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-305.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
@@ -951,4 +1318,7 @@ console.log('Step 25:', s25Pass + '/' + s25N, 'in tolerance · MEA vs Arshad AAD
 console.log('Step 24:', s24Pass + '/' + s24N, 'in tolerance · LHHW worst', s22Worst.lhhw.toExponential(2), '· acid liquid ΔfH worst', s22Worst.assocH.toFixed(2) + ' kJ/mol');
 console.log('Step 23:', s23Pass + '/' + s23N, 'in tolerance · envelope worst', s22Worst.env.toFixed(3) + ' K', '· binary T worst', s22Worst.bin.toExponential(2), '· kinetics worst', s22Worst.kin.toExponential(2));
 console.log('Step 33: NH3 vs measured ≤300 atm', nhWorst300.toFixed(2), 'mol % · carbon', cWorst.toExponential(2), '· syngas vs JANAF', (100 * synWorst).toFixed(3) + ' %', '· kinetics', knWorst.toExponential(2), '· pipe water', pipeWorstW.toFixed(2) + ' %', 'gas', pipeG.toFixed(2) + ' %');
+console.log('Step 34: urea Y rms', yRms34.toFixed(3), 'worst', yWorst.toFixed(3), '· bubble P rms', (100 * pRms34).toFixed(1) + ' %', 'worst', (100 * pWorst).toFixed(1) + ' %', '· train Q gap', trQgap.toExponential(2), '· pseudo Twu Tc rms', rms34(st.twu.Tc).toFixed(2) + ' %');
+console.log('Step 36:', s36Pass + '/' + s36N, 'in tolerance');
+console.log('Step 35: recycle passes Broyden', rcB.loops[0].iterations, 'Wegstein', rcW.loops[0].iterations, '· spec Newton steps', SH35.steps.length - 1);
 console.log('wrote', path.relative(ROOT, OUT), '— PR worst', prWorst.toExponential(2), '· classic vs rigorous PR', dwWorst.toExponential(2), '· NRTL worst', nrWorst.toExponential(2), '· wet gas', koDev.toFixed(3) + ' %');
