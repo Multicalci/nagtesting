@@ -62,9 +62,9 @@ const BUCKET_IDLE_MS = 10 * 60 * 1000;        // drop buckets idle > 10 min
 const BUCKET_SWEEP_EVERY = 200;               // lazy sweep cadence (requests)
 const BUCKET_HARD_CAP = 20000;                // absolute Map size guard
 
-const MAX_BODY_BYTES = 200 * 1024;  // request body ceiling
-const MAX_STREAMS = 20;             // structural sanity caps (engine may be
-const MAX_COMPONENTS = 30;          // stricter; these stop abuse early)
+const MAX_BODY_BYTES = 1024 * 1024; // request body ceiling (STEP 34: large flowsheets + resume tokens)
+const MAX_STREAMS = 60;             // structural sanity caps (engine may be
+const MAX_COMPONENTS = 60;          // stricter; these stop abuse early)
 
 const SUPABASE_TIMEOUT_MS = 4000;   // picker fetch budget before fallback
 const SOLVE_TIMEOUT_MS = 9000;      // async-solver budget before 504
@@ -309,9 +309,16 @@ function logSolve(moduleName, ok, ms, ipHash) {
  * @param {*} body
  * @returns {{streams:Array<object>, params:object}|{error:object}}
  */
-function validateBody(body) {
+// modules that take no streams (STEP 34: pseudo-component characterisation, TBP assay cutting)
+const NO_STREAM_MODULES = new Set(['assay-cut', 'pseudo-props', 'pinch-analysis', 'user-components']);
+function validateBody(body, moduleName) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return errObj('MB_BODY', 'request body must be a JSON object', 'body');
+  }
+  if (NO_STREAM_MODULES.has(moduleName) && (body.streams === undefined || (Array.isArray(body.streams) && body.streams.length === 0))) {
+    const params = body.params === undefined ? {} : body.params;
+    if (!params || typeof params !== 'object' || Array.isArray(params)) return errObj('MB_PARAMS', 'body.params must be an object when given', 'params');
+    return { streams: [], params };
   }
   if (!Array.isArray(body.streams) || body.streams.length === 0) {
     return errObj('MB_STREAMS', 'body.streams must be a non-empty array', 'streams');
@@ -432,6 +439,7 @@ async function handleComponents(res) {
     for (const key of compdb.keys()) {
       if (have.has(key)) continue;
       const r = compdb.get(key);
+      if (r.pseudo || r.user) continue;             // STEP 34/37: run-time pseudo / user components stay out of the picker
       components.push({ key, name: r.name, formula: r.formula || null, mw: r.mw, mw_r: r.mw, category: r.cat || 'other',
         nonvolatile: false, data_quality: 'chemsep', rigorous: true });
     }
@@ -514,7 +522,7 @@ async function handleSolve(req, res, moduleName, ipHash) {
   // ---- body shape ----
   const body = await readBody(req);
   if (body && body.error) { sendJson(res, 400, body); return; }
-  const shaped = validateBody(body);
+  const shaped = validateBody(body, moduleName);
   if (shaped.error) { sendJson(res, 400, shaped); return; }
 
   // ---- dispatch (solvers must not throw; belt-and-braces try/race) ----
