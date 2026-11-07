@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flowsheet Simulator User Guide — Build, Run and Read a Process Simulation | multicalci.com</title>
-<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate), rigorous columns, reactors, recycles, design specs, sensitivity studies, results, reports and troubleshooting.">
+<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate), rigorous columns, reactors, recycles, design specs, sensitivity studies, optimisation, equipment costing, pinch analysis, case comparison, results, reports and troubleshooting.">
 <link rel="canonical" href="https://www.multicalci.com/flowsheet-user-guide">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="Flowsheet Simulator User Guide | multicalci.com">
@@ -80,7 +80,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <li><a href="#build">Building a flowsheet</a></li>
 <li><a href="#methods">Choosing a property method</a></li>
 <li><a href="#equipment">Equipment reference</a></li>
-<li><a href="#solve">Recycles, design specs and sensitivity studies</a></li>
+<li><a href="#solve">Recycles, design specs, sensitivity studies and optimisation</a></li>
+<li><a href="#econ">Costing, pinch analysis and cases</a></li>
 <li><a href="#results">Results, stream analysis and reports</a></li>
 <li><a href="#files">Saving, opening and sharing</a></li>
 <li><a href="#examples">Ready-made examples</a></li>
@@ -115,11 +116,11 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 
 <h2 id="tour">2 · The workspace</h2>
 <div class="tw"><table><thead><tr><th>Area</th><th>What it is for</th></tr></thead><tbody>
-<tr><td>Toolbar</td><td><span class="ui">Examples</span> loads ready-made flowsheets. <span class="ui">File</span> handles new, open, save and share links, and exports the stream table. <span class="ui">Undo / Redo</span> and <span class="ui">Tidy</span> (auto-arrange left to right) edit the drawing. <span class="ui">Methods</span> sets the property method; its badge shows the current one (PR, NRTL, IF97 …). <span class="ui">Specs</span> holds the design specs. <span class="ui">Report</span> makes a printable PDF and <span class="ui">Help</span> gives a summary. <span class="ui">Run</span> solves the flowsheet.</td></tr>
+<tr><td>Toolbar</td><td><span class="ui">Examples</span> loads ready-made flowsheets. <span class="ui">File</span> handles new, open, save and share links, and exports the stream table. <span class="ui">Undo / Redo</span> and <span class="ui">Tidy</span> (auto-arrange left to right) edit the drawing. <span class="ui">Methods</span> sets the property method; its badge shows the current one (PR, NRTL, IF97 …). <span class="ui">Specs</span> holds the design specs. <span class="ui">Report</span> builds a Word (.docx) or PDF report and <span class="ui">Help</span> gives a summary. <span class="ui">Run</span> solves the flowsheet.</td></tr>
 <tr><td>Equipment palette</td><td>All unit operations, grouped: mixers &amp; splitters, separators, heat transfer, pressure changers, reactors, columns, ammonia &amp; syngas, urea synthesis and solids. Type in <span class="ui">Search equipment…</span> to filter. Drag a unit onto the canvas, or click it to drop it in the middle.</td></tr>
 <tr><td>Canvas</td><td>The drawing. Drag empty space to pan and use <kbd>Ctrl</kbd>+wheel or pinch to zoom. <span class="ui">Fit</span> brings everything into view. <span class="ui">Snap</span> aligns blocks to the grid and <span class="ui">T·P·F tags</span> prints stream results on the drawing.</td></tr>
 <tr><td>Properties panel (right)</td><td>Shows whatever is selected. For a feed stream it holds the specification and results. For a unit it holds the specifications, connections and results, including profiles for columns and reactors. With nothing selected (click empty canvas) it holds the <b>flowsheet panel</b>: property method, design specs, sensitivity study and display units.</td></tr>
-<tr><td>Results dock (bottom)</td><td>A status lamp and six tabs: <span class="ui">Stream table</span>, <span class="ui">Units</span>, <span class="ui">Balance</span>, <span class="ui">Sensitivity</span>, <span class="ui">Run log</span> and <span class="ui">Issues</span>. Drag its top edge to resize it, or collapse it with the arrow on the right.</td></tr>
+<tr><td>Results dock (bottom)</td><td>A status lamp and ten tabs: <span class="ui">Stream table</span>, <span class="ui">Units</span>, <span class="ui">Balance</span>, <span class="ui">Convergence</span>, <span class="ui">Sensitivity</span>, <span class="ui">Cases</span>, <span class="ui">Pinch</span>, <span class="ui">Costs</span>, <span class="ui">Run log</span> and <span class="ui">Issues</span>. Drag its top edge to resize it, or collapse it with the arrow on the right.</td></tr>
 </tbody></table></div>
 <p>The status lamp shows four states:</p>
 <ul>
@@ -202,6 +203,19 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <p><span class="ui">Which method should I use?</span> in the same panel lists the choices. After a run the engine checks every unit: where a vapour above about 5 bar is described as an ideal gas and its real-gas enthalpy correction (estimated with Peng–Robinson) is significant, the <span class="ui">Run log</span> and <span class="ui">Issues</span> name the units, the pressure and the size of the error.</p>
 <div class="tip"><b>Why it matters.</b> “Vapour phase: Ideal gas” ignores the effect of pressure on gas enthalpy. A turbine taking 2,000 kg/h of steam from 62 bar / 410 °C to 3.5 bar / 225 °C gives −158 kW with IAPWS-IF97 and −156 kW with Peng–Robinson, but −207 kW with NRTL or UNIFAC and an ideal-gas vapour: about 30 % too much power, because real steam at 62 bar sits about 100 kJ/kg below the ideal gas.</div>
 
+<h3 id="components">Components that are not in the databank</h3>
+<p>Two sections of the flowsheet panel add components to the feed picker. Both need a property method (not Classic).</p>
+<ul>
+<li><b>Pseudo-components</b> are petroleum fractions: give the normal boiling point and specific gravity (or °API), and the molar mass if you know it. Critical constants come from Twu (default), Riazi–Daubert or Kesler–Lee. A TBP assay can be cut into several pseudo-components at once.</li>
+<li><b>User components</b> are any other organic molecule, entered by its structure as a SMILES string. Copy it from PubChem (“SMILES” on the compound page) or from a chemical drawing program, e.g. <code>CN1CCCC1=O</code> for N-methyl-2-pyrrolidone. The engine works out the formula and molar mass and splits the molecule into Joback, UNIFAC and Dortmund-UNIFAC groups. From these it estimates the normal boiling point, critical constants, acentric factor, vapour pressure, liquid density, ideal-gas heat capacity, heat of formation and transport properties.</li>
+</ul>
+<p>Under <span class="ui">Measured values</span>, enter any number you have: normal boiling point, Tc, Pc, ω, a liquid density, ΔH<sub>f</sub> or a liquid viscosity. Each one replaces its estimate and improves the ones that depend on it. A measured boiling point is the single most useful value, and one measured viscosity anchors the viscosity curve. In the component table an asterisk marks an estimated value. <span class="ui">ⓘ</span> shows the groups found and the source of every property. Edit or remove a component there; a component used in a feed must be removed from the feed first.</p>
+<p>Typical accuracy from the structure alone, checked against every organic molecule of the databank (<a href="/flowsheet-validation">validation</a>, section 36): boiling point about 2 % (median), critical temperature and pressure 2–3 %, liquid density 3 %, liquid thermal conductivity 8 %, surface tension 6 %. Liquid viscosity is the weakest at about 19 %. One molecule in ten is worse than four times these figures, mostly large or strongly polar molecules. Joback has no groups for a few structures (formates, sulfones, furfural-type rings): give Tb, Tc and Pc for those. A molecule must contain carbon and have no more than 60 heavy atoms. User components are saved in the flowsheet file and its share link.</p>
+<h3 id="pairs">Missing binary pairs</h3>
+<p>With NRTL, UNIQUAC or Wilson, a pair with neither ChemSep data nor values of your own is filled by fitting the model's parameters (a + b/T, NRTL α = 0.3) to Dortmund-UNIFAC activity coefficients, or to original UNIFAC where Dortmund has no groups for the pair. The fit covers 40 K below the lower boiling point to 10 K above the higher one. This happens automatically for user components and for databank pairs without data. For example, benzene–cyclohexane gets its 77.4 °C azeotrope instead of an ideal mixture. The run log names each filled pair, and <span class="ui">🔍 Review pure-component &amp; binary data</span> shows its parameters as “estimated (Dortmund UNIFAC)”. Supercritical gases keep Henry's law. Filled pairs are predictions, typically within 1–2 K of fitted data on bubble temperature; replace them with fitted values for design. To compare with another program, untick <span class="ui">Estimate missing binary pairs from UNIFAC</span> in the property-method section; such pairs are then ideal.</p>
+<h3 id="transport">Transport properties</h3>
+<p>Viscosity, thermal conductivity and liquid surface tension come from the databank correlations. Where a component has none, or a user component is used, they are estimated: liquid viscosity by Joback (Letsou–Stiel near the critical point), vapour viscosity and conductivity by Chung, liquid conductivity by Sato–Riedel, and surface tension by Brock–Bird (Sastri–Rao for alcohols and acids). Mixtures use Herning–Zipperer and Wassiljewa–Mason–Saxena for gases, with Jossi–Stiel–Thodos and Stiel–Thodos for dense gas, Grunberg–Nissan without interaction for liquid viscosity (with Lucas for pressure), Li for liquid conductivity and Winterfeld–Scriven–Davis for surface tension. Winterfeld–Scriven–Davis overstates the surface tension of water with dissolved organics, which is strongly non-linear in composition; treat aqueous-mixture values as an upper bound. The stream panel lists which values in a phase are estimated. Liquid surface tension appears in the stream panel, property tables, the heat and material balance and the report.</p>
+
 <h2 id="equipment">5 · Equipment reference</h2>
 <p>“You give” lists the main inputs; optional fields such as pressure drops are described in each unit's panel. Units marked <b>rigorous only</b> always use a property method (Peng–Robinson when the flowsheet is on Classic).</p>
 <h3>Mixers, splitters and separators</h3>
@@ -243,21 +257,63 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Urea reactor, HP carbamate stripper, urea HP loop</td><td>Urea synthesis section</td><td>Reactor T and P, with an optional conversion override. Stripper decomposition, temperatures, pressure and heating steam. Loop pressure. These are tuned empirical correlations that warn outside their validity range.</td></tr>
 </tbody></table></div>
 
-<h2 id="solve">6 · Recycles, design specs and sensitivity studies</h2>
+<h2 id="solve">6 · Recycles, design specs, sensitivity studies and optimisation</h2>
 <h3>Recycle loops</h3>
 <p>Loops are found automatically. The solver tears the <b>fewest</b> streams that break every loop: they are guessed, calculated round the loop and updated until they stop changing (relative tolerance 10⁻⁵ by default) — two Wegstein steps first, then Broyden's quasi-Newton method, which converges coupled loops in far fewer passes. Torn streams are drawn dashed. If you give streams an <span class="ui">Initial estimate</span> and those streams break every loop, they are the ones torn, so an estimate also lets you choose the tear. If a loop is slow to converge, fill in a sensible flow, T, P and composition there.</p>
+<p>The <span class="ui">Convergence</span> tab shows how each loop converged: the largest relative change of the torn streams at every pass on a log scale, with each point marked by how that pass was started (guessed values, direct substitution, Wegstein, Broyden, or a step back to substitution after a failed pass), and a table with the last change in flow, temperature and pressure and the component that changed most for every torn stream. A loop that will not converge usually shows it there — an error that stalls, oscillates or grows. Under <span class="ui">Run options</span> in the flowsheet panel choose <span class="ui">Broyden</span> (the default, which updates all torn streams together) or <span class="ui">Wegstein only</span> (bounded steps, one variable at a time) — worth a try when the history shows Broyden steps failing.</p>
 <p>Within one run every repeat solve starts from what is already known: recycle loops from their last converged torn streams, rigorous columns from their last converged stage profiles, and units whose inlets have not changed are not solved again. This is what makes design specs and sensitivity studies on large flowsheets fast.</p>
 <h3>Design specs</h3>
-<p>A design spec varies one input until a result hits a target. Examples: process air until H₂/N₂ = 3 in the make-up gas, or a cooler outlet temperature until the gas has a given water content. Press <span class="ui">Specs</span> → <span class="ui">+ Add design spec</span>. Choose the variable (any feed or unit input), the target (any stream or unit result) and its value. Bounds on the variable are optional but keep the search physical. Specs are solved on the server together with the recycles.</p>
+<p>A design spec varies one input until a result hits a target. Examples: process air until H₂/N₂ = 3 in the make-up gas, or a cooler outlet temperature until the gas has a given water content. Press <span class="ui">Specs</span> → <span class="ui">+ Add design spec</span>. Choose the variable (any feed or unit input), the target (any stream or unit result) and its value. Bounds on the variable are optional but keep the search physical. Specs are solved on the server together with the recycles. The <span class="ui">Convergence</span> tab lists the Newton steps: the varied values, the residuals, the scaled residual (1 or less means every spec is met), the step length and the last Jacobian — a near-zero Jacobian entry means the variable hardly moves the target. Feedback calculators are listed there pass by pass as well.</p>
 <h3>Sensitivity study</h3>
-<p>In the flowsheet panel, <span class="ui">+ Set up a sensitivity study</span> steps one input over a range and records up to eight results at each point (duties, purities, flows, temperatures …). After the run, the <span class="ui">Sensitivity</span> tab shows a chart and a table you can copy into Excel.</p>
+<p>In the flowsheet panel, <span class="ui">+ Set up a sensitivity study</span> steps one input over a range and records up to eight results at each point (duties, purities, flows, temperatures …). After the run, the <span class="ui">Sensitivity</span> tab shows a chart and a table you can copy into Excel. With costing on, the capital, utility and total annual cost can be among the results.</p>
+<h3>Optimisation</h3>
+<p>In the flowsheet panel, <span class="ui">+ Set up an optimisation</span>. Choose <span class="ui">Minimise</span> or <span class="ui">Maximise</span> and build the objective from one or more terms, each a coefficient times a stream or unit result or a cost total (with costing on). Add 1–6 <b>decision variables</b> — any feed or unit input, each with a lower and an upper bound — and, if needed, up to 8 <b>constraints</b> (a result ≤ or ≥ a limit, for example benzene mole fraction in the distillate ≥ 0.995).</p>
+<ul>
+<li>One variable is searched by Brent's method (golden section with parabolic steps); two or more by a Nelder–Mead simplex kept inside the bounds. Every point is a whole-flowsheet solve with the recycles converged and the design specs met.</li>
+<li>Limits are handled by an exact penalty: a point that breaks a limit always ranks behind one that meets it, so the answer is feasible whenever a feasible point was found.</li>
+<li>The search stops when the simplex (or bracket) is smaller than the tolerance — 0.5 % of each variable's range by default — or after the maximum number of evaluations (60 by default, up to 300). A long search continues over further server calls automatically.</li>
+<li>After the run every result on the page is at the optimum. The panel shows the start and optimum of each variable and the limits; <span class="ui">Copy optimum to inputs</span> writes the optimum into the feeds and units and switches the optimisation off. The <span class="ui">Convergence</span> tab plots and tabulates every evaluation.</li>
+<li>A variable cannot also be varied by an active design spec or set by a calculator. The method finds a <b>local</b> optimum: start from a sensible point, and if a variable ends on a bound, widen the bound if that is physically allowed.</li>
+</ul>
 
-<h2 id="results">7 · Results, stream analysis and reports</h2>
+<h2 id="econ">7 · Costing, pinch analysis and cases</h2>
+<h3>Equipment and utility costing</h3>
+<p>In the flowsheet panel, <span class="ui">+ Set up costing</span> sizes and costs every unit after each run with the module-costing correlations of Turton et al. (<i>Analysis, Synthesis and Design of Chemical Processes</i>, Appendix A), escalated with the CE plant cost index and converted to your currency, and prices the utilities.</p>
+<div class="tw"><table><thead><tr><th>Equipment</th><th>Sized from</th></tr></thead><tbody>
+<tr><td>Heaters, coolers, exchangers</td><td>Duty, LMTD to the utility (or between the two streams) and a typical U for the service — or your own U. Double pipe below 10 m², else floating head; choose another type in the unit's Costing section.</td></tr>
+<tr><td>Flash drums</td><td>Souders–Brown vapour velocity (K = 0.107 m/s) and five minutes' liquid hold-up, H/D 3–5.</td></tr>
+<tr><td>Columns</td><td>Diameter at 80 % of flooding, 0.6 m tray spacing plus 3 m, sieve trays; condenser and kettle reboiler as exchangers. Reflux drum and pumps are not included.</td></tr>
+<tr><td>Pumps, compressors</td><td>Shaft power, with an electric drive; a multistage compressor adds its intercoolers.</td></tr>
+<tr><td>Reactors</td><td>Vessel volume (L/D 4, urea 10) — kinetic reactors take it from their inputs, equilibrium reactors need it in the unit's Costing section. A tube reactor heated by a furnace is costed as a fired heater on its duty; a cooled multitubular reactor as a fixed-tube-sheet exchanger on its tube area.</td></tr>
+<tr><td>Reformers, fired heaters</td><td>Absorbed duty (process-heater correlation; catalyst tubes not included).</td></tr>
+</tbody></table></div>
+<p>Heating goes to the lowest steam level at least the utility approach (10 K) above the process outlet, above the highest level to a fired heater; cooling to cooling water, chilled water or refrigeration by the same rule. The <span class="ui">Costs</span> tab shows, for every item, the size, material, pressure, material and pressure factors, the bare-module factor, purchased and bare-module cost and the utility cost, and the totals: purchased equipment, bare-module cost, total module cost (1.18 × bare module, for contingency and fee), grassroots capital (+ 0.5 × the base-case bare-module cost, for auxiliary facilities), capital annualised with the capital recovery factor over the plant life, utilities, and the <b>total annual cost</b>. Each unit's panel has a Costing section to change its equipment type, material of construction, exchanger type, U, compressor type or reactor volume.</p>
+<p>The default prices and the cost index are examples — set your own. Accuracy is that of a study estimate, about −20 % / +30 %. Mixers, splitters, valves and turbines are not costed.</p>
+<h3>Pinch analysis</h3>
+<p>The <span class="ui">Pinch</span> tab collects every heating and cooling duty of the last run — heaters and coolers, column condensers and reboilers, intercoolers, flash and reactor duties (served by utilities) and both sides of each process exchanger — and calculates, for the ΔT<sub>min</sub> you set:</p>
+<ul>
+<li>the <b>minimum hot and cold utility</b> by the problem-table algorithm, against the utility now used;</li>
+<li>the <b>pinch</b> temperatures (hot and cold side), or that there is none (a threshold problem);</li>
+<li>the <b>composite curves</b> and the <b>grand composite curve</b>;</li>
+<li>the utility heaters below the pinch and coolers above it — the heat flows across the pinch that make the utilities exceed the targets.</li>
+</ul>
+<p>With a property method, heater and exchanger curves are flashed along their path (<span class="ui">Property-method curves</span>), so boiling and condensation appear as plateaus. Condenser, reboiler and reactor duties are taken at their temperature (spread over 1 K). Untick any duty that cannot take part in heat recovery.</p>
+<h3>Cases</h3>
+<p>The <span class="ui">Cases</span> tab keeps up to ten <b>cases</b> — the inputs and main results of a run. Press <span class="ui">+ Save this run as a case</span>, change the inputs, run, save again, and compare:</p>
+<ul>
+<li><span class="ui">Summary</span>: convergence, heating, cooling and power totals, design-spec values, the optimum, cost totals and the product streams;</li>
+<li><span class="ui">Unit duties</span>, <span class="ui">One stream</span> (T, P, flows, vapour fraction, mole fractions) and <span class="ui">Input differences</span> (every input that differs from the base case).</li>
+</ul>
+<p>Each value shows its difference from the base case underneath; tick which cases to compare and pick the base. <span class="ui">Restore</span> loads a case's inputs into the flowsheet (undo brings the previous inputs back). Cases are saved with the flowsheet file and in this browser, but not in share links; the report can include the summary comparison.</p>
+
+<h2 id="results">8 · Results, stream analysis and reports</h2>
 <ul>
 <li><b>Stream table</b>: T, P, flows, phase, enthalpy and composition of every stream. The <span class="ui">Composition</span> selector switches between component flows and fractions on a mass or mole basis, and the unit selectors change the display units. Use <span class="ui">Copy for Excel</span> or <span class="ui">CSV</span>.</li>
 <li><b>Units</b>: the key results of every unit (duties, powers, conversions, column specs).</li>
 <li><b>Balance</b>: overall mass closure and heating / cooling totals. Closure should be close to 0 %; a large value points to a problem.</li>
-<li><b>Run log</b> and <b>Issues</b>: what the solver did, warnings (for example a unit outside its validity range) and anything missing.</li>
+<li><b>Convergence</b>: recycle, design-spec, calculator and optimisation histories (see section 6).</li>
+<li><b>Cases</b>, <b>Pinch</b> and <b>Costs</b>: see section 7.</li>
+<li><b>Run log</b> and <b>Issues</b>: what the solver did, warnings (for example a unit outside its validity range) and anything missing. Issues ends with a <b>specification check</b> of every unit: the specification chosen, the values given, anything missing or invalid, and any value entered that the chosen specification does not use (for example a duty typed in while the heater is set to an outlet temperature). Press <kbd>F1</kbd> on a unit for its assumptions, inputs and valid ranges.</li>
 <li><b>Unit and stream panels</b>: detailed results. Columns and plug-flow reactors show profiles. Acid-gas streams show CO₂ loading, equilibrium CO₂ pressure and related values. With a property method, every stream also shows density, Cp, viscosity and thermal conductivity for each phase.</li>
 <li><b>Stream analysis</b> (in a stream's panel), using the flowsheet property method:
   <ul>
@@ -266,19 +322,19 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
   <li><span class="ui">Binary diagram</span>: T–x–y, P–x–y and y–x curves with azeotropes.</li>
   </ul>
   The phase envelope is not available with the acid-gas methods.</li>
-<li><b>Report</b>: opens a printable page with the drawing, the stream table and the unit results, together with the browser's print dialog. Choose “Save as PDF” there for a PDF.</li>
+<li><b>Report</b>: the report builder. Give a title and, if you like, a project, document number and revision; choose A4 or Letter, portrait or landscape; tick the sections (drawing, feeds, stream table, unit summary, unit details, balance, design specs, convergence, sensitivity, optimisation, costs, pinch analysis, case comparison, specification check, warnings), the streams, the stream properties and the units. <span class="ui">Word (.docx)</span> downloads an editable document; <span class="ui">PDF (print view)</span> opens a print layout — choose “Save as PDF” in the print dialog. Both carry multicalci.com, the date and the page number on every page, and wide stream tables are split into column groups that fit the page. <span class="ui">Excel H&amp;MB</span> downloads the full heat and material balance workbook.</li>
 </ul>
 
-<h2 id="files">8 · Saving, opening and sharing</h2>
+<h2 id="files">9 · Saving, opening and sharing</h2>
 <ul>
 <li><b>Autosave</b>: the current flowsheet is kept in this browser and reappears when you come back. It is not synchronised to other devices, and clearing the browser's site data removes it.</li>
-<li><span class="ui">File → Save to file</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) downloads a <code>.json</code> file. <span class="ui">Open file…</span> loads it again. Keep files for anything you need later.</li>
-<li><span class="ui">File → Copy share link</span> puts the whole flowsheet into one URL. Anyone who opens it gets their own copy; nothing is stored on a server.</li>
+<li><span class="ui">File → Save to file</span> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) downloads a <code>.json</code> file, with its saved cases. <span class="ui">Open file…</span> loads it again. Keep files for anything you need later.</li>
+<li><span class="ui">File → Copy share link</span> puts the whole flowsheet (without its cases) into one URL. Anyone who opens it gets their own copy; nothing is stored on a server.</li>
 <li><span class="ui">File → New flowsheet</span> clears the canvas (save first if needed).</li>
 <li>For a quick single-unit calculation without drawing, use the <a href="/material-balance">classic worksheet</a>.</li>
 </ul>
 
-<h2 id="examples">9 · Ready-made examples</h2>
+<h2 id="examples">10 · Ready-made examples</h2>
 <p>Every example is fully specified. Open one, press Run, then change something and run again. It's the quickest way to learn a unit.</p>
 <div class="tw"><table><thead><tr><th>Example</th><th>Shows</th></tr></thead><tbody>
 <tr><td>Gas cooling &amp; condensate knock-out</td><td>Mixer → cooler → flash drum. The best first example.</td></tr>
@@ -298,7 +354,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Syngas CO₂ removal: MEA, MDEA, activated MDEA, hot potassium carbonate</td><td>Absorber, flash let-down, lean/rich exchanger and regenerator with each solvent</td></tr>
 </tbody></table></div>
 
-<h2 id="trouble">10 · Troubleshooting</h2>
+<h2 id="trouble">11 · Troubleshooting</h2>
 <dl class="faq">
 <dt>Run does nothing, or the status lamp stays grey.</dt>
 <dd>Something is not specified. Open the <span class="ui">Issues</span> tab and click each entry. Look for red ports (an inlet with no stream) and units without the <span class="ui">complete</span> badge.</dd>
@@ -316,30 +372,41 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <dd>The free engine allows about 60 runs per minute from one user, and many quick runs in a row trigger a short pause. Nothing is lost; the run continues after the pause.</dd>
 <dt>“Flowsheet exceeded the server time budget”.</dt>
 <dd>One server call must finish in about 8 seconds. A larger flowsheet does not stop there: the call hands back where it got to (torn streams, column profiles, design-spec point, finished sensitivity points) and the page continues automatically with further calls — the status line shows <span class="ui">continuing on the server (call 2 of up to 8)</span>. This message appears only when even eight calls are not enough. Then reduce stages or sensitivity points, check that every recycle loop can converge (see above), or split the flowsheet into parts by turning internal streams into specified feeds.</dd>
+<dt>The optimisation ends “infeasible” or on a bound.</dt>
+<dd>Infeasible means no point it tried met every limit: widen the bounds, start from a point that meets the limits, or relax a limit. A variable on a bound means the optimum lies outside the range — widen it if that is physically allowed. If points fail to solve (listed as failed in the Convergence tab), narrow the bounds to where the flowsheet converges.</dd>
+<dt>A unit says “not costed”.</dt>
+<dd>Mixers, splitters, valves and turbines carry no cost here. An equilibrium reactor needs its volume: select it and enter the volume under <span class="ui">Costing</span>, with equipment <span class="ui">Reactor vessel</span>.</dd>
 <dt>I expected two liquid phases (or got one I did not expect).</dt>
 <dd>Set <span class="ui">Valid phases</span> in the flowsheet panel. Use vapour–liquid–liquid for free water with hydrocarbons, and vapour–liquid where a second liquid is impossible.</dd>
 <dt>My results differ from another simulator.</dt>
 <dd>Compare the same property method with the same binary parameters. Use <span class="ui">Review pure-component &amp; binary data</span> to see what is used. The <a href="/flowsheet-validation">validation page</a> shows where this engine agrees with DWSIM and other references.</dd>
 </dl>
 
-<h2 id="limits">11 · Accuracy and limits</h2>
+<h2 id="limits">12 · Accuracy and limits</h2>
 <p>The simulator is meant for preliminary engineering, studies, debottleneck checks and teaching. Its methods are checked against independent references on the <a href="/flowsheet-validation">validation page</a>, but results are only as good as the property parameters and specifications behind them. Know these limits:</p>
 <ul>
 <li><b>Columns</b> are equilibrium-stage models. Tray efficiencies stand in for mass-transfer rates; there is no rate-based or packing hydraulics model.</li>
 <li><b>CO₂ removal methods</b> cover CO₂ only, not H₂S or NH₃. The piperazine part of activated MDEA is fitted to measured data, and the rich end of a high-pressure absorber is an extrapolation that the stream warnings flag.</li>
 <li><b>Urea units</b> are tuned empirical correlations and warn outside their validity range.</li>
 <li><b>Steam / water method</b>: pure water only.</li>
-<li><b>Not covered</b>: equipment sizing and costing, dynamics and safety studies.</li>
+<li><b>Costing</b> is a study estimate (about −20 % / +30 %) from published correlations and example prices; mechanical design, piping, instruments and buildings are covered only by the module and grassroots factors. Turbines, expanders and valves are not costed.</li>
+<li><b>Optimisation</b> finds a local optimum within the bounds; it is not a global search.</li>
+<li><b>User components and filled binary pairs</b> are group-contribution estimates — screening quality. Enter measured constants where you have them and fitted binary parameters for design.</li>
+<li><b>Not covered</b>: detailed mechanical design, dynamics and safety studies.</li>
 </ul>
 <div class="warn"><b>Before design use</b>, check key results against plant data, vendor information or a second calculation.</div>
 
-<h2 id="keys">12 · Keyboard and phone</h2>
+<h2 id="keys">13 · Keyboard and phone</h2>
 <div class="tw"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td><kbd>F5</kbd></td><td>Run the flowsheet</td></tr>
-<tr><td><kbd>Del</kbd></td><td>Delete the selected unit or stream</td></tr>
+<tr><td><kbd>F1</kbd></td><td>Assumptions, inputs and valid ranges of the selected unit, or of the property method</td></tr>
+<tr><td><kbd>Del</kbd></td><td>Delete the selected unit(s) or stream</td></tr>
+<tr><td><kbd>Shift</kbd>/<kbd>Ctrl</kbd>+click, <kbd>Shift</kbd>+drag on empty canvas, <kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select several units (then drag one to move them together; align and distribute in the panel)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>X</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Copy, cut and paste units with the streams between them (also between browser tabs); a copied stream pasted onto a feed gives it the same conditions and composition</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate the selected units</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save to file</td></tr>
-<tr><td>Arrow keys</td><td>Nudge the selected block</td></tr>
+<tr><td>Arrow keys</td><td>Nudge the selected units (<kbd>Shift</kbd> for small steps)</td></tr>
 <tr><td><kbd>Esc</kbd></td><td>Close a menu or pop-up, cancel a drag, deselect</td></tr>
 <tr><td><kbd>Ctrl</kbd>+wheel, pinch</td><td>Zoom; drag empty canvas to pan</td></tr>
 </tbody></table></div>
