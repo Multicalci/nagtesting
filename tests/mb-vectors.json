@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 2.6 — + Step 33 (fugacity Gibbs, carbon, syngas units on the property method, ammonia kinetics in fugacities, pipe, dense-gas viscosity, valve sizing data), vectors MB-001..MB-247",
+  "version": "mb-vectors 3.0 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties), vectors MB-001..MB-305",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -14008,6 +14008,9054 @@
     "default": 1e-09
    },
    "source": "Structural check: feed mass = gas product + deposited carbon (solids_out), and ΔH including the graphite enthalpy equals the reactor duty."
+  },
+  {
+   "id": "MB-248",
+   "desc": "r-urea-reactor (STEP 34): equilibrium CO2 → urea conversion at N/C 3.0, H/C 0.4, 180 °C (350 bar, all liquid)",
+   "call": "runModule",
+   "args": [
+    "r-urea-reactor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10230.712,
+       "T_K": 453.15,
+       "P_bar": 350,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.4993933951029019
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.4301704514798189
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.07043615341727927
+        }
+       ]
+      }
+     ],
+     "params": {
+      "mode": "specified_T",
+      "T_out_K": 453.15,
+      "P_out_bar": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.co2_conversion_equilibrium": 0.589
+   },
+   "tol": 0.004,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 8, equilibrium CO2 conversion to urea of the liquid (closed system, no vapour): Y = 58.9 %."
+  },
+  {
+   "id": "MB-249",
+   "desc": "r-urea-reactor (STEP 34): equilibrium CO2 → urea conversion at N/C 4.0, H/C 0, 160 °C (350 bar, all liquid)",
+   "call": "runModule",
+   "args": [
+    "r-urea-reactor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 11213.150000000001,
+       "T_K": 433.15,
+       "P_bar": 350,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.6075188506351916
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.3924811493648083
+        }
+       ]
+      }
+     ],
+     "params": {
+      "mode": "specified_T",
+      "T_out_K": 433.15,
+      "P_out_bar": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.co2_conversion_equilibrium": 0.7659999999999999
+   },
+   "tol": 0.004,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 8, equilibrium CO2 conversion to urea of the liquid (closed system, no vapour): Y = 76.6 %."
+  },
+  {
+   "id": "MB-250",
+   "desc": "r-urea-reactor (STEP 34): equilibrium CO2 → urea conversion at N/C 3.5, H/C 1, 200 °C (350 bar, all liquid)",
+   "call": "runModule",
+   "args": [
+    "r-urea-reactor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 12163.155,
+       "T_K": 473.15,
+       "P_bar": 350,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.49005993921807295
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.36182635179770384
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.14811370898422324
+        }
+       ]
+      }
+     ],
+     "params": {
+      "mode": "specified_T",
+      "T_out_K": 473.15,
+      "P_out_bar": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.co2_conversion_equilibrium": 0.585
+   },
+   "tol": 0.004,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 8, equilibrium CO2 conversion to urea of the liquid (closed system, no vapour): Y = 58.5 %."
+  },
+  {
+   "id": "MB-251",
+   "desc": "r-urea-reactor (STEP 34): equilibrium CO2 → urea conversion at N/C 2.5, H/C 0.6, 200 °C (350 bar, all liquid)",
+   "call": "runModule",
+   "args": [
+    "r-urea-reactor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 9739.493,
+       "T_K": 473.15,
+       "P_bar": 350,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.4371505785773448
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.451866436990098
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.1109829844325572
+        }
+       ]
+      }
+     ],
+     "params": {
+      "mode": "specified_T",
+      "T_out_K": 473.15,
+      "P_out_bar": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.co2_conversion_equilibrium": 0.503
+   },
+   "tol": 0.004,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 8, equilibrium CO2 conversion to urea of the liquid (closed system, no vapour): Y = 50.3 %."
+  },
+  {
+   "id": "MB-252",
+   "desc": "r-urea-reactor (STEP 34): equilibrium CO2 → urea conversion at N/C 5.5, H/C 0.2, 180 °C (350 bar, all liquid)",
+   "call": "runModule",
+   "args": [
+    "r-urea-reactor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 14128.031,
+       "T_K": 453.15,
+       "P_bar": 350,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.6629922456993476
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.3115048374398386
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.025502916860813792
+        }
+       ]
+      }
+     ],
+     "params": {
+      "mode": "specified_T",
+      "T_out_K": 453.15,
+      "P_out_bar": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.co2_conversion_equilibrium": 0.855
+   },
+   "tol": 0.004,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 8, equilibrium CO2 conversion to urea of the liquid (closed system, no vapour): Y = 85.5 %."
+  },
+  {
+   "id": "MB-253",
+   "desc": "urea method (STEP 34): bubble pressure of the liquid at N/C 3.0, H/C 0.4, 180 °C (r-flash at T, vapour fraction 0)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10230.71789,
+       "T_K": 453.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.30329808067848113
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.17679995377137706
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.1741532890611257
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.34574867648901614
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "urea"
+      },
+      "T_K": 453.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.P_bar": 118
+   },
+   "tol": 9.44,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 9, bubble pressure of the equilibrium liquid (their model); tolerance 8 % — the vapour here is Peng–Robinson with k_ij(NH3–CO2) = 0.10 fitted to that table (4.7 % rms over all 126 points): P = 11.8 MPa."
+  },
+  {
+   "id": "MB-254",
+   "desc": "urea method (STEP 34): bubble pressure of the liquid at N/C 4.0, H/C 0, 160 °C (r-flash at T, vapour fraction 0)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 11213.15766,
+       "T_K": 433.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.3748388747795418
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.09184052621266724
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.12306720567415974
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.41025339333363114
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "urea"
+      },
+      "T_K": 433.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.P_bar": 98
+   },
+   "tol": 7.84,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 9, bubble pressure of the equilibrium liquid (their model); tolerance 8 % — the vapour here is Peng–Robinson with k_ij(NH3–CO2) = 0.10 fitted to that table (4.7 % rms over all 126 points): P = 9.8 MPa."
+  },
+  {
+   "id": "MB-255",
+   "desc": "urea method (STEP 34): bubble pressure of the liquid at N/C 3.5, H/C 0.6, 200 °C (r-flash at T, vapour fraction 0)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 11442.549359999999,
+       "T_K": 473.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.33160402289931656
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.13999902902756628
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.19459746337506734
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.3337994846980499
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "urea"
+      },
+      "T_K": 473.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.P_bar": 194
+   },
+   "tol": 15.52,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 9, bubble pressure of the equilibrium liquid (their model); tolerance 8 % — the vapour here is Peng–Robinson with k_ij(NH3–CO2) = 0.10 fitted to that table (4.7 % rms over all 126 points): P = 19.4 MPa."
+  },
+  {
+   "id": "MB-256",
+   "desc": "urea method (STEP 34): bubble pressure of the liquid at N/C 5.0, H/C 1, 180 °C (r-flash at T, vapour fraction 0)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 14717.737570000001,
+       "T_K": 453.15,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.40337941016840667
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.07266272040207333
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.21506622162172442
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.30889164780779554
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "urea"
+      },
+      "T_K": 453.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.P_bar": 129
+   },
+   "tol": 10.32,
+   "source": "Voskov, Pilaar & Rietveld, Ind. Eng. Chem. Res. 2016 — Table 9, bubble pressure of the equilibrium liquid (their model); tolerance 8 % — the vapour here is Peng–Robinson with k_ij(NH3–CO2) = 0.10 fitted to that table (4.7 % rms over all 126 points): P = 12.9 MPa."
+  },
+  {
+   "id": "MB-257",
+   "desc": "r-urea-stripper (STEP 34): six-stage CO2 stripper — the unit duty equals the latent heat of 28 t/h of 23 bar steam (IAPWS-IF97) and the column converges",
+   "call": "runModule",
+   "args": [
+    "r-urea-stripper",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 104108.708,
+       "T_K": 456,
+       "P_bar": 140,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.3009942261506117
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.17754509065658564
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.18688661471046208
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.3345740684823406
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 44149.567,
+       "T_K": 390,
+       "P_bar": 141,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.9968274434039183
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.0031725565960816784
+        }
+       ]
+      }
+     ],
+     "params": {
+      "stages": 6,
+      "steam_kg_h": 28000,
+      "steam_P_bar": 23,
+      "P_out_bar": 140
+     }
+    }
+   ],
+   "expect": {
+    "energy_balance.Q_kW": 14461.213738636476,
+    "converged": true,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "energy_balance.Q_kW": 1.0,
+    "mass_balance.closure_pct": 1e-06,
+    "default": 1e-09
+   },
+   "source": "IAPWS-IF97: h″ − h′ at 2.3 MPa = 1859.30 kJ/kg (regions 2 and 1 at Tsat = 492.71 K); Q = 28 000 × 1859.30 / 3600 kW."
+  },
+  {
+   "id": "MB-258",
+   "desc": "flowsheet on the urea method (STEP 34): adiabatic urea reactor → flash → CO2 stripper → mixer → HP carbamate condenser — mass and energy balances close on one enthalpy basis",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 104796.6444,
+       "T_K": 451.15,
+       "P_bar": 141,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.39002393859091916
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.3023650249625741
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.13408763305783863
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.17191953142346988
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.0016038719651981527
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 44177.5804,
+       "T_K": 393.15,
+       "P_bar": 145,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.9961953461806161
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.0038046538193839156
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 34061.0,
+       "T_K": 353.15,
+       "P_bar": 155,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1.0
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 32089.948,
+       "T_K": 363.15,
+       "P_bar": 150,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.32904104425473046
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.35657490002788417
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.31438405571738537
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "urea"
+      },
+      "blocks": [
+       {
+        "id": "R1",
+        "module": "r-urea-reactor",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "adiabatic",
+         "P_out_bar": 141
+        }
+       },
+       {
+        "id": "V1",
+        "module": "r-flash",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "duty_kW": 0,
+         "P_bar": 141
+        }
+       },
+       {
+        "id": "S1",
+        "module": "r-urea-stripper",
+        "n_in": 2,
+        "n_out": 2,
+        "params": {
+         "stages": 6,
+         "steam_kg_h": 28000,
+         "steam_P_bar": 23,
+         "P_out_bar": 141
+        }
+       },
+       {
+        "id": "M1",
+        "module": "r-mixer",
+        "n_in": 3,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 141
+        }
+       },
+       {
+        "id": "E1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 441.15
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "f0",
+        "from": null,
+        "to": {
+         "b": "R1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "f1",
+        "from": null,
+        "to": {
+         "b": "S1",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "f2",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 1
+        },
+        "feed": 2
+       },
+       {
+        "id": "f3",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 2
+        },
+        "feed": 3
+       },
+       {
+        "id": "r",
+        "from": {
+         "b": "R1",
+         "p": 0
+        },
+        "to": {
+         "b": "V1",
+         "p": 0
+        }
+       },
+       {
+        "id": "rg",
+        "from": {
+         "b": "V1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "l",
+        "from": {
+         "b": "V1",
+         "p": 1
+        },
+        "to": {
+         "b": "S1",
+         "p": 0
+        }
+       },
+       {
+        "id": "gas",
+        "from": {
+         "b": "S1",
+         "p": 0
+        },
+        "to": {
+         "b": "M1",
+         "p": 0
+        }
+       },
+       {
+        "id": "prod",
+        "from": {
+         "b": "S1",
+         "p": 1
+        },
+        "to": null
+       },
+       {
+        "id": "m",
+        "from": {
+         "b": "M1",
+         "p": 0
+        },
+        "to": {
+         "b": "E1",
+         "p": 0
+        }
+       },
+       {
+        "id": "c",
+        "from": {
+         "b": "E1",
+         "p": 0
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "mass_balance.closure_pct": 0,
+    "energy_balance.reconciliation.ok": true
+   },
+   "tol": {
+    "mass_balance.closure_pct": 1e-05,
+    "default": 1e-09
+   },
+   "source": "Structural check: ΔH(products − feeds) equals Σ duties within the reconciliation tolerance; the adiabatic reactor and mixer add no heat."
+  },
+  {
+   "id": "MB-259",
+   "desc": "urea method (STEP 34): urea on any other property method is refused with a pointer to the urea method",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 143.14395,
+       "T_K": 450,
+       "P_bar": 150,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 0.35692392168862186
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.3074492495142128
+        },
+        {
+         "key": "urea",
+         "mass_fraction": 0.20977240044025613
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.12585442835690927
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 450
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "TH_UREA"
+   },
+   "source": "Behavioural check: the urea liquid exists only in the urea synthesis method."
+  },
+  {
+   "id": "MB-260",
+   "desc": "flowsheet size (STEP 34): an 80-unit flowsheet (above the former 60-unit cap) solves in one call",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1954.955,
+       "T_K": 300,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6565061599883374
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.23071375044438364
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.11278008956727904
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H0",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H3",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H4",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H5",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H6",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H7",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H8",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H9",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H10",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H11",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H12",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H13",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H14",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H15",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H16",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H17",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H18",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H19",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H20",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H21",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H22",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H23",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H24",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H25",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H26",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H27",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H28",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H29",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H30",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H31",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H32",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H33",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H34",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H35",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H36",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H37",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H38",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H39",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H40",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H41",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H42",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H43",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H44",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H45",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H46",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H47",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H48",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H49",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H50",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H51",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H52",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H53",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H54",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H55",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H56",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H57",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H58",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H59",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H60",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H61",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H62",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H63",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H64",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H65",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H66",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H67",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H68",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H69",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H70",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H71",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H72",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H73",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H74",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H75",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H76",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H77",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H78",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H79",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H0",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S0",
+        "from": {
+         "b": "H0",
+         "p": 0
+        },
+        "to": {
+         "b": "H1",
+         "p": 0
+        }
+       },
+       {
+        "id": "S1",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "H2",
+         "p": 0
+        }
+       },
+       {
+        "id": "S2",
+        "from": {
+         "b": "H2",
+         "p": 0
+        },
+        "to": {
+         "b": "H3",
+         "p": 0
+        }
+       },
+       {
+        "id": "S3",
+        "from": {
+         "b": "H3",
+         "p": 0
+        },
+        "to": {
+         "b": "H4",
+         "p": 0
+        }
+       },
+       {
+        "id": "S4",
+        "from": {
+         "b": "H4",
+         "p": 0
+        },
+        "to": {
+         "b": "H5",
+         "p": 0
+        }
+       },
+       {
+        "id": "S5",
+        "from": {
+         "b": "H5",
+         "p": 0
+        },
+        "to": {
+         "b": "H6",
+         "p": 0
+        }
+       },
+       {
+        "id": "S6",
+        "from": {
+         "b": "H6",
+         "p": 0
+        },
+        "to": {
+         "b": "H7",
+         "p": 0
+        }
+       },
+       {
+        "id": "S7",
+        "from": {
+         "b": "H7",
+         "p": 0
+        },
+        "to": {
+         "b": "H8",
+         "p": 0
+        }
+       },
+       {
+        "id": "S8",
+        "from": {
+         "b": "H8",
+         "p": 0
+        },
+        "to": {
+         "b": "H9",
+         "p": 0
+        }
+       },
+       {
+        "id": "S9",
+        "from": {
+         "b": "H9",
+         "p": 0
+        },
+        "to": {
+         "b": "H10",
+         "p": 0
+        }
+       },
+       {
+        "id": "S10",
+        "from": {
+         "b": "H10",
+         "p": 0
+        },
+        "to": {
+         "b": "H11",
+         "p": 0
+        }
+       },
+       {
+        "id": "S11",
+        "from": {
+         "b": "H11",
+         "p": 0
+        },
+        "to": {
+         "b": "H12",
+         "p": 0
+        }
+       },
+       {
+        "id": "S12",
+        "from": {
+         "b": "H12",
+         "p": 0
+        },
+        "to": {
+         "b": "H13",
+         "p": 0
+        }
+       },
+       {
+        "id": "S13",
+        "from": {
+         "b": "H13",
+         "p": 0
+        },
+        "to": {
+         "b": "H14",
+         "p": 0
+        }
+       },
+       {
+        "id": "S14",
+        "from": {
+         "b": "H14",
+         "p": 0
+        },
+        "to": {
+         "b": "H15",
+         "p": 0
+        }
+       },
+       {
+        "id": "S15",
+        "from": {
+         "b": "H15",
+         "p": 0
+        },
+        "to": {
+         "b": "H16",
+         "p": 0
+        }
+       },
+       {
+        "id": "S16",
+        "from": {
+         "b": "H16",
+         "p": 0
+        },
+        "to": {
+         "b": "H17",
+         "p": 0
+        }
+       },
+       {
+        "id": "S17",
+        "from": {
+         "b": "H17",
+         "p": 0
+        },
+        "to": {
+         "b": "H18",
+         "p": 0
+        }
+       },
+       {
+        "id": "S18",
+        "from": {
+         "b": "H18",
+         "p": 0
+        },
+        "to": {
+         "b": "H19",
+         "p": 0
+        }
+       },
+       {
+        "id": "S19",
+        "from": {
+         "b": "H19",
+         "p": 0
+        },
+        "to": {
+         "b": "H20",
+         "p": 0
+        }
+       },
+       {
+        "id": "S20",
+        "from": {
+         "b": "H20",
+         "p": 0
+        },
+        "to": {
+         "b": "H21",
+         "p": 0
+        }
+       },
+       {
+        "id": "S21",
+        "from": {
+         "b": "H21",
+         "p": 0
+        },
+        "to": {
+         "b": "H22",
+         "p": 0
+        }
+       },
+       {
+        "id": "S22",
+        "from": {
+         "b": "H22",
+         "p": 0
+        },
+        "to": {
+         "b": "H23",
+         "p": 0
+        }
+       },
+       {
+        "id": "S23",
+        "from": {
+         "b": "H23",
+         "p": 0
+        },
+        "to": {
+         "b": "H24",
+         "p": 0
+        }
+       },
+       {
+        "id": "S24",
+        "from": {
+         "b": "H24",
+         "p": 0
+        },
+        "to": {
+         "b": "H25",
+         "p": 0
+        }
+       },
+       {
+        "id": "S25",
+        "from": {
+         "b": "H25",
+         "p": 0
+        },
+        "to": {
+         "b": "H26",
+         "p": 0
+        }
+       },
+       {
+        "id": "S26",
+        "from": {
+         "b": "H26",
+         "p": 0
+        },
+        "to": {
+         "b": "H27",
+         "p": 0
+        }
+       },
+       {
+        "id": "S27",
+        "from": {
+         "b": "H27",
+         "p": 0
+        },
+        "to": {
+         "b": "H28",
+         "p": 0
+        }
+       },
+       {
+        "id": "S28",
+        "from": {
+         "b": "H28",
+         "p": 0
+        },
+        "to": {
+         "b": "H29",
+         "p": 0
+        }
+       },
+       {
+        "id": "S29",
+        "from": {
+         "b": "H29",
+         "p": 0
+        },
+        "to": {
+         "b": "H30",
+         "p": 0
+        }
+       },
+       {
+        "id": "S30",
+        "from": {
+         "b": "H30",
+         "p": 0
+        },
+        "to": {
+         "b": "H31",
+         "p": 0
+        }
+       },
+       {
+        "id": "S31",
+        "from": {
+         "b": "H31",
+         "p": 0
+        },
+        "to": {
+         "b": "H32",
+         "p": 0
+        }
+       },
+       {
+        "id": "S32",
+        "from": {
+         "b": "H32",
+         "p": 0
+        },
+        "to": {
+         "b": "H33",
+         "p": 0
+        }
+       },
+       {
+        "id": "S33",
+        "from": {
+         "b": "H33",
+         "p": 0
+        },
+        "to": {
+         "b": "H34",
+         "p": 0
+        }
+       },
+       {
+        "id": "S34",
+        "from": {
+         "b": "H34",
+         "p": 0
+        },
+        "to": {
+         "b": "H35",
+         "p": 0
+        }
+       },
+       {
+        "id": "S35",
+        "from": {
+         "b": "H35",
+         "p": 0
+        },
+        "to": {
+         "b": "H36",
+         "p": 0
+        }
+       },
+       {
+        "id": "S36",
+        "from": {
+         "b": "H36",
+         "p": 0
+        },
+        "to": {
+         "b": "H37",
+         "p": 0
+        }
+       },
+       {
+        "id": "S37",
+        "from": {
+         "b": "H37",
+         "p": 0
+        },
+        "to": {
+         "b": "H38",
+         "p": 0
+        }
+       },
+       {
+        "id": "S38",
+        "from": {
+         "b": "H38",
+         "p": 0
+        },
+        "to": {
+         "b": "H39",
+         "p": 0
+        }
+       },
+       {
+        "id": "S39",
+        "from": {
+         "b": "H39",
+         "p": 0
+        },
+        "to": {
+         "b": "H40",
+         "p": 0
+        }
+       },
+       {
+        "id": "S40",
+        "from": {
+         "b": "H40",
+         "p": 0
+        },
+        "to": {
+         "b": "H41",
+         "p": 0
+        }
+       },
+       {
+        "id": "S41",
+        "from": {
+         "b": "H41",
+         "p": 0
+        },
+        "to": {
+         "b": "H42",
+         "p": 0
+        }
+       },
+       {
+        "id": "S42",
+        "from": {
+         "b": "H42",
+         "p": 0
+        },
+        "to": {
+         "b": "H43",
+         "p": 0
+        }
+       },
+       {
+        "id": "S43",
+        "from": {
+         "b": "H43",
+         "p": 0
+        },
+        "to": {
+         "b": "H44",
+         "p": 0
+        }
+       },
+       {
+        "id": "S44",
+        "from": {
+         "b": "H44",
+         "p": 0
+        },
+        "to": {
+         "b": "H45",
+         "p": 0
+        }
+       },
+       {
+        "id": "S45",
+        "from": {
+         "b": "H45",
+         "p": 0
+        },
+        "to": {
+         "b": "H46",
+         "p": 0
+        }
+       },
+       {
+        "id": "S46",
+        "from": {
+         "b": "H46",
+         "p": 0
+        },
+        "to": {
+         "b": "H47",
+         "p": 0
+        }
+       },
+       {
+        "id": "S47",
+        "from": {
+         "b": "H47",
+         "p": 0
+        },
+        "to": {
+         "b": "H48",
+         "p": 0
+        }
+       },
+       {
+        "id": "S48",
+        "from": {
+         "b": "H48",
+         "p": 0
+        },
+        "to": {
+         "b": "H49",
+         "p": 0
+        }
+       },
+       {
+        "id": "S49",
+        "from": {
+         "b": "H49",
+         "p": 0
+        },
+        "to": {
+         "b": "H50",
+         "p": 0
+        }
+       },
+       {
+        "id": "S50",
+        "from": {
+         "b": "H50",
+         "p": 0
+        },
+        "to": {
+         "b": "H51",
+         "p": 0
+        }
+       },
+       {
+        "id": "S51",
+        "from": {
+         "b": "H51",
+         "p": 0
+        },
+        "to": {
+         "b": "H52",
+         "p": 0
+        }
+       },
+       {
+        "id": "S52",
+        "from": {
+         "b": "H52",
+         "p": 0
+        },
+        "to": {
+         "b": "H53",
+         "p": 0
+        }
+       },
+       {
+        "id": "S53",
+        "from": {
+         "b": "H53",
+         "p": 0
+        },
+        "to": {
+         "b": "H54",
+         "p": 0
+        }
+       },
+       {
+        "id": "S54",
+        "from": {
+         "b": "H54",
+         "p": 0
+        },
+        "to": {
+         "b": "H55",
+         "p": 0
+        }
+       },
+       {
+        "id": "S55",
+        "from": {
+         "b": "H55",
+         "p": 0
+        },
+        "to": {
+         "b": "H56",
+         "p": 0
+        }
+       },
+       {
+        "id": "S56",
+        "from": {
+         "b": "H56",
+         "p": 0
+        },
+        "to": {
+         "b": "H57",
+         "p": 0
+        }
+       },
+       {
+        "id": "S57",
+        "from": {
+         "b": "H57",
+         "p": 0
+        },
+        "to": {
+         "b": "H58",
+         "p": 0
+        }
+       },
+       {
+        "id": "S58",
+        "from": {
+         "b": "H58",
+         "p": 0
+        },
+        "to": {
+         "b": "H59",
+         "p": 0
+        }
+       },
+       {
+        "id": "S59",
+        "from": {
+         "b": "H59",
+         "p": 0
+        },
+        "to": {
+         "b": "H60",
+         "p": 0
+        }
+       },
+       {
+        "id": "S60",
+        "from": {
+         "b": "H60",
+         "p": 0
+        },
+        "to": {
+         "b": "H61",
+         "p": 0
+        }
+       },
+       {
+        "id": "S61",
+        "from": {
+         "b": "H61",
+         "p": 0
+        },
+        "to": {
+         "b": "H62",
+         "p": 0
+        }
+       },
+       {
+        "id": "S62",
+        "from": {
+         "b": "H62",
+         "p": 0
+        },
+        "to": {
+         "b": "H63",
+         "p": 0
+        }
+       },
+       {
+        "id": "S63",
+        "from": {
+         "b": "H63",
+         "p": 0
+        },
+        "to": {
+         "b": "H64",
+         "p": 0
+        }
+       },
+       {
+        "id": "S64",
+        "from": {
+         "b": "H64",
+         "p": 0
+        },
+        "to": {
+         "b": "H65",
+         "p": 0
+        }
+       },
+       {
+        "id": "S65",
+        "from": {
+         "b": "H65",
+         "p": 0
+        },
+        "to": {
+         "b": "H66",
+         "p": 0
+        }
+       },
+       {
+        "id": "S66",
+        "from": {
+         "b": "H66",
+         "p": 0
+        },
+        "to": {
+         "b": "H67",
+         "p": 0
+        }
+       },
+       {
+        "id": "S67",
+        "from": {
+         "b": "H67",
+         "p": 0
+        },
+        "to": {
+         "b": "H68",
+         "p": 0
+        }
+       },
+       {
+        "id": "S68",
+        "from": {
+         "b": "H68",
+         "p": 0
+        },
+        "to": {
+         "b": "H69",
+         "p": 0
+        }
+       },
+       {
+        "id": "S69",
+        "from": {
+         "b": "H69",
+         "p": 0
+        },
+        "to": {
+         "b": "H70",
+         "p": 0
+        }
+       },
+       {
+        "id": "S70",
+        "from": {
+         "b": "H70",
+         "p": 0
+        },
+        "to": {
+         "b": "H71",
+         "p": 0
+        }
+       },
+       {
+        "id": "S71",
+        "from": {
+         "b": "H71",
+         "p": 0
+        },
+        "to": {
+         "b": "H72",
+         "p": 0
+        }
+       },
+       {
+        "id": "S72",
+        "from": {
+         "b": "H72",
+         "p": 0
+        },
+        "to": {
+         "b": "H73",
+         "p": 0
+        }
+       },
+       {
+        "id": "S73",
+        "from": {
+         "b": "H73",
+         "p": 0
+        },
+        "to": {
+         "b": "H74",
+         "p": 0
+        }
+       },
+       {
+        "id": "S74",
+        "from": {
+         "b": "H74",
+         "p": 0
+        },
+        "to": {
+         "b": "H75",
+         "p": 0
+        }
+       },
+       {
+        "id": "S75",
+        "from": {
+         "b": "H75",
+         "p": 0
+        },
+        "to": {
+         "b": "H76",
+         "p": 0
+        }
+       },
+       {
+        "id": "S76",
+        "from": {
+         "b": "H76",
+         "p": 0
+        },
+        "to": {
+         "b": "H77",
+         "p": 0
+        }
+       },
+       {
+        "id": "S77",
+        "from": {
+         "b": "H77",
+         "p": 0
+        },
+        "to": {
+         "b": "H78",
+         "p": 0
+        }
+       },
+       {
+        "id": "S78",
+        "from": {
+         "b": "H78",
+         "p": 0
+        },
+        "to": {
+         "b": "H79",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "H79",
+         "p": 0
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "mass_balance.closure_pct": 0,
+    "stream_results.P.T_K": 302
+   },
+   "tol": {
+    "mass_balance.closure_pct": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Structural check: the chain of heaters ends at the last heater's outlet temperature; mass is conserved."
+  },
+  {
+   "id": "MB-261",
+   "desc": "flowsheet size (STEP 34): more than 150 units is refused with MB_FS_BLOCKS",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1954.955,
+       "T_K": 300,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6565061599883374
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.23071375044438364
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.11278008956727904
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H0",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H3",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H4",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H5",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H6",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H7",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H8",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H9",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H10",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H11",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H12",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H13",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H14",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H15",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H16",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H17",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H18",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H19",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H20",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H21",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H22",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H23",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H24",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H25",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H26",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H27",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H28",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H29",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H30",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H31",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H32",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H33",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H34",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H35",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H36",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H37",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H38",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H39",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H40",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H41",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H42",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H43",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H44",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H45",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H46",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H47",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H48",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H49",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H50",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H51",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H52",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H53",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H54",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H55",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H56",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H57",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H58",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H59",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H60",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H61",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H62",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H63",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H64",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H65",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H66",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H67",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H68",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H69",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H70",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H71",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H72",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H73",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H74",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H75",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H76",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H77",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H78",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H79",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H80",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H81",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H82",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H83",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H84",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H85",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H86",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H87",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H88",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H89",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H90",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H91",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H92",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H93",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H94",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H95",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H96",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H97",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H98",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H99",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H100",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H101",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H102",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H103",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H104",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H105",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H106",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H107",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H108",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H109",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H110",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H111",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H112",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H113",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H114",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H115",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H116",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H117",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H118",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H119",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H120",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H121",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H122",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H123",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H124",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H125",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H126",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H127",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H128",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H129",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H130",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H131",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H132",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H133",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H134",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H135",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H136",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H137",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H138",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H139",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H140",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H141",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H142",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H143",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       },
+       {
+        "id": "H144",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 304
+        }
+       },
+       {
+        "id": "H145",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 305
+        }
+       },
+       {
+        "id": "H146",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 306
+        }
+       },
+       {
+        "id": "H147",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 300
+        }
+       },
+       {
+        "id": "H148",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 301
+        }
+       },
+       {
+        "id": "H149",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 302
+        }
+       },
+       {
+        "id": "H150",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 303
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H0",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S0",
+        "from": {
+         "b": "H0",
+         "p": 0
+        },
+        "to": {
+         "b": "H1",
+         "p": 0
+        }
+       },
+       {
+        "id": "S1",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "H2",
+         "p": 0
+        }
+       },
+       {
+        "id": "S2",
+        "from": {
+         "b": "H2",
+         "p": 0
+        },
+        "to": {
+         "b": "H3",
+         "p": 0
+        }
+       },
+       {
+        "id": "S3",
+        "from": {
+         "b": "H3",
+         "p": 0
+        },
+        "to": {
+         "b": "H4",
+         "p": 0
+        }
+       },
+       {
+        "id": "S4",
+        "from": {
+         "b": "H4",
+         "p": 0
+        },
+        "to": {
+         "b": "H5",
+         "p": 0
+        }
+       },
+       {
+        "id": "S5",
+        "from": {
+         "b": "H5",
+         "p": 0
+        },
+        "to": {
+         "b": "H6",
+         "p": 0
+        }
+       },
+       {
+        "id": "S6",
+        "from": {
+         "b": "H6",
+         "p": 0
+        },
+        "to": {
+         "b": "H7",
+         "p": 0
+        }
+       },
+       {
+        "id": "S7",
+        "from": {
+         "b": "H7",
+         "p": 0
+        },
+        "to": {
+         "b": "H8",
+         "p": 0
+        }
+       },
+       {
+        "id": "S8",
+        "from": {
+         "b": "H8",
+         "p": 0
+        },
+        "to": {
+         "b": "H9",
+         "p": 0
+        }
+       },
+       {
+        "id": "S9",
+        "from": {
+         "b": "H9",
+         "p": 0
+        },
+        "to": {
+         "b": "H10",
+         "p": 0
+        }
+       },
+       {
+        "id": "S10",
+        "from": {
+         "b": "H10",
+         "p": 0
+        },
+        "to": {
+         "b": "H11",
+         "p": 0
+        }
+       },
+       {
+        "id": "S11",
+        "from": {
+         "b": "H11",
+         "p": 0
+        },
+        "to": {
+         "b": "H12",
+         "p": 0
+        }
+       },
+       {
+        "id": "S12",
+        "from": {
+         "b": "H12",
+         "p": 0
+        },
+        "to": {
+         "b": "H13",
+         "p": 0
+        }
+       },
+       {
+        "id": "S13",
+        "from": {
+         "b": "H13",
+         "p": 0
+        },
+        "to": {
+         "b": "H14",
+         "p": 0
+        }
+       },
+       {
+        "id": "S14",
+        "from": {
+         "b": "H14",
+         "p": 0
+        },
+        "to": {
+         "b": "H15",
+         "p": 0
+        }
+       },
+       {
+        "id": "S15",
+        "from": {
+         "b": "H15",
+         "p": 0
+        },
+        "to": {
+         "b": "H16",
+         "p": 0
+        }
+       },
+       {
+        "id": "S16",
+        "from": {
+         "b": "H16",
+         "p": 0
+        },
+        "to": {
+         "b": "H17",
+         "p": 0
+        }
+       },
+       {
+        "id": "S17",
+        "from": {
+         "b": "H17",
+         "p": 0
+        },
+        "to": {
+         "b": "H18",
+         "p": 0
+        }
+       },
+       {
+        "id": "S18",
+        "from": {
+         "b": "H18",
+         "p": 0
+        },
+        "to": {
+         "b": "H19",
+         "p": 0
+        }
+       },
+       {
+        "id": "S19",
+        "from": {
+         "b": "H19",
+         "p": 0
+        },
+        "to": {
+         "b": "H20",
+         "p": 0
+        }
+       },
+       {
+        "id": "S20",
+        "from": {
+         "b": "H20",
+         "p": 0
+        },
+        "to": {
+         "b": "H21",
+         "p": 0
+        }
+       },
+       {
+        "id": "S21",
+        "from": {
+         "b": "H21",
+         "p": 0
+        },
+        "to": {
+         "b": "H22",
+         "p": 0
+        }
+       },
+       {
+        "id": "S22",
+        "from": {
+         "b": "H22",
+         "p": 0
+        },
+        "to": {
+         "b": "H23",
+         "p": 0
+        }
+       },
+       {
+        "id": "S23",
+        "from": {
+         "b": "H23",
+         "p": 0
+        },
+        "to": {
+         "b": "H24",
+         "p": 0
+        }
+       },
+       {
+        "id": "S24",
+        "from": {
+         "b": "H24",
+         "p": 0
+        },
+        "to": {
+         "b": "H25",
+         "p": 0
+        }
+       },
+       {
+        "id": "S25",
+        "from": {
+         "b": "H25",
+         "p": 0
+        },
+        "to": {
+         "b": "H26",
+         "p": 0
+        }
+       },
+       {
+        "id": "S26",
+        "from": {
+         "b": "H26",
+         "p": 0
+        },
+        "to": {
+         "b": "H27",
+         "p": 0
+        }
+       },
+       {
+        "id": "S27",
+        "from": {
+         "b": "H27",
+         "p": 0
+        },
+        "to": {
+         "b": "H28",
+         "p": 0
+        }
+       },
+       {
+        "id": "S28",
+        "from": {
+         "b": "H28",
+         "p": 0
+        },
+        "to": {
+         "b": "H29",
+         "p": 0
+        }
+       },
+       {
+        "id": "S29",
+        "from": {
+         "b": "H29",
+         "p": 0
+        },
+        "to": {
+         "b": "H30",
+         "p": 0
+        }
+       },
+       {
+        "id": "S30",
+        "from": {
+         "b": "H30",
+         "p": 0
+        },
+        "to": {
+         "b": "H31",
+         "p": 0
+        }
+       },
+       {
+        "id": "S31",
+        "from": {
+         "b": "H31",
+         "p": 0
+        },
+        "to": {
+         "b": "H32",
+         "p": 0
+        }
+       },
+       {
+        "id": "S32",
+        "from": {
+         "b": "H32",
+         "p": 0
+        },
+        "to": {
+         "b": "H33",
+         "p": 0
+        }
+       },
+       {
+        "id": "S33",
+        "from": {
+         "b": "H33",
+         "p": 0
+        },
+        "to": {
+         "b": "H34",
+         "p": 0
+        }
+       },
+       {
+        "id": "S34",
+        "from": {
+         "b": "H34",
+         "p": 0
+        },
+        "to": {
+         "b": "H35",
+         "p": 0
+        }
+       },
+       {
+        "id": "S35",
+        "from": {
+         "b": "H35",
+         "p": 0
+        },
+        "to": {
+         "b": "H36",
+         "p": 0
+        }
+       },
+       {
+        "id": "S36",
+        "from": {
+         "b": "H36",
+         "p": 0
+        },
+        "to": {
+         "b": "H37",
+         "p": 0
+        }
+       },
+       {
+        "id": "S37",
+        "from": {
+         "b": "H37",
+         "p": 0
+        },
+        "to": {
+         "b": "H38",
+         "p": 0
+        }
+       },
+       {
+        "id": "S38",
+        "from": {
+         "b": "H38",
+         "p": 0
+        },
+        "to": {
+         "b": "H39",
+         "p": 0
+        }
+       },
+       {
+        "id": "S39",
+        "from": {
+         "b": "H39",
+         "p": 0
+        },
+        "to": {
+         "b": "H40",
+         "p": 0
+        }
+       },
+       {
+        "id": "S40",
+        "from": {
+         "b": "H40",
+         "p": 0
+        },
+        "to": {
+         "b": "H41",
+         "p": 0
+        }
+       },
+       {
+        "id": "S41",
+        "from": {
+         "b": "H41",
+         "p": 0
+        },
+        "to": {
+         "b": "H42",
+         "p": 0
+        }
+       },
+       {
+        "id": "S42",
+        "from": {
+         "b": "H42",
+         "p": 0
+        },
+        "to": {
+         "b": "H43",
+         "p": 0
+        }
+       },
+       {
+        "id": "S43",
+        "from": {
+         "b": "H43",
+         "p": 0
+        },
+        "to": {
+         "b": "H44",
+         "p": 0
+        }
+       },
+       {
+        "id": "S44",
+        "from": {
+         "b": "H44",
+         "p": 0
+        },
+        "to": {
+         "b": "H45",
+         "p": 0
+        }
+       },
+       {
+        "id": "S45",
+        "from": {
+         "b": "H45",
+         "p": 0
+        },
+        "to": {
+         "b": "H46",
+         "p": 0
+        }
+       },
+       {
+        "id": "S46",
+        "from": {
+         "b": "H46",
+         "p": 0
+        },
+        "to": {
+         "b": "H47",
+         "p": 0
+        }
+       },
+       {
+        "id": "S47",
+        "from": {
+         "b": "H47",
+         "p": 0
+        },
+        "to": {
+         "b": "H48",
+         "p": 0
+        }
+       },
+       {
+        "id": "S48",
+        "from": {
+         "b": "H48",
+         "p": 0
+        },
+        "to": {
+         "b": "H49",
+         "p": 0
+        }
+       },
+       {
+        "id": "S49",
+        "from": {
+         "b": "H49",
+         "p": 0
+        },
+        "to": {
+         "b": "H50",
+         "p": 0
+        }
+       },
+       {
+        "id": "S50",
+        "from": {
+         "b": "H50",
+         "p": 0
+        },
+        "to": {
+         "b": "H51",
+         "p": 0
+        }
+       },
+       {
+        "id": "S51",
+        "from": {
+         "b": "H51",
+         "p": 0
+        },
+        "to": {
+         "b": "H52",
+         "p": 0
+        }
+       },
+       {
+        "id": "S52",
+        "from": {
+         "b": "H52",
+         "p": 0
+        },
+        "to": {
+         "b": "H53",
+         "p": 0
+        }
+       },
+       {
+        "id": "S53",
+        "from": {
+         "b": "H53",
+         "p": 0
+        },
+        "to": {
+         "b": "H54",
+         "p": 0
+        }
+       },
+       {
+        "id": "S54",
+        "from": {
+         "b": "H54",
+         "p": 0
+        },
+        "to": {
+         "b": "H55",
+         "p": 0
+        }
+       },
+       {
+        "id": "S55",
+        "from": {
+         "b": "H55",
+         "p": 0
+        },
+        "to": {
+         "b": "H56",
+         "p": 0
+        }
+       },
+       {
+        "id": "S56",
+        "from": {
+         "b": "H56",
+         "p": 0
+        },
+        "to": {
+         "b": "H57",
+         "p": 0
+        }
+       },
+       {
+        "id": "S57",
+        "from": {
+         "b": "H57",
+         "p": 0
+        },
+        "to": {
+         "b": "H58",
+         "p": 0
+        }
+       },
+       {
+        "id": "S58",
+        "from": {
+         "b": "H58",
+         "p": 0
+        },
+        "to": {
+         "b": "H59",
+         "p": 0
+        }
+       },
+       {
+        "id": "S59",
+        "from": {
+         "b": "H59",
+         "p": 0
+        },
+        "to": {
+         "b": "H60",
+         "p": 0
+        }
+       },
+       {
+        "id": "S60",
+        "from": {
+         "b": "H60",
+         "p": 0
+        },
+        "to": {
+         "b": "H61",
+         "p": 0
+        }
+       },
+       {
+        "id": "S61",
+        "from": {
+         "b": "H61",
+         "p": 0
+        },
+        "to": {
+         "b": "H62",
+         "p": 0
+        }
+       },
+       {
+        "id": "S62",
+        "from": {
+         "b": "H62",
+         "p": 0
+        },
+        "to": {
+         "b": "H63",
+         "p": 0
+        }
+       },
+       {
+        "id": "S63",
+        "from": {
+         "b": "H63",
+         "p": 0
+        },
+        "to": {
+         "b": "H64",
+         "p": 0
+        }
+       },
+       {
+        "id": "S64",
+        "from": {
+         "b": "H64",
+         "p": 0
+        },
+        "to": {
+         "b": "H65",
+         "p": 0
+        }
+       },
+       {
+        "id": "S65",
+        "from": {
+         "b": "H65",
+         "p": 0
+        },
+        "to": {
+         "b": "H66",
+         "p": 0
+        }
+       },
+       {
+        "id": "S66",
+        "from": {
+         "b": "H66",
+         "p": 0
+        },
+        "to": {
+         "b": "H67",
+         "p": 0
+        }
+       },
+       {
+        "id": "S67",
+        "from": {
+         "b": "H67",
+         "p": 0
+        },
+        "to": {
+         "b": "H68",
+         "p": 0
+        }
+       },
+       {
+        "id": "S68",
+        "from": {
+         "b": "H68",
+         "p": 0
+        },
+        "to": {
+         "b": "H69",
+         "p": 0
+        }
+       },
+       {
+        "id": "S69",
+        "from": {
+         "b": "H69",
+         "p": 0
+        },
+        "to": {
+         "b": "H70",
+         "p": 0
+        }
+       },
+       {
+        "id": "S70",
+        "from": {
+         "b": "H70",
+         "p": 0
+        },
+        "to": {
+         "b": "H71",
+         "p": 0
+        }
+       },
+       {
+        "id": "S71",
+        "from": {
+         "b": "H71",
+         "p": 0
+        },
+        "to": {
+         "b": "H72",
+         "p": 0
+        }
+       },
+       {
+        "id": "S72",
+        "from": {
+         "b": "H72",
+         "p": 0
+        },
+        "to": {
+         "b": "H73",
+         "p": 0
+        }
+       },
+       {
+        "id": "S73",
+        "from": {
+         "b": "H73",
+         "p": 0
+        },
+        "to": {
+         "b": "H74",
+         "p": 0
+        }
+       },
+       {
+        "id": "S74",
+        "from": {
+         "b": "H74",
+         "p": 0
+        },
+        "to": {
+         "b": "H75",
+         "p": 0
+        }
+       },
+       {
+        "id": "S75",
+        "from": {
+         "b": "H75",
+         "p": 0
+        },
+        "to": {
+         "b": "H76",
+         "p": 0
+        }
+       },
+       {
+        "id": "S76",
+        "from": {
+         "b": "H76",
+         "p": 0
+        },
+        "to": {
+         "b": "H77",
+         "p": 0
+        }
+       },
+       {
+        "id": "S77",
+        "from": {
+         "b": "H77",
+         "p": 0
+        },
+        "to": {
+         "b": "H78",
+         "p": 0
+        }
+       },
+       {
+        "id": "S78",
+        "from": {
+         "b": "H78",
+         "p": 0
+        },
+        "to": {
+         "b": "H79",
+         "p": 0
+        }
+       },
+       {
+        "id": "S79",
+        "from": {
+         "b": "H79",
+         "p": 0
+        },
+        "to": {
+         "b": "H80",
+         "p": 0
+        }
+       },
+       {
+        "id": "S80",
+        "from": {
+         "b": "H80",
+         "p": 0
+        },
+        "to": {
+         "b": "H81",
+         "p": 0
+        }
+       },
+       {
+        "id": "S81",
+        "from": {
+         "b": "H81",
+         "p": 0
+        },
+        "to": {
+         "b": "H82",
+         "p": 0
+        }
+       },
+       {
+        "id": "S82",
+        "from": {
+         "b": "H82",
+         "p": 0
+        },
+        "to": {
+         "b": "H83",
+         "p": 0
+        }
+       },
+       {
+        "id": "S83",
+        "from": {
+         "b": "H83",
+         "p": 0
+        },
+        "to": {
+         "b": "H84",
+         "p": 0
+        }
+       },
+       {
+        "id": "S84",
+        "from": {
+         "b": "H84",
+         "p": 0
+        },
+        "to": {
+         "b": "H85",
+         "p": 0
+        }
+       },
+       {
+        "id": "S85",
+        "from": {
+         "b": "H85",
+         "p": 0
+        },
+        "to": {
+         "b": "H86",
+         "p": 0
+        }
+       },
+       {
+        "id": "S86",
+        "from": {
+         "b": "H86",
+         "p": 0
+        },
+        "to": {
+         "b": "H87",
+         "p": 0
+        }
+       },
+       {
+        "id": "S87",
+        "from": {
+         "b": "H87",
+         "p": 0
+        },
+        "to": {
+         "b": "H88",
+         "p": 0
+        }
+       },
+       {
+        "id": "S88",
+        "from": {
+         "b": "H88",
+         "p": 0
+        },
+        "to": {
+         "b": "H89",
+         "p": 0
+        }
+       },
+       {
+        "id": "S89",
+        "from": {
+         "b": "H89",
+         "p": 0
+        },
+        "to": {
+         "b": "H90",
+         "p": 0
+        }
+       },
+       {
+        "id": "S90",
+        "from": {
+         "b": "H90",
+         "p": 0
+        },
+        "to": {
+         "b": "H91",
+         "p": 0
+        }
+       },
+       {
+        "id": "S91",
+        "from": {
+         "b": "H91",
+         "p": 0
+        },
+        "to": {
+         "b": "H92",
+         "p": 0
+        }
+       },
+       {
+        "id": "S92",
+        "from": {
+         "b": "H92",
+         "p": 0
+        },
+        "to": {
+         "b": "H93",
+         "p": 0
+        }
+       },
+       {
+        "id": "S93",
+        "from": {
+         "b": "H93",
+         "p": 0
+        },
+        "to": {
+         "b": "H94",
+         "p": 0
+        }
+       },
+       {
+        "id": "S94",
+        "from": {
+         "b": "H94",
+         "p": 0
+        },
+        "to": {
+         "b": "H95",
+         "p": 0
+        }
+       },
+       {
+        "id": "S95",
+        "from": {
+         "b": "H95",
+         "p": 0
+        },
+        "to": {
+         "b": "H96",
+         "p": 0
+        }
+       },
+       {
+        "id": "S96",
+        "from": {
+         "b": "H96",
+         "p": 0
+        },
+        "to": {
+         "b": "H97",
+         "p": 0
+        }
+       },
+       {
+        "id": "S97",
+        "from": {
+         "b": "H97",
+         "p": 0
+        },
+        "to": {
+         "b": "H98",
+         "p": 0
+        }
+       },
+       {
+        "id": "S98",
+        "from": {
+         "b": "H98",
+         "p": 0
+        },
+        "to": {
+         "b": "H99",
+         "p": 0
+        }
+       },
+       {
+        "id": "S99",
+        "from": {
+         "b": "H99",
+         "p": 0
+        },
+        "to": {
+         "b": "H100",
+         "p": 0
+        }
+       },
+       {
+        "id": "S100",
+        "from": {
+         "b": "H100",
+         "p": 0
+        },
+        "to": {
+         "b": "H101",
+         "p": 0
+        }
+       },
+       {
+        "id": "S101",
+        "from": {
+         "b": "H101",
+         "p": 0
+        },
+        "to": {
+         "b": "H102",
+         "p": 0
+        }
+       },
+       {
+        "id": "S102",
+        "from": {
+         "b": "H102",
+         "p": 0
+        },
+        "to": {
+         "b": "H103",
+         "p": 0
+        }
+       },
+       {
+        "id": "S103",
+        "from": {
+         "b": "H103",
+         "p": 0
+        },
+        "to": {
+         "b": "H104",
+         "p": 0
+        }
+       },
+       {
+        "id": "S104",
+        "from": {
+         "b": "H104",
+         "p": 0
+        },
+        "to": {
+         "b": "H105",
+         "p": 0
+        }
+       },
+       {
+        "id": "S105",
+        "from": {
+         "b": "H105",
+         "p": 0
+        },
+        "to": {
+         "b": "H106",
+         "p": 0
+        }
+       },
+       {
+        "id": "S106",
+        "from": {
+         "b": "H106",
+         "p": 0
+        },
+        "to": {
+         "b": "H107",
+         "p": 0
+        }
+       },
+       {
+        "id": "S107",
+        "from": {
+         "b": "H107",
+         "p": 0
+        },
+        "to": {
+         "b": "H108",
+         "p": 0
+        }
+       },
+       {
+        "id": "S108",
+        "from": {
+         "b": "H108",
+         "p": 0
+        },
+        "to": {
+         "b": "H109",
+         "p": 0
+        }
+       },
+       {
+        "id": "S109",
+        "from": {
+         "b": "H109",
+         "p": 0
+        },
+        "to": {
+         "b": "H110",
+         "p": 0
+        }
+       },
+       {
+        "id": "S110",
+        "from": {
+         "b": "H110",
+         "p": 0
+        },
+        "to": {
+         "b": "H111",
+         "p": 0
+        }
+       },
+       {
+        "id": "S111",
+        "from": {
+         "b": "H111",
+         "p": 0
+        },
+        "to": {
+         "b": "H112",
+         "p": 0
+        }
+       },
+       {
+        "id": "S112",
+        "from": {
+         "b": "H112",
+         "p": 0
+        },
+        "to": {
+         "b": "H113",
+         "p": 0
+        }
+       },
+       {
+        "id": "S113",
+        "from": {
+         "b": "H113",
+         "p": 0
+        },
+        "to": {
+         "b": "H114",
+         "p": 0
+        }
+       },
+       {
+        "id": "S114",
+        "from": {
+         "b": "H114",
+         "p": 0
+        },
+        "to": {
+         "b": "H115",
+         "p": 0
+        }
+       },
+       {
+        "id": "S115",
+        "from": {
+         "b": "H115",
+         "p": 0
+        },
+        "to": {
+         "b": "H116",
+         "p": 0
+        }
+       },
+       {
+        "id": "S116",
+        "from": {
+         "b": "H116",
+         "p": 0
+        },
+        "to": {
+         "b": "H117",
+         "p": 0
+        }
+       },
+       {
+        "id": "S117",
+        "from": {
+         "b": "H117",
+         "p": 0
+        },
+        "to": {
+         "b": "H118",
+         "p": 0
+        }
+       },
+       {
+        "id": "S118",
+        "from": {
+         "b": "H118",
+         "p": 0
+        },
+        "to": {
+         "b": "H119",
+         "p": 0
+        }
+       },
+       {
+        "id": "S119",
+        "from": {
+         "b": "H119",
+         "p": 0
+        },
+        "to": {
+         "b": "H120",
+         "p": 0
+        }
+       },
+       {
+        "id": "S120",
+        "from": {
+         "b": "H120",
+         "p": 0
+        },
+        "to": {
+         "b": "H121",
+         "p": 0
+        }
+       },
+       {
+        "id": "S121",
+        "from": {
+         "b": "H121",
+         "p": 0
+        },
+        "to": {
+         "b": "H122",
+         "p": 0
+        }
+       },
+       {
+        "id": "S122",
+        "from": {
+         "b": "H122",
+         "p": 0
+        },
+        "to": {
+         "b": "H123",
+         "p": 0
+        }
+       },
+       {
+        "id": "S123",
+        "from": {
+         "b": "H123",
+         "p": 0
+        },
+        "to": {
+         "b": "H124",
+         "p": 0
+        }
+       },
+       {
+        "id": "S124",
+        "from": {
+         "b": "H124",
+         "p": 0
+        },
+        "to": {
+         "b": "H125",
+         "p": 0
+        }
+       },
+       {
+        "id": "S125",
+        "from": {
+         "b": "H125",
+         "p": 0
+        },
+        "to": {
+         "b": "H126",
+         "p": 0
+        }
+       },
+       {
+        "id": "S126",
+        "from": {
+         "b": "H126",
+         "p": 0
+        },
+        "to": {
+         "b": "H127",
+         "p": 0
+        }
+       },
+       {
+        "id": "S127",
+        "from": {
+         "b": "H127",
+         "p": 0
+        },
+        "to": {
+         "b": "H128",
+         "p": 0
+        }
+       },
+       {
+        "id": "S128",
+        "from": {
+         "b": "H128",
+         "p": 0
+        },
+        "to": {
+         "b": "H129",
+         "p": 0
+        }
+       },
+       {
+        "id": "S129",
+        "from": {
+         "b": "H129",
+         "p": 0
+        },
+        "to": {
+         "b": "H130",
+         "p": 0
+        }
+       },
+       {
+        "id": "S130",
+        "from": {
+         "b": "H130",
+         "p": 0
+        },
+        "to": {
+         "b": "H131",
+         "p": 0
+        }
+       },
+       {
+        "id": "S131",
+        "from": {
+         "b": "H131",
+         "p": 0
+        },
+        "to": {
+         "b": "H132",
+         "p": 0
+        }
+       },
+       {
+        "id": "S132",
+        "from": {
+         "b": "H132",
+         "p": 0
+        },
+        "to": {
+         "b": "H133",
+         "p": 0
+        }
+       },
+       {
+        "id": "S133",
+        "from": {
+         "b": "H133",
+         "p": 0
+        },
+        "to": {
+         "b": "H134",
+         "p": 0
+        }
+       },
+       {
+        "id": "S134",
+        "from": {
+         "b": "H134",
+         "p": 0
+        },
+        "to": {
+         "b": "H135",
+         "p": 0
+        }
+       },
+       {
+        "id": "S135",
+        "from": {
+         "b": "H135",
+         "p": 0
+        },
+        "to": {
+         "b": "H136",
+         "p": 0
+        }
+       },
+       {
+        "id": "S136",
+        "from": {
+         "b": "H136",
+         "p": 0
+        },
+        "to": {
+         "b": "H137",
+         "p": 0
+        }
+       },
+       {
+        "id": "S137",
+        "from": {
+         "b": "H137",
+         "p": 0
+        },
+        "to": {
+         "b": "H138",
+         "p": 0
+        }
+       },
+       {
+        "id": "S138",
+        "from": {
+         "b": "H138",
+         "p": 0
+        },
+        "to": {
+         "b": "H139",
+         "p": 0
+        }
+       },
+       {
+        "id": "S139",
+        "from": {
+         "b": "H139",
+         "p": 0
+        },
+        "to": {
+         "b": "H140",
+         "p": 0
+        }
+       },
+       {
+        "id": "S140",
+        "from": {
+         "b": "H140",
+         "p": 0
+        },
+        "to": {
+         "b": "H141",
+         "p": 0
+        }
+       },
+       {
+        "id": "S141",
+        "from": {
+         "b": "H141",
+         "p": 0
+        },
+        "to": {
+         "b": "H142",
+         "p": 0
+        }
+       },
+       {
+        "id": "S142",
+        "from": {
+         "b": "H142",
+         "p": 0
+        },
+        "to": {
+         "b": "H143",
+         "p": 0
+        }
+       },
+       {
+        "id": "S143",
+        "from": {
+         "b": "H143",
+         "p": 0
+        },
+        "to": {
+         "b": "H144",
+         "p": 0
+        }
+       },
+       {
+        "id": "S144",
+        "from": {
+         "b": "H144",
+         "p": 0
+        },
+        "to": {
+         "b": "H145",
+         "p": 0
+        }
+       },
+       {
+        "id": "S145",
+        "from": {
+         "b": "H145",
+         "p": 0
+        },
+        "to": {
+         "b": "H146",
+         "p": 0
+        }
+       },
+       {
+        "id": "S146",
+        "from": {
+         "b": "H146",
+         "p": 0
+        },
+        "to": {
+         "b": "H147",
+         "p": 0
+        }
+       },
+       {
+        "id": "S147",
+        "from": {
+         "b": "H147",
+         "p": 0
+        },
+        "to": {
+         "b": "H148",
+         "p": 0
+        }
+       },
+       {
+        "id": "S148",
+        "from": {
+         "b": "H148",
+         "p": 0
+        },
+        "to": {
+         "b": "H149",
+         "p": 0
+        }
+       },
+       {
+        "id": "S149",
+        "from": {
+         "b": "H149",
+         "p": 0
+        },
+        "to": {
+         "b": "H150",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "H150",
+         "p": 0
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_BLOCKS"
+   },
+   "source": "Behavioural check: the flowsheet cap is 150 units, 400 streams, 10 design specs, 60 sensitivity points."
+  },
+  {
+   "desc": "pump performance curve (STEP 34): 100 m³/h of water at 40 °C on a curve point — discharge pressure from the curve head, power from ρgQH/η",
+   "call": "runModule",
+   "args": [
+    "pump",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 99226.74305831472,
+       "T_K": 313.15,
+       "P_bar": 2,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "curve": {
+       "flow_m3_h": [
+        0,
+        40,
+        80,
+        100,
+        120,
+        140
+       ],
+       "head_m": [
+        110,
+        108,
+        102,
+        96,
+        88,
+        77
+       ],
+       "efficiency": [
+        0.05,
+        0.5,
+        0.72,
+        0.76,
+        0.74,
+        0.66
+       ],
+       "speed_rpm": 2950
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.P_out_bar": 11.341586622203092,
+    "details.curve.head_m": 96.0,
+    "details.power_kW": 34.14322595834463
+   },
+   "tol": {
+    "details.P_out_bar": 1e-06,
+    "details.curve.head_m": 1e-09,
+    "details.power_kW": 0.0001
+   },
+   "source": "IAPWS-IF97 ρ(313.15 K, 0.2 MPa) = 992.267 kg/m³; ΔP = ρ g H with H = 96 m (curve point); P = Q ρ g H / η, η = 0.76.",
+   "id": "MB-262"
+  },
+  {
+   "desc": "pump affinity laws (STEP 34): 90 % speed and 90 m³/h map onto the 100 m³/h curve point — head × 0.81",
+   "call": "runModule",
+   "args": [
+    "pump",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 89304.06875248325,
+       "T_K": 313.15,
+       "P_bar": 2,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "curve": {
+       "flow_m3_h": [
+        0,
+        40,
+        80,
+        100,
+        120,
+        140
+       ],
+       "head_m": [
+        110,
+        108,
+        102,
+        96,
+        88,
+        77
+       ],
+       "efficiency": [
+        0.05,
+        0.5,
+        0.72,
+        0.76,
+        0.74,
+        0.66
+       ],
+       "speed_rpm": 2950
+      },
+      "speed_rpm": 2655
+     }
+    }
+   ],
+   "expect": {
+    "details.curve.head_m": 77.76,
+    "details.curve.flow_equivalent_m3_h": 100,
+    "details.P_out_bar": 9.566685163984506
+   },
+   "tol": {
+    "details.curve.head_m": 1e-09,
+    "details.curve.flow_equivalent_m3_h": 1e-09,
+    "details.P_out_bar": 1e-06
+   },
+   "source": "Affinity laws: Q ∝ N, H ∝ N² — Q_eq = 90/0.9 = 100 m³/h, H = 96 × 0.9² = 77.76 m.",
+   "id": "MB-263"
+  },
+  {
+   "desc": "compressor performance curve (STEP 34): at a curve point the discharge pressure makes the rigorous polytropic head equal the curve head, so the power is ṁ·H_p/η_p",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 53311.223817593054,
+       "T_K": 313.15,
+       "P_bar": 1.5,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.99
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.01
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "curve": {
+       "flow_m3_h": [
+        15000,
+        18000,
+        21000,
+        24000,
+        27000
+       ],
+       "head_kJkg": [
+        118,
+        115,
+        110,
+        102,
+        90
+       ],
+       "efficiency": [
+        0.74,
+        0.79,
+        0.81,
+        0.79,
+        0.72
+       ],
+       "speed_rpm": 7000,
+       "surge_flow_m3_h": 15500
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.curve.head_kJkg": 110,
+    "details.curve.efficiency": 0.81,
+    "energy_balance.W_kW": 2011.0543964112605
+   },
+   "tol": {
+    "details.curve.head_kJkg": 1e-06,
+    "details.curve.efficiency": 1e-09,
+    "energy_balance.W_kW": 0.01
+   },
+   "source": "Definition of polytropic head: H_p = η_p Δh, so W = ṁ H_p / η_p (110 kJ/kg, η_p = 0.81 at 21 000 m³/h).",
+   "id": "MB-264"
+  },
+  {
+   "desc": "compressor surge flag (STEP 34): an inlet flow below the curve surge flow is flagged",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 38079.44558399504,
+       "T_K": 313.15,
+       "P_bar": 1.5,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.99
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.01
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "curve": {
+       "flow_m3_h": [
+        15000,
+        18000,
+        21000,
+        24000,
+        27000
+       ],
+       "head_kJkg": [
+        118,
+        115,
+        110,
+        102,
+        90
+       ],
+       "efficiency": [
+        0.74,
+        0.79,
+        0.81,
+        0.79,
+        0.72
+       ],
+       "speed_rpm": 7000,
+       "surge_flow_m3_h": 15500
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.curve.surge": true
+   },
+   "source": "Behavioural check: 15 000 m³/h < surge flow 15 500 m³/h.",
+   "id": "MB-265"
+  },
+  {
+   "desc": "multistage compressor (STEP 34): four stages with intercoolers to 145 bar — equal stage ratios (145/1.4)^¼, mass conserved",
+   "call": "runModule",
+   "args": [
+    "r-compressor-train",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 44000,
+       "T_K": 313.15,
+       "P_bar": 1.4,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 0.99
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.01
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "stages": 4,
+      "P_out_bar": 145,
+      "intercooler_T_K": 313.15,
+      "efficiency": 0.78
+     }
+    }
+   ],
+   "expect": {
+    "details.stages.0.pressure_ratio": 3.1901418294461688,
+    "details.stages.3.pressure_ratio": 3.1901418294461688,
+    "streams_out.0.P_bar": 145,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "details.stages.0.pressure_ratio": 1e-09,
+    "details.stages.3.pressure_ratio": 1e-09,
+    "streams_out.0.P_bar": 1e-09,
+    "mass_balance.closure_pct": 1e-09
+   },
+   "source": "Equal pressure ratio per stage without cooler pressure drops: r = (145/1.4)^(1/4) = 3.19014.",
+   "id": "MB-266"
+  },
+  {
+   "desc": "calculator block (STEP 34): feed-forward — the steam feed is set to 3 mol H2O per mol CH4 read from the heated gas, and runs between the heater and the mixer",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1660.2728,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.966254461315032
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.03374553868496792
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 900.764,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 700
+        }
+       },
+       {
+        "id": "M1",
+        "module": "r-mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "G",
+        "from": null,
+        "to": {
+         "b": "H1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "G2",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "M1",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "S/C",
+        "imports": [
+         {
+          "name": "ch4",
+          "stream": "G2",
+          "metric": "comp_kmol_h",
+          "key": "CH4"
+         }
+        ],
+        "code": "# steam-to-carbon ratio 3\nsc = 3.0\nsteam = sc * ch4 * 18.01528",
+        "exports": [
+         {
+          "name": "steam",
+          "kind": "feed_flow",
+          "stream": "S"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "stream_results.S.mass_flow_kg_h": 5404.584,
+    "calculators.0.kind": "feed-forward",
+    "order.1.calculator": "calc1",
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "stream_results.S.mass_flow_kg_h": 1e-06,
+    "mass_balance.closure_pct": 1e-09
+   },
+   "source": "Arithmetic: 3 × 100 kmol/h CH4 × 18.01528 kg/kmol = 5404.584 kg/h of steam.",
+   "id": "MB-267"
+  },
+  {
+   "desc": "calculator block (STEP 34): feedback — the heater outlet temperature is adjusted from the mixed product temperature until the product reaches 650 K",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1660.2728,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.966254461315032
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.03374553868496792
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 900.764,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 700
+        }
+       },
+       {
+        "id": "M1",
+        "module": "r-mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "G",
+        "from": null,
+        "to": {
+         "b": "H1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "G2",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "M1",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "Tctl",
+        "imports": [
+         {
+          "name": "Tp",
+          "stream": "P",
+          "metric": "T_K"
+         },
+         {
+          "name": "Th",
+          "kind": "param",
+          "block": "H1",
+          "path": "T_out_K"
+         }
+        ],
+        "code": "target = 650\nTnew = Th + 1.5 * (target - Tp)",
+        "exports": [
+         {
+          "name": "Tnew",
+          "kind": "param",
+          "block": "H1",
+          "path": "T_out_K"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "stream_results.P.T_K": 650,
+    "calculators.0.kind": "feedback",
+    "calculators.0.converged": true,
+    "converged": true
+   },
+   "tol": {
+    "stream_results.P.T_K": 0.01
+   },
+   "source": "Fixed point of T_h ← T_h + 1.5 (650 − T_P): at convergence T_P = 650 K.",
+   "id": "MB-268"
+  },
+  {
+   "desc": "calculator block (STEP 34): a syntax error is reported with the line number before anything is solved",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1660.2728,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.966254461315032
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.03374553868496792
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 900.764,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 700
+        }
+       },
+       {
+        "id": "M1",
+        "module": "r-mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "G",
+        "from": null,
+        "to": {
+         "b": "H1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "G2",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "M1",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "bad",
+        "imports": [],
+        "code": "x = 2 *\ny = 1",
+        "exports": []
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_CALC"
+   },
+   "source": "Behavioural check.",
+   "id": "MB-269"
+  },
+  {
+   "desc": "pseudo-components (STEP 34): Twu (1984) from the Tb and SG of n-decane reproduces its critical constants and molar mass (n-alkane reference curve)",
+   "call": "runModule",
+   "args": [
+    "pseudo-props",
+    {
+     "params": {
+      "pseudo_components": [
+       {
+        "Tb_K": 447.3,
+        "SG": 0.7342
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.Tc_K": 617.7,
+    "details.components.0.Pc_bar": 21.1,
+    "details.components.0.MW": 142.28,
+    "details.components.0.omega": 0.49
+   },
+   "tol": {
+    "details.components.0.Tc_K": 2.5,
+    "details.components.0.Pc_bar": 0.4,
+    "details.components.0.MW": 0.5,
+    "details.components.0.omega": 0.02
+   },
+   "source": "n-decane: Tb 447.3 K, SG(60/60 °F) 0.7342, Tc 617.7 K, Pc 21.1 bar, ω 0.490, M 142.28 (Poling, Prausnitz & O’Connell, The Properties of Gases and Liquids, 5th ed., App. A; API Technical Data Book).",
+   "id": "MB-270"
+  },
+  {
+   "desc": "pseudo-components (STEP 34): Riazi–Daubert (1987) for n-decane — within the correlation's stated 1 % (Tc), 5 % (Pc) and 3 % (M)",
+   "call": "runModule",
+   "args": [
+    "pseudo-props",
+    {
+     "params": {
+      "pseudo_components": [
+       {
+        "Tb_K": 447.3,
+        "SG": 0.7342,
+        "method": "riazi"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.Tc_K": 617.7,
+    "details.components.0.Pc_bar": 21.1,
+    "details.components.0.MW": 142.28
+   },
+   "tol": {
+    "details.components.0.Tc_K": 6.2,
+    "details.components.0.Pc_bar": 1.06,
+    "details.components.0.MW": 4.3
+   },
+   "source": "n-decane: Tb 447.3 K, SG(60/60 °F) 0.7342, Tc 617.7 K, Pc 21.1 bar, ω 0.490, M 142.28 (Poling, Prausnitz & O’Connell, The Properties of Gases and Liquids, 5th ed., App. A; API Technical Data Book).",
+   "id": "MB-271"
+  },
+  {
+   "desc": "pseudo-components (STEP 34): Kesler–Lee (1976) Tc and Pc for n-decane — within 1 % and 5 %",
+   "call": "runModule",
+   "args": [
+    "pseudo-props",
+    {
+     "params": {
+      "pseudo_components": [
+       {
+        "Tb_K": 447.3,
+        "SG": 0.7342,
+        "method": "lee-kesler"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.Tc_K": 617.7,
+    "details.components.0.Pc_bar": 21.1,
+    "details.components.0.omega": 0.49
+   },
+   "tol": {
+    "details.components.0.Tc_K": 6.2,
+    "details.components.0.Pc_bar": 1.06,
+    "details.components.0.omega": 0.02
+   },
+   "source": "n-decane: Tb 447.3 K, SG(60/60 °F) 0.7342, Tc 617.7 K, Pc 21.1 bar, ω 0.490, M 142.28 (Poling, Prausnitz & O’Connell, The Properties of Gases and Liquids, 5th ed., App. A; API Technical Data Book).",
+   "id": "MB-272"
+  },
+  {
+   "desc": "TBP assay cutting (STEP 34): a straight-line TBP 300→700 K cut into four equal-temperature cuts — equal volumes, cut boiling points at the mid-temperatures, cuts' SG averaging to the bulk SG",
+   "call": "runModule",
+   "args": [
+    "assay-cut",
+    {
+     "params": {
+      "tbp": [
+       [
+        0,
+        300
+       ],
+       [
+        50,
+        500
+       ],
+       [
+        100,
+        700
+       ]
+      ],
+      "SG": 0.85,
+      "cuts": 4
+     }
+    }
+   ],
+   "expect": {
+    "details.VABP_K": 500,
+    "details.components.0.Tb_K": 350,
+    "details.components.3.Tb_K": 650,
+    "details.components.1.vol_frac": 0.25,
+    "details.SG_check": 0.85
+   },
+   "tol": {
+    "details.VABP_K": 1e-06,
+    "details.components.0.Tb_K": 0.05,
+    "details.components.3.Tb_K": 0.05,
+    "details.components.1.vol_frac": 1e-09,
+    "details.SG_check": 0.0002
+   },
+   "source": "Arithmetic on a linear TBP: the volume-average boiling point of each quarter is its mid-temperature; SG at constant Watson K scaled to the bulk SG (to the 4-decimal rounding of the cut SGs).",
+   "id": "MB-273"
+  },
+  {
+   "desc": "pseudo-components (STEP 34): on Peng–Robinson the n-decane-like pseudo-component boils at its own Tb (Lee–Kesler acentric factor through Tb)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 400,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "PC447.3_0.7342",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "pseudo_components": [
+       {
+        "Tb_K": 447.3,
+        "SG": 0.7342
+       }
+      ],
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 447.3
+   },
+   "tol": 1.0,
+   "source": "Definition of the pseudo-component: normal boiling point 447.3 K.",
+   "id": "MB-274"
+  },
+  {
+   "desc": "pseudo-components in a flowsheet (STEP 34): a crude cut into six pseudo-components from its TBP is heated to 360 °C and flashed — mass and energy balances close",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 200000,
+       "T_K": 303.15,
+       "P_bar": 15,
+       "components": [
+        {
+         "key": "PC357.5_0.7328",
+         "mass_fraction": 0.14077669946719104
+        },
+        {
+         "key": "PC450.6_0.7916",
+         "mass_fraction": 0.19089970508325627
+        },
+        {
+         "key": "PC549.0_0.8454",
+         "mass_fraction": 0.20387393971372525
+        },
+        {
+         "key": "PC644.7_0.8920",
+         "mass_fraction": 0.18490243382288837
+        },
+        {
+         "key": "PC744.1_0.9356",
+         "mass_fraction": 0.15262552607066388
+        },
+        {
+         "key": "PC839.1_0.9738",
+         "mass_fraction": 0.11692169584227514
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.01
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "pseudo_components": [
+       {
+        "key": "PC357.5_0.7328",
+        "Tb_K": 357.5,
+        "SG": 0.7328
+       },
+       {
+        "key": "PC450.6_0.7916",
+        "Tb_K": 450.6,
+        "SG": 0.7916
+       },
+       {
+        "key": "PC549.0_0.8454",
+        "Tb_K": 549,
+        "SG": 0.8454
+       },
+       {
+        "key": "PC644.7_0.8920",
+        "Tb_K": 644.7,
+        "SG": 0.892
+       },
+       {
+        "key": "PC744.1_0.9356",
+        "Tb_K": 744.1,
+        "SG": 0.9356
+       },
+       {
+        "key": "PC839.1_0.9738",
+        "Tb_K": 839.1,
+        "SG": 0.9738
+       }
+      ],
+      "blocks": [
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 633.15,
+         "dp_bar": 13
+        }
+       },
+       {
+        "id": "V1",
+        "module": "r-flash",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "duty_kW": 0
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "H",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "V1",
+         "p": 0
+        }
+       },
+       {
+        "id": "V",
+        "from": {
+         "b": "V1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "L",
+        "from": {
+         "b": "V1",
+         "p": 1
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "mass_balance.closure_pct": 0,
+    "energy_balance.reconciliation.ok": true,
+    "converged": true
+   },
+   "tol": {
+    "mass_balance.closure_pct": 1e-06,
+    "default": 1e-09
+   },
+   "source": "Structural check on run-time components registered from params.pseudo_components.",
+   "id": "MB-275"
+  },
+  {
+   "desc": "solver transparency (STEP 35): the MB-100 recycle reports a pass-by-pass history and the final state of its torn stream — the first pass starts from guessed tear values (no estimate given) and the last change of the torn stream is inside the recycle tolerance",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 179139,
+       "T_K": 493.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.05064223870848894
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.23453854269589536
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.24567514611558622
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.4691440724800295
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 45037.5,
+       "T_K": 523.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "m",
+        "name": "M1",
+        "module": "mixer",
+        "n_in": 3,
+        "n_out": 1,
+        "params": {}
+       },
+       {
+        "id": "r",
+        "name": "R1",
+        "module": "reactor",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "adiabatic",
+         "reactions": [
+          {
+           "stoich": {
+            "CO": -1,
+            "H2O": -1,
+            "CO2": 1,
+            "H2": 1
+           },
+           "limiting": "CO",
+           "conversion": 0.9
+          }
+         ]
+        }
+       },
+       {
+        "id": "c",
+        "name": "E1",
+        "module": "mixer",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 313.15
+        }
+       },
+       {
+        "id": "f",
+        "name": "F1",
+        "module": "flash",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "T_K": 313.15,
+         "P_bar": 29
+        }
+       },
+       {
+        "id": "s",
+        "name": "SP1",
+        "module": "splitter",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "fractions": [
+          0.5,
+          0.5
+         ]
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "a",
+        "from": null,
+        "to": {
+         "b": "m",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "b",
+        "from": null,
+        "to": {
+         "b": "m",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "c1",
+        "from": {
+         "b": "m",
+         "p": 0
+        },
+        "to": {
+         "b": "r",
+         "p": 0
+        }
+       },
+       {
+        "id": "c2",
+        "from": {
+         "b": "r",
+         "p": 0
+        },
+        "to": {
+         "b": "c",
+         "p": 0
+        }
+       },
+       {
+        "id": "c3",
+        "from": {
+         "b": "c",
+         "p": 0
+        },
+        "to": {
+         "b": "f",
+         "p": 0
+        }
+       },
+       {
+        "id": "gas",
+        "from": {
+         "b": "f",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "liq",
+        "from": {
+         "b": "f",
+         "p": 1
+        },
+        "to": {
+         "b": "s",
+         "p": 0
+        }
+       },
+       {
+        "id": "rcy",
+        "from": {
+         "b": "s",
+         "p": 0
+        },
+        "to": {
+         "b": "m",
+         "p": 2
+        }
+       },
+       {
+        "id": "pur",
+        "from": {
+         "b": "s",
+         "p": 1
+        },
+        "to": null
+       }
+      ],
+      "options": {
+       "tol": 1e-09
+      }
+     }
+    }
+   ],
+   "expect": {
+    "loops.0.history.0.it": 1,
+    "loops.0.history.0.method": "guess",
+    "loops.0.tear_status.0.stream": "rcy",
+    "loops.0.tear_status.0.rel_change": 0,
+    "loops.0.tear_status.0.dT_K": 0,
+    "convergence.accelerator": "broyden",
+    "convergence.tol": 1e-09,
+    "convergence.tear_streams": 1,
+    "loops.0.converged": true
+   },
+   "tol": {
+    "loops.0.tear_status.0.rel_change": 1e-09,
+    "loops.0.tear_status.0.dT_K": 1e-06,
+    "default": 1e-12
+   },
+   "source": "Structural: the request gives no estimate for the torn stream rcy, so pass 1 starts from guessed values; a converged loop's last relative change is below options.tol = 1e-9 by definition; one torn stream (MB-100).",
+   "id": "MB-276"
+  },
+  {
+   "desc": "solver transparency (STEP 35): the MB-100 recycle solved with the Wegstein accelerator alone (options.accelerator = wegstein) reaches the same steady state as with Broyden",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 179139,
+       "T_K": 493.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.05064223870848894
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.23453854269589536
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.24567514611558622
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.4691440724800295
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 45037.5,
+       "T_K": 523.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "m",
+        "name": "M1",
+        "module": "mixer",
+        "n_in": 3,
+        "n_out": 1,
+        "params": {}
+       },
+       {
+        "id": "r",
+        "name": "R1",
+        "module": "reactor",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "adiabatic",
+         "reactions": [
+          {
+           "stoich": {
+            "CO": -1,
+            "H2O": -1,
+            "CO2": 1,
+            "H2": 1
+           },
+           "limiting": "CO",
+           "conversion": 0.9
+          }
+         ]
+        }
+       },
+       {
+        "id": "c",
+        "name": "E1",
+        "module": "mixer",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 313.15
+        }
+       },
+       {
+        "id": "f",
+        "name": "F1",
+        "module": "flash",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "T_K": 313.15,
+         "P_bar": 29
+        }
+       },
+       {
+        "id": "s",
+        "name": "SP1",
+        "module": "splitter",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "fractions": [
+          0.5,
+          0.5
+         ]
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "a",
+        "from": null,
+        "to": {
+         "b": "m",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "b",
+        "from": null,
+        "to": {
+         "b": "m",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "c1",
+        "from": {
+         "b": "m",
+         "p": 0
+        },
+        "to": {
+         "b": "r",
+         "p": 0
+        }
+       },
+       {
+        "id": "c2",
+        "from": {
+         "b": "r",
+         "p": 0
+        },
+        "to": {
+         "b": "c",
+         "p": 0
+        }
+       },
+       {
+        "id": "c3",
+        "from": {
+         "b": "c",
+         "p": 0
+        },
+        "to": {
+         "b": "f",
+         "p": 0
+        }
+       },
+       {
+        "id": "gas",
+        "from": {
+         "b": "f",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "liq",
+        "from": {
+         "b": "f",
+         "p": 1
+        },
+        "to": {
+         "b": "s",
+         "p": 0
+        }
+       },
+       {
+        "id": "rcy",
+        "from": {
+         "b": "s",
+         "p": 0
+        },
+        "to": {
+         "b": "m",
+         "p": 2
+        }
+       },
+       {
+        "id": "pur",
+        "from": {
+         "b": "s",
+         "p": 1
+        },
+        "to": null
+       }
+      ],
+      "options": {
+       "tol": 1e-09,
+       "accelerator": "wegstein"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "convergence.accelerator": "wegstein",
+    "loops.0.converged": true,
+    "stream_results.rcy.mass_flow_kg_h": 20195.28752279119,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "stream_results.rcy.mass_flow_kg_h": 2e-05,
+    "mass_balance.closure_pct": 0.005,
+    "default": 1e-12
+   },
+   "source": "The steady state does not depend on the accelerator: same recycle flow as MB-100 (recycle = purge at the 50/50 splitter).",
+   "id": "MB-277"
+  },
+  {
+   "desc": "solver transparency (STEP 35): the MB-099 design spec reports its Newton steps — iteration 0 is the starting point, the spec record carries the target, and the spec lands on the frozen template air rate",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 80.29869,
+       "T_K": 1073.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.1798124
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.02246786
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.01647449
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.00723823
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.77400702
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 36.1619048,
+       "T_K": 823.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "O2",
+         "mass_fraction": 0.23195601
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.75425417
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.01378982
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "b1",
+        "name": "101-B",
+        "module": "smr",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "fired",
+         "T_out_K": 1073.15,
+         "P_out_bar": 30
+        }
+       },
+       {
+        "id": "b2",
+        "name": "103-D",
+        "module": "smr",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {
+         "mode": "secondary",
+         "P_out_bar": 30
+        }
+       },
+       {
+        "id": "b3",
+        "name": "WHB",
+        "module": "mixer",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 633.15
+        }
+       },
+       {
+        "id": "b4",
+        "name": "HTS",
+        "module": "shift",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "preset": "hts",
+         "mode": "adiabatic"
+        }
+       },
+       {
+        "id": "b5",
+        "name": "E2",
+        "module": "mixer",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 483.15
+        }
+       },
+       {
+        "id": "b6",
+        "name": "LTS",
+        "module": "shift",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "preset": "lts",
+         "mode": "adiabatic"
+        }
+       },
+       {
+        "id": "b7",
+        "name": "CO2-R",
+        "module": "component-splitter",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "splits": {
+          "CO2": 1
+         }
+        }
+       },
+       {
+        "id": "b8",
+        "name": "E3",
+        "module": "mixer",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 573.15
+        }
+       },
+       {
+        "id": "b9",
+        "name": "METH",
+        "module": "methanator",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "mode": "adiabatic"
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "b1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "name": "AIR",
+        "from": null,
+        "to": {
+         "b": "b2",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "s3",
+        "from": {
+         "b": "b1",
+         "p": 0
+        },
+        "to": {
+         "b": "b2",
+         "p": 0
+        }
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "b2",
+         "p": 0
+        },
+        "to": {
+         "b": "b3",
+         "p": 0
+        }
+       },
+       {
+        "id": "s5",
+        "from": {
+         "b": "b3",
+         "p": 0
+        },
+        "to": {
+         "b": "b4",
+         "p": 0
+        }
+       },
+       {
+        "id": "s6",
+        "from": {
+         "b": "b4",
+         "p": 0
+        },
+        "to": {
+         "b": "b5",
+         "p": 0
+        }
+       },
+       {
+        "id": "s7",
+        "from": {
+         "b": "b5",
+         "p": 0
+        },
+        "to": {
+         "b": "b6",
+         "p": 0
+        }
+       },
+       {
+        "id": "s8",
+        "from": {
+         "b": "b6",
+         "p": 0
+        },
+        "to": {
+         "b": "b7",
+         "p": 0
+        }
+       },
+       {
+        "id": "s9",
+        "name": "CO2",
+        "from": {
+         "b": "b7",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s10",
+        "from": {
+         "b": "b7",
+         "p": 1
+        },
+        "to": {
+         "b": "b8",
+         "p": 0
+        }
+       },
+       {
+        "id": "s11",
+        "from": {
+         "b": "b8",
+         "p": 0
+        },
+        "to": {
+         "b": "b9",
+         "p": 0
+        }
+       },
+       {
+        "id": "s12",
+        "name": "SYNGAS",
+        "from": {
+         "b": "b9",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "specs": [
+       {
+        "id": "h2n2",
+        "value": 3,
+        "vary": {
+         "kind": "feed_flow",
+         "stream": "s2"
+        },
+        "target": {
+         "stream": "s12",
+         "metric": "ratio",
+         "num": "H2",
+         "den": "N2"
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "convergence.spec_history.steps.0.iteration": 0,
+    "convergence.spec_history.steps.0.evaluations": 1,
+    "convergence.spec_history.specs.0.target": 3,
+    "specs.0.varied": 45.202381,
+    "specs.0.converged": true
+   },
+   "tol": {
+    "specs.0.varied": 0.05,
+    "default": 1e-12
+   },
+   "source": "Structural (first Newton record = one evaluation at the start point; target from the request) plus the MB-099 reference air rate (45.202381 kg/h, mb-templates.json).",
+   "id": "MB-278"
+  },
+  {
+   "desc": "solver transparency (STEP 35): the MB-268 feedback calculator reports each pass — pass 1 first — and converges to the fixed point T_P = 650 K",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1660.2728,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.966254461315032
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.03374553868496792
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 900.764,
+       "T_K": 600,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "H1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 700
+        }
+       },
+       {
+        "id": "M1",
+        "module": "r-mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "G",
+        "from": null,
+        "to": {
+         "b": "H1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": null,
+        "to": {
+         "b": "M1",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "G2",
+        "from": {
+         "b": "H1",
+         "p": 0
+        },
+        "to": {
+         "b": "M1",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "Tctl",
+        "imports": [
+         {
+          "name": "Tp",
+          "stream": "P",
+          "metric": "T_K"
+         },
+         {
+          "name": "Th",
+          "kind": "param",
+          "block": "H1",
+          "path": "T_out_K"
+         }
+        ],
+        "code": "target = 650\nTnew = Th + 1.5 * (target - Tp)",
+        "exports": [
+         {
+          "name": "Tnew",
+          "kind": "param",
+          "block": "H1",
+          "path": "T_out_K"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "convergence.calculator_history.0.pass": 1,
+    "calculators.0.converged": true,
+    "stream_results.P.T_K": 650
+   },
+   "tol": {
+    "stream_results.P.T_K": 0.01,
+    "default": 1e-12
+   },
+   "source": "Fixed point of T_h ← T_h + 1.5 (650 − T_P): T_P = 650 K at convergence (as MB-268).",
+   "id": "MB-279"
+  },
+  {
+   "desc": "pinch analysis (STEP 36): the four-stream problem of Linnhoff / Kemp at ΔTmin = 10 K — minimum hot utility 20 kW, minimum cold utility 60 kW, pinch at 90 °C (hot) / 80 °C (cold)",
+   "call": "runModule",
+   "args": [
+    "pinch-analysis",
+    {
+     "streams": [],
+     "params": {
+      "dT_min_K": 10,
+      "streams": [
+       {
+        "name": "C1",
+        "T_in_K": 293.15,
+        "T_out_K": 408.15,
+        "CP_kW_K": 2.0
+       },
+       {
+        "name": "H2",
+        "T_in_K": 443.15,
+        "T_out_K": 333.15,
+        "CP_kW_K": 3.0
+       },
+       {
+        "name": "C3",
+        "T_in_K": 353.15,
+        "T_out_K": 413.15,
+        "CP_kW_K": 4.0
+       },
+       {
+        "name": "H4",
+        "T_in_K": 423.15,
+        "T_out_K": 303.15,
+        "CP_kW_K": 1.5
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.Q_hot_min_kW": 20,
+    "details.Q_cold_min_kW": 60,
+    "details.pinch_hot_K": 363.15,
+    "details.pinch_cold_K": 353.15,
+    "details.total_hot_kW": 510,
+    "details.total_cold_kW": 470,
+    "details.threshold": false
+   },
+   "tol": {
+    "default": 1e-06
+   },
+   "source": "I.C. Kemp, Pinch Analysis and Process Integration, 2nd ed. (2007), ch. 2, four-stream example (problem table, Table 2.3 / Fig. 2.6): QHmin = 20 kW, QCmin = 60 kW, pinch 90/80 °C (shifted 85 °C); stream duties 330 + 180 hot, 230 + 240 cold.",
+   "id": "MB-280"
+  },
+  {
+   "desc": "pinch analysis (STEP 36): the same four streams at ΔTmin = 20 K — both utility targets rise by 45 kW, the pinch moves to 100 °C (hot) / 80 °C (cold)",
+   "call": "runModule",
+   "args": [
+    "pinch-analysis",
+    {
+     "streams": [],
+     "params": {
+      "dT_min_K": 20,
+      "streams": [
+       {
+        "name": "C1",
+        "T_in_K": 293.15,
+        "T_out_K": 408.15,
+        "CP_kW_K": 2.0
+       },
+       {
+        "name": "H2",
+        "T_in_K": 443.15,
+        "T_out_K": 333.15,
+        "CP_kW_K": 3.0
+       },
+       {
+        "name": "C3",
+        "T_in_K": 353.15,
+        "T_out_K": 413.15,
+        "CP_kW_K": 4.0
+       },
+       {
+        "name": "H4",
+        "T_in_K": 423.15,
+        "T_out_K": 303.15,
+        "CP_kW_K": 1.5
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.Q_hot_min_kW": 65,
+    "details.Q_cold_min_kW": 105,
+    "details.pinch_hot_K": 373.15,
+    "details.pinch_cold_K": 353.15
+   },
+   "tol": {
+    "default": 1e-06
+   },
+   "source": "Hand problem table (hot shifted −10 K, cold +10 K): interval surpluses from 160 °C down: +30, −5, −15, −75, +100, −10, +15 kW; cascade 0, 30, 25, 10, −65, 35, 25, 40 → QHmin = 65 kW, QCmin = 40 + 65 = 105 kW, pinch at shifted 90 °C.",
+   "id": "MB-281"
+  },
+  {
+   "desc": "pinch analysis (STEP 36): a threshold problem — a hot stream 200 → 100 °C (100 kW) covers a cold stream 50 → 100 °C (50 kW) with no hot utility and no pinch",
+   "call": "runModule",
+   "args": [
+    "pinch-analysis",
+    {
+     "streams": [],
+     "params": {
+      "dT_min_K": 10,
+      "streams": [
+       {
+        "name": "H",
+        "T_in_K": 473.15,
+        "T_out_K": 373.15,
+        "CP_kW_K": 1
+       },
+       {
+        "name": "C",
+        "T_in_K": 323.15,
+        "T_out_K": 373.15,
+        "CP_kW_K": 1
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.Q_hot_min_kW": 0,
+    "details.Q_cold_min_kW": 50,
+    "details.threshold": true
+   },
+   "tol": {
+    "default": 1e-09
+   },
+   "source": "Hand problem table: shifted 195 → 105 °C surplus +90 kW, 105 → 95 °C 0, 95 → 55 °C −40 kW; cascade 0, 90, 90, 50 never negative → QHmin = 0, QCmin = 100 − 50 = 50 kW, no pinch.",
+   "id": "MB-282"
+  },
+  {
+   "desc": "pinch analysis (STEP 36): a boiler feed of 1 kg/s water heated 25 → 200 °C at 10 bar(a), its curve flashed with IAPWS-IF97 (property package steam), against hot oil 300 → 80 °C at 12 kW/K — the boiling plateau sets the pinch at the saturation temperature and the duty is the IF97 enthalpy rise",
+   "call": "runModule",
+   "args": [
+    "pinch-analysis",
+    {
+     "streams": [],
+     "params": {
+      "dT_min_K": 10,
+      "property_package": {
+       "model": "steam"
+      },
+      "streams": [
+       {
+        "name": "boiler feed",
+        "role": "utility",
+        "T_in_K": 298.15,
+        "T_out_K": 473.15,
+        "state": {
+         "mass_flow_kg_h": 3600,
+         "P_in_bar": 10,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       },
+       {
+        "name": "hot oil",
+        "T_in_K": 573.15,
+        "T_out_K": 353.15,
+        "CP_kW_K": 12
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.pinch_cold_K": 453.0356,
+    "details.pinch_hot_K": 463.0356,
+    "details.total_cold_kW": 2722.5,
+    "details.total_hot_kW": 2640,
+    "details.current_hot_utility_kW": 2722.5
+   },
+   "tol": {
+    "details.pinch_cold_K": 0.01,
+    "details.pinch_hot_K": 0.01,
+    "details.total_cold_kW": 0.5,
+    "details.current_hot_utility_kW": 0.5,
+    "default": 1e-06
+   },
+   "source": "IAPWS-IF97: Tsat(1 MPa) = 453.0356 K (179.886 °C); h(1 MPa, 200 °C) = 2828.3 kJ/kg, h(1 MPa, 25 °C) = 105.8 kJ/kg (NIST webbook) → 2722.5 kW at 1 kg/s; hot oil 12 × 220 = 2640 kW.",
+   "id": "MB-283"
+  },
+  {
+   "desc": "equipment costing (STEP 36): a 100 kW LP-steam heater (water from 25 °C at 1 atm) and a 20 m³ vertical vessel (L/D 4, atmospheric) costed by Turton module costing at CEPCI 797.9, with 8000 h/y of LP steam at 14 USD/GJ and capital annualised at 10 % over 10 years",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "H",
+        "name": "H",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 100
+        }
+       },
+       {
+        "id": "R",
+        "name": "R",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 0
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": {
+         "b": "H",
+         "p": 0
+        },
+        "to": {
+         "b": "R",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "R",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "economics": {
+       "units": {
+        "R": {
+         "equip": "reactor",
+         "volume_m3": 20,
+         "L_D": 4
+        }
+       }
+      }
+     }
+    }
+   ],
+   "expect": {
+    "economics.items.0.parts.0.key": "hx_double_pipe",
+    "economics.items.0.parts.0.size": 1.2877,
+    "economics.items.0.parts.0.Cp0": 4754.81,
+    "economics.items.0.parts.0.FBM": 3.29,
+    "economics.items.1.parts.0.D_m": 1.85,
+    "economics.items.1.parts.0.FP": 1,
+    "economics.items.1.parts.0.Cp0": 36801.34,
+    "economics.items.1.parts.0.CBM": 149781.46,
+    "economics.utilities.0.cost_y": 40320,
+    "economics.basis.crf": 0.16274539,
+    "economics.totals.total_module": 195201.3,
+    "economics.totals.grassroots": 277913.7,
+    "economics.totals.total_annual_cost_y": 85549.2
+   },
+   "tol": {
+    "economics.items.0.parts.0.size": 0.002,
+    "economics.items.0.parts.0.Cp0": 4,
+    "economics.items.1.parts.0.Cp0": 0.5,
+    "economics.items.1.parts.0.CBM": 2,
+    "economics.utilities.0.cost_y": 0.01,
+    "economics.basis.crf": 1e-07,
+    "economics.totals.total_module": 5,
+    "economics.totals.grassroots": 8,
+    "economics.totals.total_annual_cost_y": 2,
+    "default": 1e-09
+   },
+   "source": "Turton et al., Analysis, Synthesis and Design of Chemical Processes, App. A (CEPCI 397): vertical vessel log Cp0 = 3.4974 + 0.4485 log V + 0.1074 (log V)² → 18,310.7 USD at V = 20 m³, × 797.9/397 = 36,801.3; FBM = 2.25 + 1.82 FM FP = 4.07 (FP = 1, D = 1.853 m at 0 barg); double pipe 3.3444 + 0.2745 log A − 0.0472 (log A)², FBM = 1.74 + 1.55 = 3.29; area = 100 kW / (850 W/m²K × LMTD 91.36 K) with LP steam at 5 barg (Tsat 432.0 K, IF97) and the water leaving at 373.12 K; CTM = 1.18 Σ CBM, CGR = CTM + 0.5 Σ CBM0; CRF = 0.1·1.1¹⁰/(1.1¹⁰ − 1); steam 100 kW × 28.8 GJ/y × 14 = 40,320 USD/y.",
+   "id": "MB-284"
+  },
+  {
+   "desc": "equipment costing (STEP 36): a utility price sweep — a sensitivity study of the heater duty 50 / 100 / 150 kW tabulates the economics total utility_cost_y, linear in the duty",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "H",
+        "name": "H",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 100
+        }
+       },
+       {
+        "id": "R",
+        "name": "R",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 0
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": {
+         "b": "H",
+         "p": 0
+        },
+        "to": {
+         "b": "R",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "R",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "economics": {
+       "units": {
+        "R": {
+         "equip": "reactor",
+         "volume_m3": 20,
+         "L_D": 4
+        }
+       }
+      },
+      "sensitivity": {
+       "vary": {
+        "kind": "param",
+        "block": "H",
+        "path": "duty_kW"
+       },
+       "values": [
+        50,
+        100,
+        150
+       ],
+       "outputs": [
+        {
+         "economics": "utility_cost_y"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "expect": {
+    "sensitivity.rows.0.outputs.0": 20160,
+    "sensitivity.rows.1.outputs.0": 40320,
+    "sensitivity.rows.2.outputs.0": 60480
+   },
+   "tol": {
+    "default": 0.01
+   },
+   "source": "Q kW × 3600 s/h × 8000 h/y = 28.8 Q GJ/y at 14 USD/GJ (LP steam, the lowest level above the outlet) → 403.2 USD/y per kW.",
+   "id": "MB-285"
+  },
+  {
+   "desc": "equipment costing (STEP 36): an invalid economics setting (plant life 0 years) is rejected with MB_FS_ECON",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "H",
+        "name": "H",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 100
+        }
+       },
+       {
+        "id": "R",
+        "name": "R",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "property_package": {
+          "model": "steam"
+         },
+         "duty_kW": 0
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "F",
+        "from": null,
+        "to": {
+         "b": "H",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S",
+        "from": {
+         "b": "H",
+         "p": 0
+        },
+        "to": {
+         "b": "R",
+         "p": 0
+        }
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "R",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "economics": {
+       "years": 0
+      }
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_ECON"
+   },
+   "tol": 0,
+   "source": "Input validation: years must be a whole number 1–50.",
+   "id": "MB-286"
+  },
+  {
+   "desc": "optimisation (STEP 36): one decision variable (feed S1 temperature, 300–420 K) by Brent’s method minimises the product flow of an analytic flowsheet — minimum at 350 K, 1600 kg/h (feed pressure fixed at 5 bar)",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 500,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "M",
+        "module": "mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "S1",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S2",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "quad",
+        "imports": [
+         {
+          "name": "t",
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         {
+          "name": "p",
+          "kind": "feed_P",
+          "stream": "S1"
+         }
+        ],
+        "code": "f = 500 + 1000*((t-350)/10)^2 + 100*((p-4)/1)^2",
+        "exports": [
+         {
+          "name": "f",
+          "kind": "feed_flow",
+          "stream": "S2"
+         }
+        ]
+       }
+      ],
+      "optimization": {
+       "sense": "min",
+       "objective": {
+        "stream": "P",
+        "metric": "mass_flow_kg_h"
+       },
+       "variables": [
+        {
+         "vary": {
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         "lo": 300,
+         "hi": 420
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "expect": {
+    "optimization.variables.0.value": 350,
+    "optimization.objective": 1600,
+    "stream_results.P.mass_flow_kg_h": 1600,
+    "optimization.converged": true,
+    "optimization.feasible": true
+   },
+   "tol": {
+    "optimization.variables.0.value": 0.6,
+    "optimization.objective": 4,
+    "stream_results.P.mass_flow_kg_h": 4,
+    "default": 0
+   },
+   "source": "Analytic: a calculator sets feed S2 = 500 + 1000((T₁ − 350)/10)² + 100(P₁ − 4)² kg/h, so the mixed product P = 1000 + S2 kg/h → minimum 1000 + 500 + 100 = 1600 kg/h at T₁ = 350 K; tolerance = xtol 0.5 % of the 120 K range.",
+   "id": "MB-287"
+  },
+  {
+   "desc": "optimisation (STEP 36): the same search with the constraint T(S1) ≤ 340 K ends on the constraint — the exact penalty keeps the optimum feasible",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 500,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "M",
+        "module": "mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "S1",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S2",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "quad",
+        "imports": [
+         {
+          "name": "t",
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         {
+          "name": "p",
+          "kind": "feed_P",
+          "stream": "S1"
+         }
+        ],
+        "code": "f = 500 + 1000*((t-350)/10)^2 + 100*((p-4)/1)^2",
+        "exports": [
+         {
+          "name": "f",
+          "kind": "feed_flow",
+          "stream": "S2"
+         }
+        ]
+       }
+      ],
+      "optimization": {
+       "objective": [
+        {
+         "target": {
+          "stream": "P",
+          "metric": "mass_flow_kg_h"
+         },
+         "coef": 1
+        }
+       ],
+       "variables": [
+        {
+         "vary": {
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         "lo": 300,
+         "hi": 420
+        }
+       ],
+       "constraints": [
+        {
+         "target": {
+          "stream": "S1",
+          "metric": "T_K"
+         },
+         "op": "le",
+         "value": 340
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "expect": {
+    "optimization.variables.0.value": 340,
+    "optimization.constraints.0.satisfied": true,
+    "optimization.feasible": true
+   },
+   "tol": {
+    "optimization.variables.0.value": 0.6,
+    "default": 0
+   },
+   "source": "Analytic: a calculator sets feed S2 = 500 + 1000((T₁ − 350)/10)² + 100(P₁ − 4)² kg/h, so the mixed product P = 1000 + S2 kg/h — f decreases towards 350 K, so with T₁ ≤ 340 K the constrained minimum is at the limit, 340 K (within the 0.6 K tolerance).",
+   "id": "MB-288"
+  },
+  {
+   "desc": "optimisation (STEP 36): two decision variables (feed S1 temperature 300–420 K and pressure 2–9 bar) by bounded Nelder–Mead — minimum 1500 kg/h at 350 K, 4 bar",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 500,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "M",
+        "module": "mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "S1",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S2",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "quad",
+        "imports": [
+         {
+          "name": "t",
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         {
+          "name": "p",
+          "kind": "feed_P",
+          "stream": "S1"
+         }
+        ],
+        "code": "f = 500 + 1000*((t-350)/10)^2 + 100*((p-4)/1)^2",
+        "exports": [
+         {
+          "name": "f",
+          "kind": "feed_flow",
+          "stream": "S2"
+         }
+        ]
+       }
+      ],
+      "optimization": {
+       "objective": {
+        "stream": "P",
+        "metric": "mass_flow_kg_h"
+       },
+       "variables": [
+        {
+         "vary": {
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         "lo": 300,
+         "hi": 420
+        },
+        {
+         "vary": {
+          "kind": "feed_P",
+          "stream": "S1"
+         },
+         "lo": 2,
+         "hi": 9
+        }
+       ],
+       "max_evaluations": 120
+      }
+     }
+    }
+   ],
+   "expect": {
+    "optimization.variables.0.value": 350,
+    "optimization.variables.1.value": 4,
+    "optimization.objective": 1500,
+    "optimization.converged": true
+   },
+   "tol": {
+    "optimization.variables.0.value": 0.6,
+    "optimization.variables.1.value": 0.035,
+    "optimization.objective": 4,
+    "default": 0
+   },
+   "source": "Analytic: a calculator sets feed S2 = 500 + 1000((T₁ − 350)/10)² + 100(P₁ − 4)² kg/h, so the mixed product P = 1000 + S2 kg/h → minimum 1500 kg/h at (350 K, 4 bar); tolerances = xtol 0.5 % of each range.",
+   "id": "MB-289"
+  },
+  {
+   "desc": "optimisation (STEP 36): a decision variable whose bounds are reversed is rejected with MB_FS_OPT",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 500,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "M",
+        "module": "mixer",
+        "n_in": 2,
+        "n_out": 1,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "S1",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "S2",
+        "from": null,
+        "to": {
+         "b": "M",
+         "p": 1
+        },
+        "feed": 1
+       },
+       {
+        "id": "P",
+        "from": {
+         "b": "M",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "calculators": [
+       {
+        "name": "quad",
+        "imports": [
+         {
+          "name": "t",
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         {
+          "name": "p",
+          "kind": "feed_P",
+          "stream": "S1"
+         }
+        ],
+        "code": "f = 500 + 1000*((t-350)/10)^2 + 100*((p-4)/1)^2",
+        "exports": [
+         {
+          "name": "f",
+          "kind": "feed_flow",
+          "stream": "S2"
+         }
+        ]
+       }
+      ],
+      "optimization": {
+       "objective": {
+        "stream": "P",
+        "metric": "mass_flow_kg_h"
+       },
+       "variables": [
+        {
+         "vary": {
+          "kind": "feed_T",
+          "stream": "S1"
+         },
+         "lo": 420,
+         "hi": 300
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_OPT"
+   },
+   "tol": 0,
+   "source": "Input validation: each variable needs lo < hi.",
+   "id": "MB-290"
+  },
+  {
+   "desc": "user component (STEP 37): ethanol entered only as SMILES CCO — formula, molar mass and the Joback estimates of Tb, Tc, Pc, Vc, ΔHf°, ΔGf°, ideal-gas Cp at 25 °C and ω (groups −CH3, −CH2−, −OH)",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "ethanol (structure)",
+        "smiles": "CCO"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.MW": 46.069,
+    "details.components.0.Tb_K": 337.34,
+    "details.components.0.Tc_K": 499.1114635268166,
+    "details.components.0.Pc_bar": 57.56641437226128,
+    "details.components.0.Vc_m3kmol": 0.16649999999999998,
+    "details.components.0.Hf_kJmol": -236.83999999999997,
+    "details.components.0.Gf_kJmol": -170.85999999999996,
+    "details.components.0.cp298_JmolK": 64.62091209927158,
+    "details.components.0.omega": 0.5560810042994292,
+    "details.components.0.joback.groups.2.id": 20
+   },
+   "tol": {
+    "details.components.0.MW": 0.005,
+    "details.components.0.omega": 0.0001,
+    "default": 0.001
+   },
+   "source": "K.G. Joback, R.C. Reid, Chem. Eng. Comm. 57 (1987) 233; Poling, Prausnitz, O'Connell, The Properties of Gases and Liquids, 5th ed., Eqs. 2-2.5 to 2-2.7, 3-3.12; ω by Lee–Kesler (Eq. 2-3.3). Reference numbers from thermo 0.6 Joback (RDKit fragmentation) with Tb rebased from thermo's 198.2 K to the paper's 198 K (Tc scales with Tb); ω from chemicals.acentric.LK_omega. Hand check: Tb = 198 + 23.58 + 22.88 + 92.88 = 337.34 K. RDKit formula C2H6O.",
+   "id": "MB-291"
+  },
+  {
+   "desc": "user component (STEP 37): N-methyl-2-pyrrolidone from SMILES CN1CCCC1=O — UNIFAC assigns the single NMP group (85), Dortmund UNIFAC 2 × cy-CH2 (78) + AMCH2-type NMP fragment (102); Joback Tb, Tc, Pc",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "NMP (structure)",
+        "smiles": "CN1CCCC1=O"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.unifac.0.id": 85,
+    "details.components.0.unifac.0.n": 1,
+    "details.components.0.modunifac.0.id": 78,
+    "details.components.0.modunifac.0.n": 2,
+    "details.components.0.modunifac.1.id": 102,
+    "details.components.0.modunifac.1.n": 1,
+    "details.components.0.Tb_K": 409.74,
+    "details.components.0.Tc_K": 618.6821909279757,
+    "details.components.0.Pc_bar": 45.83940896499657,
+    "details.components.0.MW": 99.133
+   },
+   "tol": {
+    "details.components.0.MW": 0.005,
+    "default": 0.001
+   },
+   "source": "K.G. Joback, R.C. Reid, Chem. Eng. Comm. 57 (1987) 233; Poling, Prausnitz, O'Connell, The Properties of Gases and Liquids, 5th ed., Eqs. 2-2.5 to 2-2.7, 3-3.12; ω by Lee–Kesler (Eq. 2-3.3). Reference numbers from thermo 0.6 Joback (RDKit fragmentation) with Tb rebased from thermo's 198.2 K to the paper's 198 K (Tc scales with Tb); ω from chemicals.acentric.LK_omega. Group assignment as thermo.group_contribution smarts_fragment_priority with the thermo UFSG / DOUFSG catalogues (RDKit SMARTS matching).",
+   "id": "MB-292"
+  },
+  {
+   "desc": "user component (STEP 37): nitrobenzene written as c1ccc(cc1)N(=O)=O (five-valent nitrogen) is normalised to the charge-separated nitro group — UNIFAC 5 × ACH + ACNO2 (57), Joback Tb 515.2 K",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "nitrobenzene",
+        "smiles": "c1ccc(cc1)N(=O)=O"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.unifac.0.id": 9,
+    "details.components.0.unifac.0.n": 5,
+    "details.components.0.unifac.1.id": 57,
+    "details.components.0.unifac.1.n": 1,
+    "details.components.0.Tb_K": 515.1999999999999,
+    "details.components.0.Pc_bar": 47.49689014111801,
+    "details.components.0.MW": 123.11099999999996
+   },
+   "tol": {
+    "details.components.0.MW": 0.005,
+    "default": 0.001
+   },
+   "source": "K.G. Joback, R.C. Reid, Chem. Eng. Comm. 57 (1987) 233; Poling, Prausnitz, O'Connell, The Properties of Gases and Liquids, 5th ed., Eqs. 2-2.5 to 2-2.7, 3-3.12; ω by Lee–Kesler (Eq. 2-3.3). Reference numbers from thermo 0.6 Joback (RDKit fragmentation) with Tb rebased from thermo's 198.2 K to the paper's 198 K (Tc scales with Tb); ω from chemicals.acentric.LK_omega. Reference computed from the charge-separated SMILES O=[N+]([O-])c1ccccc1 (the form RDKit and thermo expect).",
+   "id": "MB-293"
+  },
+  {
+   "desc": "user component (STEP 37): 2-methylthiophene (Cc1cccs1) — aromatic sulfur ring perceived; UNIFAC CH3 + C4H3S (107), Dortmund CH3 + 2 ACH + AC2HS (105); Joback Tb",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "2-methylthiophene",
+        "smiles": "Cc1cccs1"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.unifac.1.id": 107,
+    "details.components.0.modunifac.1.id": 9,
+    "details.components.0.modunifac.1.n": 2,
+    "details.components.0.modunifac.2.id": 105,
+    "details.components.0.Tb_K": 384.88,
+    "details.components.0.Tc_K": 607.1002494161779
+   },
+   "tol": {
+    "default": 0.001
+   },
+   "source": "K.G. Joback, R.C. Reid, Chem. Eng. Comm. 57 (1987) 233; Poling, Prausnitz, O'Connell, The Properties of Gases and Liquids, 5th ed., Eqs. 2-2.5 to 2-2.7, 3-3.12; ω by Lee–Kesler (Eq. 2-3.3). Reference numbers from thermo 0.6 Joback (RDKit fragmentation) with Tb rebased from thermo's 198.2 K to the paper's 198 K (Tc scales with Tb); ω from chemicals.acentric.LK_omega.",
+   "id": "MB-294"
+  },
+  {
+   "desc": "user component (STEP 37): ethanol with measured Tb 351.44 K, Tc 513.92 K, Pc 61.48 bar — the given values are kept and ω follows from Lee–Kesler with them",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "ethanol (measured)",
+        "smiles": "CCO",
+        "Tb_K": 351.44,
+        "Tc_K": 513.92,
+        "Pc_bar": 61.48
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.Tb_K": 351.44,
+    "details.components.0.Tc_K": 513.92,
+    "details.components.0.Pc_bar": 61.48,
+    "details.components.0.omega": 0.6436661150239927
+   },
+   "tol": {
+    "details.components.0.omega": 0.0001,
+    "default": 1e-09
+   },
+   "source": "chemicals.acentric.LK_omega(351.44, 513.92, 61.48e5) = 0.64367 (Lee & Kesler, AIChE J. 21 (1975) 510; Poling 5th ed. Eq. 2-3.3).",
+   "id": "MB-295"
+  },
+  {
+   "desc": "user component (STEP 37): a SMILES with an unclosed ring (C1CC) is rejected with MB_USERCOMP",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "bad",
+        "smiles": "C1CC"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_USERCOMP"
+   },
+   "tol": 0,
+   "source": "Input validation: ring-closure digits must pair.",
+   "id": "MB-296"
+  },
+  {
+   "desc": "user component (STEP 37): an inorganic molecule (water, SMILES O) is rejected — the group methods need carbon",
+   "call": "runModule",
+   "args": [
+    "user-components",
+    {
+     "streams": [],
+     "params": {
+      "user_components": [
+       {
+        "name": "water",
+        "smiles": "O"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_USERCOMP"
+   },
+   "tol": 0,
+   "source": "Input validation: Joback and UNIFAC estimates are for organic molecules.",
+   "id": "MB-297"
+  },
+  {
+   "desc": "UNIFAC fill-in (STEP 37): benzene–cyclohexane has no NRTL pair in the databank — NRTL parameters fitted to Dortmund UNIFAC reproduce the minimum-boiling azeotrope, 77.4 °C at 50.2 mol % benzene, 1 atm",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "benzene",
+         "mass_fraction": 0.4833655686111451
+        },
+        {
+         "key": "cyclohexane",
+         "mass_fraction": 0.5166344313888549
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 350.54999999999995,
+    "details.y.benzene": 0.502
+   },
+   "tol": {
+    "details.T_K": 0.5,
+    "details.y.benzene": 0.03
+   },
+   "source": "Richards & Hargreaves, Ind. Eng. Chem. 36 (1944) 805: azeotrope 77.4 °C, 50.2 mol % benzene at 760 mmHg (other compilations 77.5–77.8 °C at 53–55 mol %). At the azeotrope y = x. Tolerance 0.5 K covers the spread of the data.",
+   "id": "MB-298"
+  },
+  {
+   "desc": "UNIFAC fill-in (STEP 37): with fill-in switched off (fill_missing none) the same pair is ideal — the bubble point at 50.2 mol % benzene lies between the pure boiling points, matching Raoult's law with reference vapour pressures",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "benzene",
+         "mass_fraction": 0.4833655686111451
+        },
+        {
+         "key": "cyclohexane",
+         "mass_fraction": 0.5166344313888549
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "fill_missing": "none"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 353.53416093765736
+   },
+   "tol": {
+    "details.T_K": 0.2
+   },
+   "source": "Raoult's law 0.502·Psat,B + 0.498·Psat,C = 101.325 kPa with CoolProp 8 reference vapour pressures (benzene: Thol et al. 2012; cyclohexane: Zhou et al. 2014). Tolerance 0.2 K for the ChemSep vapour-pressure correlations.",
+   "id": "MB-299"
+  },
+  {
+   "desc": "UNIFAC fill-in (STEP 37): 1-propanol–water carries only UNIQUAC data in the databank — NRTL filled from Dortmund UNIFAC places the azeotrope at 87.7 °C, 43 mol % propanol, 1 atm",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "1-propanol",
+         "mass_fraction": 0.7170000000000001
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.2829999999999999
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 360.84999999999997
+   },
+   "tol": {
+    "details.T_K": 0.5
+   },
+   "source": "Azeotrope 87.7 °C, 71.7 wt % 1-propanol (x = 0.4317) — Lange's Handbook / CRC azeotrope tables; Perry's 8th ed. Table 13-1 (1-propanol–water, 101.3 kPa) has 87.66 °C at x = 0.412.",
+   "id": "MB-300"
+  },
+  {
+   "desc": "property information (STEP 37): the benzene–cyclohexane NRTL pair is reported as estimated from Dortmund UNIFAC, with α = 0.3",
+   "call": "runModule",
+   "args": [
+    "property-info",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "benzene",
+         "mass_fraction": 0.5
+        },
+        {
+         "key": "cyclohexane",
+         "mass_fraction": 0.5
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.pairs.0.source": "estimated (Dortmund UNIFAC)",
+    "details.pairs.0.nrtl.alpha": 0.3
+   },
+   "tol": {
+    "default": 0
+   },
+   "source": "Reporting check: estimated pairs are labelled so the user can replace them with fitted data.",
+   "id": "MB-301"
+  },
+  {
+   "desc": "user component in a flash (STEP 37): ethanol defined by SMILES plus measured Tb, Tc, Pc, ω, mixed with databank water under NRTL — the missing pair is filled from Dortmund UNIFAC; bubble point at x = 0.5079, 1 atm",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "UC5ADF6CCF",
+         "mass_fraction": 0.7252267511675207
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.27477324883247933
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0,
+      "user_components": [
+       {
+        "name": "ethanol (user)",
+        "smiles": "CCO",
+        "Tb_K": 351.44,
+        "Tc_K": 513.92,
+        "Pc_bar": 61.48,
+        "omega": 0.649
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 352.95,
+    "details.y.UC5ADF6CCF": 0.6564
+   },
+   "tol": {
+    "details.T_K": 0.7,
+    "details.y.UC5ADF6CCF": 0.02
+   },
+   "source": "Perry's Chemical Engineers' Handbook, 8th ed., Table 13-1 (ethanol–water, 101.3 kPa): x = 0.5079, y = 0.6564, 79.8 °C. The user-component key UC5ADF6CCF is the hash of the definition.",
+   "id": "MB-302"
+  },
+  {
+   "desc": "transport (STEP 37): dry air (N2 78.12 / O2 20.96 / Ar 0.92 mol %) at 300 K, 1 atm — vapour viscosity by Herning–Zipperer and thermal conductivity by Wassiljewa–Mason–Saxena from the pure-gas correlations",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.7557034805792835
+        },
+        {
+         "key": "O2",
+         "mass_fraction": 0.2316052158069294
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.01269130361378711
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 300,
+      "to": 350,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.vapour.mu_cP": 0.01853734050902612,
+    "details.rows.0.phases.vapour.k_WmK": 0.026384465709828872
+   },
+   "tol": {
+    "details.rows.0.phases.vapour.mu_cP": 0.0005561202152707835,
+    "details.rows.0.phases.vapour.k_WmK": 0.0013192232854914436
+   },
+   "source": "CoolProp 8 Air (Lemmon & Jacobsen, Int. J. Thermophys. 25 (2004) 21): μ = 18.537 μPa·s, k = 26.38 mW/(m·K). Tolerances 3 % and 5 % are the stated accuracy of the mixing rules.",
+   "id": "MB-303"
+  },
+  {
+   "desc": "transport (STEP 37): n-decane entered only as SMILES CCCCCCCCCC — liquid density (Rackett/Tyn–Calus), viscosity (Joback), thermal conductivity (Sato–Riedel) and surface tension (Brock–Bird) at 25 °C, all from estimated constants",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "UCDEC62B66",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 348.15,
+      "points": 2,
+      "P_bar": 1.01325,
+      "user_components": [
+       {
+        "name": "n-decane (structure)",
+        "smiles": "CCCCCCCCCC"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 726.5260805470017,
+    "details.rows.0.phases.liquid.mu_cP": 0.8481170094372034,
+    "details.rows.0.phases.liquid.k_WmK": 0.12947927086061906,
+    "details.rows.0.phases.liquid.sigma_mNm": 23.38715654385747
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 21.79578241641005,
+    "details.rows.0.phases.liquid.mu_cP": 0.08481170094372034,
+    "details.rows.0.phases.liquid.k_WmK": 0.010358341668849524,
+    "details.rows.0.phases.liquid.sigma_mNm": 2.338715654385747
+   },
+   "source": "CoolProp 8 n-decane (Lemmon & Span 2006 EOS; Huber, Laesecke, Xiang 2004 viscosity; Huber & Perkins 2005 conductivity; Mulero et al. 2012 surface tension): ρ 726.5 kg/m³, μ 0.8481 cP, k 0.1295 W/(m·K), σ 23.39 mN/m. Tolerances 3 / 10 / 8 / 10 % — inside the medians found over the databank (validation section 36).",
+   "id": "MB-304"
+  },
+  {
+   "desc": "transport (STEP 37): ethanol entered only as SMILES CCO — surface tension of an alcohol by Sastri–Rao (Brock–Bird overpredicts alcohols by ~50 %), with density, viscosity and thermal conductivity, all at 25 °C from estimated constants",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "UCD91478B1",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 348.15,
+      "points": 2,
+      "P_bar": 1.01325,
+      "user_components": [
+       {
+        "name": "ethanol-s",
+        "smiles": "CCO"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 785.1332673410258,
+    "details.rows.0.phases.liquid.mu_cP": 1.082350620202566,
+    "details.rows.0.phases.liquid.k_WmK": 0.16349699100674261,
+    "details.rows.0.phases.liquid.sigma_mNm": 21.884404128241062
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 39.25666336705129,
+    "details.rows.0.phases.liquid.mu_cP": 0.16235259303038488,
+    "details.rows.0.phases.liquid.k_WmK": 0.02452454865101139,
+    "details.rows.0.phases.liquid.sigma_mNm": 2.1884404128241064
+   },
+   "source": "CoolProp 8 ethanol (Schroeder et al. 2014 EOS; Sotiriadou et al. 2023 viscosity; Assael et al. 2013 conductivity; Mulero et al. 2012 σ): ρ 785.1, μ 1.0824 cP, k 0.1635, σ 21.88 mN/m. Sastri & Rao, Chem. Eng. J. 59 (1995) 181, alcohol constants K 2.28, x 0.25, y 0.175, z 0, m 0.8 (Poling 5th ed. Eq. 12-3.12).",
+   "id": "MB-305"
   }
  ]
 }
