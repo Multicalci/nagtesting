@@ -49,7 +49,7 @@
 //              outputs:[{label?, stream, metric, key?…} | {label?, block,
 //              metric:'Q_kW'|'W_kW'|'duty_kW'|'outlet_T_K'|'detail', path?}] }
 //              (STEP 22) — re-solves the flowsheet (specs included) at each
-//              value and returns a table; ≤ 25 points, ≤ 8 outputs.
+//              value and returns a table; ≤ 60 points, ≤ 16 outputs.
 //   }
 // RESULT: { stream_results:{sid:stream}, block_results:{bid:{module,result}},
 //   order, loops, specs, overall, mass_balance, energy_balance, converged,
@@ -68,6 +68,19 @@
 //   · design-spec trial points that make a unit fail count as failed steps
 //   · resumable continuation across calls (Vercel time limit)
 //
+// STEP 35 — solver transparency (result fields):
+//   · loops[i].history: one entry per pass {it, err, method, tears?} — err is the
+//     largest relative change of the torn streams, method how that pass's starting
+//     point was made (guess | estimate | warm | continued | substitution | wegstein |
+//     broyden | retreat); carried across continuation calls in the token;
+//     kept to 250 entries (history_trimmed)
+//   · loops[i].tear_status: per torn stream, the last change in flow, T, P and the
+//     worst component; history_first_evaluation and iterations_all_evaluations when
+//     design specs or feedback calculators solved the loop several times
+//   · convergence: { accelerator, tolerances, evaluations, spec_history (Newton
+//     steps: varied, residuals, scaled residual, step length, Jacobian),
+//     calculator_history (feedback-calculator passes), tear_streams }
+//
 // Plain ES2020 module, no imports — receives the engine toolbox through
 // register() (same pattern as mb-urea.js, so there is no circular import).
 // (c) multicalci.com
@@ -75,12 +88,23 @@
 
 'use strict';
 
-const FS_VERSION = 'mb-flowsheet 1.4.0';
-const FS_MAX_SENS_POINTS = 25;
-const FS_MAX_SENS_OUT = 8;
-const FS_MAX_BLOCKS = 60;
-const FS_MAX_STREAMS = 160;
-const FS_MAX_SPECS = 4;
+import calc from './mb-calc.js';                // STEP 34 — calculator blocks (pure expression language, no imports)
+import econ from './mb-econ.js';                // STEP 36 — equipment and utility costs
+import optim from './mb-optim.js';              // STEP 36 — bounded minimisers (generators)
+
+const FS_VERSION = 'mb-flowsheet 1.7.0';
+// STEP 36: optimisation (objective, bounded decision variables, inequality constraints)
+const FS_MAX_OPT_VARS = 6, FS_MAX_OPT_CONS = 8, FS_MAX_OPT_EVALS = 300;
+const ECON_METRICS = ['total_annual_cost_y', 'grassroots', 'total_module', 'bare_module', 'utility_cost_y', 'annualised_capital_y'];
+// STEP 34: larger flowsheets (a whole ammonia–urea complex) — the time budget per call is
+// unchanged; big flowsheets continue over further calls with the resume token
+const FS_MAX_SENS_POINTS = 60;
+const FS_MAX_SENS_OUT = 16;
+const FS_MAX_BLOCKS = 150;
+const FS_MAX_STREAMS = 400;
+const FS_MAX_SPECS = 10;
+const FS_MAX_CALCS = 20;
+const VARY_KINDS = ['feed_flow', 'feed_T', 'feed_P', 'param', 'split'];
 const FS_DEF = { tol: 1e-6, max_iter: 60, spec_tol: 1e-6, spec_max_iter: 25, budget_ms: 7500 };
 const WEG_QMIN = -5;
 const WEG_QMAX = 0;
@@ -181,6 +205,56 @@ function validate(input) {
     else if (!B.has(t.block)) return fail('MB_FS_SPEC', `${at}.target needs a stream or a block`, at + '.target');
     if (num(v.lo) && num(v.hi) && v.lo >= v.hi) return fail('MB_FS_SPEC', `${at}.vary: lo must be < hi`, at + '.vary');
   }
+  // STEP 34: calculator blocks — imports (stream / unit results, or inputs), code, exports (inputs)
+  const calcs = [];
+  const cl = p.calculators === undefined ? [] : p.calculators;
+  if (!Array.isArray(cl) || cl.length > FS_MAX_CALCS) return fail('MB_FS_CALC', `params.calculators must be an array of ≤ ${FS_MAX_CALCS}`, 'params.calculators');
+  const varyKey = (v) => (v.kind === 'param' ? 'param|' + v.block + '|' + v.path : v.kind === 'split' ? 'split|' + v.block + '|' + v.outlet : v.kind + '|' + v.stream);
+  const checkVary = (v, at) => {
+    if (!isObj(v) || !VARY_KINDS.includes(v.kind)) return `${at}.kind must be ${VARY_KINDS.join(' | ')}`;
+    if (v.kind.startsWith('feed_')) { const fs = S.get(v.stream); if (!fs || fs.from) return `${at}.stream must be a feed stream id`; }
+    else if (v.kind === 'param') { if (!B.has(v.block) || typeof v.path !== 'string' || !v.path || /(^|\.)(__proto__|constructor|prototype)(\.|$)/.test(v.path)) return `${at} needs block and path`; }
+    else { const blk = B.get(v.block); if (!blk || (blk.module !== 'splitter' && blk.module !== 'r-splitter') || !Number.isInteger(v.outlet) || v.outlet < 0 || v.outlet >= blk.n_out) return `${at} needs a splitter block and outlet index`; }
+    return null;
+  };
+  const exported = new Map();
+  for (let i = 0; i < cl.length; i++) {
+    const c = cl[i], at = `params.calculators[${i}]`;
+    if (!isObj(c) || typeof c.code !== 'string') return fail('MB_FS_CALC', `${at} needs code`, at);
+    if (c.active === false) continue;
+    const id = typeof c.id === 'string' && c.id ? c.id : 'calc' + (i + 1);
+    const nm = typeof c.name === 'string' && c.name ? c.name : id;
+    const imps = c.imports === undefined ? [] : c.imports, exps = c.exports === undefined ? [] : c.exports;
+    if (!Array.isArray(imps) || imps.length > 40 || !Array.isArray(exps) || exps.length > 20) return fail('MB_FS_CALC', `${at}: imports (≤ 40) and exports (≤ 20) must be arrays`, at);
+    let prog;
+    try { prog = calc.compile(c.code); } catch (e) { return fail('MB_FS_CALC', `calculator ${nm}: ${e.message}`, at + '.code'); }
+    const ident = (n) => typeof n === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) && !calc.RESERVED.has(n);
+    const names = new Set();
+    for (let j = 0; j < imps.length; j++) {
+      const t = imps[j], aj = `${at}.imports[${j}]`;
+      if (!isObj(t) || !ident(t.name)) return fail('MB_FS_CALC', `${aj}.name must be a variable name (letters, digits, _; not a function name)`, aj);
+      if (names.has(t.name)) return fail('MB_FS_CALC', `calculator ${nm}: '${t.name}' is imported twice`, aj);
+      names.add(t.name);
+      if (t.kind !== undefined) { const m = checkVary(t, aj); if (m) return fail('MB_FS_CALC', m, aj); }
+      else if (t.stream !== undefined) { if (!S.has(t.stream) || typeof t.metric !== 'string') return fail('MB_FS_CALC', `${aj}: unknown stream or no metric`, aj); }
+      else if (!B.has(t.block) || typeof t.metric !== 'string') return fail('MB_FS_CALC', `${aj} needs a stream or block result (metric), or an input (kind)`, aj);
+    }
+    const undef = calc.undefinedRefs(prog, names);
+    if (undef.length) return fail('MB_FS_CALC', `calculator ${nm}, line ${undef[0].line}: '${undef[0].name}' is neither imported nor assigned on an earlier line`, at + '.code');
+    const assigned = new Set(prog.statements.map((q) => q.name));
+    for (let j = 0; j < exps.length; j++) {
+      const v = exps[j], aj = `${at}.exports[${j}]`;
+      if (!isObj(v) || !ident(v.name)) return fail('MB_FS_CALC', `${aj}.name must be a variable name`, aj);
+      if (!assigned.has(v.name) && !names.has(v.name)) return fail('MB_FS_CALC', `calculator ${nm}: export '${v.name}' is never assigned`, aj);
+      const m = checkVary(v, aj); if (m) return fail('MB_FS_CALC', m, aj);
+      const k = varyKey(v);
+      if (exported.has(k)) return fail('MB_FS_CALC', `calculator ${nm}: ${k.replace(/\|/g, ' ')} is already set by calculator ${exported.get(k)}`, aj);
+      exported.set(k, nm);
+      if (specs.some((sp) => isObj(sp.vary) && varyKey(sp.vary) === k)) return fail('MB_FS_CALC', `calculator ${nm} sets the quantity a design spec varies (${k.replace(/\|/g, ' ')})`, aj);
+      if (isObj(p.sensitivity) && isObj(p.sensitivity.vary) && varyKey(p.sensitivity.vary) === k) return fail('MB_FS_CALC', `calculator ${nm} sets the quantity the sensitivity study varies`, aj);
+    }
+    calcs.push({ id, name: nm, prog, imports: imps, exports: exps, order: i });
+  }
   let pkg = null;
   if (p.property_package !== undefined && p.property_package !== null) {
     if (!isObj(p.property_package) || typeof p.property_package.model !== 'string') return fail('MB_FS_PACKAGE', 'params.property_package must be {model, …}', 'params.property_package');
@@ -206,27 +280,135 @@ function validate(input) {
     if (!Array.isArray(outs) || !outs.length || outs.length > FS_MAX_SENS_OUT) return fail('MB_FS_SENS', `${at}.outputs must list 1–${FS_MAX_SENS_OUT} targets`, at);
     for (const t of outs) {
       if (!isObj(t)) return fail('MB_FS_SENS', `${at}.outputs entries must be objects`, at);
+      if (t.economics !== undefined) continue;            // checked once params.economics is read
       if (t.stream !== undefined) { if (!S.has(t.stream)) return fail('MB_FS_SENS', `${at}: unknown output stream '${t.stream}'`, at); }
       else if (!B.has(t.block)) return fail('MB_FS_SENS', `${at}: output needs a stream or a block`, at);
     }
     sens = { vary: v, values, outputs: outs };
   }
+  // STEP 36: economics settings and optimisation problem
+  let econSet = null;
+  if (p.economics !== undefined && p.economics !== null) {
+    const m = econ.validateSettings(p.economics);
+    if (m) return fail('MB_FS_ECON', m, 'params.economics');
+    for (const id of Object.keys(p.economics.units || {})) if (!B.has(id)) return fail('MB_FS_ECON', `params.economics.units: unknown block '${id}'`, 'params.economics.units');
+    econSet = p.economics;
+  }
+  const checkTarget = (t, at) => {
+    if (!isObj(t)) return `${at} must be an object`;
+    if (t.economics !== undefined) {
+      if (!ECON_METRICS.includes(t.economics)) return `${at}.economics must be one of ${ECON_METRICS.join(', ')}`;
+      if (!econSet) return `${at}: an economics target needs params.economics`;
+      return null;
+    }
+    if (t.stream !== undefined) return S.has(t.stream) ? null : `${at}.stream unknown`;
+    return B.has(t.block) ? null : `${at} needs a stream, a block or an economics total`;
+  };
+  let opt = null;
+  if (p.optimization !== undefined && p.optimization !== null && !(isObj(p.optimization) && p.optimization.active === false)) {
+    const q = p.optimization, at = 'params.optimization';
+    if (!isObj(q)) return fail('MB_FS_OPT', `${at} must be an object`, at);
+    const sense = q.sense === undefined ? 'min' : q.sense;
+    if (sense !== 'min' && sense !== 'max') return fail('MB_FS_OPT', `${at}.sense must be 'min' or 'max'`, at);
+    const obj = Array.isArray(q.objective) ? q.objective : isObj(q.objective) ? [{ target: q.objective, coef: 1 }] : null;
+    if (!obj || !obj.length || obj.length > 8) return fail('MB_FS_OPT', `${at}.objective must be a target or 1–8 terms {target, coef}`, at);
+    for (let i = 0; i < obj.length; i++) {
+      const t = obj[i], aj = `${at}.objective[${i}]`;
+      if (!isObj(t) || (t.coef !== undefined && !num(t.coef))) return fail('MB_FS_OPT', `${aj} must be {target, coef}`, aj);
+      const m = checkTarget(t.target, aj + '.target'); if (m) return fail('MB_FS_OPT', m, aj);
+    }
+    const vars = q.variables;
+    if (!Array.isArray(vars) || !vars.length || vars.length > FS_MAX_OPT_VARS) return fail('MB_FS_OPT', `${at}.variables must list 1–${FS_MAX_OPT_VARS} decision variables`, at);
+    const vkeys = new Set();
+    for (let i = 0; i < vars.length; i++) {
+      const v = vars[i], aj = `${at}.variables[${i}]`;
+      const m = checkVary(isObj(v) ? v.vary : null, aj + '.vary'); if (m) return fail('MB_FS_OPT', m, aj);
+      if (!num(v.lo) || !num(v.hi) || !(v.lo < v.hi)) return fail('MB_FS_OPT', `${aj} needs bounds lo < hi`, aj);
+      const k = varyKey(v.vary);
+      if (vkeys.has(k)) return fail('MB_FS_OPT', `${aj}: ${k.replace(/\|/g, ' ')} is varied twice`, aj);
+      vkeys.add(k);
+      if (specs.some((sp) => isObj(sp.vary) && varyKey(sp.vary) === k)) return fail('MB_FS_OPT', `${aj}: a design spec already varies ${k.replace(/\|/g, ' ')}`, aj);
+      if (exported.has(k)) return fail('MB_FS_OPT', `${aj}: calculator ${exported.get(k)} sets ${k.replace(/\|/g, ' ')}`, aj);
+    }
+    const cons = q.constraints === undefined ? [] : q.constraints;
+    if (!Array.isArray(cons) || cons.length > FS_MAX_OPT_CONS) return fail('MB_FS_OPT', `${at}.constraints must be an array of ≤ ${FS_MAX_OPT_CONS}`, at);
+    for (let i = 0; i < cons.length; i++) {
+      const c = cons[i], aj = `${at}.constraints[${i}]`;
+      if (!isObj(c) || !['le', 'ge'].includes(c.op) || !num(c.value)) return fail('MB_FS_OPT', `${aj} needs op ('le' | 'ge'), value and target`, aj);
+      const m = checkTarget(c.target, aj + '.target'); if (m) return fail('MB_FS_OPT', m, aj);
+    }
+    const mx = q.max_evaluations === undefined ? 60 : q.max_evaluations;
+    if (!Number.isInteger(mx) || mx < 5 || mx > FS_MAX_OPT_EVALS) return fail('MB_FS_OPT', `${at}.max_evaluations must be 5–${FS_MAX_OPT_EVALS}`, at);
+    const xtol = q.xtol === undefined ? 0.005 : q.xtol;
+    if (!num(xtol) || xtol < 1e-6 || xtol > 0.2) return fail('MB_FS_OPT', `${at}.xtol must be 1e-6–0.2 (fraction of each variable's range)`, at);
+    opt = { sense, objective: obj.map((t) => ({ target: t.target, coef: num(t.coef) ? t.coef : 1 })), variables: vars.map((v) => ({ vary: v.vary, lo: v.lo, hi: v.hi })),
+      constraints: cons.map((c) => ({ target: c.target, op: c.op, value: c.value, name: typeof c.name === 'string' ? c.name.slice(0, 40) : undefined })),
+      max_evaluations: mx, xtol, penalty: num(q.penalty) && q.penalty > 0 ? q.penalty : 1000 };
+  }
+  if (sens) for (const t of sens.outputs) if (t.economics !== undefined) { const m = checkTarget(t, 'params.sensitivity.outputs'); if (m) return fail('MB_FS_SENS', m, 'params.sensitivity'); }
   const o = Object.assign({}, FS_DEF, isObj(p.options) ? p.options : {});
   for (const k of Object.keys(FS_DEF)) if (!num(o[k]) || o[k] <= 0) o[k] = FS_DEF[k];
   o.budget_ms = Math.min(o.budget_ms, 8500);                 // Vercel limit (10 s) — larger flowsheets continue over further calls
   o.accelerator = (isObj(p.options) && p.options.accelerator === 'wegstein') ? 'wegstein' : 'broyden';
   o.max_iter = Math.min(Math.round(o.max_iter), 500);
   o.spec_max_iter = Math.min(Math.round(o.spec_max_iter), 60);
-  return { blocks, streams, B, S, specs, opts: o, feeds: input.streams, pkg, sens };
+  o.calc_max_iter = Math.min(Math.max(Math.round(num(o.calc_max_iter) ? o.calc_max_iter : 30), 1), 100);
+  return { blocks, streams, B, S, specs, opts: o, feeds: input.streams, pkg, sens, calcs, opt, econ: econSet };
 }
 
 // ---------------------------------------------------------------------------
 // calculation order — Tarjan SCCs + DFS back-edge tears inside each loop
 // ---------------------------------------------------------------------------
-function buildPlan(M) {
+/**
+ * STEP 34: where each calculator runs. A feed-forward calculator (nothing it sets feeds back into
+ * what it reads) becomes a node of the calculation order: after the units it reads, before the
+ * units it sets. A calculator inside a recycle of its own making (it reads a result its exports
+ * change) is a feedback calculator: converged by substitution around the whole solve.
+ */
+function calcLinks(M, c) {
+  const src = new Set(), dst = new Set();
+  for (const t of c.imports) {
+    if (t.kind !== undefined) continue;                                     // an input: known before the solve
+    if (t.stream !== undefined) { const s = M.S.get(t.stream); if (s && s.from) src.add(s.from.b); }
+    else src.add(t.block);
+  }
+  for (const v of c.exports) {
+    if (v.kind.startsWith('feed_')) { const s = M.S.get(v.stream); if (s && s.to) dst.add(s.to.b); }
+    else dst.add(v.block);
+  }
+  return { src: [...src], dst: [...dst] };
+}
+function planCalcs(M, calcs) {
   const ids = M.blocks.map((b) => b.id);
   const adj = new Map(ids.map((i) => [i, []]));
+  for (const s of M.streams) if (s.from && s.to) adj.get(s.from.b).push(s.to.b);
+  const down = (b0) => { const seen = new Set([b0]), q = [b0]; while (q.length) { for (const w of adj.get(q.shift())) if (!seen.has(w)) { seen.add(w); q.push(w); } } return seen; };
+  const ff = [], fb = [];
+  for (const c of calcs) {
+    const L = calcLinks(M, c);
+    c.links = L;
+    const loops = L.dst.some((d) => { const D = down(d); return L.src.some((s0) => D.has(s0)); });
+    (loops ? fb : ff).push(c);
+  }
+  // feed-forward calculators chained into a cycle through one another are feedback too
+  for (;;) {
+    const plan = buildPlan(M, ff);
+    const bad = plan.find((st) => st.loop && st.calcIn);
+    if (!bad) return { plan, ff, fb };
+    for (const id of bad.calcIn) { const k = ff.findIndex((c) => c.id === id); if (k >= 0) fb.push(ff.splice(k, 1)[0]); }
+  }
+}
+
+function buildPlan(M, ffCalcs) {
+  const CN = (c) => '\u00a7' + c.id;                                       // calculator node id
+  const cmap = new Map((ffCalcs || []).map((c) => [CN(c), c]));
+  const ids = M.blocks.map((b) => b.id).concat([...cmap.keys()]);
+  const adj = new Map(ids.map((i) => [i, []]));
   for (const s of M.streams) if (s.from && s.to) adj.get(s.from.b).push({ to: s.to.b, sid: s.id });
+  for (const [n, c] of cmap) {
+    for (const b of c.links.src) adj.get(b).push({ to: n, sid: null });
+    for (const b of c.links.dst) adj.get(n).push({ to: b, sid: null });
+  }
   let index = 0;
   const st = [], on = new Set(), idx = new Map(), low = new Map(), sccs = [];
   const strong = (v) => {
@@ -246,7 +428,9 @@ function buildPlan(M) {
   const plan = [];
   for (const c of sccs) {
     const self = adj.get(c[0]).some((e) => e.to === c[0]);
+    if (c.length === 1 && cmap.has(c[0])) { plan.push({ calc: cmap.get(c[0]).id, blocks: [], loop: false, tears: [] }); continue; }
     if (c.length === 1 && !self) { plan.push({ blocks: c, loop: false, tears: [] }); continue; }
+    if (c.some((v) => cmap.has(v))) { plan.push({ loop: true, calcIn: c.filter((v) => cmap.has(v)).map((v) => cmap.get(v).id), blocks: [], tears: [] }); continue; }
     const set = new Set(c);
     const ordered = ids.filter((id) => set.has(id));
     const ext = (bid) => M.streams.some((s) => s.to && s.to.b === bid && (!s.from || !set.has(s.from.b)));
@@ -463,7 +647,27 @@ function broydenStep(st, x, g) {
 // STEP 30 per-request warm context: block-result cache, column profiles, last tear values
 const NO_CACHE = new Set(['r-pfr', 'r-cstr']);
 const CACHE_MAX = 600;            // entries (FIFO) — a few MB at most
-function newWarm() { return { cache: new Map(), col: {}, tear: {}, bro: {}, hits: 0, warmCols: 0, specX: null, solves: 0 }; }
+function newWarm() { return { cache: new Map(), col: {}, tear: {}, bro: {}, hits: 0, warmCols: 0, specX: null, solves: 0, loopTot: {}, firstHist: {}, evals: 0, hist: null, histBase: null }; }
+// STEP 35: convergence history of a recycle loop — one entry per pass, kept to HIST_MAX entries
+// (the first HIST_HEAD and the latest ones) so a long run stays small in the reply and the token
+const HIST_MAX = 250, HIST_HEAD = 25;
+const HIST_CODES = { g: 'guess', e: 'estimate', w: 'warm', c: 'continued', s: 'substitution', W: 'wegstein', b: 'broyden', r: 'retreat' };
+const HIST_LETTER = Object.fromEntries(Object.entries(HIST_CODES).map(([k, v]) => [v, k]));
+const p4 = (v) => (num(v) ? Number(v.toPrecision(4)) : null);
+const p7 = (v) => (num(v) ? Number(v.toPrecision(7)) : null);
+function histPush(h, e) {
+  h.push(e);
+  if (h.length > HIST_MAX) { h.splice(HIST_HEAD, 1); h.trimmed = true; }
+}
+/** final state of one torn stream: last computed value g against the value x it was computed from */
+function tearStatus(M, tid, x, g) {
+  const sx = Object.values(x.m).reduce((a, b) => a + b, 0), sg = Object.values(g.m).reduce((a, b) => a + b, 0);
+  const tot = Math.max(sx, sg, 1e-12);
+  let wk = null, we = 0;
+  for (const k of keysOf(x, g)) { const e = Math.abs((g.m[k] || 0) - (x.m[k] || 0)) / tot; if (e > we) { we = e; wk = k; } }
+  return { stream: tid, name: sname(M.S.get(tid)), rel_change: p4(relErr(x, g)), flow_kg_h: p4(sg), dflow_rel: p4((sg - sx) / tot),
+    T_K: p4(g.T), dT_K: p4(g.T - x.T), P_bar: p4(g.P), dP_bar: p4(g.P - x.P), worst_component: wk, worst_rel: p4(we) };
+}
 
 // ---------------------------------------------------------------------------
 // STEP 30 resumable solves: when the time budget runs out, the response carries a
@@ -492,7 +696,14 @@ const okCol = (c) => isObj(c) && Number.isInteger(c.N) && c.N > 0 && c.N <= 200 
 function readResume(input, plan, M, V) {
   const r = input.params && input.params.resume;
   if (!isObj(r) || r.v !== RESUME_V || r.sig !== sigOf(input)) return null;
-  const out = { tear: {}, col: {}, x: null, rows: [], phase: r.phase === 'sens' ? 'sens' : 'main', calls: 0, solves: 0, ms: 0 };
+  const out = { tear: {}, col: {}, x: null, rows: [], phase: r.phase === 'sens' ? 'sens' : r.phase === 'opt' ? 'opt' : 'main', calls: 0, solves: 0, ms: 0 };
+  // STEP 36: optimisation points already evaluated (replayed, not re-solved)
+  if (V.opt && Array.isArray(r.opt) && r.opt.length <= FS_MAX_OPT_EVALS + 2) {
+    const n = V.opt.variables.length, nc = V.opt.constraints.length;
+    const ok = r.opt.every((q) => isObj(q) && Array.isArray(q.x) && q.x.length === n && q.x.every(num) &&
+      (q.obj === null ? typeof q.err === 'string' : num(q.obj) && Array.isArray(q.g) && q.g.length === nc && q.g.every(num)));
+    if (ok) out.opt = r.opt.map((q) => ({ x: q.x.slice(), obj: q.obj, g: q.g ? q.g.slice() : null, err: q.err ? String(q.err).slice(0, 200) : undefined, conv: q.conv !== false }));
+  }
   if (isObj(r.tears)) for (const k of Object.keys(r.tears)) {
     const i = Number(k), a = r.tears[k];
     if (Number.isInteger(i) && plan[i] && plan[i].loop && Array.isArray(a) && a.length === plan[i].tears.length && a.every(okTear)) out.tear[i] = a.map(cpO);
@@ -502,6 +713,15 @@ function readResume(input, plan, M, V) {
   if (isObj(r.its) && !V.specs.length && out.phase === 'main') {
     out.its = {};
     for (const k of Object.keys(r.its)) { const i = Number(k); if (Number.isInteger(i) && plan[i] && plan[i].loop && Number.isInteger(r.its[k]) && r.its[k] > 0) out.its[i] = Math.min(r.its[k], 500); }
+  }
+  if (isObj(r.hist) && !V.specs.length && out.phase === 'main') {
+    out.hist = {};
+    for (const k of Object.keys(r.hist)) {
+      const i = Number(k), a = r.hist[k];
+      if (!Number.isInteger(i) || !plan[i] || !plan[i].loop || !Array.isArray(a) || a.length > HIST_MAX) continue;
+      if (!a.every((e) => Array.isArray(e) && e.length === 3 && Number.isInteger(e[0]) && e[0] > 0 && e[0] <= 500 && (e[1] === null || num(e[1])) && HIST_CODES[e[2]])) continue;
+      out.hist[i] = a.map((e) => ({ it: e[0], err: e[1], method: HIST_CODES[e[2]] }));
+    }
   }
   if (V.sens && Array.isArray(r.rows) && r.rows.length < V.sens.values.length) {
     out.rows = r.rows.filter((row) => isObj(row) && num(row.value)).slice(0, V.sens.values.length).map((row) => ({
@@ -515,9 +735,11 @@ function readResume(input, plan, M, V) {
   for (const k of ['calls', 'solves', 'ms']) if (num(r[k]) && r[k] >= 0) out[k] = Math.min(r[k], 1e9);
   return out;
 }
+// the token carries at most 120 passes per loop (the first 10 and the latest) to keep the re-posted body small
+const packHist = (H) => (H ? Object.fromEntries(Object.entries(H).map(([k, h]) => [k, (h.length > 120 ? h.slice(0, 10).concat(h.slice(-110)) : h).map((e) => [e.it, e.err, HIST_LETTER[e.method] || 's'])])) : null);
 function makeResume(input, st) {
-  return { v: RESUME_V, sig: sigOf(input), phase: st.phase, tears: st.tears, cols: st.cols, x: st.x || undefined, its: st.its || undefined,
-    rows: st.rows && st.rows.length ? st.rows : undefined, calls: st.calls, solves: st.solves, ms: st.ms };
+  return { v: RESUME_V, sig: sigOf(input), phase: st.phase, tears: st.tears, cols: st.cols, x: st.x || undefined, its: st.its || undefined, hist: st.hist || undefined,
+    rows: st.rows && st.rows.length ? st.rows : undefined, opt: st.opt && st.opt.length ? st.opt : undefined, calls: st.calls, solves: st.solves, ms: st.ms };
 }
 const snapTears = (wc) => Object.fromEntries(Object.entries(wc.tear).map(([k, a]) => [k, a.map(cpO)]));
 
@@ -528,6 +750,7 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
   const SV = {}, BR = {}, log = [], warnings = [], loops = [], alerts = [];
   const WMAP = new Map();
   wc = wc || newWarm();
+  wc.evals++;
   if (sink) { sink.SV = SV; sink.BR = BR; sink.log = log; }
   let solves = 0;
   const L = (k, t) => { if (logOn) log.push([k, t]); };
@@ -560,7 +783,7 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       // integrating units get what is left of the flowsheet's time budget (Vercel limit)
       if (b.module === 'r-pfr' || b.module === 'r-cstr') params.budget_ms = Math.max(200, Math.min(num(params.budget_ms) ? params.budget_ms : 5000, deadline - Date.now()));
       // rigorous columns: warm start from this column's last converged profile, and never past the budget
-      const isCol = b.module === 'column';
+      const isCol = b.module === 'column' || b.module === 'r-urea-stripper';
       if (isCol) {
         params.budget_ms = Math.max(150, deadline - Date.now());
         params.warm_out = true;
@@ -606,8 +829,19 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       if (!alerts.includes(m)) { alerts.push(m); L('w', '⚠ ' + m); }
     }
   };
+  const calcRes = {};
+  const runCalcStep = (cid) => {
+    const c = (M.calcs || []).find((x) => x.id === cid);
+    if (!c) return;
+    const r = runCalculator(c, M, { SV, BR, pkg: M.pkg || null });
+    calcRes[c.id] = r;
+    // exported feed values reach the feed streams already set at the start of this pass
+    for (const v of c.exports) if (v.kind.startsWith('feed_')) { const fs = M.S.get(v.stream); SV[fs.id] = clean(M.feeds[fs.feed]); }
+    L('o', `ƒ calculator ${c.name}: ` + Object.entries(r.exports).map(([k, v]) => `${k} = ${v.toPrecision(7)}`).join(', '));
+  };
   for (let si = 0; si < plan.length; si++) {
     const step = plan[si];
+    if (step.calc) { runCalcStep(step.calc); continue; }
     if (!step.loop) { solve(step.blocks[0], false); continue; }
     const names = step.blocks.map((id) => label(M.B.get(id))).join(' → ');
     L('h', `⟲ recycle loop ${names} · tear ${step.tears.map((t) => sname(M.S.get(t))).join(', ')}`);
@@ -651,8 +885,13 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
     const bro = wc.bro && wc.bro[si];
     let broFrom = it0 + 3;
     if (BR8 && warmUsed && bro) { BR8.H = bro.H.map((r) => r.slice()); BR8.keys = bro.keys; BR8.sc = bro.sc; broFrom = it0 + 1; }
-    let lastG = null, subst = 0, retreats = 0;
+    let lastG = null, lastX = null, subst = 0, retreats = 0;
     const balHist = [];
+    // STEP 35: pass-by-pass record — the error of each pass and how its starting point was made
+    const hist = [];
+    if (it0 && wc.histBase && Array.isArray(wc.histBase[si])) for (const e of wc.histBase[si]) if (e.it <= it0) histPush(hist, e);
+    if (wc.hist) wc.hist[si] = hist;
+    let how = it0 ? 'continued' : warmUsed ? 'warm' : guessed ? 'guess' : 'estimate';
     for (let it = it0 + 1; it <= opts.max_iter; it++) {
       if (wc.itDone) wc.itDone[si] = it - 1;
       step.tears.forEach((tid, k) => { SV[tid] = objS(x[k]); });
@@ -662,6 +901,7 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
         if (it === it0 + 1 && !it0 && e instanceof FsError && e.code !== 'MB_FS_BUDGET' && (warmUsed || (guessed && gi < GUESS.length - 1))) {
           if (warmUsed) warmUsed = false; else gi++;
           x = initX();
+          how = guessed ? 'guess' : 'estimate';
           if (BR8) BR8.H = null;
           broFrom = it0 + 3;
           L('w', `   first pass failed (${e.message}) — restarting the loop from ${gi ? `torn streams at ${GUESS[gi] * 100} % of the fresh feed` : guessed ? 'the default starting values' : 'the starting estimates'}`);
@@ -672,7 +912,7 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
         // torn-stream values and take plain substitution steps for a while
         if (lastG && retreats < 3 && e instanceof FsError && e.code !== 'MB_FS_BUDGET') {
           retreats++; subst = 3;
-          x = lastG.map(cpO); xp = null; gp = null;
+          x = lastG.map(cpO); xp = null; gp = null; how = 'retreat';
           if (BR8) { BR8.H = null; BR8.fails++; }
           L('w', `   pass ${it} failed (${e.message}) — back to the last computed values, direct substitution`);
           continue;
@@ -682,22 +922,34 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       const g = step.tears.map((tid) => sObj(SV[tid]));
       lastG = g.map(cpO);
       if (it - it0 > 4) { balHist.push(loopBalance(M, step, SV, BR)); if (balHist.length > 8) balHist.shift(); }
-      const err = Math.max(...g.map((gk, k) => relErr(x[k], gk)));
+      const errs = g.map((gk, k) => relErr(x[k], gk));
+      const err = Math.max(...errs);
       rec.iterations = it; rec.err = err;
-      L('', `   iteration ${it} · max relative change ${err.toExponential(2)}`);
+      lastX = x;
+      const he = { it, err: p4(err), method: how };
+      if (errs.length > 1 && errs.length <= 8) he.tears = errs.map(p4);
+      histPush(hist, he);
+      L('', `   iteration ${it} · max relative change ${err.toExponential(2)} · ${how}`);
       if (err <= opts.tol) { rec.converged = true; break; }
-      let xn = null;
-      if (subst > 0) { subst--; xn = g.map(cpO); }
+      let xn = null, nh = null;
+      if (subst > 0) { subst--; xn = g.map(cpO); nh = 'retreat'; }
       else if (BR8 && it >= broFrom && BR8.fails < 4) {
         if (err > 2 * BR8.best && BR8.H) { BR8.H = null; BR8.fails++; }          // diverging: restart from substitution
-        else xn = broydenStep(BR8, x, g);
+        else { xn = broydenStep(BR8, x, g); if (xn) nh = 'broyden'; }
         BR8.best = Math.min(BR8.best, err);
       }
-      if (!xn) xn = x.map((xk, k) => wegstein(xk, g[k], xp && xp[k], gp && gp[k]));
+      if (!xn) { nh = xp ? 'wegstein' : 'substitution'; xn = x.map((xk, k) => wegstein(xk, g[k], xp && xp[k], gp && gp[k])); }
+      how = nh;
       xp = x; gp = g; x = xn;
       wc.tear[si] = x.map(cpO);
     }
     wc.tear[si] = x.map(cpO);
+    rec.accelerator = opts.accelerator;
+    rec.history = hist;
+    if (hist.trimmed) rec.history_trimmed = true;
+    if (lastX && lastG) rec.tear_status = step.tears.map((tid, k) => tearStatus(M, tid, lastX[k], lastG[k]));
+    wc.loopTot[si] = (wc.loopTot[si] || 0) + (rec.iterations - it0);
+    if (!wc.firstHist[si]) wc.firstHist[si] = hist;
     if (BR8 && wc.bro) { if (rec.converged && BR8.H && BR8.fails === 0) wc.bro[si] = { H: BR8.H, keys: BR8.keys, sc: BR8.sc }; else delete wc.bro[si]; }
     if (rec.converged) L('o', `✓ loop converged in ${rec.iterations} iterations (error ${rec.err.toExponential(2)})`);
     else {
@@ -707,7 +959,7 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       if (hint) { L('w', '   ' + hint); warnings.push(hint); }
     }
   }
-  return { SV, BR, log, warnings, loops, solves, alerts, pkg: M.pkg || null };
+  return { SV, BR, log, warnings, loops, solves, alerts, pkg: M.pkg || null, calcs: calcRes };
 }
 
 /**
@@ -774,6 +1026,56 @@ function molesOf(s) {
   }
   return { n, tot };
 }
+// ---------------------------------------------------------------------------
+// STEP 36 — economics of a solved evaluation, and targets that may be an economics total
+// ---------------------------------------------------------------------------
+function streamMW(s) {
+  if (!s) return NaN;
+  if (num(s.mw_avg)) return s.mw_avg;
+  let inv = 0;
+  for (const c of s.components || []) { let w = NaN; try { w = TB.resolve(c.key).mw; } catch (_e) { w = NaN; } if (!num(w) || !num(c.mass_fraction)) return NaN; inv += c.mass_fraction / w; }
+  return inv > 0 ? 1 / inv : NaN;
+}
+function econUnits(M, ev, settings) {
+  const out = [];
+  for (const b of M.blocks) {
+    const br = ev.BR[b.id];
+    if (!br) continue;
+    const inlets = [], outlets = [];
+    // drums and columns are sized from phase densities: describe their streams with the property method when needed
+    const eq = (settings && settings.units && settings.units[b.id] && settings.units[b.id].equip) || econ.inferEquip(b.module);
+    const dens = (eq === 'drum' || eq === 'column') && M.pkg && TB.rig;
+    for (const s of M.streams) {
+      let v = ev.SV[s.id];
+      if (!v) continue;
+      if (dens && ((s.from && s.from.b === b.id) || (s.to && s.to.b === b.id)) && !(v.rig && v.rig.props)) {
+        try { const d = TB.rig.describeStream(M.pkg, clean(v)); v = Object.assign({}, v, { rig: d.rig, vapour_fraction: d.vapour_fraction }); } catch (_e) { /* outside the method's databank */ }
+      }
+      const w = num(v.mw_avg) ? v : Object.assign({}, v, { mw_avg: streamMW(v) });
+      if (s.to && s.to.b === b.id) inlets[s.to.p] = w;
+      if (s.from && s.from.b === b.id) outlets[s.from.p] = w;
+    }
+    out.push({ id: b.id, name: b.name || b.id, module: b.module, params: b.params, result: br.result, inlets, outlets });
+  }
+  return out;
+}
+function econOf(M, ev, settings) {
+  if (ev.__econ && ev.__econSet === settings) return ev.__econ;
+  const r = econ.computeEconomics(econUnits(M, ev, settings), settings, { mw: (k) => { try { return TB.resolve(k).mw; } catch (_e) { return NaN; } } });
+  Object.defineProperty(ev, '__econ', { value: r, writable: true, configurable: true, enumerable: false });
+  Object.defineProperty(ev, '__econSet', { value: settings, writable: true, configurable: true, enumerable: false });
+  return r;
+}
+/** a design-spec style target, or an economics total (needs the model and the settings) */
+function metricX(t, ev, M, econSet) {
+  if (t && t.economics !== undefined) {
+    const v = econOf(M, ev, econSet).totals[t.economics];
+    if (!num(v)) throw new FsError('MB_FS_ECON', `economics total '${t.economics}' could not be computed`, 'params.economics');
+    return v;
+  }
+  return metric(t, ev);
+}
+
 function metric(t, ev) {
   if (t.stream !== undefined) {
     const s = ev.SV[t.stream];
@@ -887,9 +1189,91 @@ function cloneModel(M) {
   const C = {
     blocks: M.blocks.map((b) => Object.assign({}, b, { params: JSON.parse(JSON.stringify(b.params || {})) })),
     streams: M.streams, S: M.S, feeds: M.feeds.map((f) => JSON.parse(JSON.stringify(f))), pkg: M.pkg,
+    calcs: M.calcs, fbCalcs: M.fbCalcs,
   };
   C.B = new Map(C.blocks.map((b) => [b.id, b]));
   return C;
+}
+
+/**
+ * STEP 34: run one calculator — imports read from the solved streams / units (or the model's
+ * inputs), the program evaluated, exports written into the model (feed or unit input).
+ * @returns {{imports, exports, variables}}
+ */
+function runCalculator(c, M, ev) {
+  const inp = {};
+  for (const t of c.imports) {
+    let v;
+    try { v = t.kind !== undefined ? readVary(t, M) : metric(t, ev); } catch (e) { throw new FsError('MB_FS_CALC', `calculator ${c.name}: import '${t.name}': ${e.message}`, 'params.calculators'); }
+    if (!num(v)) throw new FsError('MB_FS_CALC', `calculator ${c.name}: import '${t.name}' is not a number`, 'params.calculators');
+    inp[t.name] = v;
+  }
+  let env;
+  try { env = calc.run(c.prog, inp); } catch (e) { throw new FsError('MB_FS_CALC', `calculator ${c.name}: ${e.message}`, 'params.calculators'); }
+  const exps = {};
+  for (const v of c.exports) {
+    const x = env[v.name];
+    if (v.kind === 'feed_flow' && !(x >= 0)) throw new FsError('MB_FS_CALC', `calculator ${c.name}: ${v.name} = ${x} — a feed flow cannot be negative`, 'params.calculators');
+    if ((v.kind === 'feed_T' || v.kind === 'feed_P') && !(x > 0)) throw new FsError('MB_FS_CALC', `calculator ${c.name}: ${v.name} = ${x} — an absolute temperature / pressure must be positive`, 'params.calculators');
+    if (v.kind === 'split' && !(x >= 0 && x <= 1)) throw new FsError('MB_FS_CALC', `calculator ${c.name}: ${v.name} = ${x} — a split fraction must be 0–1`, 'params.calculators');
+    writeVary(v, M, x);
+    exps[v.name] = x;
+  }
+  const vars = {};
+  for (const q of c.prog.statements) vars[q.name] = env[q.name];
+  return { imports: inp, exports: exps, variables: vars };
+}
+
+/**
+ * evaluate() plus the feedback calculators: each pass's results give new exports, written
+ * into the model, until they stop changing (substitution, Wegstein-accelerated per variable).
+ */
+function evaluateC(M, plan, opts, deadline, logOn, sink, wc) {
+  let ev = evaluate(M, plan, opts, deadline, logOn, sink, wc);
+  const FB = M.fbCalcs || [];
+  if (!FB.length) return ev;
+  let solves = ev.solves;
+  const keyOf = (c, v) => c.id + '.' + v.name;
+  const hist = {};
+  let it = 0, conv = false, err = NaN;
+  const all = FB.flatMap((c) => c.exports.map((v) => [c, v]));
+  const chist = [];                                  // STEP 35: pass-by-pass record
+  for (; it < opts.calc_max_iter; it++) {
+    const x0 = all.map(([, v]) => { try { return readVary(v, M); } catch (_e) { return NaN; } });
+    const res = {};
+    for (const c of FB) res[c.id] = runCalculator(c, M, ev);   // writes the new exports
+    const g = all.map(([c, v]) => res[c.id].exports[v.name]);
+    err = Math.max(0, ...g.map((gi, k) => (num(x0[k]) ? Math.abs(gi - x0[k]) / Math.max(Math.abs(gi), Math.abs(x0[k]), 1e-12) : Infinity)));
+    Object.assign(ev.calcs, res);
+    chist.push({ pass: it + 1, err: num(err) ? p4(err) : null, values: Object.fromEntries(all.map(([c, v], k) => [(FB.length > 1 ? c.name + '.' : '') + v.name, p4(g[k])])) });
+    if (err <= Math.max(opts.tol, 1e-9)) {
+      // converged: the model keeps the export values the reported solve was made with
+      all.forEach(([, v], k) => { if (num(x0[k])) writeVary(v, M, x0[k]); });
+      conv = true; break;
+    }
+    // Wegstein per variable (bounded) after two substitution passes
+    all.forEach(([c, v], k) => {
+      const h = hist[keyOf(c, v)];
+      let xn = g[k];
+      if (h && it >= 2 && num(x0[k]) && Math.abs(x0[k] - h.x) > 1e-14 * Math.max(1, Math.abs(x0[k]))) {
+        const sl = (g[k] - h.g) / (x0[k] - h.x);
+        if (num(sl) && sl < 1) { const q = Math.min(Math.max(sl / (sl - 1), -5), 0.5); xn = q * x0[k] + (1 - q) * g[k]; }
+      }
+      hist[keyOf(c, v)] = { x: x0[k], g: g[k] };
+      if (v.kind === 'feed_flow') xn = Math.max(0, xn);
+      if (v.kind === 'split') xn = Math.min(1, Math.max(0, xn));
+      if ((v.kind === 'feed_T' || v.kind === 'feed_P') && !(xn > 0)) xn = g[k];
+      writeVary(v, M, xn);
+    });
+    ev = evaluate(M, plan, opts, deadline, false, sink, wc);
+    solves += ev.solves;
+  }
+  ev.solves = solves;
+  ev.calcLoop = { iterations: Math.min(it + 1, opts.calc_max_iter), converged: conv, err, history: chist };
+  const names = FB.map((c) => c.name).join(', ');
+  ev.log.push([conv ? 'o' : 'w', `${conv ? 'ƒ' : '⚠'} feedback calculator${FB.length > 1 ? 's' : ''} ${names} ${conv ? 'converged' : 'NOT converged'} in ${ev.calcLoop.iterations} pass${ev.calcLoop.iterations > 1 ? 'es' : ''} (relative change ${num(err) ? err.toExponential(2) : err})`]);
+  if (!conv) { const m = `feedback calculator${FB.length > 1 ? 's' : ''} ${names} did not converge in ${opts.calc_max_iter} passes`; ev.warnings.push(m); ev.alerts.push(m); }
+  return ev;
 }
 
 /**
@@ -901,7 +1285,7 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
   let ev = null, totalSolves = 0;
   const specOut = [];
   if (!V.specs.length) {
-    ev = evaluate(M, plan, opts, deadline, logOn, sink, wc);
+    ev = evaluateC(M, plan, opts, deadline, logOn, sink, wc);
     return { ev, specOut, solves: ev.solves };
   }
   /* inner recycle tolerance tighter than the spec tolerance so the FD Jacobian is clean
@@ -913,9 +1297,11 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
   const bounds = vs.map((v, i) => defaultBounds(v, x[i]));
   x = x.map((xi, i) => clamp(xi, bounds[i][0], bounds[i][1]));
   if (wc && logOn) wc.specX = x.slice();
+  let nF = 0;
   const F = (xv) => {
+    nF++;
     xv.forEach((xi, i) => writeVary(vs[i], M, xi));
-    const e = evaluate(M, plan, inner, deadline, false, sink, wc);
+    const e = evaluateC(M, plan, inner, deadline, false, sink, wc);
     totalSolves += e.solves;
     return { e, r: V.specs.map((sp) => metric(sp.target, e) - sp.value) };
   };
@@ -937,6 +1323,10 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
   const scaled = (r) => Math.max(...r.map((ri, i) => Math.abs(ri) / tols[i]));
   if (!cur.r.every(num)) throw new FsError('MB_FS_SPEC', 'a design-spec target is not a number at the starting point (e.g. ratio with a zero denominator)', 'params.specs');
   let it = 0, conv = scaled(cur.r) <= 1;
+  // STEP 35: Newton record — varied values, residuals, scaled residual (≤ 1 = met), step length, Jacobian
+  const steps = [{ iteration: 0, varied: x.map(p7), residuals: cur.r.map(p4), scaled: p4(scaled(cur.r)), lambda: null, evaluations: nF }];
+  const specHist = { specs: V.specs.map((sp, i) => ({ id: sp.id || ('spec' + (i + 1)), name: sp.name || null, target: sp.value, tol: p4(tols[i]) })), steps, inner_tol: inner.tol };
+  if (wc) wc.specHist = specHist;
   for (; !conv && it < opts.spec_max_iter; it++) {
     const n = x.length;
     const J = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -956,7 +1346,7 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
       const xn = x.map((xi, i) => clamp(xi + lam * dx[i], bounds[i][0], bounds[i][1]));
       const tr = tryF(xn);
       if (!tr) { lam /= 2; continue; }
-      if (tr.r.every(num) && (!best || scaled(tr.r) < scaled(best.r))) best = { x: xn, ...tr };
+      if (tr.r.every(num) && (!best || scaled(tr.r) < scaled(best.r))) best = { x: xn, lam, ...tr };
       if (tr.r.every(num) && scaled(tr.r) < scaled(cur.r)) break;
       lam /= 2;
     }
@@ -968,9 +1358,11 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
     x = best.x; cur = best;
     if (wc && logOn) wc.specX = x.slice();
     conv = scaled(cur.r) <= 1;
+    steps.push({ iteration: it + 1, varied: x.map(p7), residuals: cur.r.map(p4), scaled: p4(scaled(cur.r)), lambda: p4(best.lam), evaluations: nF,
+      jacobian: J.map((row) => row.map(p4)) });
   }
   x.forEach((xi, i) => writeVary(vs[i], M, xi));
-  ev = evaluate(M, plan, inner, deadline, logOn, sink, wc);
+  ev = evaluateC(M, plan, inner, deadline, logOn, sink, wc);
   totalSolves += ev.solves;
   V.specs.forEach((sp, i) => {
     const val = metric(sp.target, ev);
@@ -983,7 +1375,7 @@ function core(M, plan, V, opts, deadline, logOn, sink, wc) {
     const m = `design spec not met after ${it} iterations (max scaled residual ${scaled(cur.r).toPrecision(3)})`;
     ev.warnings.push(m); ev.alerts.push(m);
   }
-  return { ev, specOut, solves: totalSolves };
+  return { ev, specOut, solves: totalSolves, specHist };
 }
 
 function solveFlowsheet(input) {
@@ -997,13 +1389,19 @@ function solveFlowsheet(input) {
     streams: V.streams, S: V.S, feeds: V.feeds.map((f) => JSON.parse(JSON.stringify(f))), pkg: V.pkg,
   };
   M.B = new Map(M.blocks.map((b) => [b.id, b]));
+  // STEP 34: calculators — feed-forward ones join the calculation order, feedback ones iterate around it
+  const CP = planCalcs(M, V.calcs);
+  M.calcs = CP.ff; M.fbCalcs = CP.fb;
   const M0 = V.sens ? cloneModel(M) : null;        // user inputs, before specs move anything
-  const plan = buildPlan(M);
-  const orderTxt = plan.map((p) => (p.loop ? '[' + p.blocks.map((id) => label(M.B.get(id))).join(' → ') + ']⟲' : label(M.B.get(p.blocks[0])))).join('  →  ');
+  const plan = CP.plan;
+  const cname = (id) => { const c = V.calcs.find((x) => x.id === id); return 'ƒ ' + (c ? c.name : id); };
+  const orderTxt = plan.map((p) => (p.calc ? cname(p.calc) : p.loop ? '[' + p.blocks.map((id) => label(M.B.get(id))).join(' → ') + ']⟲' : label(M.B.get(p.blocks[0])))).join('  →  ') +
+    (CP.fb.length ? '  ⟲ ' + CP.fb.map((c) => cname(c.id)).join(', ') + ' (feedback)' : '');
   let ev = null;
   const sink = {};
   let specOut = [];
   let totalSolves = 0;
+  let specHist = null;
   const wc = newWarm();
   // continuation of an earlier call that ran out of time (STEP 30)
   const RS = readResume(input, plan, M, V);
@@ -1011,13 +1409,14 @@ function solveFlowsheet(input) {
     wc.tear = RS.tear; wc.col = RS.col;
     if (RS.x) V.specs.forEach((sp, i) => writeVary(sp.vary, M, RS.x[i]));
     if (RS.its) wc.itBase = RS.its;
+    if (RS.hist) wc.histBase = RS.hist;
   }
-  if (!V.specs.length) wc.itDone = {};          // loop iterations of the main solve, carried by a continuation
+  if (!V.specs.length) { wc.itDone = {}; wc.hist = {}; }   // loop iterations (and their history) of the main solve, carried by a continuation
   const prior = RS ? { calls: RS.calls, solves: RS.solves, ms: RS.ms } : { calls: 0, solves: 0, ms: 0 };
   const tally = () => ({ calls: prior.calls + 1, solves: prior.solves + wc.solves, ms: prior.ms + (Date.now() - t0) });
   try {
     const r = core(M, plan, V, opts, deadline, true, sink, wc);
-    ev = r.ev; specOut = r.specOut; totalSolves = r.solves;
+    ev = r.ev; specOut = r.specOut; totalSolves = r.solves; specHist = r.specHist || null;
   } catch (e) {
     if (e instanceof FsError) {
       const solved = {};
@@ -1027,7 +1426,8 @@ function solveFlowsheet(input) {
       if (e.code === 'MB_FS_BUDGET') {
         const phase = RS ? RS.phase : 'main';
         partial.resume = makeResume(input, Object.assign({ phase, tears: snapTears(wc), cols: wc.col,
-          x: wc.specX || (RS && RS.x), rows: RS ? RS.rows : [], its: phase === 'main' && wc.itDone ? wc.itDone : null }, tally()));
+          x: wc.specX || (RS && RS.x), rows: RS ? RS.rows : [], its: phase === 'main' && wc.itDone ? wc.itDone : null,
+          hist: phase === 'main' ? packHist(wc.hist) : null }, tally()));
       }
       return fail(e.code, e.message, e.field, partial);
     }
@@ -1051,8 +1451,132 @@ function solveFlowsheet(input) {
     }
   }
   const mainTears = snapTears(wc);
-  wc.itBase = null; wc.itDone = null;
+  wc.itBase = null; wc.itDone = null; wc.hist = null;
+  // STEP 35: loop passes summed over every evaluation of the main solve (design-spec Newton,
+  // feedback calculators) — the reported loop record is the last evaluation's
+  const loopTot = Object.assign({}, wc.loopTot), evals = wc.evals;
+  {
+    const li = plan.map((p, i) => (p.loop ? i : -1)).filter((i) => i >= 0);
+    ev.loops.forEach((l, j) => {
+      if (evals > 1 && num(loopTot[li[j]])) l.iterations_all_evaluations = loopTot[li[j]] + (RS && RS.its && RS.its[li[j]] ? RS.its[li[j]] : 0);
+      // the loop's first (cold) solve in this request, when later evaluations started warm from it
+      const fh = wc.firstHist[li[j]];
+      if (evals > 1 && fh && fh !== l.history && fh.length > 1) l.history_first_evaluation = fh;
+    });
+  }
   let resume;
+
+  /* STEP 36: optimisation — minimise (or maximise) the objective over the bounded decision
+     variables, constraints by an exact penalty; each point is a whole flowsheet solve (with the
+     design specs met inside it). Points already solved in an earlier call are replayed. */
+  let optimization, optCache = null;
+  if (V.opt) {
+    const O = V.opt, n = O.variables.length;
+    const lo = O.variables.map((v) => v.lo), hi = O.variables.map((v) => v.hi);
+    let x0;
+    try { x0 = O.variables.map((v, k) => Math.min(hi[k], Math.max(lo[k], readVary(v.vary, M)))); }
+    catch (e) { return fail(e.code || 'MB_FS_OPT', 'optimisation: ' + e.message, 'params.optimization'); }
+    const cache = RS && RS.opt ? RS.opt.slice() : [];
+    optCache = cache;
+    const replayed = cache.length;
+    let lastRun = null, lastX = null;
+    const sgn = O.sense === 'max' ? -1 : 1;
+    const objOf = (e) => O.objective.reduce((a, t) => a + t.coef * metricX(t.target, e, M, V.econ), 0);
+    const viol = (g) => O.constraints.map((c, i) => (c.op === 'le' ? Math.max(0, g[i] - c.value) : Math.max(0, c.value - g[i])));
+    const scaleOf = (i) => { const c = O.constraints[i]; if (Math.abs(c.value) > 1e-9) return Math.abs(c.value); const g0 = cache[0] && cache[0].g ? Math.abs(cache[0].g[i]) : 0; return g0 > 1e-9 ? g0 : 1; };
+    const merit = (q) => {
+      if (q.obj === null || !num(q.obj)) return 1e30;
+      const f0 = cache.find((z) => num(z.obj));
+      const Fs = f0 && Math.abs(f0.obj) > 1e-12 ? Math.abs(f0.obj) : 1;
+      return sgn * q.obj / Fs + O.penalty * viol(q.g).reduce((a, v, i) => a + v / scaleOf(i), 0);
+    };
+    const evalAt = (x) => {
+      let q = cache.find((z) => z.x.every((v, k) => v === x[k]));
+      if (!q) {
+        O.variables.forEach((v, k) => writeVary(v.vary, M, x[k]));
+        try {
+          const r = core(M, plan, V, opts, deadline, false, {}, wc);
+          totalSolves += r.solves;
+          q = { x: x.slice(), obj: objOf(r.ev), g: O.constraints.map((c) => metricX(c.target, r.ev, M, V.econ)),
+            conv: r.ev.loops.every((l) => l.converged) && r.specOut.every((sp) => sp.converged) };
+          if (!num(q.obj) || !q.g.every(num)) q = { x: x.slice(), obj: null, g: null, err: 'objective or constraint is not a number' };
+          lastRun = r; lastX = x.slice();
+        } catch (e) {
+          if (e instanceof FsError && e.code === 'MB_FS_BUDGET') throw e;
+          q = { x: x.slice(), obj: null, g: null, err: String(e.message || e).slice(0, 200) };
+        }
+        cache.push(q);
+      }
+      return merit(q);
+    };
+    const method = n === 1 ? 'Brent (golden section with parabolic steps)' : 'Nelder–Mead simplex';
+    let res;
+    try {
+      if (n === 1) {
+        const gen = optim.brent(lo[0], hi[0], x0[0], O.xtol * (hi[0] - lo[0]), O.max_evaluations);
+        let st = gen.next();
+        while (!st.done) st = gen.next(evalAt([st.value]));
+        res = { x: st.value.x, converged: st.value.converged };
+      } else {
+        const toX = (u) => u.map((v, k) => lo[k] + v * (hi[k] - lo[k]));
+        const gen = optim.nelderMead(x0.map((v, k) => (v - lo[k]) / (hi[k] - lo[k])), { maxit: O.max_evaluations, xtol: O.xtol, ftol: 1e-6 });
+        let st = gen.next();
+        while (!st.done) st = gen.next(evalAt(toX(st.value)));
+        res = { x: toX(st.value.u), converged: st.value.converged };
+      }
+    } catch (e) {
+      if (e instanceof FsError && e.code === 'MB_FS_BUDGET') {
+        const partial = { order: orderTxt, log: ev.log.concat([['h', `◇ optimisation: ${cache.length} point${cache.length === 1 ? '' : 's'} solved — continuing in the next call`]]),
+          stream_results: ev.SV, block_results: ev.BR, solves: totalSolves, ms: Date.now() - t0 };
+        partial.resume = makeResume(input, Object.assign({ phase: 'opt', tears: snapTears(wc), cols: wc.col, x: V.specs.length ? specOut.map((sp) => sp.varied) : null, opt: cache }, tally()));
+        return fail('MB_FS_BUDGET', `optimisation: server time budget reached after ${cache.length} points`, 'params.optimization', partial);
+      }
+      throw e;
+    }
+    // the best point solved (lowest merit); the final state of the flowsheet is solved there
+    let bk = -1, bm = Infinity;
+    cache.forEach((q, k) => { const m = merit(q); if (m < bm) { bm = m; bk = k; } });
+    if (bk < 0 || bm >= 1e29) {
+      O.variables.forEach((v, k) => writeVary(v.vary, M, x0[k]));
+      return fail('MB_FS_OPT', 'optimisation: no point could be solved — ' + (cache.find((q) => q.err) || {}).err, 'params.optimization');
+    }
+    const xb = cache[bk].x;
+    O.variables.forEach((v, k) => writeVary(v.vary, M, xb[k]));
+    let fin = lastX && lastX.every((v, k) => v === xb[k]) ? lastRun : null;
+    if (!fin) {
+      try { fin = core(M, plan, V, opts, deadline, false, sink, wc); totalSolves += fin.solves; }
+      catch (e) {
+        if (e instanceof FsError && e.code === 'MB_FS_BUDGET') {
+          const partial = { order: orderTxt, log: ev.log, stream_results: ev.SV, block_results: ev.BR, solves: totalSolves, ms: Date.now() - t0 };
+          partial.resume = makeResume(input, Object.assign({ phase: 'opt', tears: snapTears(wc), cols: wc.col, x: V.specs.length ? specOut.map((sp) => sp.varied) : null, opt: cache }, tally()));
+          return fail('MB_FS_BUDGET', 'optimisation: server time budget reached at the final solve', 'params.optimization', partial);
+        }
+        throw e;
+      }
+    }
+    const mainLog = ev.log;
+    ev = fin.ev; specOut = fin.specOut;
+    ev.log = mainLog.concat(ev.log.filter((l) => !mainLog.includes(l)));
+    const qb = cache[bk];
+    const vb = viol(qb.g);
+    const feasible = vb.every((v, i) => v <= 1e-4 * scaleOf(i));
+    const p8 = (v) => (num(v) ? Number(v.toPrecision(8)) : null);
+    optimization = {
+      sense: O.sense, method, converged: res.converged && feasible, feasible,
+      message: !feasible ? 'best point violates a constraint — widen the bounds or relax the constraint' : res.converged ? 'converged' : `stopped at ${O.max_evaluations} evaluations`,
+      evaluations: cache.length, replayed: replayed || undefined, max_evaluations: O.max_evaluations, xtol: O.xtol,
+      objective_start: p8(cache[0].obj), objective: p8(qb.obj),
+      variables: O.variables.map((v, k) => ({ vary: v.vary, lo: v.lo, hi: v.hi, start: p8(x0[k]), value: p8(xb[k]),
+        at_bound: Math.abs(xb[k] - v.lo) <= 1e-6 * (v.hi - v.lo) ? 'lower' : Math.abs(xb[k] - v.hi) <= 1e-6 * (v.hi - v.lo) ? 'upper' : null })),
+      constraints: O.constraints.map((c, i) => ({ name: c.name, target: c.target, op: c.op, value: c.value, result: p8(qb.g[i]), satisfied: vb[i] <= 1e-4 * scaleOf(i) })),
+      best_evaluation: bk + 1,
+      history: cache.map((q, k) => ({ eval: k + 1, x: q.x.map(p8), objective: p8(q.obj), constraints: q.g ? q.g.map(p8) : undefined, merit: p8(merit(q)),
+        feasible: q.g ? viol(q.g).every((v, i) => v <= 1e-4 * scaleOf(i)) : false, converged: q.conv === false ? false : undefined, error: q.err })),
+    };
+    ev.log.push(['h', `◇ optimisation (${method}): ${O.sense === 'max' ? 'maximum' : 'minimum'} ${p8(qb.obj)} after ${cache.length} evaluations — ${optimization.message}`]);
+    if (!optimization.converged) ev.warnings.push('optimisation: ' + optimization.message);
+    if (M0) O.variables.forEach((v, k) => writeVary(v.vary, M0, xb[k]));       // the sensitivity study runs at the optimum
+  }
 
   /* sensitivity study: re-solve from the user's inputs at each value */
   let sensitivity;
@@ -1067,7 +1591,7 @@ function solveFlowsheet(input) {
         writeVary(V.sens.vary, Mi, val);
         const r = core(Mi, plan, V, opts, deadline, false, {}, wc);
         totalSolves += r.solves;
-        row.outputs = V.sens.outputs.map((t) => { try { return metric(t, r.ev); } catch (e) { return null; } });
+        row.outputs = V.sens.outputs.map((t) => { try { return metricX(t, r.ev, Mi, V.econ); } catch (e) { return null; } });
         row.converged = r.ev.loops.every((l) => l.converged) && r.specOut.every((sp) => sp.converged) &&
           Object.values(r.ev.BR).every((br) => br.result.converged !== false);
         if (r.ev.alerts.length) row.alerts = r.ev.alerts.slice(0, 3);
@@ -1080,7 +1604,7 @@ function solveFlowsheet(input) {
     sensitivity = { vary: V.sens.vary, outputs: V.sens.outputs, rows, complete: !stopped && rows.length === V.sens.values.length };
     if (stopped) {
       ev.warnings.push(`sensitivity stopped at the server time budget after ${rows.length} of ${V.sens.values.length} points`);
-      resume = makeResume(input, Object.assign({ phase: 'sens', tears: mainTears, cols: wc.col, x: V.specs.length ? specOut.map((sp) => sp.varied) : null, rows }, tally()));
+      resume = makeResume(input, Object.assign({ phase: 'sens', tears: mainTears, cols: wc.col, x: V.specs.length ? specOut.map((sp) => sp.varied) : null, rows, opt: optCache }, tally()));
     }
     ev.log.push(['h', `◇ sensitivity: ${rows.length} point${rows.length === 1 ? '' : 's'} solved${stopped ? ' (stopped at the time budget)' : ''}`]);
   }
@@ -1206,7 +1730,7 @@ function solveFlowsheet(input) {
     recon = { ok: null, note: `no duty reported by ${qMissing.join(', ')}` };
   }
   const closure = mIn > 0 ? (mOut - mIn) / mIn * 100 : 0;
-  const loopsOk = ev.loops.every((l) => l.converged);
+  const loopsOk = ev.loops.every((l) => l.converged) && (!ev.calcLoop || ev.calcLoop.converged);
   const specsOk = specOut.every((s) => s.converged);
   ev.log.unshift(['h', 'Calculation order: ' + orderTxt]);
   const ms = Date.now() - t0;
@@ -1217,10 +1741,20 @@ function solveFlowsheet(input) {
     streams_out: products,
     stream_results: SR,
     block_results: ev.BR,
-    order: plan.map((p) => ({ blocks: p.blocks, loop: p.loop, tears: p.tears })),
+    order: plan.map((p) => (p.calc ? { calculator: p.calc } : { blocks: p.blocks, loop: p.loop, tears: p.tears })),
+    calculators: V.calcs.length ? V.calcs.map((c) => Object.assign({ id: c.id, name: c.name, kind: CP.fb.includes(c) ? 'feedback' : 'feed-forward' }, ev.calcs[c.id] || {},
+      CP.fb.includes(c) && ev.calcLoop ? { converged: ev.calcLoop.converged, passes: ev.calcLoop.iterations } : {})) : undefined,
     loops: ev.loops,
     specs: specOut,
-    feeds_varied: V.specs.length ? M.feeds : undefined,
+    convergence: {                // STEP 35: solver transparency
+      accelerator: opts.accelerator, tol: opts.tol, max_iter: opts.max_iter, spec_tol: opts.spec_tol, spec_max_iter: opts.spec_max_iter,
+      calc_max_iter: opts.calc_max_iter, evaluations: evals, spec_history: specHist || undefined,
+      calculator_history: ev.calcLoop ? ev.calcLoop.history : undefined,
+      tear_streams: plan.reduce((a, p) => a + (p.loop ? p.tears.length : 0), 0),
+    },
+    feeds_varied: V.specs.length || V.opt ? M.feeds : undefined,
+    optimization,                // STEP 36
+    economics: V.econ ? (() => { try { return econOf(M, ev, V.econ); } catch (e) { return { error: e.message }; } })() : undefined,
     overall: { feeds: feedsL, products: prodsL, mIn, mOut, closure, dH_kW: hOk ? (hOut - hIn) / 3600 : null, heat, cool, work, workOut },
     mass_balance: { in: mIn, out: mOut, closure_pct: closure },
     energy_balance: { Hin: hOk ? hIn : null, Hout: hOk ? hOut : null, Q_kW: hOk ? (hOut - hIn) / 3600 - (work + workOut) : null, W_kW: work + workOut, reconciliation: recon },

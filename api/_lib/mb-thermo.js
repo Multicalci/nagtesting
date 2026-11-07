@@ -35,9 +35,11 @@
 
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
+import groupTables from './mb-groups.js';      // STEP 37 — complete UNIFAC / Dortmund tables
 import bipExtra from './mb-bip-extra.js';
 import mbData from './mb-data.js';
 import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS } from './mb-electrolyte.js';
+import { makeUreaLiquid, UREA_MODEL_LABEL, UREA_KEYS, UREA_OWNED, UREA_INERTS } from './mb-ureathermo.js';
 import steam from './steam-if97.js';
 
 export const THERMO_VERSION = 'mb-thermo 1.8.0';
@@ -424,13 +426,114 @@ function makeEOS(kind, comps, kij) {
   return { kind, state, b, ai: (T) => { atT(T); return ai; } };
 }
 
+const UF_ALL = {
+  USUB: Object.assign({}, groupTables.UNIFAC_SUB_ALL, bip.UNIFAC_SUB), UA: Object.assign({}, groupTables.UNIFAC_A_ALL, bip.UNIFAC_A),
+  DSUB: Object.assign({}, groupTables.DORTMUND_SUB_ALL, bip.DORTMUND_SUB), DA: Object.assign({}, groupTables.DORTMUND_A_ALL, bip.DORTMUND_A),
+};
 // ---------------------------------------------------------------------------
 // activity coefficient models
 // ---------------------------------------------------------------------------
 
 function pairLookup(table, ki, kj) { return table[ki + '|' + kj]; }
 
-function makeNRTL(keys, user, warnings) {
+// ---------------------------------------------------------------------------
+// STEP 37 — binary pairs missing from the databank, estimated from UNIFAC: the
+// γ model's parameters (NRTL a, b with α = 0.3; UNIQUAC / Wilson a, b) are
+// fitted by Levenberg–Marquardt to ln γ of both components from modified
+// UNIFAC (Dortmund) — original UNIFAC when either lacks Dortmund groups — at
+// 7 compositions and 3 temperatures spanning the pair's boiling points (the
+// usual "estimate missing parameters" route of commercial simulators). Pairs
+// with a gas (Tb < 0 °C) stay to Henry's law; pairs whose UNIFAC groups lack
+// interaction parameters stay unfilled.
+// ---------------------------------------------------------------------------
+const PAIR_FIT = new Map();
+function solveN(A, b) {
+  const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
+  for (let i = 0; i < n; i++) {
+    let p = i; for (let r = i + 1; r < n; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+    [M[i], M[p]] = [M[p], M[i]];
+    if (Math.abs(M[i][i]) < 1e-300) return null;
+    for (let r = 0; r < n; r++) if (r !== i) { const f = M[r][i] / M[i][i]; for (let j = i; j <= n; j++) M[r][j] -= f * M[i][j]; }
+  }
+  return M.map((r, i) => r[n] / r[i]);
+}
+export function fitPairFromUNIFAC(model, ci, cj) {
+  const dort = !!(ci.modunifac && cj.modunifac), orig = !!(ci.unifac && cj.unifac);
+  if (!dort && !orig) return null;
+  const key = model + '|' + ci.key + '|' + cj.key + '|' + (dort ? 'D' : 'U');
+  if (PAIR_FIT.has(key)) return PAIR_FIT.get(key);
+  let res = null;
+  try {
+    const uf = makeUNIFAC([ci.key, cj.key], [ci, cj], dort, []);
+    if (uf.missing && uf.missing.length) { PAIR_FIT.set(key, null); return null; }
+    const tb = (c) => (num(c.tb) ? c.tb : 0.6 * c.Tc);
+    const Tlo = Math.max(Math.min(tb(ci), tb(cj)) - 40, 260);
+    let Thi = Math.min(Math.max(tb(ci), tb(cj)) + 10, 0.95 * Math.min(ci.Tc, cj.Tc), 600);
+    if (Thi < Tlo + 20) Thi = Tlo + 20;
+    const Ts = [Tlo, (Tlo + Thi) / 2, Thi], Tm = Ts[1];
+    const xs = [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98];
+    const data = [];
+    for (const T of Ts) for (const x of xs) { const g = uf.lnGamma(T, [x, 1 - x]); data.push([T, x, g[0], g[1]]); }
+    const k12 = ci.key + '|' + cj.key, k21 = cj.key + '|' + ci.key;
+    // parameters u = [c12, d12, c21, d21]: a + b/T = c + d·(1000/T − 1000/Tm)
+    const toAB = (u) => ({ a12: u[0] - u[1] * 1000 / Tm, b12: u[1] * 1000, a21: u[2] - u[3] * 1000 / Tm, b21: u[3] * 1000 });
+    const build = (u) => {
+      const f = toAB(u);
+      const user = { [k12]: { a: f.a12, b: f.b12, alpha: 0.3 }, [k21]: { a: f.a21, b: f.b21, alpha: 0.3 } };
+      return model === 'nrtl' ? makeNRTL([ci.key, cj.key], user, [], null, 'none') : model === 'uniquac' ? makeUNIQUAC([ci.key, cj.key], [ci, cj], user, [], 'none') : makeWilson([ci.key, cj.key], [ci, cj], user, [], 'none');
+    };
+    const resid = (u) => { const m = build(u); const r = []; for (const [T, x, g1, g2] of data) { const g = m.lnGamma(T, [x, 1 - x]); r.push(g[0] - g1, g[1] - g2); } return r; };
+    let u = [0, 0, 0, 0], r = resid(u), S = r.reduce((s, v) => s + v * v, 0), lam = 1e-3;
+    for (let it = 0; it < 80; it++) {
+      const J = [];
+      for (let k = 0; k < 4; k++) { const h = 1e-6 + 1e-6 * Math.abs(u[k]); const up = u.slice(); up[k] += h; const rp = resid(up); J.push(rp.map((v, i) => (v - r[i]) / h)); }
+      const A = [0, 1, 2, 3].map((p) => [0, 1, 2, 3].map((q) => J[p].reduce((s, v, i) => s + v * J[q][i], 0)));
+      const g = [0, 1, 2, 3].map((p) => J[p].reduce((s, v, i) => s + v * r[i], 0));
+      let improved = false;
+      for (let t = 0; t < 10; t++) {
+        const Ad = A.map((row, p) => row.map((v, q) => v + (p === q ? lam * (v + 1e-9) : 0)));
+        const d = solveN(Ad, g.map((v) => -v));
+        if (!d) { lam *= 10; continue; }
+        const un = u.map((v, k) => v + Math.max(-2, Math.min(2, d[k])));
+        const rn = resid(un), Sn = rn.reduce((s, v) => s + v * v, 0);
+        if (Number.isFinite(Sn) && Sn < S) { u = un; r = rn; const dS = S - Sn; S = Sn; lam = Math.max(lam / 10, 1e-9); improved = true; if (dS < 1e-14 * (1 + S)) it = 999; break; }
+        lam *= 10;
+      }
+      if (!improved) break;
+    }
+    const rms = Math.sqrt(S / r.length);
+    res = Object.assign(toAB(u), { rms, source: dort ? 'Dortmund UNIFAC' : 'UNIFAC', T: [Ts[0], Ts[2]] });
+  } catch (_e) { res = null; }
+  PAIR_FIT.set(key, res);
+  return res;
+}
+/** fill the missing pairs of an activity model; returns [{pair, source, rms}] and prunes `missing` */
+function fillPairs(model, keys, comps, missing, fill, set, warnings) {
+  if (fill === 'none' || !comps || !missing.length) return [];
+  const est = [];
+  const gas = (c) => (num(c.tb) ? c.tb < 273.15 : c.Tc < 310);
+  for (let m = missing.length - 1; m >= 0; m--) {
+    const [ki, kj] = missing[m].split('–');
+    const i = keys.indexOf(ki), j = keys.indexOf(kj);
+    if (i < 0 || j < 0 || gas(comps[i]) || gas(comps[j])) continue;
+    const f = fitPairFromUNIFAC(model, comps[i], comps[j]);
+    if (!f || !(f.rms < 0.5)) continue;
+    set(i, j, f);
+    est.push({ pair: missing[m], source: f.source, rms: f.rms });
+    missing.splice(m, 1);
+  }
+  if (est.length) {
+    const lab = model === 'nrtl' ? 'NRTL' : model === 'uniquac' ? 'UNIQUAC' : 'Wilson';
+    const bySrc = {};
+    for (const e of est) (bySrc[e.source] = bySrc[e.source] || []).push(e);
+    for (const [src, list] of Object.entries(bySrc)) {
+      warnings.push(`${lab}: binary parameters for ${list.map((e) => e.pair).reverse().join(', ')} estimated from ${src} (fit to ln γ, rms ${Math.max(...list.map((e) => e.rms)).toFixed(3)} at worst) — replace with data-fitted values for design`);
+    }
+  }
+  return est.reverse();
+}
+
+function makeNRTL(keys, user, warnings, comps, fill) {
   const n = keys.length;
   const b = [], a = [], al = [];
   const missing = [];
@@ -445,9 +548,10 @@ function makeNRTL(keys, user, warnings) {
     if (p) { b[i][j] = p[0]; al[i][j] = p[1]; al[j][i] = p[1]; continue; }
     if (i < j && !pairLookup(bip.NRTL, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
   }
+  const est = fillPairs('nrtl', keys, comps, missing, fill, (i, j, f) => { a[i][j] = f.a12; b[i][j] = f.b12; a[j][i] = f.a21; b[j][i] = f.b21; al[i][j] = al[j][i] = 0.3; }, warnings);
   if (missing.length) warnings.push(`NRTL: no binary parameters for ${missing.join(', ')} — treated as ideal (τ = 0)`);
   return {
-    missing,
+    missing, estimated: est,
     lnGamma(T, x) {
       const tau = [], G = [];
       for (let i = 0; i < n; i++) {
@@ -471,7 +575,7 @@ function makeNRTL(keys, user, warnings) {
   };
 }
 
-function makeUNIQUAC(keys, comps, user, warnings) {
+function makeUNIQUAC(keys, comps, user, warnings, fill) {
   const n = keys.length;
   const r = comps.map((c) => c.uqr), q = comps.map((c) => c.uqq);
   if (r.some((v) => !num(v)) || q.some((v) => !num(v))) {
@@ -488,11 +592,12 @@ function makeUNIQUAC(keys, comps, user, warnings) {
     if (p) { bb[i][j] = p[0]; continue; }
     if (i < j && !pairLookup(bip.UNIQUAC, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
   }
+  const est = fillPairs('uniquac', keys, comps, missing, fill, (i, j, f) => { aa[i][j] = f.a12; bb[i][j] = f.b12; aa[j][i] = f.a21; bb[j][i] = f.b21; }, warnings);
   if (missing.length) warnings.push(`UNIQUAC: no binary parameters for ${missing.join(', ')} — treated as τ = 1`);
   const z = 10;
   const l = r.map((ri, i) => z / 2 * (ri - q[i]) - (ri - 1));
   return {
-    missing,
+    missing, estimated: est,
     lnGamma(T, x) {
       let sr = 0, sq = 0;
       for (let i = 0; i < n; i++) { sr += x[i] * r[i]; sq += x[i] * q[i]; }
@@ -516,7 +621,7 @@ function makeUNIQUAC(keys, comps, user, warnings) {
   };
 }
 
-function makeWilson(keys, comps, user, warnings) {
+function makeWilson(keys, comps, user, warnings, fill) {
   const n = keys.length;
   const aa = [], bb = [];
   const missing = [];
@@ -529,9 +634,10 @@ function makeWilson(keys, comps, user, warnings) {
     if (p) { aa[i][j] = p[0]; bb[i][j] = p[1]; continue; }
     if (i < j && !pairLookup(bip.WILSON, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
   }
+  const est = fillPairs('wilson', keys, comps, missing, fill, (i, j, f) => { aa[i][j] = f.a12; bb[i][j] = f.b12; aa[j][i] = f.a21; bb[j][i] = f.b21; }, warnings);
   if (missing.length) warnings.push(`Wilson: no binary parameters for ${missing.join(', ')} — treated as Λ = 1`);
   return {
-    missing,
+    missing, estimated: est,
     lnGamma(T, x) {
       const L = [];
       for (let i = 0; i < n; i++) { L.push(new Array(n)); for (let j = 0; j < n; j++) L[i][j] = i === j ? 1 : Math.exp(aa[i][j] + bb[i][j] / T); }
@@ -556,8 +662,9 @@ function makeWilson(keys, comps, user, warnings) {
 function makeUNIFAC(keys, comps, dortmund, warnings) {
   const n = keys.length;
   const field = dortmund ? 'modunifac' : 'unifac';
-  const SUB = dortmund ? bip.DORTMUND_SUB : bip.UNIFAC_SUB;
-  const AMN = dortmund ? bip.DORTMUND_A : bip.UNIFAC_A;
+  // STEP 37: the complete subgroup / interaction tables (user components may carry any subgroup)
+  const SUB = dortmund ? UF_ALL.DSUB : UF_ALL.USUB;
+  const AMN = dortmund ? UF_ALL.DA : UF_ALL.UA;
   const grouped = comps.map((c) => !!c[field]);
   const ung = keys.filter((k, i) => !grouped[i]);
   if (ung.length === n) fail('TH_UNIFAC_GROUPS', `${dortmund ? 'Dortmund UNIFAC' : 'UNIFAC'} group assignment not available for any of: ${keys.join(', ')}`);
@@ -765,6 +872,7 @@ export const PACKAGES = {
   modunifac: 'Modified UNIFAC — Dortmund (predictive γ–φ)',
   steam: 'Steam / water (IAPWS-IF97)',
   ...ELECTROLYTE_MODELS,
+  urea: UREA_MODEL_LABEL,
 };
 
 /**
@@ -806,6 +914,28 @@ function lnKhG704(key, T) {
 }
 export { lnKhG704 };
 
+/**
+ * Urea synthesis liquid viscosity — an ESTIMATE: ln μ = Σ x_t,i ln μ_i over the true species
+ * (Grunberg–Nissan without interaction terms). NH3, CO2, H2O from the databank liquid
+ * correlations (clamped to their upper T limit); urea, carbamate and bicarbonate as a
+ * molten-urea Andrade law μ = 2.6 mPa·s at 135 °C, B = 2400 K. Typical result 0.2–0.4 mPa·s.
+ */
+function ureaViscosity(ul, T, x) {
+  const s = ul.speciation(T, x);
+  const S = s.n.reduce((a, b) => a + b, 0);
+  if (!(S > 0)) return NaN;
+  const muDb = (k) => { const c = component(k); const mu = c.mul ? corr(c.mul, Math.min(T, c.mul[7] || T), c.Tc) : NaN; return mu > 0 ? mu : 1e-4; };
+  const muSalt = 2.6e-3 * Math.exp(2400 * (1 / T - 1 / 408.15));
+  const mu = [muDb('NH3'), muDb('CO2'), muDb('H2O'), muSalt, muSalt, muSalt];
+  let ln = 0;
+  for (let i = 0; i < 6; i++) ln += s.n[i] / S * Math.log(mu[i]);
+  return Math.exp(ln);
+}
+
+/** ideal-gas reference packages for single keys (urea method: Gibbs energies of NH3, CO2, H2O absent from a unit) */
+const IDEAL_REF = new Map();
+function idealRef(k) { let q = IDEAL_REF.get(k); if (!q) { q = createPackage({ model: 'ideal' }, [k]); IDEAL_REF.set(k, q); } return q; }
+
 export function createPackage(spec, keys) {
   const s = spec || {};
   const model = String(s.model || 'pr').toLowerCase();
@@ -818,8 +948,16 @@ export function createPackage(spec, keys) {
   const elecModel = ELECTROLYTE_MODELS[model] ? model : null;
   const saltIn = keys.filter((k) => ELECTROLYTE_KEYS.includes(k));
   if (saltIn.length && model !== 'hot-k2co3') fail('TH_ELECTROLYTE', `${saltIn.join(', ')} is an electrolyte — use the 'hot-k2co3' (hot potassium carbonate) property package`, 'property_package');
+  // STEP 34: urea exists only in the urea-synthesis method (its liquid model owns it)
+  const ureaIn = keys.filter((k) => UREA_KEYS.includes(k));
+  const isUrea = model === 'urea';
+  if (ureaIn.length && !isUrea) fail('TH_UREA', "urea is modelled only by the 'urea' (urea synthesis) property method", 'property_package');
+  if (isUrea) {
+    const bad = keys.filter((k) => !UREA_OWNED.includes(k) && !UREA_INERTS.includes(k));
+    if (bad.length) fail('TH_UREA', `urea method: ${bad.join(', ')} not supported — the method holds NH3, CO2, H2O, urea and inert gases (${UREA_INERTS.join(', ')})`, 'components');
+  }
   const isEOS = model === 'pr' || model === 'srk';
-  const vapourModel = isEOS ? model : (s.vapour === 'pr' || s.vapour === 'srk' ? s.vapour : 'ideal');
+  const vapourModel = isEOS ? model : isUrea ? 'pr' : (s.vapour === 'pr' || s.vapour === 'srk' ? s.vapour : 'ideal');
   // kij matrix (ChemSep PR table; same values used for SRK, as DWSIM does; user overrides win)
   const kij = [];
   const kijUsed = {};
@@ -830,6 +968,7 @@ export function createPackage(spec, keys) {
       const [a, b] = [keys[i], keys[j]].sort();
       const pair = a + '|' + b;
       let v = bip.PR[pair] || 0;
+      if (isUrea && pair === 'CO2|NH3' && !(s.kij && (num(s.kij[pair]) || num(s.kij['NH3|CO2'])))) v = 0.10;   // fitted to Voskov et al. 2016, Table 9
       if (s.kij && num(s.kij[pair])) v = s.kij[pair];
       else if (s.kij && num(s.kij[b + '|' + a])) v = s.kij[b + '|' + a];
       kij[i][j] = v;
@@ -850,17 +989,27 @@ export function createPackage(spec, keys) {
   // `eos` is replaced below by a free-water-corrected view when that applies (STEP 32)
   let eos = vapourModel !== 'ideal' ? makeEOS(vapourModel, comps, kij) : null;
   let act = null;
-  if (model === 'nrtl') act = makeNRTL(keys, s.nrtl, warnings);
-  else if (model === 'uniquac') act = makeUNIQUAC(keys, comps, s.uniquac, warnings);
-  else if (model === 'wilson') act = makeWilson(keys, comps, s.wilson, warnings);
+  const fill = s.fill_missing === 'none' ? 'none' : 'auto';          // STEP 37: missing pairs from UNIFAC
+  if (model === 'nrtl') act = makeNRTL(keys, s.nrtl, warnings, comps, fill);
+  else if (model === 'uniquac') act = makeUNIQUAC(keys, comps, s.uniquac, warnings, fill);
+  else if (model === 'wilson') act = makeWilson(keys, comps, s.wilson, warnings, fill);
   else if (model === 'unifac' || model === 'modunifac') act = makeUNIFAC(keys, comps, model === 'modunifac', warnings);
   const excessH = !!s.excess_enthalpy && !!act;
   const activity = !isEOS;
-  const poynting = activity && model !== 'ideal' && !elecModel && s.poynting !== false;   // Raoult's law: no Poynting
+  const poynting = activity && model !== 'ideal' && !elecModel && !isUrea && s.poynting !== false;   // Raoult's law: no Poynting
   // STEP 25 acid-gas electrolyte packages: H2O, CO2 and the solvent (MEA / K2CO3)
   // from the speciation model; any other gas by Henry's law in water
   const elec = elecModel ? makeElectrolyte(elecModel, keys, { psatW: (T) => psat(component('H2O'), T) }) : null;
   const owned = new Array(n).fill(false);
+  // STEP 34: urea-synthesis liquid (NH3, CO2, H2O, urea with carbamate / bicarbonate speciation)
+  const ureaLiq = isUrea ? makeUreaLiquid(keys, { Gig: (k, T) => ureaGig(k, T), psatW: (T) => psat(component('H2O'), T), hig: (i, T) => hig(i, T) }) : null;
+  if (ureaLiq) for (const i of ureaLiq.owned) owned[i] = true;
+  function ureaGig(k, T) {
+    const i = keys.indexOf(k);
+    if (i >= 0) return hig(i, T) - T * sig(i, T);
+    const q = idealRef(k);
+    return q.hig(0, T) - T * q.sig(0, T);
+  }
   if (elec) {
     for (const i of elec.owned) owned[i] = true;
     if (!keys.includes('H2O')) warnings.push(`${PACKAGES[model]}: no water in this unit's components — the liquid model needs water`);
@@ -873,7 +1022,7 @@ export function createPackage(spec, keys) {
   // has no binary parameters for that pair. henry:false disables;
   // henry_components:[keys] sets the list explicitly.
   const henry = keys.map(() => null);
-  if (activity && (s.henry !== false || elec)) {
+  if (activity && (s.henry !== false || elec || ureaLiq)) {
     const explicit = Array.isArray(s.henry_components) && !elec ? new Set(s.henry_components) : null;
     for (let i = 0; i < n; i++) {
       const c = comps[i];
@@ -1100,6 +1249,14 @@ export function createPackage(spec, keys) {
       if (eos) return eos.state(T, P, x, 'V').lnphi;
       return assoc ? assoc.mix(T, P, x).lnphi.slice() : new Array(n).fill(0);
     }
+    if (ureaLiq) {
+      const lp = ureaLiq.lnPhiL(T, P, x);
+      return comps.map((c, i) => {
+        if (owned[i]) return lp[i];
+        const hm = henryMix(i, T, x);
+        return hm ? hm.lnH - Math.log(P) : 50;
+      });
+    }
     if (elec) {
       const lp = elec.lnPhiL(T, P, x);
       return comps.map((c, i) => {
@@ -1129,6 +1286,7 @@ export function createPackage(spec, keys) {
     for (let i = 0; i < n; i++) if (x[i] > 0) h += x[i] * hig(i, T);
     if (isEOS) return h + eos.state(T, P, x, phase).hDep;
     if (phase === 'V') return eos ? h + eos.state(T, P, x, 'V').hDep : (assoc ? h + assoc.mix(T, P, x).h : h);
+    if (ureaLiq) return ureaHS(T, P, x).h;
     if (elec) return elecH(T, P, x);
     for (let i = 0; i < n; i++) if (x[i] > 0) {
       const hm = henry[i] ? henryMix(i, T, x) : null;
@@ -1152,6 +1310,7 @@ export function createPackage(spec, keys) {
     for (let i = 0; i < n; i++) if (x[i] > 0) { s += x[i] * sig(i, T); sMix -= R * x[i] * Math.log(x[i]); }
     if (isEOS) return s + sMix - R * Math.log(P / P0) + eos.state(T, P, x, phase).sDep;
     if (phase === 'V') return s + sMix - R * Math.log(P / P0) + (eos ? eos.state(T, P, x, 'V').sDep : assoc ? assoc.mix(T, P, x).s : 0);
+    if (ureaLiq) return ureaHS(T, P, x).s;
     if (elec) return elecS(T, P, x);
     // liquid: pure saturated liquid at Psat, then ideal mixing + excess
     for (let i = 0; i < n; i++) if (x[i] > 0) {
@@ -1180,6 +1339,7 @@ export function createPackage(spec, keys) {
       return assoc ? R * T / (P * assoc.mix(T, P, x).S) : R * T / P;
     }
     if (elec) { let v = elec.volume(T, x); for (let i = 0; i < n; i++) if (!owned[i] && x[i] > 0) v += x[i] * 35e-6; return v; }
+    if (ureaLiq) { let v = ureaLiq.volume(T, x); for (let i = 0; i < n; i++) if (!owned[i] && x[i] > 0) v += x[i] * 35e-6; return v; }
     return liquidVolume(comps, T, P, x, eos);
   }
   // ---- electrolyte liquid: partial molar properties by Gibbs–Helmholtz ----
@@ -1218,6 +1378,20 @@ export function createPackage(spec, keys) {
     }
     return out;
   }
+  // urea liquid: owned components from the model's partial molar h, s; Henry gases as in the γ–φ packages
+  function ureaHS(T, P, x) {
+    const pm = ureaLiq.partials(T, P, x);
+    let h = 0, sv = 0;
+    for (let i = 0; i < n; i++) {
+      if (!(x[i] > 0)) continue;
+      if (owned[i]) { h += x[i] * pm[i].h; sv += x[i] * pm[i].s; continue; }
+      const hm = henryMix(i, T, x);
+      const lnH = hm ? hm.lnH : Math.log(1e12);
+      h += x[i] * (hig(i, T) + (hm ? R * hm.B : 0));
+      sv += x[i] * (sig(i, T) - R * (Math.log(x[i]) + lnH - Math.log(P0)) + (hm ? R * hm.B / T : 0));
+    }
+    return { h, s: sv };
+  }
   function elecH(T, P, x) {
     const pm = elecPartials(T, P, x);
     let h = 0;
@@ -1249,11 +1423,14 @@ export function createPackage(spec, keys) {
   return {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
     henryKeys: keys.filter((k, i) => henry[i]), poynting,
+    estimatedPairs: act && act.estimated ? act.estimated : [],                  // STEP 37
     // STEP 32: free water (IAPWS-IF97 liquid water inside the EOS) and the pure-water saturation it implies
     freeWater: freeWater ? { index: iw, correction: freeWater.correction, henry: freeWater.henry } : null,
     pureSatOf: (i) => (freeWater && i === iw ? freeWater.sat : null),
     association: assoc ? { keys: assoc.keys, sources: assoc.src } : null,
-    electrolyte: elec ? { model: elecModel, solvent: elec.solvent, heavy: elec.heavy, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
+    ureaLiquid: ureaLiq || undefined,
+    electrolyte: ureaLiq ? { model: 'urea', solvent: 'urea synthesis liquid', heavy: ['urea'], report: (T, x) => ureaLiq.report(T, x), warn: (T, x) => ureaLiq.warn(T, x),
+      viscosity: (T, x) => ureaViscosity(ureaLiq, T, x), saltLnAct: (T, x) => ureaLiq.ureaLnAct(T, x), nonvolatile: keys.map((k) => k === 'urea'), urea: true } : elec ? { model: elecModel, solvent: elec.solvent, heavy: elec.heavy, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
       saltLnAct: (T, x) => { const r = elec.rel(T, elec.sub(x)); return num(r.K2CO3) ? r.K2CO3 : 0; },
       nonvolatile: keys.map((k) => ELECTROLYTE_KEYS.includes(k)) } : null,
     eos, act, lnFug, lnK, hPhase, sPhase, volPhase, hig, sig,
@@ -1590,7 +1767,7 @@ function flashPT_elec(pp, z, T, P) {
   };
   // concentrated salt solutions (where the extrapolated Pitzer model can have more than
   // one vapour–liquid solution) are solved from every start and the lowest-G state kept
-  const concentrated = (r) => salt.length && salt.some((i) => r.st.xn[i] / Math.max(r.st.xn[pp.keys.indexOf('H2O')] || 0, 1e-9) > 0.07);
+  const concentrated = (r) => !pp.electrolyte.urea && salt.length && salt.some((i) => r.st.xn[i] / Math.max(r.st.xn[pp.keys.indexOf('H2O')] || 0, 1e-9) > 0.07);
   // incipient-liquid (dew) test by Newton on ln x (unnormalised): f_L(x/Σx)·Σx = f_V(z);
   // Σx ≤ 1 means the vapour is stable (only without a salt — a salt keeps a liquid)
   const dewTest = (extraStarts) => {
@@ -1648,7 +1825,7 @@ function flashPT_elec(pp, z, T, P) {
   if (!res || !(res.nrm < 1e-8) || (!salt.length && res.beta > 1 - 1e-6)) {
     // without a salt the liquid can vanish: incipient-liquid (dew) test
     if (!salt.length) {
-      const dw = dw0 || dewTest(res && res.st ? [res.st.xn] : []);
+      const dw = (dw0 && dw0.sx <= 1 + 1e-9 ? dw0 : null) || dewTest([closest, res].filter((q) => q && q.st).map((q) => q.st.xn)) || dw0;
       if (dw && dw.sx <= 1 + 1e-9) return single(pp, z, T, P, 'V');
       if (dw && !(res && res.nrm < 1e-8 && res.beta <= 1 - 1e-6)) {
         // a liquid forms just below the dew point: restart from the incipient liquid with
@@ -1667,7 +1844,7 @@ function flashPT_elec(pp, z, T, P) {
     // at the bubble point within round-off (Newton cannot resolve a vapour of ~1e-9)
     return single(pp, z, T, P, 'L');
   }
-  if ((!res || !(res.nrm < 1e-8)) && salt.length && closest) {
+  if ((!res || !(res.nrm < 1e-8)) && salt.length && closest && !pp.electrolyte.urea) {
     // the usual cause: the brine boils down past the salt's solubility (solids would form)
     const iW = pp.keys.indexOf('H2O');
     const xw = iW >= 0 ? closest.st.xn[iW] : 0;
@@ -1677,8 +1854,33 @@ function flashPT_elec(pp, z, T, P) {
       fail('TH_FLASH', `acid-gas flash at ${T.toFixed(2)} K, ${(P / 1e5).toFixed(3)} bar: the solution boils down past the salt's solubility (the liquid heads beyond ${Math.min(mol, 99).toFixed(0)} mol salt per kg water) — solid salt would form, which the model does not cover; raise the pressure, lower the temperature or add water`);
     }
   }
+  if ((!res || !(res.nrm < 1e-6)) && pp.electrolyte.urea && closest && closest.st) {
+    // urea method: damped successive substitution from the best Newton state (converges where
+    // the Newton Jacobian of the speciated liquid is poorly conditioned, e.g. near a dew point)
+    let K = new Array(n).fill(1e-30);
+    for (const i of vol) K[i] = Math.max(closest.st.yn[i], 1e-30) / Math.max(closest.st.xn[i], 1e-30);
+    for (let it = 0; it < 300; it++) {
+      const rr = rachfordRice(z, K);
+      if (rr.below) return single(pp, z, T, P, 'L');
+      if (rr.above) { if (!salt.length) return single(pp, z, T, P, 'V'); break; }
+      const b = rr.beta;
+      let x = z.map((zi, i) => zi / (1 + b * (K[i] - 1))), yv = x.map((xi, i) => xi * K[i]);
+      const sx = x.reduce((a, c) => a + c, 0), sy = yv.reduce((a, c) => a + c, 0);
+      x = x.map((v) => v / sx); yv = yv.map((v) => v / sy);
+      const lL = pp.lnFug(T, P, x, 'L'), lV = pp.lnFug(T, P, yv, 'V');
+      let err = 0;
+      for (const i of vol) { const kn = Math.exp(lL[i] - lV[i]); err = Math.max(err, Math.abs(Math.log(kn / K[i]))); K[i] = Math.exp(0.5 * Math.log(K[i]) + 0.5 * Math.log(kn)); }
+      if (err < 1e-10) { if (b < 1e-13) return single(pp, z, T, P, 'L'); if (b > 1 - 1e-13 && !salt.length) return single(pp, z, T, P, 'V'); return { T, P, beta: b, x, y: yv, phase: 'VL', iterations: it }; }
+    }
+  }
   if (!res || !(res.nrm < 1e-6)) {
-    fail('TH_FLASH', `acid-gas flash did not converge at ${T.toFixed(2)} K, ${(P / 1e5).toFixed(3)} bar (residual ${res ? res.nrm.toExponential(2) : 'n/a'})`);
+    if (pp.electrolyte.urea) {
+      const iW = pp.keys.indexOf('H2O'), iU = pp.keys.indexOf('urea');
+      const wet = (iW >= 0 ? z[iW] : 0) + (iU >= 0 ? z[iU] : 0);
+      fail('TH_FLASH', `urea-method flash did not converge at ${T.toFixed(2)} K, ${(P / 1e5).toFixed(3)} bar (residual ${res ? res.nrm.toExponential(2) : 'n/a'})` +
+        (wet < 0.15 && P < 100e5 ? ' — NH3–CO2 with little water at this pressure is near the solid ammonium carbamate region, which the liquid model does not cover' : ''));
+    }
+    fail('TH_FLASH', `${pp.electrolyte.urea ? 'urea-method' : 'acid-gas'} flash did not converge at ${T.toFixed(2)} K, ${(P / 1e5).toFixed(3)} bar (residual ${res ? res.nrm.toExponential(2) : 'n/a'})`);
   }
   if (res.beta < 1e-13 || !vapLike(res.st.yn)) return single(pp, z, T, P, 'L');
   if (!salt.length && res.beta > 1 - 1e-13) return single(pp, z, T, P, 'V');
@@ -2299,6 +2501,7 @@ export function flashPVF(pp, z, P, beta, Tguess) {
   try {
     return vfSolve(pp, z, beta, 'T', P, undefined);
   } catch (e) {
+    if (pp.electrolyte && pp.electrolyte.urea) { const r = vfBisect(pp, z, beta, 'T', P, Tguess); if (r) return r; }
     if (pp.electrolyte && beta === 0) {
       // the acid-gas models cover 0–250 °C; say so when the bubble point lies outside
       // (cheap test: Σ z_i K_i of the feed as liquid against an ideal-gas vapour)
@@ -2327,7 +2530,57 @@ export function flashTVF(pp, z, T, beta, Pguess) {
     return { T, P: sat ? sat.psat(T) : psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
   }
   if (num(Pguess) && Pguess > 0) { try { return vfSolve(pp, z, beta, 'P', T, Math.log(Pguess)); } catch (_e) { /* restart from Wilson */ } }
-  return vfSolve(pp, z, beta, 'P', T, undefined);
+  try {
+    return vfSolve(pp, z, beta, 'P', T, undefined);
+  } catch (e) {
+    if (pp.electrolyte && pp.electrolyte.urea) { const r = vfBisect(pp, z, beta, 'P', T, Pguess); if (r) return r; }
+    throw e;
+  }
+}
+
+/**
+ * Vapour-fraction point by bracketing on isothermal flashes (urea method: the speciated
+ * liquid makes the composition iteration of vfSolve fragile; β(T) and β(ln P) are monotonic).
+ * mode 'T': T at fixed P; mode 'P': P at fixed T. Returns null when no bracket is found.
+ */
+function vfBisect(pp, z, beta, mode, fixed, guess) {
+  const bOf = (u) => {
+    const T = mode === 'T' ? u : fixed, P = mode === 'T' ? fixed : Math.exp(u);
+    const r = flashPT(pp, z, T, P);
+    return { r, b: r.phase === 'L' ? 0 : r.phase === 'V' ? 1 : r.beta };
+  };
+  // residual increasing in u: β − target in T, target − β in ln P
+  const g = (q) => (mode === 'T' ? q.b - beta : beta - q.b);
+  let lo = mode === 'T' ? 250 : Math.log(1e4), hi = mode === 'T' ? 700 : Math.log(1e9);
+  const u0 = num(guess) && guess > 0 ? (mode === 'T' ? guess : Math.log(guess)) : null;
+  let qlo = null, qhi = null;
+  try {
+    if (u0 !== null) {
+      // walk out from the guess
+      let d = mode === 'T' ? 5 : 0.05, q0 = bOf(u0);
+      if (g(q0) < 0) { lo = u0; qlo = q0; for (let k = 0; k < 30; k++) { const u = u0 + d; const q = bOf(u); if (g(q) >= 0) { hi = u; qhi = q; break; } lo = u; qlo = q; d *= 2; } }
+      else { hi = u0; qhi = q0; for (let k = 0; k < 30; k++) { const u = u0 - d; const q = bOf(u); if (g(q) < 0) { lo = u; qlo = q; break; } hi = u; qhi = q; d *= 2; } }
+    }
+    if (!qlo) qlo = bOf(lo);
+    if (!qhi) qhi = bOf(hi);
+  } catch (_e) { return null; }
+  if (!(g(qlo) < 0 && g(qhi) >= 0)) return null;
+  let best = null;
+  for (let it = 0; it < 80; it++) {
+    const u = 0.5 * (lo + hi);
+    let q;
+    try { q = bOf(u); } catch (_e) { return null; }
+    if (g(q) < 0) lo = u; else hi = u;
+    best = { u, q };
+    if (Math.abs(q.b - beta) < 1e-7 && q.r.phase === 'VL') break;
+    if (hi - lo < (mode === 'T' ? 1e-7 : 1e-10)) break;
+  }
+  if (!best) return null;
+  const T = mode === 'T' ? best.u : fixed, P = mode === 'T' ? fixed : Math.exp(best.u);
+  const r = best.q.r;
+  // at a bubble (dew) point the flash sits on the boundary: report the incipient phase
+  if (r.phase !== 'VL') return { T, P, beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : r.phase, iterations: 80 };
+  return { T, P, beta: r.beta, x: r.x, y: r.y, phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 80 };
 }
 
 // ---------------------------------------------------------------------------
@@ -2498,24 +2751,199 @@ export function flashPS3(pp, z, P, S, Tguess, hint) { return stateFlash(pp, z, P
 // properties of a flash result (per phase and overall)
 // ---------------------------------------------------------------------------
 
-function mixVisL(pp, T, x) {
+// ---------------------------------------------------------------------------
+// STEP 37 — transport properties. Pure components: the ChemSep correlations
+// inside their range; outside it, or where a component has none (run-time user
+// components, a few databank entries), a corresponding-states estimate:
+//   liquid viscosity   Letsou–Stiel (Tr ≥ 0.76; above the correlation's upper
+//                      limit it is scaled to meet the correlation there),
+//                      Lewis–Squires temperature dependence below Tr 0.76
+//   vapour viscosity   Chung et al. (1988) dilute gas
+//   vapour conductivity Chung et al. (1988)
+//   liquid conductivity Sato–Riedel
+//   surface tension    Brock–Bird (scaled to the correlation's end point)
+// Mixtures (Poling, Prausnitz & O'Connell, 5th ed.):
+//   vapour μ  Herning–Zipperer + Jossi–Stiel–Thodos dense-gas term (§9-5, 9-6)
+//   vapour k  Wassiljewa with the Mason–Saxena coefficients (ε = 1) + Stiel–
+//             Thodos dense-gas term on pseudo-critical constants (§10-5, 10-6)
+//   liquid μ  Grunberg–Nissan without interaction (ln-mole-fraction mean) +
+//             Lucas (1981) compressed-liquid correction above the saturation
+//             pressure (§9-10, 9-12)
+//   liquid k  Li (1976) — DIPPR procedure 9I (§10-12)
+//   liquid σ  Winterfeld, Scriven & Davis (1978) (§12-5)
+// Each estimate used is named in phase.estimated.
+// ---------------------------------------------------------------------------
+const CP_UNIT = 1e-3;            // cP → Pa·s
+/** a correlation value, NaN when its equation form is not supported (e.g. ChemSep eq 118) */
+function tcorr(k, T, Tc) { try { return corr(k, T, Tc); } catch (_e) { return NaN; } }
+function noteEst(est, what) { if (est && !est.includes(what)) est.push(what); }
+/** Letsou–Stiel (1973) saturated-liquid viscosity [Pa s], 0.76 ≤ Tr ≤ 0.98 */
+function letsouStiel(c, T) {
+  const Tr = Math.min(Math.max(T / c.Tc, 0.76), 0.98);
+  const x0 = (1.5174 - Tr * (2.135 - 0.75 * Tr)) * 1e-5, x1 = (4.2552 - Tr * (7.674 - 3.4 * Tr)) * 1e-5;
+  const xi = 2173.424 * Math.pow(c.Tc, 1 / 6) / Math.sqrt(c.MW) * Math.pow(c.Pc, -2 / 3);
+  return (x0 + c.omega * x1) / xi;
+}
+/** Lewis–Squires: μ^−0.2661 = μk^−0.2661 + (T − Tk)/233, μ in cP */
+function lewisSquires(muK, TK, T) { const v = Math.pow(muK / CP_UNIT, -0.2661) + (T - TK) / 233; return v > 0 ? Math.pow(v, -1 / 0.2661) * CP_UNIT : muK; }
+/** pure saturated-liquid viscosity [Pa s] */
+export function pureMuL(c, T, est) {
+  // a user component's viscosity curve is itself an estimate unless a measured point anchored it
+  if (c.mul && c.user && c.user.src && !/given point/.test(c.user.src.mul || '')) noteEst(est, 'μL ' + c.key + ' (' + (c.user.src.mul || 'estimated') + ')');
+  if (c.mul) {
+    const Tmax = num(c.mul[7]) ? c.mul[7] : T, Tmin = num(c.mul[6]) ? c.mul[6] : T;
+    if (T <= Tmax) {
+      const mu = tcorr(c.mul, Math.max(T, 0.8 * Tmin), c.Tc);
+      if (mu > 0) return T < 0.8 * Tmin ? lewisSquires(mu, 0.8 * Tmin, T) : mu;
+    } else {
+      const muMax = tcorr(c.mul, Tmax, c.Tc);
+      if (muMax > 0) {
+        noteEst(est, 'μL ' + c.key + ' extrapolated (Letsou–Stiel)');
+        if (Tmax >= 0.76 * c.Tc) return muMax * letsouStiel(c, T) / letsouStiel(c, Tmax);
+        const T76 = 0.76 * c.Tc;
+        if (T <= T76) return lewisSquires(muMax, Tmax, T);
+        return lewisSquires(muMax, Tmax, T76) * letsouStiel(c, T) / letsouStiel(c, T76);
+      }
+    }
+  }
+  noteEst(est, 'μL ' + c.key + ' (Letsou–Stiel / Lewis–Squires)');
+  const T76 = 0.76 * c.Tc;
+  return T >= T76 ? letsouStiel(c, T) : lewisSquires(letsouStiel(c, T76), T76, T);
+}
+/** Chung et al. (1988) dilute-gas viscosity [Pa s] */
+function chungMuV(c, T) {
+  const Vc = c.vc * 1000;                                   // cm³/mol
+  const dipD = num(c.dip) ? c.dip / 3.33564e-30 : 0;        // debye
+  const mur = 131.3 * dipD / Math.sqrt(Vc * c.Tc);
+  const Fc = 1 - 0.2756 * c.omega + 0.059035 * Math.pow(mur, 4);
+  const Ts = 1.2593 * T / c.Tc;
+  const Om = 1.16145 * Math.pow(Ts, -0.14874) + 0.52487 * Math.exp(-0.77320 * Ts) + 2.16178 * Math.exp(-2.43787 * Ts);
+  return 40.785 * Fc * Math.sqrt(c.MW * T) / (Math.pow(Vc, 2 / 3) * Om) * 1e-7;
+}
+export function pureMuV(c, T, est) {
+  if (c.muv) { const mu = tcorr(c.muv, T, c.Tc); if (mu > 0) return mu; }
+  noteEst(est, 'μV ' + c.key + ' (Chung)');
+  return chungMuV(c, T);
+}
+/** Chung et al. (1988) dilute-gas thermal conductivity [W/(m K)] */
+function chungKV(c, T, muV) {
+  const Cv = c._cp ? hIGcp(c, T) - R : 2.5 * R;
+  const alpha = Cv / R - 1.5, beta = 0.7862 - 0.7109 * c.omega + 1.3168 * c.omega * c.omega, Z = 2 + 10.5 * (T / c.Tc) ** 2;
+  const psi = 1 + alpha * ((0.215 + 0.28288 * alpha - 1.061 * beta + 0.26665 * Z) / (0.6366 + beta * Z + 1.061 * alpha * beta));
+  return 3.75 * psi * R * muV / (c.MW * 1e-3);
+}
+function hIGcp(c, T) { const h = 0.05; return (c._cp.at(T + h)[0] - c._cp.at(T - h)[0]) / (2 * h); }
+export function pureKV(c, T, est) {
+  if (c.kv) { const k = tcorr(c.kv, T, c.Tc); if (k > 0) return k; }
+  noteEst(est, 'kV ' + c.key + ' (Chung)');
+  return chungKV(c, T, pureMuV(c, T));
+}
+/** Sato–Riedel liquid thermal conductivity [W/(m K)] */
+function satoRiedel(c, T) {
+  const Tb = num(c.tb) ? c.tb : 0.6 * c.Tc;
+  const tr = Math.max(1 - T / c.Tc, 0), tb = Math.max(1 - Tb / c.Tc, 1e-6);
+  return 1.1053 * (3 + 20 * Math.pow(tr, 2 / 3)) / Math.sqrt(c.MW) / (3 + 20 * Math.pow(tb, 2 / 3));
+}
+export function pureKL(c, T, est) {
+  if (c.kl) {
+    const Tmin = num(c.kl[6]) ? c.kl[6] : T, Tmax = num(c.kl[7]) ? c.kl[7] : T;
+    const Tu = Math.min(Math.max(T, Tmin), Tmax);
+    const k = tcorr(c.kl, Tu, c.Tc);
+    if (k > 0) {
+      if (T === Tu) return k;
+      noteEst(est, 'kL ' + c.key + ' extrapolated (Sato–Riedel)');
+      return k * satoRiedel(c, T) / satoRiedel(c, Tu);
+    }
+  }
+  noteEst(est, 'kL ' + c.key + ' (Sato–Riedel)');
+  return satoRiedel(c, T);
+}
+/** Brock–Bird surface tension [N/m] */
+function brockBird(c, T) {
+  if (T >= c.Tc) return 0;
+  const Tb = num(c.tb) ? c.tb : 0.6 * c.Tc, Pc = c.Pc * 1e-5, Tbr = Tb / c.Tc;
+  const Q = 0.1196 * (1 + Tbr * Math.log(Pc / 1.01325) / (1 - Tbr)) - 0.279;
+  return Math.max(Math.pow(Pc, 2 / 3) * Math.pow(c.Tc, 1 / 3) * Q * Math.pow(1 - T / c.Tc, 11 / 9) * 1e-3, 0);
+}
+// Sastri & Rao (1995) for hydrogen-bonding liquids, where Brock–Bird fails
+// (ethanol +50 %): σ = K Pc^x Tb^y Tc^z [(1 − Tr)/(1 − Tbr)]^m, Pc in bar, mN/m
+// (Poling et al., 5th ed., Eq. 12-3.12). The class comes from the UNIFAC groups:
+// aliphatic OH or methanol → alcohol constants, COOH / HCOOH → acid constants.
+const SASTRI = { alcohol: [2.28, 0.25, 0.175, 0, 0.8], acid: [0.125, 0.5, -1.5, 1.85, 11 / 9] };
+function sigmaClass(c) {
+  if (c._sigClass !== undefined) return c._sigClass;
+  const g = c.unifac || {};
+  c._sigClass = g[42] || g[43] ? 'acid' : g[14] || g[15] ? 'alcohol' : null;
+  return c._sigClass;
+}
+function sastriRao(c, T, cls) {
+  if (T >= c.Tc || !num(c.tb)) return 0;
+  const [K, x, y, z, m] = SASTRI[cls];
+  return K * Math.pow(c.Pc * 1e-5, x) * Math.pow(c.tb, y) * Math.pow(c.Tc, z) * Math.pow((1 - T / c.Tc) / (1 - c.tb / c.Tc), m) * 1e-3;
+}
+function sigmaEst(c, T) {
+  const cls = sigmaClass(c);
+  if (cls && num(c.tb)) return { v: sastriRao(c, T, cls), m: 'Sastri–Rao, ' + cls };
+  return { v: brockBird(c, T), m: 'Brock–Bird' };
+}
+export function pureSigma(c, T, est) {
+  if (T >= c.Tc) return 0;
+  if (c.st) {
+    const Tmin = num(c.st[6]) ? c.st[6] : T, Tmax = num(c.st[7]) ? c.st[7] : T;
+    const Tu = Math.min(Math.max(T, Tmin), Tmax);
+    const v = tcorr(c.st, Tu, c.Tc);
+    if (v > 0) {
+      if (T === Tu) return v;
+      const b0 = sigmaEst(c, Tu);
+      if (b0.v > 0) { const b = sigmaEst(c, T); noteEst(est, 'σ ' + c.key + ' extrapolated (' + b.m + ')'); return v * b.v / b0.v; }
+      return v;
+    }
+  }
+  const e = sigmaEst(c, T);
+  noteEst(est, 'σ ' + c.key + ' (' + e.m + ')');
+  return Math.max(e.v, 0);
+}
+function kayPseudo(pp, x) {
+  let Tc = 0, Pc = 0, Vc = 0, MW = 0, w = 0, Zc = 0, ok = true;
+  for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
+    const c = pp.comps[i];
+    if (!(c.vc > 0 && c.Tc > 0 && c.Pc > 0)) { ok = false; break; }
+    Tc += x[i] * c.Tc; Pc += x[i] * c.Pc; Vc += x[i] * c.vc / 1000; MW += x[i] * c.MW; w += x[i] * c.omega;
+    Zc += x[i] * (num(c.zc) ? c.zc : c.Pc * c.vc / 1000 / (R * c.Tc));
+  }
+  return ok ? { Tc, Pc, Vc, MW, w, Zc } : null;
+}
+function mixVisL(pp, T, x, P, est) {
   if (pp.electrolyte && pp.electrolyte.viscosity) {
     try { const v = pp.electrolyte.viscosity(T, x); if (v > 0) return v; if (Number.isNaN(v)) return NaN; } catch (_e) { /* generic below */ }
   }
-  let lnmu = 0;
+  let lnmu = 0, ps = 0;
   for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
     const c = pp.comps[i];
-    let mu = c.mul ? corr(c.mul, Math.min(T, c.mul[7] || T), c.Tc) : NaN;
+    let mu = pureMuL(c, T, est);
     if (!(mu > 0)) mu = 1e-4;
     lnmu += x[i] * Math.log(mu);
+    if (T < c.Tc) { try { ps += x[i] * psat(c, T); } catch (_e) { /* none */ } } else ps += x[i] * c.Pc;
   }
-  return Math.exp(lnmu);
+  let mu = Math.exp(lnmu);
+  // Lucas (1981) compressed liquid, on Kay's-rule pseudo-critical constants
+  const k = num(P) ? kayPseudo(pp, x) : null;
+  if (k && P - ps > 5e5) {
+    const Tr = Math.min(T / k.Tc, 1);
+    const C = Tr * (Tr * (Tr * (Tr * (Tr * (Tr * (15.6719 * Tr - 59.8127) + 96.1209) - 84.8291) + 44.1706) - 13.404) + 2.1616) - 0.07921;
+    const D = 0.3257 * Math.pow(1.0039 - Math.pow(Tr, 2.573), -0.2906) - 0.2086;
+    const A = 0.9991 - 4.674e-4 / (1.0523 * Math.pow(Tr, -0.03877) - 1.0513);
+    const dPr = (P - ps) / k.Pc;
+    const f = (1 + D * Math.pow(dPr / 2.118, A)) / (1 + C * k.w * dPr);
+    if (f > 0.5 && f < 5) mu *= f;
+  }
+  return mu;
 }
-function mixVisV(pp, T, y, V) {
+function mixVisV(pp, T, y, V, est) {
   let num1 = 0, den = 0;
   for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
     const c = pp.comps[i];
-    let mu = c.muv ? corr(c.muv, T, c.Tc) : NaN;
+    let mu = pureMuV(c, T, est);
     if (!(mu > 0)) mu = 1.2e-5;
     const s = Math.sqrt(c.MW);
     num1 += y[i] * mu * s; den += y[i] * s;
@@ -2525,32 +2953,72 @@ function mixVisV(pp, T, y, V) {
   // 5th ed., §9-6) with Kay's-rule pseudo-criticals; the databank correlations are for the dilute
   // gas, about 9 % low for methane at 50 bar. Applied for ρr = Vc/V up to 3 (its validity range).
   if (!(V > 0)) return mu0;
-  let Tc = 0, Pc = 0, Vc = 0, MW = 0, ok = true;
-  for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
-    const c = pp.comps[i];
-    if (!(c.vc > 0 && c.Tc > 0 && c.Pc > 0)) { ok = false; break; }
-    Tc += y[i] * c.Tc; Pc += y[i] * c.Pc; Vc += y[i] * c.vc / 1000; MW += y[i] * c.MW;
-  }
-  if (!ok) return mu0;
-  const rr = Math.min(Vc / V, 3);
+  const k = kayPseudo(pp, y);
+  if (!k) return mu0;
+  const rr = Math.min(k.Vc / V, 3);
   if (!(rr > 0.01)) return mu0;
   // [(μ − μ°)ξ + 1]^¼ = 1.0230 + 0.23364 ρr + 0.58533 ρr² − 0.40758 ρr³ + 0.093324 ρr⁴,
   // μ in micropoise, ξ = Tc^(1/6) / (M^½ Pc^(2/3)) with Tc in K, Pc in atm
-  const xi = Math.pow(Tc, 1 / 6) / (Math.sqrt(MW) * Math.pow(Pc / 101325, 2 / 3));
+  const xi = Math.pow(k.Tc, 1 / 6) / (Math.sqrt(k.MW) * Math.pow(k.Pc / 101325, 2 / 3));
   const lhs = 1.0230 + 0.23364 * rr + 0.58533 * rr * rr - 0.40758 * rr ** 3 + 0.093324 * rr ** 4;
   const dmu = (Math.pow(lhs, 4) - 1) / xi;                                                 // μP
   return mu0 + Math.max(dmu, 0) * 1e-7;
 }
-function mixK(pp, T, x, phase) {
-  let k = 0, s = 0;
+function mixKV(pp, T, y, V, est) {
+  const idx = [], ks = [], mus = [], Ms = [];
+  for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
+    const c = pp.comps[i];
+    idx.push(i); Ms.push(c.MW);
+    let mu = pureMuV(c, T, est); if (!(mu > 0)) mu = 1.2e-5; mus.push(mu);
+    let k = pureKV(c, T, est); if (!(k > 0)) k = 0.03; ks.push(k);
+  }
+  let k0 = 0;
+  for (let a = 0; a < idx.length; a++) {
+    let d = 0;
+    for (let b = 0; b < idx.length; b++) {
+      const phi = Math.pow(1 + Math.sqrt(mus[a] / mus[b]) * Math.pow(Ms[b] / Ms[a], 0.25), 2) / Math.sqrt(8 * (1 + Ms[a] / Ms[b]));
+      d += y[idx[b]] * phi;
+    }
+    k0 += y[idx[a]] * ks[a] / d;
+  }
+  if (!(V > 0)) return k0;
+  // Stiel–Thodos dense gas (Poling eq 10-5.x) on Kay's-rule pseudo-criticals
+  const q = kayPseudo(pp, y);
+  if (!q) return k0;
+  const rr = Math.min(q.Vc / V, 2.8);
+  if (!(rr > 0.01)) return k0;
+  const gamma = 210 * Math.pow(q.Tc * q.MW ** 3 * Math.pow(q.Pc * 1e-5, -4), 1 / 6);
+  const term = rr < 0.5 ? 1.22e-2 * (Math.exp(0.535 * rr) - 1) : rr < 2 ? 1.14e-2 * (Math.exp(0.67 * rr) - 1.069) : 2.60e-3 * (Math.exp(1.155 * rr) + 2.016);
+  return k0 + term * Math.pow(q.Zc, -5) / gamma;
+}
+function mixKL(pp, T, x, est) {
+  // Li (1976): k = Σ Σ φi φj kij, kij = 2 / (1/ki + 1/kj), φ = x V / Σ x V
+  const idx = [], ks = [], phi = [];
+  let tot = 0;
   for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
     const c = pp.comps[i];
-    const cc = phase === 'V' ? c.kv : c.kl;
-    let v = cc ? corr(cc, phase === 'L' ? Math.min(T, cc[7] || T) : T, c.Tc) : NaN;
-    if (!(v > 0)) v = phase === 'V' ? 0.03 : 0.15;
-    const w = x[i] * c.MW; k += w * v; s += w;
+    let k = pureKL(c, T, est); if (!(k > 0)) k = 0.15;
+    const v = x[i] * vLiq(c, Math.min(T, 0.99 * c.Tc));
+    idx.push(i); ks.push(k); phi.push(v); tot += v;
   }
-  return k / s;
+  let k = 0;
+  for (let a = 0; a < ks.length; a++) for (let b = 0; b < ks.length; b++) k += (phi[a] / tot) * (phi[b] / tot) * 2 / (1 / ks[a] + 1 / ks[b]);
+  return k;
+}
+function mixSigma(pp, T, x, est) {
+  // Winterfeld, Scriven & Davis (1978): σ = Σ Σ xi xj Vi Vj (σi σj)^½ / (Σ xi Vi)²
+  let tot = 0;
+  const v = [], sq = [];
+  for (let i = 0; i < pp.n; i++) {
+    if (!(x[i] > 0)) { v.push(0); sq.push(0); continue; }
+    const c = pp.comps[i];
+    const s = pureSigma(c, T, est);
+    const vi = vLiq(c, Math.min(T, 0.99 * c.Tc));
+    v.push(x[i] * vi); sq.push(Math.sqrt(Math.max(s, 0))); tot += x[i] * vi;
+  }
+  let a = 0;
+  for (let i = 0; i < pp.n; i++) a += v[i] * sq[i];
+  return (a / tot) ** 2;
 }
 
 /**
@@ -2560,6 +3028,7 @@ function mixK(pp, T, x, phase) {
 export function properties(pp, r) {
   const phases = [];
   const add = (type, frac, comp) => {
+    const est = [];
     const MW = comp.reduce((s, v, i) => s + v * pp.MW[i], 0);
     const V = pp.volPhase(r.T, r.P, comp, type);
     const h = pp.hPhase(r.T, r.P, comp, type);
@@ -2570,10 +3039,12 @@ export function properties(pp, r) {
     const ph = {
       type: type === 'V' ? 'vapour' : 'liquid', fraction: frac, x: comp,
       MW, rho_kgm3: MW / 1000 / V, Z, H_Jmol: h, Cp_JmolK: cp,
-      mu_Pas: sp ? sp.mu : type === 'V' ? mixVisV(pp, r.T, comp, V) : mixVisL(pp, r.T, comp),
-      k_WmK: sp ? sp.k : mixK(pp, r.T, comp, type),
+      mu_Pas: sp ? sp.mu : type === 'V' ? mixVisV(pp, r.T, comp, V, est) : mixVisL(pp, r.T, comp, r.P, est),
+      k_WmK: sp ? sp.k : type === 'V' ? mixKV(pp, r.T, comp, V, est) : mixKL(pp, r.T, comp, est),
     };
     if (sp && num(sp.sigma)) ph.sigma_Nm = sp.sigma;
+    else if (!sp && type !== 'V' && !(pp.electrolyte && pp.electrolyte.urea)) { try { const sg = mixSigma(pp, r.T, comp, est); if (sg >= 0 && Number.isFinite(sg)) ph.sigma_Nm = sg; } catch (_e) { /* none */ } }
+    if (est.length) ph.estimated = est.slice(0, 12);
     if (type === 'L' && pp.electrolyte) {
       try {
         const rep = pp.electrolyte.report(r.T, comp);
@@ -2609,4 +3080,5 @@ export default {
   corr, component, hIG, sIG, psat, hvap, vLiq, satT,
   createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashTVF,
   hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED,
+  pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC,
 };

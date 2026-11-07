@@ -377,6 +377,7 @@ function solvePropertyTable(inp) {
       for (const q of pr.phases) {
         ph[q.type] = { fraction: r6(q.fraction), rho_kgm3: r6(q.rho_kgm3), MW: r6(q.MW), Cp_kJkgK: r6(q.Cp_JmolK / q.MW), mu_cP: r6(q.mu_Pas * 1000), k_WmK: r6(q.k_WmK), Z: r6(q.Z) };
         if (q.acid_gas) ph[q.type].acid_gas = q.acid_gas;       // STEP 25 speciation of an acid-gas solution
+        if (Number.isFinite(q.sigma_Nm)) ph[q.type].sigma_mNm = r6(q.sigma_Nm * 1000);   // STEP 37
       }
       rows.push({ T_K: r6(T), P_bar: r6(P / 1e5), phase: r.phase, vapour_fraction: r6(beta), liquid2_fraction: r.x2 ? r6(r.beta2) : 0,
         H_kJkmol: r6(h), S_kJkmolK: r6(sv), H_kJkg: r6(h / MWm), Cp_kJkgK: num(cp) ? r6(cp / MWm) : null, rho_kgm3: r6(pr.rho_kgm3), phases: ph });

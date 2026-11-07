@@ -225,7 +225,7 @@ export function streamOut(pp, F, z, r, opt) {
       const pr = th.properties(pp, r);
       out.rig.props = { MW: pr.MW, rho_kgm3: pr.rho_kgm3,
         phases: pr.phases.map((p) => ({ type: p.type, fraction: p.fraction, MW: p.MW, rho_kgm3: p.rho_kgm3, Z: p.Z,
-          Cp_kJkgK: p.Cp_JmolK / p.MW, mu_cP: p.mu_Pas * 1000, k_WmK: p.k_WmK, sigma_mNm: num(p.sigma_Nm) ? p.sigma_Nm * 1000 : undefined, acid_gas: p.acid_gas || undefined })) };
+          Cp_kJkgK: p.Cp_JmolK / p.MW, mu_cP: p.mu_Pas * 1000, k_WmK: p.k_WmK, sigma_mNm: num(p.sigma_Nm) ? p.sigma_Nm * 1000 : undefined, acid_gas: p.acid_gas || undefined, estimated: p.estimated || undefined })) };
     } catch (_e) { /* properties are informative only */ }
   }
   return out;
@@ -347,17 +347,113 @@ function valveSizingData(pp, a) {
 // ---------------------------------------------------------------------------
 // pump
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// STEP 34 machine performance curves (pumps: head–flow–efficiency [–NPSHr];
+// compressors: head–actual inlet flow–efficiency at a rated speed). Points are
+// interpolated by monotone piecewise-cubic Hermite (Fritsch–Carlson), linearly
+// beyond the ends (flagged). Another speed follows the affinity laws:
+//   Q ∝ N, H ∝ N², η unchanged (the operating flow is mapped back to the
+//   rated-speed curve, Q_eq = Q·N0/N, and its head scaled by (N/N0)²).
+// ---------------------------------------------------------------------------
+export function pchip(xs, ys) {
+  const n = xs.length;
+  if (n === 1) return () => ys[0];
+  const h = [], d = [];
+  for (let i = 0; i < n - 1; i++) { h.push(xs[i + 1] - xs[i]); d.push((ys[i + 1] - ys[i]) / h[i]); }
+  const m = new Array(n);
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (d[i - 1] * d[i] <= 0) m[i] = 0;
+    else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
+  }
+  if (n > 2) {
+    // three-point end slopes (shape preserving)
+    const end = (h0, h1, d0, d1) => { let s = ((2 * h0 + h1) * d0 - h0 * d1) / (h0 + h1); if (Math.sign(s) !== Math.sign(d0)) s = 0; else if (Math.sign(d0) !== Math.sign(d1) && Math.abs(s) > Math.abs(3 * d0)) s = 3 * d0; return s; };
+    m[0] = end(h[0], h[1], d[0], d[1]); m[n - 1] = end(h[n - 2], h[n - 3], d[n - 2], d[n - 3]);
+  }
+  return (x) => {
+    if (x <= xs[0]) return ys[0] + m[0] * (x - xs[0]);
+    if (x >= xs[n - 1]) return ys[n - 1] + m[n - 1] * (x - xs[n - 1]);
+    let k = 0; while (k < n - 2 && x > xs[k + 1]) k++;
+    const t = (x - xs[k]) / h[k], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[k] + (t3 - 2 * t2 + t) * h[k] * m[k] + (-2 * t3 + 3 * t2) * ys[k + 1] + (t3 - t2) * h[k] * m[k + 1];
+  };
+}
+/** validated curve: {Q[], H(), E()|null, NPSH()|null, N0, Qmin, Qmax, surge, bep} */
+export function machineCurve(c, label, headKey, headUnit) {
+  if (!c || typeof c !== 'object') fail('MB_CURVE', `${label}: curve must be {flow_m3_h:[…], ${headKey}:[…], efficiency?:[…]}`, 'curve');
+  const Q = c.flow_m3_h, H = c[headKey], E = c.efficiency, NP = c.npshr_m;
+  if (!Array.isArray(Q) || !Array.isArray(H) || Q.length < 2 || Q.length !== H.length || Q.length > 40) fail('MB_CURVE', `${label}: the curve needs 2–40 points of flow_m3_h and ${headKey} (${headUnit})`, 'curve');
+  for (let i = 0; i < Q.length; i++) {
+    if (!num(Q[i]) || Q[i] < 0 || !num(H[i]) || H[i] <= 0) fail('MB_CURVE', `${label}: curve point ${i + 1} — flow ≥ 0 and head > 0 required`, 'curve');
+    if (i && !(Q[i] > Q[i - 1])) fail('MB_CURVE', `${label}: curve flows must increase from point to point`, 'curve');
+  }
+  let Ef = null, bep = null;
+  if (Array.isArray(E) && E.length) {
+    if (E.length !== Q.length || !E.every((v) => num(v) && v > 0 && v <= 1)) fail('MB_CURVE', `${label}: curve efficiencies must be fractions (0–1], one per point`, 'curve');
+    Ef = pchip(Q, E);
+    let k = 0; for (let i = 1; i < E.length; i++) if (E[i] > E[k]) k = i;
+    bep = { flow_m3_h: Q[k], efficiency: E[k], head: H[k] };
+  }
+  let NPf = null;
+  if (Array.isArray(NP) && NP.length) {
+    if (NP.length !== Q.length || !NP.every((v) => num(v) && v >= 0)) fail('MB_CURVE', `${label}: npshr_m needs one value ≥ 0 per curve point`, 'curve');
+    NPf = pchip(Q, NP);
+  }
+  const N0 = num(c.speed_rpm) && c.speed_rpm > 0 ? c.speed_rpm : null;
+  const surge = num(c.surge_flow_m3_h) && c.surge_flow_m3_h > 0 ? c.surge_flow_m3_h : Q[0];
+  return { Q, H: pchip(Q, H), E: Ef, NPSH: NPf, N0, Qmin: Q[0], Qmax: Q[Q.length - 1], surge, bep };
+}
+/** operating point on a curve at flow Qop [m³/h] and speed N (rpm; null = rated) */
+export function curvePoint(cv, Qop, N, label) {
+  let r = 1;
+  if (num(N) && N > 0) {
+    if (!cv.N0) fail('MB_CURVE', `${label}: give the curve's rated speed (curve.speed_rpm) to run at another speed`, 'speed_rpm');
+    r = N / cv.N0;
+  }
+  const Qeq = Qop / r;
+  const head = cv.H(Qeq) * r * r;
+  const eta = cv.E ? Math.min(1, Math.max(0.01, cv.E(Qeq))) : null;
+  return { Qeq, head, eta, speed_ratio: r, npshr: cv.NPSH ? cv.NPSH(Qeq) * r * r : null, below: Qeq < cv.Qmin, beyond: Qeq > cv.Qmax };
+}
+
 function solvePumpR(inp) {
   const { streams, params: p } = input(inp, 1, 1, 'pump');
   const pp = pkg(p.property_package, keysOf(...streams));
   const a = stateIn(pp, streams[0], 'pump inlet');
   const w = pp.warnings.slice();
-  const P2 = pOut(p, streams[0].P_bar, 'pump');
-  const eta = num(p.efficiency) ? p.efficiency : 0.75;
+  let P2 = p.curve ? null : pOut(p, streams[0].P_bar, 'pump');
+  let eta = num(p.efficiency) ? p.efficiency : 0.75;
   if (!(eta > 0 && eta <= 1)) fail('MB_ETA', 'pump: efficiency must be in (0, 1]', 'efficiency');
   if (a.r.phase !== 'L') w.push(`pump: inlet is not all liquid (vapour fraction ${(a.r.phase === 'V' ? 1 : a.r.beta).toFixed(4)}) — cavitation risk; power uses the mixture volume`);
   const props = th.properties(pp, a.r);
   const Vm = props.MW / 1000 / props.rho_kgm3;                     // m3/mol
+  // STEP 34: performance curve — the curve, not an outlet pressure, sets the head
+  let cdet = null;
+  if (p.curve) {
+    const cv = machineCurve(p.curve, 'pump', 'head_m', 'm');
+    const Qv0 = a.mass / props.rho_kgm3;
+    const cp = curvePoint(cv, Qv0, p.speed_rpm, 'pump');
+    P2 = a.P + props.rho_kgm3 * 9.80665 * cp.head;
+    if (cp.eta !== null) eta = cp.eta;
+    cdet = { flow_m3_h: Qv0, flow_equivalent_m3_h: cp.Qeq, head_m: cp.head, efficiency: eta, speed_ratio: cp.speed_ratio, speed_rpm: num(p.speed_rpm) ? p.speed_rpm : cv.N0 };
+    if (cv.bep) { cdet.bep_flow_m3_h = cv.bep.flow_m3_h * cp.speed_ratio; cdet.percent_of_bep = 100 * cp.Qeq / cv.bep.flow_m3_h; cdet.bep_efficiency = cv.bep.efficiency; }
+    if (cp.below) w.push(`pump: flow ${Qv0.toFixed(2)} m³/h is below the first curve point (${(cv.Qmin * cp.speed_ratio).toFixed(2)} m³/h at this speed) — head extrapolated; check the minimum continuous flow`);
+    else if (cv.bep && cp.Qeq < 0.4 * cv.bep.flow_m3_h) w.push(`pump: operating at ${(100 * cp.Qeq / cv.bep.flow_m3_h).toFixed(0)} % of the best-efficiency flow — below the usual minimum continuous flow (≈ 40 % of BEP)`);
+    if (cp.beyond) w.push(`pump: flow ${Qv0.toFixed(2)} m³/h is beyond the end of the curve (${(cv.Qmax * cp.speed_ratio).toFixed(2)} m³/h at this speed, run-out) — head extrapolated`);
+    if (!(cp.head > 0)) fail('MB_CURVE', `pump: the curve gives no head at ${Qv0.toFixed(2)} m³/h — the flow is beyond the pump's shut-off / run-out`, 'curve');
+    // NPSH available: (P_in − P_bubble) / ρg from the inlet liquid's bubble pressure
+    try {
+      const xb = a.r.phase === 'L' ? a.z : a.r.x;
+      const bp = th.flashTVF(pp, xb, a.T, 0, a.P).P;
+      cdet.npsha_m = (a.P - bp) / (props.rho_kgm3 * 9.80665);
+      if (cp.npshr !== null) {
+        cdet.npshr_m = cp.npshr;
+        if (cdet.npsha_m < cp.npshr) w.push(`pump: NPSH available ${cdet.npsha_m.toFixed(2)} m is below NPSH required ${cp.npshr.toFixed(2)} m — cavitation`);
+        else if (cdet.npsha_m < cp.npshr + 1) w.push(`pump: NPSH margin ${(cdet.npsha_m - cp.npshr).toFixed(2)} m is less than 1 m`);
+      }
+    } catch (_e) { /* NPSH informative only */ }
+  }
   const dP = P2 - a.P;
   const wHyd = Vm * dP;                                              // J/mol
   const wSh = wHyd / eta;
@@ -366,8 +462,8 @@ function solvePumpR(inp) {
   const W = a.F * wSh / KJH_PER_KW;                                  // kW
   const Qv = a.mass / props.rho_kgm3;                                // m3/h
   return result([out], a.mass, a.H_kJh, out.H_kJh, W,
-    { pp: ppDetails(pp), power_kW: W, hydraulic_kW: a.F * wHyd / KJH_PER_KW, efficiency: eta, head_m: dP / (props.rho_kgm3 * 9.80665),
-      flow_m3_h: Qv, rho_kgm3: props.rho_kgm3, dP_bar: dP / 1e5, T_out_K: r.T }, w);
+    Object.assign({ pp: ppDetails(pp), power_kW: W, hydraulic_kW: a.F * wHyd / KJH_PER_KW, efficiency: eta, head_m: dP / (props.rho_kgm3 * 9.80665),
+      flow_m3_h: Qv, rho_kgm3: props.rho_kgm3, dP_bar: dP / 1e5, P_out_bar: P2 / 1e5, T_out_K: r.T }, cdet ? { curve: cdet } : {}), w);
 }
 
 // ---------------------------------------------------------------------------
@@ -430,18 +526,53 @@ function machine(inp, kind) {
   const pp = pkg(p.property_package, keysOf(...streams));
   const a = stateIn(pp, streams[0], `${label} inlet`);
   const w = pp.warnings.slice();
-  let P2;
-  if (num(p.pressure_ratio)) P2 = a.P * (kind === 'compressor' ? p.pressure_ratio : 1 / p.pressure_ratio);
+  let P2, cdet = null, curveEta = null;
+  if (kind === 'compressor' && p.curve) {
+    // STEP 34: performance curve — head and efficiency at the actual inlet flow set the discharge pressure
+    const cv = machineCurve(p.curve, label, 'head_kJkg', 'kJ/kg');
+    const rho = th.properties(pp, a.r).rho_kgm3;
+    const Qv0 = a.mass / rho;
+    const cp = curvePoint(cv, Qv0, p.speed_rpm, label);
+    const htype = p.curve.head_type === 'isentropic' ? 'isentropic' : p.curve.head_type === 'polytropic' ? 'polytropic' : (p.mode === 'isentropic' ? 'isentropic' : 'polytropic');
+    curveEta = cp.eta !== null ? cp.eta : (num(p.efficiency) ? p.efficiency : 0.75);
+    if (!(cp.head > 0)) fail('MB_CURVE', `${label}: the curve gives no head at ${Qv0.toFixed(1)} m³/h (beyond stonewall)`, 'curve');
+    if (!(a.mass > 0)) fail('MB_CURVE', `${label}: a performance curve needs a flowing inlet`, 'streams');
+    const perKg = a.F / a.mass;                                   // kmol/kg: J/mol × kmol/kg = kJ/kg
+    const headAt = (P) => {
+      const pa = machinePath(pp, a, P, kind, htype);
+      return htype === 'isentropic' ? (pa.hs - a.h) * perKg : curveEta * (pa.hOut(curveEta) - a.h) * perKg;
+    };
+    // discharge pressure: head rises monotonically with ln P — bracket, then Illinois
+    let lo = Math.log(a.P * 1.0001), hi = Math.log(a.P * 1.5), flo = -cp.head, fhi = headAt(Math.exp(hi)) - cp.head;
+    for (let k = 0; k < 40 && fhi < 0; k++) { lo = hi; flo = fhi; hi += 0.5; fhi = headAt(Math.exp(hi)) - cp.head; }
+    if (!(fhi >= 0)) fail('MB_CURVE', `${label}: no discharge pressure gives the curve head ${cp.head.toFixed(1)} kJ/kg`, 'curve');
+    let side = 0, u = hi;
+    for (let k = 0; k < 60; k++) {
+      u = (lo * fhi - hi * flo) / (fhi - flo);
+      const fu = headAt(Math.exp(u)) - cp.head;
+      if (Math.abs(fu) < 1e-9 * cp.head || hi - lo < 1e-12) break;
+      if ((fu < 0) === (flo < 0)) { lo = u; flo = fu; if (side === -1) fhi *= 0.5; side = -1; } else { hi = u; fhi = fu; if (side === 1) flo *= 0.5; side = 1; }
+    }
+    P2 = Math.exp(u);
+    const surgeEq = cv.surge;
+    cdet = { flow_m3_h: Qv0, flow_equivalent_m3_h: cp.Qeq, head_kJkg: cp.head, head_type: htype, efficiency: curveEta, speed_ratio: cp.speed_ratio,
+      speed_rpm: num(p.speed_rpm) ? p.speed_rpm : cv.N0, surge_flow_m3_h: surgeEq * cp.speed_ratio, surge_margin_pct: 100 * (cp.Qeq - surgeEq) / surgeEq,
+      surge: cp.Qeq < surgeEq, stonewall: cp.beyond };
+    if (cv.bep) cdet.percent_of_bep = 100 * cp.Qeq / cv.bep.flow_m3_h;
+    if (cp.Qeq < surgeEq) w.push(`${label}: SURGE — inlet flow ${Qv0.toFixed(0)} m³/h is below the surge flow ${(surgeEq * cp.speed_ratio).toFixed(0)} m³/h at this speed; open the anti-surge recycle or reduce speed`);
+    else if (cdet.surge_margin_pct < 10) w.push(`${label}: surge margin ${cdet.surge_margin_pct.toFixed(1)} % (below the usual 10 %)`);
+    if (cp.beyond) w.push(`${label}: inlet flow ${Qv0.toFixed(0)} m³/h is beyond the last curve point (${(cv.Qmax * cp.speed_ratio).toFixed(0)} m³/h at this speed) — stonewall region, head extrapolated`);
+  } else if (num(p.pressure_ratio)) P2 = a.P * (kind === 'compressor' ? p.pressure_ratio : 1 / p.pressure_ratio);
   else P2 = pOut(p, streams[0].P_bar, label);
   if (kind === 'compressor' && P2 <= a.P) fail('MB_P', 'compressor: outlet pressure must exceed inlet pressure', 'P_out_bar');
   if (kind === 'expander' && P2 >= a.P) fail('MB_P', 'turbine: outlet pressure must be below inlet pressure', 'P_out_bar');
-  const mode = p.mode === 'polytropic' ? 'polytropic' : 'isentropic';
-  const spec = p.spec === 'T_out' || p.spec === 'power' ? p.spec : 'efficiency';
+  const mode = cdet ? cdet.head_type : p.mode === 'polytropic' ? 'polytropic' : 'isentropic';
+  const spec = cdet ? 'efficiency' : p.spec === 'T_out' || p.spec === 'power' ? p.spec : 'efficiency';
   if (a.r.phase !== 'V') w.push(`${label}: inlet contains liquid (vapour fraction ${(a.r.phase === 'L' ? 0 : a.r.beta).toFixed(4)})`);
   const path = machinePath(pp, a, P2, kind, mode);
   let eta, h2, r;
   if (spec === 'efficiency') {
-    eta = num(p.efficiency) ? p.efficiency : 0.75;
+    eta = curveEta !== null ? curveEta : num(p.efficiency) ? p.efficiency : 0.75;
     if (!(eta > 0 && eta <= 1)) fail('MB_ETA', `${label}: efficiency must be in (0, 1]`, 'efficiency');
     h2 = path.hOut(eta);
     r = th.flashPH(pp, a.z, P2, h2, path.rs.T);
@@ -478,6 +609,7 @@ function machine(inp, kind) {
     inlet_volume_m3_h: (() => { try { const pr = th.properties(pp, a.r); return a.mass / pr.rho_kgm3; } catch (_e) { return null; } })(),
     Z_out: props ? props.Z : null };
   if (kind === 'expander' && W < 0) det.steam_rate_kg_kWh = a.mass / -W;     // specific steam (or gas) consumption
+  if (cdet) det.curve = cdet;
   return result([out], a.mass, a.H_kJh, out.H_kJh, W, det, w);
 }
 const solveCompressor = (inp) => machine(inp, 'compressor');
@@ -1259,6 +1391,16 @@ function propertyInfo(inp) {
   });
   const pairs = [];
   const userOf = (tab, a, b) => (tab && tab[a + '|' + b]) || null;
+  // STEP 37: pairs the package estimated from UNIFAC
+  const estMap = new Map((pp.estimatedPairs || []).map((e) => [e.pair, e]));
+  const estOf = (a, b) => {
+    const e = estMap.get(a + '–' + b) || estMap.get(b + '–' + a);
+    if (!e) return null;
+    const [ka, kb] = e.pair.split('–');
+    const f = th.fitPairFromUNIFAC(model, th.component(ka), th.component(kb));
+    if (!f) return null;
+    return ka === a ? { a_ij: f.a12, b_ij: f.b12, a_ji: f.a21, b_ji: f.b21, source: 'estimated (' + e.source + ')' } : { a_ij: f.a21, b_ij: f.b21, a_ji: f.a12, b_ji: f.b12, source: 'estimated (' + e.source + ')' };
+  };
   for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) {
     const a = keys[i], b = keys[j];
     const row = { i: a, j: b };
@@ -1275,16 +1417,22 @@ function propertyInfo(inp) {
       row.nrtl = { b_ij: ua ? ua.b || 0 : da ? da[0] : 0, b_ji: ub ? ub.b || 0 : db ? db[0] : 0, a_ij: ua ? ua.a || 0 : 0, a_ji: ub ? ub.a || 0 : 0,
         alpha: ua && num(ua.alpha) ? ua.alpha : da ? da[1] : db ? db[1] : 0.3 };
       row.source = ua || ub ? 'user' : da || db ? 'ChemSep' : 'none (ideal)';
+      const es = !ua && !ub && !da && !db ? estOf(a, b) : null;
+      if (es) { row.nrtl = { b_ij: es.b_ij, b_ji: es.b_ji, a_ij: es.a_ij, a_ji: es.a_ji, alpha: 0.3 }; row.source = es.source; }
     } else if (model === 'uniquac') {
       const ua = userOf(spec.uniquac, a, b), ub = userOf(spec.uniquac, b, a);
       const da = bip.UNIQUAC[a + '|' + b], db = bip.UNIQUAC[b + '|' + a];
       row.uniquac = { b_ij: ua ? ua.b || 0 : da ? da[0] : 0, b_ji: ub ? ub.b || 0 : db ? db[0] : 0 };
       row.source = ua || ub ? 'user' : da || db ? 'ChemSep' : 'none (τ = 1)';
+      const es = !ua && !ub && !da && !db ? estOf(a, b) : null;
+      if (es) { row.uniquac = { b_ij: es.b_ij, b_ji: es.b_ji, a_ij: es.a_ij, a_ji: es.a_ji }; row.source = es.source; }
     } else if (model === 'wilson') {
       const ua = userOf(spec.wilson, a, b), ub = userOf(spec.wilson, b, a);
       const da = bip.WILSON[a + '|' + b], db = bip.WILSON[b + '|' + a];
       row.wilson = { a_ij: ua ? ua.a || 0 : da ? da[0] : 0, b_ij: ua ? ua.b || 0 : da ? da[1] : 0, a_ji: ub ? ub.a || 0 : db ? db[0] : 0, b_ji: ub ? ub.b || 0 : db ? db[1] : 0 };
       row.source = ua || ub ? 'user' : da || db ? 'ChemSep' : 'none (Λ = 1)';
+      const es = !ua && !ub && !da && !db ? estOf(a, b) : null;
+      if (es) { row.wilson = { a_ij: es.a_ij, b_ij: es.b_ij, a_ji: es.a_ji, b_ji: es.b_ji }; row.source = es.source; }
     }
     pairs.push(row);
   }
@@ -1385,7 +1533,9 @@ export function describeStream(spec, s) {
 export { UnitError, elements, gibbsEquilibrium, gauss, stateIn as rigStateIn };
 /** helpers shared with the rigorous syngas units (mb-syngas.js) and the pipe (mb-pipe.js) */
 export const KIT = { th, num, fail, R, KJH_PER_KW, input, result, combine, keysOf, pOut, pkg, stateIn, streamOut, ppDetails, compObj,
-  elements, equilReactions, carbonActivities, solveEnergyT, hasRealVapour, vapLnPhi, graphite };
+  elements, equilReactions, carbonActivities, solveEnergyT, hasRealVapour, vapLnPhi, graphite,
+  // STEP 34: unit solvers reused by composite units (compressor train)
+  units: { compressor: (i) => solveCompressor(i), heater: (i) => solveHeater(i), flash: (i) => solveFlashR(i), mixer: (i) => solveMixerR(i) } };
 /** component and total molar flows of a stream with the databank molecular weights (rigorous streams) */
 export function moles(s) {
   const n = {};

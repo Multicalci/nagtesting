@@ -65,6 +65,11 @@ import rigAnalysis from './mb-analysis.js';     // STEP 23 — phase envelope, p
 import rigKinetics from './mb-kinetics.js';     // STEP 23 — kinetic PFR / CSTR on the property packages
 import rigSyngas from './mb-syngas.js';         // STEP 33 — reformers, shift, methanator on the property packages
 import rigPipe from './mb-pipe.js';             // STEP 33 — pipe segment (Darcy–Churchill, homogeneous two-phase)
+import rigUreaSyn from './mb-ureasyn.js';      // STEP 34 — urea reactor + HP stripper on the urea method
+import rigMachines from './mb-machines.js';    // STEP 34 — multistage compressor with intercoolers
+import pseudo from './mb-pseudo.js';            // STEP 34 — petroleum pseudo-components, TBP assay cutting
+import usercomp from './mb-usercomp.js';        // STEP 37 — user components from a SMILES structure
+import pinch from './mb-pinch.js';              // STEP 36 — pinch analysis (problem table, composite curves)
 
 // ---------------------------------------------------------------------------
 // STEP 33 — the classic modules' Peng–Robinson (enthalpy departure above
@@ -102,7 +107,7 @@ function prZ(ys, T_K, P_bar) {
   return pp.eos.state(T_K, P_bar * 1e5, y.map((v) => v / t), 'V').Z;
 }
 
-const ENGINE_VERSION = 'mb-engine 0.22.0 (parts 1-7 + steps 21–32 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate, aqueous MDEA / activated MDEA (piperazine) by Extended UNIQUAC), Murphree tray efficiencies, IAPWS-IF97 steam package (water/steam on api/_lib/steam-if97.js), turbine / compressor specs by efficiency, outlet temperature or power, extraction steam turbine), fast flowsheet solver: minimum tear sets, Broyden acceleration, warm starts, resumable continuation, ideal-gas vapour check above 5 bar, free water in the cubic equations of state (IAPWS-IF97 water and steam, IAPWS G7-04 dissolved gases), Newton fallback and convergence flags on every flash, energy-balance reconciliation';
+const ENGINE_VERSION = 'mb-engine 0.26.0 (parts 1-7 + steps 21–37 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate, aqueous MDEA / activated MDEA (piperazine) by Extended UNIQUAC), Murphree tray efficiencies, IAPWS-IF97 steam package (water/steam on api/_lib/steam-if97.js), turbine / compressor specs by efficiency, outlet temperature or power, extraction steam turbine), fast flowsheet solver: minimum tear sets, Broyden acceleration, warm starts, resumable continuation, ideal-gas vapour check above 5 bar, free water in the cubic equations of state (IAPWS-IF97 water and steam, IAPWS G7-04 dissolved gases), Newton fallback and convergence flags on every flash, energy-balance reconciliation + step 33 fugacity Gibbs reactor, syngas units and pipe on the property method + step 34 urea synthesis method (Voskov UNIQUAC), urea reactor and CO2 stripper, machine curves, multistage compressor, calculator blocks, pseudo-components and TBP assay cutting, larger flowsheets + step 35 solver transparency + step 36 optimisation, pinch analysis and equipment / utility costing + step 37 components from a SMILES (Joback, UNIFAC / Dortmund groups), UNIFAC fill-in of missing binary pairs, estimated transport properties and liquid surface tension)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -4961,7 +4966,7 @@ Object.assign(MODULES, urea.register({
 // ---------------------------------------------------------------------------
 // STEP 22 — rigorous units + column (registered before the flowsheet so the
 // flowsheet's validation sees them)
-const RIG = rigUnits.register(Object.assign({ column: rigColumn.solveColumn }, rigAnalysis.ANALYSIS_MODULES, rigKinetics.KINETIC_MODULES, rigSyngas.SYNGAS_MODULES, rigPipe.PIPE_MODULES));
+const RIG = rigUnits.register(Object.assign({ column: rigColumn.solveColumn }, rigAnalysis.ANALYSIS_MODULES, rigKinetics.KINETIC_MODULES, rigSyngas.SYNGAS_MODULES, rigPipe.PIPE_MODULES, rigUreaSyn.UREASYN_MODULES, rigMachines.MACHINE_MODULES));
 Object.assign(MODULES, RIG);
 Object.assign(MODULES, flowsheet.register({ errObj, MODULES, runModule, streamEnthalpy, molarize, resolve,
   rig: rigUnits, RIG_NAMES: new Set(Object.keys(RIG)) }));
@@ -4973,6 +4978,61 @@ Object.assign(MODULES, flowsheet.register({ errObj, MODULES, runModule, streamEn
  * @param {{streams:Array, params?:object}} input
  * @returns {object} module result or error envelope
  */
+// ---------------------------------------------------------------------------
+// STEP 34: pseudo-components — any module call may carry
+// params.pseudo_components [{Tb_K, SG, MW?, method?, key?}]; they are registered
+// into the databank (under keys that encode their definition) before it runs.
+// ---------------------------------------------------------------------------
+function pseudoEnvelope(e) { return errObj(e.code || 'MB_PSEUDO', e.message, e.field || 'pseudo_components'); }
+MODULES['pseudo-props'] = (input) => {
+  const p = (input && input.params) || {};
+  let keys;
+  try { keys = pseudo.registerPseudos(p.pseudo_components || []); } catch (e) { return pseudoEnvelope(e); }
+  const comps = keys.map((k) => {
+    const c = compdb.get(k), q = c.pseudo;
+    return { key: k, name: c.name, Tb_K: q.Tb_K, SG: q.SG, API: q.API, Kw: q.Kw, method: q.method, MW: c.mw, MW_given: q.MW_given, Tc_K: c.tc, Pc_bar: c.pc / 1e5,
+      Vc_m3_kmol: c.vc, Zc: c.zc, omega: c.w, Z_RA: c.zra, rho15_kg_m3: q.SG * 999.0 };
+  });
+  return { ok: true, details: { components: comps, version: pseudo.PSEUDO_VERSION }, warnings: [] };
+};
+// STEP 36: pinch analysis of heating / cooling curves — given as CP, duty, points, or
+// process states whose curves are computed with the property method
+MODULES['pinch-analysis'] = (input) => {
+  const p = (input && input.params) || {};
+  try {
+    const r = pinch.pinchAnalysis(p, (spec, s) => rigUnits.describeStream(spec, s));
+    return { ok: true, details: r, warnings: r.notes.slice() };
+  } catch (e) {
+    return errObj(e.code || 'MB_PINCH', e.message, e.field || 'params');
+  }
+};
+MODULES['assay-cut'] = (input) => {
+  const p = (input && input.params) || {};
+  let r;
+  try { r = pseudo.cutAssay(p); } catch (e) { return pseudoEnvelope(e); }
+  return { ok: true, details: r, pseudo_components: r.components.map((c) => ({ key: c.key, Tb_K: c.Tb_K, SG: c.SG, method: c.method })), warnings:
+    Math.abs(r.SG_check - r.SG_bulk) > 0.002 ? [`assay: the cuts' SG at constant Watson K average to ${r.SG_check.toFixed(4)} against the bulk ${r.SG_bulk.toFixed(4)}`] : [] };
+};
+// STEP 37: user components from a structure — params.user_components [{smiles, name?, key?, Tb_K?, …}]
+MODULES['user-components'] = (input) => {
+  const p = (input && input.params) || {};
+  let keys;
+  try { keys = usercomp.registerUserComponents(p.user_components || []); } catch (e) { return errObj(e.code || 'MB_USERCOMP', e.message, e.field || 'user_components'); }
+  return { ok: true, details: { components: keys.map((k) => usercomp.userReport(k)), version: usercomp.USERCOMP_VERSION }, warnings: [] };
+};
+for (const [k, fn] of Object.entries(MODULES)) {
+  if (fn.__pseudo) continue;
+  const w = (input) => {
+    const pc = input && input.params && input.params.pseudo_components;
+    if (pc !== undefined && k !== 'pseudo-props') { try { pseudo.registerPseudos(pc); } catch (e) { return pseudoEnvelope(e); } }
+    const uc = input && input.params && input.params.user_components;
+    if (uc !== undefined && k !== 'user-components') { try { usercomp.registerUserComponents(uc); } catch (e) { return errObj(e.code || 'MB_USERCOMP', e.message, e.field || 'user_components'); } }
+    return fn(input);
+  };
+  w.__pseudo = true;
+  MODULES[k] = w;
+}
+
 function runModule(name, input) {
   const fn = MODULES[name];
   if (typeof fn !== 'function') {
