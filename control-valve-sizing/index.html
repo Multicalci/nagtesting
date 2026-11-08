@@ -573,7 +573,7 @@ select option{background:var(--ink2)}
             <div class="crit-btns">
               <button type="button" class="crit-btn" onclick="mixAddRow()">+ Add component</button>
               <button type="button" class="crit-btn" onclick="mixNormalize()">Normalise to 100%</button>
-              <button type="button" class="crit-btn" onclick="mixApply()">&#10003; Apply to Tc / Pc / &#969;</button>
+              <button type="button" class="crit-btn" onclick="mixApply()" data-tip="MW, k, Tc, Pc and &#969; update automatically as you type. Use this to restore them after overriding a field by hand.">&#8635; Re-apply mixture</button>
             </div>
             <div class="mix-sum" id="mixSum">Add components to compute pseudo-critical properties.</div>
             <div class="crit-note">Kay's rule: Tpc = &Sigma;y&#7522;Tc&#7522;, Ppc = &Sigma;y&#7522;Pc&#7522;, &#969; = &Sigma;y&#7522;&#969;&#7522;, MW = &Sigma;y&#7522;MW&#7522;. Simple and adequate for gases of similar type; accuracy degrades for mixtures with widely differing molecular size or strong polarity (e.g. H&#8322; with heavy hydrocarbons, or aqueous/polar blends). Entries already marked as blends are themselves pseudo-components &mdash; prefer pure components where possible.</div>
@@ -1590,7 +1590,10 @@ function setPhase(p){
   document.getElementById('pvRow').style.display=isL?'':'none';
   document.getElementById('viscRow').style.display=isL?'':'none';   // FIX FP-1
   document.getElementById('gasRow').style.display=isG?'':'none';
-  document.getElementById('sgLabel').textContent=isL||p==='steam'?'Specific Gravity':'Mol. Weight (g/mol)';
+  // FIX MX-4: change only the label's text node — `.textContent=` deleted the
+  // AUTO badge <span> inside the label, so the badge could never show again.
+  { const sl=document.getElementById('sgLabel'), t=(isL||p==='steam'?'Specific Gravity':'Mol. Weight (g/mol)')+' ';
+    if(sl.firstChild && sl.firstChild.nodeType===3) sl.firstChild.nodeValue=t; else sl.insertBefore(document.createTextNode(t), sl.firstChild); }
   // FIX UI-2: custom-entry panel now mirrors the main field — SG and MW share ONE
   // cell (mutually exclusive by phase; the engine reads the same field for both),
   // but the label/step must switch with the phase, and the custom Vapor Pressure
@@ -1679,6 +1682,7 @@ function selectFluid(f){
   if(f.visc!=null) document.getElementById('visc').value=f.visc; // fallback until auto fills
   document.getElementById('custSG').value=f.sg;
   document.getElementById('custPv').value=f.pv||0;
+  _hideTag('sgAutoTag'); _custMWHint(false);   // FIX MX-4: drop the mixture "auto" flags; liquids re-show the badge below
   calc();
   autoZ();            // gas: PR-EOS Z at current T/P
   autoLiquidProps();  // liquid: SG / Pv / viscosity at current T (FIX FP-1)
@@ -1699,6 +1703,7 @@ function toggleCustomOpen(open){
 // This pushes the custom values into the real sg/pv fields that actually get sent.
 function syncCustomFluid(){
   clearChipSel();
+  _hideTag('sgAutoTag'); _custMWHint(false);        // FIX MX-4: hand-typed MW is no longer "auto"
   document.getElementById('sg').value = document.getElementById('custSG').value;
   document.getElementById('pv').value = document.getElementById('custPv').value;
   // FIX Z-2: NO auto-estimate. MW does not determine Tc/Pc. If the MW was edited
@@ -2046,9 +2051,38 @@ function mixSummary(){
   const off = Math.abs(m.total-100)>0.05;
   el.innerHTML =
     'Total: <strong'+(off?' class="bad"':'')+'>'+m.total.toFixed(2)+' %</strong>'+
-      (off?' &mdash; will be normalised on apply':'')+'<br>'+
+      (off?' &mdash; normalised to 100 % for MW / Tc / Pc':'')+'<br>'+
     'MW = '+m.MW.toFixed(2)+' g/mol &nbsp;|&nbsp; Tpc = '+m.Tc.toFixed(1)+' K &nbsp;|&nbsp; Ppc = '+m.Pc_bar.toFixed(2)+' bar a<br>'+
     '&#969; = '+m.omega.toFixed(4)+' &nbsp;|&nbsp; k = Cp/Cv = '+m.k.toFixed(3);
+  // FIX MX-4: auto-apply. MW (and k, Tc, Pc, omega) are written to the input
+  // cells on every composition edit, so the Mol. Weight cell no longer has to be
+  // typed by hand or wait for the Apply button. Only the fields are written here;
+  // the rows are not re-rendered, so typing focus is kept (see FIX MX-1/MX-2).
+  _mixWrite(m);
+}
+
+// Gas-mode MW cell (custSG) label: flags when the value is coming from the mixture.
+function _custMWHint(fromMix){
+  const cl=document.getElementById('custSGlbl'); if(!cl || !PHASE.includes('gas')) return;
+  cl.innerHTML = fromMix ? 'Mol. Weight <span class="hint">g/mol &mdash; auto from mixture</span>'
+                         : 'Mol. Weight <span class="hint">g/mol</span>';
+}
+// Writes a mixCompute() result into the sizing inputs (shared by live update and Apply).
+function _mixWrite(m){
+  document.getElementById('custTc').value    = m.Tc.toFixed(1);
+  document.getElementById('custPc').value    = m.Pc_bar.toFixed(2);
+  document.getElementById('custOmega').value = m.omega.toFixed(4);
+  document.getElementById('custSG').value    = m.MW.toFixed(2);
+  document.getElementById('sg').value        = m.MW.toFixed(2);
+  const kf=document.getElementById('kval'); if(kf) kf.value = m.k.toFixed(3);
+  clearChipSel();
+  _sgUserOverride=false;
+  _critUserOverride=false; _zUserOverride=false; _critTags('mix');   // FIX Z-4: reactivate auto-Z
+  _showTag('sgAutoTag','MW from mixture composition (Kay\'s rule) — updates as you edit the mole %. Type here to override.');
+  _custMWHint(true);
+  _critNote('Pseudo-criticals from Kay\'s rule over '+MIX.filter(r=>_mixFind(r.n)&&r.y>0).length+
+            ' components. MW and k = Cp/Cv are updated automatically from the composition.');
+  calc(); autoZ();                                                     // autoZ is debounced (280 ms)
 }
 
 function mixNormalize(){
@@ -2059,17 +2093,7 @@ function mixNormalize(){
 
 function mixApply(){
   const m=mixCompute(); if(!m){ alert('Add at least one component with a mole % first.'); return; }
-  document.getElementById('custTc').value    = m.Tc.toFixed(1);
-  document.getElementById('custPc').value    = m.Pc_bar.toFixed(2);
-  document.getElementById('custOmega').value = m.omega.toFixed(4);
-  document.getElementById('custSG').value    = m.MW.toFixed(2);
-  document.getElementById('sg').value        = m.MW.toFixed(2);
-  const kf=document.getElementById('kval'); if(kf) kf.value = m.k.toFixed(3);
-  clearChipSel();
-  _critUserOverride=false; _zUserOverride=false; _critTags('mix');   // FIX Z-4: reactivate auto-Z
-  _critNote('Pseudo-criticals from Kay\'s rule over '+MIX.filter(r=>_mixFind(r.n)&&r.y>0).length+
-            ' components. MW and k = Cp/Cv were updated to match.');
-  calc(); autoZ();
+  _mixWrite(m);      // values are already live (FIX MX-4); this re-applies after a manual override
 }
 
 // FIX Z-3: critical pressure in bar absolute, from the library fluid if one is
@@ -2447,7 +2471,7 @@ async function runCalc(){
   if(PHASE.includes('gas')){
     const _mw = parseFloat(document.getElementById('sg').value);
     if(!(isFinite(_mw) && _mw>0)){
-      renderWarnings([{cls:'warn-red',txt:'❌ Molecular weight is empty — press “✓ Apply to Tc / Pc / ω” in the mixture builder, or enter MW.'}]);
+      renderWarnings([{cls:'warn-red',txt:'❌ Molecular weight is empty — select a component and enter its mole % in the mixture builder, or enter MW.'}]);
       return;
     }
   }
@@ -2538,6 +2562,15 @@ async function _calcAsync(){
 
   // ── DISPLAY ONLY — no calculations here ──────────────────────────────────
   const r  = apiResult;
+  // FIX V-10: a validation stop (P₂ ≥ P₁, Q = 0, …) returns warns with Cv:null and
+  // no sizes{} — reading r.sizes.smaller below threw, leaving "…" on screen and the
+  // server's red warning never shown. Show the warning instead.
+  if (r.Cv == null || !r.sizes) {
+    setEl('resCv','—'); setEl('resKv','—');
+    renderWarnings((r.warns && r.warns.length) ? r.warns
+      : [{cls:'warn-red',txt:'❌ Sizing could not be completed — check the inputs.'}]);
+    return;
+  }
   const vU = m ? 'm/s' : 'ft/s';  // used for velStatus label only
 
   setEl('resCv', r.CvLabel ?? '—');
