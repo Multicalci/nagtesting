@@ -238,10 +238,12 @@ function computeCase(d, shared){
   const SG=parseFloat(d.SG ?? shared.SG)||1;
   const Pv=parseFloat(d.Pv ?? shared.Pv)||0;
   const D =parseFloat(d.D ?? shared.D)||(m?52.5:2.067);
+  const D2r=parseFloat(d.D2 ?? shared.D2); const D2=D2r>0?D2r:D;          // FIX V-11: downstream pipe
+  const dvr=parseFloat(d.d_valve ?? shared.d_valve); const dV=dvr>0?dvr:null; // valve size (outlet Mach)
   const FL=parseFloat(d.FL ?? shared.FL)||0.9;
   const k =parseFloat(d.k ?? shared.k)||1.4;
   const Z =parseFloat(d.Z ?? shared.Z)||1.0;
-  const Z2in=parseFloat(d.Z2 ?? shared.Z2); const Z2=Number.isFinite(Z2in)?Z2in:Z;
+  const Z2in=parseFloat(d.Z2 ?? shared.Z2); let Z2=Number.isFinite(Z2in)?Z2in:Z;   // FIX V-11: PR below if not given
   const fluidVisc=parseFloat(d.fluidVisc ?? shared.fluidVisc)||1.0;
   const fluidPc=(d.fluidPc ?? shared.fluidPc)?parseFloat(d.fluidPc ?? shared.fluidPc):null;
   const steamFluid=d.steamFluid||shared.steamFluid||'';
@@ -257,8 +259,8 @@ function computeCase(d, shared){
   if (D<=0){warns.push({cls:'warn-red',txt:'❌ Pipe ID must be > 0.'});return {error:true,warns};}
 
   // → US base units
-  let P1a=P1,P2a=P2,Pva=Pv,T_F=T,D_in=D,tp_actual=tp_in;
-  if (m){P1a*=14.5038;P2a*=14.5038;Pva*=14.5038;D_in=D/25.4;T_F=T*9/5+32;tp_actual=tp_in/25.4;}
+  let P1a=P1,P2a=P2,Pva=Pv,T_F=T,D_in=D,D2_in=D2,dV_in=dV,tp_actual=tp_in;
+  if (m){P1a*=14.5038;P2a*=14.5038;Pva*=14.5038;D_in=D/25.4;D2_in=D2/25.4;dV_in=dV?dV/25.4:null;T_F=T*9/5+32;tp_actual=tp_in/25.4;}
   const dP=Math.max(P1a-P2a,0.0001), TR=T_F+459.67, A_in2=Math.PI/4*D_in*D_in;
   const Pc_default=phase==='liq_gen'?600:phase==='liq_chem'?900:3208;
   const Pc_psia=fluidPc?fluidPc*14.5038:Pc_default;
@@ -307,7 +309,7 @@ function computeCase(d, shared){
     x_ratio=x/Math.max(xc,0.0001); Y=Math.max(1-xl/(3*Fk*xT),0.667); dPmax=xc*P1a;
     const Gg=MW/28.97;
     Cv=Qc*Math.sqrt(Gg*TR*Z)/(1360*P1a*Y*Math.sqrt(Math.max(xl,0.0001)));
-    const Q_cfs=Qc*(14.696/Math.max(P1a,14.696))*(TR/519.67)/3600;
+    const Q_cfs=Qc*(14.696/Math.max(P1a,14.696))*(TR/519.67)*Z/3600;   // FIX V-11: × Z (real gas)
     vel=Q_cfs/(A_in2/144);
     if(x>=xc){flowState='Choked gas (sonic)';flowType_str='Critical';}
     else if(x>xc*0.8){flowState='Near-critical gas';flowType_str='Non-critical';}
@@ -315,6 +317,7 @@ function computeCase(d, shared){
     // SI
     const Rgas=8314/MW, T1=(T_F-32)*5/9+273.15;
     const P1_Pa=P1a*6894.76, P2_Pa=P2a*6894.76;
+    if(!Number.isFinite(Z2in)) Z2=cvOutletZ({...shared,...d},T1,P2_Pa,Z).Z2;   // FIX V-11: PR Z₂ at (T₁,P₂)
     const rho1=P1_Pa/(Z*Rgas*T1), rho2=P2_Pa/(Z2*Rgas*T1);
     const mdot=isG&&flowType==='mass'?(m?Q/3600*1:Q/3600):null; // fallback below
     SI.Rgas=Rgas;SI.gamma=k;SI.T1=T1;SI.Z=Z;SI.Z2=Z2;SI.xT=xT;SI.Fd=Fd;
@@ -348,14 +351,14 @@ function computeCase(d, shared){
   const velLim=isL?(m?5:15):(m?30:100);
 
   // ── NEW: downstream pipe geometry, outlet & pipe velocity, Mach, power ──────
-  const Di_m=D_in*0.0254;
+  const Di_m=D2_in*0.0254;                                // FIX V-11: downstream pipe ID (was upstream)
   let tp_m = tp_actual>0 ? tp_actual*0.0254 : 0.237*0.0254;
   const Apipe=Math.PI/4*Di_m*Di_m;
   const u2P = SI.Q2? SI.Q2/Apipe : null;                 // pipe velocity  (m/s)
-  const u2  = u2P;                                        // valve-outlet ≈ pipe here
+  const u2  = (SI.Q2 && dV_in) ? SI.Q2/(Math.PI/4*Math.pow(dV_in*0.0254,2)) : u2P;   // FIX V-11: valve outlet ≈ valve size
   const powerLoss_kW = SI.Q1? (SI.Q1*(SI.P1_Pa-SI.P2_Pa))/1000 : null;
-  let Ma=null;
-  if(!isL && SI.gamma){ const c2=Math.sqrt(SI.gamma*SI.Z2*SI.Rgas*SI.T1); Ma=u2P/c2; }
+  let Ma=null, MaValve=null;
+  if(!isL && SI.gamma){ const c2=Math.sqrt(SI.gamma*SI.Z2*SI.Rgas*SI.T1); Ma=u2P/c2; if(dV_in) MaValve=u2/c2; }
 
   // ── NEW: noise ─────────────────────────────────────────────────────────────
   let LpAe=null, noiseDetail=null;
@@ -389,6 +392,7 @@ function computeCase(d, shared){
     velLim_ms,
     u2P:u2P!=null?+u2P.toFixed(4):null, u2:u2!=null?+u2.toFixed(4):null, u2Unit:'m/s',
     Ma:Ma!=null?+Ma.toExponential(4):null,
+    MaValve:MaValve!=null?+MaValve.toFixed(3):null,
     powerLoss_kW:powerLoss_kW!=null?+powerLoss_kW.toFixed(4):null,
     Z1:+Z.toFixed(4), Z2:+Z2.toFixed(4),
     LpAe:LpAe!=null?+LpAe.toFixed(1):null, noiseDetail,
@@ -398,6 +402,39 @@ function computeCase(d, shared){
     warns,
   };
 }
+// FIX V-11: outlet compressibility Z₂ at (T₁, P₂). An explicit Z2 in the body wins;
+//   otherwise Peng-Robinson from the critical properties the page sends (zTc K,
+//   zPc bar, zOmega); otherwise fall back to the inlet Z (the previous behaviour).
+//   T₁ basis: no Joule-Thomson correction (conservative for gases that cool).
+function cvOutletZ(src, T_K, P2_Pa, Zin){
+  const z2 = parseFloat(src.Z2);
+  if (Number.isFinite(z2) && z2 > 0) return { Z2: z2, basis: 'input' };
+  const Tc = parseFloat(src.zTc), Pc = parseFloat(src.zPc), om = parseFloat(src.zOmega);
+  if (Tc > 0 && Pc > 0 && T_K > 0 && P2_Pa > 0) {
+    try {
+      const r = eosStableRoot(runEOS('pr', T_K, P2_Pa, Tc, Pc * 1e5, Number.isFinite(om) ? om : 0));
+      if (r && isFinite(r.Z) && r.Z > 0 && r.kind !== 'liquid') return { Z2: r.Z, basis: 'PR-EOS' };
+    } catch (e) { /* fall through */ }
+  }
+  return { Z2: Zin, basis: 'inlet Z' };
+}
+
+// FIX V-11: Fp piping geometry factor, IEC 60534-2-1 Eq. (2)–(4), with separate
+//   inlet reducer (D1) and outlet expander (D2):
+//   Σζ = ζ1 + ζ2 + ζB1 − ζB2,  ζ1 = 0.5(1−(d/D1)²)², ζ2 = 1.0(1−(d/D2)²)², ζB = 1−(d/D)⁴
+//   (with D1 = D2 the Bernoulli terms cancel — identical to the previous formula).
+//   d, D1, D2 in inches; 890 = N₂ for Cv with d in inches.
+function cvFp(Cv, d_in, D1_in, D2_in){
+  if (!d_in || !(D1_in > 0) || !(D2_in > 0)) return 1;
+  const r1 = Math.min(d_in / D1_in, 1), r2 = Math.min(d_in / D2_in, 1);
+  if (r1 > 0.99 && r2 > 0.99) return 1;
+  const z1  = 0.5 * Math.pow(1 - r1 * r1, 2), z2 = 1.0 * Math.pow(1 - r2 * r2, 2);
+  const zB1 = 1 - Math.pow(r1, 4),           zB2 = 1 - Math.pow(r2, 4);
+  const sz  = z1 + z2 + zB1 - zB2;
+  const Fp  = 1 / Math.sqrt(Math.max(1 + sz * Cv * Cv / (890 * Math.pow(d_in, 4)), 1e-6));
+  return Math.min(1, Math.max(0.5, Fp));
+}
+
 function fmtN(v) {
   if (v == null || isNaN(v) || !isFinite(v)) return null;
   return v < 1 ? Math.round(v*1000)/1000 : v < 10 ? Math.round(v*100)/100 : Math.round(v*10)/10;
@@ -435,6 +472,10 @@ function controlValve_single(req, res) {
     const SG = parseFloat(d.SG) || 1;
     const Pv = parseFloat(d.Pv) || 0;
     const D  = parseFloat(d.D)  || (m ? 52.5 : 2.067);
+    // FIX V-11: downstream pipe ID — outlet velocity, Mach, noise and the outlet side
+    //   of Fp use it. Blank / 0 → same as the upstream pipe (previous behaviour).
+    const D2raw = parseFloat(d.D2);
+    const D2 = D2raw > 0 ? D2raw : D;
     const FL = parseFloat(d.FL) || 0.9;
     const k  = parseFloat(d.k)  || 1.4;
     const Z  = parseFloat(d.Z)  || 1.0;
@@ -511,12 +552,13 @@ function controlValve_single(req, res) {
     if (hasError) return res.status(200).json({ error: null, warns, Cv:null, Kv:null });
 
     // ── UNIT CONVERSIONS to US base ───────────────────────────────────────────
-    let P1a = P1, P2a = P2, Pva = Pv, T_F = T, D_in = D;
+    let P1a = P1, P2a = P2, Pva = Pv, T_F = T, D_in = D, D2_in = D2;
     if (m) {
       P1a  *= 14.5038;   // bara → psia
       P2a  *= 14.5038;
       Pva  *= 14.5038;
       D_in  = D / 25.4;  // mm → in
+      D2_in = D2 / 25.4; // mm → in  (FIX V-11)
       T_F   = T * 9/5 + 32; // °C → °F
     }
       // ── SG temperature correction warning ────────────────────────────────────
@@ -600,6 +642,7 @@ function controlValve_single(req, res) {
     // ── CORE IEC 60534-2-1 CALCULATIONS ──────────────────────────────────────
     let Cv = 0, vel = 0, dPmax = 0, dPeff = dP, x_ratio = 0, Fp = 1.0, Fp_g = 1.0;
     let flowState = '', noiseDb = 0, Y = null, FR = null, Rev = null;
+    let steamVspec = null, steamTK = null;   // FIX V-11: steam inlet specific volume (ft³/lb) & T (K) for outlet velocity
 
     if (isL) {
       // LIQUID — IEC 60534-2-1 §5.1
@@ -645,17 +688,12 @@ function controlValve_single(req, res) {
       Cv = Cv_iter;
 // ── Fp PIPING GEOMETRY FACTOR — IEC 60534-2-1 §4.1 Eq.2 ──────────────
       Fp = 1.0;
-      if (d_valve_in && d_valve_in < D_in * 0.99) {
-        const beta  = d_valve_in / D_in;
-        const beta2 = beta * beta;
-        const K1    = 0.5 * Math.pow(1 - beta2, 2);
-        const K2    = 1.0 * Math.pow(1 - beta2, 2);
-        const sumK  = K1 + K2;
-        Fp = 1.0 / Math.sqrt(1.0 + (sumK * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));   // 890 = US N₂; d_valve_in MUST be inches
-        Fp = Math.min(1.0, Math.max(0.5, Fp));
+      if (d_valve_in && (d_valve_in < D_in * 0.99 || d_valve_in < D2_in * 0.99)) {
+        Fp = cvFp(Cv, d_valve_in, D_in, D2_in);           // FIX V-11: separate inlet / outlet pipe
         Cv = Cv / Fp;
+        const _pl = x => m ? (x*25.4).toFixed(0)+' mm' : x.toFixed(3)+'"';
         if (Fp < 0.99) warns.push({ cls:'warn-amber',
-          txt:`⚠ Fp piping correction: Fp=${Fp.toFixed(3)}, Cv increased by ${((1/Fp-1)*100).toFixed(1)}% for ${m?(d_valve_raw.toFixed(0)+' mm valve'):(d_valve_in.toFixed(3)+'" valve')} in ${m?((D_in*25.4).toFixed(0)+' mm pipe'):(D_in.toFixed(3)+'" pipe')} (IEC 60534-2-1 §4.1).` });
+          txt:`⚠ Fp piping correction: Fp=${Fp.toFixed(3)}, Cv increased by ${((1/Fp-1)*100).toFixed(1)}% for ${m?(d_valve_raw.toFixed(0)+' mm valve'):(d_valve_in.toFixed(3)+'" valve')} between ${_pl(D_in)} inlet / ${_pl(D2_in)} outlet pipe (IEC 60534-2-1 §4.1).` });
       }
       
       // Liquid inlet velocity: GPM × 0.002228 ft³/s per GPM ÷ pipe area ft²
@@ -700,12 +738,8 @@ function controlValve_single(req, res) {
       Cv = Qc * Math.sqrt(Gg * TR * Z) / (1360.0 * P1a * Y * Math.sqrt(Math.max(x_lim, 0.0001)));
 // ── Fp PIPING GEOMETRY FACTOR for Gas ───────────────────────────────────
       Fp_g = 1.0;
-      if (d_valve_in && d_valve_in < D_in * 0.99) {
-        const beta_g  = d_valve_in / D_in;
-        const beta2_g = beta_g * beta_g;
-        const sumK_g  = 0.5*Math.pow(1-beta2_g,2) + 1.0*Math.pow(1-beta2_g,2);
-        Fp_g = 1.0 / Math.sqrt(1.0 + (sumK_g * Cv * Cv) / (890.0 * Math.pow(d_valve_in, 4)));   // 890 = US N₂; d_valve_in MUST be inches
-        Fp_g = Math.min(1.0, Math.max(0.5, Fp_g));
+      if (d_valve_in && (d_valve_in < D_in * 0.99 || d_valve_in < D2_in * 0.99)) {
+        Fp_g = cvFp(Cv, d_valve_in, D_in, D2_in);         // FIX V-11: separate inlet / outlet pipe
         Cv   = Cv / Fp_g;
         if (Fp_g < 0.99) warns.push({ cls:'warn-amber',
           txt:`⚠ Fp piping correction (gas): Fp=${Fp_g.toFixed(3)}, Cv +${((1/Fp_g-1)*100).toFixed(1)}% (IEC 60534-2-1 §4.1).` });
@@ -714,7 +748,8 @@ function controlValve_single(req, res) {
       // FIX F-18: Gas inlet velocity must use INLET pressure P1a (not P2a).
       //   Expanding SCFH to actual ft³/s at valve inlet conditions (T, P1):
       //   Q_actual_cfs = Qc[SCFH] × (14.696/P1a) × (TR/519.67) / 3600
-      const Q_cfs = Qc * (14.696 / Math.max(P1a, 14.696)) * (TR / 519.67) / 3600.0;
+      // FIX V-11: × Z — actual volume is real-gas (was ideal-gas; −20…−30 % for CO₂ / NH₃ vapour near saturation)
+      const Q_cfs = Qc * (14.696 / Math.max(P1a, 14.696)) * (TR / 519.67) * Z / 3600.0;
       vel = Q_cfs / (A_in2 / 144.0);
 
       if      (x >= x_crit)       { flowState = '🔴 Choked Gas (Sonic)';  warns.push({ cls:'warn-red',   txt:`⚠️ Sonic flow: x=${(x*100).toFixed(1)}% ≥ Fk·xT=${(x_crit*100).toFixed(1)}%. Flow will NOT increase with higher ΔP.` }); }
@@ -775,10 +810,53 @@ function controlValve_single(req, res) {
       const v_spec_sat = vg_sat * (T_act_R / T_sat_R);
       const v_spec     = isWet ? v_spec_sat * 0.90 : v_spec_sat;  // quality correction for wet steam
       vel = W * v_spec / (3600.0 * A_in2 / 144.0);
+      steamVspec = v_spec; steamTK = (T_act_R - 459.67 - 32) * 5/9 + 273.15;   // FIX V-11
 
       flowState = x_ratio >= 1 ? '🔴 Choked Steam' : '🟢 Steam Flow OK';
       if (x_ratio >= 1) warns.push({ cls:'warn-red', txt:`⚠️ Choked steam: ΔP/P₁=${(x_s*100).toFixed(1)}% ≥ Fγ·xT=${(x_crit_s*100).toFixed(1)}%. Verify flash piping downstream.` });
       noiseDb = Math.round(65 + 10*Math.log10(Math.max(Cv,1)) + 15*(x_ratio>1?1:x_ratio));
+    }
+
+    // ── FIX V-11: OUTLET-SIDE VELOCITY & MACH ───────────────────────────────
+    //   For a letdown valve the outlet is where velocity matters: the gas has
+    //   expanded by ~P₁/P₂. Downstream pipe uses D2; the valve outlet uses the
+    //   valve size (d_valve) as an approximation of the body outlet bore.
+    //   Basis: real gas at P₂ with Z₂, temperature T₁ (no J-T correction).
+    let vel2 = null, Ma2 = null, velValve = null, MaValve = null, Z2used = null, Z2basis = null;
+    {
+      const T1K   = (T_F - 32) * 5/9 + 273.15;
+      const P2_Pa = P2a * 6894.76;
+      const A2    = Math.PI / 4 * Math.pow(D2_in * 0.0254, 2);
+      const Av    = d_valve_in ? Math.PI / 4 * Math.pow(d_valve_in * 0.0254, 2) : null;
+      let Q2 = null, c2 = null;
+      if (isG) {
+        const zz = cvOutletZ(d, T1K, P2_Pa, Z); Z2used = zz.Z2; Z2basis = zz.basis;
+        const Rg   = 8314.462618 / SG;                       // SG holds MW for gas
+        const mdot = (Qc * SG / 379.5) / 3600 / 2.20462;     // SCFH → kg/s
+        Q2 = mdot / (P2_Pa / (Z2used * Rg * T1K));
+        c2 = Math.sqrt(k * Z2used * Rg * T1K);
+      } else if (isS && steamVspec) {
+        const rho1 = 1 / (steamVspec * 0.0624280);           // ft³/lb → kg/m³
+        const rho2 = rho1 * (P2a / Math.max(P1a, 1e-6));     // ideal expansion (approx.)
+        Q2 = (Qc / 3600 / 2.20462) / rho2;
+        c2 = Math.sqrt(1.3 * (8314.462618 / 18.015) * (steamTK || T1K));
+      } else if (isL) {
+        Q2 = Qc * 0.002228 * 0.0283168;                      // GPM → m³/s (incompressible)
+      }
+      if (Q2 != null) {
+        vel2 = Q2 / A2;  if (c2) Ma2 = vel2 / c2;
+        if (Av) { velValve = Q2 / Av; if (c2) MaValve = velValve / c2; }
+      }
+      if (!isL) {
+        const vU = v => m ? v.toFixed(0) + ' m/s' : (v / 0.3048).toFixed(0) + ' ft/s';
+        const vs = d_valve_in ? (m ? d_valve_raw.toFixed(0) + ' mm' : d_valve_in.toFixed(2) + '"') : '';
+        if (MaValve != null && MaValve >= 1)
+          warns.push({ cls:'warn-red', txt:`❌ Valve outlet Mach ${MaValve.toFixed(2)} (${vU(velValve)}) at the ${vs} body outlet — the outlet bore would itself choke at P₂. Use an expanded-outlet body, a larger valve outlet, or a staged downstream restrictor that raises the valve back-pressure.` });
+        else if (MaValve != null && MaValve > 0.5)
+          warns.push({ cls:'warn-amber', txt:`⚠ Valve outlet Mach ${MaValve.toFixed(2)} (${vU(velValve)}) at the ${vs} body outlet exceeds 0.5 — the commonly used limit (≤ 0.3 for noise-sensitive service). Expect high noise; consider an expanded outlet.` });
+        if (Ma2 != null && Ma2 > 0.3)
+          warns.push({ cls:'warn-amber', txt:`⚠ Downstream pipe Mach ${Ma2.toFixed(2)} (${vU(vel2)}) > ${Ma2 > 0.5 ? '0.5' : '0.3'} — ${Ma2 > 0.5 ? 'enlarge the downstream pipe' : 'high for noise-sensitive service; check the downstream pipe size'}.` });
+      }
     }
 
     // ── UNIFIED IEC NOISE ────────────────────────────────────────────────────
@@ -786,8 +864,9 @@ function controlValve_single(req, res) {
     //   multi-case Load Analysis report, so BOTH reports show the same external
     //   A-weighted SPL at 1 m. Replaces the legacy simple noiseDb correlations,
     //   which omitted pipe-wall transmission loss and read ~15 dB high.
+    //   FIX V-11: IEC 60534-8-3 is a DOWNSTREAM-pipe model → uses D2 and Z₂.
     {
-      const Di_m2  = D_in * 0.0254;
+      const Di_m2  = D2_in * 0.0254;
       const tp_in2 = parseFloat(d.tp) || 0;
       const tp_m2  = tp_in2 > 0 ? (m ? tp_in2/1000 : tp_in2*0.0254) : 0.237*0.0254; // Sch-40 default
       const P1_Pa2 = P1a*6894.76, P2_Pa2 = P2a*6894.76, T1_2 = (T_F-32)*5/9+273.15;
@@ -795,7 +874,7 @@ function controlValve_single(req, res) {
       if (isG) {
         const Rgas2 = 8314/Math.max(SG,1e-6);                 // SG holds MW (g/mol) for gas
         const mdot2 = (Qc*SG/379.5)/3600/2.20462;             // SCFH→lb/h→kg/s (matches multi-case)
-        LpAe2 = aeroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,mdot:mdot2,T1:T1_2,Rgas:Rgas2,gamma:k,Z,Z2:Z,xT:FL,Fd,Di:Di_m2,tp:tp_m2}).LpAe;
+        LpAe2 = aeroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,mdot:mdot2,T1:T1_2,Rgas:Rgas2,gamma:k,Z,Z2:(Z2used||Z),xT:FL,Fd,Di:Di_m2,tp:tp_m2}).LpAe;
       } else if (isS) {
         const mdot2 = Qc/3600/2.20462;                        // steam Qc is lb/h → kg/s
         LpAe2 = aeroNoise_LpAe({P1:P1_Pa2,P2:P2_Pa2,mdot:mdot2,T1:T1_2,Rgas:8314/18.02,gamma:1.3,Z:1,Z2:1,xT:FL,Fd,Di:Di_m2,tp:tp_m2}).LpAe;
@@ -1092,6 +1171,16 @@ function controlValve_single(req, res) {
       velLabel:        (fmtN(vel_disp) ?? '—') + ' ' + (m ? 'm/s' : 'ft/s'),
       velOk,
       velLim,
+      // FIX V-11: outlet side (downstream pipe D2, valve outlet ≈ valve size), real gas at P₂/T₁
+      vel2:            vel2 != null ? fmtN(m ? vel2 : vel2 / 0.3048) : null,
+      vel2Label:       vel2 != null ? fmtN(m ? vel2 : vel2 / 0.3048) + ' ' + (m ? 'm/s' : 'ft/s') : '—',
+      Ma2:             Ma2 != null ? +Ma2.toFixed(3) : null,
+      velValve:        velValve != null ? fmtN(m ? velValve : velValve / 0.3048) : null,
+      velValveLabel:   velValve != null ? fmtN(m ? velValve : velValve / 0.3048) + ' ' + (m ? 'm/s' : 'ft/s') : '—',
+      MaValve:         MaValve != null ? +MaValve.toFixed(3) : null,
+      Z2:              Z2used != null ? +Z2used.toFixed(4) : null,
+      Z2basis,
+      pipe2Label:      m ? (D2_in * 25.4).toFixed(1) + ' mm' : D2_in.toFixed(3) + ' in',
       dP,   dPeff,   dPmax,
       dPLabel:         dp2label(dP),
       dPeffLabel:      dp2label(dPeff),
@@ -1145,6 +1234,7 @@ function multiCaseAnalysis(req,res){
       phase:b.phase,flowType:b.flowType,units:b.units,SG:b.SG,Pv:b.Pv,D:b.D,FL:b.FL,k:b.k,
       Z:b.Z,Z2:b.Z2,fluidVisc:b.fluidVisc,fluidPc:b.fluidPc,steamFluid:b.steamFluid,Fd:b.Fd,
       tp:b.tp,pClass:b.pClass,
+      D2:b.D2,d_valve:b.d_valve,zTc:b.zTc,zPc:b.zPc,zOmega:b.zOmega,   // FIX V-11
     };
     const m=(b.units||'imp')==='met';
     const cases=(Array.isArray(b.cases)&&b.cases.length)?b.cases:[{...b,label:b.label||'Design'}];
