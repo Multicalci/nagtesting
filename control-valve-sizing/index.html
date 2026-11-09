@@ -715,7 +715,7 @@ select option{background:var(--ink2)}
       <div class="field row1"><label>Pipe Size — Quick Select</label>
         <div class="pipe-chips" id="pipeChips"></div></div>
       <div class="row3">
-        <div class="field"><label>Pipe NPS</label>
+        <div class="field"><label data-tip="Pipe immediately upstream of the valve — used for the inlet velocity and the inlet side of Fp.">Upstream Pipe NPS</label>
           <select id="pipeNom" onchange="syncPipeID()">
             <option value="1">1"</option><option value="1.5">1.5"</option>
             <option value="2" selected>2"</option><option value="3">3"</option>
@@ -729,8 +729,28 @@ select option{background:var(--ink2)}
             <option value="40">Sch 40</option><option value="80">Sch 80</option>
             <option value="160">Sch 160</option><option value="xxs">XXS</option>
           </select></div>
-        <div class="field"><label>Pipe ID</label>
+        <div class="field"><label>Upstream Pipe ID</label>
           <div class="iw"><input type="number" id="pipeD" value="2.067" oninput="calc()"><span class="iunit" id="uPipe">in</span></div></div>
+      </div>
+      <!-- FIX V-11: separate downstream pipe — outlet velocity, Mach, noise (IEC 60534-8-3) and outlet side of Fp -->
+      <div class="row3">
+        <div class="field"><label data-tip="Pipe immediately downstream of the valve (after any expander). For gas letdown this sets the outlet velocity, Mach and the IEC 60534-8-3 noise. 'Same as upstream' keeps the old single-pipe behaviour.">Downstream Pipe NPS</label>
+          <select id="pipeNom2" onchange="syncPipeID2()">
+            <option value="" selected>Same as upstream</option>
+            <option value="1">1"</option><option value="1.5">1.5"</option>
+            <option value="2">2"</option><option value="3">3"</option>
+            <option value="4">4"</option><option value="6">6"</option>
+            <option value="8">8"</option><option value="10">10"</option>
+            <option value="12">12"</option><option value="16">16"</option>
+            <option value="20">20"</option>
+          </select></div>
+        <div class="field"><label>Schedule</label>
+          <select id="pipeSch2" onchange="syncPipeID2()">
+            <option value="40">Sch 40</option><option value="80">Sch 80</option>
+            <option value="160">Sch 160</option><option value="xxs">XXS</option>
+          </select></div>
+        <div class="field"><label>Downstream Pipe ID</label>
+          <div class="iw"><input type="number" id="pipeD2" placeholder="= upstream" oninput="calc()"><span class="iunit" id="uPipe2">in</span></div></div>
       </div>
     </div>
 
@@ -773,6 +793,8 @@ select option{background:var(--ink2)}
         <div class="diag-item"><div class="d-label">ΔP / P₁ Ratio</div><div class="d-val" id="dv_dp">—</div></div>
         <div class="diag-item"><div class="d-label">Choked ΔP / x_crit</div><div class="d-val" id="dv_flap">—</div></div>
         <div class="diag-item"><div class="d-label">Y Expansion (gas)</div><div class="d-val" id="dv_y">—</div></div>
+        <div class="diag-item"><div class="d-label">Outlet Velocity (pipe)</div><div class="d-val" id="dv_vel2">—</div></div>
+        <div class="diag-item"><div class="d-label">Outlet Mach — Valve / Pipe</div><div class="d-val" id="dv_mach">—</div></div>
       </div>
       <div class="prog-wrap">
         <div class="prog-label"><span>Valve Opening</span><span id="pb_open_txt">—</span></div>
@@ -847,11 +869,13 @@ select option{background:var(--ink2)}
         <tr><td>Operating ΔP</td><td id="pt_dp">—</td></tr>
         <tr><td>Effective ΔP (choke-limited)</td><td id="pt_dpeff">—</td></tr>
         <tr><td>Choked ΔP Limit (FL²·(P₁−FF·Pᵥ), FF=0.96−0.28√(Pᵥ/Pc))</td><td id="pt_dpmax">—</td></tr>
-        <tr><td>Pipe Flow Velocity</td><td id="pt_vel">—</td></tr>
+        <tr><td>Inlet Velocity (upstream pipe)</td><td id="pt_vel">—</td></tr>
+        <tr><td>Outlet Velocity / Mach (downstream pipe)</td><td id="pt_vel2">—</td></tr>
+        <tr><td>Valve Outlet Velocity / Mach (at valve size)</td><td id="pt_velv">—</td></tr>
         <tr><td>Specific Gravity / MW</td><td id="pt_sg">—</td></tr>
         <tr><td>Operating Temperature</td><td id="pt_temp">—</td></tr>
         <tr><td>Recovery Factor FL / xT</td><td id="pt_fl">—</td></tr>
-        <tr><td>Pipe ID</td><td id="pt_pipe">—</td></tr>
+        <tr><td>Pipe ID — Upstream / Downstream</td><td id="pt_pipe">—</td></tr>
         <tr><td>Y Expansion Factor (gas)</td><td id="pt_y">—</td></tr>
         <tr><td>Inherent Valve Gain @ opening</td><td id="pt_gain">—</td></tr>
         <tr><td>Cavitation σ / Kc (liquid)</td><td id="pt_cav">—</td></tr>
@@ -2122,6 +2146,13 @@ function _zFluid(){
   return { n:'Custom', sg:MW, Tc:Tc, Pc_bar:Pc, omega:om, _custom:true };
 }
 
+// FIX V-11: critical properties for the server's outlet Z₂ (PR at T₁, P₂). Gas only.
+function _zCritBody(){
+  if(!PHASE.includes('gas')) return {};
+  const f=_zFluid(); if(!f) return {};
+  return { zTc:f.Tc, zPc:f.Pc_bar, zOmega:f.omega||0 };
+}
+
 // ── AUTO Z — PR EOS via /api/eos when gas phase + named fluid selected ────
 let _zDebounce = null;
 let _zUserOverride = false;
@@ -2374,9 +2405,10 @@ function updateUnitLabels(){
   const tu=document.getElementById('tUnit'); if(tu) tu.value=TUNIT;
   FUNIT = null;   // forces buildFlowUnitSelect (via setFlowType below) to pick the system default
   document.getElementById('uPipe').textContent=m?'mm':'in';
+  const up2=document.getElementById('uPipe2'); if(up2) up2.textContent=m?'mm':'in';   // FIX V-11
   const uv=document.getElementById('uValveNPS'); if(uv)uv.textContent=m?'mm':'in';
   document.getElementById('custPvUnit').textContent=m?'(bara)':'(psia)';
-  setFlowType(FTYPE);syncPipeID();
+  setFlowType(FTYPE);syncPipeID();syncPipeID2();
   autoLiquidProps();   // FIX FP-1: re-express SG/Pv/visc for the new unit system
 }
 
@@ -2396,6 +2428,16 @@ function syncPipeID(){
   const idIn=PIPE_DB[nom]?.[sch]||2.067;
   const m=UNITS==='met';
   document.getElementById('pipeD').value=m?(idIn*25.4).toFixed(1):idIn.toFixed(3);
+  calc();
+}
+// FIX V-11: downstream pipe ID ('' = same as upstream → field left blank)
+function syncPipeID2(){
+  const nom=document.getElementById('pipeNom2')?.value;
+  const sch=document.getElementById('pipeSch2')?.value;
+  const f=document.getElementById('pipeD2'); if(!f) return;
+  if(!nom){ f.value=''; calc(); return; }
+  const idIn=PIPE_DB[nom]?.[sch]; if(!idIn){ calc(); return; }
+  f.value = UNITS==='met' ? (idIn*25.4).toFixed(1) : idIn.toFixed(3);
   calc();
 }
 
@@ -2540,6 +2582,8 @@ async function _calcAsync(){
         SG:        document.getElementById('sg').value,
         Pv:        document.getElementById('pv').value,
         D:         document.getElementById('pipeD').value,
+        D2:        document.getElementById('pipeD2')?.value || null,   // FIX V-11: downstream pipe (blank = upstream)
+        ..._zCritBody(),                                             // FIX V-11: Tc/Pc/ω → server PR Z₂ at outlet
         FL:        document.getElementById('rec').value,
         k:         document.getElementById('kval').value,
         Z:         document.getElementById('zf').value,
@@ -2576,8 +2620,16 @@ async function _calcAsync(){
   setEl('resCv', r.CvLabel ?? '—');
   setEl('resKv', r.KvLabel ?? '—');
   setEl('resVel', r.velLabel ?? '—');
-  setEl('velStatus', r.velOk ? '✓ Acceptable' : '⚠ High (limit '+r.velLim+' '+vU+')');
+  setEl('velStatus', (r.velOk ? '✓ Acceptable' : '⚠ High (limit '+r.velLim+' '+vU+')') + ' · upstream pipe');
   document.getElementById('velStatus').style.color = r.velOk ? 'var(--green)' : 'var(--gold)';
+  // FIX V-11: outlet side — downstream pipe and valve outlet (gas: real gas at P₂, T₁)
+  const _ma = v => v==null ? '—' : v.toFixed(2);
+  setEl('dv_vel2', r.vel2Label ?? '—');
+  setEl('dv_mach', (r.MaValve==null && r.Ma2==null) ? 'n/a' : (_ma(r.MaValve)+' / '+_ma(r.Ma2)));
+  { const mx=Math.max(r.MaValve||0, r.Ma2||0), el=document.getElementById('dv_mach');
+    if(el) el.style.color = mx>=1 ? 'var(--red)' : mx>0.5 ? 'var(--gold)' : ''; }
+  setEl('pt_vel2', r.vel2Label!=='—' && r.vel2Label!=null ? r.vel2Label + (r.Ma2!=null?' · Mach '+_ma(r.Ma2):'') + (r.Z2!=null?' · Z₂ '+r.Z2.toFixed(3)+' ('+r.Z2basis+')':'') : '—');
+  setEl('pt_velv', r.velValveLabel && r.velValveLabel!=='—' ? r.velValveLabel + (r.MaValve!=null?' · Mach '+_ma(r.MaValve):'') : 'enter Valve Size');
 
   // Valve size chips — open% now computed server-side
   const s0=r.sizes.smaller, s1=r.sizes.rec, s2=r.sizes.larger;
@@ -2647,7 +2699,7 @@ async function _calcAsync(){
   setEl('pt_gain',  r.valveGain != null ? r.valveGain.toFixed(2)+' (linear≈1.0)' : '—');
   setEl('pt_cav',   r.sigma != null ? ('σ='+r.sigma.toFixed(2)+(r.Kc!=null?', Kc='+r.Kc.toFixed(3):'')) : 'n/a (gas/steam)');
   setEl('pt_fl',    r.flLabel  || '—');
-  setEl('pt_pipe',  r.pipeLabel|| '—');
+  setEl('pt_pipe',  (r.pipeLabel|| '—') + ' / ' + (r.pipe2Label || r.pipeLabel || '—'));   // FIX V-11
 
   const allWarns = r.warns || [];
   // >100% open warning now generated server-side in API warns[]
@@ -2665,8 +2717,8 @@ async function _calcAsync(){
 }
 
 function clearResults(){
-  ['resCv','resKv','resVel','velStatus','dv_state','dv_noise','dv_open','dv_re','dv_dp','dv_flap','dv_y',
-   'vsz1','vsz2','vsz3','vop1','vop2','vop3','pt_dp','pt_dpeff','pt_dpmax','pt_vel','pt_sg','pt_temp','pt_fl','pt_pipe',
+  ['resCv','resKv','resVel','velStatus','dv_state','dv_noise','dv_open','dv_re','dv_dp','dv_flap','dv_y','dv_vel2','dv_mach',
+   'vsz1','vsz2','vsz3','vop1','vop2','vop3','pt_dp','pt_dpeff','pt_dpmax','pt_vel','pt_vel2','pt_velv','pt_sg','pt_temp','pt_fl','pt_pipe',
    'pb_open_txt','pb_dp_txt','pb_noise_txt'].forEach(id=>setEl(id,'—'));
 }
 
@@ -2826,7 +2878,7 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
     <tr><td>Outlet Pressure P₂</td><td>${v('p2')} ${PUNIT_LABEL[PUNIT]}${PMODE==='gauge'?'(g)':'(a)'} &nbsp;→&nbsp; ${getP2AbsBase().toFixed(3)} ${pu}(a)</td></tr>
     <tr><td>Temperature</td><td>${g('pt_temp')}</td></tr>
     <tr><td>SG / MW</td><td>${g('pt_sg')}</td></tr>
-    <tr><td>Pipe ID</td><td>${g('pt_pipe')}</td></tr>
+    <tr><td>Pipe ID — Upstream / Downstream</td><td>${g('pt_pipe')}</td></tr>
     <tr><td>FL / xT</td><td>${g('pt_fl')}</td></tr>
     <tr><td>Characteristic</td><td>${charLabel}</td></tr>
   </tbody></table>
@@ -2835,7 +2887,9 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
     <tr><td>Operating ΔP</td><td>${g('pt_dp')}</td></tr>
     <tr><td>Effective ΔP</td><td>${g('pt_dpeff')}</td></tr>
     <tr><td>Choked ΔP Limit</td><td>${g('pt_dpmax')}</td></tr>
-    <tr><td>Pipe Velocity</td><td>${g('pt_vel')}</td></tr>
+    <tr><td>Inlet Velocity (upstream pipe)</td><td>${g('pt_vel')}</td></tr>
+    <tr><td>Outlet Velocity (downstream pipe)</td><td>${g('pt_vel2')}</td></tr>
+    <tr><td>Valve Outlet Velocity</td><td>${g('pt_velv')}</td></tr>
     <tr><td>ΔP/P₁ Ratio</td><td>${g('dv_dp')}</td></tr>
     <tr><td>Reynolds No.</td><td>${g('dv_re')}</td></tr>
     <tr><td>Valve Opening</td><td>${g('dv_open')}</td></tr>
@@ -2850,6 +2904,7 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
   <div class="db"><div class="dl">Flow State</div><div class="dv">${g('dv_state')}</div></div>
   <div class="db"><div class="dl">Est. Noise</div><div class="dv">${g('dv_noise')}</div></div>
   <div class="db"><div class="dl">Valve Opening</div><div class="dv">${g('dv_open')}</div></div>
+  <div class="db"><div class="dl">Outlet Mach — Valve / Pipe</div><div class="dv">${g('dv_mach')}</div></div>
 </div>
 
 <div class="sec">Performance</div>
@@ -4111,14 +4166,18 @@ function renderReport(d){
     <div class="cv">${c.Cv} <small>Cv</small></div>
     <div class="cm"><span>Opening</span><b>${c.openPct}%</b></div>
     <div class="cm"><span>Noise</span><b>${c.LpAe??'—'} dB(A)</b></div>
-    <div class="cm"><span>Velocity</span><b>${c.u2P??'—'} m/s</b></div>
+    <div class="cm"><span>Outlet vel.</span><b>${c.u2P!=null?(+c.u2P).toFixed(1):'—'} m/s</b></div>
     <div class="cm"><span>Flow</span><b>${c.flowType==='Critical'?'Choked':'OK'}</b></div>
     <span class="cv-sev ${c.sevBand}">Severity ${c.severity} · ${c.sevBand}</span></div>`;});
   H+=`</div>`;
   // results table
   const rows=[['Flow coefficient Cv',c=>c.Cv],['Flow coefficient Kv',c=>c.Kv],
-    ['Valve opening',c=>c.openPct+'<span class="u">%</span>'],['Outlet / pipe velocity',c=>(c.u2P??'—')+'<span class="u">m/s</span>'],
-    ['Mach at outlet',c=>c.Ma??'—'],['Dissipated power',c=>(c.powerLoss_kW??'—')+'<span class="u">kW</span>'],
+    ['Valve opening',c=>c.openPct+'<span class="u">%</span>'],
+    ['Inlet velocity (upstream pipe)',c=>(c.vel_disp??'—')+'<span class="u">'+(c.velUnit||'')+'</span>'],             // FIX V-11
+    ['Outlet velocity (downstream pipe)',c=>(c.u2P!=null?(+c.u2P).toFixed(1):'—')+'<span class="u">m/s</span>'],
+    ['Mach — downstream pipe',c=>c.Ma!=null?(+c.Ma).toFixed(3):'—'],
+    ['Mach — valve outlet (≈ valve size)',c=>c.MaValve!=null?(+c.MaValve).toFixed(3):'enter valve size'],
+    ['Dissipated power',c=>(c.powerLoss_kW??'—')+'<span class="u">kW</span>'],
     ['Aerodynamic noise',c=>(c.LpAe??'—')+'<span class="u">dB(A)</span>'],['Compressibility Z₁ / Z₂',c=>c.Z1+' / '+c.Z2],
     ['x / x_choke',c=>(c.x_ratio*100).toFixed(1)+'<span class="u">%</span>'],['Flow regime',c=>c.flowType]];
   if(cs.some(c=>c.sigma!=null)) rows.push(['Cavitation σ = (P₁−Pᵥ)/ΔP',c=>c.sigma??'—']);
@@ -4230,6 +4289,7 @@ async function runLoadAnalysis(){
     phase:(typeof PHASE!=='undefined')?PHASE:'liq_gen',
     flowType:(typeof FTYPE!=='undefined')?FTYPE:'vol',
     SG:val('sg'), k:val('kval'), Z:val('zf'), FL:val('rec'), D:val('pipeD'),
+    D2:(val('pipeD2')||null), d_valve:(val('valveNPS')||null), ..._zCritBody(),   // FIX V-11
     charType:val('valveChar'), R_trim:val('rangeR'),
     Cv_rated_custom:(val('cvRatedCustom')||null),
     Fd:val('mcFd'), tp:val('mcTp'), pClass:val('mcPClass'), matGroup:val('mcMaterial'),
