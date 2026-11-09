@@ -107,7 +107,7 @@ function prZ(ys, T_K, P_bar) {
   return pp.eos.state(T_K, P_bar * 1e5, y.map((v) => v / t), 'V').Z;
 }
 
-const ENGINE_VERSION = 'mb-engine 0.26.0 (parts 1-7 + steps 21–37 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate, aqueous MDEA / activated MDEA (piperazine) by Extended UNIQUAC), Murphree tray efficiencies, IAPWS-IF97 steam package (water/steam on api/_lib/steam-if97.js), turbine / compressor specs by efficiency, outlet temperature or power, extraction steam turbine), fast flowsheet solver: minimum tear sets, Broyden acceleration, warm starts, resumable continuation, ideal-gas vapour check above 5 bar, free water in the cubic equations of state (IAPWS-IF97 water and steam, IAPWS G7-04 dissolved gases), Newton fallback and convergence flags on every flash, energy-balance reconciliation + step 33 fugacity Gibbs reactor, syngas units and pipe on the property method + step 34 urea synthesis method (Voskov UNIQUAC), urea reactor and CO2 stripper, machine curves, multistage compressor, calculator blocks, pseudo-components and TBP assay cutting, larger flowsheets + step 35 solver transparency + step 36 optimisation, pinch analysis and equipment / utility costing + step 37 components from a SMILES (Joback, UNIFAC / Dortmund groups), UNIFAC fill-in of missing binary pairs, estimated transport properties and liquid surface tension)';
+const ENGINE_VERSION = 'mb-engine 0.29.0 (parts 1-7 + steps 21–40 — thermo core + core modules + cstr/pfr/pfr-recycle + smr/atr + shift/methanator + distillation/absorber + urea HP section & solids + PR/NRTL flash + component splitter + whole-flowsheet solver with design specs + rigorous property packages, 431-component ChemSep databank, rigorous units, three-phase VLLE flash, Gibbs reactor, Naphtali–Sandholm column, phase envelopes / property tables / binary diagrams, kinetic PFR / CSTR with LHHW rate laws, vapour association of carboxylic acids, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate, aqueous MDEA / activated MDEA (piperazine) by Extended UNIQUAC), Murphree tray efficiencies, IAPWS-IF97 steam package (water/steam on api/_lib/steam-if97.js), turbine / compressor specs by efficiency, outlet temperature or power, extraction steam turbine), fast flowsheet solver: minimum tear sets, Broyden acceleration, warm starts, resumable continuation, ideal-gas vapour check above 5 bar, free water in the cubic equations of state (IAPWS-IF97 water and steam, IAPWS G7-04 dissolved gases), Newton fallback and convergence flags on every flash, energy-balance reconciliation + step 33 fugacity Gibbs reactor, syngas units and pipe on the property method + step 34 urea synthesis method (Voskov UNIQUAC), urea reactor and CO2 stripper, machine curves, multistage compressor, calculator blocks, pseudo-components and TBP assay cutting, larger flowsheets + step 35 solver transparency + step 36 optimisation, pinch analysis and equipment / utility costing + step 37 components from a SMILES (Joback, UNIFAC / Dortmund groups), UNIFAC fill-in of missing binary pairs, estimated transport properties and liquid surface tension + step 38 aqueous electrolytes (Pitzer on PHREEQC pitzer.dat: brines, caustic, acids, cooling water, mineral saturation indices; Laliberté density, viscosity, heat capacity) and sour water (NH3 / H2S / CO2 / NaOH, Edwards–Kawazuishi–Prausnitz with fitted Pitzer terms) + step 39 liquid enthalpy of activity-coefficient and electrolyte-solvent liquids from liquid heat capacities, water on IAPWS-IF97 + step 40 ternary residue curve maps with distillation boundaries and liquid–liquid envelopes, azeotrope search up to quaternary, component separator with up to 8 outlets and outlet conditions, heat of mixing, Poynting and liquid volume (Rackett, COSTALD, EOS) options)';
 
 const T_REF = 298.15;          // K — formation-basis reference
 const R_J = 8.314462;          // J/(mol·K)
@@ -1658,13 +1658,24 @@ function solveComponentSplitter(input) {
   const mi = moduleInput(input, 1, 1);
   if (mi.error) return mi;
   const feed = mi.streams[0];
-  const sp = mi.params.splits;
+  // STEP 40: N outlets — splits_n {key: [f→1, f→2, …, f→N−1]}; the last outlet takes the rest.
+  // Two outlets keep the original form, splits {key: fraction to outlet 1}.
+  const sp = mi.params.splits, spn = mi.params.splits_n;
+  const nOut = Math.max(2, Math.min(8, Math.round(num(mi.params.n_outlets) ? mi.params.n_outlets : 2)));
   const fr = {};
-  if (Array.isArray(sp)) { for (const r of sp) if (r && typeof r.key === 'string') fr[r.key] = r.f; }
-  else if (sp && typeof sp === 'object') Object.assign(fr, sp);
-  else return errObj('MB_SPLITS', 'params.splits must be {key: fraction} or [{key, f}]', 'splits');
+  if (spn && typeof spn === 'object' && !Array.isArray(spn)) {
+    for (const k in spn) {
+      const v = Array.isArray(spn[k]) ? spn[k] : [spn[k]];
+      fr[k] = Array.from({ length: nOut - 1 }, (_, j) => (num(v[j]) ? v[j] : 0));
+    }
+  } else if (Array.isArray(sp)) { for (const r of sp) if (r && typeof r.key === 'string') fr[r.key] = [r.f]; }
+  else if (sp && typeof sp === 'object') { for (const k in sp) fr[k] = [sp[k]]; }
+  else return errObj('MB_SPLITS', 'params.splits must be {key: fraction} or [{key, f}] (or splits_n {key: [fractions]})', 'splits');
   for (const k in fr) {
-    if (!num(fr[k]) || fr[k] < 0 || fr[k] > 1) return errObj('MB_SPLITS', `split fraction for '${k}' must be in [0, 1]`, 'splits');
+    for (const v of fr[k]) if (!num(v) || v < 0 || v > 1) return errObj('MB_SPLITS', `split fraction for '${k}' must be in [0, 1]`, 'splits');
+    while (fr[k].length < nOut - 1) fr[k].push(0);
+    const t = fr[k].reduce((x, y) => x + y, 0);
+    if (t > 1 + 1e-9) return errObj('MB_SPLITS', `split fractions for '${k}' add up to ${t.toFixed(4)} — more than 1`, 'splits');
   }
   const warnings = [];
   const eIn = streamEnthalpy(feed);
@@ -1672,39 +1683,42 @@ function solveComponentSplitter(input) {
   const keys = feed.components.map((c) => c.key);
   for (const k in fr) if (!keys.includes(k)) warnings.push(`component-splitter: '${k}' is not in the feed — ignored`);
   const sum = feed.components.reduce((a, c) => a + c.mass_fraction, 0) || 1;
-  const top = [];
-  const bot = [];
-  let mt = 0;
-  let mb = 0;
-  for (const c of feed.components) {
+  const flows = Array.from({ length: nOut }, () => feed.components.map(() => 0));
+  feed.components.forEach((c, i) => {
     const m = feed.mass_flow_kg_h * c.mass_fraction / sum;
-    const f = num(fr[c.key]) ? fr[c.key] : 0;
-    top.push(m * f); bot.push(m * (1 - f));
-    mt += m * f; mb += m * (1 - f);
-  }
-  const mk = (arr, tot) => ({
-    mass_flow_kg_h: tot, T_K: feed.T_K, P_bar: feed.P_bar,
-    components: feed.components.map((c, i) => ({ key: c.key,
-      mass_fraction: tot > 0 ? arr[i] / tot : c.mass_fraction / sum })).filter((c) => tot <= 0 || c.mass_fraction > 0),
+    const f = fr[c.key] || [];
+    let rest = m;
+    for (let j = 0; j < nOut - 1; j++) { const q = m * (num(f[j]) ? f[j] : 0); flows[j][i] = q; rest -= q; }
+    flows[nOut - 1][i] = Math.max(0, rest);
   });
-  const o1 = mk(top, mt);
-  const o2 = mk(bot, mb);
-  if (!(mt > 0)) warnings.push('component-splitter: “separated” outlet has zero flow');
-  if (!(mb > 0)) warnings.push('component-splitter: “remainder” outlet has zero flow');
-  const e1 = streamEnthalpy(o1);
-  if (e1.error) return e1;
-  const e2 = streamEnthalpy(o2);
-  if (e2.error) return e2;
-  o1.H_kJh = e1.H_kJh;
-  o2.H_kJh = e2.H_kJh;
+  // outlet conditions (blank = feed T and P)
+  const oc = Array.isArray(mi.params.outlets) ? mi.params.outlets : [];
+  const outs = [], es = [];
+  for (let j = 0; j < nOut; j++) {
+    const tot = flows[j].reduce((x, y) => x + y, 0);
+    const c = oc[j] || {};
+    const o = {
+      mass_flow_kg_h: tot, T_K: num(c.T_K) ? c.T_K : feed.T_K, P_bar: num(c.P_bar) ? c.P_bar : feed.P_bar,
+      components: feed.components.map((cc, i) => ({ key: cc.key, mass_fraction: tot > 0 ? flows[j][i] / tot : cc.mass_fraction / sum })).filter((cc) => tot <= 0 || cc.mass_fraction > 0),
+    };
+    if (!(tot > 0)) warnings.push(`component-splitter: outlet ${j + 1} has zero flow`);
+    const e = streamEnthalpy(o);
+    if (e.error) return e;
+    o.H_kJh = e.H_kJh;
+    outs.push(o); es.push(e);
+  }
+  const Hout = outs.reduce((x, o) => x + o.H_kJh, 0), mOut = outs.reduce((x, o) => x + o.mass_flow_kg_h, 0);
+  const details = { separated_kg_h: outs[0].mass_flow_kg_h, remainder_kg_h: outs[nOut - 1].mass_flow_kg_h, outlets_kg_h: outs.map((o) => o.mass_flow_kg_h), duty_kW: (Hout - eIn.H_kJh) / 3600 };
+  if (nOut === 2) details.split_to_separated = Object.fromEntries(Object.entries(fr).map(([k, v]) => [k, v[0]]));
+  else details.splits = fr;
   return {
-    streams_out: [o1, o2],
-    mass_balance: massBalance(feed.mass_flow_kg_h, mt + mb),
-    energy_balance: energyBalance(eIn.H_kJh, e1.H_kJh + e2.H_kJh, 0),
-    details: { split_to_separated: fr, separated_kg_h: mt, remainder_kg_h: mb },
+    streams_out: outs,
+    mass_balance: massBalance(feed.mass_flow_kg_h, mOut),
+    energy_balance: energyBalance(eIn.H_kJh, Hout, 0),
+    details,
     converged: true,
     iterations: 0,
-    warnings: [...new Set(warnings.concat(eIn.warnings, e1.warnings, e2.warnings))],
+    warnings: [...new Set(warnings.concat(eIn.warnings, ...es.map((e) => e.warnings)))],
   };
 }
 

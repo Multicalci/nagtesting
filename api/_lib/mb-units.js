@@ -800,25 +800,48 @@ function solveCompSplitR(inp) {
   const { streams, params: p } = input(inp, 1, 1, 'r-component-splitter');
   const pp = pkg(p.property_package, keysOf(...streams));
   const a = stateIn(pp, streams[0], 'component splitter inlet');
+  // STEP 40: N outlets (splits_n {key: [f→1 … f→N−1]}, the last outlet takes the rest) and outlet
+  // conditions per outlet: T and/or P, or P and vapour fraction (blank = feed T and P)
+  const nOut = Math.max(2, Math.min(8, Math.round(num(p.n_outlets) ? p.n_outlets : 2)));
   const fr = {};
-  const sp = p.splits;
-  if (Array.isArray(sp)) { for (const r of sp) if (r && typeof r.key === 'string') fr[r.key] = r.f; } else if (sp && typeof sp === 'object') Object.assign(fr, sp);
-  else fail('MB_SPLITS', 'r-component-splitter: params.splits must be {key: fraction to outlet 1}', 'splits');
+  const sp = p.splits, spn = p.splits_n;
+  if (spn && typeof spn === 'object' && !Array.isArray(spn)) {
+    for (const k in spn) { const v = Array.isArray(spn[k]) ? spn[k] : [spn[k]]; fr[k] = Array.from({ length: nOut - 1 }, (_, j) => (num(v[j]) ? v[j] : 0)); }
+  } else if (Array.isArray(sp)) { for (const r of sp) if (r && typeof r.key === 'string') fr[r.key] = [r.f]; } else if (sp && typeof sp === 'object') { for (const k in sp) fr[k] = [sp[k]]; }
+  else fail('MB_SPLITS', 'r-component-splitter: params.splits must be {key: fraction to outlet 1} (or splits_n {key: [fractions]})', 'splits');
   const w = pp.warnings.slice();
   for (const k in fr) {
-    if (!num(fr[k]) || fr[k] < 0 || fr[k] > 1) fail('MB_SPLITS', `split fraction for '${k}' must be in [0, 1]`, 'splits');
+    for (const v of fr[k]) if (!num(v) || v < 0 || v > 1) fail('MB_SPLITS', `split fraction for '${k}' must be in [0, 1]`, 'splits');
+    while (fr[k].length < nOut - 1) fr[k].push(0);
+    const t = fr[k].reduce((x, y) => x + y, 0);
+    if (t > 1 + 1e-9) fail('MB_SPLITS', `split fractions for '${k}' add up to ${t.toFixed(4)} — more than 1`, 'splits');
     if (!(k in pp.index)) w.push(`r-component-splitter: '${k}' is not in the feed — ignored`);
   }
-  const n1 = pp.keys.map((k, i) => a.F * a.z[i] * (num(fr[k]) ? fr[k] : 0));
-  const n2 = pp.keys.map((k, i) => a.F * a.z[i] - n1[i]);
-  const mk = (nv, T, Pb) => {
-    const F = nv.reduce((x, y) => x + y, 0);
-    const z = F > 0 ? nv.map((v) => v / F) : a.z;
-    const P = num(Pb) ? Pb * 1e5 : a.P;
-    return streamOut(pp, F, z, th.flashPT(pp, z, num(T) ? T : a.T, P));
-  };
-  const o1 = mk(n1, p.T1_K, p.P1_bar), o2 = mk(n2, p.T2_K, p.P2_bar);
-  return result([o1, o2], a.mass, a.H_kJh, o1.H_kJh + o2.H_kJh, 0, { pp: ppDetails(pp), duty_kW: (o1.H_kJh + o2.H_kJh - a.H_kJh) / KJH_PER_KW }, w);
+  const nv = Array.from({ length: nOut }, () => pp.keys.map(() => 0));
+  pp.keys.forEach((k, i) => {
+    const n = a.F * a.z[i], f = fr[k] || [];
+    let rest = n;
+    for (let j = 0; j < nOut - 1; j++) { const q = n * (num(f[j]) ? f[j] : 0); nv[j][i] = q; rest -= q; }
+    nv[nOut - 1][i] = Math.max(0, rest);
+  });
+  // legacy two-outlet keys T1_K, P1_bar, T2_K, P2_bar
+  const oc = Array.isArray(p.outlets) ? p.outlets.slice() : [];
+  if (!oc.length && nOut === 2) { oc.push({ T_K: p.T1_K, P_bar: p.P1_bar }, { T_K: p.T2_K, P_bar: p.P2_bar }); }
+  const outs = nv.map((v, j) => {
+    const F = v.reduce((x, y) => x + y, 0);
+    const z = F > 0 ? v.map((q) => q / F) : a.z;
+    const c = oc[j] || {};
+    const P = num(c.P_bar) ? c.P_bar * 1e5 : a.P;
+    if (!(F > 0)) w.push(`r-component-splitter: outlet ${j + 1} has zero flow`);
+    let r;
+    if (num(c.vapour_fraction)) {
+      if (!(c.vapour_fraction >= 0 && c.vapour_fraction <= 1)) fail('MB_SPLITS', `outlet ${j + 1}: vapour fraction must be 0–1`, 'outlets');
+      r = th.flashPVF(pp, z, P, c.vapour_fraction);
+    } else r = th.flashPT(pp, z, num(c.T_K) ? c.T_K : a.T, P);
+    return streamOut(pp, F, z, r);
+  });
+  const Hout = outs.reduce((x, o) => x + o.H_kJh, 0);
+  return result(outs, a.mass, a.H_kJh, Hout, 0, { pp: ppDetails(pp), duty_kW: (Hout - a.H_kJh) / KJH_PER_KW, outlets_kg_h: outs.map((o) => o.mass_flow_kg_h) }, w);
 }
 
 // ---------------------------------------------------------------------------

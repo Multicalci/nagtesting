@@ -51,12 +51,16 @@
 // ============================================================================
 
 import compdb from './mb-compdb.js';
+import { makeSourWater, NAOH_REC, SW_FIT } from './mb-sourwater.js';
+import { makeAqElec, SALTS as AQ_SALTS, saltRecord as aqSaltRecord } from './mb-aqelec.js';
 
-export const ELECTROLYTE_VERSION = 'mb-electrolyte 1.3.0';
+export const ELECTROLYTE_VERSION = 'mb-electrolyte 1.5.0';
 export const ELECTROLYTE_MODELS = {
   'amine-mea': 'Aqueous MEA — CO₂ chemical equilibrium (Akula et al. / IDAES)',
   'amine-mdea': 'Aqueous MDEA / activated MDEA — CO₂ Extended UNIQUAC (Sadegh 2013, DTU; piperazine species fitted)',
   'hot-k2co3': 'Hot potassium carbonate — CO₂ Pitzer electrolyte (PHREEQC data)',
+  'sour-water': 'Sour water — NH₃ / H₂S / CO₂ in water (Edwards–Kawazuishi–Prausnitz, Pitzer)',
+  'aqueous-electrolyte': 'Aqueous electrolytes — brines, caustic, acids, cooling water (Pitzer, PHREEQC data)',
 };
 
 const R = 8.314462618;
@@ -82,9 +86,14 @@ const K2CO3_REC = {
   cat: 'electrolyte', electrolyte: true,
 };
 if (compdb && compdb.COMPS && !compdb.COMPS.K2CO3) compdb.COMPS.K2CO3 = K2CO3_REC;
-export const ELECTROLYTE_KEYS = ['K2CO3'];
+if (compdb && compdb.COMPS && !compdb.COMPS.NaOH) compdb.COMPS.NaOH = NAOH_REC;
+// STEP 38: dissolved salts of the aqueous-electrolyte method (aqueous standard state, never vaporise)
+if (compdb && compdb.COMPS) for (const k of Object.keys(AQ_SALTS)) if (!compdb.COMPS[k]) compdb.COMPS[k] = aqSaltRecord(k);
+export const ELECTROLYTE_KEYS = ['K2CO3', 'NaOH', ...Object.keys(AQ_SALTS).filter((k) => k !== 'K2CO3' && k !== 'NaOH')];
+/** non-volatile (salt) components each electrolyte method accepts */
+export const ELECTROLYTE_SALTS = { 'hot-k2co3': ['K2CO3'], 'sour-water': ['NaOH'], 'aqueous-electrolyte': Object.keys(AQ_SALTS), 'amine-mea': [], 'amine-mdea': [] };
 /** solvent (apparent component key) of each acid-gas package */
-export const ELECTROLYTE_SOLVENT = { 'amine-mea': 'MEA', 'hot-k2co3': 'K2CO3', 'amine-mdea': 'methyl-diethanolamine' };
+export const ELECTROLYTE_SOLVENT = { 'amine-mea': 'MEA', 'hot-k2co3': 'K2CO3', 'amine-mdea': 'methyl-diethanolamine', 'sour-water': 'H2O', 'aqueous-electrolyte': 'H2O' };
 
 /** Which electrolyte model a component list needs (or null). */
 export function electrolyteNeeded(keys) {
@@ -1315,6 +1324,10 @@ function makeMDEA(n, idx, deps) {
  * @param {{psatW:(T:number)=>number}} deps engine water vapour pressure (Pa)
  */
 export function makeElectrolyte(model, keys, deps) {
+  if (model === 'aqueous-electrolyte') return makeGeneric(model, keys, makeAqElec(keys, { aphi, psatW: deps.psatW, lnPhiSatW: deps.lnPhiSatW, lnKhCO2: deps.lnKhCO2 }), deps);
+  if (model === 'sour-water') return makeGeneric(model, keys, makeSourWater(keys, {
+    aphi, lnKw: (T) => logKan(PZ.KW, T) * LN10, lnKhH2S: deps.lnKhH2S, psatW: deps.psatW, lnPhiSatW: deps.lnPhiSatW, rhoW: rhoWsat,
+  }), deps);
   const iW = keys.indexOf('H2O'), iC = keys.indexOf('CO2');
   const solvent = ELECTROLYTE_SOLVENT[model];
   const iA = keys.indexOf(solvent);
@@ -1364,6 +1377,8 @@ export function makeElectrolyte(model, keys, deps) {
     gasRef: impl.gasRef || ['CO2'],
     /** ideal-gas heat capacity the model's gas standard state uses (keeps the solution Cp as fitted) */
     igShape: impl.igShape || null,
+    salts: model === 'hot-k2co3' ? ['K2CO3'] : [],
+    xsub: (xs, key) => (key === 'H2O' ? xs.w : key === 'CO2' ? xs.g : key === 'piperazine' ? xs.p : xs.a),
     /** partial molar enthalpies relative to the reference parts, and ln f for entropy */
     hEx, rel, lnPhiSubRaw: lnPhi,
     volume: (T, x) => { const xs = impl.sub(x); return impl.volume(T, xs) * xs.S; },
@@ -1371,9 +1386,65 @@ export function makeElectrolyte(model, keys, deps) {
     report: (T, x) => impl.report(T, impl.sub(x)),
     warn: (T, x) => impl.warn(impl.sub(x), T),
     saltRef: impl.saltRef ? (T) => impl.saltRef(T) : null,
+    saltLnAct: (T, x) => { const r = rel(T, impl.sub(x)); return num(r.K2CO3) ? r.K2CO3 : 0; },
   };
 }
 
-export default { ELECTROLYTE_VERSION, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS, ELECTROLYTE_SOLVENT, makeElectrolyte, electrolyteNeeded, jfun };
+/**
+ * Wrapper for the STEP 38 electrolyte implementations that work on a keyed apparent
+ * sub-composition xs = {xk: {key: fraction}, S} over impl.keys (sour water, aqueous electrolyte).
+ */
+function makeGeneric(model, keys, impl, deps) {
+  const ownedKeys = impl.keys;
+  const owned = ownedKeys.map((k) => keys.indexOf(k));
+  const keyOf = (i) => keys[i];
+  const memo = new Map();
+  const memoKey = (T, xs) => T + '|' + ownedKeys.map((k) => xs.xk[k]).join('|');
+  const remember = (k, v) => { if (memo.size > 400) memo.clear(); memo.set(k, v); return v; };
+  const lnPhi = (T, xs) => { const k = 'p' + memoKey(T, xs); return memo.get(k) || remember(k, impl.lnPhiSub(T, xs)); };
+  const rel = (T, xs) => { const k = 'r' + memoKey(T, xs); return memo.get(k) || remember(k, impl.lnRel(T, xs)); };
+  function hEx(T, xs) {
+    const k = 'h' + memoKey(T, xs);
+    const m = memo.get(k);
+    if (m) return m;
+    const d = 0.01;
+    const a = rel(T + d, xs), b = rel(T - d, xs);
+    const o = {};
+    for (const key of Object.keys(a)) if (num(a[key]) && num(b[key])) o[key] = -R * T * T * (a[key] - b[key]) / (2 * d);
+    // a method may replace part of the Gibbs–Helmholtz enthalpy (brines: Laliberté heat capacities)
+    if (impl.hExAdjust) impl.hExAdjust(T, xs, o, (TT) => rel(TT, xs));
+    return remember(k, o);
+  }
+  const vInf = impl.vInf || {};
+  return {
+    model, solvent: impl.solvent || 'H2O', owned, keyOf, impl,
+    heavy: impl.heavy, sub: impl.sub, xsub: impl.xsub,
+    lnPhiL(T, P, x) {
+      const xs = impl.sub(x);
+      const lp = lnPhi(T, xs);
+      const dp = Math.max(P - deps.psatW(T), 0) / (R * T);
+      const out = {};
+      owned.forEach((i, j) => {
+        const k = ownedKeys[j];
+        out[i] = lp[k] - Math.log(P) + (vInf[k] ? vInf[k] * dp : 0) + (k === 'H2O' ? 18.07e-6 * dp : 0);
+      });
+      return out;
+    },
+    gasRef: impl.gasRef || [], igShape: impl.igShape || null, salts: impl.salts || [],
+    hEx, rel, lnPhiSubRaw: lnPhi,
+    volume: (T, x) => { const xs = impl.sub(x); return impl.volume(T, xs) * xs.S; },
+    viscosity: impl.viscosity ? (T, x) => impl.viscosity(T, impl.sub(x)) : null,
+    report: (T, x) => impl.report(T, impl.sub(x)),
+    warn: (T, x) => impl.warn(impl.sub(x), T),
+    saltRef: impl.saltRef ? (T, key) => impl.saltRef(T, key) : null,
+    saltLnAct: (T, x, key) => { const r = rel(T, impl.sub(x)); return num(r[key]) ? r[key] : 0; },
+    fit: impl.fit || null,
+    waterTransport: !!impl.waterTransport, waterIF97: !!impl.waterIF97,
+    conductivity: impl.conductivity ? (T, x) => impl.conductivity(T, impl.sub(x)) : null,
+    sigma: impl.sigma ? (T, x) => impl.sigma(T, impl.sub(x)) : null,
+  };
+}
+
+export default { ELECTROLYTE_VERSION, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS, ELECTROLYTE_SALTS, ELECTROLYTE_SOLVENT, makeElectrolyte, electrolyteNeeded, jfun };
 export { meaSpeciate, meaVolume, meaLnHenry, pitzerAt, pitzer, k2co3Speciate, aphi, rhoWsat, mdeaSpeciate, mdeaVolume, euqAtT, euqLnK,
   amdeaSpeciate, amdeaVolume, amAtT, AM_SP };

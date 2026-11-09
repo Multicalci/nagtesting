@@ -38,7 +38,7 @@ import bip from './mb-bip.js';
 import groupTables from './mb-groups.js';      // STEP 37 — complete UNIFAC / Dortmund tables
 import bipExtra from './mb-bip-extra.js';
 import mbData from './mb-data.js';
-import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS } from './mb-electrolyte.js';
+import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS, ELECTROLYTE_SALTS } from './mb-electrolyte.js';
 import { makeUreaLiquid, UREA_MODEL_LABEL, UREA_KEYS, UREA_OWNED, UREA_INERTS } from './mb-ureathermo.js';
 import steam from './steam-if97.js';
 
@@ -281,9 +281,12 @@ export function vLiq(c, T) {
  *   (Hankinson–Thomson 1979) with Hankinson–Brobst–Thomson mixing;
  *   mixture Tr ≥ 0.95 → the EOS liquid root when an EOS is available.
  */
-function liquidVolume(comps, T, P, x, eos) {
+function liquidVolume(comps, T, P, x, eos, method) {
   const n = comps.length;
-  let light = false;
+  // STEP 40: the method can be chosen — 'rackett' (Spencer–Danner mixture), 'costald' (always), 'eos' (the cubic's liquid root)
+  if (method === 'eos' && eos) return eos.state(T, P, x, 'L').V;
+  if (method === 'rackett') return rackettMix(comps, T, x);
+  let light = method === 'costald';
   for (let i = 0; i < n; i++) if (x[i] > 1e-4 && T > 0.95 * comps[i].Tc) light = true;
   if (!light) {
     let v = 0; for (let i = 0; i < n; i++) if (x[i] > 0) v += x[i] * vLiq(comps[i], T);
@@ -304,6 +307,48 @@ function liquidVolume(comps, T, P, x, eos) {
   const Trc = Math.min(Math.max(Tr, 0.25), 0.99);
   const Vd = (-0.296123 + 0.386914 * Trc - 0.0427258 * Trc * Trc - 0.0480645 * Trc * Trc * Trc) / (Trc - 1.00001);
   return Vm * V0 * (1 - wm * Vd);
+}
+
+/**
+ * STEP 40: saturated-liquid mixture volume by the modified Rackett equation (Spencer & Danner 1972)
+ * with Chueh–Prausnitz / Li mixing (Poling, Prausnitz & O'Connell, 5th ed., eqs 5-24 to 5-27):
+ * V = R (Σ x_i T_ci / P_ci) Z_RAm^[1 + (1 − T/T_cm)^(2/7)], Z_RAm = Σ x_i Z_RA,i,
+ * T_cm = ΣΣ φ_i φ_j T_cij, φ_i = x_i V_ci / Σ x_j V_cj, T_cij = (1 − k_ij)(T_ci T_cj)^½,
+ * 1 − k_ij = 8 (V_ci V_cj)^½ / (V_ci^⅓ + V_cj^⅓)³. T/T_cm held at 0.99 and above. Z_RA from ChemSep where
+ * tabulated, otherwise the value that reproduces the component's own density correlation at 25 °C.
+ */
+function rackettZ(c) {
+  if (num(c.zra)) return c.zra;
+  if (num(c._zra)) return c._zra;
+  let z = 0.29056 - 0.08775 * c.omega;               // Yamada–Gunn
+  if (c.rhol) {                                      // not tabulated: Z_RA that reproduces the ChemSep density at 25 °C (or the nearest valid T)
+    const Tref = Math.min(Math.max(298.15, num(c.rhol[6]) ? c.rhol[6] : 0), num(c.rhol[7]) ? c.rhol[7] : 1e9, 0.9 * c.Tc);
+    const v = vLiq(c, Tref), Tr = Tref / c.Tc;
+    const zz = Math.pow(v * c.Pc / (R * c.Tc), 1 / (1 + Math.pow(1 - Tr, 2 / 7)));
+    if (zz > 0.15 && zz < 0.35) z = zz;
+  }
+  c._zra = z;
+  return z;
+}
+function rackettMix(comps, T, x) {
+  const n = comps.length;
+  let sx = 0, sTP = 0, zm = 0, sv = 0;
+  const vc = comps.map((c) => (c.vc || 0.1) / 1000);       // m3/mol
+  for (let i = 0; i < n; i++) {
+    if (!(x[i] > 0)) continue;
+    const c = comps[i];
+    sx += x[i]; sTP += x[i] * c.Tc / c.Pc; sv += x[i] * vc[i];
+    zm += x[i] * rackettZ(c);
+  }
+  if (!(sx > 0)) return 0;
+  let Tcm = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (!(x[i] > 0 && x[j] > 0)) continue;
+    const kij1 = i === j ? 1 : 8 * Math.sqrt(vc[i] * vc[j]) / (Math.cbrt(vc[i]) + Math.cbrt(vc[j])) ** 3;
+    Tcm += (x[i] * vc[i] / sv) * (x[j] * vc[j] / sv) * kij1 * Math.sqrt(comps[i].Tc * comps[j].Tc);
+  }
+  const Tr = Math.min(T / Tcm, 0.99);
+  return R * (sTP / sx) * Math.pow(zm / sx, 1 + Math.pow(1 - Tr, 2 / 7)) * sx;
 }
 
 // ---------------------------------------------------------------------------
@@ -947,7 +992,13 @@ export function createPackage(spec, keys) {
   const warnings = [];
   const elecModel = ELECTROLYTE_MODELS[model] ? model : null;
   const saltIn = keys.filter((k) => ELECTROLYTE_KEYS.includes(k));
-  if (saltIn.length && model !== 'hot-k2co3') fail('TH_ELECTROLYTE', `${saltIn.join(', ')} is an electrolyte — use the 'hot-k2co3' (hot potassium carbonate) property package`, 'property_package');
+  // STEP 38: each electrolyte method lists the salts it holds
+  const saltOk = (ELECTROLYTE_SALTS && ELECTROLYTE_SALTS[model]) || [];
+  const saltBad = saltIn.filter((k) => !saltOk.includes(k));
+  if (saltBad.length) {
+    const homes = Object.entries(ELECTROLYTE_SALTS || {}).filter(([, l]) => saltBad.every((k) => l.includes(k))).map(([m]) => `'${m}'`);
+    fail('TH_ELECTROLYTE', `${saltBad.join(', ')} is an electrolyte — use ${homes.length ? 'the ' + homes.join(' or ') + ' property method' : 'an electrolyte property method'}`, 'property_package');
+  }
   // STEP 34: urea exists only in the urea-synthesis method (its liquid model owns it)
   const ureaIn = keys.filter((k) => UREA_KEYS.includes(k));
   const isUrea = model === 'urea';
@@ -995,11 +1046,29 @@ export function createPackage(spec, keys) {
   else if (model === 'wilson') act = makeWilson(keys, comps, s.wilson, warnings, fill);
   else if (model === 'unifac' || model === 'modunifac') act = makeUNIFAC(keys, comps, model === 'modunifac', warnings);
   const excessH = !!s.excess_enthalpy && !!act;
+  // STEP 40: liquid molar volume method (densities, volumetric flows, pump heads) — 'auto' keeps the default
+  const liqVol = ['rackett', 'costald', 'eos'].includes(s.liquid_volume) ? s.liquid_volume : 'auto';
+  if (liqVol === 'eos' && !eos) warnings.push(`${PACKAGES[model]}: liquid volume from the equation of state needs PR or SRK (as the method or its vapour model) — the default liquid volume is used`);
   const activity = !isEOS;
   const poynting = activity && model !== 'ideal' && !elecModel && !isUrea && s.poynting !== false;   // Raoult's law: no Poynting
   // STEP 25 acid-gas electrolyte packages: H2O, CO2 and the solvent (MEA / K2CO3)
   // from the speciation model; any other gas by Henry's law in water
-  const elec = elecModel ? makeElectrolyte(elecModel, keys, { psatW: (T) => psat(component('H2O'), T) }) : null;
+  const lnPhiSatWMemo = new Map();
+  const elec = elecModel ? makeElectrolyte(elecModel, keys, {
+    psatW: (T) => psat(component('H2O'), T),
+    lnKhH2S: (T) => lnKhG704('H2S', T),
+    lnKhCO2: (T) => lnKhG704('CO2', T),
+    // pure-water vapour fugacity coefficient at saturation, when the vapour is an equation of state (STEP 38)
+    lnPhiSatW: eos && keys.includes('H2O') ? (T) => {
+      const k = Math.round(T * 100);
+      if (lnPhiSatWMemo.has(k)) return lnPhiSatWMemo.get(k);
+      const iw = keys.indexOf('H2O'), y = keys.map((q, i) => (i === iw ? 1 : 0));
+      let v = 0; try { v = eos.state(T, psat(component('H2O'), T), y, 'V').lnphi[iw]; if (!Number.isFinite(v)) v = 0; } catch (_e) { v = 0; }
+      if (lnPhiSatWMemo.size > 2000) lnPhiSatWMemo.clear();
+      lnPhiSatWMemo.set(k, v);
+      return v;
+    } : null,
+  }) : null;
   const owned = new Array(n).fill(false);
   // STEP 34: urea-synthesis liquid (NH3, CO2, H2O, urea with carbamate / bicarbonate speciation)
   const ureaLiq = isUrea ? makeUreaLiquid(keys, { Gig: (k, T) => ureaGig(k, T), psatW: (T) => psat(component('H2O'), T), hig: (i, T) => hig(i, T) }) : null;
@@ -1045,10 +1114,10 @@ export function createPackage(spec, keys) {
   }
   if (elec) {
     // gases that react with the solvent are not modelled — refuse rather than treat them as physically dissolved
-    const reactive = keys.filter((k) => ['H2S', 'NH3', 'SO2', 'HCl', 'Cl2', 'NO2', 'hydrogen-cyanide', 'carbonyl-sulfide', 'methyl-mercaptan', 'HNO3', 'formaldehyde'].includes(k));
-    if (reactive.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${reactive.join(', ')} react with the solvent and are not modelled (CO2 chemistry only)`, 'components');
+    const reactive = keys.filter((k, i) => !owned[i] && ['H2S', 'NH3', 'CO2', 'SO2', 'HCl', 'Cl2', 'NO2', 'hydrogen-cyanide', 'carbonyl-sulfide', 'methyl-mercaptan', 'HNO3', 'formaldehyde'].includes(k));
+    if (reactive.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${reactive.join(', ')} react with the solvent and are not modelled (${elecModel === 'sour-water' ? 'NH3, H2S and CO2 chemistry' : elecModel === 'aqueous-electrolyte' ? 'CO2 and HCl chemistry with dissolved salts; NH3 and H2S need the sour-water method' : 'CO2 chemistry only'})`, 'components');
     const bad = keys.filter((k, i) => !owned[i] && !henry[i]);
-    if (bad.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${bad.join(', ')} not supported — the liquid holds H2O, CO2, ${elec.heavy.filter((k) => k !== 'H2O').join(', ')} and gases with Henry data in water (N2, H2, O2, CH4, CO, Ar, …)`, 'components');
+    if (bad.length) fail('TH_ELECTROLYTE', `${PACKAGES[model]}: ${bad.join(', ')} not supported — the liquid holds ${elec.owned.map((i) => keys[i]).concat(elec.heavy.filter((k) => !keys.includes(k) && k !== 'H2O')).join(', ')} and gases with Henry data in water (N2, H2, O2, CH4, CO, Ar, …)`, 'components');
   }
   /** solvent-weighted ln H [Pa] and B [K] for Henry component i, or null when no solvent is present */
   function henryMix(i, T, x) {
@@ -1065,6 +1134,84 @@ export function createPackage(spec, keys) {
   const useNist = s.ideal_gas_data !== 'chemsep';
   const hig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[0] : hIG(comps[i], T));
   const sig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[1] : sIG(comps[i], T));
+
+  // ---- STEP 39 pure-liquid enthalpy and entropy of activity-coefficient (and electrolyte-solvent) liquids ----
+  // The ΔHvap route, h_L = h_ig − ΔHvap(T), takes the liquid heat capacity from the slope of the ΔHvap
+  // correlation, which is poorly conditioned: at 25 °C it gives methanol +27 %, ammonia +25 %, ethanol +11 %,
+  // and water −2 % at 5 °C to +15 % at 150 °C. Default route: water on IAPWS-IF97; every other component
+  // with a liquid-Cp correlation is anchored at its normal boiling point, h_L(Tb) = h_ig(Tb) − ΔHvap(Tb),
+  // and carried by ∫Cp_L dT (s by ∫Cp_L/T dT) up to about 0.9 Tc; above that the ΔHvap route takes over
+  // with the offset fading linearly to zero at Tc, so ΔHvap still vanishes there.
+  // liquid_enthalpy: 'hvap' keeps the ΔHvap route (as in DWSIM's default for activity models).
+  const liqRoute = s.liquid_enthalpy === 'hvap' ? 'hvap' : 'cp';
+  const GL8 = [[-0.9602898565, 0.1012285363], [-0.7966664774, 0.2223810345], [-0.5255324099, 0.3137066459], [-0.1834346425, 0.3626837834],
+    [0.1834346425, 0.3626837834], [0.5255324099, 0.3137066459], [0.7966664774, 0.2223810345], [0.9602898565, 0.1012285363]];
+  const iwL = keys.indexOf('H2O');
+  // water: IF97 liquid at (T, max(P, psat)) on the package's ideal-gas basis; below 0 °C extrapolated with the 0 °C Cp
+  let waterLiq = null;
+  if (iwL >= 0) {
+    const kgw = comps[iwL].MW, ig0 = steam.idealGas(T0, P0 / 1e6);
+    const Ch = hig(iwL, T0) - kgw * ig0.h, Cs = sig(iwL, T0) - kgw * ig0.s;
+    const TL = 273.16, TH = 0.97 * steam.TC;
+    waterLiq = (T, P) => {
+      const Te = Math.min(Math.max(T, TL), TH);
+      const Pe = Math.max(P, steam.psat(Te) * 1e6 * (1 + 1e-6));
+      let st;
+      try { st = steam.liquidSide(Pe / 1e6, Te); } catch (_e) { return null; }
+      let h = kgw * st.h + Ch, sv = kgw * st.s + Cs;
+      if (T !== Te) { const cp = kgw * st.cp; h += cp * (T - Te); sv += cp * Math.log(T / Te); }
+      return { h, s: sv };
+    };
+  }
+  /** pure liquid at T on the ΔHvap route (association: calorimetric ΔHvap is to the associated vapour) */
+  const legacyLiq = (i, T) => {
+    const c = comps[i], ps = psat(c, T), hv = hvap(c, T);
+    let h = hig(i, T) - hv, sv = sig(i, T) - R * Math.log(ps / P0) - hv / T;
+    if (assocRef && assocRef.pos[i] >= 0) { const a = assocRef.pure(assocRef.pos[i], T, ps); h += a.h; sv += a.s; }
+    return { h, s: sv };
+  };
+  const assocRef = assoc;
+  const cpLiq = comps.map((c, i) => {
+    if (liqRoute !== 'cp' || i === iwL || !c.cpl || !(c.Tc > 0)) return null;
+    // eq. 16 (exponential form, the bulk of the databank) is carried on to 0.9 Tc beyond its fitted range —
+    // it extrapolates far better than the ΔHvap slope (methanol at 137 °C: −1 % against +46 %); polynomials stop at their range
+    const lo = c.cpl[6], top = c.cpl[7];
+    const hi = c.cpl[0] === 16 ? Math.max(Math.min(top, 0.95 * c.Tc), 0.9 * c.Tc) : Math.min(top, 0.9 * c.Tc);
+    if (!(hi > lo + 5) || !(corr(c.cpl, Math.min(0.5 * (lo + top), hi), c.Tc) > 0)) return null;
+    const cpTop = corr(c.cpl, Math.min(top, hi), c.Tc) / 1000;
+    const cp = (T) => { const v = corr(c.cpl, T, c.Tc) / 1000; return T > top ? Math.min(Math.max(v, cpTop), 3 * cpTop) : v; };   // J/(mol K)
+    const Ta = Math.min(Math.max(num(c.tb) ? c.tb : T0, lo), hi);
+    const integ = (a, b, f) => { const hh = 0.5 * (b - a), m = 0.5 * (a + b); let q = 0; for (const [x, w] of GL8) q += w * f(m + hh * x); return q * hh; };
+    let base = null, atHi = null;
+    const inRange = (T) => {
+      if (!base) {
+        // anchor: saturated liquid = saturated vapour − ΔHvap, the vapour on the package's vapour model,
+        // so the latent heat at Tb is the measured one whichever vapour model is chosen
+        base = legacyLiq(i, Ta);
+        if (eos && activity) {
+          try {
+            const xi = comps.map((_c, j) => (j === i ? 1 : 0)), st = eos.state(Ta, psat(c, Ta), xi, 'V');
+            if (Number.isFinite(st.hDep) && Number.isFinite(st.sDep)) { base = { h: base.h + st.hDep, s: base.s + st.sDep }; }
+          } catch (_e) { /* ideal-gas anchor */ }
+        }
+      }
+      return { h: base.h + integ(Ta, T, cp), s: base.s + integ(Ta, T, (t) => cp(t) / t) };
+    };
+    return (T) => {
+      if (T < lo) { const r = inRange(lo), c0 = cp(lo); return { h: r.h + c0 * (T - lo), s: r.s + c0 * Math.log(T / lo) }; }
+      if (T <= hi) return inRange(T);
+      if (!atHi) { const a = inRange(hi), l = legacyLiq(i, hi); atHi = { dh: a.h - l.h, ds: a.s - l.s }; }
+      const f = Math.max(0, (c.Tc - T) / (c.Tc - hi)), l = legacyLiq(i, T);
+      return { h: l.h + f * atHi.dh, s: l.s + f * atHi.ds };
+    };
+  });
+  /** pure-liquid h (J/mol, Poynting included) and s (J/(mol K), at saturation) of component i */
+  const liqHS = (i, T, P) => {
+    if (i === iwL && waterLiq && liqRoute === 'cp') { const w = waterLiq(T, P); if (w) return w; }
+    const r = cpLiq[i] ? cpLiq[i](T) : legacyLiq(i, T);
+    const c = comps[i];
+    return { h: r.h + (T < c.Tc ? vLiq(c, T) * (P - psat(c, T)) : 0), s: r.s };
+  };
 
   // ---- STEP 32 free water: liquid water on IAPWS-IF97 inside the cubic EOS ----
   // A cubic EOS overstates the latent heat of water (PR: liquid h at 25 °C is
@@ -1291,11 +1438,8 @@ export function createPackage(spec, keys) {
     for (let i = 0; i < n; i++) if (x[i] > 0) {
       const hm = henry[i] ? henryMix(i, T, x) : null;
       if (hm) { h += x[i] * R * hm.B; continue; }             // heat of solution R·B for Henry gases
-      h -= x[i] * hvap(comps[i], T);
-      // calorimetric ΔHvap is measured to the associated saturated vapour
-      if (assoc && assoc.pos[i] >= 0) h += x[i] * assoc.pure(assoc.pos[i], T, psat(comps[i], T)).h;
-      // compressed / expanded liquid: + V_L (P − Psat) (DWSIM-consistent pressure effect)
-      if (T < comps[i].Tc) h += x[i] * vLiq(comps[i], T) * (P - psat(comps[i], T));
+      // pure liquid (STEP 39 route; association and V_L (P − Psat) included) relative to the ideal gas already summed
+      h += x[i] * (liqHS(i, T, P).h - hig(i, T));
     }
     if (excessH) {
       const dT = 0.01;
@@ -1316,9 +1460,7 @@ export function createPackage(spec, keys) {
     for (let i = 0; i < n; i++) if (x[i] > 0) {
       const hm = henry[i] ? henryMix(i, T, x) : null;
       if (hm) { s += x[i] * (-(hm.lnH - Math.log(P0)) * R + R * hm.B / T); continue; }
-      const ps = psat(comps[i], T);
-      s += x[i] * (-R * Math.log(ps / P0) - hvap(comps[i], T) / T);
-      if (assoc && assoc.pos[i] >= 0) s += x[i] * assoc.pure(assoc.pos[i], T, ps).s;
+      s += x[i] * (liqHS(i, T, P).s - sig(i, T));
     }
     let sE = 0;
     if (act) {
@@ -1340,11 +1482,15 @@ export function createPackage(spec, keys) {
     }
     if (elec) { let v = elec.volume(T, x); for (let i = 0; i < n; i++) if (!owned[i] && x[i] > 0) v += x[i] * 35e-6; return v; }
     if (ureaLiq) { let v = ureaLiq.volume(T, x); for (let i = 0; i < n; i++) if (!owned[i] && x[i] > 0) v += x[i] * 35e-6; return v; }
-    return liquidVolume(comps, T, P, x, eos);
+    return liquidVolume(comps, T, P, x, eos, liqVol);
   }
   // ---- electrolyte liquid: partial molar properties by Gibbs–Helmholtz ----
   // h̄_i = h_i,ig − ΔHvap,i (solvents) + (−RT² ∂ln a_i/∂T); CO2 (and MDEA, Extended UNIQUAC): h_ig − RT² ∂ln f/∂T;
   // K2CO3: aqueous standard state (NBS) − RT² ∂ln a/∂T. Henry gases as in the γ–φ packages.
+  // STEP 38: water-based methods (sour water, aqueous electrolytes) take pure liquid water on IAPWS-IF97,
+  // on the package's ideal-gas basis; below 0 °C extrapolated with the 0 °C heat capacity
+  // STEP 39: every electrolyte method on the default liquid route
+  const waterIF = elec && waterLiq && (elec.waterIF97 || liqRoute === 'cp') ? waterLiq : null;
   function elecPartials(T, P, x) {
     const xs = elec.sub(x);
     const hx = elec.hEx(T, xs);
@@ -1352,14 +1498,18 @@ export function createPackage(spec, keys) {
     const out = {};
     for (const i of elec.owned) {
       const key = elec.keyOf(i);
-      const xsub = key === 'H2O' ? xs.w : key === 'CO2' ? xs.g : key === 'piperazine' ? xs.p : xs.a;
+      const xsub = elec.xsub(xs, key);
       const lnf = lp[key] + Math.log(xsub) + Math.log(xs.S);           // ln f_i [Pa], diluted by any Henry gases
       let h, sv;
-      if (key === 'K2CO3') {
-        const ref = elec.saltRef(T);
-        const lnact = elec.rel(T, xs).K2CO3;
-        h = ref.h + hx.K2CO3;
-        sv = ref.s + hx.K2CO3 / T - R * lnact - R * Math.log(xs.S);
+      const wIF = key === 'H2O' && waterIF ? waterIF(T, P) : null;
+      if (wIF) {
+        h = wIF.h + (hx.H2O || 0);
+        sv = wIF.s + (hx.H2O || 0) / T - R * (elec.rel(T, xs).H2O + Math.log(xs.S));
+      } else if (elec.salts.includes(key)) {
+        const ref = elec.saltRef(T, key);
+        const lnact = elec.rel(T, xs)[key];
+        h = ref.h + (hx[key] || 0);
+        sv = ref.s + (hx[key] || 0) / T - R * lnact - R * Math.log(xs.S);
       } else {
         // gas-referenced keys (CO2; MDEA in the Extended UNIQUAC package) follow their fugacity
         // directly; a model whose gas standard state carries its own ideal-gas Cp (igShape) keeps
@@ -1369,8 +1519,8 @@ export function createPackage(spec, keys) {
         const sg = shape ? sig(i, T0) + shape.cp * Math.log(T / T0) : sig(i, T);
         h = hg + (hx[key] || 0);
         if (!elec.gasRef.includes(key)) {
-          h -= hvap(comps[i], T);
-          if (T < comps[i].Tc) h += vLiq(comps[i], T) * (P - psat(comps[i], T));
+          // liquid solvent (MEA, K2CO3 solvent key …): STEP 39 route, Poynting included
+          h += (shape ? 0 : liqHS(i, T, P).h - hig(i, T)) - (shape ? hvap(comps[i], T) - (T < comps[i].Tc ? vLiq(comps[i], T) * (P - psat(comps[i], T)) : 0) : 0);
         }
         sv = sg - R * (lnf - Math.log(P0)) + (h - hg) / T;
       }
@@ -1422,7 +1572,7 @@ export function createPackage(spec, keys) {
   const threePhase = !elec && (s.three_phase === true || ((s.three_phase === undefined || s.three_phase === 'auto') && isEOS && keys.includes('H2O') && hcLiquid));
   return {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
-    henryKeys: keys.filter((k, i) => henry[i]), poynting,
+    henryKeys: keys.filter((k, i) => henry[i]), poynting, excessEnthalpy: excessH, liquidVolumeMethod: liqVol,
     estimatedPairs: act && act.estimated ? act.estimated : [],                  // STEP 37
     // STEP 32: free water (IAPWS-IF97 liquid water inside the EOS) and the pure-water saturation it implies
     freeWater: freeWater ? { index: iw, correction: freeWater.correction, henry: freeWater.henry } : null,
@@ -1431,7 +1581,8 @@ export function createPackage(spec, keys) {
     ureaLiquid: ureaLiq || undefined,
     electrolyte: ureaLiq ? { model: 'urea', solvent: 'urea synthesis liquid', heavy: ['urea'], report: (T, x) => ureaLiq.report(T, x), warn: (T, x) => ureaLiq.warn(T, x),
       viscosity: (T, x) => ureaViscosity(ureaLiq, T, x), saltLnAct: (T, x) => ureaLiq.ureaLnAct(T, x), nonvolatile: keys.map((k) => k === 'urea'), urea: true } : elec ? { model: elecModel, solvent: elec.solvent, heavy: elec.heavy, report: (T, x) => elec.report(T, x), warn: (T, x) => elec.warn(T, x), viscosity: elec.viscosity,
-      saltLnAct: (T, x) => { const r = elec.rel(T, elec.sub(x)); return num(r.K2CO3) ? r.K2CO3 : 0; },
+      waterTransport: !!elec.waterTransport, conductivity: elec.conductivity || null, sigma: elec.sigma || null,
+      saltLnAct: (T, x, key) => elec.saltLnAct(T, x, key || 'K2CO3'),
       nonvolatile: keys.map((k) => ELECTROLYTE_KEYS.includes(k)) } : null,
     eos, act, lnFug, lnK, hPhase, sPhase, volPhase, hig, sig,
     idealGasData: useNist ? 'nist+chemsep' : 'chemsep',
@@ -1762,7 +1913,7 @@ function flashPT_elec(pp, z, T, P) {
     const fl = lnfL(r.st.xn);
     let g = 0;
     for (const i of vol) g += z[i] * fl[i];
-    for (const i of salt) g += z[i] * pp.electrolyte.saltLnAct(T, r.st.xn);
+    for (const i of salt) g += z[i] * pp.electrolyte.saltLnAct(T, r.st.xn, pp.keys[i]);
     return g;
   };
   // concentrated salt solutions (where the extrapolated Pitzer model can have more than
@@ -2186,7 +2337,8 @@ export function rachfordRice3(z, KV, KL, b0) {
 }
 
 /** liquid–liquid (no vapour) split by successive substitution from a trial liquid */
-function ssLL(pp, z, T, P, x1, x2, maxIt) {
+function ssLL(pp, z, T, P, x1, x2, maxIt, tol) {
+  const eps = tol || 1e-10;
   const n = pp.n, live = liveIdx(z);
   let K = z.map((zi, i) => (zi > 0 ? Math.max(x2[i], 1e-30) / Math.max(x1[i], 1e-30) : 1));
   let beta = 0.5, xa = x1, xb = x2, it, err = Infinity;
@@ -2202,11 +2354,30 @@ function ssLL(pp, z, T, P, x1, x2, maxIt) {
     for (const i of live) { err = Math.max(err, Math.abs(lnK[i] - Math.log(K[i]))); triv += lnK[i] * lnK[i]; }
     K = lnK.map(Math.exp);
     if (triv < 1e-8) return null;
-    if (err < 1e-10) break;
+    if (err < eps) break;
   }
   if (!(beta > 0 && beta < 1)) return null;
   void n;
-  return { beta, x1: xa, x2: xb, it, converged: err < 1e-8, residual: err };
+  return { beta, x1: xa, x2: xb, it, converged: err < Math.max(1e-8, 10 * eps), residual: err };
+}
+
+/**
+ * STEP 40: liquid–liquid split of a liquid of composition x at T, P — {x1, x2, beta} (beta = fraction
+ * of liquid 2) or null when a single liquid is stable. A previous split (hint) starts the substitution.
+ * Used by the residue-curve and azeotrope analyses.
+ */
+export function liquidSplit(pp, x, T, P, hint, tol) {
+  if (liveIdx(x).length < 2) return null;
+  const dist = (a, b) => { let d = 0; for (let i = 0; i < a.length; i++) d = Math.max(d, Math.abs(a[i] - b[i])); return d; };
+  const ok = (ll) => ll && ll.converged && ll.beta > 1e-9 && ll.beta < 1 - 1e-9 && dist(ll.x1, ll.x2) > 1e-5;
+  if (hint && hint.x1 && hint.x2) {
+    const ll = ssLL(pp, x, T, P, x.map((v, i) => (v > 0 ? Math.max(hint.x1[i], 1e-12) : 0)), x.map((v, i) => (v > 0 ? Math.max(hint.x2[i], 1e-12) : 0)), 300, tol);
+    if (ok(ll)) return { x1: ll.x1, x2: ll.x2, beta: ll.beta };
+  }
+  const st = stabilityLiquid(pp, T, P, x, x, null);
+  if (!st) return null;
+  const ll = ssLL(pp, x, T, P, x.map((v) => (v > 0 ? Math.max(v, 1e-12) : 0)), st.w, 800, tol);
+  return ok(ll) ? { x1: ll.x1, x2: ll.x2, beta: ll.beta } : null;
 }
 
 /** order two liquids: liquid 1 = lighter (lower mass density) */
@@ -2914,9 +3085,12 @@ function kayPseudo(pp, x) {
   return ok ? { Tc, Pc, Vc, MW, w, Zc } : null;
 }
 function mixVisL(pp, T, x, P, est) {
+  // STEP 38: a method's own solution viscosity first (brines: Laliberté); dilute aqueous
+  // methods without one (sour water) take the viscosity of water
   if (pp.electrolyte && pp.electrolyte.viscosity) {
     try { const v = pp.electrolyte.viscosity(T, x); if (v > 0) return v; if (Number.isNaN(v)) return NaN; } catch (_e) { /* generic below */ }
   }
+  if (pp.electrolyte && pp.electrolyte.waterTransport) { const v = pureMuL(component('H2O'), T, null); if (v > 0) return v; }
   let lnmu = 0, ps = 0;
   for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
     const c = pp.comps[i];
@@ -2992,6 +3166,8 @@ function mixKV(pp, T, y, V, est) {
   return k0 + term * Math.pow(q.Zc, -5) / gamma;
 }
 function mixKL(pp, T, x, est) {
+  if (pp.electrolyte && pp.electrolyte.conductivity) { try { const k = pp.electrolyte.conductivity(T, x); if (k > 0) return k; } catch (_e) { /* generic below */ } }
+  if (pp.electrolyte && pp.electrolyte.waterTransport) { const k = pureKL(component('H2O'), T, null); if (k > 0) return k; }
   // Li (1976): k = Σ Σ φi φj kij, kij = 2 / (1/ki + 1/kj), φ = x V / Σ x V
   const idx = [], ks = [], phi = [];
   let tot = 0;
@@ -3043,7 +3219,9 @@ export function properties(pp, r) {
       k_WmK: sp ? sp.k : type === 'V' ? mixKV(pp, r.T, comp, V, est) : mixKL(pp, r.T, comp, est),
     };
     if (sp && num(sp.sigma)) ph.sigma_Nm = sp.sigma;
-    else if (!sp && type !== 'V' && !(pp.electrolyte && pp.electrolyte.urea)) { try { const sg = mixSigma(pp, r.T, comp, est); if (sg >= 0 && Number.isFinite(sg)) ph.sigma_Nm = sg; } catch (_e) { /* none */ } }
+    else if (!sp && type !== 'V' && pp.electrolyte && (pp.electrolyte.waterTransport || pp.electrolyte.sigma)) {
+      try { const sg = pp.electrolyte.sigma ? pp.electrolyte.sigma(r.T, comp) : pureSigma(component('H2O'), r.T, null); if (sg >= 0 && Number.isFinite(sg)) ph.sigma_Nm = sg; } catch (_e) { /* none */ }
+    } else if (!sp && type !== 'V' && !(pp.electrolyte && pp.electrolyte.urea)) { try { const sg = mixSigma(pp, r.T, comp, est); if (sg >= 0 && Number.isFinite(sg)) ph.sigma_Nm = sg; } catch (_e) { /* none */ } }
     if (est.length) ph.estimated = est.slice(0, 12);
     if (type === 'L' && pp.electrolyte) {
       try {
@@ -3080,5 +3258,5 @@ export default {
   corr, component, hIG, sIG, psat, hvap, vLiq, satT,
   createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashTVF,
   hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED,
-  pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC,
+  pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC, liquidSplit,
 };

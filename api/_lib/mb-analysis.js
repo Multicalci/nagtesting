@@ -16,6 +16,7 @@
 //                    Cp, viscosity, thermal conductivity, Z, H, S).
 //   binary-diagram   T–x–y (fixed P) or P–x–y (fixed T) for a binary, with
 //                    azeotrope detection.
+//   ternary-diagram, azeotrope-search — see mb-ternary.js (STEP 40).
 //
 // Input: the engine's usual {streams:[stream], params:{property_package, …}}.
 // Plain ES module. Server-side only. (c) multicalci.com
@@ -23,6 +24,7 @@
 
 import th from './mb-thermo.js';
 import units from './mb-units.js';
+import { TERNARY_MODULES } from './mb-ternary.js';
 
 export const ANALYSIS_VERSION = 'mb-analysis 1.0.1';
 const num = (x) => typeof x === 'number' && isFinite(x);
@@ -502,5 +504,6 @@ export const ANALYSIS_MODULES = {
   'phase-envelope': solvePhaseEnvelope,
   'property-table': solvePropertyTable,
   'binary-diagram': solveBinary,
+  ...TERNARY_MODULES,                   // STEP 40: ternary-diagram, azeotrope-search
 };
 export default { ANALYSIS_VERSION, ANALYSIS_MODULES };
