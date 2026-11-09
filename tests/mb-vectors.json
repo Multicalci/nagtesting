@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 3.0 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties), vectors MB-001..MB-305",
+  "version": "mb-vectors 3.3 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options), vectors MB-001..MB-351",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -23056,6 +23056,2442 @@
    },
    "source": "CoolProp 8 ethanol (Schroeder et al. 2014 EOS; Sotiriadou et al. 2023 viscosity; Assael et al. 2013 conductivity; Mulero et al. 2012 σ): ρ 785.1, μ 1.0824 cP, k 0.1635, σ 21.88 mN/m. Sastri & Rao, Chem. Eng. J. 59 (1995) 181, alcohol constants K 2.28, x 0.25, y 0.175, z 0, m 0.8 (Poling 5th ed. Eq. 12-3.12).",
    "id": "MB-305"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): NaCl 1 mol/kg at 25 °C — water activity, osmotic coefficient, pH and halite saturation index",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1058.4428,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9447841678359945
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.05521583216400546
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.9668251936261484,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.9363586791820405,
+    "details.rows.0.phases.liquid.acid_gas.pH": 6.886343266280624,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": -1.9461838001927672
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-306"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): NaCl 5 mol/kg at 75 °C — water activity, osmotic coefficient and halite saturation index (temperature functions of the NaCl parameters)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1292.214,
+       "T_K": 348.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7738656290676312
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.2261343709323688
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 348.15,
+      "to": 349.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.8084983789834955,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 1.1799782788489066,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": -0.3555751333727488
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.001,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-307"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): CaCl2 2 mol/kg (ionic strength 6) at 25 °C — water activity, osmotic coefficient and pH",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1221.968,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.8183520354051824
+        },
+        {
+         "key": "CaCl2",
+         "mass_fraction": 0.18164796459481752
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.8606134505736722,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 1.3887251870662836,
+    "details.rows.0.phases.liquid.acid_gas.pH": 5.945988115752963
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-308"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): sulfuric acid 1 mol/kg at 25 °C — HSO4⁻ formation sets the ionic strength (1.47 mol/kg) and pH",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1098.0785,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9106817044500917
+        },
+        {
+         "key": "H2SO4",
+         "mass_fraction": 0.08931829554990832
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.9617151660608741,
+    "details.rows.0.phases.liquid.acid_gas.pH": -0.09550068546111465,
+    "details.rows.0.phases.liquid.acid_gas.ionic_strength_mol_kg": 1.47204000410081
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.ionic_strength_mol_kg": 0.00147204000410081
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-309"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): caustic soda 2 mol/kg at 25 °C — pH and water activity",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1079.99422,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.925930881370828
+        },
+        {
+         "key": "NaOH",
+         "mass_fraction": 0.07406911862917191
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.9294657426959403,
+    "details.rows.0.phases.liquid.acid_gas.pH": 14.199839534889847
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-310"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): carbonate / bicarbonate buffer, K2CO3 + KHCO3 1 + 1 mol/kg at 80 °C — pH and water activity",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1238.3206,
+       "T_K": 353.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.8075453158091693
+        },
+        {
+         "key": "K2CO3",
+         "mass_fraction": 0.11160720414406415
+        },
+        {
+         "key": "KHCO3",
+         "mass_fraction": 0.08084748004676656
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 353.15,
+      "to": 354.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.915893519529804,
+    "details.rows.0.phases.liquid.acid_gas.pH": 9.422839242703807
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-311"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): seawater (Millero reference composition, S = 35) at 25 °C — pH, water activity and the saturation indices of calcite, dolomite and gypsum",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1036.37963938015,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9648973812319314
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.02728121093937185
+        },
+        {
+         "key": "KCl",
+         "mass_fraction": 0.0007610438864678324
+        },
+        {
+         "key": "CaCl2",
+         "mass_fraction": 0.0011512835083421968
+        },
+        {
+         "key": "MgCl2",
+         "mass_fraction": 0.0023406160480447407
+        },
+        {
+         "key": "MgSO4",
+         "mass_fraction": 0.003398825510299259
+        },
+        {
+         "key": "NaHCO3",
+         "mass_fraction": 0.00014430710938073696
+        },
+        {
+         "key": "Na2CO3",
+         "mass_fraction": 2.5331766162158394e-05
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.9812919132020038,
+    "details.rows.0.phases.liquid.acid_gas.pH": 8.331449804074344,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Calcite": 0.9108013774121897,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Dolomite": 2.649069346778223,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": -0.6348268709348499
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0001,
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Calcite": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Dolomite": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-312"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): seawater concentrated twofold at 80 °C — calcite, anhydrite and brucite saturation (evaporator scaling)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1072.7592787603,
+       "T_K": 353.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9321755773164861
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.052712089496673636
+        },
+        {
+         "key": "KCl",
+         "mass_fraction": 0.0014704704106991663
+        },
+        {
+         "key": "CaCl2",
+         "mass_fraction": 0.0022244818773860336
+        },
+        {
+         "key": "MgCl2",
+         "mass_fraction": 0.004522481163907078
+        },
+        {
+         "key": "MgSO4",
+         "mass_fraction": 0.006567127642560471
+        },
+        {
+         "key": "NaHCO3",
+         "mass_fraction": 0.00027882667237859874
+        },
+        {
+         "key": "Na2CO3",
+         "mass_fraction": 4.894541990881462e-05
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 353.15,
+      "to": 354.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.pH": 7.707660739205115,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Calcite": 1.4403915006756431,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Anhydrite": -0.028451995921424,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Brucite": -1.1499091477931778
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.pH": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Calcite": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Anhydrite": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Brucite": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-313"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): calcium sulfate 15 mmol/kg at 75 °C — supersaturated in anhydrite, near saturation in gypsum (Eθ for Ca²⁺ / H⁺ and SO₄²⁻ / Cl⁻ mixing)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1002.042109,
+       "T_K": 348.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9979620527105014
+        },
+        {
+         "key": "CaSO4",
+         "mass_fraction": 0.002037947289498589
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 348.15,
+      "to": 349.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": 0.03227847865719369,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Anhydrite": 0.21766492431312212
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": 0.006,
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Anhydrite": 0.006
+   },
+   "source": "PHREEQC 3 (phreeqpython, database pitzer.dat — the same species, constants and Pitzer parameters), SOLUTION in mol/kgw with pH from the charge balance; pH on the MacInnes scale as PHREEQC prints it.",
+   "id": "MB-314"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): osmotic coefficient of NaCl 3 mol/kg at 25 °C against the critically evaluated value",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1175.3283999999999,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.8508260329623619
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.14917396703763816
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 1.0453
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.003
+   },
+   "source": "W.J. Hamer, Y.-C. Wu, J. Phys. Chem. Ref. Data 1 (1972) 1047, Table 7 (NaCl, 25 °C); tolerance 0.003 (data uncertainty about 0.002 at 3 mol/kg)",
+   "id": "MB-315"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): osmotic coefficient of NaCl 6 mol/kg at 25 °C against the critically evaluated value",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1350.6568,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7403805319012202
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.2596194680987798
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 1.2706
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.osmotic_coefficient": 0.006
+   },
+   "source": "W.J. Hamer, Y.-C. Wu, J. Phys. Chem. Ref. Data 1 (1972) 1047, Table 7 (NaCl, 25 °C); tolerance 0.006 (data uncertainty about 0.002 at 6 mol/kg)",
+   "id": "MB-316"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): NaCl at its measured solubility, 6.146 mol/kg at 25 °C, is at halite saturation (SI = 0)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1359.1894488,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7357326095217109
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.26426739047828895
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": 0.0
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Halite": 0.01
+   },
+   "source": "Clarke & Glew, J. Phys. Chem. Ref. Data 14 (1985) 489 (25 °C); Linke, Solubilities of Inorganic Compounds (0 and 100 °C); ±0.01 in SI ≈ ±0.6 % in solubility",
+   "id": "MB-317"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): CaSO4 at the measured gypsum solubility, 15.3 mmol/kg at 25 °C, is at gypsum saturation (SI = 0)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1002.08295118,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.997921378487133
+        },
+        {
+         "key": "CaSO4",
+         "mass_fraction": 0.0020786215128670003
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": 0.0
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.saturation_index.Gypsum": 0.025
+   },
+   "source": "Marshall & Slusher, J. Phys. Chem. 70 (1966) 4015; Blount & Dickson, Am. Mineral. 58 (1973) 323 (15.2–15.4 mmol/kg); ±0.025 in SI ≈ ±3 % in solubility (spread of the measurements)",
+   "id": "MB-318"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): seawater (Millero composition, absolute salinity 35.10 g/kg) at 25 °C, 1 atm — density (Laliberté mixing), heat capacity (Laliberté apparent Cp + IAPWS-IF97 water) and water activity (Pitzer)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1036.37963938015,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9648973812319314
+        },
+        {
+         "key": "NaCl",
+         "mass_fraction": 0.02728121093937185
+        },
+        {
+         "key": "KCl",
+         "mass_fraction": 0.0007610438864678324
+        },
+        {
+         "key": "CaCl2",
+         "mass_fraction": 0.0011512835083421968
+        },
+        {
+         "key": "MgCl2",
+         "mass_fraction": 0.0023406160480447407
+        },
+        {
+         "key": "MgSO4",
+         "mass_fraction": 0.003398825510299259
+        },
+        {
+         "key": "NaHCO3",
+         "mass_fraction": 0.00014430710938073696
+        },
+        {
+         "key": "Na2CO3",
+         "mass_fraction": 2.5331766162158394e-05
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 1023.2967007554452,
+    "details.rows.0.phases.liquid.Cp_kJkgK": 3.999279432414941,
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.9813397896552347
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 1.5,
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.02,
+    "details.rows.0.phases.liquid.acid_gas.water_activity": 0.0002
+   },
+   "source": "TEOS-10 (IOC, SCOR & IAPSO 2010) Gibbs function via gsw 3.6: rho_t_exact, cp_t_exact; water activity from chem_potential_water_t_exact; tolerances 0.15 % (density), 0.5 % (Cp), 0.0002 (water activity)",
+   "id": "MB-319"
+  },
+  {
+   "desc": "aqueous electrolytes (STEP 38): CO2 0.05 mol/kg in water at 50 °C — equilibrium CO2 pressure from the IAPWS G7-04 Henry constant (about 0.3 % of the CO2 ionised)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1002.200475,
+       "T_K": 323.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9978043564587216
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.0021956435412785057
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "aqueous-electrolyte"
+      },
+      "vary": "T",
+      "from": 323.15,
+      "to": 324.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 254.81540221887218
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 3.822231033283083
+   },
+   "source": "IAPWS G7-04 (2004), CO2 in H2O: A = −8.55445, B = 4.01195, C = 9.52345; psat of water from IAPWS-95 (CoolProp 8); f = kH·x with x the CO2 mole fraction; tolerance 1.5 % (ionisation and the CO2 self-interaction)",
+   "id": "MB-320"
+  },
+  {
+   "desc": "sour water (STEP 38): H2S 0.05 mol/kg in pure water at 25 °C — equilibrium H2S pressure against the IUPAC-evaluated solubility (Henry's law from the 1-atm mole fraction)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1001.704044,
+       "T_K": 298.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9982988548262265
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.0017011451737735026
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 49.348611738461976
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 1.9739444695384791
+   },
+   "source": "IUPAC SDS 32 (Fogg & Young 1988): ln x(H2S) = −24.912 + 3477.1/T + 0.3993 ln T + 0.015700 T at 1 atm partial pressure; tolerance 4 %",
+   "id": "MB-321"
+  },
+  {
+   "desc": "sour water (STEP 38): H2S 0.05 mol/kg in pure water at 80 °C — equilibrium H2S pressure against the IUPAC-evaluated solubility (Henry's law from the 1-atm mole fraction)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1001.704044,
+       "T_K": 353.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9982988548262265
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.0017011451737735026
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 353.15,
+      "to": 354.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 119.59396812338046
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 7.175638087402827
+   },
+   "source": "IUPAC SDS 32 (Fogg & Young 1988): ln x(H2S) = −24.912 + 3477.1/T + 0.3993 ln T + 0.015700 T at 1 atm partial pressure; tolerance 6 %",
+   "id": "MB-322"
+  },
+  {
+   "desc": "sour water (STEP 38): NH3–CO2–H2S–water at 93.3 °C (2.00 / 0.57 / 0.51 mol %) — equilibrium NH3, CO2 and H2S pressures against measurement",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1043.8292723566894,
+       "T_K": 366.48,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9580110718127931
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.018688481314940285
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.013763769676587172
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.00953667719567953
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 366.48,
+      "to": 367.48,
+      "points": 2,
+      "P_bar": 20
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 10.299999999999999,
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 57.8,
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 29.599999999999998
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 2.5749999999999997,
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 14.45,
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 7.3999999999999995
+   },
+   "source": "Wilson, Gillespie & Owens, GPA RR-118 (1985), via IUPAC Solubility Data Series 32 pp. 73–74: T K, liquid mol % NH3, CO2, H2S, H2O; p NH3, CO2, H2S, H2O bar; tolerance ±25 % = the method's accuracy (mean deviations 10–25 % over this data set)",
+   "id": "MB-323"
+  },
+  {
+   "desc": "sour water (STEP 38): NH3 2.332 + H2S 1.151 mol/kg at 80 °C — equilibrium NH3 and H2S pressures against the API data",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1078.94226552,
+       "T_K": 353.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9268336517691671
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.03680935848857411
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.0363569897422587
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 353.15,
+      "to": 354.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 18.131792,
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 42.529717999999995
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 4.532948,
+    "details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa": 12.7589154
+   },
+   "source": "API data at 80 °C, via Beutier & Renon (1978) and IUPAC SDS 32 p. 65: m NH3, m H2S, p NH3 mmHg, p H2S mmHg (last point, 22.6 m NH3, outside the range); tolerance ±25 % (NH3) and ±30 % (H2S), the method's accuracy over this data set",
+   "id": "MB-324"
+  },
+  {
+   "desc": "sour water (STEP 38): NH3 4.012 + CO2 0.815 mol/kg at 140 °C — equilibrium NH3 and CO2 pressures against measurement (carbamate and bicarbonate)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1104.19418874,
+       "T_K": 413.15,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9056378037463715
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.06187901271058811
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.03248318354304038
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 413.15,
+      "to": 414.15,
+      "points": 2,
+      "P_bar": 30
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 192.0,
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 294.0
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa": 48.0,
+    "details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa": 73.5
+   },
+   "source": "Müller (1983), via Kawazuishi & Prausnitz, Ind. Eng. Chem. Res. 26 (1987) 1482, Tables 5–6: t °C, m NH3, m CO2, P bar, p NH3, p CO2 bar; tolerance ±25 %, the method's accuracy over this data set",
+   "id": "MB-325"
+  },
+  {
+   "desc": "sour water (STEP 38): NaOH in sour water — 0.25 mol/kg NaOH with NH3 0.5 + H2S 0.5 mol/kg at 60 °C converts HS⁻ so most ammonia is molecular; its free fraction is reported",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1035.5549775,
+       "T_K": 333.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.9656657750940124
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.00822289514802704
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.016455369700543013
+        },
+        {
+         "key": "NaOH",
+         "mass_fraction": 0.009655960057417617
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "sour-water"
+      },
+      "vary": "T",
+      "from": 333.15,
+      "to": 334.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.acid_gas.model": "sour-water"
+   },
+   "tol": {
+    "default": 0
+   },
+   "source": "Reporting check: caustic-dosed sour water is accepted by the sour-water method and reported with its speciation.",
+   "id": "MB-326"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid heat capacity of methanol at 25 °C in an NRTL package — liquid-Cp route; the ΔHvap slope gives +27 %",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 2.5344070183183676
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.05068814036636735
+   },
+   "source": "CoolProp 8 reference equations of state: methanol (de Reuck & Craven 1993), ethanol (Schroeder et al. 2014), acetone (Lemmon & Span 2006), benzene (Thol et al. 2012), toluene (Lemmon & Span 2006), ammonia (Gao et al. 2020), water (IAPWS-95); 2.00 bar; tolerance 2 %",
+   "id": "MB-327"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid heat capacity of ethanol at 25 °C in an NRTL package — liquid-Cp route; the ΔHvap slope gives +11 %",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "EtOH",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 2.4343448541192183
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.04868689708238437
+   },
+   "source": "CoolProp 8 reference equations of state: methanol (de Reuck & Craven 1993), ethanol (Schroeder et al. 2014), acetone (Lemmon & Span 2006), benzene (Thol et al. 2012), toluene (Lemmon & Span 2006), ammonia (Gao et al. 2020), water (IAPWS-95); 2.00 bar; tolerance 2 %",
+   "id": "MB-328"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid heat capacity of ammonia at 25 °C in an NRTL package — liquid-Cp route; the ΔHvap slope gives +25 %",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 20.053899461863818,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 20.053899461863818
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 4.767079013042062
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.11917697532605157
+   },
+   "source": "CoolProp 8 reference equations of state: methanol (de Reuck & Craven 1993), ethanol (Schroeder et al. 2014), acetone (Lemmon & Span 2006), benzene (Thol et al. 2012), toluene (Lemmon & Span 2006), ammonia (Gao et al. 2020), water (IAPWS-95); 20.05 bar; tolerance 2.5 %",
+   "id": "MB-329"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid heat capacity of water at 5 °C in an NRTL package — liquid-Cp route (water on IAPWS-IF97); the ΔHvap slope gives −2 %",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 278.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vary": "T",
+      "from": 278.15,
+      "to": 279.15,
+      "points": 2,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 4.20461375857948
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.021023068792897403
+   },
+   "source": "CoolProp 8 reference equations of state: methanol (de Reuck & Craven 1993), ethanol (Schroeder et al. 2014), acetone (Lemmon & Span 2006), benzene (Thol et al. 2012), toluene (Lemmon & Span 2006), ammonia (Gao et al. 2020), water (IAPWS-95); 2.00 bar; tolerance 0.5 %",
+   "id": "MB-330"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid heat capacity of water at 150 °C in an NRTL package — liquid-Cp route (water on IAPWS-IF97); the ΔHvap slope gives +15 %",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 423.15,
+       "P_bar": 9.523290759396206,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vary": "T",
+      "from": 423.15,
+      "to": 424.15,
+      "points": 2,
+      "P_bar": 9.523290759396206
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 4.305532531576731
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.021527662657883657
+   },
+   "source": "CoolProp 8 reference equations of state: methanol (de Reuck & Craven 1993), ethanol (Schroeder et al. 2014), acetone (Lemmon & Span 2006), benzene (Thol et al. 2012), toluene (Lemmon & Span 2006), ammonia (Gao et al. 2020), water (IAPWS-95); 9.52 bar; tolerance 0.5 %",
+   "id": "MB-331"
+  },
+  {
+   "desc": "liquid enthalpy (STEP 39): liquid_enthalpy \"hvap\" keeps the ΔHvap route — methanol at 25 °C comes back at the pre-STEP-39 value, 27 % above the reference equation of state",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "liquid_enthalpy": "hvap"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 3.214
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.Cp_kJkgK": 0.01
+   },
+   "source": "Regression check of the legacy option: h_L = h_ig − ΔHvap(T) with the ChemSep ΔHvap correlation (DIPPR 106) gives Cp_L = 3.214 kJ/(kg·K); CoolProp 2.534.",
+   "id": "MB-332"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): methanol–acetone–chloroform at 1 atm with NRTL — the two minimum-boiling, the maximum-boiling and the ternary saddle azeotrope against tabulated data",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "MeOH",
+       "acetone",
+       "chloroform"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.n_azeotropes": 4,
+    "details.by_keys.MeOH+chloroform.T_K": 326.65,
+    "details.by_keys.MeOH+chloroform.w.MeOH": 0.126,
+    "details.by_keys.MeOH+acetone.T_K": 328.85,
+    "details.by_keys.MeOH+acetone.w.MeOH": 0.121,
+    "details.by_keys.acetone+chloroform.T_K": 337.85,
+    "details.by_keys.acetone+chloroform.w.chloroform": 0.8,
+    "details.by_keys.acetone+chloroform.boiling": "maximum-boiling",
+    "details.by_keys.MeOH+acetone+chloroform.T_K": 330.65,
+    "details.by_keys.MeOH+acetone+chloroform.w.MeOH": 0.23,
+    "details.by_keys.MeOH+acetone+chloroform.w.acetone": 0.3,
+    "details.by_keys.MeOH+acetone+chloroform.boiling": "intermediate (saddle)"
+   },
+   "tol": {
+    "default": 1.0,
+    "details.n_azeotropes": 0,
+    "details.by_keys.MeOH+chloroform.w.MeOH": 0.02,
+    "details.by_keys.MeOH+acetone.w.MeOH": 0.02,
+    "details.by_keys.acetone+chloroform.w.chloroform": 0.03,
+    "details.by_keys.MeOH+acetone+chloroform.w.MeOH": 0.03,
+    "details.by_keys.MeOH+acetone+chloroform.w.acetone": 0.06
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): 53.5 °C (12.6 wt % MeOH), 55.7 °C (12.1 wt % MeOH), 64.7 °C (80.0 wt % CHCl₃), ternary saddle 57.5 °C (23.0 / 30.0 / 47.0 wt %). Tolerances 1 K and 2–6 wt %.",
+   "id": "MB-333"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): water–ethanol–benzene at 1 atm with NRTL — heterogeneous ternary azeotrope, water–benzene heteroazeotrope, ethanol–benzene and ethanol–water",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "H2O",
+       "EtOH",
+       "benzene"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.EtOH+H2O+benzene.T_K": 338.05,
+    "details.by_keys.EtOH+H2O+benzene.heterogeneous": true,
+    "details.by_keys.EtOH+H2O+benzene.w.H2O": 0.074,
+    "details.by_keys.EtOH+H2O+benzene.w.EtOH": 0.185,
+    "details.by_keys.H2O+benzene.T_K": 342.45,
+    "details.by_keys.H2O+benzene.heterogeneous": true,
+    "details.by_keys.H2O+benzene.w.benzene": 0.911,
+    "details.by_keys.EtOH+benzene.T_K": 341.35,
+    "details.by_keys.EtOH+benzene.w.benzene": 0.676,
+    "details.by_keys.EtOH+H2O.T_K": 351.25,
+    "details.by_keys.EtOH+H2O.w.EtOH": 0.955
+   },
+   "tol": {
+    "details.by_keys.EtOH+H2O+benzene.T_K": 1.0,
+    "details.by_keys.EtOH+H2O+benzene.w.H2O": 0.015,
+    "details.by_keys.EtOH+H2O+benzene.w.EtOH": 0.03,
+    "details.by_keys.H2O+benzene.T_K": 0.5,
+    "details.by_keys.H2O+benzene.w.benzene": 0.01,
+    "details.by_keys.EtOH+benzene.T_K": 0.5,
+    "details.by_keys.EtOH+benzene.w.benzene": 0.02,
+    "details.by_keys.EtOH+H2O.T_K": 0.5,
+    "details.by_keys.EtOH+H2O.w.EtOH": 0.015
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): ternary 64.9 °C (7.4 / 18.5 / 74.1 wt % water / ethanol / benzene, two liquid layers), water–benzene 69.3 °C (91.1 wt % benzene), ethanol–benzene 68.2 °C (67.6 wt % benzene), ethanol–water 78.1 °C (95.5 wt % ethanol). The water–benzene NRTL pair is estimated from Dortmund UNIFAC (ChemSep has none).",
+   "id": "MB-334"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): water–ethanol–cyclohexane at 1 atm with UNIQUAC — heterogeneous ternary and water–cyclohexane heteroazeotrope",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "uniquac"
+      },
+      "keys": [
+       "H2O",
+       "EtOH",
+       "cyclohexane"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.EtOH+H2O+cyclohexane.T_K": 335.25,
+    "details.by_keys.EtOH+H2O+cyclohexane.heterogeneous": true,
+    "details.by_keys.EtOH+H2O+cyclohexane.w.cyclohexane": 0.76,
+    "details.by_keys.H2O+cyclohexane.T_K": 342.95,
+    "details.by_keys.H2O+cyclohexane.w.cyclohexane": 0.915
+   },
+   "tol": {
+    "details.by_keys.EtOH+H2O+cyclohexane.T_K": 1.5,
+    "details.by_keys.EtOH+H2O+cyclohexane.w.cyclohexane": 0.05,
+    "details.by_keys.H2O+cyclohexane.T_K": 0.6,
+    "details.by_keys.H2O+cyclohexane.w.cyclohexane": 0.015
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): ternary 62.1 °C (7 / 17 / 76 wt %), water–cyclohexane 69.8 °C (91.5 wt % cyclohexane). UNIQUAC water–cyclohexane estimated from Dortmund UNIFAC; the model puts the ternary 1 K high.",
+   "id": "MB-335"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): water–1-butanol at 1 atm with NRTL — heteroazeotrope",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "H2O",
+       "nBuOH"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.H2O+nBuOH.T_K": 365.55,
+    "details.by_keys.H2O+nBuOH.heterogeneous": true,
+    "details.by_keys.H2O+nBuOH.w.nBuOH": 0.555
+   },
+   "tol": {
+    "details.by_keys.H2O+nBuOH.T_K": 1.0,
+    "details.by_keys.H2O+nBuOH.w.nBuOH": 0.03
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): 92.4 °C, 55.5 wt % 1-butanol (other compilations 92.7–93.0 °C).",
+   "id": "MB-336"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): methanol–benzene at 1 atm with NRTL — minimum-boiling azeotrope",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "MeOH",
+       "benzene"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.MeOH+benzene.T_K": 331.45,
+    "details.by_keys.MeOH+benzene.w.benzene": 0.605,
+    "details.n_azeotropes": 1
+   },
+   "tol": {
+    "details.by_keys.MeOH+benzene.T_K": 0.5,
+    "details.by_keys.MeOH+benzene.w.benzene": 0.02,
+    "details.n_azeotropes": 0
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): 58.3 °C, 60.5 wt % benzene.",
+   "id": "MB-337"
+  },
+  {
+   "desc": "azeotrope search (STEP 40): methanol–acetone–chloroform with Dortmund UNIFAC (no binary data) — the ternary saddle azeotrope is still predicted",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "modunifac"
+      },
+      "keys": [
+       "MeOH",
+       "acetone",
+       "chloroform"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.n_azeotropes": 4,
+    "details.by_keys.MeOH+acetone+chloroform.T_K": 330.65,
+    "details.by_keys.acetone+chloroform.T_K": 337.85
+   },
+   "tol": {
+    "default": 1.0,
+    "details.n_azeotropes": 0
+   },
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): ternary saddle 57.5 °C, acetone–chloroform 64.7 °C.",
+   "id": "MB-338"
+  },
+  {
+   "desc": "ternary map (STEP 40): methanol–acetone–chloroform residue curve map, NRTL — methanol and the acetone–chloroform azeotrope are stable nodes, the two methanol azeotropes unstable nodes, pure acetone, pure chloroform and the ternary azeotrope saddles; four distillation boundaries from the ternary saddle",
+   "call": "runModule",
+   "args": [
+    "ternary-diagram",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "MeOH",
+       "acetone",
+       "chloroform"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.MeOH.kind": "stable node",
+    "details.by_keys.acetone+chloroform.kind": "stable node",
+    "details.by_keys.MeOH+chloroform.kind": "unstable node",
+    "details.by_keys.MeOH+acetone.kind": "unstable node",
+    "details.by_keys.acetone.kind": "saddle",
+    "details.by_keys.chloroform.kind": "saddle",
+    "details.by_keys.MeOH+acetone+chloroform.kind": "saddle",
+    "details.n_boundaries": 4,
+    "details.by_keys.MeOH+acetone+chloroform.T_K": 330.65
+   },
+   "tol": {
+    "default": 1.0,
+    "details.n_boundaries": 0
+   },
+   "source": "Topology of the published residue curve map (Doherty & Malone, Conceptual Design of Distillation Systems, 2001; also the Wolfram demonstration with Wilson): 2 stable nodes, 2 unstable nodes, 3 saddles, 4 distillation regions; Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook) for the saddle temperature.",
+   "id": "MB-339"
+  },
+  {
+   "desc": "ternary map (STEP 40): water–ethanol–benzene, UNIQUAC — the heterogeneous ternary azeotrope is the unstable node, the water–benzene heteroazeotrope a saddle; liquid–liquid envelope at 25 °C has tie lines",
+   "call": "runModule",
+   "args": [
+    "ternary-diagram",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "uniquac"
+      },
+      "keys": [
+       "H2O",
+       "EtOH",
+       "benzene"
+      ],
+      "P_bar": 1.01325,
+      "lle_T_K": 298.15
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.EtOH+H2O+benzene.kind": "unstable node",
+    "details.by_keys.EtOH+H2O+benzene.heterogeneous": true,
+    "details.by_keys.H2O+benzene.kind": "saddle",
+    "details.by_keys.EtOH+H2O.kind": "saddle",
+    "details.by_keys.EtOH+benzene.kind": "saddle",
+    "details.by_keys.H2O.kind": "stable node",
+    "details.by_keys.EtOH.kind": "stable node",
+    "details.by_keys.benzene.kind": "stable node",
+    "details.n_boundaries": 3,
+    "details.by_keys.EtOH+H2O+benzene.T_K": 338.05
+   },
+   "tol": {
+    "details.by_keys.EtOH+H2O+benzene.T_K": 1.0,
+    "details.n_boundaries": 0
+   },
+   "source": "Residue curve map topology of the ethanol dehydration system (Doherty & Malone 2001, ch. 8; Widagdo & Seider, AIChE J. 42 (1996) 96): ternary heteroazeotrope the only unstable node, three binary saddles, three pure stable nodes, three distillation regions; Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook).",
+   "id": "MB-340"
+  },
+  {
+   "desc": "component separator (STEP 40): three outlets — 95 % of the CO₂ to outlet 1 cooled to 250 K at 1.5 bar, 90 % of the H₂ and 4 % of the CO₂ to outlet 2, the rest to outlet 3; outlet flows by hand",
+   "call": "runModule",
+   "args": [
+    "component-splitter",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.1
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.5
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.4
+        }
+       ]
+      }
+     ],
+     "params": {
+      "n_outlets": 3,
+      "splits_n": {
+       "CO2": [
+        0.95,
+        0.04
+       ],
+       "H2": [
+        0,
+        0.9
+       ]
+      },
+      "outlets": [
+       {
+        "T_K": 250,
+        "P_bar": 1.5
+       },
+       {},
+       {}
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlets_kg_h.0": 380,
+    "details.outlets_kg_h.1": 106,
+    "details.outlets_kg_h.2": 514,
+    "streams_out.0.T_K": 250,
+    "streams_out.2.P_bar": 20
+   },
+   "tol": {
+    "default": 1e-06
+   },
+   "source": "Hand balance: outlet 1 = 0.95 × 400 kg/h CO₂ = 380; outlet 2 = 0.9 × 100 H₂ + 0.04 × 400 CO₂ = 106; outlet 3 = 1000 − 380 − 106 = 514 kg/h.",
+   "id": "MB-341"
+  },
+  {
+   "desc": "component separator (STEP 40): the duty of the three-outlet separator equals the enthalpy change of pure CO₂ (380 kg/h) from 300 K, 20 bar to 250 K, 1.5 bar — the other outlets leave at feed conditions",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "component-splitter",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 1000,
+          "T_K": 300,
+          "P_bar": 20,
+          "components": [
+           {
+            "key": "H2",
+            "mass_fraction": 0.1
+           },
+           {
+            "key": "N2",
+            "mass_fraction": 0.5
+           },
+           {
+            "key": "CO2",
+            "mass_fraction": 0.4
+           }
+          ]
+         }
+        ],
+        "params": {
+         "n_outlets": 3,
+         "splits_n": {
+          "CO2": [
+           0.95,
+           0.04
+          ],
+          "H2": [
+           0,
+           0.9
+          ]
+         },
+         "outlets": [
+          {
+           "T_K": 250,
+           "P_bar": 1.5
+          },
+          {},
+          {}
+         ]
+        }
+       }
+      ],
+      "field": "details.duty_kW",
+      "coef": 3600
+     },
+     {
+      "fn": "streamEnthalpy",
+      "args": [
+       {
+        "mass_flow_kg_h": 380,
+        "T_K": 300,
+        "P_bar": 20,
+        "components": [
+         {
+          "key": "CO2",
+          "mass_fraction": 1
+         }
+        ]
+       }
+      ],
+      "field": "H_kJh",
+      "coef": 1
+     },
+     {
+      "fn": "streamEnthalpy",
+      "args": [
+       {
+        "mass_flow_kg_h": 380,
+        "T_K": 250,
+        "P_bar": 1.5,
+        "components": [
+         {
+          "key": "CO2",
+          "mass_fraction": 1
+         }
+        ]
+       }
+      ],
+      "field": "H_kJh",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": 0
+   },
+   "tol": {
+    "value": 0.5
+   },
+   "source": "Energy balance: Q = Σ H_out − H_in; with ideal-gas enthalpies (classic engine) only the cooled CO₂ outlet changes. Units kJ/h.",
+   "id": "MB-342"
+  },
+  {
+   "desc": "component separator, rigorous (STEP 40): equimolar methanol–water (100 kmol/h, 25 °C), three outlets, outlet 1 as saturated vapour at 1 atm — outlet flows by hand and outlet 1 at the NRTL dew point",
+   "call": "runModule",
+   "args": [
+    "r-component-splitter",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 2502.857,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.6401056872206443
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3598943127793557
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "n_outlets": 3,
+      "splits_n": {
+       "MeOH": [
+        0.9,
+        0.08
+       ],
+       "H2O": [
+        0.05,
+        0.15
+       ]
+      },
+      "outlets": [
+       {
+        "P_bar": 1.01325,
+        "vapour_fraction": 1
+       },
+       {},
+       {}
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlets_kg_h.0": 1486.9219,
+    "details.outlets_kg_h.1": 263.282,
+    "streams_out.0.vapour_fraction": 1,
+    "streams_out.1.T_K": 298.15
+   },
+   "tol": {
+    "default": 0.001
+   },
+   "source": "Hand balance: outlet 1 = 0.9 × 50 kmol/h methanol + 0.05 × 50 kmol/h water; outlet 2 = 0.08 × 50 methanol + 0.15 × 50 water (molar masses ChemSep).",
+   "id": "MB-343"
+  },
+  {
+   "desc": "component separator, rigorous (STEP 40): its duty equals that of a heater taking outlet 1’s composition from 25 °C liquid to saturated vapour (no heat of mixing in NRTL’s default liquid enthalpy, so the 25 °C outlets carry no heat)",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "r-component-splitter",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 2502.857,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.6401056872206443
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.3598943127793557
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "nrtl"
+         },
+         "n_outlets": 3,
+         "splits_n": {
+          "MeOH": [
+           0.9,
+           0.08
+          ],
+          "H2O": [
+           0.05,
+           0.15
+          ]
+         },
+         "outlets": [
+          {
+           "P_bar": 1.01325,
+           "vapour_fraction": 1
+          },
+          {},
+          {}
+         ]
+        }
+       }
+      ],
+      "field": "details.duty_kW",
+      "coef": 1
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "heater",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 1486.9219,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.9697104467961633
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.03028955320383675
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "nrtl"
+         },
+         "vapour_fraction": 1
+        }
+       }
+      ],
+      "field": "details.duty_kW",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": 0
+   },
+   "tol": {
+    "value": 0.01
+   },
+   "source": "Energy balance consistency: separator duty − heater duty = 0 (kW).",
+   "id": "MB-344"
+  },
+  {
+   "desc": "heat of mixing (STEP 40): equimolar methanol–water at 25 °C with Dortmund UNIFAC and excess_enthalpy on — H^E = −RT² Σ x_i ∂ln γ_i/∂T against calorimetry",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.6401056872206442
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.3598943127793558
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac",
+          "excess_enthalpy": true
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": 1
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.6401056872206442
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.3598943127793558
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac"
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": -805
+   },
+   "tol": {
+    "value": 48
+   },
+   "source": "Benjamin & Benson, calorimetry at 298.15 K (methanol + water); equimolar value in J/mol (= kJ/kmol); tolerance 6 %.",
+   "id": "MB-345"
+  },
+  {
+   "desc": "heat of mixing (STEP 40): equimolar benzene–cyclohexane at 25 °C with Dortmund UNIFAC and excess_enthalpy on — H^E = −RT² Σ x_i ∂ln γ_i/∂T against calorimetry",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "benzene",
+            "mass_fraction": 0.48136565352398686
+           },
+           {
+            "key": "cyclohexane",
+            "mass_fraction": 0.5186343464760131
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac",
+          "excess_enthalpy": true
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": 1
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "benzene",
+            "mass_fraction": 0.48136565352398686
+           },
+           {
+            "key": "cyclohexane",
+            "mass_fraction": 0.5186343464760131
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac"
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": 797
+   },
+   "tol": {
+    "value": 48
+   },
+   "source": "Calorimetry at 298.15 K: 797 J/mol (Watson et al. 805, Lundberg 799; published values 759–842, evaluated by Smith et al., J. Phys. Chem. Ref. Data 11 (1982) 1127); equimolar value in J/mol (= kJ/kmol); tolerance 6 %.",
+   "id": "MB-346"
+  },
+  {
+   "desc": "heat of mixing (STEP 40): equimolar acetone–chloroform at 25 °C with Dortmund UNIFAC and excess_enthalpy on — H^E = −RT² Σ x_i ∂ln γ_i/∂T against calorimetry",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "acetone",
+            "mass_fraction": 0.32728618817183275
+           },
+           {
+            "key": "chloroform",
+            "mass_fraction": 0.6727138118281673
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac",
+          "excess_enthalpy": true
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": 1
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "acetone",
+            "mass_fraction": 0.32728618817183275
+           },
+           {
+            "key": "chloroform",
+            "mass_fraction": 0.6727138118281673
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "modunifac"
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": -1919
+   },
+   "tol": {
+    "value": 115
+   },
+   "source": "Morcom & Travers, calorimetry at 298 K (acetone + chloroform); equimolar value in J/mol (= kJ/kmol); tolerance 6 %.",
+   "id": "MB-347"
+  },
+  {
+   "desc": "heat of mixing (STEP 40): ChemSep NRTL parameters (fitted to VLE only) give the wrong sign for methanol–water — +290 J/mol against −805 measured; regression check of the documented limitation",
+   "call": "combine",
+   "args": {
+    "terms": [
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.6401056872206442
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.35989431277935574
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "nrtl",
+          "excess_enthalpy": true
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": 1
+     },
+     {
+      "fn": "runModule",
+      "args": [
+       "property-table",
+       {
+        "streams": [
+         {
+          "mass_flow_kg_h": 100,
+          "T_K": 298.15,
+          "P_bar": 1.01325,
+          "components": [
+           {
+            "key": "MeOH",
+            "mass_fraction": 0.6401056872206442
+           },
+           {
+            "key": "H2O",
+            "mass_fraction": 0.35989431277935574
+           }
+          ]
+         }
+        ],
+        "params": {
+         "property_package": {
+          "model": "nrtl"
+         },
+         "vary": "T",
+         "from": 298.15,
+         "to": 299.15,
+         "points": 2,
+         "P_bar": 1.01325
+        }
+       }
+      ],
+      "field": "details.rows.0.H_kJkmol",
+      "coef": -1
+     }
+    ]
+   },
+   "expect": {
+    "value": 289
+   },
+   "tol": {
+    "value": 15
+   },
+   "source": "Model value (help text and validation section 39 quote it); calorimetry −805 J/mol.",
+   "id": "MB-348"
+  },
+  {
+   "desc": "liquid volume (STEP 40): Rackett mixture (Spencer–Danner, Li mixing) for equimolar methanol–water at 25 °C — closer to the measured 881 kg/m³ than the default Amagat sum (853), which ignores the volume contraction",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.6401056872206442
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3598943127793558
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "liquid_volume": "rackett"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.rho_kgm3": 881.3
+   },
+   "tol": {
+    "details.rows.0.rho_kgm3": 8
+   },
+   "source": "Pure densities 786.6 / 997.0 kg/m³ and an excess volume of about −1.0 cm³/mol at x = 0.5 (Benson & Kiyohara 1980) → 881 kg/m³; tolerance 1 %.",
+   "id": "MB-349"
+  },
+  {
+   "desc": "liquid volume (STEP 40): COSTALD for saturated liquid propane at 25 °C (10 bar)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr",
+       "liquid_volume": "costald"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 10
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.rho_kgm3": 492.6
+   },
+   "tol": {
+    "details.rows.0.rho_kgm3": 5
+   },
+   "source": "NIST Webbook (Lemmon et al. reference equation of state): saturated liquid propane 492.6 kg/m³ at 298.15 K; tolerance 1 %.",
+   "id": "MB-350"
+  },
+  {
+   "desc": "liquid volume (STEP 40): Peng–Robinson liquid root for n-hexane at 25 °C, 1 atm — within 1 % (hydrocarbons are where an untranslated cubic is close)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "nC6H14",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr",
+       "liquid_volume": "eos"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.rho_kgm3": 654.8
+   },
+   "tol": {
+    "details.rows.0.rho_kgm3": 9
+   },
+   "source": "CRC Handbook: n-hexane 0.6548 g/cm³ at 25 °C; Peng–Robinson gives 661 (+1 %); tolerance 1.4 %.",
+   "id": "MB-351"
   }
  ]
 }
