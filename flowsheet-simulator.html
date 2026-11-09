@@ -32,7 +32,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Flowsheet Simulator — Free Online Process Simulation &amp; Material Balance | multicalci.com</title>
-<meta name="description" content="Free online process flowsheet simulator with Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson and UNIFAC property methods and a 430-component databank. Rigorous distillation columns with tray efficiencies, CO₂ absorbers and strippers with aqueous MEA and hot potassium carbonate, kinetic plug-flow and CSTR reactors with LHHW catalytic rate laws, Gibbs reactors, three-phase separators, phase envelopes, heat exchangers, compressors, recycle loops, design specs, sensitivity studies, optimisation, equipment and utility costing, pinch analysis and case comparison.">
+<meta name="description" content="Free online process flowsheet simulator with Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson and UNIFAC property methods and a 430-component databank. Rigorous distillation columns with tray efficiencies, CO₂ absorbers and strippers with aqueous MEA and hot potassium carbonate, sour water strippers, brines and aqueous electrolytes (Pitzer), kinetic plug-flow and CSTR reactors with LHHW catalytic rate laws, Gibbs reactors, three-phase separators, phase envelopes, heat exchangers, compressors, recycle loops, design specs, sensitivity studies, optimisation, equipment and utility costing, pinch analysis and case comparison.">
 <link rel="canonical" href="https://www.multicalci.com/flowsheet-simulator">
 <meta property="og:title" content="Flowsheet Simulator — Free Online Process Simulation | multicalci.com">
 <meta property="og:description" content="Draw a process flowsheet in your browser and solve it with rigorous property methods (Peng–Robinson, SRK, NRTL, UNIQUAC, UNIFAC, aqueous MEA and hot-carbonate electrolytes), rigorous columns, CO₂ absorbers and strippers, kinetic reactors, phase envelopes, three-phase flashes, recycle loops, design specs and sensitivity studies. Free, no login.">
@@ -41,7 +41,7 @@
 <meta property="og:image" content="https://www.multicalci.com/assets/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="index, follow">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Flowsheet Simulator — multicalci.com","description":"Free browser-based process flowsheet simulator: drag-and-drop unit operations, rigorous property methods (Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson, UNIFAC) with a 430-component databank, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate) for CO₂ removal, rigorous distillation and absorption columns with Murphree efficiencies, kinetic plug-flow and CSTR reactors, Gibbs reactor, three-phase flash, phase envelopes and binary diagrams, recycle convergence, design specs and sensitivity studies.","applicationCategory":"EngineeringApplication","operatingSystem":"Any web browser","url":"https://www.multicalci.com/flowsheet-simulator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"provider":{"@type":"Organization","name":"multicalci.com","url":"https://www.multicalci.com"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Flowsheet Simulator — multicalci.com","description":"Free browser-based process flowsheet simulator: drag-and-drop unit operations, rigorous property methods (Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson, UNIFAC) with a 430-component databank, acid-gas electrolyte packages (aqueous MEA, hot potassium carbonate) for CO₂ removal, rigorous distillation and absorption columns with Murphree efficiencies, kinetic plug-flow and CSTR reactors, Gibbs reactor, three-phase flash, phase envelopes, binary diagrams, ternary residue curve maps and azeotrope search, recycle convergence, design specs and sensitivity studies.","applicationCategory":"EngineeringApplication","operatingSystem":"Any web browser","url":"https://www.multicalci.com/flowsheet-simulator","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"provider":{"@type":"Organization","name":"multicalci.com","url":"https://www.multicalci.com"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -501,7 +501,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
       <g id="world"><g id="lStreams"></g><g id="lBlocks"></g><g id="lOver"></g></g>
     </svg>
     <div class="fl" id="viewCtl">
-      <button id="tTags" title="Show stream results on the drawing">T·P·F tags</button>
+      <button id="tTags" title="Show stream results on the drawing">T·P·F tags</button><button id="tTagOpt" title="Which results the tags show — temperature, pressure, vapour fraction, flows; legend; heat and work" aria-label="Stream tag options">▾</button>
       <button id="tSnap" class="on" title="Snap blocks to the grid">Snap</button>
     </div>
     <div class="fl" id="zoomCtl">
@@ -575,7 +575,8 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <h3>4 · Specify units and run</h3>
   <p>Click a unit and fill its specifications. The status lamp at the bottom turns green when everything needed is entered; the Issues tab lists anything missing. Press <b>Run</b> (or <kbd>F5</kbd>).</p>
   <h3>Property method (Methods)</h3>
-  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. With Peng–Robinson or SRK, <b>Free water</b> (on by default) puts liquid water and steam on IAPWS-IF97 and the gases dissolved in water on the IAPWS Henry constants, so boilers, condensers, wet-gas coolers and process condensate come out right — a plain cubic overstates the latent heat of water by about 5 % and makes gases 10–100× too insoluble in it. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
+  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. With Peng–Robinson or SRK, <b>Free water</b> (on by default) puts liquid water and steam on IAPWS-IF97 and the gases dissolved in water on the IAPWS Henry constants, so boilers, condensers, wet-gas coolers and process condensate come out right — a plain cubic overstates the latent heat of water by about 5 % and makes gases 10–100× too insoluble in it. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. Activity methods can add the <b>heat of mixing</b> to the liquid enthalpy (reliable with Dortmund UNIFAC, which was fitted to it) and switch off the Poynting correction; <b>Liquid volume</b> chooses how densities, volumetric flows and pump heads are found — ChemSep correlations (default), the Rackett mixture rule, COSTALD or the equation of state's liquid root. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
+  <p>With the activity and electrolyte methods the liquid enthalpy comes from liquid heat capacities (water from IAPWS-IF97), anchored at the normal boiling point; a checkbox in the flowsheet panel switches back to h<sub>ig</sub> − ΔHvap(T), which overstates the liquid heat capacity of methanol, ethanol and ammonia by 10–27 %.</p>
   <p><b>Which method to apply:</b> water / steam only → Steam / water (IAPWS-IF97); hydrocarbons and light gases → Peng–Robinson or SRK; NRTL, UNIQUAC or UNIFAC for polar liquids above about 5 bar → set <b>Vapour phase</b> to Peng–Robinson. The flowsheet panel suggests the method from your feeds (with a button that applies it), and after a run the log warns when a vapour above about 5 bar was treated as an ideal gas — that leaves out the real-gas enthalpy and changes duties and turbine / compressor power (a 62 bar steam turbine comes out about 30 % high with NRTL and an ideal-gas vapour).</p>
   <p>The component list holds more than 400 components with ChemSep pure-component data; carbamate and biuret are for the classic urea units only. <b>Pseudo-components</b> (flowsheet panel) add petroleum fractions from their normal boiling point and specific gravity — critical constants by Twu, Riazi–Daubert or Kesler–Lee — or cut a whole <b>TBP assay</b> into fractions and use it as a feed composition; they work with Peng–Robinson, SRK and ideal.</p>
   <p><b>User components</b> (flowsheet panel) add any other organic molecule from its structure: paste its SMILES (from PubChem or a drawing program). Joback groups estimate the boiling point, critical constants, heat capacity and heat of formation; Lee–Kesler the acentric factor and vapour pressure; UNIFAC and Dortmund-UNIFAC groups are assigned so activity methods work at once. Enter any measured value you have — each replaces its estimate. With NRTL, UNIQUAC or Wilson, a binary pair with no data is fitted to Dortmund UNIFAC automatically (flagged in the run log and shown as estimated in <b>Review pure-component &amp; binary data</b>). Viscosity, thermal conductivity and surface tension are estimated where the databank has no correlation; the stream panel says which.</p>
@@ -587,12 +588,17 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <h3>CO₂ removal — amine and hot-carbonate packages</h3>
   <p>Two <b>electrolyte (acid-gas) methods</b> model chemical CO₂ absorption. <b>Aqueous MEA</b> solves the carbamate and bicarbonate equilibria of monoethanolamine (the published Akula et al. model used by IDAES): CO₂ dissolves by Henry's law on the free, unreacted CO₂, water and MEA follow Raoult's law on the true species. <b>Hot potassium carbonate</b> (Benfield-type solutions) uses the Pitzer electrolyte model with the USGS PHREEQC parameters for K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻ and the water activity. Enter the solvent as its apparent components — MEA or K₂CO₃, water and CO₂ (the CO₂ sets the lean loading or conversion); H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically. Heats of absorption follow from the solubility model (about −84 kJ/mol CO₂ in MEA, −30 kJ/mol in hot carbonate). Liquid streams show the loading or conversion to KHCO₃, the equilibrium CO₂ pressure and, for carbonate, the water activity. H₂S and NH₃ are not modelled. The two CO₂-removal examples build an absorber + regenerator with each solvent.</p>
   <p>A third method, <b>Aqueous MDEA</b>, uses the <b>Extended UNIQUAC</b> electrolyte model (UNIQUAC + Debye–Hückel) with the parameters of Sadegh's DTU thesis (2013): true species H₂O, CO₂, MDEA, MDEAH⁺, HCO₃⁻, CO₃²⁻, OH⁻, H⁺, equilibrium constants from fitted standard-state properties and the Rumpf–Maurer CO₂ Henry constant. Enter the solvent as N-methyldiethanolamine + water + CO₂. Liquid streams show the loading, protonated-MDEA fraction, ionic strength and equilibrium CO₂ pressure. Add <b>piperazine</b> to the components for activated MDEA (aMDEA): piperazine and its four reaction products are added to the same model, with parameters fitted here to measured CO₂ pressures over MDEA/piperazine blends and aqueous piperazine (Chen 2011, Xu 2011; 40–160 °C) — no complete published parameter set exists — and the validation page shows every point. MDEA's slow reaction is represented by a low CO₂ tray efficiency; with piperazine it can be set higher.</p>
+  <h3>Sour water and aqueous electrolytes</h3>
+  <p><b>Sour water</b> covers NH₃, H₂S and CO₂ dissolved in water — sour water strippers, refinery and gasifier condensates, ammonia-plant process condensate. Every flash solves the ionisation of the three gases (NH₄⁺, HS⁻, S²⁻, HCO₃⁻, CO₃²⁻), ammonium carbamate and, if present, NaOH, which frees fixed ammonia. Equilibrium and Henry constants are those of Edwards et al. and Kawazuishi &amp; Prausnitz (H₂S ionisation from the PHREEQC database); the Pitzer ion terms were fitted here to 99 measured partial pressures from 20 to 260 °C (about 12 % mean deviation in NH₃, 16 % in CO₂, 24 % in H₂S). Liquid streams show the pH, the equilibrium NH₃, H₂S and CO₂ pressures, the free-ammonia fraction and the true species.</p>
+  <p><b>Aqueous electrolytes</b> covers brines, seawater, cooling water, caustic and acid solutions: the Pitzer model with the USGS PHREEQC pitzer.dat database — Na⁺, K⁺, Ca²⁺, Mg²⁺, H⁺, Cl⁻, SO₄²⁻, HSO₄⁻, OH⁻, HCO₃⁻, CO₃²⁻, CO₂(aq), MgOH⁺ and MgCO₃. Give the salts as components by formula (NaCl, KCl, CaCl₂, MgCl₂, Na₂SO₄, K₂SO₄, MgSO₄, CaSO₄, NaOH, KOH, Na₂CO₃, NaHCO₃, K₂CO₃, KHCO₃, H₂SO₄) together with water and, where needed, CO₂ and HCl; light gases dissolve by Henry’s law. It reproduces PHREEQC’s water activity, osmotic coefficient and saturation indices to 4–5 digits and its pH to 0.003. Liquid streams show pH (MacInnes scale), ionic strength, water activity and the saturation indices of calcite, aragonite, dolomite, gypsum, anhydrite, halite, brucite and other minerals — a positive index means scale or crystals can form; solids are not precipitated. Solution density, viscosity and heat capacity follow Laliberté (2009). When CO₂ can leave the liquid (boiling, stripping, flashing), give carbonate alkalinity as Na₂CO₃ or K₂CO₃ plus CO₂ rather than as a bicarbonate salt: only the CO₂ component can move to the vapour. The sour water stripper and seawater evaporator examples use these two methods.</p>
   <h3>Rigorous column, Gibbs reactor, three-phase separator</h3>
   <p>The <b>rigorous column</b> solves the full stage-by-stage MESH equations (Naphtali–Sandholm Newton): choose stages, condenser (total, partial or none), reboiler (kettle or none), feed stages, top pressure and two specifications (reflux ratio, distillate or bottoms rate, duties, condenser temperature, a product purity or a recovery). Without condenser and reboiler it is an absorber or stripper. Trays can carry a <b>Murphree vapour efficiency</b> — one value for every tray, or per component (for example a low CO₂ efficiency in a chemical-solvent absorber while water stays at equilibrium); the condenser and reboiler are always equilibrium stages. Its panel shows temperature, composition and flow profiles. The <b>Gibbs reactor</b> finds chemical equilibrium by minimising Gibbs energy — list the species that may form, no reactions needed. Vapour fugacity coefficients come from the property method (switch to ideal gas if you need to compare), a temperature approach shifts the equilibrium to T + ΔT, graphite can be allowed to deposit at unit activity, and the equilibrium can be restricted to listed reactions each with its own approach (methane and shift approaches of a reformer). The carbon activity of the outlet gas is always reported. The <b>three-phase separator</b> splits vapour, light liquid and heavy (aqueous) liquid. The <b>pipe segment</b> marches a line in segments with a flash at every node (Darcy–Churchill friction, elevation, acceleration, fittings, homogeneous two-phase flow) and checks the erosional velocity and Mach number. With a property method, the reformers, shift converters and methanator solve their equilibria on it too. A valve’s results carry a <b>Size this valve</b> link to the control-valve tool, and a heat exchanger’s a <b>Rate in HeatXpert</b> link — both open with the stream data filled in.</p>
   <h3>Kinetic reactors (plug flow and CSTR)</h3>
   <p>The <b>plug-flow</b> and <b>CSTR</b> reactors take power-law or <b>LHHW / Hougen–Watson</b> kinetics: for each reaction give the stoichiometry, k0 and the activation energy (optionally about a reference temperature), optional orders (blank = elementary, negative orders allowed), a concentration or partial-pressure basis, and whether it is reversible — with a thermodynamically consistent driving force from the Gibbs-energy equilibrium constant of the databank or your own ln K correlation, or your own reverse Arrhenius rate. For catalytic kinetics add an adsorption term (Σ Kₜ Π aᵢ^eₜᵢ)^m — the Steam reformer example carries the full Xu–Froment model. Rates can be per m³ of reactor or per kg of catalyst (with the bed density). The plug-flow reactor is isothermal, adiabatic, fixed-duty or heated / cooled through the wall (U and coolant or furnace temperature) and shows axial temperature, pressure and composition profiles; fast, equilibrium-limited kinetics are integrated with a stiff (Rosenbrock) solver. Each reactor reports conversions, the heat of every reaction in the reacting phase and the residence time.</p>
-  <h3>Stream analysis — phase envelope, property table, binary diagrams</h3>
-  <p>Select any stream and use <b>Stream analysis</b>: the <b>phase envelope</b> traces bubble and dew curves (with quality lines) and marks the critical point, cricondenbar and cricondentherm; the <b>property table</b> sweeps temperature or pressure and tabulates phase fraction, enthalpy, Cp, densities, viscosities and conductivities; the <b>binary diagram</b> draws T–x–y or P–x–y and y–x curves with azeotropes and the three-phase line of partially miscible pairs. All three use the flowsheet property method and can be copied into Excel.</p>
+  <h3>Stream analysis — phase envelope, property table, binary and ternary diagrams, azeotropes</h3>
+  <p>Select any stream and use <b>Stream analysis</b>: the <b>phase envelope</b> traces bubble and dew curves (with quality lines) and marks the critical point, cricondenbar and cricondentherm; the <b>property table</b> sweeps temperature or pressure and tabulates phase fraction, enthalpy, Cp, densities, viscosities and conductivities; the <b>binary diagram</b> draws T–x–y or P–x–y and y–x curves with azeotropes and the three-phase line of partially miscible pairs. The <b>ternary map</b> draws residue curves for any three components with the pure components and azeotropes classified as stable nodes, unstable nodes or saddles, the distillation boundaries that split the triangle into regions, and (activity methods) the liquid–liquid envelope with tie lines at a chosen temperature — the starting point for azeotropic and extractive distillation sequences. The <b>azeotrope search</b> lists every binary, ternary and quaternary azeotrope among up to eight components, homogeneous or heterogeneous. All use the flowsheet property method and can be copied into Excel; the flowsheet panel offers the same diagrams for any components without a stream. Checked against tabulated azeotropes in validation section 39.</p>
+  <h3>Drawing</h3>
+  <p>The <b>▾</b> beside <b>T·P·F tags</b> chooses which stream values are printed (temperature, pressure, vapour fraction, flow, molar flow, actual volume flow), whether unit duties and powers are shown, and a compact style with a legend. Rotate or flip a unit with <b>R</b>, <b>H</b>, <b>V</b> or the buttons in its panel; drop a unit from the palette onto a stream to insert it there; select a stream and drag the square on its middle run to move it.</p>
   <h3>Sensitivity study</h3>
   <p>In the flowsheet panel, a sensitivity study steps any feed or unit input over a range and tabulates up to sixteen stream or unit results (column duties, purities, flows, temperatures …). Results appear in the <b>Sensitivity</b> tab as a chart and a table you can copy into Excel.</p>
   <h3>Calculators</h3>
@@ -628,7 +634,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
 ===================================================================== */
 const API = '/api/material-balance';
 const LS_MODEL = 'mc_flowsheet_v1';
-const LS_COMPS = 'mb_components_v3';          // v3: + K2CO3 (aqueous) for the hot-carbonate package (Step 25)
+const LS_COMPS = 'mb_components_v4';          // v4: + aqueous salts and NaOH (Step 38); v3 added K2CO3 (Step 25)
 const LS_RECENT = 'mb_recent_comps_v1';       // shared with material-balance.html
 const LS_PREFS = 'mc_flowsheet_prefs_v1';
 const COMPS_TTL_MS = 24 * 3600 * 1000;
@@ -760,16 +766,22 @@ const PKGS = [
   ['amine-mdea', 'Aqueous MDEA / activated MDEA — acid gas', 'elec', 'CO₂ removal with N-methyldiethanolamine, optionally activated with piperazine (aMDEA): Extended UNIQUAC electrolyte model — the MDEA part with the published parameters of Sadegh (DTU, 2013), the piperazine species (PZ, PZH⁺, carbamate, protonated carbamate, dicarbamate) fitted by multicalci to measured CO₂ pressures over MDEA/PZ blends (40–160 °C); H₂, N₂, CH₄, CO, Ar, O₂ dissolve physically'],
   ['urea', 'Urea synthesis (NH₃–CO₂–H₂O–urea)', 'urea', 'urea HP synthesis loop — reactor, stripper, carbamate condenser, scrubber: UNIQUAC liquid with the carbamate and bicarbonate chemical equilibria (Voskov, Pilaar & Rietveld 2016; equilibrium urea conversions within 0.25 % of their published values), urea formation solved by the urea reactor, Peng–Robinson vapour. Holds NH₃, CO₂, H₂O, urea and inert gases (N₂, H₂, O₂, Ar, CH₄, CO)'],
   ['hot-k2co3', 'Hot potassium carbonate — acid gas', 'elec', 'Benfield-type CO₂ removal (no activator chemistry): Pitzer electrolyte model with the USGS PHREEQC parameters — K⁺, CO₃²⁻, HCO₃⁻, CO₂, OH⁻; give the solvent as K₂CO₃ + water + CO₂'],
+  ['sour-water', 'Sour water (NH₃ / H₂S / CO₂)', 'aq', 'sour water strippers, refinery and gasification condensates, ammonia-plant process condensate: NH₃, H₂S and CO₂ dissociation, carbamate and NaOH (caustic) in water — equilibrium constants of Edwards / Kawazuishi–Prausnitz, Pitzer ion terms fitted here to 99 measured partial pressures (20–260 °C); light gases dissolve by Henry’s law'],
+  ['aqueous-electrolyte', 'Aqueous electrolytes — brines, caustic, acids', 'aq', 'brines, seawater and cooling water, caustic and acid solutions, evaporators and scaling checks: Pitzer model on the USGS PHREEQC pitzer.dat database — Na⁺, K⁺, Ca²⁺, Mg²⁺, Cl⁻, SO₄²⁻, HSO₄⁻, OH⁻, HCO₃⁻, CO₃²⁻, CO₂ and HCl; give salts as their formulas (NaCl, CaCl₂, Na₂SO₄, NaOH, H₂SO₄ …). Mineral saturation indices (calcite, gypsum, halite …) are reported; solids are not precipitated'],
 ];
 const PKG_LABEL = Object.fromEntries([['classic', 'Classic engine models'], ...PKGS.map((p) => [p[0], p[1]])]);
-const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'amine-mdea': 'MDEA', 'hot-k2co3': 'K₂CO₃', steam: 'IF97', urea: 'Urea' };
+const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'amine-mdea': 'MDEA', 'hot-k2co3': 'K₂CO₃', 'sour-water': 'Sour water', 'aqueous-electrolyte': 'Aq. electrolyte', steam: 'IF97', urea: 'Urea' };
 const isActivityPkg = (m) => m === 'nrtl' || m === 'uniquac' || m === 'wilson' || m === 'unifac' || m === 'modunifac';
 /* flowsheet size limits — the server's caps (mb-flowsheet.js, material-balance.js) */
 const LIMITS = { blocks: 150, streams: 400, feeds: 60, comps: 60, specs: 10, sensPoints: 60, sensOut: 16 };
-const isElecPkg = (m) => m === 'amine-mea' || m === 'amine-mdea' || m === 'hot-k2co3';
+const isElecPkg = (m) => m === 'amine-mea' || m === 'amine-mdea' || m === 'hot-k2co3' || m === 'sour-water' || m === 'aqueous-electrolyte';
+const isAqPkg = (m) => m === 'sour-water' || m === 'aqueous-electrolyte';
+/* STEP 38: what each water-based electrolyte method holds besides light gases */
+const AQ_SALTS = ['NaCl', 'KCl', 'CaCl2', 'MgCl2', 'Na2SO4', 'K2SO4', 'MgSO4', 'CaSO4', 'NaOH', 'KOH', 'Na2CO3', 'NaHCO3', 'K2CO3', 'KHCO3', 'H2SO4'];
+const AQ_KEYS = { 'sour-water': ['H2O', 'NH3', 'H2S', 'CO2', 'NaOH'], 'aqueous-electrolyte': ['H2O', 'CO2', 'HCl', ...AQ_SALTS] };
 const UREA_PKG_KEYS = ['NH3', 'CO2', 'H2O', 'urea', 'N2', 'H2', 'O2', 'Ar', 'CH4', 'CO', 'He'];
 /* acid-gas packages: what the liquid may hold besides water, CO2 and the solvent */
-const ELEC_SOLVENT = { 'amine-mea': 'MEA', 'amine-mdea': 'methyl-diethanolamine', 'hot-k2co3': 'K2CO3' };
+const ELEC_SOLVENT = { 'amine-mea': 'MEA', 'amine-mdea': 'methyl-diethanolamine', 'hot-k2co3': 'K2CO3', 'sour-water': 'H2O', 'aqueous-electrolyte': 'H2O' };
 const ELEC_GASES = ['N2', 'H2', 'O2', 'CH4', 'CO', 'Ar', 'He', 'C2H6', 'C2H4', 'C3H8', 'neon', 'krypton', 'xenon'];
 
 /* =====================================================================
@@ -953,19 +965,38 @@ const TYPES = {
   },
   'sep': {
     label: 'Component separator', group: 'mix', module: 'component-splitter',
-    desc: 'Split by component (e.g. CO₂ wash)',
+    desc: 'Split by component · 2–6 outlets', varOut: true,
     inlets: { min: 1, max: 1, initial: 1, label: () => 'Feed' },
-    outlets: () => ['Separated', 'Remainder'],
-    fields: [{ key: 'splits', kind: 'splits', label: 'Fraction of each component to “Separated”' }],
-    note: 'Pure mass split at feed T and P — listed components go to “Separated” in the given fraction, everything else to “Remainder” (idealised wash, PSA, membrane, knock-out).',
-    api(p) {
-      const o = {};
-      for (const r of p.splits || []) if (r.key) o[r.key] = num(r.f) ? r.f : 0;
-      return { splits: o };
+    outlets: (b) => (!b || b.nOut <= 2 ? ['Separated', 'Remainder'] : Array.from({ length: b.nOut }, (_, i) => (i === b.nOut - 1 ? 'Remainder' : 'Outlet ' + (i + 1)))),
+    nOut: { min: 2, max: 6, initial: 2 },
+    fields: [{ key: 'splits', kind: 'splits', label: 'Fraction of each component to each outlet' },
+      { key: 'outlet_specs', kind: 'sepout', label: 'Outlet conditions' }],
+    note: 'Pure split by component — each listed component goes to the outlets in the fractions given and the rest to “Remainder” (idealised wash, PSA, membrane, knock-out). Outlets leave at the feed temperature and pressure unless conditions are set; the duty balances the energy. Drag a stream from the free port to add an outlet (up to 6).',
+    api(p, ins, b) {
+      const n = b ? b.nOut : 2;
+      let o;
+      if (n <= 2) {
+        const m = {};
+        for (const r of p.splits || []) if (r.key) m[r.key] = num(r.f) ? r.f : 0;
+        o = { splits: m };
+      } else {
+        const m = {};
+        for (const r of p.splits || []) if (r.key) m[r.key] = Array.from({ length: n - 1 }, (_, j) => { const v = j === 0 ? r.f : (r.more || [])[j - 1]; return num(v) ? v : 0; });
+        o = { splits_n: m, n_outlets: n };
+      }
+      const rig = b && isRig(b);
+      const oc = Array.from({ length: n }, (_, j) => {
+        const c = (p.outlet_specs || [])[j] || {}, out = {};
+        if (c.mode === 'TP' || c.mode === 'P') { if (c.mode === 'TP' && num(c.T_K)) out.T_K = c.T_K; if (num(c.P_bar)) out.P_bar = c.P_bar; }
+        if (c.mode === 'PVF' && rig) { if (num(c.P_bar)) out.P_bar = c.P_bar; if (num(c.vf)) out.vapour_fraction = c.vf; }
+        return out;
+      });
+      if (oc.some((c) => Object.keys(c).length)) o.outlets = oc;
+      return o;
     },
-    geo() {
-      const w = 62, h = 70;
-      return { w, h, ins: [P(0, h / 2, -1, 0)], outs: [P(w, h * 0.25, 1, 0), P(w, h * 0.75, 1, 0)] };
+    geo(b, nIn, nOut) {
+      const w = 62, h = Math.max(70, 28 * nOut + 8);
+      return { w, h, ins: [P(0, h / 2, -1, 0)], outs: nOut <= 2 ? [P(w, h * 0.25, 1, 0), P(w, h * 0.75, 1, 0)] : side('R', nOut, w, h, 16 / h, 1 - 16 / h) };
     },
     icon: (w, h, c) => `<rect class="shape" x="0" y="0" width="${w}" height="${h}" rx="6" fill="url(#vg)" stroke="${c}"/>
       <path d="M8,${h - 10} L${w - 8},10" stroke="${c}" stroke-width="1.4" stroke-dasharray="4 3" fill="none"/>
@@ -1494,7 +1525,7 @@ TYPES.mixer.rig = {
 TYPES.splitter.rig = { module: 'r-splitter', fields: TYPES.splitter.fields };
 TYPES.sep.rig = {
   module: 'r-component-splitter', fields: TYPES.sep.fields, api: TYPES.sep.api,
-  note: 'Split by component at feed T and P; both outlets are flashed with the property method (phase and enthalpy are rigorous).',
+  note: 'Split by component; every outlet is flashed with the property method at the feed conditions or at its own temperature, pressure or vapour fraction (Aspen Sep “Outlet Flash”), and the duty balances the energy.',
 };
 TYPES.flash.rig = {
   module: 'r-flash',
@@ -2194,7 +2225,11 @@ function pkgSpec(model) {
   if (m === 'steam' || m === 'urea') return o;
   const P = M.pkg || {};
   if ((isActivityPkg(m) || isElecPkg(m)) && (P.vapour === 'pr' || P.vapour === 'srk')) o.vapour = P.vapour;
+  if ((isActivityPkg(m) || isElecPkg(m)) && P.liquid_enthalpy === 'hvap') o.liquid_enthalpy = 'hvap';   // STEP 39
   if (isElecPkg(m)) return o;          // acid-gas packages: no binary overrides, VL only
+  if (isActivityPkg(m) && P.excess_enthalpy === true) o.excess_enthalpy = true;            // STEP 40: heat of mixing
+  if (isActivityPkg(m) && P.poynting === false) o.poynting = false;
+  if (['rackett', 'costald'].includes(P.liquid_volume) || (P.liquid_volume === 'eos' && (m === 'pr' || m === 'srk' || (isActivityPkg(m) && (P.vapour === 'pr' || P.vapour === 'srk'))))) o.liquid_volume = P.liquid_volume;
   if (P.henry === false && m !== 'pr' && m !== 'srk') o.henry = false;
   if (P.free_water === false && (m === 'pr' || m === 'srk')) o.free_water = false;   // STEP 32
   if (P.association === false && m !== 'pr' && m !== 'srk') o.association = false;
@@ -2245,7 +2280,7 @@ function genericParams(T, p) {
       });
       continue;
     }
-    if (f.kind === 'splits' || f.kind === 'colfeeds' || f.kind === 'colspecs' || f.kind === 'sidedraws' || f.kind === 'complist' || f.kind === 'curve') continue;
+    if (f.kind === 'splits' || f.kind === 'sepout' || f.kind === 'colfeeds' || f.kind === 'colspecs' || f.kind === 'sidedraws' || f.kind === 'complist' || f.kind === 'curve') continue;
     if (f.kind === 'nrtl') {
       o.nrtl = { pairs: (p.nrtl_pairs || []).filter((r) => r.i && r.j && r.i !== r.j).map((r) => ({
         i: r.i, j: r.j, aij: num(r.aij) ? r.aij : 0, aji: num(r.aji) ? r.aji : 0, bij: num(r.bij) ? r.bij : 0, bji: num(r.bji) ? r.bji : 0, cij: num(r.cij) ? r.cij : 0.3 })) };
@@ -2263,7 +2298,7 @@ function apiParams(b, ins) {
     return o;
   }
   const T = TYPES[b.type];
-  return T.api ? T.api(b.params, ins) : genericParams(T, b.params);
+  return T.api ? T.api(b.params, ins, b) : genericParams(T, b.params);
 }
 
 function typeColor(t) { return GCOL[TYPES[t].group] || '#334'; }
@@ -2444,11 +2479,40 @@ function geoOf(b) {
   if (g) return g;
   const T = TYPES[b.type];
   const gi = hasGhostIn(b), go = hasGhostOut(b);
-  g = T.geo(b, b.nIn + (gi ? 1 : 0), b.nOut + (go ? 1 : 0));
+  g = orientGeo(b, T.geo(b, b.nIn + (gi ? 1 : 0), b.nOut + (go ? 1 : 0)));
   g.ghostIn = gi ? b.nIn : -1;
   g.ghostOut = go ? b.nOut : -1;
   GEO.set(b.id, g);
   return g;
+}
+/** STEP 40: icon orientation — b.orient = {rot: 0|90|180|270 (clockwise), fx: mirrored left–right}; ports and icon follow */
+function orientGeo(b, g) {
+  const o = b.orient;
+  if (!o || (!o.rot && !o.fx)) return g;
+  const w0 = g.w, h0 = g.h, rot = ((o.rot || 0) % 360 + 360) % 360;
+  const tp = (p) => {
+    let x = p.x, y = p.y, dx = p.d[0], dy = p.d[1];
+    if (o.fx) { x = w0 - x; dx = -dx; }
+    if (rot === 90) { [x, y] = [h0 - y, x]; [dx, dy] = [-dy, dx]; }
+    else if (rot === 180) { x = w0 - x; y = h0 - y; dx = -dx; dy = -dy; }
+    else if (rot === 270) { [x, y] = [y, w0 - x]; [dx, dy] = [dy, -dx]; }
+    return Object.assign({}, p, { x, y, d: [dx, dy] });
+  };
+  const swap = rot === 90 || rot === 270;
+  const rt = rot === 90 ? `translate(${h0},0) rotate(90)` : rot === 180 ? `translate(${w0},${h0}) rotate(180)` : rot === 270 ? `translate(0,${w0}) rotate(270)` : '';
+  const ft = o.fx ? `translate(${w0},0) scale(-1,1)` : '';
+  return Object.assign({}, g, { w: swap ? h0 : w0, h: swap ? w0 : h0, w0, h0, tf: (rt + ' ' + ft).trim(), ins: g.ins.map(tp), outs: g.outs.map(tp) });
+}
+function rotateBlock(b, how) {
+  const o = b.orient = b.orient || { rot: 0, fx: false };
+  if (how === 'rot') o.rot = ((o.rot || 0) + 90) % 360;
+  else if (how === 'fx') { o.fx = !o.fx; if (o.rot === 90 || o.rot === 270) o.rot = (o.rot + 180) % 360; }
+  else if (how === 'fy') { o.fx = !o.fx; if (!(o.rot === 90 || o.rot === 270)) o.rot = ((o.rot || 0) + 180) % 360; }
+  if (!o.rot && !o.fx) delete b.orient;
+  const g0 = GEO.get(b.id) || null;
+  GEO.delete(b.id);
+  if (g0) { const g1 = geoOf(b); b.x = snapV(b.x + (g0.w - g1.w) / 2); b.y = snapV(b.y + (g0.h - g1.h) / 2); }     // turn about the centre
+  commit(); renderCanvas();
 }
 function portWorld(b, io, i) {
   const g = geoOf(b);
@@ -2495,14 +2559,14 @@ function route(s) {
   const goodZ = (x, y) => (dz[0] ? (x - zx) * dz[0] >= -0.5 : true) && (dz[1] ? (y - zy) * dz[1] >= -0.5 : true);
   if (hA && hZ) {
     if (da[0] === -dz[0] && (zx - ax) * da[0] >= 0) {          // forward: → ... →
-      const mx = (ax + zx) / 2;
+      const mx = num(s.midX) ? Math.min(Math.max(s.midX, Math.min(ax, zx)), Math.max(ax, zx)) : (ax + zx) / 2;
       pts.push({ x: mx, y: ay }, { x: mx, y: zy });
     } else if (da[0] === dz[0]) {                               // both facing the same way
       const xo = da[0] > 0 ? Math.max(ax, zx) : Math.min(ax, zx);
       pts.push({ x: xo, y: ay }, { x: xo, y: zy });
     } else {                                                    // backward (recycle): go round underneath
       const bot = Math.max(aBlk ? blockBox(aBlk).y1 : ay, zBlk ? blockBox(zBlk).y1 : zy) + 34;
-      const yd = (s._lane || 0) * 12 + bot;
+      const yd = num(s.midY) ? s.midY : (s._lane || 0) * 12 + bot;
       pts.push({ x: ax, y: yd }, { x: zx, y: yd });
     }
   } else if (hA && !hZ) {
@@ -2512,7 +2576,7 @@ function route(s) {
     if (goodA(ax, zy) && goodZ(ax, zy)) pts.push({ x: ax, y: zy });
     else pts.push({ x: zx, y: ay });
   } else {
-    if (da[1] === -dz[1] && (zy - ay) * da[1] >= 0) { const my = (ay + zy) / 2; pts.push({ x: ax, y: my }, { x: zx, y: my }); }
+    if (da[1] === -dz[1] && (zy - ay) * da[1] >= 0) { const my = num(s.midY) ? Math.min(Math.max(s.midY, Math.min(ay, zy)), Math.max(ay, zy)) : (ay + zy) / 2; pts.push({ x: ax, y: my }, { x: zx, y: my }); }
     else { const yo = da[1] < 0 ? Math.min(ay, zy) : Math.max(ay, zy); pts.push({ x: ax, y: yo }, { x: zx, y: yo }); }
   }
   if (!freeZ) pts.push(z1);
@@ -2646,16 +2710,57 @@ function streamSVG(s, temp) {
   /* stream-data tag: feeds → one line to the left, products → one line to the right, internal → 3 lines below */
   const r = RES && RES.streams && RES.streams[s.id];
   if (PREFS.tags && r) {
-    const lines = [
-      fmt(dispT(r.T_K), 4) + ' ' + PREFS.tu,
-      fmt(dispP(r.P_bar), 4) + ' ' + PREFS.pu,
-      fmt(dispF(r.mass_flow_kg_h, r.components), 5) + ' ' + PREFS.fu,
-    ];
-    TAGREQ.push({ cx, cy, w, hh, one: feed || prod, feed, lines, cls: 'stag' + (RES.stale ? ' stale' : '') });
+    const lines = tagLines(r);
+    if (lines.length) TAGREQ.push({ cx, cy, w, hh, one: feed || prod, feed, lines, cls: 'stag' + (RES.stale ? ' stale' : '') });
   }
   return h + '</g>';
 }
 
+/* STEP 40: which stream results the tags show (Aspen “Stream Results” display options) */
+const TAG_FIELDS = [['T', 'Temperature'], ['P', 'Pressure'], ['VF', 'Vapour fraction'], ['F', 'Flow (display unit)'], ['M', 'Molar flow'], ['V', 'Volume flow (actual)']];
+function tagSel() { const t = PREFS.tagf; return t && typeof t === 'object' ? t : { T: true, P: true, F: true }; }
+function tagUnit(k) { return { T: PREFS.tu, P: PREFS.pu, VF: '–', F: PREFS.fu, M: 'kmol/h', V: 'm³/h' }[k]; }
+function tagLines(r) {
+  const t = tagSel(), bare = !!PREFS.tagLegend, out = [];
+  const u = (k) => (bare ? '' : ' ' + tagUnit(k));
+  if (t.T) out.push(fmt(dispT(r.T_K), 4) + u('T'));
+  if (t.P) out.push(fmt(dispP(r.P_bar), 4) + u('P'));
+  if (t.VF) out.push(num(r.vapour_fraction) ? (bare ? '' : 'VF ') + fmt(r.vapour_fraction, 3) : (bare ? '—' : 'VF —'));
+  if (t.F) out.push(fmt(dispF(r.mass_flow_kg_h, r.components), 5) + u('F'));
+  if (t.M) { const mw = r.components ? mwMix(r.components) : null; out.push(mw ? fmt(r.mass_flow_kg_h / mw, 5) + u('M') : '—'); }
+  if (t.V) { const rho = r.rig && r.rig.props && r.rig.props.rho_kgm3; out.push(num(rho) && rho > 0 ? fmt(r.mass_flow_kg_h / rho, 5) + u('V') : '—'); }
+  return out;
+}
+/** legend of the stream tags, under the drawing (part of the exported drawing too) */
+function tagLegendSVG() {
+  if (!PREFS.tags || !PREFS.tagLegend || !RES || !RES.streams) return '';
+  const t = tagSel(), rows = TAG_FIELDS.filter(([k]) => t[k]).map(([k, n]) => n + ', ' + tagUnit(k));
+  if (!rows.length) return '';
+  let x0 = Infinity, y1 = -Infinity;
+  for (const b of [...BLKBOX, ...TAGBOX]) { x0 = Math.min(x0, b[0]); y1 = Math.max(y1, b[1] + b[3]); }
+  for (const st of M.streams) for (const q of route(st)) { x0 = Math.min(x0, q.x); y1 = Math.max(y1, q.y); }
+  if (!isFinite(x0)) return '';
+  const lines = ['Stream results, top to bottom (one line: left to right):', ...rows.map((r2, i) => (i + 1) + '. ' + r2)];
+  const w = Math.max(...lines.map((l) => l.length)) * 5.9 + 14, h = lines.length * 13 + 8, x = x0, y = y1 + 22;
+  TAGBOX.push([x, y, w, h]);
+  return `<g class="stag legend" pointer-events="none"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="3"/>` +
+    lines.map((l, i) => `<text x="${(x + 6).toFixed(1)}" y="${(y + 14 + i * 13).toFixed(1)}"${i === 0 ? ' style="font-weight:600"' : ''}>${esc(l)}</text>`).join('') + '</g>';
+}
+function tagMenu(anchor) {
+  const m = el('div', { class: 'menu', style: 'position:absolute;z-index:40;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;box-shadow:0 6px 24px rgba(15,23,42,.14);font-size:12.5px;min-width:220px' });
+  const t = Object.assign({}, tagSel());
+  const row = (lab, get, set) => { const cb = el('input', { type: 'checkbox', style: 'width:15px;height:15px' }); cb.checked = !!get(); cb.addEventListener('change', () => { set(cb.checked); savePrefs(); renderCanvas(); }); return el('label', { class: 'chk', style: 'display:flex;gap:6px;align-items:center;margin:3px 0' }, cb, el('span', null, lab)); };
+  m.append(el('div', { style: 'font-weight:600;margin-bottom:4px' }, 'Stream results on the drawing'));
+  for (const [k, n] of TAG_FIELDS) m.append(row(n, () => t[k], (v) => { t[k] = v; PREFS.tagf = Object.assign({}, t); if (!PREFS.tags) { PREFS.tags = true; syncToggles(); } }));
+  m.append(el('div', { style: 'border-top:1px solid var(--line);margin:6px 0' }));
+  m.append(row('Heat and work on the units', () => PREFS.tagQ !== false, (v) => { PREFS.tagQ = v; }));
+  m.append(row('Values only, with a legend', () => !!PREFS.tagLegend, (v) => { PREFS.tagLegend = v; }));
+  const r = anchor.getBoundingClientRect(), host = $('stage').getBoundingClientRect();
+  m.style.left = (r.left - host.left) + 'px'; m.style.top = (r.bottom - host.top + 4) + 'px';
+  $('stage').append(m);
+  const off = (e) => { if (!m.contains(e.target) && e.target !== anchor) { m.remove(); document.removeEventListener('pointerdown', off, true); } };
+  setTimeout(() => document.addEventListener('pointerdown', off, true), 0);
+}
 /** second pass: put each stream-data tag where it hits no block, label or other tag */
 function placeTags() {
   let h = '';
@@ -2747,10 +2852,10 @@ function blockSVG(b) {
   const by1 = Math.max(g.h + 8, ly + 6);
   h += `<rect class="selbox" x="${bx0}" y="-14" width="${bx1 - bx0}" height="${by1 + 14}" rx="8" fill="none" stroke="none"/>`;
   h += `<rect class="body" x="0" y="0" width="${g.w}" height="${g.h}" fill="transparent"/>`;
-  h += `<g class="body">${T.icon(g.w, g.h, c, b)}</g>`;
+  h += g.tf ? `<g class="body" transform="${g.tf}">${T.icon(g.w0, g.h0, c, b)}</g>` : `<g class="body">${T.icon(g.w, g.h, c, b)}</g>`;
   h += `<text class="bname" x="${lx}" y="${ly}" text-anchor="${la}">${esc(b.name)}</text>`;
   const br = RES && RES.blocks && RES.blocks[b.id];
-  if (PREFS.tags && br && br.result) {
+  if (PREFS.tags && PREFS.tagQ !== false && br && br.result) {
     const eb = br.result.energy_balance || {};
     const D = br.result.details || {};
     const dl = Array.isArray(D.duties) ? D.duties.filter((d) => d.name === 'condenser' || d.name === 'reboiler') : null;
@@ -2788,6 +2893,7 @@ function renderCanvas() {
   let sh = '';
   for (const s of M.streams) if (!(DRAG && DRAG.hideStream === s.id)) sh += streamSVG(s);
   sh += placeTags();
+  sh += tagLegendSVG();
   let bh = '';
   for (const b of M.blocks) bh += blockSVG(b);
   let oh = '';
@@ -2802,6 +2908,8 @@ function renderCanvas() {
       const pts = route(s);
       const a = pts[0], z = pts[pts.length - 1];
       if (s.from) oh += `<circle class="ehandle" data-k="end" data-id="${s.id}" data-w="start" cx="${a.x}" cy="${a.y}" r="5.5"><title>Drag to disconnect / reconnect</title></circle>`;
+      const mh = midHandle(s, pts);
+      if (mh) oh += `<rect class="ehandle" data-k="mid" data-id="${s.id}" x="${(mh.x - 5).toFixed(1)}" y="${(mh.y - 5).toFixed(1)}" width="10" height="10" rx="2" style="cursor:${mh.axis === 'x' ? 'ew-resize' : 'ns-resize'}"><title>Drag to reroute this stream (Reset route in the stream panel undoes it)</title></rect>`;
       if (s.to) oh += `<circle class="ehandle" data-k="end" data-id="${s.id}" data-w="end" cx="${z.x}" cy="${z.y}" r="5.5"><title>Drag to disconnect / reconnect</title></circle>`;
     }
   }
@@ -2910,6 +3018,9 @@ svg.addEventListener('pointermove', (e) => {
   const w = toWorld(e.clientX, e.clientY);
   if (DRAG.mode === 'pan') {
     VIEW.x = DRAG.vx + dx; VIEW.y = DRAG.vy + dy; applyView();
+  } else if (DRAG.mode === 'mid') {
+    const s = streamById(DRAG.sid);
+    if (s) { if (DRAG.axis === 'x') s.midX = snapV(w.x); else s.midY = snapV(w.y); renderSoon(); }
   } else if (DRAG.mode === 'box') {
     DRAG.w1 = w; renderSoon();
   } else if (DRAG.mode === 'gmove') {
@@ -2938,8 +3049,30 @@ svg.addEventListener('pointermove', (e) => {
   }
 });
 
+/** STEP 40: the movable middle run of a connected stream: a vertical run (moves in x) or a horizontal one (moves in y) */
+function midHandle(s, pts) {
+  if (!s.from || !s.to || pts.length < 4) return null;
+  const pa = portWorld(blockById(s.from.b), 'out', s.from.p), pz = portWorld(blockById(s.to.b), 'in', s.to.p);
+  if (!pa || !pz) return null;
+  const da = pa.d, dz = pz.d;
+  let axis = null;
+  if (da[0] && dz[0]) axis = da[0] === -dz[0] && (pz.x - pa.x) * da[0] >= 0 ? 'x' : da[0] === -dz[0] ? 'y' : null;
+  else if (da[1] && dz[1] && da[1] === -dz[1] && (pz.y - pa.y) * da[1] >= 0) axis = 'y';
+  if (!axis) return null;
+  let best = null, bl = 8;
+  for (let i = 1; i < pts.length - 2; i++) {
+    const a = pts[i], c = pts[i + 1];
+    const L = axis === 'x' ? (Math.abs(a.x - c.x) < 0.5 ? Math.abs(a.y - c.y) : 0) : (Math.abs(a.y - c.y) < 0.5 ? Math.abs(a.x - c.x) : 0);
+    if (L > bl) { bl = L; best = { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, axis }; }
+  }
+  return best;
+}
 function startDrag(e) {
   const h = DRAG.hit;
+  if (h.kind === 'mid') {
+    const s = streamById(h.id), mh = s && midHandle(s, route(s));
+    if (mh) { DRAG.mode = 'mid'; DRAG.sid = s.id; DRAG.axis = mh.axis; DRAG.orig = JSON.stringify(s); return; }
+  }
   if (h.kind === 'bg' && (DRAG.shift || DRAG.mod)) { DRAG.mode = 'box'; DRAG.w0 = toWorld(DRAG.sx, DRAG.sy); return; }    // box-select
   if (h.kind === 'block' && MSEL.has(h.id)) {                                                                              // move the selected units together
     DRAG.mode = 'gmove'; DRAG.group = selBlocks().map((b) => ({ id: b.id, x: b.x, y: b.y }));
@@ -3042,6 +3175,7 @@ function endPointer(e, cancelled) {
   if (cancelled) { if (d.orig) restoreStream(d); renderCanvas(); return; }
   if (d.mode === 'pending') { clickOn(d.hit, e); return; }
   if (d.mode === 'move' || d.mode === 'gmove') { commit(); return; }
+  if (d.mode === 'mid') { commit(); renderInspector(); return; }
   if (d.mode === 'box') { finishBox(d); return; }
   if (d.mode === 'wire') { finishWire(d, toWorld(e.clientX, e.clientY)); return; }
   renderCanvas();
@@ -3221,6 +3355,67 @@ function addBlockAt(type, pt, noStubs) {
   }
   commit();
   select({ kind: 'block', id: b.id }, false);
+  ensureVisible();
+  return b;
+}
+/** STEP 40: the stream whose drawn path passes within a few pixels of a world point */
+function streamAt(w) {
+  let best = null, bd = 9 / Math.min(VIEW.k, 1.5);
+  for (const st of M.streams) {
+    const pts = route(st);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], c = pts[i + 1], L2 = (c.x - a.x) ** 2 + (c.y - a.y) ** 2;
+      const t = L2 > 0 ? Math.max(0, Math.min(1, ((w.x - a.x) * (c.x - a.x) + (w.y - a.y) * (c.y - a.y)) / L2)) : 0;
+      const d = Math.hypot(w.x - a.x - t * (c.x - a.x), w.y - a.y - t * (c.y - a.y));
+      if (d < bd) { bd = d; best = st; }
+    }
+  }
+  return best;
+}
+/** drop a new unit onto a stream: the stream now ends at the unit's first inlet and a new stream leaves its first outlet for the old destination */
+function insertIntoStream(type, pt, st) {
+  if (M.blocks.length >= LIMITS.blocks) { toast('A flowsheet holds at most ' + LIMITS.blocks + ' units', 'err'); return null; }
+  const T = TYPES[type];
+  const b = newBlock(type, 0, 0);
+  const g = T.geo(b, b.nIn, b.nOut);
+  /* centre the unit on the stream; if it would sit on another unit, slide it along the stream to the nearest free place */
+  const pts = route(st);
+  let seg = 0, bd = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], c = pts[i + 1], L2 = (c.x - a.x) ** 2 + (c.y - a.y) ** 2;
+    const t = L2 > 0 ? Math.max(0, Math.min(1, ((pt.x - a.x) * (c.x - a.x) + (pt.y - a.y) * (c.y - a.y)) / L2)) : 0;
+    const d = Math.hypot(pt.x - a.x - t * (c.x - a.x), pt.y - a.y - t * (c.y - a.y));
+    if (d < bd) { bd = d; seg = i; }
+  }
+  const free = (x, y) => !M.blocks.some((o) => { const bb = blockBox(o); return x + g.w > bb.x0 - 44 && x < bb.x1 + 44 && y + g.h > bb.y0 - 24 && y < bb.y1 + 24; });     // room for the connecting stubs
+  const cand = [{ x: pt.x, y: pt.y }];
+  for (const k of [seg, seg - 1, seg + 1]) {
+    const a = pts[k], c = pts[k + 1];
+    if (!a || !c) continue;
+    for (const t of [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9]) cand.push({ x: a.x + t * (c.x - a.x), y: a.y + t * (c.y - a.y) });
+  }
+  let at = cand.find((q) => free(snapV(q.x - g.w / 2), snapV(q.y - g.h / 2)));
+  let tail = 0;
+  if (!at && !st.from && num(st.fx) && free(snapV(st.fx - g.w / 2), snapV(st.fy - g.h / 2))) { at = { x: st.fx, y: st.fy }; tail = -1; }       // no room: take the feed's free end and move it out
+  else if (!at && !st.to && num(st.tx) && free(snapV(st.tx - g.w / 2), snapV(st.ty - g.h / 2))) { at = { x: st.tx, y: st.ty }; tail = 1; }
+  at = at || cand[0];
+  b.x = snapV(at.x - g.w / 2); b.y = snapV(at.y - g.h / 2);
+  const sa = pts[seg], sb = pts[seg + 1];
+  if (g.ins[0] && sa && sb && Math.abs(sa.y - sb.y) < 0.5 && Math.abs(at.y - sa.y) < 0.5 && Math.abs(at.y - g.ins[0].y - b.y) <= 10) b.y = Math.round(at.y - g.ins[0].y);     // inlet in line with a horizontal stream
+  if (!st.from && num(st.fx) && (tail < 0 || st.fx > b.x - 50)) st.fx = b.x - 90;           // keep the feed's free end clear of the new unit
+  const tx1 = b.x + g.w + 90;
+  M.blocks.push(b);
+  GEO.delete(b.id);
+  const oldTo = st.to, endXY = st.to ? null : { tx: st.tx, ty: st.ty };
+  st.to = { b: b.id, p: 0 };
+  delete st.tx; delete st.ty;
+  if (oldTo) newStream({ b: b.id, p: 0 }, oldTo, {});
+  else newStream({ b: b.id, p: 0 }, null, endXY && num(endXY.tx) ? { tx: Math.max(endXY.tx, tx1 - 30), ty: endXY.ty } : {});
+  for (let i = 1; i < b.nIn; i++) addStub(b, 'in', i, false);
+  for (let j = 1; j < b.nOut; j++) addStub(b, 'out', j, false);
+  commit();
+  select({ kind: 'block', id: b.id }, false);
+  toast(b.name + ' inserted into ' + st.name);
   ensureVisible();
   return b;
 }
@@ -3551,6 +3746,8 @@ const METHOD_HELP = {
   'amine-mea': ['CO₂ loading up to about 0.55 mol/mol; above 0.38 mol/mol at regenerator temperatures the CO₂ pressure is over-predicted (≈ 20–40 % in total pressure at 0.40–0.44, 120 °C) — warnings are given.', 'Bubble point must lie below 250 °C.'],
   'amine-mdea': ['Fitted 20–200 °C, up to 75 wt % MDEA and CO₂ loading 1.4 mol/mol; with piperazine 40–160 °C (solid hydrate possible above about 12 wt % piperazine below 25 °C) — warnings outside.'],
   'hot-k2co3': ['Pitzer parameters fitted at about 90–100 °C — extrapolated above 120 °C; conversion up to the bicarbonate end point (1); a solubility check flags concentrated solutions.'],
+  'sour-water': ['Fitted 20–260 °C and up to about 10 mol solute (NH₃ + H₂S + CO₂) per kg water; above that the speciation is held at 10 mol/kg and pressures are extrapolated (flagged). Above 200 °C the equilibrium constants are extrapolated.', 'Holds H₂O, NH₃, H₂S, CO₂ and NaOH; light gases (N₂, H₂, CH₄, CO, Ar, O₂) dissolve by Henry’s law. Phenols, cyanide, organic acids and amines are not modelled. More than about 2 mol % NaOH is indicative only.'],
+  'aqueous-electrolyte': ['PHREEQC pitzer.dat temperature functions: reliable 0–100 °C, usable to about 200 °C (warning above); ionic strength up to about 6–9 mol/kg depending on the salts. Laliberté density, viscosity and heat capacity are fitted to roughly 0–140 °C (narrower for some salts) and clamped outside.', 'Holds H₂O, CO₂, HCl and the salts NaCl, KCl, CaCl₂, MgCl₂, Na₂SO₄, K₂SO₄, MgSO₄, CaSO₄, NaOH, KOH, Na₂CO₃, NaHCO₃, K₂CO₃, KHCO₃, H₂SO₄; light gases dissolve by Henry’s law. NH₃ and H₂S need the sour-water method. Solids are not precipitated: a positive saturation index is reported and warned.'],
   urea: ['Fitted 135–230 °C, 35–450 bar, N/C 2–5.5, (H₂O − urea)/C −0.75 to 1.2 (Voskov 2016) — warnings outside.', 'Holds NH₃, CO₂, H₂O, urea and the inert gases N₂, H₂, O₂, Ar, CH₄, CO.'],
   classic: ['Each unit uses its own engine model (NIST ideal-gas enthalpies; flash drums by Raoult, Peng–Robinson or NRTL individually). Choose a property method for rigorous units.'],
 };
@@ -3640,6 +3837,11 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Delete' || e.key === 'Backspace') { if (SEL || MSEL.size) { e.preventDefault(); deleteSelection(); } return; }
+  if (!mod && !e.altKey && SEL && SEL.kind === 'block' && ['r', 'R', 'h', 'H', 'v', 'V'].includes(e.key)) {     // STEP 40: rotate / flip the icon
+    const b = blockById(SEL.id);
+    if (b) { e.preventDefault(); rotateBlock(b, e.key.toLowerCase() === 'r' ? 'rot' : e.key.toLowerCase() === 'h' ? 'fx' : 'fy'); }
+    return;
+  }
   if (e.key.startsWith('Arrow') && selBlocks().length && !(SEL && SEL.kind === 'stream')) {
     const st = e.shiftKey ? 1 : 10;
     const dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
@@ -3701,7 +3903,11 @@ $('palList').addEventListener('pointerup', (e) => {
   if (pd.ghost) {
     pd.ghost.remove();
     const r = $('stage').getBoundingClientRect();
-    if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) addBlockAt(pd.type, toWorld(e.clientX, e.clientY));
+    if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) {
+      const w = toWorld(e.clientX, e.clientY), hit = streamAt(w);
+      if (hit && TYPES[pd.type].inlets.min >= 1 && TYPES[pd.type].inlets.max >= 1 && (TYPES[pd.type].nOut ? TYPES[pd.type].nOut.min : TYPES[pd.type].outlets({ nOut: 1, nIn: 1, params: {} }).length) >= 1) insertIntoStream(pd.type, w, hit);
+      else addBlockAt(pd.type, w);
+    }
   } else addBlockAt(pd.type, freeSpot());
 });
 $('palList').addEventListener('pointercancel', () => { if (PD && PD.ghost) PD.ghost.remove(); PD = null; });
@@ -3922,6 +4128,7 @@ function inspectBlock(b, head, body) {
     if (f.kind === 'fractions') s1.append(fractionsField(b));
     else if (f.kind === 'reactions') s1.append(f.equil ? equilReactionsField(b) : reactionsField(b));
     else if (f.kind === 'splits') s1.append(splitsField(b));
+    else if (f.kind === 'sepout') s1.append(sepOutField(b));
     else if (f.kind === 'nrtl') s1.append(nrtlField(b));
     else if (f.kind === 'colfeeds') s1.append(colFeedsField(b));
     else if (f.kind === 'colspecs') s1.append(colSpecsField(b));
@@ -4084,16 +4291,44 @@ function equilReactionsField(b) {
 function syncLimiting(rx) { if (rx.limiting && !rx.stoich.some((r) => r.key === rx.limiting && r.nu < 0)) rx.limiting = ''; }
 
 function splitsField(b) {
-  const wrap = el('div', { class: 'fld' }, el('label', null, 'Fraction of each component to “Separated” (0–1)'));
+  const n = Math.max(2, b.nOut || 2), outs = TYPES.sep.outlets(b);
+  const wrap = el('div', { class: 'fld' }, el('label', null, n <= 2 ? 'Fraction of each component to “Separated” (0–1)' : 'Fraction of each component to each outlet (0–1)'));
   const sp = b.params.splits = b.params.splits || [];
+  const cols = 'minmax(0,1fr) ' + Array.from({ length: n - 1 }, () => '64px').join(' ') + ' 28px';
+  if (n > 2) wrap.append(el('div', { class: 'comp-row', style: 'grid-template-columns:' + cols + ';font:600 10.5px var(--mono);color:var(--dim)' },
+    el('span', null, 'component'), ...outs.slice(0, n - 1).map((o) => el('span', { style: 'text-align:center' }, '→ ' + o.replace('Outlet ', 'out '))), el('span')));
   sp.forEach((row, i) => {
-    wrap.append(el('div', { class: 'comp-row', style: 'grid-template-columns:minmax(0,1fr) 80px 28px' },
-      compSelectEl(row.key, (k) => { row.key = k; commit(); renderInspector(); }),
-      numInput(() => row.f, (v) => { row.f = num(v) ? v : 0; }, { aria: 'fraction to separated' }),
+    const cells = [numInput(() => row.f, (v) => { row.f = num(v) ? v : 0; }, { aria: 'fraction to ' + outs[0] })];
+    for (let j = 1; j < n - 1; j++) cells.push(numInput(() => (row.more || [])[j - 1], (v) => { row.more = row.more || []; row.more[j - 1] = num(v) ? v : 0; }, { aria: 'fraction to ' + outs[j] }));
+    wrap.append(el('div', { class: 'comp-row', style: 'grid-template-columns:' + cols },
+      compSelectEl(row.key, (k) => { row.key = k; commit(); renderInspector(); }), ...cells,
       el('button', { class: 'rm', title: 'Remove', onclick: () => { sp.splice(i, 1); commit(); renderInspector(); } }, '✕')));
   });
   wrap.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { sp.push({ key: '', f: 1 }); commit(); renderInspector(); } }, '＋ Component')));
-  wrap.append(el('div', { class: 'hint' }, 'Components not listed go entirely to “Remainder”.'));
+  wrap.append(el('div', { class: 'hint' }, 'Components not listed, and whatever a row leaves over, go to “Remainder”.' + (n <= 2 ? ' Drag a stream from the free outlet port to add outlets (up to 6).' : '')));
+  return wrap;
+}
+/** STEP 40: outlet conditions of the component separator (Aspen Sep “Outlet Flash”) */
+function sepOutField(b) {
+  const n = Math.max(2, b.nOut || 2), outs = TYPES.sep.outlets(b), rig = isRig(b);
+  const oc = b.params.outlet_specs = b.params.outlet_specs || [];
+  const wrap = el('div', { class: 'fld' }, el('label', null, 'Outlet conditions'));
+  for (let j = 0; j < n; j++) {
+    const c = oc[j] = oc[j] || { mode: 'feed' };
+    const sel = el('select', { 'aria-label': outs[j] + ' conditions' },
+      el('option', { value: 'feed' }, 'Feed T and P'), el('option', { value: 'P' }, 'Feed T, own pressure'), el('option', { value: 'TP' }, 'Temperature and pressure'),
+      ...(rig ? [el('option', { value: 'PVF' }, 'Pressure and vapour fraction')] : []));
+    sel.value = !rig && c.mode === 'PVF' ? 'feed' : c.mode || 'feed';
+    sel.addEventListener('change', () => { c.mode = sel.value; commit(); renderInspector(); });
+    const box = el('div', { class: 'kterm' }, el('div', { style: 'font:600 11px var(--sans);color:var(--dim);margin-bottom:4px' }, outs[j]), sel);
+    const g = el('div', { class: 'anagrid' });
+    if (c.mode === 'TP') g.append(anaTP('T', c, 'T_K', 'Temperature'));
+    if (c.mode === 'TP' || c.mode === 'P' || (c.mode === 'PVF' && rig)) g.append(anaTP('P', c, 'P_bar', 'Pressure', 'blank = feed'));
+    if (c.mode === 'PVF' && rig) g.append(fld('Vapour fraction', numInput(() => c.vf, (v) => { c.vf = num(v) ? Math.max(0, Math.min(1, v)) : null; }, { aria: 'vapour fraction' }), '0 = bubble point, 1 = dew point'));
+    if (g.childNodes.length) box.append(g);
+    wrap.append(box);
+  }
+  wrap.append(el('div', { class: 'hint' }, rig ? 'Each outlet is flashed with the property method at these conditions; the unit duty closes the energy balance.' : 'Classic mode: outlets at the feed temperature or at the temperature and pressure given; the duty closes the energy balance. A vapour-fraction specification needs a property method.'));
   return wrap;
 }
 
@@ -4160,6 +4395,12 @@ function connectionsSection(b) {
     if (b.nOut > T.nOut.min) bt.append(el('button', { class: 'btn sm', onclick: () => { setPortCount(b, 'out', b.nOut - 1); commit(); renderInspector(); } }, '− Outlet'));
   }
   if (bt.children.length) s.append(bt);
+  const o = b.orient || {};      // STEP 40: icon orientation
+  s.append(el('div', { class: 'btns', style: 'align-items:center' }, el('span', { class: 'hint', style: 'margin:0 4px 0 0' }, 'Icon' + (o.rot || o.fx ? ' (' + [o.rot ? o.rot + '°' : '', o.fx ? 'mirrored' : ''].filter(Boolean).join(', ') + ')' : '') + ':'),
+    el('button', { class: 'btn sm', title: 'Rotate the icon and its ports 90° clockwise (R)', onclick: () => rotateBlock(b, 'rot') }, '⟳ Rotate'),
+    el('button', { class: 'btn sm', title: 'Flip the icon left–right (H)', onclick: () => rotateBlock(b, 'fx') }, '⇋ Flip'),
+    el('button', { class: 'btn sm', title: 'Flip the icon top–bottom (V)', onclick: () => rotateBlock(b, 'fy') }, '⇵ Flip'),
+    o.rot || o.fx ? el('button', { class: 'btn sm', title: 'Back to the standard orientation', onclick: () => { delete b.orient; GEO.delete(b.id); commit(); renderInspector(); } }, '↺') : null));
   return s;
 }
 function portName(pr, io) {
@@ -4203,6 +4444,7 @@ function inspectStream(s, head, body) {
   });
   const where = (s.from ? portName(s.from, 'out') : 'Feed') + '  →  ' + (s.to ? portName(s.to, 'in') : 'Product');
   head.append(el('div', { class: 'ic', html: streamIcon() }), el('div', { class: 'tt' }, nm, el('small', null, where)),
+    ...(num(s.midX) || num(s.midY) ? [el('button', { class: 'x', title: 'Reset route — back to the automatic path', 'aria-label': 'Reset route', onclick: () => { delete s.midX; delete s.midY; commit(); renderCanvas(); renderInspector(); } }, '↺')] : []),
     el('button', { class: 'x', title: 'Delete stream (Del)', 'aria-label': 'Delete stream', onclick: () => deleteSelection() }, '🗑'));
 
   const r = RES && RES.streams && RES.streams[s.id];
@@ -4951,6 +5193,17 @@ function methodAdvice() {
     out.push({ level: 'warn', text: 'Urea is in the feeds — on a property method it exists only in the urea synthesis method. Use it for the whole flowsheet, or set it on every unit that carries urea (unit panel → Property method); the urea reactor and HP stripper use it by default.',
       act: 'Use Urea synthesis', apply: () => { P.model = 'urea'; } });
   }
+  // STEP 38: dissolved salts / sour water point to the water-based electrolyte methods
+  const salts = ks.filter((k) => AQ_SALTS.includes(k));
+  if (salts.length && m !== 'classic' && !(m === 'aqueous-electrolyte' || (m === 'sour-water' && salts.every((k) => k === 'NaOH')) || (m === 'hot-k2co3' && salts.every((k) => k === 'K2CO3')))) {
+    out.push({ level: 'warn', text: salts.map(compLabel).join(', ') + ' — dissolved salts exist only in the electrolyte methods. Aqueous electrolytes (Pitzer, PHREEQC data) handles brines, caustic, acids and cooling water.',
+      act: 'Use Aqueous electrolytes', apply: () => { P.model = 'aqueous-electrolyte'; } });
+  }
+  if (ks.includes('H2O') && (ks.includes('NH3') || ks.includes('H2S')) && !isElecPkg(m) && m !== 'urea' && m !== 'classic' &&
+      ks.every((k) => AQ_KEYS['sour-water'].includes(k) || ELEC_GASES.includes(k))) {
+    out.push({ level: 'info', text: 'NH₃ / H₂S / CO₂ in water — the Sour water method solves their ionisation and carbamate formation; equation-of-state and activity methods treat them as molecular and get stripper duties and condensate compositions badly wrong.',
+      act: 'Use Sour water', apply: () => { P.model = 'sour-water'; } });
+  }
   if (ks.length === 1 && ks[0] === 'H2O' && m !== 'steam') {
     out.push({ level: 'info', text: 'Water / steam only — Steam / water (IAPWS-IF97) is the exact method for this flowsheet (turbines, pumps, boilers, let-down valves). Other methods treat steam less accurately; an activity method with an ideal-gas vapour misses the real-gas enthalpy of steam at pressure.',
       act: 'Use Steam / water (IAPWS-IF97)', apply: () => { P.model = 'steam'; } });
@@ -4992,6 +5245,8 @@ function methodGuide() {
     ['Polar or non-ideal liquids (water with alcohols, glycols, acids, ketones)', 'NRTL or UNIQUAC — above about 5 bar set Vapour phase to Peng–Robinson'],
     ['As above with no binary data', 'UNIFAC / Modified UNIFAC (Dortmund) — same vapour rule'],
     ['CO₂ removal with MEA, MDEA / activated MDEA or hot potassium carbonate', 'the matching acid-gas package, vapour Peng–Robinson'],
+    ['Sour water — NH₃, H₂S, CO₂ in water (strippers, process condensate)', 'Sour water'],
+    ['Brines, seawater, cooling water, caustic and acid solutions, evaporators, scaling', 'Aqueous electrolytes'],
     ['Urea HP synthesis and recirculation (NH₃, CO₂, water, urea)', 'Urea synthesis'],
     ['Close-boiling, similar compounds near atmospheric pressure', 'Ideal (Raoult + ideal gas)'],
   ];
@@ -5252,7 +5507,7 @@ function methodsSection() {
   s.id = 'methodsSec';
   const sel = el('select', { class: 'sel', 'aria-label': 'Property method' });
   sel.append(el('option', { value: 'classic' }, 'Classic — engine per-unit models'));
-  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['steam', 'Water & steam'], ['elec', 'Electrolyte — CO₂ removal (acid gas)'], ['urea', 'Urea synthesis']]) {
+  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['steam', 'Water & steam'], ['elec', 'Electrolyte — CO₂ removal (acid gas)'], ['aq', 'Aqueous electrolytes and sour water'], ['urea', 'Urea synthesis']]) {
     const og = el('optgroup', { label: lbl });
     for (const p of PKGS.filter((x) => x[2] === grp)) og.append(el('option', { value: p[0] }, p[1]));
     sel.append(og);
@@ -5272,7 +5527,17 @@ function methodsSection() {
     vs.addEventListener('change', () => { P.vapour = vs.value === 'ideal' ? undefined : vs.value; commit(); renderInspector(); });
     s.append(fld('Vapour phase', vs, 'use an equation of state above a few bar'));
   }
-  if (isElecPkg(P.model)) {
+  if (isAqPkg(P.model)) {
+    const ks = feedKeys();
+    const bad = ks.filter((k) => !AQ_KEYS[P.model].includes(k) && !ELEC_GASES.includes(k));
+    if (!ks.includes('H2O')) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, 'No water in any feed — this method describes aqueous solutions.')));
+    if (bad.length) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, bad.map(compLabel).join(', ') + ' — not held by this method (it holds ' + AQ_KEYS[P.model].map(compLabel).join(', ') + ' and light gases dissolved by Henry’s law)' +
+      (P.model === 'aqueous-electrolyte' && bad.some((k) => k === 'NH3' || k === 'H2S') ? '; NH₃ and H₂S belong to the sour-water method.' : P.model === 'sour-water' && bad.some((k) => AQ_SALTS.includes(k) || k === 'HCl') ? '; salts and acids belong to the aqueous-electrolyte method.' : '.'))));
+    s.append(el('div', { class: 'hint' }, P.model === 'sour-water'
+      ? 'Liquid: NH₃, H₂S and CO₂ dissolved in water with their ionisation (NH₄⁺, HS⁻, S²⁻, HCO₃⁻, CO₃²⁻), ammonium carbamate and, if given, NaOH — solved at every flash. Equilibrium and Henry constants of Edwards et al. (1978) and Kawazuishi & Prausnitz (1987), H₂S ionisation from the USGS PHREEQC database; the Pitzer ion-interaction terms were fitted here to 99 measured NH₃, H₂S and CO₂ partial pressures (Müller 1983; Wilson, Gillespie & Owens 1985; API / Beutier & Renon 1978; Leyko 1959; 20–260 °C, up to about 10 mol solute per kg water): 12 % mean deviation in NH₃, 16 % in CO₂ and 24 % in H₂S. H₂S in pure water agrees with the IUPAC solubility equation within 2–6 % (10–150 °C). Water is on IAPWS-IF97; viscosity, conductivity and surface tension are those of water. Use a Peng–Robinson vapour above a few bar.'
+      : 'Liquid: Pitzer ion-interaction model with the species, equilibrium constants, interaction parameters and mineral solubilities of the USGS PHREEQC pitzer.dat database (Harvie–Møller–Weare form). Checked against PHREEQC itself: water activity, osmotic coefficient and saturation indices agree to 4–5 digits, pH to 0.003 (MacInnes scale, as PHREEQC reports it). Independently: NaCl osmotic and activity coefficients match Hamer & Wu (1972) within 0.4 % to 5 mol/kg; seawater density within 0.1 %, heat capacity within 0.5 % and water activity within 0.0001 of TEOS-10; halite and gypsum solubilities within about 2 %. Solution density and viscosity by Laliberté (2009), heat capacity on Laliberté’s apparent heat capacities with Pitzer heats of dilution at 25 °C; CO₂ volatility on IAPWS G7-04. Saturation indices above zero mean scale or crystals can form — solids are not precipitated in the calculation. Where CO₂ boils or strips out, give carbonate alkalinity as Na₂CO₃ / K₂CO₃ plus CO₂, not as NaHCO₃ / KHCO₃: only the CO₂ component can leave the liquid.'));
+  }
+  if (isElecPkg(P.model) && !isAqPkg(P.model)) {
     const solv = ELEC_SOLVENT[P.model];
     const ks = feedKeys();
     const bad = ks.filter((k) => k !== 'H2O' && k !== 'CO2' && k !== solv && !ELEC_GASES.includes(k));
@@ -5291,7 +5556,28 @@ function methodsSection() {
     fm.addEventListener('change', () => { P.fill_missing = fm.checked ? undefined : false; commit(); });
     s.append(el('label', { class: 'chk' }, fm, el('span', null, 'Estimate missing binary pairs from UNIFAC (Dortmund where both components have its groups) — otherwise they are ideal')));
   }
+  if (isActivityPkg(P.model) || isElecPkg(P.model)) {
+    // STEP 39: liquid enthalpy from liquid heat capacities (default) or from the slope of ΔHvap
+    const le = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+    le.checked = P.liquid_enthalpy !== 'hvap';
+    le.addEventListener('change', () => { P.liquid_enthalpy = le.checked ? undefined : 'hvap'; commit(); });
+    s.append(el('label', { class: 'chk' }, le, el('span', null, 'Liquid enthalpy from liquid heat capacities, water on IAPWS-IF97 — off: h_ig − ΔHvap(T), whose slope gives liquid Cp 10–27 % high for methanol, ethanol and ammonia (DWSIM’s default for activity methods)')));
+  }
   if (isActivityPkg(P.model)) {
+    // STEP 40: heat of mixing and Poynting correction
+    const hx = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+    hx.checked = P.excess_enthalpy === true;
+    hx.addEventListener('change', () => { P.excess_enthalpy = hx.checked ? true : undefined; commit(); });
+    s.append(el('label', { class: 'chk' }, hx, el('span', null, 'Heat of mixing in the liquid enthalpy — H', el('sup', null, 'E'), ' = −RT² Σ x', el('sub', null, 'i'), ' ∂ln γ', el('sub', null, 'i'), '/∂T')));
+    s.append(el('div', { class: 'hint', style: 'margin:-2px 0 8px' }, P.model === 'modunifac'
+      ? 'Dortmund UNIFAC was fitted to heats of mixing as well as VLE: equimolar Hᴱ at 25 °C within 2–4 % of calorimetry for methanol–water, benzene–cyclohexane and acetone–chloroform (validation section 39). Off by default, as in DWSIM.'
+      : 'Reliable only where the γ model was fitted to heats of mixing (Dortmund UNIFAC). NRTL, Wilson and UNIQUAC parameters regressed from VLE alone can give the wrong sign — ChemSep NRTL gives +290 J/mol for equimolar methanol–water at 25 °C against −805 J/mol measured. Off by default, as in DWSIM.'));
+    if (P.model !== 'ideal') {
+      const pc = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+      pc.checked = P.poynting !== false;
+      pc.addEventListener('change', () => { P.poynting = pc.checked ? undefined : false; commit(); });
+      s.append(el('label', { class: 'chk' }, pc, el('span', null, 'Poynting correction on the pure-liquid fugacity, exp[V', el('sub', null, 'L'), '(P − P', el('sub', null, 'sat'), ')/RT] — matters above about 10 bar (1–3 % in K at 20 bar)')));
+    }
     const hc = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
     hc.checked = P.henry !== false;
     hc.addEventListener('change', () => { P.henry = hc.checked ? undefined : false; commit(); });
@@ -5331,6 +5617,18 @@ function methodsSection() {
     ph.value = P.phases || 'auto';
     ph.addEventListener('change', () => { P.phases = ph.value === 'auto' ? undefined : ph.value; commit(); renderInspector(); });
     s.append(fld('Valid phases', ph, 'VLL: every flash tests for a second liquid (water / hydrocarbon, partially miscible solvents). Automatic switches it on for an equation of state when water and propane-or-heavier hydrocarbons are present.'));
+    // STEP 40: liquid molar volume method
+    const eosOk = P.model === 'pr' || P.model === 'srk' || (isActivityPkg(P.model) && (P.vapour === 'pr' || P.vapour === 'srk'));
+    const lv = el('select', { class: 'sel', 'aria-label': 'Liquid volume' });
+    for (const [v, t] of [['auto', 'Automatic — ChemSep density correlations (COSTALD near Tc)'], ['rackett', 'Rackett mixture (Spencer–Danner)'], ['costald', 'COSTALD (Hankinson–Thomson)'], ...(eosOk ? [['eos', 'Equation of state liquid root']] : [])]) lv.append(el('option', { value: v }, t));
+    lv.value = P.liquid_volume && (P.liquid_volume !== 'eos' || eosOk) ? P.liquid_volume : 'auto';
+    lv.addEventListener('change', () => { P.liquid_volume = lv.value === 'auto' ? undefined : lv.value; commit(); renderInspector(); });
+    s.append(fld('Liquid volume', lv, {
+      auto: 'Amagat sum of each component’s ChemSep (DIPPR) density correlation — within 0.4 % of handbook densities for common pure liquids, but no volume change on mixing; COSTALD with Hankinson–Brobst–Thomson mixing once a component is near its critical point. Densities, volumetric flows and pump heads follow it.',
+      rackett: 'Spencer–Danner Rackett with Li mixing, as many simulators use for activity methods. Captures part of the volume contraction on mixing (equimolar methanol–water at 25 °C: 877 kg/m³ against about 881 measured, Amagat 853) but water itself comes out 7 % dense with its tabulated Z_RA.',
+      costald: 'COSTALD for every liquid — best for light hydrocarbons, LPG and NGL; less suited to water and alcohols (water +1 %, ethanol +6 % at 25 °C).',
+      eos: 'The cubic’s own liquid density, without volume translation: Peng–Robinson within about 5 % for hydrocarbons but 6–16 % low for water, alcohols, ketones and ammonia (water 849 kg/m³ at 25 °C); SRK 7–25 % low throughout. Use it only to match another program.',
+    }[lv.value]));
     const bad = feedKeys().filter(noRigData);
     if (bad.length) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'),
       el('span', null, bad.map(compLabel).join(', ') + ' — no property-method data; streams that contain ' + (bad.length > 1 ? 'them' : 'it') + ' can only go to the classic units (urea, reformers …).')));
@@ -5338,6 +5636,15 @@ function methodsSection() {
     const host = el('div');
     const btn = el('button', { class: 'btn sm', onclick: () => showPropInfo(host, btn) }, '🔍 Review pure-component & binary data');
     s.append(el('div', { class: 'btns' }, btn), host);
+  }
+  if (!isElecPkg(P.model) && P.model !== 'urea' && P.model !== 'steam') {
+    // STEP 40: property analysis of any components (Aspen Properties → Analysis)
+    const fs = { id: '__flowsheet', name: 'Components of the flowsheet', from: null, spec: null };
+    s.append(el('div', { class: 'note', style: 'margin-top:8px' }, 'Property analysis with this method — any components:'),
+      el('div', { class: 'btns' },
+        el('button', { class: 'btn sm', onclick: () => openAnalysis('bin', fs) }, 'Binary T-x-y'),
+        el('button', { class: 'btn sm', onclick: () => openAnalysis('ter', fs) }, 'Ternary map / residue curves'),
+        el('button', { class: 'btn sm', onclick: () => openAnalysis('azeo', fs) }, 'Azeotrope search')));
   }
   s.append(methodGuide());
   s.append(el('div', { class: 'hint', style: 'margin-top:8px' }, 'Reformers, shift, methanator, urea units, McCabe–Thiele and Kremser columns always keep their own models. The rigorous column and the Gibbs reactor always use a property method (Peng–Robinson when this is Classic). Any rigorous unit can override the method in its own panel.'));
@@ -5756,11 +6063,27 @@ function rigPropRows(r) {
       if (num(ag.loading_mol_CO2_per_mol_amine)) out.push(['CO₂ loading (MDEA + PZ)', fmt(ag.loading_mol_CO2_per_mol_amine, 4) + ' mol/mol amine']);
       if (num(ag.piperazine_as_carbamate_fraction)) out.push(['Piperazine as carbamates', fmt(100 * ag.piperazine_as_carbamate_fraction, 3) + ' %']);
       if (num(ag.ionic_strength_mol_kg)) out.push(['Ionic strength', fmt(ag.ionic_strength_mol_kg, 4) + ' mol/kg water']);
+      if (num(ag.salt_molality) && ag.salt_molality > 0) out.push(['Dissolved salts', fmt(ag.salt_molality, 4) + ' mol/kg water']);
+      if (num(ag.P_NH3_eq_kPa) && ag.P_NH3_eq_kPa > 0) out.push(['Equilibrium NH₃ pressure', fmt(ag.P_NH3_eq_kPa, 4) + ' kPa']);
+      if (num(ag.P_H2S_eq_kPa) && ag.P_H2S_eq_kPa > 0) out.push(['Equilibrium H₂S pressure', fmt(ag.P_H2S_eq_kPa, 4) + ' kPa']);
+      if (num(ag.P_HCl_eq_kPa)) out.push(['Equilibrium HCl pressure', fmt(ag.P_HCl_eq_kPa, 4) + ' kPa']);
+      if (num(ag.free_NH3_fraction)) out.push(['Free (molecular) NH₃', fmt(100 * ag.free_NH3_fraction, 3) + ' % of NH₃']);
       if (num(ag.conversion_to_KHCO3)) out.push(['Conversion to KHCO₃', fmt(ag.conversion_to_KHCO3, 4)]);
       if (num(ag.P_CO2_eq_kPa)) out.push(['Equilibrium CO₂ pressure', fmt(ag.P_CO2_eq_kPa, 4) + ' kPa']);
       if (num(ag.free_MEA_fraction)) out.push(['Free (unreacted) MEA', fmt(100 * ag.free_MEA_fraction, 3) + ' %']);
       if (num(ag.water_activity)) out.push(['Water activity', fmt(ag.water_activity, 4)]);
-      if (num(ag.pH)) out.push(['pH (unscaled Pitzer)', fmt(ag.pH, 4)]);
+      if (num(ag.pH)) out.push([ag.pH_scale === 'MacInnes' ? 'pH (MacInnes scale, as PHREEQC)' : 'pH (unscaled Pitzer)', fmt(ag.pH, 4)]);
+      if (num(ag.osmotic_coefficient)) out.push(['Osmotic coefficient', fmt(ag.osmotic_coefficient, 4)]);
+      if (ag.saturation_index && Object.keys(ag.saturation_index).length) {
+        const si = Object.entries(ag.saturation_index).filter(([, v]) => num(v) && v > -3).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        if (si.length) out.push(['Saturation index log(IAP/K)', si.map(([k, v]) => k + ' ' + (v > 0 ? '+' : '') + fmt(v, 3)).join(' · ') + (si[0][1] > 0.05 ? ' — above 0: scale / crystals can form' : '')]);
+      }
+      if (ag.molality && (ag.model === 'sour-water' || ag.model === 'aqueous-electrolyte')) {
+        const ion = (k) => k.replace(/--$/, '²⁻').replace(/-2$/, '²⁻').replace(/\+2$/, '²⁺').replace(/-$/, '⁻').replace(/\+$/, '⁺').replace(/(\d)/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+        const sp = Object.entries(ag.molality).filter(([, v]) => num(v) && v > 1e-7).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        if (sp.length) out.push(['True species, mol/kg water', sp.map(([k, v]) => ion(k) + ' ' + fmt(v, 3)).join(' · ')]);
+      }
+      if (ag.extrapolated) out.push(['Note', ag.extrapolated]);
       if (num(ag.L_NH3_CO2)) out.push(['N/C (NH₃/CO₂, apparent)', fmt(ag.L_NH3_CO2, 5)], ['H/C (H₂O/CO₂, apparent)', fmt(ag.W_H2O_CO2, 5)]);
       if (num(ag.urea_conversion)) out.push(['CO₂ converted to urea', fmt(100 * ag.urea_conversion, 4) + ' %']);
       if (num(ag.carbamate_fraction_of_CO2)) out.push(['Free CO₂ as carbamate', fmt(100 * ag.carbamate_fraction_of_CO2, 4) + ' %']);
@@ -6242,6 +6565,7 @@ function pfrCSV(D, sep) {
 /* ---------------- stream analysis ---------------- */
 const ANA = {};              // per-stream analysis inputs (session only)
 function analysisStream(s) {
+  if (!s.from && !s.spec) return null;                  // STEP 40: flowsheet-level analysis (component pickers only)
   if (!s.from) { const c = specToSI(s.spec); return c.ok ? c.stream : null; }
   const r = RES && RES.streams && RES.streams[s.id];
   return r ? apiStream(r) : null;
@@ -6251,14 +6575,16 @@ function anaPkgLabel() { return rigOn() ? PKG_LABEL[pkgModel()] || pkgModel() : 
 function streamAnalysisSection(s) {
   const box = sec('Stream analysis');
   const st = analysisStream(s);
-  box.append(el('div', { class: 'note' }, 'Phase envelope, property table and binary diagrams of this stream’s composition — ' + anaPkgLabel() + '.'));
+  box.append(el('div', { class: 'note' }, 'Phase envelope, property table, binary and ternary diagrams and azeotrope search for this stream’s components — ' + anaPkgLabel() + '.'));
   const multi = st && st.components.length >= 2;
   const elec = isElecPkg(pkgModel()) || pkgModel() === 'urea';
   const why = 'not available with an electrolyte or urea method — use the property table';
   box.append(el('div', { class: 'btns' },
     el('button', { class: 'btn sm', disabled: !multi || elec, title: elec ? why : multi ? '' : 'needs at least two components', onclick: () => openAnalysis('env', s) }, 'Phase envelope'),
     el('button', { class: 'btn sm', disabled: !st, onclick: () => openAnalysis('table', s) }, 'Property table'),
-    el('button', { class: 'btn sm', disabled: elec, title: elec ? why : '', onclick: () => openAnalysis('bin', s) }, 'Binary T-x-y / P-x-y')));
+    el('button', { class: 'btn sm', disabled: elec, title: elec ? why : '', onclick: () => openAnalysis('bin', s) }, 'Binary T-x-y / P-x-y'),
+    el('button', { class: 'btn sm', disabled: elec, title: elec ? why : 'residue curves, azeotropes, distillation boundaries, liquid–liquid envelope', onclick: () => openAnalysis('ter', s) }, 'Ternary map'),
+    el('button', { class: 'btn sm', disabled: elec, title: elec ? why : 'every azeotrope of up to 8 components', onclick: () => openAnalysis('azeo', s) }, 'Azeotrope search')));
   if (!st) box.append(el('div', { class: 'hint' }, s.from ? 'Run the flowsheet to analyse this calculated stream.' : 'Complete the feed specification to analyse it.'));
   else if (s.from && RES && RES.stale) box.append(el('div', { class: 'hint' }, 'Uses the last run’s composition (results are out of date).'));
   return box;
@@ -6270,15 +6596,18 @@ function anaTP(kind, obj, key, label, hint) {
 }
 function openAnalysis(kind, s) {
   const st = analysisStream(s);
-  if (!st && kind !== 'bin') { toast(s.from ? 'Run the flowsheet first' : 'Complete the feed specification first', 'err'); return; }
+  const free = kind === 'bin' || kind === 'ter' || kind === 'azeo';      // component pickers: no composition needed
+  if (!st && !free) { toast(s.from ? 'Run the flowsheet first' : 'Complete the feed specification first', 'err'); return; }
   const bad = st ? st.components.map((c) => c.key).filter(noRigData) : [];
-  if (bad.length && kind !== 'bin') { toast(bad.map(compLabel).join(', ') + ': no property-method data', 'err'); return; }
+  if (bad.length && !free) { toast(bad.map(compLabel).join(', ') + ': no property-method data', 'err'); return; }
   const A = ANA[s.id] = ANA[s.id] || {};
   const body = el('div', { class: 'ana' });
-  const titles = { env: 'Phase envelope', table: 'Property table', bin: 'Binary diagram' };
+  const titles = { env: 'Phase envelope', table: 'Property table', bin: 'Binary diagram', ter: 'Ternary map', azeo: 'Azeotrope search' };
   openSheet(titles[kind] + ' · ' + s.name, body);
   if (kind === 'env') envelopeUI(body, st, A);
   else if (kind === 'table') propTableUI(body, st, A);
+  else if (kind === 'ter') ternaryUI(body, st, A);
+  else if (kind === 'azeo') azeoUI(body, st, A);
   else binaryUI(body, st, A);
 }
 async function anaRun(host, btn, module, stream, params, render) {
@@ -6515,6 +6844,191 @@ function drawBinary(host, D, E) {
 }
 
 
+/* ternary map: residue curves, azeotropes, distillation boundaries, liquid–liquid envelope (STEP 40) */
+const LL_PKG = ['nrtl', 'uniquac', 'unifac', 'modunifac'];
+function anaMainKeys(st, n) {
+  const pool = st ? compPositions(st).map((x) => x[0]) : feedKeys();
+  return pool.filter((k) => !noRigData(k)).slice(0, n);
+}
+function ternaryUI(body, st, A) {
+  const k3 = anaMainKeys(st, 3);
+  const E = A.ter = A.ter || { k: [k3[0] || '', k3[1] || '', k3[2] || ''], P: st && num(st.P_bar) ? st.P_bar : 1.01325, n: 14, lle: true, Tl: 298.15 };
+  const ll = LL_PKG.includes(rigOn() ? pkgModel() : 'pr');
+  const grid = el('div', { class: 'anagrid' });
+  ['Component 1 (bottom left)', 'Component 2 (bottom right)', 'Component 3 (top)'].forEach((lab, i) => grid.append(fld(lab, compSelectEl(E.k[i], (k) => { E.k[i] = k; }))));
+  grid.append(anaTP('P', E, 'P', 'Pressure'));
+  grid.append(fld('Residue curves', anaInput(() => E.n, (v) => { E.n = num(v) ? Math.max(4, Math.min(30, Math.round(v))) : 14; }, 'Residue curves'), '4–30'));
+  if (ll) {
+    const cb = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+    cb.checked = E.lle !== false;
+    cb.addEventListener('change', () => { E.lle = cb.checked; });
+    grid.append(fld('Liquid–liquid envelope', el('label', { class: 'chk' }, cb, el('span', null, 'show, with tie lines'))), anaTP('T', E, 'Tl', 'at temperature'));
+  }
+  body.append(grid);
+  body.append(el('div', { class: 'hint' }, 'Residue curves trace the liquid of a simple (Rayleigh) distillation; arrows point towards higher boiling points. Thick red lines are distillation boundaries — separatrices leaving the saddles — which a simple column cannot cross. ' +
+    (ll ? 'Where the liquid splits at its boiling point the curves use the heterogeneous bubble point.' : 'This property method has no liquid–liquid split, so every liquid is treated as homogeneous.')));
+  const host = el('div', { class: 'anares' });
+  const go = el('button', { class: 'btn pri', onclick: () => {
+    if (E.k.some((k) => !k) || new Set(E.k).size !== 3) { toast('Pick three different components', 'err'); return; }
+    if (E.k.some(noRigData)) { toast('All three components need property-method data', 'err'); return; }
+    const params = { property_package: anaPkg(), keys: E.k.slice(), P_bar: E.P, curves: E.n };
+    if (ll && E.lle !== false && num(E.Tl)) params.lle_T_K = E.Tl;
+    const sst = { mass_flow_kg_h: 100, T_K: 300, P_bar: 1, components: E.k.map((k) => ({ key: k, mass_fraction: 1 / 3 })) };
+    anaRun(host, go, 'ternary-diagram', sst, params, (D) => drawTernary(host, D, E));
+  } }, 'Calculate map');
+  body.append(el('div', { class: 'btns' }, go), host);
+}
+const KIND_STYLE = { 'stable node': ['#0f766e', 'Stable node (curves end — highest boiling locally)'], 'unstable node': ['#b91c1c', 'Unstable node (curves start — lowest boiling locally)'], saddle: ['#7c3aed', 'Saddle'], node: ['#475569', 'Point'] };
+function drawTernary(host, D, E) {
+  const keys = D.keys || [];
+  // the user's vertex order: map the package order (D.keys) onto E.k
+  const ord = (E.k && E.k.length === 3 && E.k.every((k) => keys.includes(k))) ? E.k.map((k) => keys.indexOf(k)) : [0, 1, 2];
+  const W = 620, H = 560, L = 70, B = 500, side = 480;
+  const XY = (x) => { const a = x[ord[1]], c = x[ord[2]]; return [L + side * (a + 0.5 * c), B - side * (Math.sqrt(3) / 2) * c]; };
+  const pl = (pts) => pts.map((q) => XY(q.x || q).map((v) => v.toFixed(1)).join(',')).join(' ');
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ternary residue-curve map" style="max-width:100%;font:11px var(--sans)">`;
+  // grid every 0.1
+  for (let t = 1; t < 10; t++) {
+    const f = t / 10;
+    for (let k = 0; k < 3; k++) {
+      const a = [0, 0, 0], b = [0, 0, 0];
+      a[ord[k]] = f; a[ord[(k + 1) % 3]] = 1 - f; b[ord[k]] = f; b[ord[(k + 2) % 3]] = 1 - f;
+      s += `<polyline points="${pl([a, b])}" stroke="#e5e9f0" stroke-width="0.8" fill="none"/>`;
+    }
+  }
+  const tri = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map((v) => { const x = [0, 0, 0]; x[ord[v.indexOf(1)]] = 1; return x; });
+  // liquid–liquid envelope
+  if (D.lle && D.lle.envelope && D.lle.envelope.length > 2) {
+    s += `<polygon points="${pl(D.lle.envelope)}" fill="#dbeafe" fill-opacity="0.75" stroke="#60a5fa" stroke-width="1.2"/>`;
+    const ties = D.lle.tie_lines, step = Math.max(1, Math.ceil(ties.length / 10));
+    for (const t of ties.filter((_, k) => k % step === 0)) s += `<polyline points="${pl([t.x1, t.x2])}" stroke="#3b82f6" stroke-opacity="0.55" stroke-width="0.8"/>`;
+  }
+  s += `<polygon points="${pl(tri)}" fill="none" stroke="#334155" stroke-width="1.4"/>`;
+  // residue curves with an arrow (towards higher T) at mid-curve
+  const arrow = (pts, col) => {
+    if (pts.length < 6) return '';
+    const m = Math.floor(pts.length / 2), p0 = XY(pts[m - 1].x), p1 = XY(pts[m + 1].x);
+    const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), c = XY(pts[m].x), sz = 6;
+    const q = (da) => [c[0] - sz * Math.cos(ang + da), c[1] - sz * Math.sin(ang + da)];
+    const a = q(0.45), b = q(-0.45);
+    return `<polygon points="${c[0].toFixed(1)},${c[1].toFixed(1)} ${a[0].toFixed(1)},${a[1].toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}" fill="${col}"/>`;
+  };
+  for (const c of D.residue_curves || []) s += `<polyline points="${pl(c)}" fill="none" stroke="#64748b" stroke-width="1.1"/>` + arrow(c, '#64748b');
+  for (const c of D.boundaries || []) s += `<polyline points="${pl(c)}" fill="none" stroke="#dc2626" stroke-width="2.4"/>`;
+  // singular points
+  const sp = D.singular_points || [];
+  for (const q of sp) {
+    const [x, y] = XY(q.x), col = (KIND_STYLE[q.kind] || KIND_STYLE.node)[0];
+    const shape = q.kind === 'saddle' ? `<rect x="${(x - 5).toFixed(1)}" y="${(y - 5).toFixed(1)}" width="10" height="10" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})" fill="${col}" stroke="#fff" stroke-width="1.2"/>`
+      : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="${q.kind === 'stable node' ? col : '#fff'}" stroke="${col}" stroke-width="2.2"/>`;
+    const lab = (q.type === 'pure' ? compLabel(q.keys[0]) + ' ' : q.heterogeneous ? 'hetero-az. ' : 'az. ') + fmt(dispT(q.T_K), 4) + ' ' + PREFS.tu;
+    const top = q.type === 'pure' && Math.abs(q.x[ord[2]] - 1) < 1e-9, right = q.type === 'pure' && Math.abs(q.x[ord[1]] - 1) < 1e-9, left = q.type === 'pure' && Math.abs(q.x[ord[0]] - 1) < 1e-9;
+    const tx = top ? x : right ? x + 8 : left ? x - 8 : x + 9, ty = top ? y - 12 : q.type === 'pure' ? y + 18 : y - 7;
+    const anc = top ? 'middle' : left ? 'end' : 'start';
+    s += shape + `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anc}" style="font-weight:${q.type === 'pure' ? 600 : 500};fill:#0d1726">${esc(lab)}</text>`;
+  }
+  s += '</svg>';
+  const wrap = el('div', { class: 'chart' });
+  wrap.innerHTML = s;
+  // composition read-out under the cursor
+  const ro = el('div', { class: 'hint', style: 'min-height:16px' }, 'Move over the triangle for the composition.');
+  const svg = wrap.querySelector('svg');
+  svg.addEventListener('mousemove', (ev) => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width, py = (ev.clientY - r.top) * H / r.height;
+    const c = (B - py) / (side * Math.sqrt(3) / 2), a = (px - L) / side - 0.5 * c, b0 = 1 - a - c;
+    if (a < -1e-3 || c < -1e-3 || b0 < -1e-3) { ro.textContent = 'Move over the triangle for the composition.'; return; }
+    const x = [0, 0, 0]; x[ord[0]] = b0; x[ord[1]] = a; x[ord[2]] = c;
+    ro.textContent = 'x: ' + keys.map((k, i) => compLabel(k) + ' ' + fmt(Math.max(0, x[i]), 3)).join(' · ');
+  });
+  host.append(wrap, ro);
+  const lg = el('div', { class: 'lgd' });
+  for (const k of ['unstable node', 'saddle', 'stable node']) lg.append(el('span', null, el('i', { style: 'background:' + KIND_STYLE[k][0] }), KIND_STYLE[k][1]));
+  lg.append(el('span', null, el('i', { style: 'background:#dc2626' }), 'Distillation boundary'));
+  if (D.lle && D.lle.envelope && D.lle.envelope.length) lg.append(el('span', null, el('i', { style: 'background:#60a5fa' }), 'Two liquids at ' + fmt(dispT(D.lle.T_K), 4) + ' ' + PREFS.tu));
+  host.append(lg);
+  // table of singular points
+  const t = el('table', { class: 'mini', style: 'margin-top:10px' });
+  t.append(el('thead', null, el('tr', null, ...['Point', 'T (' + PREFS.tu + ')', ...keys.map((k) => 'x ' + compLabel(k)), 'Stability', 'Liquid'].map((h) => el('th', null, h)))));
+  const tb = el('tbody');
+  const name = (q) => (q.type === 'pure' ? compLabel(q.keys[0]) : (q.type === 'binary' ? 'Binary ' : 'Ternary ') + 'azeotrope');
+  for (const q of sp.slice().sort((a, b) => a.T_K - b.T_K)) {
+    tb.append(el('tr', null, el('td', null, name(q)), el('td', null, fmt(dispT(q.T_K), 6)), ...q.x.map((v) => el('td', null, fmt(v, 4))), el('td', null, q.kind), el('td', null, q.type === 'pure' ? '—' : q.heterogeneous ? 'two liquids (heteroazeotrope)' : 'one liquid')));
+  }
+  t.append(tb);
+  host.append(el('div', { class: 'scrollx' }, t));
+  const nReg = (D.boundaries || []).length;
+  host.append(el('div', { class: 'kv', style: 'margin-top:8px' },
+    el('b', null, 'System'), el('span', null, keys.map(compLabel).join(' – ') + ' · ' + (D.pp && D.pp.label ? D.pp.label : '') + ' · P = ' + fmt(dispP(D.P_bar), 6) + ' ' + PREFS.pu),
+    el('b', null, 'Map'), el('span', null, (D.residue_curves || []).length + ' residue curves · ' + nReg + ' boundary branch' + (nReg === 1 ? '' : 'es') + ' · ' + (D.bubble_points || 0) + ' bubble points · ' + (D.ms || 0) + ' ms')));
+  const csv = (sep) => {
+    const L2 = [['curve', 'kind', ...keys.map((k) => 'x ' + k), 'T (' + PREFS.tu + ')'].join(sep)];
+    (D.residue_curves || []).forEach((c, i) => c.forEach((q) => L2.push(['residue ' + (i + 1), '', ...q.x, dispT(q.T_K)].join(sep))));
+    (D.boundaries || []).forEach((c, i) => c.forEach((q) => L2.push(['boundary ' + (i + 1), '', ...q.x, dispT(q.T_K)].join(sep))));
+    for (const q of sp) L2.push([name(q), q.kind + (q.heterogeneous ? ' (heterogeneous)' : ''), ...q.x, dispT(q.T_K)].join(sep));
+    return L2.join('\n');
+  };
+  host.append(el('div', { class: 'btns', style: 'margin-top:8px' },
+    el('button', { class: 'btn sm', onclick: () => copyText(csv('\t'), 'Map data copied (tab-separated)') }, 'Copy data'),
+    el('button', { class: 'btn sm', onclick: () => download('ternary-map.csv', '﻿' + csv(','), 'text/csv;charset=utf-8') }, 'Download CSV'),
+    el('button', { class: 'btn sm', onclick: () => download('ternary-map.svg', wrap.querySelector('svg').outerHTML.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '), 'image/svg+xml') }, 'Download SVG')));
+}
+
+/* azeotrope search (STEP 40) */
+function azeoUI(body, st, A) {
+  const E = A.azeo = A.azeo || { k: anaMainKeys(st, 8), P: st && num(st.P_bar) ? st.P_bar : 1.01325 };
+  const list = el('div');
+  const drawList = () => {
+    list.textContent = '';
+    E.k.forEach((k, i) => list.append(el('div', { class: 'row', style: 'display:flex;gap:6px;align-items:center;margin:3px 0' },
+      compSelectEl(k, (v) => { E.k[i] = v; }), el('button', { class: 'btn sm', title: 'Remove', onclick: () => { E.k.splice(i, 1); drawList(); } }, '×'))));
+    if (E.k.length < 8) list.append(el('button', { class: 'btn sm', onclick: () => { E.k.push(''); drawList(); } }, '+ Component'));
+  };
+  drawList();
+  body.append(fld('Components (2–8)', list));
+  const grid = el('div', { class: 'anagrid' });
+  grid.append(anaTP('P', E, 'P', 'Pressure'));
+  body.append(grid);
+  body.append(el('div', { class: 'hint' }, 'Finds every homogeneous and heterogeneous azeotrope among the binary, ternary and quaternary sub-systems and classifies it — as a node or saddle of the residue-curve map within its sub-system and within the whole mixture.'));
+  const host = el('div', { class: 'anares' });
+  const go = el('button', { class: 'btn pri', onclick: () => {
+    const ks = [...new Set(E.k.filter(Boolean))];
+    if (ks.length < 2) { toast('Pick at least two components', 'err'); return; }
+    if (ks.some(noRigData)) { toast(ks.filter(noRigData).map(compLabel).join(', ') + ': no property-method data', 'err'); return; }
+    const sst = { mass_flow_kg_h: 100, T_K: 300, P_bar: 1, components: ks.map((k) => ({ key: k, mass_fraction: 1 / ks.length })) };
+    anaRun(host, go, 'azeotrope-search', sst, { property_package: anaPkg(), keys: ks, P_bar: E.P }, (D) => drawAzeo(host, D));
+  } }, 'Search');
+  body.append(el('div', { class: 'btns' }, go), host);
+}
+function drawAzeo(host, D) {
+  const pure = D.pure || [], az = D.azeotropes || [];
+  const tp = el('table', { class: 'mini' });
+  tp.append(el('thead', null, el('tr', null, ...['Component', 'Boiling point (' + PREFS.tu + ')', 'In the mixture'].map((h) => el('th', null, h)))));
+  const tpb = el('tbody');
+  for (const q of pure.slice().sort((a, b) => a.T_K - b.T_K)) tpb.append(el('tr', null, el('td', null, compLabel(q.key)), el('td', null, fmt(dispT(q.T_K), 6)), el('td', null, q.kind)));
+  tp.append(tpb);
+  host.append(el('h4', { style: 'margin:4px 0' }, 'Pure components'), el('div', { class: 'scrollx' }, tp));
+  host.append(el('h4', { style: 'margin:10px 0 4px' }, az.length ? az.length + ' azeotrope' + (az.length === 1 ? '' : 's') + ' at ' + fmt(dispP(D.P_bar), 6) + ' ' + PREFS.pu : 'No azeotropes at ' + fmt(dispP(D.P_bar), 6) + ' ' + PREFS.pu));
+  if (az.length) {
+    const t = el('table', { class: 'mini' });
+    t.append(el('thead', null, el('tr', null, ...['Components', 'T (' + PREFS.tu + ')', 'Mole fractions', 'Mass fractions', 'Type', 'In its sub-system', 'In the mixture'].map((h) => el('th', null, h)))));
+    const tb = el('tbody');
+    for (const a of az) tb.append(el('tr', null, el('td', null, a.keys.map(compLabel).join(' – ')), el('td', null, fmt(dispT(a.T_K), 6)),
+      el('td', null, a.x.map((v) => fmt(v, 4)).join(' / ')), el('td', null, a.w.map((v) => fmt(v, 4)).join(' / ')),
+      el('td', null, (a.heterogeneous ? 'heterogeneous, ' : 'homogeneous, ') + a.boiling), el('td', null, a.kind_in_subsystem), el('td', null, a.kind_in_mixture)));
+    t.append(tb);
+    host.append(el('div', { class: 'scrollx' }, t));
+  }
+  host.append(el('div', { class: 'hint', style: 'margin-top:6px' }, (D.pp && D.pp.label ? D.pp.label + ' · ' : '') + (D.bubble_points || 0) + ' bubble points · ' + (D.ms || 0) + ' ms. The unstable nodes of the mixture are the possible distillate products of a simple column; the stable nodes the possible bottoms.'));
+  const csv = (sep) => {
+    const L2 = [['components', 'T (' + PREFS.tu + ')', 'mole fractions', 'mass fractions', 'type', 'in sub-system', 'in mixture'].join(sep)];
+    for (const a of az) L2.push([a.keys.join(' + '), dispT(a.T_K), a.x.join(' / '), a.w.join(' / '), (a.heterogeneous ? 'heterogeneous ' : 'homogeneous ') + a.boiling, a.kind_in_subsystem, a.kind_in_mixture].join(sep));
+    return L2.join('\n');
+  };
+  if (az.length) host.append(el('div', { class: 'btns', style: 'margin-top:8px' },
+    el('button', { class: 'btn sm', onclick: () => copyText(csv('\t'), 'Azeotropes copied (tab-separated)') }, 'Copy table'),
+    el('button', { class: 'btn sm', onclick: () => download('azeotropes.csv', '﻿' + csv(','), 'text/csv;charset=utf-8') }, 'Download CSV')));
+}
+
 /* =====================================================================
    9. READINESS (Aspen-style "required input incomplete" list)
 ===================================================================== */
@@ -6528,8 +7042,16 @@ function blockIssues(b) {
   }
   for (const f of fieldsOf(b)) {
     if (f.showIf && !f.showIf(p)) continue;
-    if (f.required && f.required(p) && !['select', 'fractions', 'reactions', 'splits', 'colfeeds', 'colspecs', 'sidedraws', 'complist', 'kinetics', 'curve'].includes(f.kind) && !num(p[f.key])) {
+    if (f.required && f.required(p) && !['select', 'fractions', 'reactions', 'splits', 'sepout', 'colfeeds', 'colspecs', 'sidedraws', 'complist', 'kinetics', 'curve'].includes(f.kind) && !num(p[f.key])) {
       add('“' + f.label + '” is required');
+    }
+  }
+  if (b.type === 'sep') {
+    for (const r of p.splits || []) {
+      if (!r.key) continue;
+      const v = [r.f, ...(r.more || []).slice(0, Math.max(0, b.nOut - 2))].map((x) => (num(x) ? x : 0));
+      if (v.some((x) => x < 0 || x > 1)) add(compLabel(r.key) + ': split fractions must be 0–1');
+      else if (v.reduce((a2, x) => a2 + x, 0) > 1 + 1e-6) add(compLabel(r.key) + ': split fractions add up to more than 1');
     }
   }
   if (b.type === 'splitter') {
@@ -8834,7 +9356,7 @@ function convText(sep) {
 }
 
 /* ---------------- specification check (per unit) ---------------- */
-const TABLE_KINDS = ['fractions', 'reactions', 'splits', 'colfeeds', 'colspecs', 'sidedraws', 'complist', 'kinetics', 'curve', 'nrtl', 'compeff'];
+const TABLE_KINDS = ['fractions', 'reactions', 'splits', 'sepout', 'colfeeds', 'colspecs', 'sidedraws', 'complist', 'kinetics', 'curve', 'nrtl', 'compeff'];
 /** what fixes unit b: chosen options, values given, missing / invalid input, values the chosen specification does not use, blanks that take a default */
 function specCheck(b) {
   const p = b.params, F = fieldsOf(b);
@@ -9013,6 +9535,7 @@ $('zOut').addEventListener('click', () => zoomAt(1 / 1.2));
 $('zoomPct').addEventListener('click', () => zoomAt(1 / VIEW.k));
 $('zFit').addEventListener('click', fitView);
 $('tTags').addEventListener('click', () => { PREFS.tags = !PREFS.tags; savePrefs(); syncToggles(); renderCanvas(); });
+$('tTagOpt').addEventListener('click', (e) => { e.stopPropagation(); const old = $('stage').querySelector('.menu'); if (old) { old.remove(); return; } tagMenu($('tTagOpt')); });
 $('tSnap').addEventListener('click', () => { PREFS.snap = !PREFS.snap; savePrefs(); syncToggles(); });
 function syncToggles() { $('tTags').classList.toggle('on', !!PREFS.tags); $('tSnap').classList.toggle('on', !!PREFS.snap); }
 
@@ -9268,7 +9791,8 @@ const snap0 = (v) => (num(v) && Math.abs(v) < 1e-6 ? 0 : v);      // a duty or p
 function tableFieldText(b, f) {
   const p = b.params;
   if (f.kind === 'fractions') return (p.fractions || []).slice(0, b.nOut).map((x, i) => 'outlet ' + (i + 1) + ' ' + fmt(x, 4)).join(', ');
-  if (f.kind === 'splits') return (p.splits || []).filter((r) => r.key).map((r) => compLabel(r.key) + ' ' + fmt(num(r.f) ? r.f : 0, 4)).join(', ') || '—';
+  if (f.kind === 'splits') return (p.splits || []).filter((r) => r.key).map((r) => compLabel(r.key) + ' ' + [r.f, ...(r.more || [])].map((v) => fmt(num(v) ? v : 0, 4)).join('/')).join(', ') || '—';
+  if (f.kind === 'sepout') { const t = (p.outlet_specs || []).filter((c) => c && c.mode && c.mode !== 'feed').length; return t ? t + ' outlet(s) with own conditions' : 'feed T and P'; }
   if (f.kind === 'reactions' || f.kind === 'kinetics') return (p.reactions || []).map((rx) => {
     const st = (rx.stoich || []).filter((r) => r.key && num(r.nu) && r.nu !== 0);
     const side = (sg) => st.filter((r) => sg * r.nu > 0).map((r) => (Math.abs(r.nu) === 1 ? '' : fmt(Math.abs(r.nu), 4) + ' ') + compLabel(r.key)).join(' + ');
@@ -10365,6 +10889,53 @@ const EXAMPLES = [
       seq: { b: 4, s: 8 },
     },
     note: 'Hot-carbonate package (Pitzer, PHREEQC parameters). Absorption and regeneration run near the solution boiling point, so no lean/rich exchanger is needed; the rich solution flashes across LV-201 into the regenerator. CO₂ Murphree efficiency 0.25 in the absorber and 0.25 on the regenerator trays stand in for the slow carbonate kinetics (the activator raises them) — tune them to plant data. Open a liquid stream for the conversion to KHCO₃, water activity and equilibrium CO₂ pressure.',
+  },
+  {
+    id: 'sour-water-stripper', label: 'Refinery sour water stripper (sour-water method)',
+    desc: '67 t/h sour water · 2 mol % NH₃, 1.5 mol % H₂S · steam-heated preheater · 20-stage stripper with partial condenser · bottoms cooler',
+    model: {
+      pkg: { model: 'sour-water', vapour: 'pr' },
+      blocks: [
+        { id: 'b1', name: 'E-301', type: 'heater', x: 200, y: 260, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 368.15, P_out_bar: 2.5 }, pu: {} },
+        { id: 'b2', name: 'C-301', type: 'rcol', x: 420, y: 110, nIn: 1, nOut: 2, params: {
+          stages: 20, condenser: 'partial', reboiler: 'kettle', feed_stages: [3], P_top_bar: 1.8, side_draws: [],
+          specs: [{ type: 'condenser_temperature', value: 358.15 }, { type: 'reboiler_duty', value: 7200 }] }, pu: {} },
+        { id: 'b3', name: 'E-302', type: 'heater', x: 640, y: 420, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 313.15 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'SOUR WATER', from: null, to: { b: 'b1', p: 0 }, spec: sp(40, '°C', 4, 'bar(a)', 67000, 'kg/h', 'mole%', { H2O: 96.4, NH3: 2.0, H2S: 1.5, CO2: 0.1 }) },
+        { id: 's2', name: 'HOT FEED', from: { b: 'b1', p: 0 }, to: { b: 'b2', p: 0 } },
+        { id: 's3', name: 'ACID GAS', from: { b: 'b2', p: 0 }, to: null },
+        { id: 's4', name: 'STRIPPED WATER', from: { b: 'b2', p: 1 }, to: { b: 'b3', p: 0 } },
+        { id: 's5', name: 'TO TREATMENT', from: { b: 'b3', p: 0 }, to: null },
+      ],
+      seq: { b: 3, s: 5 },
+    },
+    note: 'Sour-water method: NH₃, H₂S and CO₂ ionise in the water and NH₃ ties up H₂S as ammonium hydrosulfide, which is why a stripper needs steam well beyond simple volatility. The reboiler duty sets the stripped-water quality — about 7 MW (≈ 0.17 kg steam per kg feed) brings NH₃ down to a few ppm and H₂S to below 1 ppm; at 6 MW NH₃ rises to several hundred ppm. Open STRIPPED WATER for its pH and equilibrium NH₃ / H₂S pressures, and run a sensitivity on the reboiler duty to see the cliff. A partial condenser at 85 °C keeps NH₄HS from depositing in the overhead.',
+  },
+  {
+    id: 'seawater-evaporator', label: 'Seawater evaporator — boiling-point rise and scaling (aqueous electrolytes)',
+    desc: '100 t/h seawater · preheater · evaporator at 1 atm concentrating 2× · condenser · brine cooler',
+    model: {
+      pkg: { model: 'aqueous-electrolyte' },
+      blocks: [
+        { id: 'b1', name: 'E-401', type: 'heater', x: 200, y: 260, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 368.15 }, pu: {} },
+        { id: 'b2', name: 'V-401', type: 'flash', x: 400, y: 240, nIn: 1, nOut: 2, params: { fmode: 'PVF', P_bar: 1.01325, vapour_fraction: 0.5 }, pu: {} },
+        { id: 'b3', name: 'E-402', type: 'heater', x: 600, y: 120, nIn: 1, nOut: 1, params: { spec: 'VF', vapour_fraction: 0 }, pu: {} },
+        { id: 'b4', name: 'E-403', type: 'heater', x: 600, y: 380, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 313.15 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'SEAWATER', from: null, to: { b: 'b1', p: 0 }, spec: sp(25, '°C', 2, 'bar(a)', 100000, 'kg/h', 'mole%',
+          { H2O: 98.99789, NaCl: 0.8628027, KCl: 0.01886833, CaCl2: 0.01917347, MgCl2: 0.04543828, MgSO4: 0.0521913, Na2CO3: 0.002029294, CO2: 0.001605369 }) },
+        { id: 's2', name: 'HOT SEAWATER', from: { b: 'b1', p: 0 }, to: { b: 'b2', p: 0 } },
+        { id: 's3', name: 'VAPOUR', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's4', name: 'BRINE', from: { b: 'b2', p: 1 }, to: { b: 'b4', p: 0 } },
+        { id: 's5', name: 'DISTILLATE', from: { b: 'b3', p: 0 }, to: null },
+        { id: 's6', name: 'BRINE OUT', from: { b: 'b4', p: 0 }, to: null },
+      ],
+      seq: { b: 4, s: 6 },
+    },
+    note: 'Aqueous-electrolyte method (Pitzer, PHREEQC pitzer.dat). The evaporator boils off half of the water at 1 atm: the brine boils about 1.1 K above pure water (its water activity drops as the salts concentrate), and the dissolved CO₂ leaves with the vapour, which raises the pH and pushes calcite and brucite above saturation — the alkaline-scale problem of thermal desalination. At twice the seawater concentration and 101 °C anhydrite is also just past saturation (SI ≈ +0.17), which is why evaporator plants limit the concentration factor and top brine temperature. Open BRINE for pH, water activity and the saturation indices; change the vapour fraction to see the scaling limits move. Seawater as Millero’s reference composition (Sr counted as Ca, Br as Cl; boron left out), with its bicarbonate written as Na₂CO₃ + CO₂ so that the CO₂ can leave in the evaporator — a bicarbonate salt given as NaHCO₃ keeps its CO₂ in the liquid.',
   },
 ];
 function loadExample(x) {

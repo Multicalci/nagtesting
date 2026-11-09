@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flowsheet Simulator User Guide — Build, Run and Read a Process Simulation | multicalci.com</title>
-<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate), rigorous columns, reactors, recycles, design specs, sensitivity studies, optimisation, equipment costing, pinch analysis, case comparison, results, reports and troubleshooting.">
+<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate, sour water, aqueous electrolytes), rigorous columns, reactors, recycles, design specs, sensitivity studies, optimisation, equipment costing, pinch analysis, case comparison, results, reports and troubleshooting.">
 <link rel="canonical" href="https://www.multicalci.com/flowsheet-user-guide">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="Flowsheet Simulator User Guide | multicalci.com">
@@ -118,7 +118,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <div class="tw"><table><thead><tr><th>Area</th><th>What it is for</th></tr></thead><tbody>
 <tr><td>Toolbar</td><td><span class="ui">Examples</span> loads ready-made flowsheets. <span class="ui">File</span> handles new, open, save and share links, and exports the stream table. <span class="ui">Undo / Redo</span> and <span class="ui">Tidy</span> (auto-arrange left to right) edit the drawing. <span class="ui">Methods</span> sets the property method; its badge shows the current one (PR, NRTL, IF97 …). <span class="ui">Specs</span> holds the design specs. <span class="ui">Report</span> builds a Word (.docx) or PDF report and <span class="ui">Help</span> gives a summary. <span class="ui">Run</span> solves the flowsheet.</td></tr>
 <tr><td>Equipment palette</td><td>All unit operations, grouped: mixers &amp; splitters, separators, heat transfer, pressure changers, reactors, columns, ammonia &amp; syngas, urea synthesis and solids. Type in <span class="ui">Search equipment…</span> to filter. Drag a unit onto the canvas, or click it to drop it in the middle.</td></tr>
-<tr><td>Canvas</td><td>The drawing. Drag empty space to pan and use <kbd>Ctrl</kbd>+wheel or pinch to zoom. <span class="ui">Fit</span> brings everything into view. <span class="ui">Snap</span> aligns blocks to the grid and <span class="ui">T·P·F tags</span> prints stream results on the drawing.</td></tr>
+<tr><td>Canvas</td><td>The drawing. Drag empty space to pan and use <kbd>Ctrl</kbd>+wheel or pinch to zoom. <span class="ui">Fit</span> brings everything into view. <span class="ui">Snap</span> aligns blocks to the grid and <span class="ui">T·P·F tags</span> prints stream results on the drawing; the <span class="ui">▾</span> beside it chooses the values (temperature, pressure, vapour fraction, flow, molar flow, actual volume flow), whether unit duties and powers are shown, and a compact style with values only and a legend.</td></tr>
 <tr><td>Properties panel (right)</td><td>Shows whatever is selected. For a feed stream it holds the specification and results. For a unit it holds the specifications, connections and results, including profiles for columns and reactors. With nothing selected (click empty canvas) it holds the <b>flowsheet panel</b>: property method, design specs, sensitivity study and display units.</td></tr>
 <tr><td>Results dock (bottom)</td><td>A status lamp and ten tabs: <span class="ui">Stream table</span>, <span class="ui">Units</span>, <span class="ui">Balance</span>, <span class="ui">Convergence</span>, <span class="ui">Sensitivity</span>, <span class="ui">Cases</span>, <span class="ui">Pinch</span>, <span class="ui">Costs</span>, <span class="ui">Run log</span> and <span class="ui">Issues</span>. Drag its top edge to resize it, or collapse it with the arrow on the right.</td></tr>
 </tbody></table></div>
@@ -140,6 +140,9 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <li><b>Red ports</b> are required inlets that still need a stream. Blue ports are outlets or optional inlets.</li>
 <li>Drag the <b>tip of an outlet arrow</b> onto the inlet port of the next unit. You can also drag from any free port and release on another port to connect, or on empty canvas to make a feed or product.</li>
 <li>To re-route a stream, select it and drag its end handle. Every unit's panel also has a <span class="ui">Ports &amp; connections</span> section with dropdowns, which is the easiest way on a phone.</li>
+<li>To change a stream's path, select it and drag the small square on its middle run; <span class="ui">↺</span> in the stream's panel returns it to the automatic path.</li>
+<li>To put a unit into an existing stream, drop it from the palette onto the stream: the stream now ends at the unit's inlet and a new stream carries on from its outlet.</li>
+<li>To turn a unit, use <span class="ui">⟳ Rotate</span> and the two <span class="ui">Flip</span> buttons under <span class="ui">Ports &amp; connections</span>, or press <kbd>R</kbd>, <kbd>H</kbd> or <kbd>V</kbd> with the unit selected; its ports turn with it.</li>
 <li>Streams with no source are <b>feeds</b> and must be specified. Streams with no destination are <b>products</b>.</li>
 </ul>
 
@@ -177,6 +180,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 </ul>
 <p>A rigorous unit can override the flowsheet method in its own panel.</p>
 <p><span class="ui">🔍 Review pure-component &amp; binary data</span> lists exactly which constants and binary pairs will be used, and lets you override Peng–Robinson k<sub>ij</sub> or NRTL pairs. <span class="ui">Valid phases</span> switches on a second liquid phase (vapour–liquid–liquid) for free water or partially miscible solvents. <span class="ui">Automatic</span> turns it on for an equation of state when water and propane-or-heavier hydrocarbons are present.</p>
+<p><span class="ui">Liquid enthalpy from liquid heat capacities</span> (activity and electrolyte methods, on by default) takes liquid water from the IAPWS-IF97 steam tables and every other liquid from its liquid heat capacity, anchored at the normal boiling point. Switched off, the liquid enthalpy is h<sub>ig</sub> − ΔHvap(T) as in DWSIM’s default; that route gives liquid heat capacities 10–27 % high for methanol, ethanol and ammonia and 15 % high for water at 150 °C, which shows up in heater and exchanger duties.</p>
+<p><span class="ui">Heat of mixing</span> (activity methods, off by default) adds the excess enthalpy H<sup>E</sup> = −RT² Σ x<sub>i</sub> ∂ln γ<sub>i</sub>/∂T to the liquid enthalpy. Use it with Dortmund UNIFAC, whose parameters were fitted to heats of mixing (equimolar methanol–water, benzene–cyclohexane and acetone–chloroform at 25 °C within 2–4 % of calorimetry); NRTL, UNIQUAC and Wilson parameters fitted to vapour–liquid data alone can give the wrong sign (ChemSep NRTL: +290 J/mol for methanol–water against −805 measured). <span class="ui">Poynting correction</span> (activity methods, on) multiplies each pure-liquid fugacity by exp[V<sub>L</sub>(P − P<sub>sat</sub>)/RT], worth 1–3 % in K at 20 bar; switch it off only to match a program that omits it. <span class="ui">Liquid volume</span> sets how liquid densities — and so volumetric flows and pump heads — are calculated: automatic (each component's ChemSep density correlation summed by volume, within 0.4 % for common liquids, with COSTALD near the critical point), the Rackett mixture rule (captures part of the contraction on mixing, but water comes out 7 % dense), COSTALD (best for light hydrocarbons) or the equation of state's own liquid root (5–16 % low for polar liquids).</p>
 <p><span class="ui">Free water</span> (Peng–Robinson and SRK, on by default) refers the water in every liquid phase to the IAPWS-IF97 steam tables, and water vapour to IF97 at its partial pressure, so a boiler, condenser or wet-gas cooler gets the steam-table latent heat (a plain cubic is about 5 % high) and the steam-table vapour pressure (up to 15 % low). Gases dissolved in liquid water — H<sub>2</sub>, N<sub>2</sub>, O<sub>2</sub>, CO, CO<sub>2</sub>, H<sub>2</sub>S, CH<sub>4</sub>, C<sub>2</sub>H<sub>6</sub>, Ar and the other noble gases — follow the IAPWS G7-04 Henry constants; a plain cubic makes them 10–100× too insoluble. Hydrocarbon phases and dry gases are unchanged. Switch it off only to compare against another program’s plain cubic.</p>
 </div>
 <figure><img src="/assets/methods.webp" width="344" height="808" loading="lazy" alt="Flowsheet panel with the property method selector, design specs, sensitivity study and display units"><figcaption>The flowsheet panel (click empty canvas): property method, design specs, sensitivity study and display units.</figcaption></figure>
@@ -190,14 +195,19 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Aqueous MEA</td><td>CO₂ removal with monoethanolamine</td><td>Carbamate and bicarbonate chemistry. Over-predicts CO₂ pressure at high loadings.</td></tr>
 <tr><td>Aqueous MDEA / activated MDEA</td><td>CO₂ removal with MDEA, or MDEA + piperazine (aMDEA)</td><td>Extended UNIQUAC. Add piperazine to the components for aMDEA. The piperazine part is fitted to measured data and flagged outside the data range.</td></tr>
 <tr><td>Hot potassium carbonate</td><td>Benfield-type hot carbonate CO₂ removal</td><td>Pitzer model. Parameters are extrapolated above about 100 °C.</td></tr>
+<tr><td>Sour water</td><td>Sour water strippers, refinery and gasifier condensates, ammonia-plant process condensate</td><td>NH₃, H₂S and CO₂ with their ionisation and carbamate, plus NaOH. Fitted to measured partial pressures from 20 to 260 °C (12–24 % mean deviation). Streams show pH and the equilibrium NH₃, H₂S and CO₂ pressures.</td></tr>
+<tr><td>Aqueous electrolytes</td><td>Brines, seawater, cooling water, caustic and acid solutions, evaporators, scaling checks</td><td>Pitzer model on the USGS PHREEQC pitzer.dat database. Salts are components by formula (NaCl, CaCl₂, Na₂SO₄, NaOH, H₂SO₄ …). Streams show pH, water activity and mineral saturation indices; solids are not precipitated.</td></tr>
 <tr><td>Classic</td><td>The engine's per-unit models (needed for the reformer, shift, methanator and urea units)</td><td>Flash drums then offer Raoult, Peng–Robinson or NRTL individually.</td></tr>
 </tbody></table></div>
-<div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson. Water with organics: NRTL, with a Peng–Robinson vapour above about 5 bar. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; H₂S and NH₃ are not modelled.</div>
+<div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson. Water with organics: NRTL, with a Peng–Robinson vapour above about 5 bar. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. NH₃ / H₂S / CO₂ in water: Sour water. Water with dissolved salts, caustic or acid: Aqueous electrolytes. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; the CO₂-removal methods do not model H₂S or NH₃.</div>
+<div class="tip"><b>Salts and CO₂.</b> In the aqueous-electrolyte method only the CO₂ component can leave the liquid. If CO₂ will boil or strip out (evaporators, strippers, flash let-down), write carbonate alkalinity as Na₂CO₃ or K₂CO₃ plus CO₂ instead of NaHCO₃ or KHCO₃ — 1 mol NaHCO₃ is ½ mol Na₂CO₃ + ½ mol CO₂ + ½ mol H₂O. A bicarbonate salt keeps its CO₂ in the liquid.</div>
 <h3>The simulator tells you which method to apply</h3>
 <p>The flowsheet panel looks at the feed components and pressures and suggests a method, with a button that applies it:</p>
 <ul>
 <li><b>Water / steam only</b> → <span class="ui">Use Steam / water (IAPWS-IF97)</span>.</li>
 <li><b>Hydrocarbons and light gases only</b> with an activity method → <span class="ui">Use Peng–Robinson</span>.</li>
+<li><b>Dissolved salts</b> (NaCl, CaCl₂, NaOH …) with any other method → <span class="ui">Use Aqueous electrolytes</span>.</li>
+<li><b>NH₃ or H₂S in water</b> with an equation of state or activity method → <span class="ui">Use Sour water</span>.</li>
 <li><b>An activity or acid-gas method with pressures above about 5 bar</b> → <span class="ui">Set vapour phase to Peng–Robinson</span>.</li>
 </ul>
 <p><span class="ui">Which method should I use?</span> in the same panel lists the choices. After a run the engine checks every unit: where a vapour above about 5 bar is described as an ideal gas and its real-gas enthalpy correction (estimated with Peng–Robinson) is significant, the <span class="ui">Run log</span> and <span class="ui">Issues</span> name the units, the pressure and the size of the error.</p>
@@ -222,7 +232,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
 <tr><td>Mixer</td><td>Combines any number of inlets</td><td>Thermal mode: adiabatic, a duty, or a specified outlet T. Outlet P (blank = lowest inlet).</td></tr>
 <tr><td>Splitter</td><td>Divides one stream into several of the same composition</td><td>Split fractions</td></tr>
-<tr><td>Component separator</td><td>Sends a set fraction of each component to the “Separated” outlet (e.g. a CO₂ wash or a black-box membrane)</td><td>Fraction per component</td></tr>
+<tr><td>Component separator</td><td>Sends a set fraction of each component to each outlet (e.g. a CO₂ wash, a black-box membrane or a whole column you do not want to model); 2 to 6 outlets, the last takes the rest. Each outlet can leave at its own temperature and pressure — or, on a property method, at a pressure and vapour fraction — and the separator reports the duty this takes.</td><td>Fraction per component and outlet; optional outlet conditions</td></tr>
 <tr><td>Flash drum</td><td>Vapour–liquid separation</td><td>T &amp; P, P &amp; duty (0 = adiabatic), P &amp; vapour fraction, or T &amp; vapour fraction</td></tr>
 <tr><td>Three-phase separator <small>(rigorous only)</small></td><td>Vapour, light liquid and heavy (aqueous) liquid</td><td>P &amp; duty, or T &amp; P</td></tr>
 <tr><td>Solid–liquid separator, dryer</td><td>Solids handling (centrifuge or filter; product drying)</td><td>Solids recovery and cake moisture; product moisture and exhaust or product T</td></tr>
@@ -319,9 +329,11 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
   <ul>
   <li><span class="ui">Phase envelope</span>: bubble and dew curves, critical point, cricondenbar and cricondentherm;</li>
   <li><span class="ui">Property table</span>: sweeps T or P and tabulates the properties;</li>
-  <li><span class="ui">Binary diagram</span>: T–x–y, P–x–y and y–x curves with azeotropes.</li>
+  <li><span class="ui">Binary diagram</span>: T–x–y, P–x–y and y–x curves with azeotropes;</li>
+  <li><span class="ui">Ternary map</span>: a residue curve map on a triangle for any three components — residue curves with arrows towards rising temperature, pure components and azeotropes marked as stable nodes, unstable nodes or saddles, distillation boundaries in red, and, for activity methods, the liquid–liquid envelope with tie lines at a temperature you choose. Point at the triangle to read the composition; copy the tables or download the drawing (SVG) or the curves (CSV);</li>
+  <li><span class="ui">Azeotrope search</span>: every binary, ternary and quaternary azeotrope among up to eight components, with temperature, mole and mass fractions, whether it is heterogeneous (two liquids), minimum- or maximum-boiling, and its stability.</li>
   </ul>
-  The phase envelope is not available with the acid-gas methods.</li>
+  The phase envelope is not available with the acid-gas methods. The flowsheet panel's property-method section has the same buttons for any components, without a stream.</li>
 <li><b>Report</b>: the report builder. Give a title and, if you like, a project, document number and revision; choose A4 or Letter, portrait or landscape; tick the sections (drawing, feeds, stream table, unit summary, unit details, balance, design specs, convergence, sensitivity, optimisation, costs, pinch analysis, case comparison, specification check, warnings), the streams, the stream properties and the units. <span class="ui">Word (.docx)</span> downloads an editable document; <span class="ui">PDF (print view)</span> opens a print layout — choose “Save as PDF” in the print dialog. Both carry multicalci.com, the date and the page number on every page, and wide stream tables are split into column groups that fit the page. <span class="ui">Excel H&amp;MB</span> downloads the full heat and material balance workbook.</li>
 </ul>
 
@@ -352,6 +364,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td>Steam reformer tubes (Xu–Froment)</td><td>LHHW catalytic kinetics with axial profiles</td></tr>
 <tr><td>Ethyl acetate esterification CSTR</td><td>Liquid-phase kinetics with acid association</td></tr>
 <tr><td>Syngas CO₂ removal: MEA, MDEA, activated MDEA, hot potassium carbonate</td><td>Absorber, flash let-down, lean/rich exchanger and regenerator with each solvent</td></tr>
+<tr><td>Refinery sour water stripper</td><td>Preheater, 20-stage stripper with partial condenser, bottoms cooler; reboiler duty sets the stripped-water NH₃ and H₂S</td></tr>
+<tr><td>Seawater evaporator</td><td>Boiling-point rise of brine, CO₂ loss, pH rise and calcite / anhydrite scaling</td></tr>
 </tbody></table></div>
 
 <h2 id="trouble">11 · Troubleshooting</h2>
@@ -387,6 +401,8 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <ul>
 <li><b>Columns</b> are equilibrium-stage models. Tray efficiencies stand in for mass-transfer rates; there is no rate-based or packing hydraulics model.</li>
 <li><b>CO₂ removal methods</b> cover CO₂ only, not H₂S or NH₃. The piperazine part of activated MDEA is fitted to measured data, and the rich end of a high-pressure absorber is an extrapolation that the stream warnings flag.</li>
+<li><b>Sour water</b> holds NH₃, H₂S, CO₂, NaOH and light gases only (no phenols, cyanide or organic acids). Partial pressures are within about 12–24 % of measured data on average; above 10 mol solute per kg water and above 200 °C results are extrapolated and flagged.</li>
+<li><b>Aqueous electrolytes</b> follow the PHREEQC pitzer.dat database: reliable to about 100 °C, usable to 200 °C, ionic strength up to about 6–9 mol/kg. Solids are not precipitated — a supersaturated stream stays in solution and is warned. NH₃ and H₂S need the sour-water method.</li>
 <li><b>Urea units</b> are tuned empirical correlations and warn outside their validity range.</li>
 <li><b>Steam / water method</b>: pure water only.</li>
 <li><b>Costing</b> is a study estimate (about −20 % / +30 %) from published correlations and example prices; mechanical design, piping, instruments and buildings are covered only by the module and grassroots factors. Turbines, expanders and valves are not costed.</li>
@@ -407,6 +423,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
 <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save to file</td></tr>
 <tr><td>Arrow keys</td><td>Nudge the selected units (<kbd>Shift</kbd> for small steps)</td></tr>
+<tr><td><kbd>R</kbd> / <kbd>H</kbd> / <kbd>V</kbd></td><td>Rotate the selected unit 90° clockwise / flip it left–right / flip it top–bottom</td></tr>
 <tr><td><kbd>Esc</kbd></td><td>Close a menu or pop-up, cancel a drag, deselect</td></tr>
 <tr><td><kbd>Ctrl</kbd>+wheel, pinch</td><td>Zoom; drag empty canvas to pan</td></tr>
 </tbody></table></div>
