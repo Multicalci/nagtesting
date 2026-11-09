@@ -25,6 +25,8 @@ import thermoModule from '../api/_lib/mb-thermo.js';
 import steamModule from '../api/_lib/steam-if97.js';
 import pseudoMod from '../api/_lib/mb-pseudo.js';
 import usercompMod from '../api/_lib/mb-usercomp.js';
+import aqelecMod from '../api/_lib/mb-aqelec.js';
+import { aphi as aphi38 } from '../api/_lib/mb-electrolyte.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const engine = engineModule.default || engineModule;
@@ -234,7 +236,7 @@ const vecTable = (ids, kind) => {
       if (kind === 'col') { if (pct !== null) s22Worst.colPct = Math.max(s22Worst.colPct, pct); else s22Worst.colX = Math.max(s22Worst.colX, d); }
       if (kind === 'gibbs') s22Worst.gibbs = Math.max(s22Worst.gibbs, d);
       const dig = Number.isInteger(e) && Math.abs(e) < 100 && !/T_K|T_out/.test(k) ? 0 : Math.abs(e) >= 100 ? 2 : Math.abs(e) >= 10 ? 3 : 6;
-      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : kind === 'fill' && k === 'details.T_K' ? 'bubble T, K' : (kind === 'steam' && STEAM_NICE[k]) || (kind === 'mdea' && MDEA_NICE[k]) || (kind === 'amdea' && AMDEA_NICE[k]) || qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
+      rows.push(`<tr>${i === 0 ? `<td rowspan="${keys.length}">${esc(id)}</td><td class="l" rowspan="${keys.length}">${esc(v.desc)}</td>` : ''}<td class="l">${sub(kind === 'kin' && k === 'details.T_out_K' ? 'outlet T, K' : kind === 'fill' && k === 'details.T_K' ? 'bubble T, K' : (kind === 'steam' && STEAM_NICE[k]) || (kind === 'mdea' && MDEA_NICE[k]) || (kind === 'amdea' && AMDEA_NICE[k]) || (kind === 'ter' && TER_NICE(v, k)) || qName(k))}</td><td>${f(a, dig)}</td><td>${f(e, dig)}</td><td>${pct !== null ? f(pct, 3) + ' %' : sci(d)}</td></tr>`);
     });
   }
   return rows.join('\n');
@@ -830,6 +832,221 @@ const airRows = R37.coolprop_air.map((q) => {
 const s37vec = vecTable(range(303, 305), 'tp');
 console.log(`Step 37: groups ${fragAgree.unifac}/${fragAgree.modunifac}/${fragAgree.joback} of ${nFrag} · estimates over ${estN} molecules · fill-in worst ΔTbub ${f(fillWorst, 2)} K · transport vs CoolProp mean |Δ| databank μ ${f(avg37(tpDev.db.mu), 1)} % SMILES μ ${f(avg37(tpDev.est.mu), 1)} %`);
 
+/* ---------- STEP 38: aqueous electrolytes (PHREEQC pitzer.dat) and sour water ---------- */
+const R38 = REF.step38;
+const MW38 = { H2O: 18.01528, NaCl: 58.4428, KCl: 74.5513, CaCl2: 110.984, MgCl2: 95.211, Na2SO4: 142.0421, K2SO4: 174.2592, MgSO4: 120.3676, CaSO4: 136.1406, NaOH: 39.99711,
+  KOH: 56.10564, Na2CO3: 105.9884, NaHCO3: 84.0066, K2CO3: 138.2055, KHCO3: 100.1151, H2SO4: 98.0785, CO2: 44.0095, HCl: 36.4609, NH3: 17.03052, H2S: 34.08088 };
+const liq38 = (mol, T, model, P0) => {
+  const P = P0 || (T > 368 ? 10 : 1.01325);           // keep the solution liquid
+  const m = { H2O: 1000 }; for (const [k, v] of Object.entries(mol)) m[k] = v * MW38[k];
+  const tot = Object.values(m).reduce((a, b) => a + b, 0);
+  const r = engine.runModule('property-table', { streams: [{ mass_flow_kg_h: tot, T_K: T, P_bar: P, components: Object.entries(m).map(([key, v]) => ({ key, mass_fraction: v / tot })) }],
+    params: { property_package: { model }, vary: 'T', from: T, to: T + 1, points: 2, P_bar: P } });
+  if (r.error) fail('STEP 38 property-table: ' + r.error.message);
+  const L = r.details.rows[0].phases.liquid;
+  if (!L || !L.acid_gas) fail('STEP 38: no liquid report at ' + T + ' K for ' + JSON.stringify(mol));
+  return L;
+};
+const molsOf = (c) => Object.assign({}, c.salts || {}, c.CO2 ? { CO2: c.CO2 } : {}, c.HCl ? { HCl: c.HCl } : {});
+// (a) the implementation against PHREEQC itself
+const w38 = { aw: 0, phi: 0, pH: 0, si: 0, nSi: 0 };
+const pq38Rows = R38.pq.map((c) => {
+  const ag = liq38(molsOf(c), c.T_K, 'aqueous-electrolyte').acid_gas, r = c.ref;
+  const daw = Math.abs(ag.water_activity - r.aw), dphi = Math.abs(ag.osmotic_coefficient - r.phi), dpH = Math.abs(ag.pH - r.pH);
+  let dsi = 0, nsi = 0;
+  for (const [ph, v] of Object.entries(r.si)) { const e = ag.saturation_index[ph]; if (!Number.isFinite(e)) fail('STEP 38: no SI ' + ph + ' for ' + c.label); dsi = Math.max(dsi, Math.abs(e - v)); nsi++; }
+  w38.aw = Math.max(w38.aw, daw); w38.phi = Math.max(w38.phi, dphi); w38.pH = Math.max(w38.pH, dpH); w38.si = Math.max(w38.si, dsi); w38.nSi += nsi;
+  if (daw > 2e-4 || dpH > 0.01 || dsi > 0.01) fail(`STEP 38 vs PHREEQC: ${c.label} ${c.T_K} K aw ${daw} pH ${dpH} SI ${dsi}`);
+  return `<tr><td class="l">${sub(c.label)}</td><td>${f(c.T_K - 273.15, 0)}</td><td>${f(ag.water_activity, 5)}</td><td>${f(r.aw, 5)}</td><td>${f(ag.osmotic_coefficient, 4)}</td><td>${f(r.phi, 4)}</td><td>${f(ag.pH, 3)}</td><td>${f(r.pH, 3)}</td><td>${nsi ? sci(dsi) + ' (' + nsi + ')' : '—'}</td></tr>`;
+}).join('\n');
+// (b) independent references
+const AQ = aqelecMod.default || aqelecMod;
+const aqImpl = (keys) => AQ.makeAqElec(keys, { aphi: aphi38, psatW: (T) => TH37.psat(TH37.component('H2O'), T), lnKhCO2: (T) => TH37.lnKhG704('CO2', T) });
+const aqAt = (mol, T) => { const keys = ['H2O', ...Object.keys(mol)]; const im = aqImpl(keys); const xs = im.sub(keys.map((k) => (k === 'H2O' ? 1000 / MW38.H2O : mol[k]))); return { im, xs, rep: im.report(T, xs), rel: im.lnRel(T, xs) }; };
+let hw38Worst = 0;
+const hw38Rows = R38.hamer_wu.rows.map(([m, phi, g]) => {
+  const q = aqAt({ NaCl: m }, 298.15), ge = Math.exp(0.5 * q.rel.NaCl) / m;
+  if (m <= 5) hw38Worst = Math.max(hw38Worst, Math.abs(q.rep.osmotic_coefficient - phi) / phi, Math.abs(ge - g) / g);
+  return `<tr><td>${m}</td><td>${f(q.rep.osmotic_coefficient, 4)}</td><td>${f(phi, 4)}</td><td>${f(ge, 3)}</td><td>${f(g, 3)}</td></tr>`;
+}).join('\n');
+if (hw38Worst > 0.004) fail('STEP 38: NaCl vs Hamer & Wu ' + hw38Worst);
+const solub38 = (salt, phase, T, lo, hi) => { for (let i = 0; i < 60; i++) { const mid = Math.sqrt(lo * hi); if (aqAt({ [salt]: mid }, T).rep.saturation_index[phase] > 0) hi = mid; else lo = mid; } return Math.sqrt(lo * hi); };
+const sol38Rows = [];
+for (const [T, ref] of R38.solubility.halite.rows) { const m = solub38('NaCl', 'Halite', T, 3, 9); sol38Rows.push(`<tr><td class="l">Halite (NaCl)</td><td>${f(T - 273.15, 0)}</td><td>${f(m, 3)} mol/kg</td><td>${f(ref, 3)}</td><td>${f((m - ref) / ref * 100, 1)} %</td></tr>`); if (Math.abs(m - ref) / ref > 0.015) fail('halite solubility ' + T); }
+for (const [T, ref] of R38.solubility.gypsum.rows) { const m = 1000 * solub38('CaSO4', 'Gypsum', T, 0.001, 0.1); sol38Rows.push(`<tr><td class="l">Gypsum (CaSO₄·2H₂O)</td><td>${f(T - 273.15, 0)}</td><td>${f(m, 2)} mmol/kg</td><td>${f(ref, 1)}</td><td>${f((m - ref) / ref * 100, 1)} %</td></tr>`); if (Math.abs(m - ref) / ref > 0.03) fail('gypsum solubility'); }
+let Ttr38 = 0; { let lo = 313.15, hi = 353.15; for (let i = 0; i < 40; i++) { const mid = 0.5 * (lo + hi); if (solub38('CaSO4', 'Gypsum', mid, 0.001, 0.1) < solub38('CaSO4', 'Anhydrite', mid, 0.0005, 0.1)) lo = mid; else hi = mid; } Ttr38 = 0.5 * (lo + hi); }
+const tw38 = { rho: 0, cp: 0, aw: 0 };
+const teos38Rows = R38.teos10.rows.map((q) => {
+  const mol = Object.fromEntries(Object.entries(R38.teos10.composition).map(([k, v]) => [k, v * q.factor]));
+  const L = liq38(mol, q.t_C + 273.15, 'aqueous-electrolyte');
+  const dr = (L.rho_kgm3 - q.rho) / q.rho * 100, dc = (L.Cp_kJkgK * 1000 - q.cp) / q.cp * 100, da = L.acid_gas.water_activity - q.aw;
+  tw38.rho = Math.max(tw38.rho, Math.abs(dr)); tw38.cp = Math.max(tw38.cp, Math.abs(dc)); tw38.aw = Math.max(tw38.aw, Math.abs(da));
+  return `<tr><td>${f(q.SA, 2)}</td><td>${q.t_C}</td><td>${f(L.rho_kgm3, 2)}</td><td>${f(q.rho, 2)}</td><td>${f(dr, 2)} %</td><td>${f(L.Cp_kJkgK * 1000, 1)}</td><td>${f(q.cp, 1)}</td><td>${f(dc, 2)} %</td><td>${f(L.acid_gas.water_activity, 5)}</td><td>${f(q.aw, 5)}</td></tr>`;
+}).join('\n');
+if (tw38.rho > 0.2 || tw38.cp > 0.6 || tw38.aw > 2e-4) fail('STEP 38 seawater vs TEOS-10 ' + JSON.stringify(tw38));
+// (c) sour water against measured partial pressures: liquid fugacity from the engine's sour-water
+// package at the measured total pressure (Poynting included) against p_i·φ_i of the measured vapour
+// (Peng–Robinson), the same comparison the parameter fit used
+const SR38 = R38.sour, sw38Stat = {};
+const KS38 = ['H2O', 'NH3', 'CO2', 'H2S'];
+const ppSW38 = TH37.createPackage({ model: 'sour-water' }, KS38), ppPR38 = TH37.createPackage({ model: 'pr' }, KS38);
+const mmHg38 = 133.322;
+const sw38Pt = (set, T, mol, p, Ptot) => {      // mol: {NH3,CO2,H2S} per kg water; p: measured partial pressures Pa (H2O optional)
+  const n = KS38.map((k) => (k === 'H2O' ? 1000 / MW38.H2O : Math.max(mol[k] || 0, 1e-12)));
+  const tn = n.reduce((a, b) => a + b, 0), x = n.map((v) => v / tn);
+  const P = Ptot || KS38.reduce((a, k) => a + (p[k] || 0), 0);
+  const y = KS38.map((k) => (p[k] || 0) / P);
+  if (!p.H2O) y[0] = Math.max(1 - y[1] - y[2] - y[3], 1e-6);
+  const ys = y.reduce((a, b) => a + b, 0);
+  const lpL = ppSW38.lnFug(T, P, x, 'L'), lpV = ppPR38.lnFug(T, P, y.map((v) => Math.max(v, 1e-12) / ys), 'V');
+  KS38.forEach((k, i) => {
+    if (k === 'H2O' || !(p[k] > 0)) return;
+    const d = (Math.log(x[i]) + lpL[i] + Math.log(P)) - (Math.log(p[k]) + lpV[i]);
+    const key = set + '|' + { NH3: 'NH₃', CO2: 'CO₂', H2S: 'H₂S' }[k];
+    (sw38Stat[key] = sw38Stat[key] || []).push(d);
+  });
+};
+for (const [t, mN, mC, P, pN, pC] of SR38.muller.rows) sw38Pt('Müller (1983)', t + 273.15, { NH3: mN, CO2: mC }, { NH3: pN === 0.285 ? 0 : pN * 1e5, CO2: pC * 1e5 }, P * 1e5);
+for (const [T, xN, xC, xS, xW, pN, pC, pS, pW] of SR38.wilson85.rows) { const w = xW / 100 * MW38.H2O / 1000; sw38Pt('Wilson, Gillespie & Owens (1985)', T, { NH3: xN / 100 / w, CO2: xC / 100 / w, H2S: xS / 100 / w }, { NH3: pN * 1e5, CO2: pC * 1e5, H2S: pS * 1e5, H2O: pW * 1e5 }); }
+for (const [mN, mS, pN, pS] of SR38.api80.rows) { if (mN > 12) continue; sw38Pt('API data, 80 °C', 353.15, { NH3: mN, H2S: mS }, { NH3: pN * mmHg38, H2S: pS * mmHg38 }, (pN + pS) * mmHg38 + 0.95 * TH37.psat(TH37.component('H2O'), 353.15)); }
+for (const [cS, cN, T, pS, pN, pW] of SR38.leyko.rows) { const ws = 1 - (cN * 17.03 + cS * 34.08) / 1000; sw38Pt('Leyko (1959)', T, { NH3: cN / ws, H2S: cS / ws }, { NH3: pN * mmHg38, H2S: pS * mmHg38, H2O: pW * mmHg38 }); }
+const sw38Liq = (T, mol) => liq38(mol, T, 'sour-water', 20).acid_gas;
+const sw38All = Object.values(sw38Stat).flat();
+const sw38Mean = sw38All.reduce((a, x) => a + Math.abs(x), 0) / sw38All.length;
+const sw38Rows = Object.entries(sw38Stat).map(([k, a]) => { const [set, sp] = k.split('|'); const m = a.reduce((s, x) => s + Math.abs(x), 0) / a.length, b = a.reduce((s, x) => s + x, 0) / a.length;
+  return `<tr><td class="l">${esc(set)}</td><td>${sp}</td><td>${a.length}</td><td>${f((Math.exp(m) - 1) * 100, 0)} %</td><td>${b >= 0 ? '+' : ''}${f((Math.exp(b) - 1) * 100, 0)} %</td></tr>`; }).join('\n');
+if (sw38Mean > 0.2) fail('STEP 38 sour water mean |ln ratio| ' + sw38Mean);
+const h2s38Rows = [283.15, 298.15, 323.15, 353.15, 393.15, 423.15].map((T) => {
+  const A = SR38.h2s_iupac.A, x1 = Math.exp(A[0] + A[1] / T + A[2] * Math.log(T) + A[3] * T), m = 0.05, x = m / (1000 / MW38.H2O + m);
+  const pe = sw38Liq(T, { H2S: m }).P_H2S_eq_kPa, pr = 101.325 * x / x1;
+  return `<tr><td>${f(T - 273.15, 0)}</td><td>${f(pe, 2)}</td><td>${f(pr, 2)}</td><td>${f((pe - pr) / pr * 100, 1)} %</td></tr>`;
+}).join('\n');
+const hsol38f = (key, m) => { const d = 0.5, a = sw38Liq(298.15 + d, { [key]: m }), b = sw38Liq(298.15 - d, { [key]: m }); const pk = 'P_' + key + '_eq_kPa'; return 8.314462618 * (Math.log(a[pk]) - Math.log(b[pk])) / (1 / (298.15 + d) - 1 / (298.15 - d)) / 1000; };
+const hsol38Rows = [['NH₃', 'NH3', 0.1, '−34.1 to −34.9 (4100–4200 K)'], ['H₂S', 'H2S', 0.05, '−17.5 (2100 K)'], ['CO₂', 'CO2', 0.05, '−20.0 (2400 K)']]
+  .map(([lab, k, m, ref]) => `<tr><td class="l">${lab}</td><td>${m}</td><td>${f(hsol38f(k, m), 1)}</td><td>${ref}</td></tr>`).join('\n');
+Object.assign(NICE, { 'details.rows.0.phases.liquid.acid_gas.water_activity': 'water activity', 'details.rows.0.phases.liquid.acid_gas.osmotic_coefficient': 'osmotic coefficient',
+  'details.rows.0.phases.liquid.acid_gas.pH': 'pH (MacInnes scale)', 'details.rows.0.phases.liquid.acid_gas.ionic_strength_mol_kg': 'ionic strength, mol/kg',
+  'details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa': 'equilibrium CO₂ pressure, kPa', 'details.rows.0.phases.liquid.acid_gas.P_NH3_eq_kPa': 'equilibrium NH₃ pressure, kPa',
+  'details.rows.0.phases.liquid.acid_gas.P_H2S_eq_kPa': 'equilibrium H₂S pressure, kPa', 'details.rows.0.phases.liquid.rho_kgm3': 'liquid density, kg/m³', 'details.rows.0.phases.liquid.Cp_kJkgK': 'liquid Cp, kJ/(kg·K)' });
+for (const ph of ['Halite', 'Calcite', 'Dolomite', 'Gypsum', 'Anhydrite', 'Brucite']) NICE['details.rows.0.phases.liquid.acid_gas.saturation_index.' + ph] = 'saturation index, ' + ph.toLowerCase();
+const s38vec = vecTable(range(306, 326), 'aq');
+console.log(`Step 38: vs PHREEQC worst aw ${sci(w38.aw)} φ ${sci(w38.phi)} pH ${sci(w38.pH)} SI ${sci(w38.si)} · Hamer & Wu worst ${f(100 * hw38Worst, 2)} % · TEOS-10 ρ ${f(tw38.rho, 2)} % cp ${f(tw38.cp, 2)} % · sour water mean ${f((Math.exp(sw38Mean) - 1) * 100, 1)} % · gypsum/anhydrite ${f(Ttr38 - 273.15, 1)} °C`);
+
+/* ---------- STEP 39: liquid enthalpy of the activity-coefficient methods ---------- */
+const R39 = REF.step39;
+const pk39 = {};
+const pkg39 = (key, spec) => { const k = key + JSON.stringify(spec); return pk39[k] || (pk39[k] = TH37.createPackage(spec, [key, 'N2'])); };
+const cpOf39 = (key, T, P, spec) => { const pp = pkg39(key, spec), c = TH37.component(key), d = 0.25; const h = (t) => pp.hPhase(t, P, [1, 0], 'L'); return (h(T + d) - h(T - d)) / (2 * d) / c.MW * 1000 / 1000; };
+const dev39 = { cp: [], hvap: [] };
+const cp39Rows = R39.cp.map((r) => {
+  const c = TH37.component(r.key);
+  const a = cpOf39(r.key, r.T_K, r.P_Pa, { model: 'nrtl' }), b = cpOf39(r.key, r.T_K, r.P_Pa, { model: 'nrtl', liquid_enthalpy: 'hvap' });
+  const da = (a - r.cp_kJkgK) / r.cp_kJkgK * 100, db = (b - r.cp_kJkgK) / r.cp_kJkgK * 100;
+  if (r.T_K <= c.tb + 1) { dev39.cp.push(Math.abs(da)); dev39.hvap.push(Math.abs(db)); }
+  return `<tr><td class="l">${esc(r.label)}</td><td>${f(r.T_K - 273.15, 0)}</td><td>${f(r.cp_kJkgK, 3)}</td><td>${f(a, 3)} <span class="dim">(${da >= 0 ? '+' : ''}${f(da, 1)} %)</span></td><td>${f(b, 3)} <span class="dim">(${db >= 0 ? '+' : ''}${f(db, 1)} %)</span></td></tr>`;
+}).join('\n');
+const mean39 = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+if (mean39(dev39.cp) > 2) fail('STEP 39 liquid Cp mean deviation ' + mean39(dev39.cp));
+const hv39Rows = R39.hvap.map((r) => {
+  const P = TH37.psat(TH37.component(r.key), r.T_K);
+  const dh = (spec) => { const pp = pkg39(r.key, spec); return (pp.hPhase(r.T_K, P, [1, 0], 'V') - pp.hPhase(r.T_K, P, [1, 0], 'L')) / 1000; };
+  const cell = (v) => `<td>${f(v, 2)} <span class="dim">(${v >= r.dHvap_kJmol ? '+' : ''}${f((v - r.dHvap_kJmol) / r.dHvap_kJmol * 100, 1)} %)</span></td>`;
+  return `<tr><td class="l">${esc(r.label)}</td><td>${f(r.T_K - 273.15, 1)}</td><td>${f(r.dHvap_kJmol, 2)}</td>${cell(dh({ model: 'nrtl' }))}${cell(dh({ model: 'nrtl', vapour: 'pr' }))}${cell(dh({ model: 'nrtl', liquid_enthalpy: 'hvap' }))}</tr>`;
+}).join('\n');
+const s39vec = vecTable(range(327, 332), 'liq');
+console.log(`Step 39: liquid Cp to Tb mean |Δ| liquid-Cp route ${f(mean39(dev39.cp), 2)} % · ΔHvap route ${f(mean39(dev39.hvap), 2)} %`);
+
+/* ---------- STEP 40: ternary maps and azeotrope search, separators, heat of mixing, liquid volume ---------- */
+const R40 = REF.step40;
+const NM40 = { MeOH: 'methanol', H2O: 'water', EtOH: 'ethanol', nBuOH: '1-butanol', benzene: 'benzene', cyclohexane: 'cyclohexane', acetone: 'acetone', chloroform: 'chloroform', toluene: 'toluene', nC6H14: 'n-hexane', C3H8: 'propane', NH3: 'ammonia' };
+const nm40 = (ks) => ks.map((k) => NM40[k] || k).join('–');
+const id40 = (ks) => ks.slice().sort().join('+');
+const az40 = {};
+for (const sys of R40.azeotropes) for (const model of ['nrtl', 'uniquac', 'modunifac']) {
+  const r = engine.runModule('azeotrope-search', { streams: [], params: { property_package: { model }, keys: sys.keys, P_bar: 1.01325 } });
+  if (r.error) fail('STEP 40 azeotrope ' + sys.system + ' ' + model + ': ' + r.error.message);
+  az40[sys.system + '|' + model] = r.details;
+}
+const azDev40 = { nrtl: [], uniquac: [], modunifac: [] };
+const az40Rows = R40.azeotropes.map((sys) => {
+  const head = `<tr><th colspan="5">${esc(sys.system)}</th></tr>`;
+  return head + sys.az.map((a) => {
+    const wk = Object.keys(a.w);
+    const lit = `${f(a.T_C, 1)} °C${a.het ? ' <span class="dim">het.</span>' : ''}<small>${wk.map((k) => f(100 * a.w[k], 1) + ' wt % ' + (NM40[k] || k)).join(', ')}</small>`;
+    const cells = ['nrtl', 'uniquac', 'modunifac'].map((model) => {
+      // the model azeotrope of that set nearest the tabulated one (a parameter set can add a spurious one — see below)
+      const cand = az40[sys.system + '|' + model].azeotropes.filter((z) => id40(z.keys) === id40(a.keys)).sort((u, v) => Math.abs(u.T_K - 273.15 - a.T_C) - Math.abs(v.T_K - 273.15 - a.T_C));
+      const q = cand.length ? Object.assign({}, cand[0], { w: Object.fromEntries(cand[0].keys.map((k, i) => [k, cand[0].w[i]])) }) : null;
+      if (!q) return '<td class="dim">none</td>';
+      const dT = q.T_K - 273.15 - a.T_C;
+      azDev40[model].push(Math.abs(dT));
+      return `<td>${f(q.T_K - 273.15, 2)}${q.heterogeneous ? ' <span class="dim">het.</span>' : ''} <span class="dim">(${dT >= 0 ? '+' : ''}${f(dT, 2)} K)</span><small>${wk.map((k) => f(100 * (q.w[k] || 0), 1)).join(', ')}</small></td>`;
+    });
+    return `<tr><td class="l">${esc(nm40(a.keys))}</td><td>${lit}</td>${cells.join('')}</tr>`;
+  }).join('\n');
+}).join('\n');
+const meanArr = (a) => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+if (meanArr(azDev40.nrtl) > 1) fail('STEP 40 NRTL azeotrope mean |ΔT| ' + meanArr(azDev40.nrtl));
+// residue curve map topology against the published maps
+const TOPO40 = [
+  { model: 'nrtl', keys: ['MeOH', 'acetone', 'chloroform'], lle: null, want: { MeOH: 'stable node', acetone: 'saddle', chloroform: 'saddle', 'MeOH+acetone': 'unstable node', 'MeOH+chloroform': 'unstable node', 'acetone+chloroform': 'stable node', 'MeOH+acetone+chloroform': 'saddle' }, regions: 4 },
+  { model: 'uniquac', keys: ['H2O', 'EtOH', 'benzene'], lle: 298.15, want: { H2O: 'stable node', EtOH: 'stable node', benzene: 'stable node', 'EtOH+H2O': 'saddle', 'EtOH+benzene': 'saddle', 'H2O+benzene': 'saddle', 'EtOH+H2O+benzene': 'unstable node' }, regions: 3 },
+];
+let topo40Ok = 0, topo40N = 0;
+const topo40Rows = TOPO40.map((t) => {
+  const r = engine.runModule('ternary-diagram', { streams: [], params: { property_package: { model: t.model }, keys: t.keys, P_bar: 1.01325, ...(t.lle ? { lle_T_K: t.lle } : {}) } });
+  if (r.error) fail('STEP 40 ternary ' + t.keys + ': ' + r.error.message);
+  const d = r.details;
+  const rows = Object.entries(t.want).map(([id, kind]) => {
+    const q = d.by_keys[id];
+    topo40N++; const ok = q && q.kind === kind; if (ok) topo40Ok++; else fail('STEP 40 topology ' + id + ': ' + (q && q.kind) + ' vs ' + kind);
+    return `<tr><td class="l">${esc(id.split('+').map((k) => NM40[k] || k).join('–'))}</td><td>${q ? f(q.T_K - 273.15, 2) : '—'}${q && q.heterogeneous ? ' <span class="dim">het.</span>' : ''}</td><td class="l">${esc(kind)}</td><td class="l">${esc(q ? q.kind : 'not found')}</td></tr>`;
+  }).join('\n');
+  if (d.n_boundaries + 0 < t.regions - 1) fail('STEP 40 boundaries ' + t.keys);
+  return `<tr><th colspan="4">${esc(nm40(t.keys))} — ${esc(d.pp.label)}, ${d.residue_curves.length} residue curves, ${d.n_boundaries} distillation boundaries${d.lle ? ', ' + d.lle.tie_lines.length + ' liquid–liquid tie lines at 25 °C' : ''}, ${d.bubble_points} bubble points in ${f(d.ms / 1000, 1)} s</th></tr>` + rows;
+}).join('\n');
+// heat of mixing, equimolar at 25 °C
+const MW40 = (k) => TH37.component(k).MW;
+const hE40 = (keys, model) => {
+  const w0 = MW40(keys[0]) / (MW40(keys[0]) + MW40(keys[1]));
+  const run = (spec) => engine.runModule('property-table', { streams: [{ mass_flow_kg_h: 100, T_K: 298.15, P_bar: 1.01325, components: [{ key: keys[0], mass_fraction: w0 }, { key: keys[1], mass_fraction: 1 - w0 }] }], params: { property_package: spec, vary: 'T', from: 298.15, to: 299.15, points: 2, P_bar: 1.01325 } });
+  const a = run({ model, excess_enthalpy: true }), b = run({ model });
+  if (a.error || b.error) fail('STEP 40 hE ' + keys + ' ' + model);
+  return a.details.rows[0].H_kJkmol - b.details.rows[0].H_kJkmol;
+};
+const hE40Models = ['nrtl', 'uniquac', 'wilson', 'unifac', 'modunifac'];
+const hEdev40 = [];
+const hE40Rows = R40.hE.map((h) => {
+  const cells = hE40Models.map((m) => { const v = hE40(h.keys, m); if (m === 'modunifac') hEdev40.push(Math.abs(v - h.hE_Jmol) / Math.abs(h.hE_Jmol)); return `<td${m === 'modunifac' ? ' style="font-weight:600"' : ''}>${f(v, 0)}</td>`; });
+  return `<tr><td class="l">${esc(h.label)}<small>${esc(h.source)}</small></td><td>${f(h.hE_Jmol, 0)}</td>${cells.join('')}</tr>`;
+}).join('\n');
+if (Math.max(...hEdev40) > 0.06) fail('STEP 40 Dortmund UNIFAC hE worst ' + Math.max(...hEdev40));
+// liquid density by method
+const rho40 = (keys, x, T, P, spec) => {
+  const pp = TH37.createPackage(spec, keys);
+  const xs = pp.keys.map((k) => x[keys.indexOf(k)]);
+  const v = pp.volPhase(T, P, xs, 'L');
+  return xs.reduce((a, xi, i) => a + xi * pp.comps[i].MW, 0) / 1000 / v;
+};
+const rhoDev40 = { auto: [], rackett: [], costald: [], eos: [] };
+const rho40Rows = R40.rho.map((r) => {
+  const cell = (spec, kk) => { const v = rho40([r.key], [1], r.T_K, r.P_Pa, spec); const dv = (v - r.rho) / r.rho * 100; rhoDev40[kk].push(Math.abs(dv)); return `<td>${f(v, 1)} <span class="dim">(${dv >= 0 ? '+' : ''}${f(dv, 1)} %)</span></td>`; };
+  return `<tr><td class="l">${esc(r.label)}</td><td>${f(r.T_K - 273.15, 0)}</td><td>${f(r.rho, 1)}</td>${cell({ model: 'pr' }, 'auto')}${cell({ model: 'pr', liquid_volume: 'rackett' }, 'rackett')}${cell({ model: 'pr', liquid_volume: 'costald' }, 'costald')}${cell({ model: 'pr', liquid_volume: 'eos' }, 'eos')}</tr>`;
+}).join('\n');
+if (meanArr(rhoDev40.auto) > 1) fail('STEP 40 default liquid density mean ' + meanArr(rhoDev40.auto));
+const mx40 = R40.mix_rho;
+const mixRho40 = ['auto', 'rackett', 'costald'].map((lv) => rho40(mx40.keys, mx40.x, mx40.T_K, 101325, { model: 'nrtl', ...(lv === 'auto' ? {} : { liquid_volume: lv }) }));
+const TER_NICE = (v, k) => {
+  if (k === 'value') return /heat of mixing/.test(v.desc) ? 'heat of mixing Hᴱ, J/mol' : /heater/.test(v.desc) ? 'separator − heater duty, kW' : '3600·Q − ΔH(CO₂ outlet), kJ/h';
+  let m = k.match(/^details\.by_keys\.([^.]+)\.T_K$/); if (m) return m[1].split('+').map((q) => NM40[q] || q).join('–') + ' T, K';
+  m = k.match(/^details\.by_keys\.([^.]+)\.w\.(\w+)$/); if (m) return m[1].split('+').map((q) => NM40[q] || q).join('–') + ': mass fraction ' + (NM40[m[2]] || m[2]);
+  m = k.match(/^details\.outlets_kg_h\.(\d)$/); if (m) return 'outlet ' + (+m[1] + 1) + ', kg/h';
+  m = k.match(/^streams_out\.(\d)\.(T_K|P_bar|vapour_fraction)$/); if (m) return 'outlet ' + (+m[1] + 1) + ' ' + { T_K: 'T, K', P_bar: 'P, bar', vapour_fraction: 'vapour fraction' }[m[2]];
+  return { 'details.n_azeotropes': 'azeotropes found', 'details.n_boundaries': 'distillation boundaries', 'details.rows.0.rho_kgm3': 'liquid density, kg/m³' }[k] || qName(k);
+};
+const s40vec = vecTable(range(333, 351), 'ter');
+console.log(`Step 40: azeotrope mean |ΔT| NRTL ${f(meanArr(azDev40.nrtl), 2)} K UNIQUAC ${f(meanArr(azDev40.uniquac), 2)} K Dortmund ${f(meanArr(azDev40.modunifac), 2)} K · topology ${topo40Ok}/${topo40N} · hE Dortmund worst ${f(100 * Math.max(...hEdev40), 1)} % · density mean auto ${f(meanArr(rhoDev40.auto), 2)} % Rackett ${f(meanArr(rhoDev40.rackett), 2)} % COSTALD ${f(meanArr(rhoDev40.costald), 2)} % PR ${f(meanArr(rhoDev40.eos), 2)} %`);
+
 const html = `<!DOCTYPE html>
 <!-- REPO PATH: flowsheet-validation.html — GENERATED by scripts/build-flowsheet-validation.mjs (${today}); do not edit by hand -->
 <html lang="en">
@@ -837,7 +1054,7 @@ const html = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flowsheet Simulator Validation — Property Packages, Columns, CO₂ Absorption &amp; Catalytic Reactors | multicalci.com</title>
-<meta name="description" content="How the multicalci.com flowsheet simulator is verified: Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson and UNIFAC flashes, rigorous distillation columns, three-phase (VLLE) flashes and phase envelopes against DWSIM and the open-source thermo library, binary T–x–y diagrams with azeotropes, kinetic plug-flow and CSTR reactors against exact solutions, Gibbs-reactor equilibrium against NIST-JANAF, aqueous-MEA and hot-potassium-carbonate CO₂ absorption against measured data, IDAES and USGS PHREEQC, Murphree tray efficiencies, plus energy-balance, recycle and design-spec checks.">
+<meta name="description" content="How the multicalci.com flowsheet simulator is verified: Peng–Robinson, SRK, NRTL, UNIQUAC, Wilson and UNIFAC flashes, rigorous distillation columns, three-phase (VLLE) flashes and phase envelopes against DWSIM and the open-source thermo library, binary T–x–y diagrams, ternary residue curve maps and azeotropes against tabulated data, kinetic plug-flow and CSTR reactors against exact solutions, Gibbs-reactor equilibrium against NIST-JANAF, aqueous-MEA and hot-potassium-carbonate CO₂ absorption against measured data, IDAES and USGS PHREEQC, brines and seawater against PHREEQC and TEOS-10, sour water against measured NH₃ / H₂S / CO₂ pressures, Murphree tray efficiencies, plus energy-balance, recycle and design-spec checks.">
 <link rel="canonical" href="https://www.multicalci.com/flowsheet-validation">
 <meta name="robots" content="index, follow">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1298,8 +1515,81 @@ ${s37vec}
 </tbody></table></div>
 <p class="note">The few group assignments that differ from thermo over the large set are fused polycyclic hydrocarbons and quinodimethanes written in Kekulé form, where which rings count as aromatic is a convention. Group-contribution estimates are screening values: a large or strongly polar molecule can be off by more than the 90th percentile above, and Joback has no groups for some structures (formates, sulfones, furfural-type rings) — enter Tb, Tc and Pc for those. Estimated liquid viscosity is the weakest property; one measured value anchors it. Filled binary pairs are predictions, flagged in the run log and the property information; replace them with fitted data for design (vectors MB-291 to MB-305).</p>
 
+<h2>37 · Aqueous electrolytes and sour water</h2>
+<p>The <b>aqueous-electrolyte</b> method is the Pitzer (Harvie–Møller–Weare) model with the species, equilibrium constants, interaction parameters and mineral solubility products of the USGS PHREEQC <code>pitzer.dat</code> database for Na, K, Ca, Mg, Cl, S(VI), C(IV), H and O, unsymmetrical mixing (Eθ) for every pair of like-signed ions of different charge, and pH reported on the MacInnes scale. It is first checked against PHREEQC itself (${R38.pq.length} solutions; ${w38.nSi} saturation indices) — the same data set, so this is a check of the implementation, not of the data:</p>
+<div class="tw"><table><thead><tr><th class="l">Solution (mol/kg water)</th><th>t, °C</th><th>a<sub>w</sub></th><th>PHREEQC</th><th>φ</th><th>PHREEQC</th><th>pH</th><th>PHREEQC</th><th>max |ΔSI| (n)</th></tr></thead><tbody>
+${pq38Rows}
+</tbody></table></div>
+<p>Against independent data. NaCl at 25 °C against the critically evaluated osmotic and mean activity coefficients of Hamer &amp; Wu (1972):</p>
+<div class="tw"><table><thead><tr><th>m, mol/kg</th><th>φ</th><th>Hamer &amp; Wu</th><th>γ<sub>±</sub></th><th>Hamer &amp; Wu</th></tr></thead><tbody>
+${hw38Rows}
+</tbody></table></div>
+<p>Solubilities, where the saturation index crosses zero (the gypsum–anhydrite transition comes out at ${f(Ttr38 - 273.15, 0)} °C; measurements put it between about 42 and 58 °C):</p>
+<div class="tw"><table><thead><tr><th class="l">Mineral</th><th>t, °C</th><th>Engine</th><th>Measured</th><th>Δ</th></tr></thead><tbody>
+${sol38Rows.join('\n')}
+</tbody></table></div>
+<p>Seawater (Millero's reference composition with Sr as Ca and Br as Cl; boron left out) and twice-concentrated brine against TEOS-10, the international seawater standard — density from Laliberté's mixing rule, heat capacity from Laliberté's apparent heat capacities on IAPWS-IF97 water with the Pitzer heats of dilution at 25 °C, water activity from Pitzer:</p>
+<div class="tw"><table><thead><tr><th>S<sub>A</sub>, g/kg</th><th>t, °C</th><th>ρ, kg/m³</th><th>TEOS-10</th><th>Δ</th><th>c<sub>p</sub>, J/(kg·K)</th><th>TEOS-10</th><th>Δ</th><th>a<sub>w</sub></th><th>TEOS-10</th></tr></thead><tbody>
+${teos38Rows}
+</tbody></table></div>
+<p>The <b>sour-water</b> method solves NH₃, H₂S and CO₂ in water with their ionisation, ammonium carbamate and NaOH: equilibrium and Henry constants of Edwards et al. (1978) and Kawazuishi &amp; Prausnitz (1987), H₂S ionisation from the PHREEQC database, H₂S Henry constant IAPWS G7-04, and four Pitzer parameters (NH₄⁺–HCO₃⁻, NH₄⁺–HS⁻, NH₄⁺–carbamate, NH₃–NH₄⁺) fitted by multicalci (Levenberg–Marquardt) to the 99 measured partial pressures below. Each point compares the liquid-phase fugacity from the engine at the measured total pressure with the measured partial pressure times its Peng–Robinson vapour fugacity coefficient (mean |Δ| and bias, as ratios):</p>
+<div class="tw"><table><thead><tr><th class="l">Data set</th><th>Gas</th><th>n</th><th>Mean |Δ|</th><th>Bias</th></tr></thead><tbody>
+${sw38Rows}
+</tbody></table></div>
+<p>Each data set was also left out of the fit in turn and predicted from the others: Müller (NH₃ 13 %, CO₂ 22 %) and the API data (NH₃ 14 %, H₂S 24 %) are predicted as well as they are fitted, but Wilson et al. (93–260 °C; NH₃ 39 %, CO₂ 45 %, H₂S 48 %) and Leyko (20–60 °C; NH₃ 63 %, H₂S 143 %) are not — each covers a temperature range the others do not, so the fit should not be stretched beyond about 20–260 °C.</p>
+<p>H₂S 0.05 mol/kg in pure water against the IUPAC-evaluated solubility (Fogg &amp; Young 1988), equilibrium pressure in kPa:</p>
+<div class="tw"><table><thead><tr><th>t, °C</th><th>Engine</th><th>IUPAC</th><th>Δ</th></tr></thead><tbody>
+${h2s38Rows}
+</tbody></table></div>
+<p>Heat of solution of the gases at 25 °C, dilute (kJ/mol; from the temperature dependence of the equilibrium pressure), against the recommended temperature dependence of Henry's constant in Sander's compilation (2015):</p>
+<div class="tw"><table><thead><tr><th class="l">Gas</th><th>m, mol/kg</th><th>Engine</th><th>Sander (2015)</th></tr></thead><tbody>
+${hsol38Rows}
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s38vec}
+</tbody></table></div>
+<p class="note">Solids are not precipitated: a positive saturation index is reported and warned, and the solution stays supersaturated. pitzer.dat's CO₂(g) constant (Plummer &amp; Busenberg 1982) is replaced by IAPWS G7-04 for CO₂ volatility — the two agree within 1 % below 50 °C and differ by 5–9 % at 100–150 °C. In the aqueous-electrolyte method only the CO₂ component can leave the liquid, so carbonate alkalinity that should decompose on boiling is entered as Na₂CO₃ or K₂CO₃ plus CO₂. The Laliberté heat-capacity, density and viscosity correlations are fitted to roughly 0–140 °C and are held at their range limits outside it. Sour-water results above 10 mol solute per kg water are extrapolated (vectors MB-306 to MB-326).</p>
+
+<h2>38 · Liquid enthalpy of the activity-coefficient methods</h2>
+<p>NRTL, UNIQUAC, Wilson, UNIFAC and the solvents of the electrolyte methods take their liquid enthalpy from liquid heat capacities: water on IAPWS-IF97, every other component with a liquid-Cp correlation anchored at its normal boiling point (saturated vapour on the package's vapour model minus ΔHvap) and carried by ∫C<sub>p,L</sub> dT up to about 0.9 T<sub>c</sub>. The older route, h<sub>ig</sub> − ΔHvap(T), takes the liquid heat capacity from the slope of the ΔHvap correlation; it remains available (<code>liquid_enthalpy: 'hvap'</code>, the default of DWSIM's activity methods). Liquid heat capacity in kJ/(kg·K) against the reference equations of state in CoolProp; mean |Δ| up to the normal boiling point ${f(mean39(dev39.cp), 1)} % with the liquid-Cp route and ${f(mean39(dev39.hvap), 1)} % with the ΔHvap route:</p>
+<div class="tw"><table><thead><tr><th class="l">Liquid</th><th>t, °C</th><th>CoolProp</th><th>Liquid-Cp route</th><th>ΔHvap route</th></tr></thead><tbody>
+${cp39Rows}
+</tbody></table></div>
+<p>Heat of vaporisation (kJ/mol) as the package computes it, vapour minus liquid at the saturation pressure. At the normal boiling point the liquid-Cp route reproduces the ΔHvap correlation with either vapour model; at 25 °C it is within about 1.5 % with an ideal-gas vapour and 1 % with a Peng–Robinson vapour (ammonia at 10 bar needs the real-gas vapour):</p>
+<div class="tw"><table><thead><tr><th class="l">Liquid</th><th>t, °C</th><th>CoolProp</th><th>Liquid-Cp, ideal vapour</th><th>Liquid-Cp, PR vapour</th><th>ΔHvap route, ideal vapour</th></tr></thead><tbody>
+${hv39Rows}
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s39vec}
+</tbody></table></div>
+<p class="note">Most liquid-Cp correlations end near the normal boiling point and are extrapolated above it — at 0.8 T<sub>c</sub> they are still within 2–9 % (acetone +9 %, ethanol +6 %); from 0.9 T<sub>c</sub> the ΔHvap route takes over with its offset fading to zero at T<sub>c</sub>. Components without a liquid-Cp correlation — mostly light gases and structure-only user components — stay on the ΔHvap route. The column-duty comparisons with DWSIM in section 22 are unchanged within their tolerance, because those columns run near the normal boiling points where both routes agree (vectors MB-327 to MB-332).</p>
+
+<h2>39 · Ternary maps, azeotrope search, multi-outlet separator and property-method options</h2>
+<p><b>Azeotropes.</b> The azeotrope search scans every binary edge for sign changes of y − x, then solves ternary and quaternary azeotropes by Newton's method on y(x) − x = 0 from several starts; where an activity method predicts two liquids at the boiling point the bubble point is heterogeneous (liquid–liquid split, then the bubble condition of one liquid). Temperature, and composition in wt %, at 101.325 kPa against tabulated data (${esc(R40.azeotrope_source)}); mean |ΔT| ${f(meanArr(azDev40.nrtl), 2)} K with NRTL, ${f(meanArr(azDev40.uniquac), 2)} K with UNIQUAC and ${f(meanArr(azDev40.modunifac), 2)} K with Dortmund UNIFAC (no binary data at all):</p>
+<div class="tw"><table><thead><tr><th class="l">Azeotrope</th><th>Tabulated</th><th>NRTL</th><th>UNIQUAC</th><th>Dortmund UNIFAC</th></tr></thead><tbody>
+${az40Rows}
+</tbody></table></div>
+<p>“none” means the model does not form that azeotrope with its parameters: ChemSep has no NRTL pair for water–cyclohexane and the UNIFAC estimate could not be fitted to it, so NRTL treats the pair as ideal (the search says so in its warnings). UNIQUAC's ChemSep pair for acetone–chloroform also puts a spurious tangent azeotrope 0.003 mol from pure acetone (56.14 °C) beside the real maximum-boiling one at ${f(az40['methanol–acetone–chloroform|uniquac'].azeotropes.filter((a) => a.keys.length === 2 && a.keys.includes('acetone') && a.keys.includes('chloroform')).slice(-1)[0].T_K - 273.15, 2)} °C, and predicts ethanol–cyclohexane heterogeneous at its boiling point; both are properties of the parameter sets, reported as found.</p>
+<p><b>Residue curve maps.</b> Residue curves integrate dx/dξ = x − y (Heun's method, adaptive step). Pure components, azeotropes and the heterogeneous points are classified from the eigenvalues of d(x − y)/dx plus the transverse direction 1 − K<sub>∞</sub> of the missing component; separatrices traced from the saddles are drawn as distillation boundaries. Classification against the published maps (Doherty &amp; Malone, <i>Conceptual Design of Distillation Systems</i>, 2001; Widagdo &amp; Seider, AIChE J. 42 (1996) 96) — ${topo40Ok} of ${topo40N} points agree:</p>
+<div class="tw"><table><thead><tr><th class="l">Point</th><th>t, °C</th><th class="l">Published</th><th class="l">Engine</th></tr></thead><tbody>
+${topo40Rows}
+</tbody></table></div>
+<p><b>Heat of mixing.</b> With <code>excess_enthalpy</code> on, the liquid enthalpy of an activity method includes H<sup>E</sup> = −RT² Σ x<sub>i</sub> ∂ln γ<sub>i</sub>/∂T. Equimolar values at 25 °C in J/mol; only Dortmund UNIFAC was fitted to heats of mixing (worst ${f(100 * Math.max(...hEdev40), 1)} % here) — NRTL, UNIQUAC and Wilson parameters regressed from vapour–liquid data alone can have the wrong sign, which is why the option is off by default:</p>
+<div class="tw"><table><thead><tr><th class="l">Mixture</th><th>Calorimetry</th><th>NRTL</th><th>UNIQUAC</th><th>Wilson</th><th>UNIFAC</th><th>Dortmund UNIFAC</th></tr></thead><tbody>
+${hE40Rows}
+</tbody></table></div>
+<p><b>Liquid volume.</b> Pure-liquid density in kg/m³ by each liquid-volume method against the ${esc(R40.rho_source)}. Mean |Δ|: automatic (ChemSep density correlations) ${f(meanArr(rhoDev40.auto), 2)} %, Rackett ${f(meanArr(rhoDev40.rackett), 2)} %, COSTALD ${f(meanArr(rhoDev40.costald), 2)} %, Peng–Robinson liquid root ${f(meanArr(rhoDev40.eos), 1)} %:</p>
+<div class="tw"><table><thead><tr><th class="l">Liquid</th><th>t, °C</th><th>Reference</th><th>Automatic</th><th>Rackett</th><th>COSTALD</th><th>PR liquid root</th></tr></thead><tbody>
+${rho40Rows}
+</tbody></table></div>
+<p>Equimolar methanol–water at 25 °C has a density of about ${f(mx40.rho, 0)} kg/m³ (${esc(mx40.source)}). The automatic method gives ${f(mixRho40[0], 1)} kg/m³ — an Amagat sum has no volume change on mixing — while the Rackett mixture rule gives ${f(mixRho40[1], 1)} and COSTALD ${f(mixRho40[2], 1)}. Rackett takes Z<sub>RA</sub> from ChemSep where tabulated (water's 0.2338 makes pure water 7 % dense) and otherwise the value that reproduces the component's own density at 25 °C.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s40vec}
+</tbody></table></div>
+<p class="note">The component separator now takes up to eight outlets, each with its own temperature and pressure (or pressure and vapour fraction on the property method); its duty is the enthalpy of all outlets minus the feed, checked above against an independent heater and against the ideal-gas enthalpy change of the cooled outlet. The Poynting correction on the pure-liquid fugacity of the activity methods, exp[V<sub>L</sub>(P − P<sub>sat</sub>)/RT], was always applied and can now be switched off to match programs that omit it. Residue curve maps and the azeotrope search run within the 10-second limit of a single request for up to eight components; very large regions of liquid–liquid immiscibility take the longest (water–ethanol–benzene with NRTL about ${f(az40['water–ethanol–benzene|nrtl'].ms / 1000, 1)} s for the search, a few seconds for the full map) (vectors MB-333 to MB-351).</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (no H₂S or NH₃ chemistry), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–36 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-305.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–39 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-351.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
