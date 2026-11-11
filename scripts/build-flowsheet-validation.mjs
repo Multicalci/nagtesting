@@ -27,6 +27,7 @@ import pseudoMod from '../api/_lib/mb-pseudo.js';
 import usercompMod from '../api/_lib/mb-usercomp.js';
 import aqelecMod from '../api/_lib/mb-aqelec.js';
 import { aphi as aphi38 } from '../api/_lib/mb-electrolyte.js';
+import gergMod from '../api/_lib/mb-gerg.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const engine = engineModule.default || engineModule;
@@ -211,7 +212,8 @@ const MDEA_NICE = {
   'details.rows.0.phases.liquid.acid_gas.true_mole_fractions.CO2': 'true x CO₂(aq)',
 };
 const AMDEA_NICE = { 'details.P_bar': 'bubble pressure, bar', 'details.rows.0.phases.liquid.acid_gas.P_CO2_eq_kPa': 'equilibrium CO₂ pressure, kPa', 'details.rows.0.phases.liquid.rho_kgm3': 'liquid density, kg/m³' };
-const qName = (k) => NICE[k] || k.replace(/^details\./, '').replace(/^streams_out\.0\.rig\.x\./, 'distillate x ').replace(/^streams_out\.1\.rig\.x\./, 'bottoms x ')
+let QN_EXTRA = {};      // per-section labels (STEP 41)
+const qName = (k) => QN_EXTRA[k] || NICE[k] || k.replace(/^details\./, '').replace(/^streams_out\.0\.rig\.x\./, 'distillate x ').replace(/^streams_out\.1\.rig\.x\./, 'bottoms x ')
   .replace(/^x1\./, 'light liquid x ').replace(/^x2\./, 'heavy liquid x ').replace(/^y\./, 'vapour y ').replace(/^outlet_mole_frac\./, 'outlet y ');
 let s22Worst = { flash: 0, three: 0, colPct: 0, colX: 0, gibbs: 0, env: 0, bin: 0, kin: 0, lhhw: 0, assocH: 0, steamRel: 0 }, s22N = 0, s22Pass = 0, s23N = 0, s23Pass = 0, s24N = 0, s24Pass = 0, s25N = 0, s25Pass = 0, s26N = 0, s26Pass = 0, s27N = 0, s27Pass = 0, s28N = 0, s28Pass = 0;
 const vecTable = (ids, kind) => {
@@ -544,7 +546,7 @@ const kn33 = S33.kinetics, rxT = [{ stoich: { N2: -1, H2: -3, NH3: 2 }, model: '
 const knFeed = molS33(Object.values(kn33.feed_kmol_h).reduce((a, b) => a + b, 0), 700, kn33.P_bar, kn33.feed_kmol_h);
 let knWorst = 0;
 const knRows = ['K1', 'K2'].map((id) => {
-  const c = kn33[id], r = run33('r-pfr', [knFeed], { phase: 'V', thermal: 'isothermal', T_K: c.T_K, P_bar: kn33.P_bar, volume_m3: c.V_m3, reactions: rxT });
+  const c = kn33[id], r = run33('r-pfr', [knFeed], { property_package: { model: 'pr', volume_translation: false }, phase: 'V', thermal: 'isothermal', T_K: c.T_K, P_bar: kn33.P_bar, volume_m3: c.V_m3, reactions: rxT });   // reference: thermo PRMIX without the volume shift
   const a = r.details.outlet_mole_frac.NH3; knWorst = Math.max(knWorst, Math.abs(a - c.y.NH3));
   return `<tr><td>${id}</td><td class="l">Isothermal ${f(c.T_K - 273.15, 0)} °C, ${f(kn33.P_bar, 0)} bar, ${f(c.V_m3, 1)} m³ catalyst</td><td>${f(100 * a, 4)}</td><td>${f(100 * c.y.NH3, 4)}</td><td>${sci(Math.abs(a - c.y.NH3))}</td></tr>`;
 }).join('\n');
@@ -639,7 +641,7 @@ const baseC = { property_package: { model: 'pr' }, blocks: [{ id: 'H1', module: 
 const cff = engine.runModule('flowsheet', { streams: [gasC, steamC], params: Object.assign({}, baseC, { calculators: [{ name: 'S/C', imports: [{ name: 'ch4', stream: 'G2', metric: 'comp_kmol_h', key: 'CH4' }], code: 'steam = 3.0 * ch4 * 18.01528', exports: [{ name: 'steam', kind: 'feed_flow', stream: 'S' }] }] }) });
 const cfb = engine.runModule('flowsheet', { streams: [gasC, steamC], params: Object.assign({}, baseC, { calculators: [{ name: 'Tctl', imports: [{ name: 'Tp', stream: 'P', metric: 'T_K' }, { name: 'Th', kind: 'param', block: 'H1', path: 'T_out_K' }], code: 'Tnew = Th + 1.5 * (650 - Tp)', exports: [{ name: 'Tnew', kind: 'param', block: 'H1', path: 'T_out_K' }] }] }) });
 // pseudo-components vs databank hydrocarbons
-const hcs = compdb.keys().map((k) => [k, compdb.get(k)]).filter(([, c]) => /^C\d+H\d+$/.test(c.formula || '') && c.tb >= 300 && c.tb <= 800 && c.rhol && c.tc && c.pc && num34(c.w) && +c.formula.match(/^C(\d+)/)[1] >= 5);
+const hcs = compdb.keys().map((k) => [k, compdb.get(k)]).filter(([, c]) => !c.ext && /^C\d+H\d+$/.test(c.formula || '') && c.tb >= 300 && c.tb <= 800 && c.rhol && c.tc && c.pc && num34(c.w) && +c.formula.match(/^C(\d+)/)[1] >= 5);
 const st = {}; for (const m of ['twu', 'riazi', 'lee-kesler']) st[m] = { Tc: [], Pc: [], MW: [], w: [] };
 const showK = ['nC7H16', 'n-decane', 'n-hexadecane', 'n-eicosane', 'cyclohexane', 'benzene', 'toluene', 'naphthalene'];
 const psRows = [];
@@ -741,7 +743,7 @@ const fragRows = [['UNIFAC (original)', fragAgree.unifac, FO.unifac_pct, FO.ddbs
 // (b) estimates against the ChemSep databank (structure only, then with the measured Tb)
 const est37 = {}, addE = (k, e) => { if (Number.isFinite(e)) (est37[k] = est37[k] || []).push(e); };
 let estFail = 0, estN = 0;
-const estKeys = compdb.keys().filter((k) => { const c = compdb.get(k); return c.smiles && !c.user && !c.pseudo && !/^UC[0-9A-F]{8}$/.test(k) && c.cat !== 'inorganic' && c.cat !== 'mixture' && /C/.test(c.formula || ''); });
+const estKeys = compdb.keys().filter((k) => { const c = compdb.get(k); return c.smiles && !c.ext && !c.user && !c.pseudo && !/^UC[0-9A-F]{8}$/.test(k) && c.cat !== 'inorganic' && c.cat !== 'mixture' && /C/.test(c.formula || ''); });
 for (const withTb of [false, true]) for (const k of estKeys) {
   const c = TH37.component(k);
   let r;
@@ -1045,6 +1047,206 @@ const TER_NICE = (v, k) => {
   return { 'details.n_azeotropes': 'azeotropes found', 'details.n_boundaries': 'distillation boundaries', 'details.rows.0.rho_kgm3': 'liquid density, kg/m³' }[k] || qName(k);
 };
 const s40vec = vecTable(range(333, 351), 'ter');
+
+/* ---------- STEP 41: cross-check against DWSIM 10, water–hydrocarbon pairs, volume translation, liquid density ---------- */
+const R41 = REF.step41;
+const run41 = (job) => {
+  const r = engine.runModule(job.module, job.args);
+  if (r.error) fail('STEP 41 ' + job.module + ': ' + r.error.message);
+  const o = {}; for (const [k, p] of Object.entries(job.picks)) o[k] = getP(r, p); return o;
+};
+const QL41 = { vapour_fraction: 'vapour fraction', bubble_T_K: 'bubble point, K', dew_T_K: 'dew point, K', power_kW: 'power, kW', T_out_K: 'outlet T, K', duty_kW: 'duty, kW',
+  rho_vapour: 'vapour density, kg/m³', T_K: 'T, K', n_liquids: 'liquid phases', x_hc_in_water: 'x hydrocarbon in water', x_water_in_hc: 'x water in hydrocarbon' };
+const ql41 = (k) => QL41[k] || k.replace(/^y_(.+)$/, 'y $1').replace(/^x_(.+)$/, 'x $1').replace(/^w_(.+)_(org|aq)$/, (m, c, ph) => (ph === 'org' ? 'organic' : 'aqueous') + ' layer, wt % ' + c);
+const fv41 = (k, v) => {
+  if (typeof v !== 'number') return '—';
+  if (/^w_/.test(k)) return f(100 * v, 1);
+  if (k === 'n_liquids') return f(v, 0);
+  if (/T_K|T_out/.test(k)) return f(v, 2);
+  if (Math.abs(v) < 0.01 && v !== 0) return v.toExponential(2);
+  return Math.abs(v) >= 100 ? f(v, 2) : Math.abs(v) >= 10 ? f(v, 3) : f(v, 4);
+};
+const NOTE41 = {
+  ng_flash_srk: 'SRKNOTE',
+  nh3_separator: 'Vapour density: the engine includes the volume translation of the permanent gases; plain Peng–Robinson (as DWSIM) gives PLAIN kg/m³.',
+  ng_dew_50bar: 'DWSIM 9 (Simulate 365) returned a false dew point at 205.8 K; DWSIM 10 and the engine find the true one (independent Peng–Robinson flash: 263.675 K).',
+  compressor_CH4: 'DWSIM is plain Peng–Robinson; the engine adds the volume translation (plain: PLAIN kW).',
+  compressor_H2: 'DWSIM is plain Peng–Robinson; the engine adds the volume translation (plain: PLAIN kW).',
+  valve_ng: 'Reference: GERG-2008 (CoolProp).',
+  cooler_ng: 'Reference: GERG-2008 (CoolProp).',
+  gibbs_smr: 'Each program uses its own formation data.',
+  web_layers: 'Reference: CRC / Lange ternary azeotrope table. DWSIM uses its own NRTL water–benzene pair.',
+  lle_benzene_298: 'Reference: IUPAC-NIST recommended.',
+  lle_toluene_298: 'DWSIM has no NRTL water–toluene pair and finds one liquid (the engine did too before this round).',
+  lle_nC6H14_298: 'DWSIM estimates the pair; hexane in water 130 times the data.',
+};
+const dw41 = { agree: 0, n: 0, off: [] };
+const dw41Rows = R41.cases.map((c) => {
+  const eng = {}; for (const j of c.jobs) Object.assign(eng, run41(j));
+  const keys = Object.keys(c.dwsim).filter((k) => (k !== 'n_liquids' || c.dwsim[k] !== 2) && !(c.id === 'gibbs_smr' && k === 'T_K'));
+  let note = NOTE41[c.id] || '';
+  if (note === 'SRKNOTE') {
+    const j = JSON.parse(JSON.stringify(c.jobs[0])); j.args.params.property_package.kij = R41.srk_dwsim_kij.kij;
+    const e2 = run41(j);
+    note = `Both use DECHEMA SRK k<sub>ij</sub> from ChemSep, chosen differently: the engine takes the sets measured at 250–450 K; DWSIM takes the first set listed and has none for the pairs with N₂ or CO₂ (methane–CO₂ 0 against about 0.10). Given DWSIM's set, the engine gives ${fv41('vapour_fraction', e2.vapour_fraction)} and ${fv41('x_CH4', e2.x_CH4)}.`;
+  }
+  if (/PLAIN/.test(note)) note = note.replace('PLAIN', f(eng.rho_vapour_plainPR ?? eng.power_kW_plainPR, 2));
+  return keys.map((k, i) => {
+    const ref = c.ref && typeof c.ref[k] === 'number' ? c.ref[k] : null;
+    if (/^(vapour_fraction|bubble_T_K|dew_T_K|y_|x_C|x_N)/.test(k) && !/srk|dew_50|cooler/.test(c.id)) {
+      dw41.n++;
+      if (Math.abs((eng[k] - c.dwsim[k]) / (c.dwsim[k] || 1)) < 0.003 || (Math.abs(eng[k] - c.dwsim[k]) < 0.05 && /T_K/.test(k))) dw41.agree++;
+      else dw41.off.push(`${ql41(k)} in “${c.desc.split(',')[0]}” (${fv41(k, c.dwsim[k])} against ${fv41(k, eng[k])})`);
+    }
+    return `<tr>${i === 0 ? `<td class="l" rowspan="${keys.length}">${esc(c.desc)}</td>` : ''}<td class="l">${sub(ql41(k))}</td><td>${fv41(k, c.dwsim[k])}</td><td>${fv41(k, eng[k])}</td><td>${ref === null ? '<span class="dim">—</span>' : fv41(k, ref)}</td>${i === 0 ? `<td class="l" rowspan="${keys.length}"><small>${note}</small></td>` : ''}</tr>`;
+  }).join('\n');
+}).join('\n');
+// water–hydrocarbon mutual solubilities: engine NRTL / UNIQUAC against the IUPAC-NIST reference equations
+const NM41 = { benzene: 'benzene', toluene: 'toluene', ethylbenzene: 'ethylbenzene', oxylene: 'o-xylene', 'm-xylene': 'm-xylene', 'p-xylene': 'p-xylene', cyclohexane: 'cyclohexane', methylcyclohexane: 'methylcyclohexane', 'n-pentane': 'n-pentane', nC6H14: 'n-hexane', nC7H16: 'n-heptane', nC8H18: 'n-octane', isooctane: 'isooctane' };
+const whcDev = { nrtl: [], uniquac: [] };
+const lle41 = (key, model, T) => {
+  const r = engine.runModule('r-flash3', { streams: [{ mass_flow_kg_h: 1000, T_K: T, P_bar: 20, components: [{ key: 'H2O', mass_fraction: 0.3 }, { key, mass_fraction: 0.7 }] }], params: { property_package: { model, three_phase: true }, T_K: T, P_bar: 20 } });
+  if (r.error || r.details.phases !== 'LL') fail('STEP 41 LLE ' + key + ' ' + model + ' ' + T);
+  return [r.details.x2[key], r.details.x1.H2O];
+};
+const pct41 = (a, b) => 100 * (a / b - 1);
+const whcRows = R41.whc.map((w) => w.points.map((pt, i) => {
+  const n = lle41(w.key, 'nrtl', pt.T_K), u = lle41(w.key, 'uniquac', pt.T_K);
+  const cell = (v, ref, m) => { const d = pct41(v, ref); whcDev[m].push(Math.abs(d)); return m === 'nrtl' ? `${v.toExponential(2)} <span class="dim">${d >= 0 ? '+' : ''}${f(d, 1)} %</span>` : `${d >= 0 ? '+' : ''}${f(d, 1)} %`; };
+  const rec = i === 0 && w.rec298 ? `<small>meas. ${w.rec298[0].toExponential(2)} / ${w.rec298[1].toExponential(2)}</small>` : '';
+  return `<tr>${i === 0 ? `<td class="l" rowspan="${w.points.length}">${esc(NM41[w.key] || w.key)}<small>${f(w.T_range[0] - 273.15, 0)}–${f(w.T_range[1] - 273.15, 0)} °C</small></td>` : ''}<td>${f(pt.T_K - 273.15, 0)}</td>`
+    + `<td>${pt.x_hc_in_water.toExponential(2)}</td><td>${cell(n[0], pt.x_hc_in_water, 'nrtl')}</td><td>${cell(u[0], pt.x_hc_in_water, 'uniquac')}</td>`
+    + `<td>${pt.x_water_in_hc.toExponential(2)}${rec}</td><td>${cell(n[1], pt.x_water_in_hc, 'nrtl')}</td><td>${cell(u[1], pt.x_water_in_hc, 'uniquac')}</td></tr>`;
+}).join('\n')).join('\n');
+if (Math.max(...whcDev.nrtl) > 8) fail('STEP 41 water–hydrocarbon NRTL worst ' + Math.max(...whcDev.nrtl));
+// volume translation
+const syn41 = R41.vt.syngas, MW41 = { H2: 2.01588, N2: 28.0134, CH4: 16.0425, Ar: 39.948 };
+const synComps = (() => { const s = Object.entries(syn41.y).reduce((a, [k, v]) => a + v * MW41[k], 0); return Object.entries(syn41.y).map(([k, v]) => ({ key: k, mass_fraction: v * MW41[k] / s })); })();
+const rhoSyn = (vt) => engine.runModule('property-table', { streams: [{ mass_flow_kg_h: 1000, T_K: 300, P_bar: 10, components: synComps }], params: { property_package: { model: 'pr', volume_translation: vt }, vary: 'T', from: 273.15, to: 373.15, points: 2, P_bar: 140 } }).details.rows.map((r) => r.phases.vapour.rho_kgm3);
+const synOn = rhoSyn(true), synOff = rhoSyn(false);
+const vtRows = [];
+syn41.points.forEach((p, i) => vtRows.push(`<tr><td class="l">H₂/N₂/CH₄/Ar 68/23/6/3, 140 bar</td><td class="l">vapour density at ${f(p.T_K - 273.15, 0)} °C, kg/m³</td><td>${f(p.rho, 2)}</td><td>${f(synOn[i], 2)} <span class="dim">(${f(pct41(synOn[i], p.rho), 1)} %)</span></td><td>${f(synOff[i], 2)} <span class="dim">(${f(pct41(synOff[i], p.rho), 1)} %)</span></td></tr>`));
+for (const c of R41.vt.compressor) {
+  const w = (vt) => engine.runModule('compressor', { streams: [{ mass_flow_kg_h: 1000, T_K: 300, P_bar: 30, components: [{ key: c.key, mass_fraction: 1 }] }], params: { property_package: { model: 'pr', volume_translation: vt }, P_out_bar: 150, efficiency: 0.75 } }).details.power_kW;
+  const on = w(true), off = w(false);
+  vtRows.push(`<tr><td class="l">compressor, 1 t/h ${esc(c.fluid.toLowerCase())}, 300 K, 30 → 150 bar, η 0.75</td><td class="l">shaft power, kW</td><td>${f(c.power_kW, 2)}</td><td>${f(on, 2)} <span class="dim">(${f(pct41(on, c.power_kW), 2)} %)</span></td><td>${f(off, 2)} <span class="dim">(${f(pct41(off, c.power_kW), 2)} %)</span></td></tr>`);
+}
+for (const q of R41.vt.nh3) {
+  const g = (vt) => engine.runModule('gibbs', { streams: [{ mass_flow_kg_h: 851.526, T_K: 723.15, P_bar: q.P_atm * 1.01325, components: [{ key: 'H2', mass_fraction: 0.17755300484072123 }, { key: 'N2', mass_fraction: 0.8224469951592788 }] }], params: { property_package: { model: 'pr', volume_translation: vt }, T_out_K: 723.15, products: ['NH3'] } }).details.outlet_mole_frac.NH3;
+  const on = g(true), off = g(false);
+  vtRows.push(`<tr><td class="l">Gibbs reactor, H₂/N₂ = 3, 450 °C, ${q.P_atm} atm</td><td class="l">equilibrium NH₃, mol %</td><td>${f(100 * q.y, 1)}</td><td>${f(100 * on, 2)}</td><td>${f(100 * off, 2)}</td></tr>`);
+}
+// compressed-liquid density
+const liqDev41 = [];
+const liqRows = R41.liq.points.map((p) => {
+  const r = engine.runModule('property-table', { streams: [{ mass_flow_kg_h: 100, T_K: p.T_K, P_bar: p.P_bar, components: [{ key: p.key, mass_fraction: 1 }] }], params: { property_package: { model: p.model }, vary: 'T', from: p.T_K, to: p.T_K + 1, points: 2, P_bar: p.P_bar } });
+  const rho = r.details.rows[0].phases.liquid.rho_kgm3, d = pct41(rho, p.rho);
+  liqDev41.push(Math.abs(d));
+  return `<tr><td class="l">${esc(p.fluid.toLowerCase())} <span class="dim">(${p.model === 'pr' ? 'Peng–Robinson' : 'NRTL'} package)</span></td><td>${f(p.T_K - 273.15, 0)}</td><td>${f(p.P_bar, p.P_bar < 10 ? 2 : 0)}</td><td>${f(p.rho, 2)}</td><td>${f(rho, 2)} <span class="dim">(${d >= 0 ? '+' : ''}${f(d, 2)} %)</span></td></tr>`;
+}).join('\n');
+if (Math.max(...liqDev41) > 2.5) fail('STEP 41 compressed liquid worst ' + Math.max(...liqDev41));
+QN_EXTRA = { 'streams_out.0.T_K': 'T (bubble / dew), K', 'details.rows.0.Cp_kJkgK': 'Cp, kJ/kg·K', 'details.rows.0.phases.liquid.k_WmK': 'liquid conductivity, W/m·K', 'details.power_kW': 'shaft power, kW', 'details.T_out_K': 'outlet T, K',
+  'streams_out.1.components.0.mass_fraction': 'upper layer, wt fraction ethanol', 'streams_out.1.components.1.mass_fraction': 'upper layer, wt fraction water', 'streams_out.1.components.2.mass_fraction': 'upper layer, wt fraction benzene',
+  'streams_out.2.components.0.mass_fraction': 'lower layer, wt fraction ethanol', 'streams_out.2.components.1.mass_fraction': 'lower layer, wt fraction water', 'streams_out.2.components.2.mass_fraction': 'lower layer, wt fraction benzene' };
+const s41vec = vecTable(range(352, 395), 'x41');
+
+// ---------------------------------------------------------------------------
+// Section 41 (round 12a): extended pure-component databank
+// ---------------------------------------------------------------------------
+const R42 = REF.step42;
+const t42 = R42.tally, pct42 = (x) => f(100 * x, 1) + ' %';
+const PROP42 = [['Tc', 'critical temperature'], ['Pc', 'critical pressure'], ['Tb', 'normal boiling point'], ['Hf', 'ΔH<sub>f</sub> (ideal gas)'], ['psat', 'vapour pressure'], ['cpig', 'ideal-gas heat capacity'],
+  ['hvap', 'heat of vaporisation'], ['rhol', 'liquid density'], ['mul', 'liquid viscosity'], ['st', 'surface tension'], ['modunifac', 'Dortmund UNIFAC groups']];
+const prov42 = PROP42.map(([k, lab]) => {
+  const q = t42[k] || {};
+  const isG = /unifac/.test(k);
+  return `<tr><td class="l">${lab}</td><td>${isG ? q.meas || 0 : (q.meas || 0)}</td><td>${q.ref || 0}</td><td>${isG ? '—' : q.anchored || '—'}</td><td>${isG ? (q.est || 0) + ' from the structure, ' + (q.none || 0) + ' none' : q.est || 0}</td></tr>`;
+}).join('\n');
+const cat42 = Object.entries(R42.cats).sort((a, b) => b[1] - a[1]).map(([c, n]) => n + ' ' + c).join(', ');
+const drop42 = Object.entries(R42.dropped).sort((a, b) => b[1] - a[1]).map(([w, n]) => `<li>${n} — ${esc(w)}</li>`).join('');
+const case42 = R42.cases.map((c) => {
+  const { r } = runVec(c.id);
+  const a = getP(r, c.path), dlt = a - c.ref;
+  const rel = /T_K/.test(c.path) ? f(dlt, 3) + ' K' : f(100 * dlt / c.ref, 3) + ' %';
+  return `<tr><td>${esc(c.id)}</td><td class="l">${esc(c.src)}</td><td class="l">${esc(c.q)}</td><td>${f(a, Math.abs(c.ref) >= 100 ? 3 : 4)}</td><td>${f(c.ref, Math.abs(c.ref) >= 100 ? 3 : 4)}</td><td>${rel}</td></tr>`;
+}).join('\n');
+const E42 = R42.est;
+
+// ---------------------------------------------------------------------------
+// Section 42 (round 12b): GERG-2008 and the pure-fluid reference equations
+// ---------------------------------------------------------------------------
+const R43 = REF.step43;
+const aga43 = (() => {
+  const x = [0, ...R43.aga.x], p = gergMod.properties(R43.aga.T, R43.aga.D, x);
+  const rows = [['Z', 'Z', 9], ['H', 'enthalpy, J/mol', 6], ['S', 'entropy, J/(mol K)', 8], ['Cp', 'c<sub>p</sub>, J/(mol K)', 8], ['W', 'speed of sound, m/s', 6], ['JT', 'Joule–Thomson, K/kPa', 9], ['Kappa', 'isentropic exponent', 9]];
+  let worst = 0;
+  const html = rows.map(([k, lab, dg]) => { const d = Math.abs(p[k] / R43.aga[k] - 1); worst = Math.max(worst, d); return `<tr><td class="l">${lab}</td><td>${f(p[k], k === 'JT' ? 12 : dg)}</td><td>${f(R43.aga[k], k === 'JT' ? 12 : dg)}</td><td>${sci(d)}</td></tr>`; }).join('\n');
+  return { html, worst };
+})();
+const gergVle43 = R43.vle.map((c) => {
+  const T = {};
+  for (const model of ['gerg2008', 'pr']) { const pp = thermoModule.createPackage({ model }, c.keys); T[model] = thermoModule.flashPVF(pp, c.x, c.P, c.kind === 'dew' ? 1 : 0).T; }
+  return { ...c, eng: T.gerg2008, pr: T.pr };
+});
+const gergVleRows = gergVle43.map((c) => `<tr><td class="l">${esc(c.label)}</td><td class="l">${c.kind} point, ${f(c.P / 1e5, 0)} bar</td><td>${f(c.T, 3)}</td><td>${f(c.eng, 3)}</td><td>${f(c.eng - c.T, 3)}</td><td>${f(c.pr - c.T, 3)}</td></tr>`).join('\n');
+const gVleWorst = Math.max(...gergVle43.map((c) => Math.abs(c.eng - c.T))), gVleWorstPR = Math.max(...gergVle43.map((c) => Math.abs(c.pr - c.T)));
+const ngKeys43 = ['CH4', 'C2H6', 'C3H8', 'nC4H10', 'N2', 'CO2'];
+const gergSp43 = R43.sp.map((q) => {
+  const pp = thermoModule.createPackage({ model: 'gerg2008' }, ngKeys43), r = thermoModule.flashPT(pp, R43.sp_x, q.T, q.P), pr = thermoModule.properties(pp, r);
+  const ppr = thermoModule.createPackage({ model: 'pr' }, ngKeys43), rr = thermoModule.flashPT(ppr, R43.sp_x, q.T, q.P), prr = thermoModule.properties(ppr, rr);
+  const rho = pr.rho_kgm3 / pr.MW * 1000, rhoPR = prr.rho_kgm3 / prr.MW * 1000;
+  return { ...q, dRho: 100 * (rho / q.rho - 1), dCp: 100 * (pr.phases[0].Cp_JmolK / q.cp - 1), dRhoPR: 100 * (rhoPR / q.rho - 1), dCpPR: 100 * (prr.phases[0].Cp_JmolK / q.cp - 1) };
+});
+const gergSpRows = gergSp43.map((q) => `<tr><td>${f(q.T, 0)}</td><td>${f(q.P / 1e5, 0)}</td><td>${f(q.dRho, 3)} %</td><td>${f(q.dCp, 2)} %</td><td>${f(q.dRhoPR, 2)} %</td><td>${f(q.dCpPR, 2)} %</td></tr>`).join('\n');
+let refW43 = { rho: 0, cp: 0, T: 0, h: 0 };
+const refRows43 = R43.ref.map((q) => {
+  const pp = thermoModule.createPackage({ model: 'reference' }, [q.key]), r = thermoModule.flashPT(pp, [1], q.T, q.P), pr = thermoModule.properties(pp, r);
+  const dr = (pr.rho_kgm3 / pr.MW * 1000) / q.rhomolar - 1, dc = pr.phases[0].Cp_JmolK / q.cp - 1;     // molar density: the molar masses differ in the 5th digit
+  refW43.rho = Math.max(refW43.rho, Math.abs(dr)); refW43.cp = Math.max(refW43.cp, Math.abs(dc));
+  return `<tr><td class="l">${esc(q.key)}</td><td>${f(q.T, 0)}</td><td>${f(q.P / 1e5, 0)}</td><td class="l">${esc(q.phase.replace('supercritical_', 'supercritical '))}</td><td>${f(pr.rho_kgm3, 3)}</td><td>${f(q.rho, 3)}</td><td>${sci(Math.abs(dr))}</td><td>${sci(Math.abs(dc))}</td></tr>`;
+}).join('\n');
+const satRows43 = R43.sat.map((q) => {
+  const pp = thermoModule.createPackage({ model: 'reference' }, [q.key]);
+  const L = thermoModule.flashPVF(pp, [1], q.P, 0), V = thermoModule.flashPVF(pp, [1], q.P, 1);
+  const hv = thermoModule.hOf(pp, V) - thermoModule.hOf(pp, L);
+  refW43.T = Math.max(refW43.T, Math.abs(L.T - q.T)); refW43.h = Math.max(refW43.h, Math.abs(hv / q.hvap - 1));
+  return `<tr><td class="l">${esc(q.key)}</td><td>${f(q.P / 1e5, 0)}</td><td>${f(L.T, 4)}</td><td>${f(q.T, 4)}</td><td>${f(hv, 1)}</td><td>${f(q.hvap, 1)}</td></tr>`;
+}).join('\n');
+const s43vec = vecTable(range(405, 412), 'x43');
+
+// ---------------------------------------------------------------------------
+// Section 43 (round 12c): refinery methods — PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed
+// ---------------------------------------------------------------------------
+const R44 = REF.step44;
+const M44 = { pr: 'Peng–Robinson', pr78: 'PR78', prsv2: 'PRSV2', lkp: 'Lee–Kesler–Plöcker', 'chao-seader': 'Chao–Seader', 'grayson-streed': 'Grayson–Streed' };
+const pk44 = new Map();
+const pp44 = (model, keys) => { const k = model + '|' + keys.join(','); if (!pk44.has(k)) pk44.set(k, thermoModule.createPackage({ model }, keys)); return pk44.get(k); };
+const worst44 = {};
+const dw44 = R44.dwsim.map((c) => {
+  const keys = Object.keys(c.x), z = keys.map((k) => c.x[k]), pp = pp44(c.method, keys);
+  let eng = NaN, q = '', dg = 2, unit = '';
+  if (c.kind === 'bubble' || c.kind === 'dew') { eng = thermoModule.flashPVF(pp, z, c.P, c.kind === 'dew' ? 1 : 0).T; q = c.kind + ' point, K'; unit = ' K'; }
+  else if (c.kind === 'vf' || c.kind === 'K') {
+    const r = thermoModule.flashPT(pp, z, c.T, c.P);
+    if (c.kind === 'vf') { eng = r.beta; q = 'vapour fraction'; dg = 4; }
+    else { const i = keys.indexOf(c.key); eng = r.y[i] / r.x[i]; q = 'K of ' + c.key; dg = 4; }
+  } else {
+    const MW = keys.reduce((a, k, i) => a + z[i] * thermoModule.component(k).MW, 0);
+    const h = (T) => thermoModule.hOf(pp, thermoModule.flashPT(pp, z, T, c.P));
+    eng = (h(c.T2) - h(c.T)) / MW; q = 'ΔH, kJ/kg'; dg = 2;
+  }
+  const d = eng - c.dwsim, rel = c.kind === 'bubble' || c.kind === 'dew' ? Math.abs(d) : Math.abs(d / c.dwsim);
+  const w = worst44[c.method] = worst44[c.method] || { T: 0, rel: 0 };
+  if (c.kind === 'bubble' || c.kind === 'dew') w.T = Math.max(w.T, Math.abs(d)); else w.rel = Math.max(w.rel, rel);
+  return `<tr><td class="l">${esc(c.label)}</td><td class="l">${esc(M44[c.method])}</td><td class="l">${esc(q)}</td><td>${f(c.dwsim, dg + (c.kind === 'K' && c.dwsim < 1 ? 1 : 0))}</td><td>${f(eng, dg + (c.kind === 'K' && c.dwsim < 1 ? 1 : 0))}</td><td>${c.kind === 'bubble' || c.kind === 'dew' ? f(d, 3) + unit : f(100 * d / Math.abs(c.dwsim), 2) + ' %'}</td></tr>`;
+}).join('\n');
+const prsv2Rows44 = R44.prsv2.rows.map((r) => `<tr><td>${f(r.tr, 1)}</td><td>${r.n}</td><td>${f(100 * r.prsv2_median, 3)} %</td><td>${f(100 * r.prsv2_p90, 2)} %</td><td>${f(100 * r.pr_median, 2)} %</td><td>${f(100 * r.pr_p90, 1)} %</td></tr>`).join('\n');
+const L44 = R44.lkp;
+const lkpEx44 = L44.examples.map((e) => `<tr><td class="l">${esc(e.pair.replace('|', ' – '))}</td><td>${f(e.kij, 4)}</td><td>${f(100 * e.aad, 1)} %</td><td>${f(100 * e.aad_k1, 0)} %</td></tr>`).join('\n');
+const s44vec = vecTable(range(413, 423), 'x44');
+QN_EXTRA = {};
+console.log(`Step 41: DWSIM agreement ${dw41.agree}/${dw41.n} · water–HC worst NRTL ${f(Math.max(...whcDev.nrtl), 1)} % UNIQUAC ${f(Math.max(...whcDev.uniquac), 1)} % · compressed liquid worst ${f(Math.max(...liqDev41), 2)} %`);
+
 console.log(`Step 40: azeotrope mean |ΔT| NRTL ${f(meanArr(azDev40.nrtl), 2)} K UNIQUAC ${f(meanArr(azDev40.uniquac), 2)} K Dortmund ${f(meanArr(azDev40.modunifac), 2)} K · topology ${topo40Ok}/${topo40N} · hE Dortmund worst ${f(100 * Math.max(...hEdev40), 1)} % · density mean auto ${f(meanArr(rhoDev40.auto), 2)} % Rackett ${f(meanArr(rhoDev40.rackett), 2)} % COSTALD ${f(meanArr(rhoDev40.costald), 2)} % PR ${f(meanArr(rhoDev40.eos), 2)} %`);
 
 const html = `<!DOCTYPE html>
@@ -1569,7 +1771,7 @@ ${s39vec}
 <div class="tw"><table><thead><tr><th class="l">Azeotrope</th><th>Tabulated</th><th>NRTL</th><th>UNIQUAC</th><th>Dortmund UNIFAC</th></tr></thead><tbody>
 ${az40Rows}
 </tbody></table></div>
-<p>“none” means the model does not form that azeotrope with its parameters: ChemSep has no NRTL pair for water–cyclohexane and the UNIFAC estimate could not be fitted to it, so NRTL treats the pair as ideal (the search says so in its warnings). UNIQUAC's ChemSep pair for acetone–chloroform also puts a spurious tangent azeotrope 0.003 mol from pure acetone (56.14 °C) beside the real maximum-boiling one at ${f(az40['methanol–acetone–chloroform|uniquac'].azeotropes.filter((a) => a.keys.length === 2 && a.keys.includes('acetone') && a.keys.includes('chloroform')).slice(-1)[0].T_K - 273.15, 2)} °C, and predicts ethanol–cyclohexane heterogeneous at its boiling point; both are properties of the parameter sets, reported as found.</p>
+<p>“none” means the model does not form that azeotrope with its parameters. Water with benzene and cyclohexane uses the pairs fitted to IUPAC-NIST mutual solubilities in round 11 (section 40); before that ChemSep had none and the UNIFAC estimate failed for water–cyclohexane, so NRTL treated that pair as ideal. UNIQUAC's ChemSep pair for acetone–chloroform also puts a spurious tangent azeotrope 0.003 mol from pure acetone (56.14 °C) beside the real maximum-boiling one at ${f(az40['methanol–acetone–chloroform|uniquac'].azeotropes.filter((a) => a.keys.length === 2 && a.keys.includes('acetone') && a.keys.includes('chloroform')).slice(-1)[0].T_K - 273.15, 2)} °C, and predicts ethanol–cyclohexane heterogeneous at its boiling point; both are properties of the parameter sets, reported as found.</p>
 <p><b>Residue curve maps.</b> Residue curves integrate dx/dξ = x − y (Heun's method, adaptive step). Pure components, azeotropes and the heterogeneous points are classified from the eigenvalues of d(x − y)/dx plus the transverse direction 1 − K<sub>∞</sub> of the missing component; separatrices traced from the saddles are drawn as distillation boundaries. Classification against the published maps (Doherty &amp; Malone, <i>Conceptual Design of Distillation Systems</i>, 2001; Widagdo &amp; Seider, AIChE J. 42 (1996) 96) — ${topo40Ok} of ${topo40N} points agree:</p>
 <div class="tw"><table><thead><tr><th class="l">Point</th><th>t, °C</th><th class="l">Published</th><th class="l">Engine</th></tr></thead><tbody>
 ${topo40Rows}
@@ -1588,8 +1790,100 @@ ${s40vec}
 </tbody></table></div>
 <p class="note">The component separator now takes up to eight outlets, each with its own temperature and pressure (or pressure and vapour fraction on the property method); its duty is the enthalpy of all outlets minus the feed, checked above against an independent heater and against the ideal-gas enthalpy change of the cooled outlet. The Poynting correction on the pure-liquid fugacity of the activity methods, exp[V<sub>L</sub>(P − P<sub>sat</sub>)/RT], was always applied and can now be switched off to match programs that omit it. Residue curve maps and the azeotrope search run within the 10-second limit of a single request for up to eight components; very large regions of liquid–liquid immiscibility take the longest (water–ethanol–benzene with NRTL about ${f(az40['water–ethanol–benzene|nrtl'].ms / 1000, 1)} s for the search, a few seconds for the full map) (vectors MB-333 to MB-351).</p>
 
+<h2>40 · Cross-check against DWSIM 10, water–hydrocarbon liquid–liquid data, volume translation and compressed liquids</h2>
+<p><b>DWSIM 10.</b> Each case below was built in DWSIM 10.2.15 through its headless MCP server and in the engine with the same feed (default settings in both: ChemSep compounds and interaction parameters). The phase-equilibrium results agree within 0.3 % or 0.05 K in ${dw41.agree} of ${dw41.n} checks${dw41.off.length ? ' (the others: ' + dw41.off.map(sub).join('; ') + ')' : ''}; where the programs differ, an independent reference (reference equation of state, IUPAC-NIST, CRC) is given when one exists. The script that builds the cases is <code>scripts/dwsim-crosscheck.py</code>; it can be rerun against any DWSIM MCP server.</p>
+<div class="tw"><table><thead><tr><th class="l">Case</th><th class="l">Quantity</th><th>DWSIM 10</th><th>Engine</th><th>Reference</th><th class="l">Note</th></tr></thead><tbody>
+${dw41Rows}
+</tbody></table></div>
+<p><b>SRK binary parameters.</b> SRK now has a k<sub>ij</sub> table of its own (<code>api/_lib/mb-bip-srk.js</code>, built by <code>scripts/build-srk-kij.py</code> from ChemSep's DECHEMA SRK library; until this round SRK used the Peng–Robinson values). The library often lists several sets for one pair, some at cryogenic temperatures and a few far from the rest; the engine takes the median of the sets measured somewhere in 250–450 K, and the Peng–Robinson value where SRK has none in that range. DWSIM reads the same library but takes the first set listed and finds none for the pairs with N₂ or CO₂; given that set the engine reproduces DWSIM's SRK flash to 2×10⁻⁵ (case MB-389), so the two SRK equations are the same and only the k<sub>ij</sub> differ.</p>
+<p>DWSIM's rigorous distillation column could not be driven through the server (its stage connections are not set by the server's connect call); the engine column is checked against independent calculations in sections 22 and 27.</p>
+<p><b>Water–hydrocarbon pairs.</b> ChemSep has no NRTL or UNIQUAC parameters for water with hydrocarbons. Until this round the engine estimated them from UNIFAC — water in benzene came out more than twice the data, and water–toluene and water–alkane pairs failed the estimate's fit test and were treated as ideal, so those mixtures formed a single liquid. The pairs for benzene, toluene, ethylbenzene, the xylenes, cyclohexane, methylcyclohexane, C5–C8 n-alkanes and isooctane are now fitted (<code>scripts/fit-water-hydrocarbon.py</code>, Aspen form τ = a + b/T + e ln T, NRTL α = 0.2) to both liquid phases of the IUPAC-NIST reference mutual solubilities from 0 °C to 120–200 °C: the SDS-81 smoothing equations for the hydrocarbon in water, and for water in the hydrocarbon the SDS-81 reference equations (toluene and ethylbenzene from the IUPAC Technical Report of Bazyleva & Acree, 2021; alkanes from Mączyński et al., J. Phys. Chem. Ref. Data 33, 2004), the xylenes anchored at the recommended 25 °C value and benzene fitted to the IUPAC recommended values 25–70 °C. Mole fractions; worst deviation from the reference ${f(Math.max(...whcDev.nrtl), 1)} % (NRTL) and ${f(Math.max(...whcDev.uniquac), 1)} % (UNIQUAC). The measured values at 25 °C (${esc(R41.whc_rec_source)}) are shown under the reference: for water in the n-alkanes the reference equation sits about 20 % above the measurements at 25 °C and below them at 90 °C — that is the spread of the data the pairs carry.</p>
+<div class="tw"><table><thead><tr><th class="l">Hydrocarbon<small>fitted range</small></th><th>t, °C</th><th>HC in water<small>reference</small></th><th>NRTL<small>Δ</small></th><th>UNIQUAC<small>Δ</small></th><th>water in HC<small>reference</small></th><th>NRTL<small>Δ</small></th><th>UNIQUAC<small>Δ</small></th></tr></thead><tbody>
+${whcRows}
+</tbody></table></div>
+<p>With these pairs the water–ethanol–benzene layers at the ternary heteroazeotrope fall on the tabulated ones (upper 0.8 / 12.5 / 86.7 against 1.3 / 12.7 / 86.0 wt % water / ethanol / benzene, lower 43.4 / 50.9 / 5.8 against 43.1 / 52.1 / 4.8), and the heteroazeotropes of water with benzene, toluene and cyclohexane come within 0.5 K and 0.2 wt % of the CRC values (69.3, 84.1 and 69.8 °C). The vapour of the ternary heteroazeotrope carries 22 wt % ethanol against 18.5 tabulated (64.3 °C against 64.9 °C) — that part is set by the ChemSep ethanol pairs.</p>
+<p><b>Volume translation.</b> Peng–Robinson puts the molar volume of H₂, He, N₂, O₂, Ar, CH₄ and CO 3–7 cm³/mol low. The engine now shifts it by constants fitted to the reference equations of state in CoolProp (Péneloux et al. 1982; <code>volume_translation: false</code> turns it off). The shift is consistent: enthalpy moves by −P Σx<sub>i</sub>c<sub>i</sub> and fugacity coefficients by −c<sub>i</sub>P/RT, so phase equilibria are unchanged and reaction equilibria move as the real-gas non-ideality requires. Reference, engine, plain Peng–Robinson:</p>
+<div class="tw"><table><thead><tr><th class="l">Case</th><th class="l">Quantity</th><th>Reference</th><th>Engine</th><th>Plain PR</th></tr></thead><tbody>
+${vtRows.join('\n')}
+</tbody></table></div>
+<p class="note">References: ${esc(R41.vt.syngas.src)}; ${esc(R41.vt.compressor_src)}; ${esc(R41.vt.nh3_src)}.</p>
+<p><b>Compressed liquids.</b> Liquid densities from the density correlations, Rackett and COSTALD now carry the Thomson–Brobst–Hankinson (Tait) pressure correction, and a light gas dissolved below 10 mol % in a liquid takes a partial molar volume (about half its critical volume) instead of switching the whole liquid to COSTALD. An ammonia-loop separator liquid (2 mol % dissolved H₂, N₂, CH₄, Ar at 0 °C, 140 bar) now comes out at 638 kg/m³ against 622 before; pure ammonia at those conditions is 647.7 (DWSIM's default, which mixes mass densities with mole fractions, gives 658). Density in kg/m³ against the ${esc(R41.liq.src)}; worst ${f(Math.max(...liqDev41), 2)} %:</p>
+<div class="tw"><table><thead><tr><th class="l">Liquid</th><th>t, °C</th><th>P, bar</th><th>Reference</th><th>Engine</th></tr></thead><tbody>
+${liqRows}
+</tbody></table></div>
+<p>The Tait correction over-predicts the pressure effect of the n-alkanes by about a fifth at 500 bar (1.3 % on density) and under-predicts that of methanol (1.8 % at 300 bar). Ammonia liquid thermal conductivity now follows the reference correlation (the generic correlation was 15 % low).</p>
+<p><b>Heterogeneous bubble points with an equation of state.</b> Nitrogen with ethane, propane or CO₂ near the critical pressure of nitrogen is two liquids below its bubble point — a nitrogen-rich and a heavy one — and the first vapour forms when the nitrogen-rich liquid boils. The bubble-point solver now checks whether the feed, taken as one liquid, would split; if it does, the bubble point is found as the temperature at which the lighter liquid of the split is at its own bubble point, so that three phases coexist (cases MB-392 to MB-395). Before, these cases either failed or returned the bubble point of the unstable single liquid, as DWSIM does — for nitrogen–ethane at 30 bar with DWSIM's SRK parameters 124.86 K against 124.87 K with the split, but at 10 bar with Peng–Robinson 101.0 K against 104.3 K, where the split is wide. Solids are not modelled.</p>
+<p><b>Engine cases.</b> Round 11 cases with their references (robust dew and bubble points near the critical region and the heterogeneous bubble points included):</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s41vec}
+</tbody></table></div>
+
+<h2>41 · Extended component databank</h2>
+<p>The property methods draw on ${(431 + R42.n).toLocaleString('en-US')} pure components: the 431 of the ChemSep databank and ${R42.n.toLocaleString('en-US')} added in round 12 (${cat42}). Every added compound has tabulated critical constants (IUPAC critical-property series, Matthews, CRC Handbook, DIPPR 801 as published by Pina-Martinez et al. 2019, PSRK tables) and a tabulated normal boiling point; ${t42.Tc.ref} fluids with a reference equation of state (refrigerants, siloxanes, others) take their constants and curves from it. The data were compiled from the published sources in the open-source <i>chemicals</i>, <i>CoolProp</i> and <i>thermo</i> libraries (MIT licence) by <code>scripts/gather-compdb-ext.py</code>; <code>scripts/build-compdb-ext.mjs</code> checks them and writes <code>api/_lib/mb-compdb-ext.js</code>. Where a value comes from for each component, and for every property:</p>
+<div class="tw"><table><thead><tr><th class="l">Property</th><th>Measured / evaluated</th><th>Reference equation</th><th>Anchored on a measured point</th><th>Estimated</th></tr></thead><tbody>
+${prov42}
+</tbody></table></div>
+<p class="note">“Anchored”: Rackett density through the CRC Handbook density at 20 °C. Vapour pressures counted as measured include ${R42.antoine_refit} Antoine equations (Landolt–Börnstein, NIST WebBook, Poling et al.) that cover only part of the curve and were refitted as DIPPR eq. 101 through their own points, the boiling point and the critical point. ${R42.noform} compounds have no measured or estimable ΔH<sub>f</sub> and are flagged “no ΔHf” in the program (fine in heat and material balances, not in reactions). Estimated values use the same methods as a component given by its structure (Joback, Lee–Kesler through the measured T<sub>b</sub>, T<sub>c</sub>, P<sub>c</sub>, Riedel–Watson, Rackett through the Tyn–Calus volume). UNIFAC and Dortmund groups are the DDBST assignments where they exist; the engine’s own fragmentation of the structure agrees with them for ${R42.groups.unifac.same} of ${R42.groups.unifac.same + R42.groups.unifac.differ} compounds (UNIFAC) and ${R42.groups.modunifac.same} of ${R42.groups.modunifac.same + R42.groups.modunifac.differ} (Dortmund).</p>
+<p><b>Checks before a compound goes in.</b> The structure must give the formula the data are filed under; tabulated boiling points that disagree (they do by several kelvin now and then) are decided by a vapour-pressure equation covering the boiling point, which must reach 1 atm within 3 K of one of them, or else by agreement of two sources within 1.5 K; conflicting critical constants are decided by agreement with the Joback estimate, and a lone value far from it is not used; every correlation must stay inside physical limits at a temperature in its range (heat capacity rising with T and within 25 % of Joback, Trouton ratio 20–160 J/(mol K), density 300–3500 kg/m³ and falling with T, and so on). ${R42.n_dropped} compounds were left out:</p>
+<ul>${drop42}</ul>
+<p>${R42.n_rejected} correlations failed their check and were replaced by the next source or the estimate (${Object.entries(R42.rejected).map(([k, n]) => n + ' ' + ({ psat: 'vapour pressure', cpig: 'ideal-gas heat capacity', rhol: 'liquid density' }[k] || k)).join(', ')}). Before the databank was assembled this way, ${R42.gather_skips['critical constants from DIPPR only, without a measured boiling point and vapour-pressure equation'] || 0} compounds with DIPPR critical constants but no measured boiling point and vapour pressure were already excluded, as were compounds with metals or other elements outside C, H, O, N, S, the halogens, P, Si, B and the noble gases, salts, and molecules above 500 g/mol.</p>
+<p><b>How good the estimates are.</b> Where a compound has a measured value, the estimate it would otherwise get was compared with it: vapour pressure by Lee–Kesler through T<sub>b</sub>, T<sub>c</sub>, P<sub>c</sub> — median ${pct42(E42.psat_lk.median)}, one point in ten off by more than ${pct42(E42.psat_lk.p90)} (${E42.psat_lk.n} points, 0.55–0.95 T<sub>c</sub>); Joback ideal-gas heat capacity — median ${pct42(E42.cp.median)}, 90th percentile ${pct42(E42.cp.p90)}; Rackett density through the Tyn–Calus volume — median ${pct42(E42.rho.median)}, 90th percentile ${pct42(E42.rho.p90)}; Riedel–Watson heat of vaporisation at T<sub>b</sub> — median ${pct42(E42.hv.median)}, 90th percentile ${pct42(E42.hv.p90)}. Two independent measured vapour-pressure equations for the same compound (${E42.psat_second_source.n} compounds, above 1 kPa) differ by a median ${pct42(E42.psat_second_source.median)} at their worst point — the spread of the data themselves.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Reference</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>Δ</th></tr></thead><tbody>
+${case42}
+</tbody></table></div>
+<p class="note">The refrigerant and siloxane rows check that the curves fitted to the reference equations are carried through the flash and the liquid-volume model; R-410A checks a mixture of two added fluids with Peng–Robinson and no k<sub>ij</sub>. 2-Methyltetrahydrofuran / water is the honest case: Dortmund UNIFAC with the DDBST groups forms the two liquids and puts the heteroazeotrope 2 K low, but predicts mutual solubilities at 20 °C of 0.8 wt % water and 7 wt % 2-MeTHF against 4.4 and 14 wt % measured — fit NRTL to solubility data before designing a decanter. Engine test cases MB-396 to MB-404.</p>
+
+<h2>42 · GERG-2008 and the reference equations of state</h2>
+<p><b>GERG-2008</b> (Kunz &amp; Wagner, J. Chem. Eng. Data 57 (2012) 3032; ISO 20765-2) is the reference equation for natural gas and its 21 components — methane to n-decane, N₂, CO₂, H₂, O₂, CO, H₂O, H₂S, He and Ar. The engine's version (<code>api/_lib/mb-gerg.js</code>) is generated by <code>scripts/gen-gerg2008.py</code> from NIST's public-domain AGA 8 code; fugacity coefficients for phase equilibrium come from the analytic composition derivative of the Helmholtz energy (checked against central differences to 1e-8, and Σ x<sub>i</sub> ln φ<sub>i</sub> equals the residual Gibbs energy to 1e-15). The NIST test gas at 400 K and 500 bar, every property against the code's expected output (largest relative difference ${sci(aga43.worst)}):</p>
+<div class="tw"><table><thead><tr><th class="l">Property</th><th>Engine</th><th>NIST AGA 8</th><th>|Δ|/value</th></tr></thead><tbody>
+${aga43.html}
+</tbody></table></div>
+<p>Phase boundaries against CoolProp ${esc(R43.cp_version)}, which uses the GERG-2008 mixing functions on top of the reference equations of the pure fluids (GERG has its own, slightly simpler pure-fluid equations — the source of the small differences for the heavier components). Temperatures in K; largest difference ${f(gVleWorst, 3)} K, against ${f(gVleWorstPR, 2)} K for Peng–Robinson:</p>
+<div class="tw"><table><thead><tr><th class="l">Mixture (mol %)</th><th class="l">Quantity</th><th>CoolProp</th><th>GERG-2008</th><th>Δ GERG</th><th>Δ Peng–Robinson</th></tr></thead><tbody>
+${gergVleRows}
+</tbody></table></div>
+<p>Natural gas (CH₄ 85, C₂H₆ 7, C₃H₈ 3, nC₄ 1, N₂ 2, CO₂ 2 mol %), density and heat capacity against the same CoolProp model:</p>
+<div class="tw"><table><thead><tr><th>T, K</th><th>P, bar</th><th>Δρ GERG</th><th>Δc<sub>p</sub> GERG</th><th>Δρ PR</th><th>Δc<sub>p</sub> PR</th></tr></thead><tbody>
+${gergSpRows}
+</tbody></table></div>
+<p class="note">The heat-capacity differences of 0.05–0.1 % are those between GERG-2008's ideal-gas equations (Jaeschke &amp; Schley) and the reference ones. Peng–Robinson here includes the volume translation of section 40.</p>
+<p><b>Reference equations of pure fluids</b> (<code>api/_lib/mb-helmholtz.js</code>, generated by <code>scripts/gen-helmholtz.py</code> from the coefficients distributed with CoolProp): ammonia (Gao et al. 2020), CO₂ (Span &amp; Wagner 1996), nitrogen (Span et al. 2000), normal hydrogen (Leachman et al. 2009), methane (Setzmann &amp; Wagner 1991), argon (Tegeler et al. 1999) and oxygen (Schmidt &amp; Wagner 1985). The engine evaluates them itself — residual power, Gaussian, the Gao terms of ammonia and the non-analytic critical terms of CO₂ — and solves the saturation line from equal fugacities. Against CoolProp (largest differences: molar density ${sci(refW43.rho)}, c<sub>p</sub> ${sci(refW43.cp)} — the engine takes c<sub>p</sub> as the numerical temperature derivative of the enthalpy — saturation temperature ${sci(refW43.T)} K, heat of vaporisation ${sci(refW43.h)}):</p>
+<div class="tw"><table><thead><tr><th class="l">Fluid</th><th>T, K</th><th>P, bar</th><th class="l">Phase</th><th>ρ engine, kg/m³</th><th>ρ CoolProp</th><th>|Δρ|/ρ (molar)</th><th>|Δc<sub>p</sub>|/c<sub>p</sub></th></tr></thead><tbody>
+${refRows43}
+</tbody></table></div>
+<div class="tw"><table><thead><tr><th class="l">Fluid</th><th>P, bar</th><th>T<sub>sat</sub> engine, K</th><th>T<sub>sat</sub> CoolProp</th><th>ΔH<sub>vap</sub> engine, J/mol</th><th>ΔH<sub>vap</sub> CoolProp</th></tr></thead><tbody>
+${satRows43}
+</tbody></table></div>
+<p><b>Engine cases.</b> Round 12b cases with their references:</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s43vec}
+</tbody></table></div>
+<p class="note">GERG-2008 and the reference equations take their ideal-gas heat capacities from the equations themselves, placed on the same enthalpy and entropy basis as the other methods at 25 °C, so a stream keeps its enthalpy when it passes between units on different methods. Viscosity and thermal conductivity still come from the databank correlations. A GERG-2008 phase envelope takes a few seconds (the Helmholtz equation is far more expensive than a cubic).</p>
+
+<h2>43 · Refinery methods: Peng–Robinson 1978, PRSV2, Lee–Kesler–Plöcker, Chao–Seader and Grayson–Streed</h2>
+<p><b>Peng–Robinson 1978</b> differs from Peng–Robinson only in α(ω) for components with ω above 0.491 (heavy hydrocarbons and petroleum fractions). <b>PRSV2</b> (Stryjek &amp; Vera 1986) gives each component α = [1 + κ(1 − √T<sub>r</sub>)]² with κ = κ<sub>0</sub>(ω) + [κ<sub>1</sub> + κ<sub>2</sub>(κ<sub>3</sub> − T<sub>r</sub>)(1 − √T<sub>r</sub>)](1 + √T<sub>r</sub>)(0.7 − T<sub>r</sub>) below T<sub>r</sub> = 0.7. The engine's κ<sub>1</sub>–κ<sub>3</sub> are not the published table: <code>scripts/build-prsv2.mjs</code> fits them to the databank vapour pressure of every component that has one (${R44.prsv2.n_components} of them) — the α that makes Peng–Robinson reproduce the vapour pressure exactly, at 40 temperatures from the triple point (or 0.35 T<sub>c</sub>) to 0.7 T<sub>c</sub>, by linear least squares. Vapour pressures from the equation itself (equal fugacities) against the databank correlation:</p>
+<div class="tw"><table><thead><tr><th>T<sub>r</sub></th><th>Components</th><th>PRSV2 median</th><th>PRSV2 90th pct.</th><th>Peng–Robinson median</th><th>Peng–Robinson 90th pct.</th></tr></thead><tbody>
+${prsv2Rows44}
+</tbody></table></div>
+<p class="note">Above T<sub>r</sub> = 0.7 the κ<sub>1</sub>–κ<sub>3</sub> term is zero, as Stryjek and Vera prescribe, so PRSV2 is only as good as the acentric factor there — the same as Peng–Robinson. Where the databank vapour-pressure curve and the critical constants disagree, both show it at high T<sub>r</sub>.</p>
+<p><b>Lee–Kesler–Plöcker</b> (Lee &amp; Kesler 1975; Plöcker, Knapp &amp; Prausnitz 1978): the simple-fluid and n-octane reference BWR equations in reduced variables, Plöcker's pseudo-critical mixing rules with η = 0.25, hydrogen with the Gunn–Chueh–Prausnitz quantum-corrected constants. Fugacity coefficients come from the analytic composition derivative through T<sub>r</sub>, P<sub>r</sub> and ω (checked against central differences of n·G<sup>R</sup>/RT to 5e-9). Plöcker's own k<sub>ij</sub> table is not freely available, so <code>scripts/fit-lkp-kij.mjs</code> fits k<sub>ij</sub> (the multiplier on T<sub>c,ij</sub>) for each pair of the GERG-2008 components that has fitted GERG-2008 mixture parameters — water and helium left out — to GERG-2008 bubble pressures at three temperatures and three compositions below 100 bar: ${L44.n_pairs} pairs, median mean absolute deviation in bubble pressure ${f(100 * L44.median_aad, 1)} % (one pair in ten above ${f(100 * L44.p90_aad, 0)} %), against ${f(100 * L44.median_aad_k1, 0)} % with k<sub>ij</sub> = 1. Other pairs take correlations fitted to that table: hydrocarbon pairs k = 1 + a lnτ lnν + b lnτ + c (lnτ)² (τ, ν the T<sub>c</sub> and V<sub>c</sub> ratios; ${L44.hc2.n} pairs, rms ${f(L44.hc2.rms, 3)}), and a line in ln(T<sub>c,HC</sub>/T<sub>c,gas</sub>) for each of N₂, CO₂, CO, H₂, methane, ethane and propane with heavier hydrocarbons. ${L44.replaced.length ? L44.replaced.map((r) => esc(r.pair.replace('|', ' – '))).join(' and ') + ' lay far off the homologous trend (GERG-2008 rests on sparse data there) and take the correlation instead. ' : ''}Examples:</p>
+<div class="tw"><table><thead><tr><th class="l">Pair</th><th>k<sub>ij</sub></th><th>Deviation from GERG-2008</th><th>With k<sub>ij</sub> = 1</th></tr></thead><tbody>
+${lkpEx44}
+</tbody></table></div>
+<p class="note">Methane, nitrogen and CO₂ with the heavier alkanes and hydrogen with any hydrocarbon keep deviations of 5–18 %: a single k<sub>ij</sub> cannot follow GERG-2008's temperature dependence there. For hydrogen with hydrocarbons, Chao–Seader or Grayson–Streed is the better choice.</p>
+<p><b>Chao–Seader and Grayson–Streed</b> (Chao &amp; Seader 1961; Grayson &amp; Streed 1963): K = ν γ / φ<sup>V</sup> with the corresponding-states liquid fugacity coefficient ν (simple fluid plus ω term, hydrogen and methane with constants of their own), the Scatchard–Hildebrand regular solution with the solubility parameters and 25 °C liquid volumes (31 and 52 cm³/mol for hydrogen and methane), and a Redlich–Kwong vapour. Liquid enthalpy and entropy come from Lee–Kesler with Plöcker mixing, as commercial simulators do — the temperature derivative of ν gives heat capacities 10–20 % low.</p>
+<p>All five against DWSIM ${esc(R44.dwsim_version.replace('DWSIM ', ''))} with the same inputs (numbers only; none of DWSIM's code is used). Largest bubble/dew-point difference: PR78 ${f(worst44.pr78.T, 3)} K, PRSV2 ${f(worst44.prsv2.T, 2)} K (different κ<sub>1</sub>–κ<sub>3</sub>), Chao–Seader ${f(worst44['chao-seader'].T, 2)} K, Grayson–Streed ${f(worst44['grayson-streed'].T, 2)} K, Lee–Kesler–Plöcker ${f(worst44.lkp.T, 1)} K (different k<sub>ij</sub>):</p>
+<div class="tw"><table><thead><tr><th class="l">Case (mol %)</th><th class="l">Method</th><th class="l">Quantity</th><th>DWSIM</th><th>Engine</th><th>Δ</th></tr></thead><tbody>
+${dw44}
+</tbody></table></div>
+<p class="note">DWSIM's Lee–Kesler–Plöcker uses its own k<sub>ij</sub> table and estimates; the engine's bubble points lie closer to GERG-2008 for methane / propane (231.3 K) and propane / n-hexane (332.9 K). The hydrotreater K of methane is 7 % higher than DWSIM's with both Chao–Seader and Grayson–Streed while hydrogen, n-hexane and n-decane agree within 0.7 %. The enthalpy differences of 1–2 kJ/kg for natural gas are the ideal-gas heat capacities of the two databanks (Peng–Robinson shows the same).</p>
+<p><b>Bubble and dew pressures</b> of equation-of-state mixtures now fall back on a scan of PT flashes in pressure when the Newton solution fails or lands on the trivial one, as bubble and dew temperatures already did — a light gas dissolved in a heavy liquid above its critical temperature (methane in n-hexane at 355 K) had no bubble pressure before. Engine cases:</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s44vec}
+</tbody></table></div>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–39 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-351.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–43 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-423.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
