@@ -365,7 +365,7 @@ details.dd>div{padding:2px 10px 10px;overflow:auto}
 table.st.spc td{white-space:normal;text-align:left;font-family:var(--sans);max-width:320px;vertical-align:top}
 table.st.spc td .pill{white-space:nowrap}
 @media(max-width:1200px){.sensgrid{grid-template-columns:minmax(0,1fr)}}
-.q.chemsep{background:#2563eb}
+.q.chemsep{background:#2563eb} .q.literature{background:#7c3aed}
 
 /* ─── DOCK (results) ──────────────────────────────────────────── */
 .dock-bar{display:flex;align-items:center;gap:4px;height:38px;padding:0 8px;border-bottom:1px solid var(--line);flex:none;min-width:0}
@@ -575,10 +575,10 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <h3>4 · Specify units and run</h3>
   <p>Click a unit and fill its specifications. The status lamp at the bottom turns green when everything needed is entered; the Issues tab lists anything missing. Press <b>Run</b> (or <kbd>F5</kbd>).</p>
   <h3>Property method (Methods)</h3>
-  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. With Peng–Robinson or SRK, <b>Free water</b> (on by default) puts liquid water and steam on IAPWS-IF97 and the gases dissolved in water on the IAPWS Henry constants, so boilers, condensers, wet-gas coolers and process condensate come out right — a plain cubic overstates the latent heat of water by about 5 % and makes gases 10–100× too insoluble in it. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents. Activity methods can add the <b>heat of mixing</b> to the liquid enthalpy (reliable with Dortmund UNIFAC, which was fitted to it) and switch off the Poynting correction; <b>Liquid volume</b> chooses how densities, volumetric flows and pump heads are found — ChemSep correlations (default), the Rackett mixture rule, COSTALD or the equation of state's liquid root. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
+  <p>Click empty canvas to open the flowsheet panel and pick a <b>property method</b> for the whole flowsheet — Peng–Robinson or SRK for hydrocarbons, light gases and NH₃ / syngas at pressure; <b>GERG-2008</b> for natural gas, CO₂ and hydrogen blends at reference accuracy; a <b>reference equation</b> for one pure fluid (NH₃, CO₂, N₂, H₂, CH₄, Ar, O₂); NRTL, UNIQUAC or Wilson (with ChemSep binary parameters built in) for polar liquids; UNIFAC or Dortmund UNIFAC when no binary data exist; or ideal. With a property method, mixers, heaters, flash drums, exchangers, pumps, compressors, turbines, valves and conversion reactors become rigorous: every outlet is flashed, so streams can leave two-phase, and enthalpies include heats of vaporisation and mixing. <b>Review pure-component &amp; binary data</b> shows exactly which constants and binary pairs will be used; you can override k<sub>ij</sub> and NRTL pairs. With Peng–Robinson or SRK, <b>Free water</b> (on by default) puts liquid water and steam on IAPWS-IF97 and the gases dissolved in water on the IAPWS Henry constants, so boilers, condensers, wet-gas coolers and process condensate come out right — a plain cubic overstates the latent heat of water by about 5 % and makes gases 10–100× too insoluble in it. Peng–Robinson and SRK also shift the molar volume of H₂, N₂, CH₄, CO, Ar, O₂ and He (<b>volume translation</b>, on by default), so syngas densities and compression work agree with the reference equations of state. NRTL and UNIQUAC carry water–hydrocarbon pairs fitted to IUPAC-NIST mutual solubilities (benzene, toluene, ethylbenzene, xylenes, cyclohexane, methylcyclohexane, C5–C8 alkanes), so decanters and heteroazeotropic columns split into the right two liquids. Set <b>Valid phases</b> to vapour–liquid–liquid for free water or partially miscible solvents; a bubble point with two liquids present is then the heterogeneous one. Activity methods can add the <b>heat of mixing</b> to the liquid enthalpy (reliable with Dortmund UNIFAC, which was fitted to it) and switch off the Poynting correction; <b>Liquid volume</b> chooses how densities, volumetric flows and pump heads are found — ChemSep correlations (default), the Rackett mixture rule, COSTALD or the equation of state's liquid root; the first three include the effect of pressure (Tait) and of light gases dissolved in the liquid. With an activity-coefficient method, carboxylic acids (acetic, propionic …) <b>dimerise in the vapour</b> (chemical theory) — vapour fugacities, densities and the liquid enthalpy of the acids then agree with measured data. Any rigorous unit can use its own method. <b>Classic</b> keeps the engine's per-unit models (the flash drum then offers Raoult, Peng–Robinson or NRTL individually).</p>
   <p>With the activity and electrolyte methods the liquid enthalpy comes from liquid heat capacities (water from IAPWS-IF97), anchored at the normal boiling point; a checkbox in the flowsheet panel switches back to h<sub>ig</sub> − ΔHvap(T), which overstates the liquid heat capacity of methanol, ethanol and ammonia by 10–27 %.</p>
   <p><b>Which method to apply:</b> water / steam only → Steam / water (IAPWS-IF97); hydrocarbons and light gases → Peng–Robinson or SRK; NRTL, UNIQUAC or UNIFAC for polar liquids above about 5 bar → set <b>Vapour phase</b> to Peng–Robinson. The flowsheet panel suggests the method from your feeds (with a button that applies it), and after a run the log warns when a vapour above about 5 bar was treated as an ideal gas — that leaves out the real-gas enthalpy and changes duties and turbine / compressor power (a 62 bar steam turbine comes out about 30 % high with NRTL and an ideal-gas vapour).</p>
-  <p>The component list holds more than 400 components with ChemSep pure-component data; carbamate and biuret are for the classic urea units only. <b>Pseudo-components</b> (flowsheet panel) add petroleum fractions from their normal boiling point and specific gravity — critical constants by Twu, Riazi–Daubert or Kesler–Lee — or cut a whole <b>TBP assay</b> into fractions and use it as a feed composition; they work with Peng–Robinson, SRK and ideal.</p>
+  <p>The component list holds about 1,550 components for the property methods: 431 with ChemSep pure-component data (blue dot) and 1,118 more from evaluated literature data (purple dot) — every one with measured critical constants and boiling point; refrigerants, siloxanes and other fluids with a reference equation of state take their vapour pressure, liquid density, heat of vaporisation and heat capacity from it. <b>Review pure-component &amp; binary data</b> lists the source of every value; what was not measured is estimated (Joback heat capacity, Lee–Kesler vapour pressure through the measured Tb, Tc, Pc), as for a component given by its structure. Carbamate and biuret are for the classic urea units only. <b>Pseudo-components</b> (flowsheet panel) add petroleum fractions from their normal boiling point and specific gravity — critical constants by Twu, Riazi–Daubert or Kesler–Lee — or cut a whole <b>TBP assay</b> into fractions and use it as a feed composition; they work with the equations of state, Chao–Seader, Grayson–Streed and ideal.</p>
   <p><b>User components</b> (flowsheet panel) add any other organic molecule from its structure: paste its SMILES (from PubChem or a drawing program). Joback groups estimate the boiling point, critical constants, heat capacity and heat of formation; Lee–Kesler the acentric factor and vapour pressure; UNIFAC and Dortmund-UNIFAC groups are assigned so activity methods work at once. Enter any measured value you have — each replaces its estimate. With NRTL, UNIQUAC or Wilson, a binary pair with no data is fitted to Dortmund UNIFAC automatically (flagged in the run log and shown as estimated in <b>Review pure-component &amp; binary data</b>). Viscosity, thermal conductivity and surface tension are estimated where the databank has no correlation; the stream panel says which.</p>
   <h3>Urea synthesis method</h3>
   <p>For the urea HP loop pick <b>Urea synthesis</b>: the liquid is UNIQUAC over NH₃, CO₂, H₂O, urea, ammonium carbamate and bicarbonate with the carbamate and bicarbonate equilibria solved in every flash (Voskov et al. 2016), the vapour Peng–Robinson. Streams carry apparent NH₃, CO₂, H₂O and urea, so N/C and H/C read as in the plant, and liquid streams show the conversion, carbamate share and true species. The <b>urea reactor</b> brings carbamate ⇌ urea + H₂O to equilibrium (or a fraction of it, or a given conversion), adiabatic or at a set temperature, and reports the inert-free bubble pressure and residence time; the <b>HP stripper</b> is a counter-current equilibrium-stage stripper heated by steam, reporting the stripping efficiency. Heaters, flash drums and mixers on this method act as carbamate condensers and scrubbers. The “Urea HP synthesis” example shows the section.</p>
@@ -634,7 +634,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
 ===================================================================== */
 const API = '/api/material-balance';
 const LS_MODEL = 'mc_flowsheet_v1';
-const LS_COMPS = 'mb_components_v4';          // v4: + aqueous salts and NaOH (Step 38); v3 added K2CO3 (Step 25)
+const LS_COMPS = 'mb_components_v5';          // v5: + extended literature databank (round 12); v4: + aqueous salts and NaOH (Step 38); v3 added K2CO3 (Step 25)
 const LS_RECENT = 'mb_recent_comps_v1';       // shared with material-balance.html
 const LS_PREFS = 'mc_flowsheet_prefs_v1';
 const COMPS_TTL_MS = 24 * 3600 * 1000;
@@ -755,6 +755,13 @@ function toast(msg, kind) {
 const PKGS = [
   ['pr', 'Peng–Robinson', 'EOS', 'hydrocarbons, light gases, H₂ / N₂ / NH₃ / CO₂ at any pressure — the usual default'],
   ['srk', 'Soave–Redlich–Kwong', 'EOS', 'as Peng–Robinson; gas processing and refinery light ends'],
+  ['pr78', 'Peng–Robinson 1978 (PR78)', 'EOS', 'as Peng–Robinson, with the 1978 α(ω) for heavy components (ω above 0.49) — crude and heavy-end fractions'],
+  ['prsv2', 'PRSV2 (Stryjek–Vera)', 'EOS', 'Peng–Robinson with α fitted to each component’s vapour pressure (κ1–κ3) — accurate pure vapour pressures down to the triple point, polar compounds'],
+  ['lkp', 'Lee–Kesler–Plöcker', 'EOS', 'gas processing, refinery light ends, refrigeration — corresponding states with good enthalpies and liquid densities of hydrocarbons; H₂, N₂, CO₂, H₂S'],
+  ['gerg2008', 'GERG-2008', 'EOS', 'natural gas, LNG, syngas, CO₂ and hydrogen blends — the ISO 20765-2 reference equation for its 21 components (methane to n-decane, N₂, CO₂, H₂, O₂, CO, H₂O, H₂S, He, Ar)'],
+  ['reference', 'Reference equation (pure fluid)', 'EOS', 'one pure fluid at reference accuracy — NH₃, CO₂, N₂, H₂, CH₄, Ar or O₂ (refrigeration loops, CO₂ compression, liquefaction, hydrogen)'],
+  ['chao-seader', 'Chao–Seader', 'K', 'refinery hydrocarbon and hydrogen systems, 255–530 K and up to about 140 bar — corresponding-states liquid fugacity, regular-solution liquid, Redlich–Kwong vapour'],
+  ['grayson-streed', 'Grayson–Streed', 'K', 'hydrotreaters, reformers, crude and vacuum heaters — Chao–Seader refitted to 200–700 K and up to about 200 bar, hydrogen-rich vapour'],
   ['nrtl', 'NRTL', 'γ', 'polar and non-ideal liquids (alcohols, water, ketones, acids) — ChemSep binaries built in'],
   ['uniquac', 'UNIQUAC', 'γ', 'polar / non-ideal liquids, size-asymmetric mixtures — ChemSep binaries built in'],
   ['wilson', 'Wilson', 'γ', 'miscible polar mixtures (cannot predict two liquid phases)'],
@@ -770,7 +777,8 @@ const PKGS = [
   ['aqueous-electrolyte', 'Aqueous electrolytes — brines, caustic, acids', 'aq', 'brines, seawater and cooling water, caustic and acid solutions, evaporators and scaling checks: Pitzer model on the USGS PHREEQC pitzer.dat database — Na⁺, K⁺, Ca²⁺, Mg²⁺, Cl⁻, SO₄²⁻, HSO₄⁻, OH⁻, HCO₃⁻, CO₃²⁻, CO₂ and HCl; give salts as their formulas (NaCl, CaCl₂, Na₂SO₄, NaOH, H₂SO₄ …). Mineral saturation indices (calcite, gypsum, halite …) are reported; solids are not precipitated'],
 ];
 const PKG_LABEL = Object.fromEntries([['classic', 'Classic engine models'], ...PKGS.map((p) => [p[0], p[1]])]);
-const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'amine-mdea': 'MDEA', 'hot-k2co3': 'K₂CO₃', 'sour-water': 'Sour water', 'aqueous-electrolyte': 'Aq. electrolyte', steam: 'IF97', urea: 'Urea' };
+const PKG_SHORT = { classic: 'Classic', pr: 'PR', srk: 'SRK', pr78: 'PR78', prsv2: 'PRSV2', lkp: 'LKP', 'chao-seader': 'Chao–Seader', 'grayson-streed': 'Grayson–Streed', gerg2008: 'GERG-2008', reference: 'Ref. EOS', nrtl: 'NRTL', uniquac: 'UNIQUAC', wilson: 'Wilson', unifac: 'UNIFAC', modunifac: 'UNIFAC-DMD', ideal: 'Ideal', 'amine-mea': 'MEA', 'amine-mdea': 'MDEA', 'hot-k2co3': 'K₂CO₃', 'sour-water': 'Sour water', 'aqueous-electrolyte': 'Aq. electrolyte', steam: 'IF97', urea: 'Urea' };
+const isCubicPkg = (m) => m === 'pr' || m === 'srk' || m === 'pr78' || m === 'prsv2';     // ROUND 12c
 const isActivityPkg = (m) => m === 'nrtl' || m === 'uniquac' || m === 'wilson' || m === 'unifac' || m === 'modunifac';
 /* flowsheet size limits — the server's caps (mb-flowsheet.js, material-balance.js) */
 const LIMITS = { blocks: 150, streams: 400, feeds: 60, comps: 60, specs: 10, sensPoints: 60, sensOut: 16 };
@@ -2229,22 +2237,29 @@ function pkgSpec(model) {
   if (isElecPkg(m)) return o;          // acid-gas packages: no binary overrides, VL only
   if (isActivityPkg(m) && P.excess_enthalpy === true) o.excess_enthalpy = true;            // STEP 40: heat of mixing
   if (isActivityPkg(m) && P.poynting === false) o.poynting = false;
-  if (['rackett', 'costald'].includes(P.liquid_volume) || (P.liquid_volume === 'eos' && (m === 'pr' || m === 'srk' || (isActivityPkg(m) && (P.vapour === 'pr' || P.vapour === 'srk'))))) o.liquid_volume = P.liquid_volume;
+  if (['rackett', 'costald'].includes(P.liquid_volume) || (P.liquid_volume === 'eos' && (isCubicPkg(m) || m === 'lkp' || (isActivityPkg(m) && (P.vapour === 'pr' || P.vapour === 'srk'))))) o.liquid_volume = P.liquid_volume;
   if (P.henry === false && m !== 'pr' && m !== 'srk') o.henry = false;
-  if (P.free_water === false && (m === 'pr' || m === 'srk')) o.free_water = false;   // STEP 32
+  if (P.free_water === false && isCubicPkg(m)) o.free_water = false;   // STEP 32
+  if (P.volume_translation === false && (isCubicPkg(m) || (isActivityPkg(m) && (P.vapour === 'pr' || P.vapour === 'srk')))) o.volume_translation = false;   // STEP 41
   if (P.association === false && m !== 'pr' && m !== 'srk') o.association = false;
   if (P.fill_missing === false && (m === 'nrtl' || m === 'uniquac' || m === 'wilson')) o.fill_missing = 'none';   // STEP 37
   if (P.phases === 'vll') o.three_phase = true; else if (P.phases === 'vl') o.three_phase = false;
   const kij = {};
   for (const r of P.kij || []) if (r.i && r.j && r.i !== r.j && num(r.v)) kij[r.i + '|' + r.j] = r.v;
-  if (Object.keys(kij).length && (m === 'pr' || m === 'srk' || o.vapour)) o.kij = kij;
+  if (Object.keys(kij).length && (isCubicPkg(m) || o.vapour)) o.kij = kij;
+  if (m === 'lkp') {                    // ROUND 12c: Lee–Kesler–Plöcker k_ij (multiplier on T_c,ij)
+    const lk = {};
+    for (const r of P.lkp_kij || []) if (r.i && r.j && r.i !== r.j && num(r.v) && r.v > 0) lk[r.i + '|' + r.j] = r.v;
+    if (Object.keys(lk).length) o.lkp_kij = lk;
+  }
   if (m === 'nrtl') {
     const t = {};
     for (const r of P.nrtl || []) {
       if (!r.i || !r.j || r.i === r.j) continue;
       const al = num(r.cij) ? r.cij : 0.3;
-      t[r.i + '|' + r.j] = { a: num(r.aij) ? r.aij : 0, b: num(r.bij) ? r.bij : 0, alpha: al };
-      t[r.j + '|' + r.i] = { a: num(r.aji) ? r.aji : 0, b: num(r.bji) ? r.bji : 0, alpha: al };
+      const v = (k) => (num(r[k]) ? r[k] : 0);
+      t[r.i + '|' + r.j] = { a: v('aij'), b: v('bij'), e: v('eij'), f: v('fij'), alpha: al };
+      t[r.j + '|' + r.i] = { a: v('aji'), b: v('bji'), e: v('eji'), f: v('fji'), alpha: al };
     }
     if (Object.keys(t).length) o.nrtl = t;
   }
@@ -3734,9 +3749,16 @@ const UNIT_LIMITS = {
   dryer: ['Exhaust checked against the water dew point; a condensation warning above 90 % relative saturation.'],
 };
 const METHOD_HELP = {
+  gerg2008: ['Multiparameter Helmholtz-energy equation of Kunz & Wagner (2012), ported from the NIST AGA 8 reference code: densities of natural gas within about 0.1 % over the whole fluid region, speeds of sound and heat capacities within 0.1–1 %, and vapour–liquid equilibrium of the 21 components with fitted binary functions — no k_ij to tune. Its own ideal-gas heat capacities are used.', 'Only for mixtures of its 21 components; a stream with anything else needs Peng–Robinson or SRK. Slower than a cubic equation; the flowsheet solver allows for it.'],
+  reference: ['The multiparameter reference equation of state of one pure fluid — ammonia (Gao et al. 2020), CO₂ (Span–Wagner), nitrogen (Span et al.), normal hydrogen (Leachman et al.), methane (Setzmann–Wagner), argon (Tegeler et al.) or oxygen (Schmidt–Wagner): density, enthalpy, entropy, heat capacity and saturation at the accuracy of the reference itself, as REFPROP and CoolProp give.', 'Pure fluids only (use GERG-2008 for natural-gas and syngas mixtures). Viscosity and thermal conductivity come from the databank correlations.'],
   pr: ['Cubic equation of state with van der Waals mixing and built-in binary k_ij; free water option uses IAPWS-IF97 for water and IAPWS G7-04 Henry constants for gases dissolved in it.', 'Any pressure for hydrocarbons and light gases; polar liquid mixtures (alcohol–water, glycols, acids) are poorly described — use an activity method.'],
-  srk: ['As Peng–Robinson; liquid densities of light hydrocarbons are slightly better with Peng–Robinson.'],
-  nrtl: ['Activity coefficients in the liquid (built-in ChemSep binaries; a missing pair is treated as ideal and listed), ideal-gas vapour unless Peng–Robinson / SRK vapour is chosen.', 'Light gases by Henry’s law. Above about 5 bar choose a Peng–Robinson vapour — the engine reports the real-gas enthalpy left out.'],
+  pr78: ['Peng–Robinson with the 1978 α(ω) correlation for components with ω above 0.491 (heavy hydrocarbons, petroleum fractions); identical to Peng–Robinson for lighter ones. Same k_ij, free water and volume translation as Peng–Robinson.'],
+  prsv2: ['Peng–Robinson with the Stryjek–Vera α: κ1, κ2, κ3 fitted here to each component’s databank vapour pressure between the triple point (or 0.35 T_c) and 0.7 T_c — for about 1,240 components; the rest use κ0(ω) alone. Pure vapour pressures within about 0.05 % below 0.7 T_c, against several per cent for Peng–Robinson. Peng–Robinson k_ij.', 'Above 0.7 T_c it reverts to κ0(ω), as Stryjek and Vera prescribe, so accuracy there is that of the acentric factor.'],
+  lkp: ['Lee–Kesler corresponding states (simple fluid and n-octane reference, BWR form) with Plöcker’s mixing rules; hydrogen with the Gunn–Chueh–Prausnitz quantum-corrected constants. Binary k_ij for the 21 GERG-2008 components fitted here to GERG-2008 bubble pressures; other hydrocarbon pairs and light gases with hydrocarbons from correlations fitted to that table. Good enthalpies and liquid densities of hydrocarbons.', 'Methane or nitrogen with heavy alkanes (C8 and above) deviate by 5–15 % in bubble pressure even with the fitted k_ij; strongly polar components (water, alcohols) are outside its basis.'],
+  'chao-seader': ['K = ν γ / φ: corresponding-states liquid fugacity (simple fluid + ω term, hydrogen and methane with constants of their own), Scatchard–Hildebrand regular solution with the solubility parameters, Redlich–Kwong vapour. Liquid enthalpy from Lee–Kesler, as commercial simulators do.', 'Hydrocarbons with H₂, about 255–530 K, up to about 140 bar, T_r of the liquid components above 0.5. No binary parameters; not for polar components or near the critical region.'],
+  'grayson-streed': ['Chao–Seader with the liquid-fugacity constants refitted by Grayson and Streed to 200–700 K and up to about 200 bar (hydrogen and methane again with their own); liquid enthalpy from Lee–Kesler.', 'Hydrotreater, reformer and crude-heater streams rich in hydrogen; not for polar components or cryogenic gas processing.'],
+  srk: ['As Peng–Robinson, with SRK binary parameters of its own (DECHEMA, via ChemSep; the Peng–Robinson value where SRK has none); liquid densities of light hydrocarbons are slightly better with Peng–Robinson.'],
+  nrtl: ['Activity coefficients in the liquid (built-in ChemSep binaries; water with benzene, toluene, ethylbenzene, xylenes, cyclohexane, methylcyclohexane and C5–C8 alkanes fitted to IUPAC-NIST mutual solubilities, 0–150 °C; any other missing pair is estimated from UNIFAC and listed), ideal-gas vapour unless Peng–Robinson / SRK vapour is chosen.', 'Light gases by Henry’s law. Above about 5 bar choose a Peng–Robinson vapour — the engine reports the real-gas enthalpy left out.'],
   uniquac: ['As NRTL (two binary parameters per pair); handles size-asymmetric mixtures.'],
   wilson: ['As NRTL but cannot predict two liquid phases — miscible mixtures only.'],
   unifac: ['Predictive group contribution: no binary data needed; groups without parameters are reported and treated as ideal.', 'Parameters fitted mainly to low-pressure vapour–liquid data near ambient to about 150 °C.'],
@@ -4098,7 +4120,7 @@ function inspectNothing(head, body) {
   body.append(s3);
 
   const s4 = sec('Component library');
-  s4.append(el('div', { class: 'note' }, componentsDB ? componentsDB.length + ' components loaded (' + componentsDB.filter((c) => c.rigorous).length + ' with property-method data — ChemSep databank).' :
+  s4.append(el('div', { class: 'note' }, componentsDB ? componentsDB.length + ' components loaded (' + componentsDB.filter((c) => c.rigorous).length + ' with property-method data — ChemSep and extended literature databanks).' :
     compLoadErr ? 'Could not load the component list: ' + compLoadErr.message : 'Loading…'));
   body.append(s4);
 }
@@ -4351,7 +4373,7 @@ function nrtlField(b) {
     box.append(g);
     wrap.append(box);
   });
-  wrap.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { rows.push({ i: '', j: '', aij: 0, aji: 0, bij: 0, bji: 0, cij: 0.3 }); commit(); renderInspector(); } }, '＋ Binary pair')));
+  wrap.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { rows.push({ i: '', j: '', aij: 0, aji: 0, bij: 0, bji: 0, eij: 0, eji: 0, fij: 0, fji: 0, cij: 0.3 }); commit(); renderInspector(); } }, '＋ Binary pair')));
   wrap.append(el('div', { class: 'hint' }, 'Copy AIJ, AJI, BIJ, BJI, CIJ from your simulator’s NRTL binary table (T in K). Pairs not listed are ideal. Vapour–liquid only — no liquid–liquid split.'));
   return wrap;
 }
@@ -5295,7 +5317,7 @@ function pseudoSection() {
   const s = sec('Pseudo-components', pillEl((M.pseudo || []).length + ''));
   s.id = 'pseudoSec';
   const U = PSEUDO_UI;
-  s.append(el('div', { class: 'note', style: 'margin-bottom:8px' }, 'Petroleum fractions characterised by normal boiling point and specific gravity (molar mass optional) — critical constants by Twu (1984), Riazi–Daubert (1987) or Kesler–Lee, acentric factor Kesler–Lee, Lee–Kesler vapour pressure, Rackett density through the SG. They work with the property methods (Peng–Robinson, SRK, ideal) and appear in the component picker. Cut a TBP assay into pseudo-components below.'));
+  s.append(el('div', { class: 'note', style: 'margin-bottom:8px' }, 'Petroleum fractions characterised by normal boiling point and specific gravity (molar mass optional) — critical constants by Twu (1984), Riazi–Daubert (1987) or Kesler–Lee, acentric factor Kesler–Lee, Lee–Kesler vapour pressure, Rackett density through the SG. They work with the equation-of-state methods (Peng–Robinson, SRK, PR78, PRSV2, Lee–Kesler–Plöcker), Chao–Seader, Grayson–Streed and ideal, and appear in the component picker. Cut a TBP assay into pseudo-components below.'));
   if (!rigOn()) s.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, 'Pseudo-components need a property method — choose one (e.g. Peng–Robinson) above.')));
   const list = M.pseudo || [];
   if (list.length) {
@@ -5507,7 +5529,7 @@ function methodsSection() {
   s.id = 'methodsSec';
   const sel = el('select', { class: 'sel', 'aria-label': 'Property method' });
   sel.append(el('option', { value: 'classic' }, 'Classic — engine per-unit models'));
-  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['steam', 'Water & steam'], ['elec', 'Electrolyte — CO₂ removal (acid gas)'], ['aq', 'Aqueous electrolytes and sour water'], ['urea', 'Urea synthesis']]) {
+  for (const [grp, lbl] of [['EOS', 'Equations of state'], ['K', 'Refinery K-value methods'], ['γ', 'Activity coefficient (γ–φ)'], ['ideal', 'Ideal'], ['steam', 'Water & steam'], ['elec', 'Electrolyte — CO₂ removal (acid gas)'], ['aq', 'Aqueous electrolytes and sour water'], ['urea', 'Urea synthesis']]) {
     const og = el('optgroup', { label: lbl });
     for (const p of PKGS.filter((x) => x[2] === grp)) og.append(el('option', { value: p[0] }, p[1]));
     sel.append(og);
@@ -5583,7 +5605,7 @@ function methodsSection() {
     hc.addEventListener('change', () => { P.henry = hc.checked ? undefined : false; commit(); });
     s.append(el('label', { class: 'chk' }, hc, el('span', null, 'Henry’s law for light gases (H₂, N₂, CO₂, CH₄ … dissolved in water / solvents)')));
   }
-  if (P.model === 'pr' || P.model === 'srk') {
+  if (isCubicPkg(P.model)) {
     // STEP 32: free water — liquid water and the gases dissolved in it referred to IAPWS
     const fc = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
     fc.checked = P.free_water !== false;
@@ -5592,6 +5614,16 @@ function methodsSection() {
     s.append(el('div', { class: 'hint', style: 'margin:-2px 0 8px' }, P.free_water === false
       ? 'Off: water is on the cubic equation of state alone — its latent heat comes out about 5 % high, its vapour pressure up to 15 % low and gases are 10–100× too insoluble in water. Keep it on unless you are checking against another program’s plain cubic.'
       : 'On (recommended): boilers, condensers and wet-gas coolers match IAPWS-IF97 steam tables, and gases dissolved in process condensate follow the IAPWS G7-04 Henry constants. Hydrocarbon phases and dry gases are unchanged.'));
+  }
+  if (isCubicPkg(P.model) || (isActivityPkg(P.model) && (P.vapour === 'pr' || P.vapour === 'srk'))) {
+    // STEP 41: volume translation of the cubic for the permanent gases
+    const vt = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
+    vt.checked = P.volume_translation !== false;
+    vt.addEventListener('change', () => { P.volume_translation = vt.checked ? undefined : false; commit(); renderInspector(); });
+    s.append(el('label', { class: 'chk' }, vt, el('span', null, 'Volume translation for H₂, He, N₂, O₂, Ar, CH₄ and CO (Péneloux) — corrects gas density and compression work')));
+    s.append(el('div', { class: 'hint', style: 'margin:-2px 0 8px' }, P.volume_translation === false
+      ? 'Off: the plain cubic, as in DWSIM and most programs — hydrogen-rich gas about 4 % dense at 140 bar, compressor power of H₂, N₂ or CH₄ 1–1.5 % low.'
+      : 'On (recommended): the molar volume of these gases is shifted by constants fitted to their reference equations of state (syngas density within about 1 % of GERG-2008 at 140 bar; compressor power within 0.05 %). Phase equilibria are unchanged; reaction equilibria at very high pressure move with the corrected fugacities.'));
   }
   if ((isActivityPkg(P.model) || P.model === 'ideal') && !P.vapour && !isElecPkg(P.model)) {
     const ac = el('input', { type: 'checkbox', style: 'width:16px;height:16px' });
@@ -5617,16 +5649,18 @@ function methodsSection() {
     ph.value = P.phases || 'auto';
     ph.addEventListener('change', () => { P.phases = ph.value === 'auto' ? undefined : ph.value; commit(); renderInspector(); });
     s.append(fld('Valid phases', ph, 'VLL: every flash tests for a second liquid (water / hydrocarbon, partially miscible solvents). Automatic switches it on for an equation of state when water and propane-or-heavier hydrocarbons are present.'));
-    // STEP 40: liquid molar volume method
-    const eosOk = P.model === 'pr' || P.model === 'srk' || (isActivityPkg(P.model) && (P.vapour === 'pr' || P.vapour === 'srk'));
+    // STEP 40: liquid molar volume method (GERG-2008 and the reference equations use their own liquid density)
+    const helmM = P.model === 'gerg2008' || P.model === 'reference';
+    const eosOk = isCubicPkg(P.model) || P.model === 'lkp' || (isActivityPkg(P.model) && (P.vapour === 'pr' || P.vapour === 'srk'));
     const lv = el('select', { class: 'sel', 'aria-label': 'Liquid volume' });
     for (const [v, t] of [['auto', 'Automatic — ChemSep density correlations (COSTALD near Tc)'], ['rackett', 'Rackett mixture (Spencer–Danner)'], ['costald', 'COSTALD (Hankinson–Thomson)'], ...(eosOk ? [['eos', 'Equation of state liquid root']] : [])]) lv.append(el('option', { value: v }, t));
     lv.value = P.liquid_volume && (P.liquid_volume !== 'eos' || eosOk) ? P.liquid_volume : 'auto';
     lv.addEventListener('change', () => { P.liquid_volume = lv.value === 'auto' ? undefined : lv.value; commit(); renderInspector(); });
-    s.append(fld('Liquid volume', lv, {
-      auto: 'Amagat sum of each component’s ChemSep (DIPPR) density correlation — within 0.4 % of handbook densities for common pure liquids, but no volume change on mixing; COSTALD with Hankinson–Brobst–Thomson mixing once a component is near its critical point. Densities, volumetric flows and pump heads follow it.',
-      rackett: 'Spencer–Danner Rackett with Li mixing, as many simulators use for activity methods. Captures part of the volume contraction on mixing (equimolar methanol–water at 25 °C: 877 kg/m³ against about 881 measured, Amagat 853) but water itself comes out 7 % dense with its tabulated Z_RA.',
-      costald: 'COSTALD for every liquid — best for light hydrocarbons, LPG and NGL; less suited to water and alcohols (water +1 %, ethanol +6 % at 25 °C).',
+    if (helmM) s.append(el('div', { class: 'hint' }, 'Liquid density from the equation of state itself — at its reference accuracy, so there is no liquid-volume option.'));
+    else s.append(fld('Liquid volume', lv, {
+      auto: 'Amagat sum of each component’s ChemSep (DIPPR) density correlation — within 0.4 % of handbook densities for common pure liquids, but no volume change on mixing; COSTALD with Hankinson–Brobst–Thomson mixing once a component is near its critical point; a light gas dissolved below 10 mol % adds a partial molar volume instead. The Tait pressure correction (Thomson–Brobst–Hankinson) applies above 1 bar — within 1 % of reference equations of state to 200 bar. Densities, volumetric flows and pump heads follow it.',
+      rackett: 'Spencer–Danner Rackett with Li mixing, as many simulators use for activity methods. Captures part of the volume contraction on mixing (equimolar methanol–water at 25 °C: 877 kg/m³ against about 881 measured, Amagat 853) but water itself comes out 7 % dense with its tabulated Z_RA. Includes the Tait pressure correction.',
+      costald: 'COSTALD for every liquid, with its Tait pressure correction — best for light hydrocarbons, LPG and NGL; less suited to water and alcohols (water +1 %, ethanol +6 % at 25 °C).',
       eos: 'The cubic’s own liquid density, without volume translation: Peng–Robinson within about 5 % for hydrocarbons but 6–16 % low for water, alcohols, ketones and ammonia (water 849 kg/m³ at 25 °C); SRK 7–25 % low throughout. Use it only to match another program.',
     }[lv.value]));
     const bad = feedKeys().filter(noRigData);
@@ -5652,16 +5686,28 @@ function methodsSection() {
 }
 /** user binary-parameter overrides (Aspen “Methods → Parameters → Binary interaction”) */
 function binaryEditor(P) {
-  const eos = P.model === 'pr' || P.model === 'srk' || (isActivityPkg(P.model) && P.vapour);
-  const nrtl = P.model === 'nrtl';
+  const eos = isCubicPkg(P.model) || (isActivityPkg(P.model) && P.vapour);
+  const nrtl = P.model === 'nrtl', lkp = P.model === 'lkp';
   const d = el('details', { class: 'dd' }, el('summary', null, 'Binary-parameter overrides' +
-    ((eos && (P.kij || []).length) || (nrtl && (P.nrtl || []).length) ? ' (' + ((eos ? (P.kij || []).length : 0) + (nrtl ? (P.nrtl || []).length : 0)) + ')' : '')));
+    ((eos && (P.kij || []).length) || (nrtl && (P.nrtl || []).length) || (lkp && (P.lkp_kij || []).length) ? ' (' + ((eos ? (P.kij || []).length : 0) + (nrtl ? (P.nrtl || []).length : 0) + (lkp ? (P.lkp_kij || []).length : 0)) + ')' : '')));
   const box = el('div');
-  if (!eos && !nrtl) box.append(el('div', { class: 'hint' }, P.model === 'ideal' ? 'The ideal method has no binary parameters.' :
+  if (!eos && !nrtl && !lkp) box.append(el('div', { class: 'hint' }, P.model === 'ideal' ? 'The ideal method has no binary parameters.' :
+    P.model === 'chao-seader' || P.model === 'grayson-streed' ? 'Chao–Seader and Grayson–Streed have no binary parameters: the liquid is a regular solution of the components’ solubility parameters and the vapour Redlich–Kwong without k_ij.' :
     'Databank parameters (ChemSep) are used automatically; overrides are offered for NRTL and for the equation-of-state kij.'));
+  if (lkp) {
+    const rows = P.lkp_kij = P.lkp_kij || [];
+    box.append(el('div', { class: 'sub' }, 'k_ij (Lee–Kesler–Plöcker, multiplies T_c,ij; 1 = none) — blank pairs use the fitted table or a correlation'));
+    rows.forEach((r, i) => {
+      const v = numInput(() => r.v, (x) => { r.v = num(x) && x > 0 ? x : undefined; }, { aria: 'LKP kij', ph: '1' });
+      v.style.cssText = 'height:30px;width:76px;font-size:12px';
+      box.append(el('div', { class: 'pairrow' }, compSelectEl(r.i, (k) => { r.i = k; commit(); }), compSelectEl(r.j, (k) => { r.j = k; commit(); }), v,
+        el('button', { class: 'rm', title: 'Remove', onclick: () => { rows.splice(i, 1); commit(); renderInspector(); } }, '✕')));
+    });
+    box.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { rows.push({ i: '', j: '', v: 1 }); commit(); renderInspector(); } }, '＋ k_ij pair')));
+  }
   if (eos) {
     const rows = P.kij = P.kij || [];
-    box.append(el('div', { class: 'sub' }, 'kij (Peng–Robinson / SRK) — blank pairs use the databank, else 0'));
+    box.append(el('div', { class: 'sub' }, 'kij (cubic equation of state) — blank pairs use the databank, else 0'));
     rows.forEach((r, i) => {
       const v = numInput(() => r.v, (x) => { r.v = num(x) ? x : undefined; }, { aria: 'kij', ph: '0' });
       v.style.cssText = 'height:30px;width:76px;font-size:12px';
@@ -5672,23 +5718,25 @@ function binaryEditor(P) {
   }
   if (nrtl) {
     const rows = P.nrtl = P.nrtl || [];
-    box.append(el('div', { class: 'sub', style: 'margin-top:10px' }, 'NRTL (Aspen form τij = aij + bij/T, α = cij) — replaces the databank pair'));
+    box.append(el('div', { class: 'sub', style: 'margin-top:10px' }, 'NRTL (Aspen form τij = aij + bij/T + eij ln T + fij T, α = cij) — replaces the databank pair'));
     rows.forEach((r, i) => {
       const b = el('div', { class: 'pairbox' });
       b.append(el('div', { class: 'pairrow' }, compSelectEl(r.i, (k) => { r.i = k; commit(); }), compSelectEl(r.j, (k) => { r.j = k; commit(); }),
         el('button', { class: 'rm', title: 'Remove', onclick: () => { rows.splice(i, 1); commit(); renderInspector(); } }, '✕')));
-      const g = el('div', { class: 'g5' });
-      for (const k of ['aij', 'aji', 'bij', 'bji', 'cij']) {
-        const inp = numInput(() => r[k], (x) => { r[k] = num(x) ? x : (k === 'cij' ? 0.3 : 0); }, { aria: k, ph: k === 'cij' ? '0.3' : '0' });
-        g.append(el('div', null, el('div', { class: 'gl' }, k === 'cij' ? 'cij (α)' : k + (k.startsWith('b') ? ' (K)' : '')), inp));
+      for (const ks of [['aij', 'aji', 'bij', 'bji', 'cij'], ['eij', 'eji', 'fij', 'fji']]) {
+        const g = el('div', { class: 'g5' });
+        for (const k of ks) {
+          const inp = numInput(() => r[k], (x) => { r[k] = num(x) ? x : (k === 'cij' ? 0.3 : 0); }, { aria: k, ph: k === 'cij' ? '0.3' : '0' });
+          g.append(el('div', null, el('div', { class: 'gl' }, k === 'cij' ? 'cij (α)' : k + (k.startsWith('b') ? ' (K)' : k.startsWith('f') ? ' (1/K)' : '')), inp));
+        }
+        b.append(g);
       }
-      b.append(g);
       box.append(b);
     });
-    box.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { rows.push({ i: '', j: '', aij: 0, aji: 0, bij: 0, bji: 0, cij: 0.3 }); commit(); renderInspector(); } }, '＋ NRTL pair')));
+    box.append(el('div', { class: 'btns' }, el('button', { class: 'btn sm', onclick: () => { rows.push({ i: '', j: '', aij: 0, aji: 0, bij: 0, bji: 0, eij: 0, eji: 0, fij: 0, fji: 0, cij: 0.3 }); commit(); renderInspector(); } }, '＋ NRTL pair')));
   }
   d.append(box);
-  if ((P.kij || []).length || (P.nrtl || []).length) d.open = true;
+  if ((P.kij || []).length || (P.nrtl || []).length || (lkp && (P.lkp_kij || []).length)) d.open = true;
   return d;
 }
 async function showPropInfo(host, btn) {
@@ -5702,25 +5750,40 @@ async function showPropInfo(host, btn) {
     const res = await apiSolve('property-info', { streams: [s], params: { property_package: pkgSpec(pkgModel()) } });
     const D = res.result.details || {};
     host.textContent = '';
-    const t1 = el('table', { class: 'mini' }, el('thead', null, el('tr', null, ...['Component', 'MW', 'Tc, K', 'Pc, bar', 'ω', 'Tb, K'].map((h) => el('th', null, h)))));
+    const t1 = el('table', { class: 'mini' }, el('thead', null, el('tr', null, ...['Component', 'MW', 'Tc, K', 'Pc, bar', 'ω', 'Tb, K', 'Data'].map((h) => el('th', null, h)))));
     const b1 = el('tbody');
-    for (const c of D.components || []) b1.append(el('tr', null, el('td', { title: c.name + (c.cas ? ' · CAS ' + c.cas : '') }, compLabel(c.key)),
-      el('td', null, fmt(c.mw, 5)), el('td', null, fmt(c.Tc_K, 5)), el('td', null, fmt(c.Pc_bar, 4)), el('td', null, fmt(c.omega, 3)), el('td', null, fmt(c.Tb_K, 5))));
+    const SRC_LABEL = { Tc: 'Tc', Pc: 'Pc', Vc: 'Vc', Tb: 'Tb', Tm: 'Tm', omega: 'ω', Hf: 'ΔHf', S0: 'S°', psat: 'vapour pressure', cpig: 'ideal-gas Cp', hvap: 'ΔHvap', rhol: 'liquid density', cpl: 'liquid Cp', mul: 'liquid viscosity', muv: 'vapour viscosity', kl: 'liquid conductivity', kv: 'vapour conductivity', st: 'surface tension', dipole: 'dipole' };
+    for (const c of D.components || []) {
+      const srcTxt = c.sources ? Object.entries(c.sources).map(([f, v]) => (SRC_LABEL[f] || f) + ': ' + v).join('\n') : '';
+      const dataLbl = c.data === 'literature' ? 'literature' + (c.no_formation_data ? ' (no ΔHf)' : '') : (c.data || 'ChemSep');
+      b1.append(el('tr', null, el('td', { title: c.name + (c.cas ? ' · CAS ' + c.cas : '') }, compLabel(c.key)),
+        el('td', null, fmt(c.mw, 5)), el('td', null, fmt(c.Tc_K, 5)), el('td', null, fmt(c.Pc_bar, 4)), el('td', null, fmt(c.omega, 3)), el('td', null, fmt(c.Tb_K, 5)),
+        el('td', { title: srcTxt || dataLbl, class: c.no_formation_data ? 'miss' : '' }, dataLbl)));
+    }
     t1.append(b1);
     host.append(el('div', { class: 'sub', style: 'margin-top:8px' }, 'Pure components'), el('div', { class: 'scrollx' }, t1));
     const pairs = D.pairs || [];
     if (pairs.length) {
       const m = D.model;
-      const cols = m === 'nrtl' ? ['bij, K', 'bji, K', 'α'] : m === 'uniquac' ? ['bij, K', 'bji, K'] : m === 'wilson' ? ['aij', 'bij', 'aji', 'bji'] : [];
+      // Aspen form τij = aij + bij/T + eij ln T + fij T: show a, e, f only when some pair uses them
+      const ext = (q) => q && ['a_ij', 'a_ji', 'e_ij', 'e_ji', 'f_ij', 'f_ji'].some((k) => q[k]);
+      const full = (m === 'nrtl' || m === 'uniquac') && pairs.some((p) => ext(p[m]));
+      const useF = full && pairs.some((p) => p[m] && (p[m].f_ij || p[m].f_ji));
+      const ab = full ? ['aij', 'bij, K', 'eij', ...(useF ? ['fij, 1/K'] : []), 'aji', 'bji, K', 'eji', ...(useF ? ['fji, 1/K'] : [])] : ['bij, K', 'bji, K'];
+      const cols = m === 'nrtl' ? [...ab, 'α'] : m === 'uniquac' ? ab : m === 'wilson' ? ['aij', 'bij', 'aji', 'bji'] : [];
       const hasK = pairs.some((p) => p.kij !== undefined);
-      const t2 = el('table', { class: 'mini' }, el('thead', null, el('tr', null, el('th', null, 'Pair'), ...(hasK ? [el('th', null, 'kij')] : []), ...cols.map((h) => el('th', null, h)), el('th', null, 'source'))));
+      const t2 = el('table', { class: 'mini' }, el('thead', null, el('tr', null, el('th', null, 'Pair'), ...(hasK ? [el('th', null, m === 'lkp' ? 'kij (× Tc,ij)' : 'kij')] : []), ...cols.map((h) => el('th', null, h)), el('th', null, 'source'))));
       const b2 = el('tbody');
       for (const p of pairs) {
-        const v = m === 'nrtl' && p.nrtl ? [p.nrtl.b_ij, p.nrtl.b_ji, p.nrtl.alpha] : m === 'uniquac' && p.uniquac ? [p.uniquac.b_ij, p.uniquac.b_ji] :
+        const q = p[m] || {};
+        const abv = full ? [q.a_ij || 0, q.b_ij || 0, q.e_ij || 0, ...(useF ? [q.f_ij || 0] : []), q.a_ji || 0, q.b_ji || 0, q.e_ji || 0, ...(useF ? [q.f_ji || 0] : [])] : [q.b_ij, q.b_ji];
+        const v = m === 'nrtl' && p.nrtl ? [...abv, p.nrtl.alpha] : m === 'uniquac' && p.uniquac ? abv :
           m === 'wilson' && p.wilson ? [p.wilson.a_ij, p.wilson.b_ij, p.wilson.a_ji, p.wilson.b_ji] : [];
         const src = p.source || p.kij_source || '';
+        const shortSrc = /^Fitted \(multicalci\.com/.test(src) ? 'fitted to IUPAC-NIST solubilities' + (p.T_range_K ? ', ' + Math.round(p.T_range_K[0]) + '–' + Math.round(p.T_range_K[1]) + ' K' : '')
+          : src.length > 70 ? src.slice(0, 67) + '…' : src;
         b2.append(el('tr', null, el('td', null, compLabel(p.i) + ' – ' + compLabel(p.j)), ...(hasK ? [el('td', null, fmt(p.kij, 4))] : []),
-          ...v.map((x) => el('td', null, fmt(x, 5))), el('td', { class: /none/.test(src) ? 'miss' : '' }, src)));
+          ...v.map((x) => el('td', null, fmt(x, 6))), el('td', { class: /none/.test(src) ? 'miss' : '', title: src }, shortSrc)));
       }
       t2.append(b2);
       host.append(el('div', { class: 'sub', style: 'margin-top:10px' }, 'Binary parameters'), el('div', { class: 'scrollx' }, t2));
