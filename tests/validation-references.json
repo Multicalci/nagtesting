@@ -7504,5 +7504,3729 @@
    "rho": 881.3,
    "source": "pure densities 786.6 and 997.0 kg/m³ with an excess volume of about −1.0 cm³/mol at x = 0.5, Benson & Kiyohara 1980"
   }
+ },
+ "step41": {
+  "about": "Round 11 cross-check: each case was built in DWSIM 10.2.15 through its headless MCP server (local, default settings: ChemSep compounds, default k_ij and interaction parameters, default flash) and in the engine with the same feed. DWSIM is open source (GPL-3); only its numbers are used here. Independent references (reference equations of state, IUPAC-NIST, CRC) are given where they exist.",
+  "dwsim_version": "DWSIM 10.2.15 headless (dwsim-mcp 1.0.0), Nov 2026",
+  "cases": [
+   {
+    "id": "ng_flash_pr",
+    "desc": "Natural gas (7 components), PT flash 220 K, 40 bar, Peng–Robinson",
+    "dwsim": {
+     "vapour_fraction": 0.9009814994325466,
+     "y_CH4": 0.8948342988204787,
+     "x_CH4": 0.44209345232403324,
+     "x_C3H8": 0.19495202228210862
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 3600,
+         "T_K": 220,
+         "P_bar": 40,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.7041453543541406
+          },
+          {
+           "key": "C2H6",
+           "mass_fraction": 0.09316085351130426
+          },
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.06830928418126755
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.030012713868960997
+          },
+          {
+           "key": "n-pentane",
+           "mass_fraction": 0.018627833172083066
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.028930706638659646
+          },
+          {
+           "key": "CO2",
+           "mass_fraction": 0.05681325427358389
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "T_K": 220,
+        "P_bar": 40
+       }
+      },
+      "picks": {
+       "vapour_fraction": "details.vapour_fraction",
+       "y_CH4": "details.y.CH4",
+       "x_CH4": "details.x.CH4",
+       "x_C3H8": "details.x.C3H8"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "c3c4_bubble_dew_pr",
+    "desc": "Propane / n-butane 0.5 / 0.5, bubble and dew point at 10 bar, Peng–Robinson",
+    "dwsim": {
+     "bubble_T_K": 320.34042790611437,
+     "dew_T_K": 332.52113776663106
+    },
+    "jobs": [
+     {
+      "module": "heater",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 10,
+         "components": [
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.43138866224864947
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.5686113377513505
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "vapour_fraction": 0
+       }
+      },
+      "picks": {
+       "bubble_T_K": "streams_out.0.T_K"
+      }
+     },
+     {
+      "module": "heater",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 10,
+         "components": [
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.43138866224864947
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.5686113377513505
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "vapour_fraction": 1
+       }
+      },
+      "picks": {
+       "dew_T_K": "streams_out.0.T_K"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "ng_flash_srk",
+    "desc": "Natural gas, PT flash 230 K, 50 bar, SRK",
+    "dwsim": {
+     "vapour_fraction": 0.9117458051605997,
+     "x_CH4": 0.45345350459037204
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 3600,
+         "T_K": 230,
+         "P_bar": 50,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.7041453543541406
+          },
+          {
+           "key": "C2H6",
+           "mass_fraction": 0.09316085351130426
+          },
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.06830928418126755
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.030012713868960997
+          },
+          {
+           "key": "n-pentane",
+           "mass_fraction": 0.018627833172083066
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.028930706638659646
+          },
+          {
+           "key": "CO2",
+           "mass_fraction": 0.05681325427358389
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "srk"
+        },
+        "T_K": 230,
+        "P_bar": 50
+       }
+      },
+      "picks": {
+       "vapour_fraction": "details.vapour_fraction",
+       "x_CH4": "details.x.CH4"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "etoh_water_nrtl",
+    "desc": "Ethanol / water 0.3 / 0.7, bubble point at 1 atm, NRTL (ChemSep parameters in both)",
+    "dwsim": {
+     "bubble_T_K": 354.6725047694747,
+     "y_EtOH": 0.5843572286167568
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 1.01325,
+         "components": [
+          {
+           "key": "EtOH",
+           "mass_fraction": 0.5228864886640909
+          },
+          {
+           "key": "H2O",
+           "mass_fraction": 0.4771135113359092
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "nrtl"
+        },
+        "P_bar": 1.01325,
+        "vapour_fraction": 0
+       }
+      },
+      "picks": {
+       "bubble_T_K": "details.T_K",
+       "y_EtOH": "details.y.EtOH"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "acetone_meoh_uniquac",
+    "desc": "Acetone / methanol 0.5 / 0.5, bubble point at 1 atm, UNIQUAC",
+    "dwsim": {
+     "bubble_T_K": 329.5213217170891,
+     "y_acetone": 0.5815920063361237
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 1.01325,
+         "components": [
+          {
+           "key": "acetone",
+           "mass_fraction": 0.6444573406864105
+          },
+          {
+           "key": "MeOH",
+           "mass_fraction": 0.35554265931358947
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "uniquac"
+        },
+        "P_bar": 1.01325,
+        "vapour_fraction": 0
+       }
+      },
+      "picks": {
+       "bubble_T_K": "details.T_K",
+       "y_acetone": "details.y.acetone"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "benzene_toluene_raoult",
+    "desc": "Benzene / toluene 0.5 / 0.5, bubble point at 1 atm, Raoult’s law",
+    "dwsim": {
+     "bubble_T_K": 365.3529854407585,
+     "y_benzene": 0.7143262413436698
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 1.01325,
+         "components": [
+          {
+           "key": "benzene",
+           "mass_fraction": 0.45880599536235656
+          },
+          {
+           "key": "toluene",
+           "mass_fraction": 0.5411940046376434
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "ideal",
+         "poynting": false
+        },
+        "P_bar": 1.01325,
+        "vapour_fraction": 0
+       }
+      },
+      "picks": {
+       "bubble_T_K": "details.T_K",
+       "y_benzene": "details.y.benzene"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "nh3_separator",
+    "desc": "Ammonia-loop separator gas, 0 °C, 140 bar, Peng–Robinson",
+    "dwsim": {
+     "vapour_fraction": 0.9352789224107544,
+     "y_NH3": 0.06067922094574066,
+     "x_NH3": 0.9772302118929204,
+     "rho_vapour": 63.567078192122594
+    },
+    "jobs": [
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 3600,
+         "T_K": 273.15,
+         "P_bar": 140,
+         "components": [
+          {
+           "key": "H2",
+           "mass_fraction": 0.11141102504244481
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.5160693442275043
+          },
+          {
+           "key": "NH3",
+           "mass_fraction": 0.18824388971420486
+          },
+          {
+           "key": "CH4",
+           "mass_fraction": 0.07388604449632145
+          },
+          {
+           "key": "Ar",
+           "mass_fraction": 0.11038969651952461
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": true
+        },
+        "T_K": 273.15,
+        "P_bar": 140
+       }
+      },
+      "picks": {
+       "vapour_fraction": "details.vapour_fraction",
+       "y_NH3": "details.y.NH3",
+       "x_NH3": "details.x.NH3",
+       "rho_vapour": "streams_out.0.rig.props.rho_kgm3"
+      }
+     },
+     {
+      "module": "r-flash",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 3600,
+         "T_K": 273.15,
+         "P_bar": 140,
+         "components": [
+          {
+           "key": "H2",
+           "mass_fraction": 0.11141102504244481
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.5160693442275043
+          },
+          {
+           "key": "NH3",
+           "mass_fraction": 0.18824388971420486
+          },
+          {
+           "key": "CH4",
+           "mass_fraction": 0.07388604449632145
+          },
+          {
+           "key": "Ar",
+           "mass_fraction": 0.11038969651952461
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": false
+        },
+        "T_K": 273.15,
+        "P_bar": 140
+       }
+      },
+      "picks": {
+       "rho_vapour_plainPR": "streams_out.0.rig.props.rho_kgm3"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "ng_dew_50bar",
+    "desc": "Natural gas hydrocarbon dew point at 50 bar, Peng–Robinson",
+    "dwsim": {
+     "dew_T_K": 263.9258332670926
+    },
+    "jobs": [
+     {
+      "module": "heater",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 50,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.7041453543541406
+          },
+          {
+           "key": "C2H6",
+           "mass_fraction": 0.09316085351130426
+          },
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.06830928418126755
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.030012713868960997
+          },
+          {
+           "key": "n-pentane",
+           "mass_fraction": 0.018627833172083066
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.028930706638659646
+          },
+          {
+           "key": "CO2",
+           "mass_fraction": 0.05681325427358389
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "vapour_fraction": 1
+       }
+      },
+      "picks": {
+       "dew_T_K": "streams_out.0.T_K"
+      }
+     }
+    ],
+    "ref": {
+     "dew_T_K": 263.675,
+     "src": "thermo 0.6 FlashVL (C. Bell), same Peng–Robinson constants and k_ij"
+    }
+   },
+   {
+    "id": "compressor_CH4",
+    "desc": "Compressor, 1000 kg/h methane, 300 K, 30 → 150 bar, adiabatic efficiency 0.75, Peng–Robinson",
+    "dwsim": {
+     "power_kW": 106.84197799987946,
+     "T_out_K": 466.67482477831174
+    },
+    "jobs": [
+     {
+      "module": "compressor",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 30,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": true
+        },
+        "P_out_bar": 150,
+        "efficiency": 0.75
+       }
+      },
+      "picks": {
+       "power_kW": "details.power_kW",
+       "T_out_K": "details.T_out_K"
+      }
+     },
+     {
+      "module": "compressor",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 30,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": false
+        },
+        "P_out_bar": 150,
+        "efficiency": 0.75
+       }
+      },
+      "picks": {
+       "power_kW_plainPR": "details.power_kW",
+       "T_out_K_plainPR": "details.T_out_K"
+      }
+     }
+    ],
+    "ref": {
+     "power_kW": 108.4645,
+     "T_out_K": 467.014,
+     "src": "CoolProp 8.0.0, Setzmann–Wagner methane"
+    }
+   },
+   {
+    "id": "compressor_H2",
+    "desc": "Compressor, 1000 kg/h hydrogen, 300 K, 30 → 150 bar, adiabatic efficiency 0.75, Peng–Robinson",
+    "dwsim": {
+     "power_kW": 961.0377618965481,
+     "T_out_K": 534.825271887379
+    },
+    "jobs": [
+     {
+      "module": "compressor",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 30,
+         "components": [
+          {
+           "key": "H2",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": true
+        },
+        "P_out_bar": 150,
+        "efficiency": 0.75
+       }
+      },
+      "picks": {
+       "power_kW": "details.power_kW",
+       "T_out_K": "details.T_out_K"
+      }
+     },
+     {
+      "module": "compressor",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 30,
+         "components": [
+          {
+           "key": "H2",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr",
+         "volume_translation": false
+        },
+        "P_out_bar": 150,
+        "efficiency": 0.75
+       }
+      },
+      "picks": {
+       "power_kW_plainPR": "details.power_kW",
+       "T_out_K_plainPR": "details.T_out_K"
+      }
+     }
+    ],
+    "ref": {
+     "power_kW": 971.7074,
+     "T_out_K": 534.768,
+     "src": "CoolProp 8.0.0, Leachman et al. normal hydrogen"
+    }
+   },
+   {
+    "id": "valve_ng",
+    "desc": "Valve, natural gas 300 K, 60 → 10 bar (Joule–Thomson), Peng–Robinson",
+    "dwsim": {
+     "T_out_K": 269.85075273359195
+    },
+    "jobs": [
+     {
+      "module": "valve",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 60,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.7041453543541406
+          },
+          {
+           "key": "C2H6",
+           "mass_fraction": 0.09316085351130426
+          },
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.06830928418126755
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.030012713868960997
+          },
+          {
+           "key": "n-pentane",
+           "mass_fraction": 0.018627833172083066
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.028930706638659646
+          },
+          {
+           "key": "CO2",
+           "mass_fraction": 0.05681325427358389
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "P_out_bar": 10
+       }
+      },
+      "picks": {
+       "T_out_K": "streams_out.0.T_K"
+      }
+     }
+    ],
+    "ref": {
+     "T_out_K": 272.288,
+     "src": "CoolProp 8.0.0 HEOS mixture with GERG-2008 departure functions"
+    }
+   },
+   {
+    "id": "pump_water",
+    "desc": "Pump, 36 t/h water 300 K, 1 → 20 bar, efficiency 0.75, IAPWS-IF97",
+    "dwsim": {
+     "power_kW": 25.42084503724746,
+     "T_out_K": 300.19008808236777
+    },
+    "jobs": [
+     {
+      "module": "pump",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 36000,
+         "T_K": 300,
+         "P_bar": 1,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 1
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "steam"
+        },
+        "P_out_bar": 20,
+        "efficiency": 0.75
+       }
+      },
+      "picks": {
+       "power_kW": "details.power_kW",
+       "T_out_K": "streams_out.0.T_K"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "cooler_ng",
+    "desc": "Cooler, natural gas 50 bar, 300 → 240 K, Peng–Robinson",
+    "dwsim": {
+     "duty_kW": -48.53664115053931,
+     "vapour_fraction": 0.95603933322118
+    },
+    "jobs": [
+     {
+      "module": "heater",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 300,
+         "P_bar": 50,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.7041453543541406
+          },
+          {
+           "key": "C2H6",
+           "mass_fraction": 0.09316085351130426
+          },
+          {
+           "key": "C3H8",
+           "mass_fraction": 0.06830928418126755
+          },
+          {
+           "key": "nC4H10",
+           "mass_fraction": 0.030012713868960997
+          },
+          {
+           "key": "n-pentane",
+           "mass_fraction": 0.018627833172083066
+          },
+          {
+           "key": "N2",
+           "mass_fraction": 0.028930706638659646
+          },
+          {
+           "key": "CO2",
+           "mass_fraction": 0.05681325427358389
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "T_out_K": 240
+       }
+      },
+      "picks": {
+       "duty_kW": "details.duty_kW",
+       "vapour_fraction": "streams_out.0.vapour_fraction"
+      }
+     }
+    ],
+    "ref": {
+     "duty_kW": -49.332,
+     "vapour_fraction": 0.953,
+     "src": "CoolProp 8.0.0 HEOS mixture with GERG-2008 departure functions"
+    }
+   },
+   {
+    "id": "gibbs_smr",
+    "desc": "Gibbs reactor, steam reforming CH₄ : H₂O = 1 : 3 at 1100 K, 1 bar (Peng–Robinson; each program its own formation data)",
+    "dwsim": {
+     "T_K": 1100.0,
+     "y_H2": 0.5547546946132865,
+     "y_CO": 0.11133783618780133,
+     "y_CO2": 0.05518772839381489,
+     "y_CH4": 0.0002130718910220268,
+     "y_H2O": 0.2785066689140752
+    },
+    "jobs": [
+     {
+      "module": "gibbs",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 3600,
+         "T_K": 1100,
+         "P_bar": 1,
+         "components": [
+          {
+           "key": "CH4",
+           "mass_fraction": 0.22889301319015465
+          },
+          {
+           "key": "H2O",
+           "mass_fraction": 0.7711069868098454
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "pr"
+        },
+        "T_out_K": 1100,
+        "products": [
+         "H2",
+         "CO",
+         "CO2"
+        ]
+       }
+      },
+      "picks": {
+       "T_K": "streams_out.0.T_K",
+       "y_H2": "details.outlet_mole_frac.H2",
+       "y_CO": "details.outlet_mole_frac.CO",
+       "y_CO2": "details.outlet_mole_frac.CO2",
+       "y_CH4": "details.outlet_mole_frac.CH4",
+       "y_H2O": "details.outlet_mole_frac.H2O"
+      }
+     }
+    ],
+    "ref": null
+   },
+   {
+    "id": "web_layers",
+    "desc": "Water / ethanol / benzene at the ternary heteroazeotrope (7.4 / 18.5 / 74.1 wt %, 64.9 °C), NRTL — the two liquid layers (CRC: organic 1.3 / 12.7 / 86.0, aqueous 43.1 / 52.1 / 4.8 wt % water / ethanol / benzene)",
+    "dwsim": {
+     "w_H2O_org": 0.003379620069573233,
+     "w_EtOH_org": 0.10913754188231437,
+     "w_benzene_org": 0.8874828380481125,
+     "w_H2O_aq": 0.4084347922256163,
+     "w_EtOH_aq": 0.5442595429719801,
+     "w_benzene_aq": 0.0473056648024035,
+     "n_liquids": 2
+    },
+    "jobs": [
+     {
+      "module": "r-flash3",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 338.05,
+         "P_bar": 1.5,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 0.074
+          },
+          {
+           "key": "EtOH",
+           "mass_fraction": 0.185
+          },
+          {
+           "key": "benzene",
+           "mass_fraction": 0.741
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "nrtl",
+         "three_phase": true
+        },
+        "T_K": 338.05,
+        "P_bar": 1.5
+       }
+      },
+      "picks": {
+       "w_EtOH_org": "streams_out.1.components.0.mass_fraction",
+       "w_H2O_org": "streams_out.1.components.1.mass_fraction",
+       "w_benzene_org": "streams_out.1.components.2.mass_fraction",
+       "w_EtOH_aq": "streams_out.2.components.0.mass_fraction",
+       "w_H2O_aq": "streams_out.2.components.1.mass_fraction",
+       "w_benzene_aq": "streams_out.2.components.2.mass_fraction"
+      }
+     }
+    ],
+    "ref": {
+     "w_H2O_org": 0.013,
+     "w_EtOH_org": 0.127,
+     "w_benzene_org": 0.86,
+     "w_H2O_aq": 0.431,
+     "w_EtOH_aq": 0.521,
+     "w_benzene_aq": 0.048,
+     "src": "CRC Handbook (44th ed.) / Lange’s Handbook (10th ed.) ternary azeotrope table"
+    }
+   },
+   {
+    "id": "lle_benzene_298",
+    "desc": "Benzene–water liquid–liquid equilibrium at 25 °C, NRTL (IUPAC-NIST: benzene in water 4.11e-4, water in benzene 3.09e-3)",
+    "dwsim": {
+     "n_liquids": 2,
+     "x_water_in_hc": 0.002350209789069694,
+     "x_hc_in_water": 0.0006420027369353619
+    },
+    "jobs": [
+     {
+      "module": "r-flash3",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 298.15,
+         "P_bar": 2,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 0.187411003263179
+          },
+          {
+           "key": "benzene",
+           "mass_fraction": 0.812588996736821
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "nrtl",
+         "three_phase": true
+        },
+        "T_K": 298.15,
+        "P_bar": 2
+       }
+      },
+      "picks": {
+       "x_hc_in_water": "details.x2.benzene",
+       "x_water_in_hc": "details.x1.H2O"
+      }
+     }
+    ],
+    "ref": {
+     "x_hc_in_water": 0.000411,
+     "x_water_in_hc": 0.00309,
+     "src": "IUPAC-NIST SDS-81 recommended (Góral & Oracz 2021, Table 2)"
+    }
+   },
+   {
+    "id": "lle_toluene_298",
+    "desc": "Toluene–water liquid–liquid equilibrium at 25 °C, NRTL (IUPAC-NIST: toluene in water 1.12e-4, water in toluene 2.80e-3)",
+    "dwsim": {
+     "n_liquids": 1,
+     "x_hc_in_water": 0.49999997286691195
+    },
+    "jobs": [
+     {
+      "module": "r-flash3",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 298.15,
+         "P_bar": 2,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 0.16354675330923973
+          },
+          {
+           "key": "toluene",
+           "mass_fraction": 0.8364532466907603
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "nrtl",
+         "three_phase": true
+        },
+        "T_K": 298.15,
+        "P_bar": 2
+       }
+      },
+      "picks": {
+       "x_hc_in_water": "details.x2.toluene",
+       "x_water_in_hc": "details.x1.H2O"
+      }
+     }
+    ],
+    "ref": {
+     "x_hc_in_water": 0.000112,
+     "x_water_in_hc": 0.0028,
+     "src": "IUPAC-NIST SDS-81 recommended (Góral & Oracz 2021, Table 2)"
+    }
+   },
+   {
+    "id": "lle_nC6H14_298",
+    "desc": "N-hexane–water liquid–liquid equilibrium at 25 °C, NRTL (IUPAC-NIST: hexane in water 2.50e-6, water in hexane 5.10e-4 (measured))",
+    "dwsim": {
+     "n_liquids": 2,
+     "x_water_in_hc": 0.002721655491286177,
+     "x_hc_in_water": 0.0003311997941303228
+    },
+    "jobs": [
+     {
+      "module": "r-flash3",
+      "args": {
+       "streams": [
+        {
+         "mass_flow_kg_h": 1000,
+         "T_K": 298.15,
+         "P_bar": 2,
+         "components": [
+          {
+           "key": "H2O",
+           "mass_fraction": 0.1729068945156686
+          },
+          {
+           "key": "nC6H14",
+           "mass_fraction": 0.8270931054843313
+          }
+         ]
+        }
+       ],
+       "params": {
+        "property_package": {
+         "model": "nrtl",
+         "three_phase": true
+        },
+        "T_K": 298.15,
+        "P_bar": 2
+       }
+      },
+      "picks": {
+       "x_hc_in_water": "details.x2.nC6H14",
+       "x_water_in_hc": "details.x1.H2O"
+      }
+     }
+    ],
+    "ref": {
+     "x_hc_in_water": 2.5e-06,
+     "x_water_in_hc": 0.00051,
+     "src": "IUPAC-NIST SDS-81 recommended (Góral & Oracz 2021, Table 2); water in hexane measured (Sugi & Katayama), JPCRD 33 (2004) 549"
+    }
+   }
+  ],
+  "whc": [
+   {
+    "key": "benzene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 0.00040785604562337244,
+      "x_water_in_hc": 0.0031864111700632015
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 0.0004750757493560224,
+      "x_water_in_hc": 0.006646926730240229
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 0.0009055881706937289,
+      "x_water_in_hc": 0.023513615338927835
+     }
+    ],
+    "rec298": [
+     0.000411,
+     0.00309
+    ],
+    "src": "SDS-81 alkylbenzene equation for benzene in water (b = 82.7 cm³/mol; 4.07e-4 at 298 K, recommended 4.11e-4); water in benzene: IUPAC recommended values 298–343 K (SDS-37 and SDS-81) fitted with the toluene reference shape (d1 -0.617, T_c 538.5 K)"
+   },
+   {
+    "key": "toluene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 0.0001087412889636641,
+      "x_water_in_hc": 0.0028081082711993504
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 0.00013033771528303935,
+      "x_water_in_hc": 0.0059056239600805555
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 0.0002803854092073411,
+      "x_water_in_hc": 0.021113629101668516
+     }
+    ],
+    "rec298": [
+     0.000112,
+     0.0028
+    ],
+    "src": "IUPAC Technical Report 2021 (Bazyleva & Acree, Pure Appl. Chem., doi 10.1515/pac-2020-0905), SDS-81 reference equations: ln x_min −9.14, D 35.7, T_ms 290 K; water d = −0.495/−3.700/−0.102/−4.641, T_c 553.0 K"
+   },
+   {
+    "key": "ethylbenzene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 3.1846652429004424e-05,
+      "x_water_in_hc": 0.00267023486087257
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 3.919215739673635e-05,
+      "x_water_in_hc": 0.005461010799911218
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 9.42633436075672e-05,
+      "x_water_in_hc": 0.018941436343157
+     }
+    ],
+    "rec298": null,
+    "src": "IUPAC Technical Report 2021, SDS-81 reference equations: ln x_min −10.37, D 40.9, T_ms 290 K; water d = −0.383/−3.167/−0.009/−5.655, T_c 566.9 K"
+   },
+   {
+    "key": "oxylene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 3.519847534307983e-05,
+      "x_water_in_hc": 0.002599999999999999
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 4.322135599984257e-05,
+      "x_water_in_hc": 0.005317370500933908
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 0.00010298620445169171,
+      "x_water_in_hc": 0.01844322206029293
+     }
+    ],
+    "rec298": [
+     3.61e-05,
+     0.0026
+    ],
+    "src": "SDS-81 alkylbenzene equation for the hydrocarbon in water (b = 121.7 cm³/mol); water in the hydrocarbon: SDS-81 recommended 2.60e-03 at 298 K with the temperature dependence of the ethylbenzene reference equation"
+   },
+   {
+    "key": "m-xylene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 2.7616558516280945e-05,
+      "x_water_in_hc": 0.002599999999999999
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 3.408893731545841e-05,
+      "x_water_in_hc": 0.005317370500933908
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 8.30405682254131e-05,
+      "x_water_in_hc": 0.01844322206029293
+     }
+    ],
+    "rec298": [
+     2.7e-05,
+     0.0026
+    ],
+    "src": "SDS-81 alkylbenzene equation for the hydrocarbon in water (b = 125.5 cm³/mol); water in the hydrocarbon: SDS-81 recommended 2.60e-03 at 298 K with the temperature dependence of the ethylbenzene reference equation"
+   },
+   {
+    "key": "p-xylene",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 2.6082888075160213e-05,
+      "x_water_in_hc": 0.0027
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 3.2235475677205706e-05,
+      "x_water_in_hc": 0.00552188475096983
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 7.893527063362387e-05,
+      "x_water_in_hc": 0.01915257675491958
+     }
+    ],
+    "rec298": [
+     2.66e-05,
+     0.0027
+    ],
+    "src": "SDS-81 alkylbenzene equation for the hydrocarbon in water (b = 126.4 cm³/mol); water in the hydrocarbon: SDS-81 recommended 2.70e-03 at 298 K with the temperature dependence of the ethylbenzene reference equation"
+   },
+   {
+    "key": "cyclohexane",
+    "T_range": [
+     273.15,
+     453.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 1.224986869436578e-05,
+      "x_water_in_hc": 0.0004024619657186715
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 1.377889204258759e-05,
+      "x_water_in_hc": 0.001130637217207316
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 2.908766077814252e-05,
+      "x_water_in_hc": 0.006330442695066281
+     }
+    ],
+    "rec298": [
+     1.25e-05,
+     0.000375
+    ],
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -11.31, b 97.9 cm³/mol, T_min 298 K; water d = -0.963/-6.267/-0.71/-3.111, T_0 533.3 K"
+   },
+   {
+    "key": "methylcyclohexane",
+    "T_range": [
+     273.15,
+     463.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 2.626142955681784e-06,
+      "x_water_in_hc": 0.00047089260433440846
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 3.0290508067916556e-06,
+      "x_water_in_hc": 0.0013029713131373361
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 7.500240056042222e-06,
+      "x_water_in_hc": 0.007072659828600068
+     }
+    ],
+    "rec298": null,
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -12.85, b 118.8 cm³/mol, T_min 298 K; water d = -0.203/-6.277/-1.935/-1.695, T_0 545.3 K"
+   },
+   {
+    "key": "n-pentane",
+    "T_range": [
+     273.15,
+     393.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 1.0261333085140863e-05,
+      "x_water_in_hc": 0.0006272610828756237
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 1.0704753171400708e-05,
+      "x_water_in_hc": 0.0018763180214214881
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 2.0335269408529845e-05,
+      "x_water_in_hc": 0.012194564062107486
+     }
+    ],
+    "rec298": [
+     1.19e-05,
+     0.000481
+    ],
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -11.5, b 100.5 cm³/mol, T_min 306 K; water d = -1.591/-6.577/-0.064/-5.526, T_0 467.5 K"
+   },
+   {
+    "key": "nC6H14",
+    "T_range": [
+     273.15,
+     423.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 2.205732531727995e-06,
+      "x_water_in_hc": 0.0006137441467816446
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 2.3213816520594586e-06,
+      "x_water_in_hc": 0.0017537295710337538
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 5.039329655694155e-06,
+      "x_water_in_hc": 0.0104271022140872
+     }
+    ],
+    "rec298": [
+     2.5e-06,
+     0.00051
+    ],
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -13.04, b 121.4 cm³/mol, T_min 306 K; water d = -1.118/-6.113/-0.144/-5.049, T_0 499.8 K"
+   },
+   {
+    "key": "nC7H16",
+    "T_range": [
+     273.15,
+     443.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 4.741348868762887e-07,
+      "x_water_in_hc": 0.0006054690099465558
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 5.034037392768001e-07,
+      "x_water_in_hc": 0.001688329752055333
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 1.248807816045279e-06,
+      "x_water_in_hc": 0.009429902741593063
+     }
+    ],
+    "rec298": [
+     5.3e-07,
+     0.00067
+    ],
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -14.58, b 142.3 cm³/mol, T_min 306 K; water d = -0.633/-6.177/-0.846/-3.372, T_0 524.2 K"
+   },
+   {
+    "key": "nC8H18",
+    "T_range": [
+     273.15,
+     473.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 9.041170049908816e-08,
+      "x_water_in_hc": 0.0006108016942873717
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 9.690640725329662e-08,
+      "x_water_in_hc": 0.0016487908919754677
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 2.775371999251158e-07,
+      "x_water_in_hc": 0.0087787426379058
+     }
+    ],
+    "rec298": null,
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -16.24, b 164.8 cm³/mol, T_min 306 K; water d = -0.456/-5.46/-0.26/-4.467, T_0 553.8 K"
+   },
+   {
+    "key": "isooctane",
+    "T_range": [
+     273.15,
+     443.15
+    ],
+    "points": [
+     {
+      "T_K": 298.15,
+      "x_hc_in_water": 2.2425824904287826e-07,
+      "x_water_in_hc": 0.0006742472011094308
+     },
+     {
+      "T_K": 323.15,
+      "x_hc_in_water": 2.391264748783301e-07,
+      "x_water_in_hc": 0.0018810299462291952
+     },
+     {
+      "T_K": 373.15,
+      "x_hc_in_water": 6.331259148696021e-07,
+      "x_water_in_hc": 0.010428074691520031
+     }
+    ],
+    "rec298": null,
+    "src": "Mączyński, Wiśniewska-Gocłowska & Góral, J. Phys. Chem. Ref. Data 33 (2004) 549 (SDS-81 reference equations): ln x_min -15.33, b 152.5 cm³/mol, T_min 306 K; water d = -0.499/-6.314/-0.954/-2.859, T_0 526.7 K"
+   }
+  ],
+  "whc_rec_source": "IUPAC-NIST SDS-81 recommended values at 298 K as tabulated by Góral & Oracz, ChemEngineering 5 (2021) 89 (Table 2)",
+  "vt": {
+   "syngas": {
+    "y": {
+     "H2": 0.6818181818181818,
+     "N2": 0.2272727272727273,
+     "CH4": 0.05681818181818182,
+     "Ar": 0.03409090909090909
+    },
+    "points": [
+     {
+      "T_K": 273.15,
+      "P_bar": 140,
+      "rho": 57.51457289669624,
+      "Z": 1.0733619256476925
+     },
+     {
+      "T_K": 373.15,
+      "P_bar": 140,
+      "rho": 42.22255253101721,
+      "Z": 1.0702798748129514
+     }
+    ],
+    "src": "CoolProp 8.0.0 HEOS mixture with the GERG-2008 reducing functions and departure terms"
+   },
+   "compressor": [
+    {
+     "key": "H2",
+     "fluid": "Hydrogen",
+     "power_kW": 971.7074387286649,
+     "T_out_K": 534.767989181039
+    },
+    {
+     "key": "N2",
+     "fluid": "Nitrogen",
+     "power_kW": 69.51312908201415,
+     "T_out_K": 534.3192801237864
+    },
+    {
+     "key": "CH4",
+     "fluid": "Methane",
+     "power_kW": 108.46446466549007,
+     "T_out_K": 467.0140070961147
+    }
+   ],
+   "compressor_src": "CoolProp 8.0.0 reference equations (Leachman hydrogen, Span nitrogen, Setzmann–Wagner methane): isentropic outlet from s(300 K, 30 bar), Δh/0.75",
+   "nh3": [
+    {
+     "P_atm": 10,
+     "y": 0.021
+    },
+    {
+     "P_atm": 300,
+     "y": 0.358
+    },
+    {
+     "P_atm": 1000,
+     "y": 0.697
+    }
+   ],
+   "nh3_src": "Larson & Dodge (JACS 45, 1923, 2918) and Larson (JACS 46, 1924, 367) as quoted by UNIDO: 3:1 H₂/N₂ at 450 °C"
+  },
+  "liq": {
+   "points": [
+    {
+     "key": "NH3",
+     "fluid": "Ammonia",
+     "model": "pr",
+     "T_K": 273.15,
+     "P_bar": 5,
+     "rho": 638.6883355790045
+    },
+    {
+     "key": "NH3",
+     "fluid": "Ammonia",
+     "model": "pr",
+     "T_K": 273.15,
+     "P_bar": 140,
+     "rho": 647.699581013122
+    },
+    {
+     "key": "nC7H16",
+     "fluid": "n-Heptane",
+     "model": "pr",
+     "T_K": 298.15,
+     "P_bar": 1.01325,
+     "rho": 679.5982000901275
+    },
+    {
+     "key": "nC7H16",
+     "fluid": "n-Heptane",
+     "model": "pr",
+     "T_K": 298.15,
+     "P_bar": 200,
+     "rho": 697.0248725835228
+    },
+    {
+     "key": "nC7H16",
+     "fluid": "n-Heptane",
+     "model": "pr",
+     "T_K": 298.15,
+     "P_bar": 500,
+     "rho": 717.5578410488221
+    },
+    {
+     "key": "toluene",
+     "fluid": "Toluene",
+     "model": "pr",
+     "T_K": 350,
+     "P_bar": 1.01325,
+     "rho": 812.9463491956627
+    },
+    {
+     "key": "toluene",
+     "fluid": "Toluene",
+     "model": "pr",
+     "T_K": 350,
+     "P_bar": 200,
+     "rho": 832.58280358338
+    },
+    {
+     "key": "C3H8",
+     "fluid": "Propane",
+     "model": "pr",
+     "T_K": 300,
+     "P_bar": 15,
+     "rho": 491.06406526374076
+    },
+    {
+     "key": "C3H8",
+     "fluid": "Propane",
+     "model": "pr",
+     "T_K": 300,
+     "P_bar": 100,
+     "rho": 512.6642101706915
+    },
+    {
+     "key": "benzene",
+     "fluid": "Benzene",
+     "model": "nrtl",
+     "T_K": 298.15,
+     "P_bar": 1.01325,
+     "rho": 873.5164674117217
+    },
+    {
+     "key": "benzene",
+     "fluid": "Benzene",
+     "model": "nrtl",
+     "T_K": 298.15,
+     "P_bar": 500,
+     "rho": 908.5622761821934
+    },
+    {
+     "key": "MeOH",
+     "fluid": "Methanol",
+     "model": "nrtl",
+     "T_K": 298.15,
+     "P_bar": 1.01325,
+     "rho": 786.3266764548082
+    },
+    {
+     "key": "MeOH",
+     "fluid": "Methanol",
+     "model": "nrtl",
+     "T_K": 298.15,
+     "P_bar": 300,
+     "rho": 811.8875008143947
+    }
+   ],
+   "src": "CoolProp 8.0.0 reference equations of state (ammonia Gao et al., n-heptane Span & Wagner, toluene Lemmon & Span, propane Lemmon et al., benzene Thol et al., methanol de Reuck & Craven)"
+  },
+  "srk_dwsim_kij": {
+   "kij": {
+    "C2H6|CH4": -0.0089,
+    "C3H8|CH4": 0.018,
+    "CH4|nC4H10": 0.0215,
+    "CH4|n-pentane": 0.018,
+    "CH4|N2": 0,
+    "CH4|CO2": 0,
+    "C2H6|C3H8": -0.0022,
+    "C2H6|nC4H10": 0.0052,
+    "C2H6|n-pentane": 0.0056,
+    "C2H6|N2": 0,
+    "C2H6|CO2": 0,
+    "C3H8|nC4H10": 0,
+    "C3H8|n-pentane": 0.0233,
+    "C3H8|N2": 0,
+    "C3H8|CO2": 0,
+    "n-pentane|nC4H10": 0.0204,
+    "N2|nC4H10": 0,
+    "CO2|nC4H10": 0,
+    "N2|n-pentane": 0,
+    "CO2|n-pentane": 0,
+    "CO2|N2": 0
+   },
+   "about": "The k_ij DWSIM 10 effectively uses in its SRK package for the natural-gas components, found by fitting the engine’s SRK to 21 binary bubble points computed by DWSIM (50/50 mixtures, 10 or 30 bar): the first DECHEMA set of ChemSep srk.ipd for hydrocarbon pairs (0.018 for methane–propane), and 0 for every pair with N₂ or CO₂."
+  }
+ },
+ "step42": {
+  "about": "Round 12a: extended pure-component databank (api/_lib/mb-compdb-ext.js) built by scripts/gather-compdb-ext.py (chemicals 1.5.2, CoolProp 8.0.0, thermo 0.6.1 — all MIT) and scripts/build-compdb-ext.mjs.",
+  "n": 1118,
+  "cats": {
+   "nitrogen": 138,
+   "halogenated": 294,
+   "oxygenate": 388,
+   "sulfur": 48,
+   "hydrocarbon": 222,
+   "inorganic": 28
+  },
+  "noform": 8,
+  "tally": {
+   "Tc": {
+    "meas": 1061,
+    "ref": 57,
+    "est": 0,
+    "anchored": 0
+   },
+   "Pc": {
+    "meas": 1061,
+    "ref": 57,
+    "est": 0,
+    "anchored": 0
+   },
+   "Tb": {
+    "meas": 1059,
+    "ref": 59,
+    "est": 0,
+    "anchored": 0
+   },
+   "Vc": {
+    "meas": 1041,
+    "ref": 57,
+    "est": 20,
+    "anchored": 0
+   },
+   "omega": {
+    "meas": 0,
+    "ref": 0,
+    "est": 1118,
+    "anchored": 0
+   },
+   "Hf": {
+    "meas": 881,
+    "ref": 0,
+    "est": 237,
+    "anchored": 0
+   },
+   "S0": {
+    "meas": 740,
+    "ref": 0,
+    "est": 378,
+    "anchored": 0
+   },
+   "unifac": {
+    "meas": 890,
+    "ref": 0,
+    "est": 69,
+    "anchored": 0,
+    "none": 159
+   },
+   "modunifac": {
+    "meas": 888,
+    "ref": 0,
+    "est": 61,
+    "anchored": 0,
+    "none": 169
+   },
+   "Tm": {
+    "meas": 1112,
+    "ref": 0,
+    "est": 0,
+    "anchored": 0
+   },
+   "psat": {
+    "meas": 887,
+    "ref": 55,
+    "est": 176,
+    "anchored": 0
+   },
+   "cpig": {
+    "meas": 383,
+    "ref": 57,
+    "est": 678,
+    "anchored": 0
+   },
+   "hvap": {
+    "meas": 324,
+    "ref": 57,
+    "est": 737,
+    "anchored": 0
+   },
+   "rhol": {
+    "meas": 163,
+    "ref": 57,
+    "est": 373,
+    "anchored": 525
+   },
+   "mul": {
+    "meas": 206,
+    "ref": 0,
+    "est": 912,
+    "anchored": 0
+   },
+   "st": {
+    "meas": 228,
+    "ref": 0,
+    "est": 890,
+    "anchored": 0
+   },
+   "cpl": {
+    "meas": 118,
+    "ref": 0,
+    "est": 1000,
+    "anchored": 0
+   },
+   "muv": {
+    "meas": 176,
+    "ref": 0,
+    "est": 942,
+    "anchored": 0
+   },
+   "kl": {
+    "meas": 174,
+    "ref": 0,
+    "est": 944,
+    "anchored": 0
+   },
+   "kv": {
+    "meas": 176,
+    "ref": 0,
+    "est": 942,
+    "anchored": 0
+   },
+   "dipole": {
+    "meas": 232,
+    "ref": 0,
+    "est": 0,
+    "anchored": 0
+   }
+  },
+  "antoine_refit": 656,
+  "dropped": {
+   "critical constants from DIPPR only and no vapour-pressure equation that passes the checks": 51,
+   "critical constant far from the group-contribution estimate and not confirmed by a second source": 19,
+   "no tabulated normal boiling point": 49,
+   "no ideal-gas heat capacity (none measured and no group-contribution estimate)": 59,
+   "acentric factor outside −0.4 to 1.6 (inconsistent constants)": 1,
+   "duplicate (stereo-isomer, or second CAS number of a ChemSep component)": 13
+  },
+  "n_dropped": 192,
+  "gather_skips": {
+   "critical constants from DIPPR only, without a measured boiling point and vapour-pressure equation": 434,
+   "elements outside C H O N S halogens P Si B, noble gases": 52,
+   "no structure": 61,
+   "no Tc / Pc": 41,
+   "mixture / salt": 16,
+   "MW > 500": 19,
+   "sublimes at 1 atm (triple point above 1 atm)": 17,
+   "quantum fluid (helium-3)": 1,
+   "ion": 1
+  },
+  "rejected": {
+   "psat": 116,
+   "cpig": 9,
+   "rhol": 1
+  },
+  "n_rejected": 126,
+  "choices": {
+   "Tb": 832,
+   "Pc": 30,
+   "Vc": 72,
+   "Tc": 12
+  },
+  "groups": {
+   "unifac": {
+    "same": 889,
+    "differ": 3,
+    "added": 10,
+    "own": 70
+   },
+   "modunifac": {
+    "same": 874,
+    "differ": 21,
+    "added": 5,
+    "own": 62
+   }
+  },
+  "est": {
+   "cp": {
+    "n": 1161,
+    "median": 0.005446653305226645,
+    "p90": 0.046358716276926115
+   },
+   "rho": {
+    "n": 220,
+    "median": 0.020224038477248962,
+    "p90": 0.07293965744415898
+   },
+   "hv": {
+    "n": 379,
+    "median": 0.019889525886695347,
+    "p90": 0.09176163368507573
+   },
+   "psat_lk": {
+    "n": 4371,
+    "median": 0.026947214728373692,
+    "p90": 0.15485122558738396
+   },
+   "psat_second_source": {
+    "n": 139,
+    "median": 0.006289459274147369,
+    "p90": 0.06782393774688945
+   },
+   "n_psat": 942
+  },
+  "cases": [
+   {
+    "id": "MB-396",
+    "path": "details.T_K",
+    "q": "bubble T at p_sat(300 K), K",
+    "ref": 300.0,
+    "src": "R-1234yf, Lemmon et al. (2022) reference equation (CoolProp 8.0)"
+   },
+   {
+    "id": "MB-397",
+    "path": "details.T_K",
+    "q": "normal boiling point, K",
+    "ref": 373.6579,
+    "src": "MM, Thol et al. (2016) reference equation (CoolProp 8.0)"
+   },
+   {
+    "id": "MB-398",
+    "path": "details.T_K",
+    "q": "normal boiling point, K",
+    "ref": 448.8906,
+    "src": "D4, Thol (2015) reference equation (CoolProp 8.0)"
+   },
+   {
+    "id": "MB-399",
+    "path": "streams_out.1.rig.props.rho_kgm3",
+    "q": "liquid density at 300 K, 5 bar, kg/m³",
+    "ref": 1334.533,
+    "src": "R-245fa, Akasaka & Lemmon (2015) reference equation (CoolProp 8.0)"
+   },
+   {
+    "id": "MB-400",
+    "path": "details.duty_kW",
+    "q": "duty 300 → 800 K, kW",
+    "ref": 26.673,
+    "src": "SiH4, NIST-JANAF tables (Chase 1998), ∫Cp dT"
+   },
+   {
+    "id": "MB-401",
+    "path": "details.P_bar",
+    "q": "bubble pressure at 0 °C, bar",
+    "ref": 8.00702,
+    "src": "R-410A, CoolProp 8.0 mixture model (R-32 / R-125 departure function)"
+   },
+   {
+    "id": "MB-402",
+    "path": "details.P_bar",
+    "q": "dew pressure at 0 °C, bar",
+    "ref": 7.98053,
+    "src": "R-410A, CoolProp 8.0 mixture model"
+   },
+   {
+    "id": "MB-403",
+    "path": "details.T_K",
+    "q": "heteroazeotrope at 1 atm, K",
+    "ref": 344.15,
+    "src": "2-MeTHF / water, 71 °C, 10.6 wt % water (International Furan Chemicals data sheet, 2022)"
+   }
+  ]
+ },
+ "step43": {
+  "about": "Round 12b: GERG-2008 (api/_lib/mb-gerg.js, ported from the NIST AGA8 reference code) and the reference equations of state of NH3, CO2, N2, H2, CH4, Ar and O2 (api/_lib/mb-helmholtz.js) against CoolProp 8.0 — for mixtures CoolProp combines the GERG-2008 mixing functions with the reference pure-fluid equations, so small differences there come from GERG’s own pure-fluid equations.",
+  "aga": {
+   "T": 400,
+   "P_kPa": 50000,
+   "D": 12.79828626082062,
+   "Z": 1.174690666383717,
+   "H": 1160.280160510973,
+   "S": -38.57590392409089,
+   "Cp": 58.45522051000366,
+   "W": 714.4248840596024,
+   "JT": 7.155629581480913e-05,
+   "Kappa": 2.683820255058032,
+   "x": [
+    0.77824,
+    0.02,
+    0.06,
+    0.08,
+    0.03,
+    0.0015,
+    0.003,
+    0.0005,
+    0.00165,
+    0.00215,
+    0.00088,
+    0.00024,
+    0.00015,
+    9e-05,
+    0.004,
+    0.005,
+    0.002,
+    0.0001,
+    0.0025,
+    0.007,
+    0.001
+   ],
+   "src": "NIST AGA8 GERG2008 code v2.01, GERG2008_test_01 (expected outputs)"
+  },
+  "vle": [
+   {
+    "keys": [
+     "CH4",
+     "C2H6",
+     "C3H8",
+     "nC4H10",
+     "N2",
+     "CO2"
+    ],
+    "x": [
+     0.85,
+     0.07,
+     0.03,
+     0.01,
+     0.02,
+     0.02
+    ],
+    "label": "natural gas",
+    "kind": "dew",
+    "P": 3000000.0,
+    "T": 245.6126741997526
+   },
+   {
+    "keys": [
+     "CH4",
+     "C2H6",
+     "C3H8",
+     "nC4H10",
+     "N2",
+     "CO2"
+    ],
+    "x": [
+     0.85,
+     0.07,
+     0.03,
+     0.01,
+     0.02,
+     0.02
+    ],
+    "label": "natural gas",
+    "kind": "bubble",
+    "P": 3000000.0,
+    "T": 179.98257346400425
+   },
+   {
+    "keys": [
+     "CH4",
+     "C2H6",
+     "C3H8",
+     "nC4H10",
+     "N2",
+     "CO2"
+    ],
+    "x": [
+     0.85,
+     0.07,
+     0.03,
+     0.01,
+     0.02,
+     0.02
+    ],
+    "label": "natural gas",
+    "kind": "dew",
+    "P": 5000000.0,
+    "T": 249.87847080050193
+   },
+   {
+    "keys": [
+     "CH4",
+     "C2H6"
+    ],
+    "x": [
+     0.5,
+     0.5
+    ],
+    "label": "methane / ethane 50 / 50",
+    "kind": "bubble",
+    "P": 2000000.0,
+    "T": 188.68065312880847
+   },
+   {
+    "keys": [
+     "CH4",
+     "C2H6"
+    ],
+    "x": [
+     0.5,
+     0.5
+    ],
+    "label": "methane / ethane 50 / 50",
+    "kind": "dew",
+    "P": 2000000.0,
+    "T": 238.3973363013338
+   },
+   {
+    "keys": [
+     "CH4",
+     "CO2"
+    ],
+    "x": [
+     0.7,
+     0.3
+    ],
+    "label": "methane / CO2 70 / 30",
+    "kind": "bubble",
+    "P": 4000000.0,
+    "T": 196.40198524769576
+   },
+   {
+    "keys": [
+     "CH4",
+     "CO2"
+    ],
+    "x": [
+     0.7,
+     0.3
+    ],
+    "label": "methane / CO2 70 / 30",
+    "kind": "dew",
+    "P": 4000000.0,
+    "T": 230.03081552167765
+   },
+   {
+    "keys": [
+     "N2",
+     "CH4"
+    ],
+    "x": [
+     0.3,
+     0.7
+    ],
+    "label": "nitrogen / methane 30 / 70",
+    "kind": "bubble",
+    "P": 1000000.0,
+    "T": 120.03108015230684
+   },
+   {
+    "keys": [
+     "N2",
+     "CH4"
+    ],
+    "x": [
+     0.3,
+     0.7
+    ],
+    "label": "nitrogen / methane 30 / 70",
+    "kind": "dew",
+    "P": 1000000.0,
+    "T": 141.26609370070432
+   },
+   {
+    "keys": [
+     "CH4",
+     "H2"
+    ],
+    "x": [
+     0.9,
+     0.1
+    ],
+    "label": "methane / hydrogen 90 / 10",
+    "kind": "dew",
+    "P": 3000000.0,
+    "T": 172.42229793994878
+   }
+  ],
+  "sp": [
+   {
+    "T": 300,
+    "P": 6000000.0,
+    "rho": 2779.03390018096,
+    "cp": 48.48272755420346,
+    "w": 387.77930406413344
+   },
+   {
+    "T": 280,
+    "P": 10000000.0,
+    "rho": 5948.393438858192,
+    "cp": 65.55320867985951,
+    "w": 372.2135191310278
+   },
+   {
+    "T": 350,
+    "P": 15000000.0,
+    "rho": 5905.333828582371,
+    "cp": 55.68342494119121,
+    "w": 453.80784578245675
+   },
+   {
+    "T": 250,
+    "P": 20000000.0,
+    "rho": 15015.385959498863,
+    "cp": 70.19832362621868,
+    "w": 606.3349636487995
+   }
+  ],
+  "sp_x": [
+   0.85,
+   0.07,
+   0.03,
+   0.01,
+   0.02,
+   0.02
+  ],
+  "ref": [
+   {
+    "key": "NH3",
+    "T": 300,
+    "P": 100000.0,
+    "rho": 0.6897590782000679,
+    "rhomolar": 40.5013515852756,
+    "cp": 36.826687795509265,
+    "phase": "gas"
+   },
+   {
+    "key": "NH3",
+    "T": 300,
+    "P": 2000000.0,
+    "rho": 601.0897778655958,
+    "rhomolar": 35294.85757719645,
+    "cp": 81.46817757275353,
+    "phase": "liquid"
+   },
+   {
+    "key": "NH3",
+    "T": 450,
+    "P": 10000000.0,
+    "rho": 61.215978193575,
+    "rhomolar": 3594.4867328522555,
+    "cp": 71.10626583551733,
+    "phase": "supercritical_gas"
+   },
+   {
+    "key": "CO2",
+    "T": 300,
+    "P": 5000000.0,
+    "rho": 128.39828279134954,
+    "rhomolar": 2917.492985456638,
+    "cp": 79.32881089296295,
+    "phase": "gas"
+   },
+   {
+    "key": "CO2",
+    "T": 310,
+    "P": 8000000.0,
+    "rho": 327.71209001802004,
+    "rhomolar": 7446.343542075175,
+    "cp": 421.8958765096338,
+    "phase": "supercritical"
+   },
+   {
+    "key": "CO2",
+    "T": 350,
+    "P": 20000000.0,
+    "rho": 614.1761721311,
+    "rhomolar": 13955.441109277934,
+    "cp": 115.3382846315773,
+    "phase": "supercritical"
+   },
+   {
+    "key": "N2",
+    "T": 100,
+    "P": 2000000.0,
+    "rho": 696.8192852641039,
+    "rhomolar": 24874.427784912972,
+    "cp": 63.07952139755069,
+    "phase": "liquid"
+   },
+   {
+    "key": "N2",
+    "T": 300,
+    "P": 20000000.0,
+    "rho": 212.5371973688317,
+    "rhomolar": 7586.961611653807,
+    "cp": 36.47532559247366,
+    "phase": "supercritical"
+   },
+   {
+    "key": "H2",
+    "T": 30,
+    "P": 1000000.0,
+    "rho": 55.88089949235648,
+    "rhomolar": 27720.350165861302,
+    "cp": 44.4199756154977,
+    "phase": "liquid"
+   },
+   {
+    "key": "H2",
+    "T": 300,
+    "P": 70000000.0,
+    "rho": 39.05280351916643,
+    "rhomolar": 19372.583447013927,
+    "cp": 30.301529831759165,
+    "phase": "supercritical"
+   },
+   {
+    "key": "CH4",
+    "T": 150,
+    "P": 2000000.0,
+    "rho": 360.21400444867913,
+    "rhomolar": 22453.312666659134,
+    "cp": 63.870993846391265,
+    "phase": "liquid"
+   },
+   {
+    "key": "CH4",
+    "T": 300,
+    "P": 10000000.0,
+    "rho": 75.17548583388302,
+    "rhomolar": 4685.932993859115,
+    "cp": 48.164675126570074,
+    "phase": "supercritical"
+   },
+   {
+    "key": "Ar",
+    "T": 120,
+    "P": 1000000.0,
+    "rho": 47.20161196986866,
+    "rhomolar": 1181.5763484997663,
+    "cp": 30.198099262168956,
+    "phase": "gas"
+   },
+   {
+    "key": "Ar",
+    "T": 300,
+    "P": 20000000.0,
+    "rho": 335.8421418317663,
+    "rhomolar": 8406.982623204323,
+    "cp": 30.290275303837063,
+    "phase": "supercritical"
+   },
+   {
+    "key": "O2",
+    "T": 140,
+    "P": 3000000.0,
+    "rho": 816.9725823049575,
+    "rhomolar": 25531.350622678274,
+    "cp": 84.29976893922536,
+    "phase": "liquid"
+   },
+   {
+    "key": "O2",
+    "T": 300,
+    "P": 15000000.0,
+    "rho": 203.58156170091527,
+    "rhomolar": 6362.162384243011,
+    "cp": 37.31991811072314,
+    "phase": "supercritical"
+   }
+  ],
+  "sat": [
+   {
+    "key": "NH3",
+    "P": 1000000.0,
+    "T": 298.0627020900007,
+    "hvap": 19860.65089422508
+   },
+   {
+    "key": "CO2",
+    "P": 3000000.0,
+    "T": 267.59787038627906,
+    "hvap": 10864.129511952477
+   },
+   {
+    "key": "N2",
+    "P": 500000.0,
+    "T": 93.99501784661854,
+    "hvap": 4855.382198346244
+   },
+   {
+    "key": "H2",
+    "P": 200000.0,
+    "T": 22.910445552904342,
+    "hvap": 870.7629182147567
+   },
+   {
+    "key": "CH4",
+    "P": 1000000.0,
+    "T": 149.13877744682787,
+    "hvap": 6668.285594430565
+   },
+   {
+    "key": "Ar",
+    "P": 500000.0,
+    "T": 105.8014437012609,
+    "hvap": 5778.507511034257
+   },
+   {
+    "key": "O2",
+    "P": 300000.0,
+    "T": 102.02437586633201,
+    "hvap": 6406.132556063787
+   }
+  ],
+  "cp_version": "8.0.0"
+ },
+ "step44": {
+  "about": "Round 12c: Peng–Robinson 1978, PRSV2, Lee–Kesler–Plöcker, Chao–Seader and Grayson–Streed against DWSIM 10 (headless MCP server, same inputs; numbers only — DWSIM is GPL software and none of its code is used), the PRSV2 vapour pressures against the databank correlations, and the Lee–Kesler–Plöcker k_ij fit to GERG-2008.",
+  "dwsim_version": "DWSIM 10 (headless MCP server)",
+  "dwsim": [
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "pr",
+    "kind": "bubble",
+    "dwsim": 335.2576913698859
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "pr",
+    "kind": "dew",
+    "dwsim": 402.22956171766026
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "pr78",
+    "kind": "bubble",
+    "dwsim": 335.25753503731187
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "pr78",
+    "kind": "dew",
+    "dwsim": 402.22887726340934
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "prsv2",
+    "kind": "bubble",
+    "dwsim": 335.1768738646277
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "prsv2",
+    "kind": "dew",
+    "dwsim": 402.2885891942102
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "lkp",
+    "kind": "bubble",
+    "dwsim": 336.1946639767512
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "lkp",
+    "kind": "dew",
+    "dwsim": 402.89290805968756
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "chao-seader",
+    "kind": "bubble",
+    "dwsim": 336.06253198611836
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "chao-seader",
+    "kind": "dew",
+    "dwsim": 403.8674554991935
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "grayson-streed",
+    "kind": "bubble",
+    "dwsim": 334.3976858150478
+   },
+   {
+    "label": "propane / n-hexane 50 / 50, 10 bar",
+    "x": {
+     "C3H8": 0.5,
+     "nC6H14": 0.5
+    },
+    "P": 1000000.0,
+    "method": "grayson-streed",
+    "kind": "dew",
+    "dwsim": 403.6892973539938
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "pr",
+    "kind": "bubble",
+    "dwsim": 232.03793831114467
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "pr",
+    "kind": "dew",
+    "dwsim": 325.8879755642332
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "lkp",
+    "kind": "bubble",
+    "dwsim": 233.83326856567209
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "lkp",
+    "kind": "dew",
+    "dwsim": 327.3849865318544
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "chao-seader",
+    "kind": "bubble",
+    "dwsim": 236.750862873621
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "chao-seader",
+    "kind": "dew",
+    "dwsim": 327.92477312851
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "grayson-streed",
+    "kind": "bubble",
+    "dwsim": 246.65475052602318
+   },
+   {
+    "label": "methane / propane 30 / 70, 30 bar",
+    "x": {
+     "CH4": 0.3,
+     "C3H8": 0.7
+    },
+    "P": 3000000.0,
+    "method": "grayson-streed",
+    "kind": "dew",
+    "dwsim": 325.6696219868213
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "pr",
+    "kind": "bubble",
+    "dwsim": 326.7264068827562
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "pr",
+    "kind": "dew",
+    "dwsim": 621.0941693100568
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "pr78",
+    "kind": "bubble",
+    "dwsim": 326.60538950684696
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "pr78",
+    "kind": "dew",
+    "dwsim": 621.9894046927152
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "prsv2",
+    "kind": "bubble",
+    "dwsim": 326.38593733852696
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "prsv2",
+    "kind": "dew",
+    "dwsim": 622.229749644269
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "lkp",
+    "kind": "bubble",
+    "dwsim": 312.7382180203231
+   },
+   {
+    "label": "propane / n-hexadecane 60 / 40, 10 bar",
+    "x": {
+     "C3H8": 0.6,
+     "n-hexadecane": 0.4
+    },
+    "P": 1000000.0,
+    "method": "lkp",
+    "kind": "dew",
+    "dwsim": 632.6833733735102
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "vf",
+    "dwsim": 0.7352799987324234,
+    "T": 450
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 9.762108553677244,
+    "T": 450,
+    "key": "H2"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 6.069961470049018,
+    "T": 450,
+    "key": "CH4"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 0.33275146867448196,
+    "T": 450,
+    "key": "nC6H14"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 0.05190279452121045,
+    "T": 450,
+    "key": "n-decane"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "vf",
+    "dwsim": 0.7210862462604835,
+    "T": 450
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 16.844887065683928,
+    "T": 450,
+    "key": "H2"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 6.044424043095918,
+    "T": 450,
+    "key": "CH4"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 0.27992658817312877,
+    "T": 450,
+    "key": "nC6H14"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 0.036817507783241485,
+    "T": 450,
+    "key": "n-decane"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "chao-seader",
+    "kind": "vf",
+    "dwsim": 0.7342414608473553,
+    "T": 450
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "chao-seader",
+    "kind": "K",
+    "dwsim": 13.676410180439792,
+    "T": 450,
+    "key": "H2"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "chao-seader",
+    "kind": "K",
+    "dwsim": 5.3821772124757175,
+    "T": 450,
+    "key": "CH4"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "chao-seader",
+    "kind": "K",
+    "dwsim": 0.3185580886148368,
+    "T": 450,
+    "key": "nC6H14"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "chao-seader",
+    "kind": "K",
+    "dwsim": 0.045640454813803834,
+    "T": 450,
+    "key": "n-decane"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "grayson-streed",
+    "kind": "vf",
+    "dwsim": 0.7383834819448485,
+    "T": 450
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "grayson-streed",
+    "kind": "K",
+    "dwsim": 14.903516953723097,
+    "T": 450,
+    "key": "H2"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "grayson-streed",
+    "kind": "K",
+    "dwsim": 6.741480303900037,
+    "T": 450,
+    "key": "CH4"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "grayson-streed",
+    "kind": "K",
+    "dwsim": 0.33381647023340677,
+    "T": 450,
+    "key": "nC6H14"
+   },
+   {
+    "label": "hydrotreater effluent, 450 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "method": "grayson-streed",
+    "kind": "K",
+    "dwsim": 0.0412034935134282,
+    "T": 450,
+    "key": "n-decane"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr",
+    "kind": "vf",
+    "dwsim": 0.9009814994325466,
+    "T": 220
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 2.024084034985002,
+    "T": 220,
+    "key": "CH4"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr",
+    "kind": "K",
+    "dwsim": 0.06088799400459404,
+    "T": 220,
+    "key": "C3H8"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "lkp",
+    "kind": "vf",
+    "dwsim": 0.8906601951001369,
+    "T": 220
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 1.979526753897467,
+    "T": 220,
+    "key": "CH4"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "lkp",
+    "kind": "K",
+    "dwsim": 0.055580509373165186,
+    "T": 220,
+    "key": "C3H8"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr78",
+    "kind": "vf",
+    "dwsim": 0.9009819378498419,
+    "T": 220
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr78",
+    "kind": "K",
+    "dwsim": 2.024073715354382,
+    "T": 220,
+    "key": "CH4"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "pr78",
+    "kind": "K",
+    "dwsim": 0.06088934220408174,
+    "T": 220,
+    "key": "C3H8"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "prsv2",
+    "kind": "vf",
+    "dwsim": 0.8873179062769954,
+    "T": 220
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "prsv2",
+    "kind": "K",
+    "dwsim": 1.9947314007809438,
+    "T": 220,
+    "key": "CH4"
+   },
+   {
+    "label": "natural gas, 220 K, 40 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 4000000.0,
+    "method": "prsv2",
+    "kind": "K",
+    "dwsim": 0.05901855738504115,
+    "T": 220,
+    "key": "C3H8"
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "method": "pr",
+    "kind": "dh",
+    "dwsim": -174.73190814194152,
+    "T": 300,
+    "T2": 240
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "method": "lkp",
+    "kind": "dh",
+    "dwsim": -180.6645620092828,
+    "T": 300,
+    "T2": 240
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "method": "pr78",
+    "kind": "dh",
+    "dwsim": -174.73144194436009,
+    "T": 300,
+    "T2": 240
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "method": "prsv2",
+    "kind": "dh",
+    "dwsim": -177.8074737691474,
+    "T": 300,
+    "T2": 240
+   },
+   {
+    "label": "n-hexane liquid 300 → 400 K, 20 bar",
+    "x": {
+     "nC6H14": 1.0
+    },
+    "P": 2000000.0,
+    "method": "pr",
+    "kind": "dh",
+    "dwsim": 245.61915770229035,
+    "T": 300,
+    "T2": 400
+   },
+   {
+    "label": "n-hexane liquid 300 → 400 K, 20 bar",
+    "x": {
+     "nC6H14": 1.0
+    },
+    "P": 2000000.0,
+    "method": "lkp",
+    "kind": "dh",
+    "dwsim": 252.19272255803764,
+    "T": 300,
+    "T2": 400
+   },
+   {
+    "label": "n-hexane liquid 300 → 400 K, 20 bar",
+    "x": {
+     "nC6H14": 1.0
+    },
+    "P": 2000000.0,
+    "method": "chao-seader",
+    "kind": "dh",
+    "dwsim": 252.18644680110845,
+    "T": 300,
+    "T2": 400
+   },
+   {
+    "label": "n-hexane liquid 300 → 400 K, 20 bar",
+    "x": {
+     "nC6H14": 1.0
+    },
+    "P": 2000000.0,
+    "method": "grayson-streed",
+    "kind": "dh",
+    "dwsim": 252.18644680110845,
+    "T": 300,
+    "T2": 400
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "T": 300,
+    "T2": 240,
+    "method": "chao-seader",
+    "kind": "dh",
+    "dwsim": -180.61106
+   },
+   {
+    "label": "natural gas cooled 300 → 240 K, 50 bar",
+    "x": {
+     "CH4": 0.85,
+     "C2H6": 0.06,
+     "C3H8": 0.03,
+     "nC4H10": 0.01,
+     "n-pentane": 0.005,
+     "N2": 0.02,
+     "CO2": 0.025
+    },
+    "P": 5000000.0,
+    "T": 300,
+    "T2": 240,
+    "method": "grayson-streed",
+    "kind": "dh",
+    "dwsim": -188.1041
+   },
+   {
+    "label": "hydrotreater effluent cooled 450 → 350 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "T": 450,
+    "T2": 350,
+    "method": "pr",
+    "kind": "dh",
+    "dwsim": -341.49137
+   },
+   {
+    "label": "hydrotreater effluent cooled 450 → 350 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "T": 450,
+    "T2": 350,
+    "method": "lkp",
+    "kind": "dh",
+    "dwsim": -336.1408
+   },
+   {
+    "label": "hydrotreater effluent cooled 450 → 350 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "T": 450,
+    "T2": 350,
+    "method": "chao-seader",
+    "kind": "dh",
+    "dwsim": -344.81095
+   },
+   {
+    "label": "hydrotreater effluent cooled 450 → 350 K, 50 bar",
+    "x": {
+     "H2": 0.5,
+     "CH4": 0.1,
+     "C3H8": 0.05,
+     "nC6H14": 0.15,
+     "toluene": 0.1,
+     "n-decane": 0.1
+    },
+    "P": 5000000.0,
+    "T": 450,
+    "T2": 350,
+    "method": "grayson-streed",
+    "kind": "dh",
+    "dwsim": -345.01602
+   }
+  ],
+  "prsv2": {
+   "n_components": 1241,
+   "rows": [
+    {
+     "tr": 0.5,
+     "n": 1201,
+     "prsv2_median": 0.00046070692585176154,
+     "prsv2_p90": 0.00524197937816262,
+     "pr_median": 0.1265121631313344,
+     "pr_p90": 0.44254019642212006
+    },
+    {
+     "tr": 0.6,
+     "n": 1241,
+     "prsv2_median": 0.00022219714791216205,
+     "prsv2_p90": 0.005721960602808163,
+     "pr_median": 0.040565395648983316,
+     "pr_p90": 0.17787180569544503
+    },
+    {
+     "tr": 0.7,
+     "n": 1241,
+     "prsv2_median": 0.00021782374348411349,
+     "prsv2_p90": 0.024013231695537485,
+     "pr_median": 0.004143318627442993,
+     "pr_p90": 0.05796683438836969
+    },
+    {
+     "tr": 0.8,
+     "n": 1241,
+     "prsv2_median": 0.01864909073920007,
+     "prsv2_p90": 0.11086507931592515,
+     "pr_median": 0.019956700412723904,
+     "pr_p90": 0.11761063014063822
+    },
+    {
+     "tr": 0.9,
+     "n": 1239,
+     "prsv2_median": 0.023396039393567936,
+     "prsv2_p90": 0.15178735976767588,
+     "pr_median": 0.024535882112952434,
+     "pr_p90": 0.15986102053658569
+    }
+   ]
+  },
+  "lkp": {
+   "n_pairs": 130,
+   "n_skipped": 41,
+   "n_unfitted_gerg": 30,
+   "median_aad": 0.014631006405341866,
+   "median_aad_k1": 0.27730957378324517,
+   "p90_aad": 0.08682525300180755,
+   "hc2": {
+    "a": 0.30443,
+    "b": -0.07692,
+    "c": -0.06459,
+    "n": 49,
+    "rms": 0.0162
+   },
+   "gas": {
+    "N2": {
+     "a": 0.52716,
+     "b": 0.69628,
+     "c": 0,
+     "xmin": 0.412,
+     "xmax": 1.588,
+     "n": 12,
+     "rms": 0.0955
+    },
+    "CO2": {
+     "a": 0.70004,
+     "b": 0.67037,
+     "c": 0,
+     "xmin": 0.414,
+     "xmax": 0.708,
+     "n": 7,
+     "rms": 0.012
+    },
+    "CO": {
+     "a": 0.70545,
+     "b": 0.46121,
+     "c": 0,
+     "xmin": 0.361,
+     "xmax": 1.537,
+     "n": 8,
+     "rms": 0.1388
+    },
+    "H2": {
+     "a": -1.52759,
+     "b": 1.49002,
+     "c": 0,
+     "xmin": 1.748,
+     "xmax": 2.924,
+     "n": 7,
+     "rms": 0.1537
+    },
+    "CH4": {
+     "a": 0.6737,
+     "b": 0.66092,
+     "c": 0,
+     "xmin": 0.471,
+     "xmax": 1.176,
+     "n": 11,
+     "rms": 0.0359
+    },
+    "C2H6": {
+     "a": 0.87609,
+     "b": 0.40986,
+     "c": 0,
+     "xmin": 0.411,
+     "xmax": 0.705,
+     "n": 7,
+     "rms": 0.0462
+    },
+    "C3H8": {
+     "a": 0.79829,
+     "b": 0.65461,
+     "c": 0,
+     "xmin": 0.379,
+     "xmax": 0.513,
+     "n": 4,
+     "rms": 0.0095
+    }
+   },
+   "replaced": [
+    {
+     "pair": "C2H6|n-nonane",
+     "fitted": 1.0483,
+     "correlation": 1.1863
+    },
+    {
+     "pair": "n-nonane|n-pentane",
+     "fitted": 1.1064,
+     "correlation": 1.0184
+    }
+   ],
+   "worst": [
+    {
+     "pair": "CO|H2",
+     "kij": 1.1535,
+     "aad": 0.18357558578420827
+    },
+    {
+     "pair": "H2|nC4H10",
+     "kij": 2.0795,
+     "aad": 0.18228505944878604
+    },
+    {
+     "pair": "H2|nC6H14",
+     "kij": 2.5575,
+     "aad": 0.15614474676378767
+    },
+    {
+     "pair": "C2H6|H2",
+     "kij": 1.6725,
+     "aad": 0.15550062715572255
+    },
+    {
+     "pair": "H2|nC7H16",
+     "kij": 2.679,
+     "aad": 0.15238394731419158
+    },
+    {
+     "pair": "C3H8|H2",
+     "kij": 1.8868,
+     "aad": 0.13645761165118087
+    },
+    {
+     "pair": "H2|N2",
+     "kij": 1.0413,
+     "aad": 0.11614695758096853
+    },
+    {
+     "pair": "N2|nC7H16",
+     "kij": 1.5205,
+     "aad": 0.10698627013159809
+    }
+   ],
+   "examples": [
+    {
+     "pair": "CH4|N2",
+     "kij": 0.9754,
+     "aad": 0.004736191861081501,
+     "aad_k1": 0.10120566051902694
+    },
+    {
+     "pair": "CH4|CO2",
+     "kij": 0.9727,
+     "aad": 0.015755038534575088,
+     "aad_k1": 0.12155813793820985
+    },
+    {
+     "pair": "C2H6|CH4",
+     "kij": 1.0476,
+     "aad": 0.03955709706916192,
+     "aad_k1": 0.239843035779333
+    },
+    {
+     "pair": "C3H8|CH4",
+     "kij": 1.1132,
+     "aad": 0.026287124923854276,
+     "aad_k1": 0.8098578668842
+    },
+    {
+     "pair": "CH4|nC6H14",
+     "kij": 1.2977,
+     "aad": 0.0049587634836789915,
+     "aad_k1": 3.7787041629466223
+    },
+    {
+     "pair": "CH4|n-decane",
+     "kij": 1.502,
+     "aad": 0.09000439877865614,
+     "aad_k1": 5.880139615610145
+    },
+    {
+     "pair": "CH4|H2",
+     "kij": 1.2698,
+     "aad": 0.030508208175229003,
+     "aad_k1": 2.01340511911883
+    },
+    {
+     "pair": "C2H6|CO2",
+     "kij": 0.9081,
+     "aad": 0.0036435915966969608,
+     "aad_k1": 0.21092288257881123
+    },
+    {
+     "pair": "CO2|nC6H14",
+     "kij": 1.0203,
+     "aad": 0.04985930607592315,
+     "aad_k1": 0.16974630944946717
+    },
+    {
+     "pair": "CO2|H2S",
+     "kij": 0.9249,
+     "aad": 0.01234469049967616,
+     "aad_k1": 0.25921558364442804
+    },
+    {
+     "pair": "C3H8|nC6H14",
+     "kij": 1.0267,
+     "aad": 0.0047790090970344515,
+     "aad_k1": 0.19637058148011038
+    },
+    {
+     "pair": "H2|nC6H14",
+     "kij": 2.5575,
+     "aad": 0.15614474676378767,
+     "aad_k1": 5.823314919347221
+    }
+   ]
+  },
+  "extra": {
+   "c6c8_prsv2_dwsim": 311.9617644986633,
+   "c6c8_pr_dwsim": 311.96303098355787,
+   "c1c6_pr_bubbleP_dwsim_bar": 40.27884249136869
+  }
  }
 }

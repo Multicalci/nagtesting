@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 3.3 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options), vectors MB-001..MB-351",
+  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed), vectors MB-001..MB-423",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -8163,7 +8163,8 @@
         "C2H6|C3H8": 0.0011,
         "C2H6|nC4H10": 0.0089,
         "C3H8|nC4H10": 0.0033
-       }
+       },
+       "volume_translation": false
       },
       "vary": "T",
       "from": 350,
@@ -8184,7 +8185,7 @@
     "details.rows.0.vapour_fraction": 0,
     "default": 0
    },
-   "source": "Caleb Bell thermo 0.6.1 PRMIX gas root, same Tc/Pc/ω/kij"
+   "source": "Caleb Bell thermo 0.6.1 PRMIX gas root, same Tc/Pc/ω/kij Run with volume_translation: false (reference is the thermo PRMIX gas root)."
   },
   {
    "id": "MB-148",
@@ -13397,7 +13398,8 @@
      ],
      "params": {
       "property_package": {
-       "model": "pr"
+       "model": "pr",
+       "volume_translation": false
       },
       "phase": "V",
       "thermal": "isothermal",
@@ -13427,7 +13429,7 @@
     "details.outlet_mole_frac.NH3": 2e-06,
     "default": 1e-09
    },
-   "source": "Independent reference: the Dyson & Simon (1968) rate (k0 8.849e14 kmol/(m³ h), Ea 170.56 kJ/mol, α 0.5, Gillespie–Beattie K_a) with fugacity coefficients from Caleb Bell's thermo 0.6.1 PRMIX (engine ChemSep constants and k_ij), integrated with scipy solve_ivp (Radau, rtol 1e-11)."
+   "source": "Independent reference: the Dyson & Simon (1968) rate (k0 8.849e14 kmol/(m³ h), Ea 170.56 kJ/mol, α 0.5, Gillespie–Beattie K_a) with fugacity coefficients from Caleb Bell's thermo 0.6.1 PRMIX (engine ChemSep constants and k_ij), integrated with scipy solve_ivp (Radau, rtol 1e-11). Run with volume_translation: false (reference is the thermo PRMIX fugacity coefficients)."
   },
   {
    "id": "MB-239",
@@ -13467,7 +13469,8 @@
      ],
      "params": {
       "property_package": {
-       "model": "pr"
+       "model": "pr",
+       "volume_translation": false
       },
       "phase": "V",
       "thermal": "isothermal",
@@ -13497,7 +13500,7 @@
     "details.outlet_mole_frac.NH3": 2e-06,
     "default": 1e-09
    },
-   "source": "Independent reference: as MB-238 (thermo 0.6.1 PRMIX φ + scipy Radau)."
+   "source": "Independent reference: as MB-238 (thermo 0.6.1 PRMIX φ + scipy Radau). Run with volume_translation: false (reference is the thermo PRMIX fugacity coefficients)."
   },
   {
    "id": "MB-240",
@@ -13529,7 +13532,8 @@
      ],
      "params": {
       "property_package": {
-       "model": "pr"
+       "model": "pr",
+       "volume_translation": false
       },
       "phase": "V",
       "thermal": "isothermal",
@@ -13559,7 +13563,7 @@
     "details.outlet_mole_frac.NH3": 2e-06,
     "default": 1e-09
    },
-   "source": "Consistency check: the Gibbs reactor at the same T, P and feed (Peng–Robinson fugacity coefficients) gives y_NH3 = 0.3541154; a kinetic rate whose reverse term uses the same K must reach it."
+   "source": "Consistency check: the Gibbs reactor at the same T, P and feed (Peng–Robinson fugacity coefficients) gives y_NH3 = 0.3541154; a kinetic rate whose reverse term uses the same K must reach it. Run with volume_translation: false (reference is the Gibbs reactor value without the shift)."
   },
   {
    "id": "MB-241",
@@ -19650,7 +19654,8 @@
      ],
      "params": {
       "property_package": {
-       "model": "pr"
+       "model": "pr",
+       "volume_translation": false
       },
       "curve": {
        "flow_m3_h": [
@@ -19690,7 +19695,7 @@
     "details.curve.efficiency": 1e-09,
     "energy_balance.W_kW": 0.01
    },
-   "source": "Definition of polytropic head: H_p = η_p Δh, so W = ṁ H_p / η_p (110 kJ/kg, η_p = 0.81 at 21 000 m³/h).",
+   "source": "Definition of polytropic head: H_p = η_p Δh, so W = ṁ H_p / η_p (110 kJ/kg, η_p = 0.81 at 21 000 m³/h). Run with volume_translation: false (reference is the inlet volume flow set exactly on a curve point without the shift).",
    "id": "MB-264"
   },
   {
@@ -24454,7 +24459,7 @@
    "tol": {
     "details.by_keys.EtOH+H2O+benzene.T_K": 1.0,
     "details.by_keys.EtOH+H2O+benzene.w.H2O": 0.015,
-    "details.by_keys.EtOH+H2O+benzene.w.EtOH": 0.03,
+    "details.by_keys.EtOH+H2O+benzene.w.EtOH": 0.045,
     "details.by_keys.H2O+benzene.T_K": 0.5,
     "details.by_keys.H2O+benzene.w.benzene": 0.01,
     "details.by_keys.EtOH+benzene.T_K": 0.5,
@@ -24462,7 +24467,7 @@
     "details.by_keys.EtOH+H2O.T_K": 0.5,
     "details.by_keys.EtOH+H2O.w.EtOH": 0.015
    },
-   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): ternary 64.9 °C (7.4 / 18.5 / 74.1 wt % water / ethanol / benzene, two liquid layers), water–benzene 69.3 °C (91.1 wt % benzene), ethanol–benzene 68.2 °C (67.6 wt % benzene), ethanol–water 78.1 °C (95.5 wt % ethanol). The water–benzene NRTL pair is estimated from Dortmund UNIFAC (ChemSep has none).",
+   "source": "Azeotropic data at 101.325 kPa (Horsley, Azeotropic Data III, ACS 1973, as tabulated in the CRC Handbook / Lange’s Handbook): ternary 64.9 °C (7.4 / 18.5 / 74.1 wt % water / ethanol / benzene, two liquid layers), water–benzene 69.3 °C (91.1 wt % benzene), ethanol–benzene 68.2 °C (67.6 wt % benzene), ethanol–water 78.1 °C (95.5 wt % ethanol). Round 11: the water–benzene pair is now fitted to the IUPAC-NIST mutual solubilities, which puts both liquid layers on the tabulated ones (MB-371); the vapour then carries 22.3 wt % ethanol against 18.5 tabulated (64.3 °C), set by the ChemSep ethanol pairs — tolerance on ethanol 4.5 wt %.",
    "id": "MB-334"
   },
   {
@@ -25492,6 +25497,3409 @@
    },
    "source": "CRC Handbook: n-hexane 0.6548 g/cm³ at 25 °C; Peng–Robinson gives 661 (+1 %); tolerance 1.4 %.",
    "id": "MB-351"
+  },
+  {
+   "desc": "cross-check (STEP 41): equimolar methanol–water, NRTL, 1 atm, vapour fraction 0.01 — temperature against DWSIM",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.6401056872206442
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3598943127793558
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vapour_fraction": 0.01
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 346.2022
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.05
+   },
+   "source": "DWSIM 9 (open-source code base, run on Simulate 365 with default settings, Nov 2026): 346.2022 K (NRTL from the same ChemSep parameters; activity coefficients 1.1409 / 1.2260 against 1.1402 / 1.2255 here).",
+   "id": "MB-352"
+  },
+  {
+   "desc": "cross-check (STEP 41): equimolar methanol–water, NRTL, 1 atm dew point — against DWSIM",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.6401056872206442
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3598943127793558
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 358.017
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.05
+   },
+   "source": "DWSIM 9 (open-source code base, run on Simulate 365 with default settings, Nov 2026): 358.0170 K.",
+   "id": "MB-353"
+  },
+  {
+   "desc": "Peng–Robinson liquid heat capacity (STEP 41): equimolar benzene–toluene at 25 °C, 1 atm — checked against an independent Peng–Robinson implementation (DWSIM reports 1.467, NIST data give about 1.72: a known limit of cubic equations)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "benzene",
+         "mass_fraction": 0.45880599536235656
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.5411940046376434
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.Cp_kJkgK": 1.55009
+   },
+   "tol": {
+    "details.rows.0.Cp_kJkgK": 0.002
+   },
+   "source": "thermo 0.6 (C. Bell, MIT licence) PRMIX with the same Tc, Pc, ω and k_ij = 0: Cp_dep,L = 38.337 J/(mol·K) on an ideal-gas Cp of 93.615 J/(mol·K) → 1.55009 kJ/(kg·K).",
+   "id": "MB-354"
+  },
+  {
+   "desc": "hydrocarbon dew point (STEP 41): natural gas (85 % CH₄ … 0.5 % n-C₅, N₂, CO₂) at 50 bar, Peng–Robinson with k_ij = 0 — against an independent Peng–Robinson flash; the Newton solver alone collapses onto the trivial solution here, the PT-flash scan finds the real boundary",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr",
+       "kij": {
+        "CH4|C2H6": 0,
+        "CH4|C3H8": 0,
+        "CH4|nC4H10": 0,
+        "CH4|n-pentane": 0,
+        "CH4|N2": 0,
+        "CH4|CO2": 0,
+        "C2H6|C3H8": 0,
+        "C2H6|nC4H10": 0,
+        "C2H6|n-pentane": 0,
+        "C2H6|N2": 0,
+        "C2H6|CO2": 0,
+        "C3H8|nC4H10": 0,
+        "C3H8|n-pentane": 0,
+        "C3H8|N2": 0,
+        "C3H8|CO2": 0,
+        "nC4H10|n-pentane": 0,
+        "nC4H10|N2": 0,
+        "nC4H10|CO2": 0,
+        "n-pentane|N2": 0,
+        "n-pentane|CO2": 0,
+        "N2|CO2": 0
+       }
+      },
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 266.17239
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.002
+   },
+   "source": "thermo 0.6 FlashVL with PRMIX, same Tc, Pc, ω, k_ij = 0: dew point 266.17239 K at 50 bar; at 205.84 K (the false “dew point” DWSIM reports) both give two phases with vapour fraction 0.5679.",
+   "id": "MB-355"
+  },
+  {
+   "desc": "hydrocarbon dew point (STEP 41): the same gas at 50 bar with the ChemSep k_ij — just above the cricondentherm (263.71 K at 47.97 bar from the phase envelope); DWSIM 9 returns 205.84 K, a trivial solution inside the two-phase region",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 263.6749
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.01
+   },
+   "source": "Regression of the scan-and-polish result; consistency: PT flash at 263.0 K gives vapour fraction 0.99915, at 264.5 K a single vapour.",
+   "id": "MB-356"
+  },
+  {
+   "desc": "bubble point (STEP 41): the same gas at 50 bar, Peng–Robinson with ChemSep k_ij — found by scanning up from the cold side past a spurious CO₂-rich split far below freezing",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 199.2242
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.01
+   },
+   "source": "Regression; consistency: lies on the bubble branch of the phase envelope below the critical point (220.37 K, 73.90 bar).",
+   "id": "MB-357"
+  },
+  {
+   "desc": "cross-check (STEP 41): heater, 1 kg/s equimolar methanol–water from 25 °C liquid to saturated vapour at 1 atm, NRTL — duty against DWSIM",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.6401056872206442
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.3598943127793558
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 1713.03,
+    "streams_out.0.T_K": 358.02
+   },
+   "tol": {
+    "details.duty_kW": 3.5,
+    "streams_out.0.T_K": 0.02
+   },
+   "source": "DWSIM 9 (open-source code base, run on Simulate 365 with default settings, Nov 2026), heater with its ideal liquid-enthalpy option (liquid heat capacity 3.128 kJ/(kg·K) at 25 °C): duty 1713.03 kW (energy flows −8844.85 → −7131.82 kW), outlet 358.020 K at vapour fraction 0.999998. Tolerance 0.2 %.",
+   "id": "MB-358"
+  },
+  {
+   "desc": "heterogeneous bubble point (STEP 41): water / ethanol / benzene 0.2 / 0.2 / 0.6 at 1 atm, NRTL with valid phases VLL — the liquid splits in two, so the bubble point is that of the two liquids together, not of the unstable single liquid (338.55 K)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.06036902982528876
+        },
+        {
+         "key": "EtOH",
+         "mass_fraction": 0.15437489888386555
+        },
+        {
+         "key": "benzene",
+         "mass_fraction": 0.7852560712908457
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 337.5289
+   },
+   "tol": {
+    "streams_out.0.T_K": 0.01
+   },
+   "source": "Consistency with the independent heterogeneous bubble-point routine of the ternary map (liquid–liquid split, then the bubble condition of one liquid): 337.5289 K (64.38 °C) with the round-11 water–benzene pair fitted to IUPAC-NIST solubilities. Layers at the bubble point: aqueous 0.707 / 0.278 / 0.015 water / ethanol / benzene, 25.7 % of the liquid — DWSIM 9 gives 0.679 / 0.307 / 0.014, 28.1 %, and 336.89 K. Tabulated ternary heteroazeotrope 64.9 °C (338.05 K).",
+   "id": "MB-359"
+  },
+  {
+   "desc": "volume translation (STEP 41): ammonia-loop gas without ammonia, H2/N2/CH4/Ar 0.682/0.227/0.057/0.034, Peng–Robinson at 140 bar, 0 °C and 100 °C — vapour density against GERG-2008 (plain Peng–Robinson is 4.1 % and 2.7 % dense)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.1372471525137434
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.635745411801711
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.09101845696014182
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.13598897872440374
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 273.15,
+      "to": 373.15,
+      "points": 2,
+      "P_bar": 140
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.vapour.rho_kgm3": 57.5146,
+    "details.rows.1.phases.vapour.rho_kgm3": 42.2226
+   },
+   "tol": {
+    "details.rows.0.phases.vapour.rho_kgm3": 0.86,
+    "details.rows.1.phases.vapour.rho_kgm3": 0.42
+   },
+   "source": "CoolProp 8.0.0 HEOS mixture (GERG-2008 reducing functions and departure terms): 57.5146 and 42.2226 kg/m³ (Z 1.0734, 1.0703). Engine 58.162 / 42.450 (+1.1 % / +0.5 %); without the shift 59.862 / 43.349. Tolerance 1.5 % / 1.0 %.",
+   "id": "MB-360"
+  },
+  {
+   "desc": "volume translation (STEP 41): compressor, 1000 kg/h pure hydrogen 300 K, 30 → 150 bar, isentropic efficiency 0.75, Peng–Robinson — shaft power against the reference equation of state (plain Peng–Robinson is 1.1–1.4 % low)",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_out_bar": 150,
+      "efficiency": 0.75
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 971.7074,
+    "details.T_out_K": 534.768
+   },
+   "tol": {
+    "details.power_kW": 0.9717,
+    "details.T_out_K": 2.0
+   },
+   "source": "CoolProp 8.0.0 reference equation for hydrogen (isentropic outlet from s(300 K, 30 bar), Δh/0.75): 971.7074 kW, outlet 534.768 K. Tolerance 0.1 % on power; the outlet temperature carries the ideal-gas heat capacity of the databank (±2 K).",
+   "id": "MB-361"
+  },
+  {
+   "desc": "volume translation (STEP 41): compressor, 1000 kg/h pure nitrogen 300 K, 30 → 150 bar, isentropic efficiency 0.75, Peng–Robinson — shaft power against the reference equation of state (plain Peng–Robinson is 1.1–1.4 % low)",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_out_bar": 150,
+      "efficiency": 0.75
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 69.51313,
+    "details.T_out_K": 534.319
+   },
+   "tol": {
+    "details.power_kW": 0.0695,
+    "details.T_out_K": 2.0
+   },
+   "source": "CoolProp 8.0.0 reference equation for nitrogen (isentropic outlet from s(300 K, 30 bar), Δh/0.75): 69.51313 kW, outlet 534.319 K. Tolerance 0.1 % on power; the outlet temperature carries the ideal-gas heat capacity of the databank (±2 K).",
+   "id": "MB-362"
+  },
+  {
+   "desc": "volume translation (STEP 41): compressor, 1000 kg/h pure methane 300 K, 30 → 150 bar, isentropic efficiency 0.75, Peng–Robinson — shaft power against the reference equation of state (plain Peng–Robinson is 1.1–1.4 % low)",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_out_bar": 150,
+      "efficiency": 0.75
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 108.46446,
+    "details.T_out_K": 467.014
+   },
+   "tol": {
+    "details.power_kW": 0.1085,
+    "details.T_out_K": 2.0
+   },
+   "source": "CoolProp 8.0.0 reference equation for methane (isentropic outlet from s(300 K, 30 bar), Δh/0.75): 108.46446 kW, outlet 467.014 K. Tolerance 0.1 % on power; the outlet temperature carries the ideal-gas heat capacity of the databank (±2 K).",
+   "id": "MB-363"
+  },
+  {
+   "desc": "volume translation (STEP 41): the long kinetic bed of MB-240 with the shift on (default) — stops at the Gibbs-reactor equilibrium computed with the same shifted fugacity coefficients",
+   "call": "runModule",
+   "args": [
+    "r-pfr",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 8682.225882352941,
+       "T_K": 723.15,
+       "P_bar": 303.975,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.1707240431160781
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.7908144184223835
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.038461538461538464
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "phase": "V",
+      "thermal": "isothermal",
+      "T_K": 723.15,
+      "volume_m3": 200,
+      "reactions": [
+       {
+        "stoich": {
+         "N2": -1,
+         "H2": -3,
+         "NH3": 2
+        },
+        "model": "temkin",
+        "k0": 884900000000000.0,
+        "Ea_kJmol": 170.56,
+        "alpha": 0.5,
+        "K_a": "databank"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.3628841
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 2e-06,
+    "default": 1e-09
+   },
+   "source": "Consistency: the Gibbs reactor at the same T, P and feed with the shifted Peng–Robinson fugacity coefficients gives y_NH3 = 0.3628841 (measured 0.358, Larson & Dodge 1923).",
+   "id": "MB-364"
+  },
+  {
+   "desc": "volume translation (STEP 41): Gibbs reactor, H2/N2 = 3 at 450 °C and 1000 atm, Peng–Robinson — ammonia equilibrium against the measured value (the shift moves it from 64.1 to 66.6 mol %)",
+   "call": "runModule",
+   "args": [
+    "gibbs",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 851.526,
+       "T_K": 723.15,
+       "P_bar": 1013.25,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.17755300484072123
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.8224469951592788
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 723.15,
+      "products": [
+       "NH3"
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.NH3": 0.697
+   },
+   "tol": {
+    "details.outlet_mole_frac.NH3": 0.035
+   },
+   "source": "Measured: Larson (JACS 46, 1924, 367) as quoted by UNIDO, 69.7 mol % NH3 at 450 °C, 1000 atm. Engine 66.65 % (without the shift 64.11 %). At 10 and 300 atm the engine gives 2.22 % and 36.29 % (measured 2.1 % and 35.8 %).",
+   "id": "MB-365"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): benzene–water liquid–liquid equilibrium at 25 °C, NRTL — mutual solubilities against IUPAC-NIST data",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.187411003263179
+        },
+        {
+         "key": "benzene",
+         "mass_fraction": 0.812588996736821
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "T_K": 298.15,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.x2.benzene": 0.000411,
+    "details.x1.H2O": 0.00309,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.x2.benzene": 4.11e-05,
+    "details.x1.H2O": 0.000309,
+    "default": 0
+   },
+   "source": "IUPAC-NIST Solubility Data Series 81 recommended values as tabulated by Góral & Oracz, ChemEngineering 5 (2021) 89, Table 2: benzene in water x = 4.11×10⁻⁴, water in benzene x = 3.09×10⁻³ (engine 4.16 / 3.19). Before round 11 the pair was estimated from Dortmund UNIFAC: 7.45×10⁻³ water in benzene and 8.6×10⁻⁴ benzene in water at 25 °C, both more than twice the data.",
+   "id": "MB-366"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): benzene–water liquid–liquid equilibrium at 25 °C, UNIQUAC — mutual solubilities against IUPAC-NIST data",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.187411003263179
+        },
+        {
+         "key": "benzene",
+         "mass_fraction": 0.812588996736821
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "uniquac",
+       "three_phase": true
+      },
+      "T_K": 298.15,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.x2.benzene": 0.000411,
+    "details.x1.H2O": 0.00309,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.x2.benzene": 4.11e-05,
+    "details.x1.H2O": 0.000309,
+    "default": 0
+   },
+   "source": "IUPAC-NIST Solubility Data Series 81 recommended values as tabulated by Góral & Oracz, ChemEngineering 5 (2021) 89, Table 2 (engine 4.18 / 3.20).",
+   "id": "MB-367"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): toluene–water liquid–liquid equilibrium at 25 °C, NRTL — mutual solubilities against IUPAC-NIST data",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.1635467384620999
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.8364532615379001
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "T_K": 298.15,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.x2.toluene": 0.000112,
+    "details.x1.H2O": 0.0028,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.x2.toluene": 1.12e-05,
+    "details.x1.H2O": 0.00028,
+    "default": 0
+   },
+   "source": "IUPAC-NIST Solubility Data Series 81 recommended values as tabulated by Góral & Oracz, ChemEngineering 5 (2021) 89, Table 2: toluene in water 1.12×10⁻⁴, water in toluene 2.80×10⁻³ (engine 1.11 / 2.81). Before round 11 there was no water–toluene pair at all (the UNIFAC estimate failed its fit test), so NRTL treated the mixture as ideal and found one liquid.",
+   "id": "MB-368"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): toluene–water liquid–liquid equilibrium at 100 °C, NRTL — mutual solubilities against IUPAC-NIST data",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 373.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.1635467384620999
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.8364532615379001
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "T_K": 373.15,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.x2.toluene": 0.0002804,
+    "details.x1.H2O": 0.02111,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.x2.toluene": 2.804e-05,
+    "details.x1.H2O": 0.002111,
+    "default": 0
+   },
+   "source": "IUPAC Technical Report (Bazyleva & Acree, Pure Appl. Chem. 2021, doi 10.1515/pac-2020-0905): toluene + water reference system, SDS-81 equations ln x₁ = −9.14 + 35.7[(290/T) ln(290/T) + 1 − 290/T] and ln x₂ = −0.495 − 3.700(1/T_r − 1) − 0.102(1 − T_r)^⅓ − 4.641(1 − T_r), T_r = T/553.0 K: 2.80×10⁻⁴ and 2.11×10⁻² at 373.15 K (engine 2.74 / 2.12); the report gives a 95 % band of about ±15 % at this temperature.",
+   "id": "MB-369"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): cyclohexane–water liquid–liquid equilibrium at 25 °C, NRTL — mutual solubilities against IUPAC-NIST data",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 298.15,
+       "P_bar": 2.0,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.1763183001359631
+        },
+        {
+         "key": "cyclohexane",
+         "mass_fraction": 0.8236816998640368
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "T_K": 298.15,
+      "P_bar": 2.0
+     }
+    }
+   ],
+   "expect": {
+    "details.x2.cyclohexane": 1.25e-05,
+    "details.x1.H2O": 0.000375,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.x2.cyclohexane": 1.25e-06,
+    "details.x1.H2O": 3.75e-05,
+    "default": 0
+   },
+   "source": "IUPAC-NIST Solubility Data Series 81 recommended values as tabulated by Góral & Oracz, ChemEngineering 5 (2021) 89, Table 2: cyclohexane in water 1.25×10⁻⁵, water in cyclohexane 3.75×10⁻⁴ (engine 1.26 / 4.03; the JPCRD 2004 reference equation the pair is fitted to gives 4.02).",
+   "id": "MB-370"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): water / ethanol / benzene at the ternary heteroazeotrope composition (7.4 / 18.5 / 74.1 wt %) and temperature (64.9 °C), NRTL — compositions of the two liquid layers against the tabulated ones",
+   "call": "runModule",
+   "args": [
+    "r-flash3",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 338.05,
+       "P_bar": 1.5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.074
+        },
+        {
+         "key": "EtOH",
+         "mass_fraction": 0.185
+        },
+        {
+         "key": "benzene",
+         "mass_fraction": 0.741
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl",
+       "three_phase": true
+      },
+      "T_K": 338.05,
+      "P_bar": 1.5
+     }
+    }
+   ],
+   "expect": {
+    "details.phases": "LL",
+    "streams_out.1.components.0.mass_fraction": 0.127,
+    "streams_out.1.components.1.mass_fraction": 0.013,
+    "streams_out.1.components.2.mass_fraction": 0.86,
+    "streams_out.2.components.0.mass_fraction": 0.521,
+    "streams_out.2.components.1.mass_fraction": 0.431,
+    "streams_out.2.components.2.mass_fraction": 0.048
+   },
+   "tol": {
+    "default": 0.015,
+    "details.phases": 0
+   },
+   "source": "Ternary azeotrope table of the CRC Handbook (44th ed.) and Lange’s Handbook (10th ed.), water / ethanol / benzene at 64.9 °C: upper layer 1.3 / 12.7 / 86.0 wt %, lower layer 43.1 / 52.1 / 4.8 wt % (components ordered ethanol, water, benzene in the vector). Engine: upper 0.8 / 12.5 / 86.7, lower 43.4 / 50.9 / 5.8 wt %. Round 10, with the water–benzene pair estimated from UNIFAC, put more than twice the measured water in the benzene layer. Tolerance 1.5 wt %.",
+   "id": "MB-371"
+  },
+  {
+   "desc": "water–hydrocarbon pair (STEP 41): toluene–water heteroazeotrope at 1 atm, NRTL — temperature and vapour composition",
+   "call": "runModule",
+   "args": [
+    "azeotrope-search",
+    {
+     "streams": [],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "keys": [
+       "H2O",
+       "toluene"
+      ],
+      "P_bar": 1.01325
+     }
+    }
+   ],
+   "expect": {
+    "details.by_keys.H2O+toluene.T_K": 357.25,
+    "details.by_keys.H2O+toluene.heterogeneous": true,
+    "details.by_keys.H2O+toluene.w.toluene": 0.798
+   },
+   "tol": {
+    "details.by_keys.H2O+toluene.T_K": 0.6,
+    "details.by_keys.H2O+toluene.w.toluene": 0.01,
+    "default": 0
+   },
+   "source": "Binary azeotrope table of the CRC Handbook (44th ed.) and Lange’s Handbook (10th ed.): 84.1 °C, 79.8 wt % toluene, two layers. Engine 84.57 °C, 80.0 wt %.",
+   "id": "MB-372"
+  },
+  {
+   "desc": "cross-check (STEP 41): natural gas (7 components), PT flash 220 K, 40 bar, Peng–Robinson",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 220,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 220,
+      "P_bar": 40
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.9009814994325466,
+    "details.x.CH4": 0.44209345232403324
+   },
+   "tol": {
+    "default": 0,
+    "details.vapour_fraction": 0.002,
+    "details.x.CH4": 0.005
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026) with the same ChemSep k_ij: vapour_fraction 0.900981 (engine 0.901069), x_CH4 0.442093 (engine 0.444713).",
+   "id": "MB-373"
+  },
+  {
+   "desc": "cross-check (STEP 41): propane / n-butane 0.5 / 0.5, bubble and dew point at 10 bar, Peng–Robinson — bubble point",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.43138866224864947
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.5686113377513505
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 320.34042790611437
+   },
+   "tol": {
+    "default": 0,
+    "streams_out.0.T_K": 0.05
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): bubble_T_K 320.34 (engine 320.346).",
+   "id": "MB-374"
+  },
+  {
+   "desc": "cross-check (STEP 41): propane / n-butane 0.5 / 0.5, bubble and dew point at 10 bar, Peng–Robinson — dew point",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.43138866224864947
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.5686113377513505
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 332.52113776663106
+   },
+   "tol": {
+    "default": 0,
+    "streams_out.0.T_K": 0.05
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): dew_T_K 332.521 (engine 332.527).",
+   "id": "MB-375"
+  },
+  {
+   "desc": "cross-check (STEP 41): ethanol / water 0.3 / 0.7, bubble point at 1 atm, NRTL (ChemSep parameters in both)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "EtOH",
+         "mass_fraction": 0.5228864886640909
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.4771135113359092
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "nrtl"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 354.6725047694747,
+    "details.y.EtOH": 0.5843572286167568
+   },
+   "tol": {
+    "default": 0,
+    "details.T_K": 0.05,
+    "details.y.EtOH": 0.002
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): bubble_T_K 354.673 (engine 354.68), y_EtOH 0.584357 (engine 0.58423).",
+   "id": "MB-376"
+  },
+  {
+   "desc": "cross-check (STEP 41): acetone / methanol 0.5 / 0.5, bubble point at 1 atm, UNIQUAC",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "acetone",
+         "mass_fraction": 0.6444573406864105
+        },
+        {
+         "key": "MeOH",
+         "mass_fraction": 0.35554265931358947
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "uniquac"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 329.5213217170891,
+    "details.y.acetone": 0.5815920063361237
+   },
+   "tol": {
+    "default": 0,
+    "details.T_K": 0.05,
+    "details.y.acetone": 0.002
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): bubble_T_K 329.521 (engine 329.522), y_acetone 0.581592 (engine 0.58158).",
+   "id": "MB-377"
+  },
+  {
+   "desc": "cross-check (STEP 41): benzene / toluene 0.5 / 0.5, bubble point at 1 atm, Raoult’s law",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "benzene",
+         "mass_fraction": 0.45880599536235656
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.5411940046376434
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "ideal",
+       "poynting": false
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 365.3529854407585,
+    "details.y.benzene": 0.7143262413436698
+   },
+   "tol": {
+    "default": 0,
+    "details.T_K": 0.01,
+    "details.y.benzene": 0.0005
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): bubble_T_K 365.353 (engine 365.353), y_benzene 0.714326 (engine 0.714326).",
+   "id": "MB-378"
+  },
+  {
+   "desc": "cross-check (STEP 41): ammonia-loop separator gas, 0 °C, 140 bar, Peng–Robinson",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 273.15,
+       "P_bar": 140,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.11141102504244481
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.5160693442275043
+        },
+        {
+         "key": "NH3",
+         "mass_fraction": 0.18824388971420486
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.07388604449632145
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.11038969651952461
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr",
+       "volume_translation": true
+      },
+      "T_K": 273.15,
+      "P_bar": 140
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.9352789224107544,
+    "details.y.NH3": 0.06067922094574066,
+    "details.x.NH3": 0.9772302118929204
+   },
+   "tol": {
+    "default": 0,
+    "details.vapour_fraction": 0.0005,
+    "details.y.NH3": 0.0003,
+    "details.x.NH3": 0.0005
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): vapour_fraction 0.935279 (engine 0.935261), y_NH3 0.0606792 (engine 0.060659), x_NH3 0.97723 (engine 0.977272).",
+   "id": "MB-379"
+  },
+  {
+   "desc": "cross-check (STEP 41): pump, 36 t/h water 300 K, 1 → 20 bar, efficiency 0.75, IAPWS-IF97",
+   "call": "runModule",
+   "args": [
+    "pump",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 36000,
+       "T_K": 300,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "P_out_bar": 20,
+      "efficiency": 0.75
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 25.42084503724746,
+    "streams_out.0.T_K": 300.19008808236777
+   },
+   "tol": {
+    "default": 0,
+    "details.power_kW": 0.01,
+    "streams_out.0.T_K": 0.005
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): power_kW 25.4208 (engine 25.4208), T_out_K 300.19 (engine 300.19).",
+   "id": "MB-380"
+  },
+  {
+   "desc": "cross-check (STEP 41): gibbs reactor, steam reforming CH₄ : H₂O = 1 : 3 at 1100 K, 1 bar (Peng–Robinson; each program its own formation data)",
+   "call": "runModule",
+   "args": [
+    "gibbs",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 1100,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.22889301319015465
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.7711069868098454
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 1100,
+      "products": [
+       "H2",
+       "CO",
+       "CO2"
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "details.outlet_mole_frac.H2": 0.5547546946132865,
+    "details.outlet_mole_frac.CO": 0.11133783618780133,
+    "details.outlet_mole_frac.CO2": 0.05518772839381489,
+    "details.outlet_mole_frac.H2O": 0.2785066689140752
+   },
+   "tol": {
+    "default": 0,
+    "details.outlet_mole_frac.H2": 0.0005,
+    "details.outlet_mole_frac.CO": 0.0005,
+    "details.outlet_mole_frac.CO2": 0.0005,
+    "details.outlet_mole_frac.H2O": 0.0005
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): y_H2 0.554755 (engine 0.554759), y_CO 0.111338 (engine 0.11133), y_CO2 0.0551877 (engine 0.0551923), y_H2O 0.278507 (engine 0.278499).",
+   "id": "MB-381"
+  },
+  {
+   "desc": "cross-check (STEP 41): valve, natural gas 300 K, 60 → 10 bar (Joule–Thomson), Peng–Robinson — outlet temperature against GERG-2008",
+   "call": "runModule",
+   "args": [
+    "valve",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 60,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_out_bar": 10
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.T_K": 272.288
+   },
+   "tol": {
+    "default": 0,
+    "streams_out.0.T_K": 2.0
+   },
+   "source": "CoolProp 8.0.0 HEOS mixture with GERG-2008 departure functions: 272.288 K. Engine 270.64 K (plain Peng–Robinson 270.05 K); DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026): 269.85 K. Tolerance 2 K. DWSIM (engine): T_out_K 269.851 (engine 270.642).",
+   "id": "MB-382"
+  },
+  {
+   "desc": "cross-check (STEP 41): cooler, natural gas 50 bar, 300 → 240 K, Peng–Robinson — duty against GERG-2008",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_out_K": 240
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": -49.332
+   },
+   "tol": {
+    "default": 0,
+    "details.duty_kW": 0.5
+   },
+   "source": "CoolProp 8.0.0 HEOS mixture with GERG-2008: −49.33 kW (vapour fraction 0.953). Engine -49.04 kW, DWSIM 10.2.15 (headless MCP server, same feed, default settings, Nov 2026) -48.54 kW. Tolerance 1 %. DWSIM (engine): duty_kW -48.5366 (engine -49.0359).",
+   "id": "MB-383"
+  },
+  {
+   "desc": "compressed liquid (STEP 41): ammonia at 0 °C and 140 bar, Peng–Robinson package — liquid density with the Thomson–Brobst–Hankinson (Tait) pressure correction against the reference equation of state",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 273.15,
+       "P_bar": 140,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 273.15,
+      "to": 274.15,
+      "points": 2,
+      "P_bar": 140
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 647.7
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 6.48
+   },
+   "source": "CoolProp 8.0.0 reference equation for ammonia: 647.70 kg/m³ at 140 bar (638.69 at 5 bar). Engine 644.36 (637.17); before round 11 the liquid density did not change with pressure. Tolerance 1 %.",
+   "id": "MB-384"
+  },
+  {
+   "desc": "compressed liquid (STEP 41): n-heptane at 25 °C and 200 bar, Peng–Robinson package — liquid density with the Thomson–Brobst–Hankinson (Tait) pressure correction against the reference equation of state",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 298.15,
+       "P_bar": 200,
+       "components": [
+        {
+         "key": "nC7H16",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 298.15,
+      "to": 299.15,
+      "points": 2,
+      "P_bar": 200
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 697.025
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 6.97
+   },
+   "source": "CoolProp 8.0.0 reference equation for n-heptane: 697.02 kg/m³ at 200 bar (679.60 at 1.01325 bar). Engine 702.22 (681.05); before round 11 the liquid density did not change with pressure. Tolerance 1 %.",
+   "id": "MB-385"
+  },
+  {
+   "desc": "compressed liquid (STEP 41): toluene at 77 °C and 200 bar, Peng–Robinson package — liquid density with the Thomson–Brobst–Hankinson (Tait) pressure correction against the reference equation of state",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 350,
+       "P_bar": 200,
+       "components": [
+        {
+         "key": "toluene",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 350,
+      "to": 351,
+      "points": 2,
+      "P_bar": 200
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 832.583
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 8.33
+   },
+   "source": "CoolProp 8.0.0 reference equation for toluene: 832.58 kg/m³ at 200 bar (812.95 at 1.01325 bar). Engine 838.49 (814.64); before round 11 the liquid density did not change with pressure. Tolerance 1 %.",
+   "id": "MB-386"
+  },
+  {
+   "desc": "compressed liquid (STEP 41): propane at 27 °C and 100 bar, Peng–Robinson package — liquid density with the Thomson–Brobst–Hankinson (Tait) pressure correction against the reference equation of state",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 300,
+      "to": 301,
+      "points": 2,
+      "P_bar": 100
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.rho_kgm3": 512.664
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.rho_kgm3": 5.13
+   },
+   "source": "CoolProp 8.0.0 reference equation for propane: 512.66 kg/m³ at 100 bar (491.06 at 15 bar). Engine 515.09 (492.00); before round 11 the liquid density did not change with pressure. Tolerance 1 %.",
+   "id": "MB-387"
+  },
+  {
+   "desc": "liquid thermal conductivity (STEP 41): ammonia at 0 °C, 5 bar — against the reference correlation (the generic databank correlation was 15 % low)",
+   "call": "runModule",
+   "args": [
+    "property-table",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 273.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "vary": "T",
+      "from": 273.15,
+      "to": 274.15,
+      "points": 2,
+      "P_bar": 5
+     }
+    }
+   ],
+   "expect": {
+    "details.rows.0.phases.liquid.k_WmK": 0.55947
+   },
+   "tol": {
+    "details.rows.0.phases.liquid.k_WmK": 0.0112
+   },
+   "source": "CoolProp 8.0.0 ammonia (Monogenidou, Assael & Huber 2018 conductivity): 0.5595 W/(m·K). Engine 0.5594 from a fit to the same correlation along saturation 196–385 K. Tolerance 2 %.",
+   "id": "MB-388"
+  },
+  {
+   "desc": "SRK k_ij (STEP 41): natural gas PT flash 230 K, 50 bar with the k_ij DWSIM 10 uses in its SRK package — same equation, same result",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 230,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "srk",
+       "kij": {
+        "C2H6|CH4": -0.0089,
+        "C3H8|CH4": 0.018,
+        "CH4|nC4H10": 0.0215,
+        "CH4|n-pentane": 0.018,
+        "CH4|N2": 0,
+        "CH4|CO2": 0,
+        "C2H6|C3H8": -0.0022,
+        "C2H6|nC4H10": 0.0052,
+        "C2H6|n-pentane": 0.0056,
+        "C2H6|N2": 0,
+        "C2H6|CO2": 0,
+        "C3H8|nC4H10": 0,
+        "C3H8|n-pentane": 0.0233,
+        "C3H8|N2": 0,
+        "C3H8|CO2": 0,
+        "n-pentane|nC4H10": 0.0204,
+        "N2|nC4H10": 0,
+        "CO2|nC4H10": 0,
+        "N2|n-pentane": 0,
+        "CO2|n-pentane": 0,
+        "CO2|N2": 0
+       }
+      },
+      "T_K": 230,
+      "P_bar": 50
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.911746,
+    "details.x.CH4": 0.453454
+   },
+   "tol": {
+    "details.vapour_fraction": 0.0001,
+    "details.x.CH4": 0.0001,
+    "default": 0
+   },
+   "source": "DWSIM 10.2.15 (headless MCP server): vapour fraction 0.91175, x CH₄ 0.45345. DWSIM's effective SRK k_ij were found by fitting the engine to 21 DWSIM binary bubble points: first DECHEMA set of ChemSep srk.ipd for hydrocarbon pairs, 0 for every N₂ and CO₂ pair. Engine 0.91176 / 0.45344.",
+   "id": "MB-389"
+  },
+  {
+   "desc": "SRK k_ij (STEP 41): the same flash with the engine’s own SRK table (DECHEMA sets measured at 250–450 K; methane–CO₂ 0.100, ethane–CO₂ 0.132, CO₂–n-pentane 0.137)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 230,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041453543541406
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.09316085351130426
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06830928418126755
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.030012713868960997
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.018627833172083066
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.028930706638659646
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.05681325427358389
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "srk"
+      },
+      "T_K": 230,
+      "P_bar": 50
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.920568,
+    "details.x.CH4": 0.456783
+   },
+   "tol": {
+    "details.vapour_fraction": 5e-05,
+    "details.x.CH4": 5e-05,
+    "default": 0
+   },
+   "source": "Regression of the round-11 SRK table (scripts/build-srk-kij.py from ChemSep srk.ipd). Plain k_ij = 0 gives 0.90891 / 0.46309; the Peng–Robinson table used for SRK before gave 0.92015 / 0.45715.",
+   "id": "MB-390"
+  },
+  {
+   "desc": "SRK k_ij (STEP 41): methane–propane 0.5 / 0.5 bubble point at 10 bar — SRK takes its DECHEMA value 0.018 (Peng–Robinson table 0.0119)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.26676466284437234
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.7332353371556277
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "srk"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 161.1114
+   },
+   "tol": {
+    "details.T_K": 0.01,
+    "default": 0
+   },
+   "source": "DWSIM 10.2.15 SRK, same feed: 161.1114 K (its k_ij for this pair is also 0.018). With the Peng–Robinson k_ij the engine gave 161.84 K.",
+   "id": "MB-391"
+  },
+  {
+   "desc": "heterogeneous bubble point (STEP 41): nitrogen / ethane 0.5 / 0.5 at 30 bar, Peng–Robinson — below the bubble point the feed is two liquids (a nitrogen-rich and an ethane-rich one); the first vapour forms when the nitrogen-rich liquid boils",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.4823044502293294
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.5176955497706707
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 30,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 124.5869,
+    "details.phases": "LL",
+    "details.vapour_fraction": 0
+   },
+   "tol": {
+    "details.T_K": 0.001,
+    "default": 0
+   },
+   "source": "Consistency: at 124.5869 K the nitrogen-rich liquid of the liquid–liquid split is exactly at its own bubble point (three phases in equilibrium), and below it the two liquids have the lower Gibbs energy. Before round 11 the bubble-point solver failed here (\"residual NaN\"); DWSIM 10 SRK (no N₂–ethane k_ij) returns 124.864 K, the bubble point of the single liquid, which is itself unstable — the engine’s SRK with the same k_ij = 0 gives 124.871 K, the split then being nearly gone.",
+   "id": "MB-392"
+  },
+  {
+   "desc": "heterogeneous bubble point (STEP 41): nitrogen / ethane 0.5 / 0.5 at 10 bar, Peng–Robinson — below the bubble point the feed is two liquids (a nitrogen-rich and an ethane-rich one); the first vapour forms when the nitrogen-rich liquid boils",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.4823044502293294
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.5176955497706707
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 104.2689,
+    "details.phases": "LL",
+    "details.vapour_fraction": 0
+   },
+   "tol": {
+    "details.T_K": 0.001,
+    "default": 0
+   },
+   "source": "Consistency: at 104.2689 K the nitrogen-rich liquid of the liquid–liquid split is exactly at its own bubble point (three phases in equilibrium), and below it the two liquids have the lower Gibbs energy. Before round 11 the engine returned 101.000 K — the bubble point of the feed as one liquid, which at that temperature splits into two.",
+   "id": "MB-393"
+  },
+  {
+   "desc": "heterogeneous bubble point (STEP 41): nitrogen / propane 0.5 / 0.5 at 30 bar, Peng–Robinson — below the bubble point the feed is two liquids (a nitrogen-rich and a propane-rich one); the first vapour forms when the nitrogen-rich liquid boils",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.3884868740379149
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.6115131259620852
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 30,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 123.6227,
+    "details.phases": "LL",
+    "details.vapour_fraction": 0
+   },
+   "tol": {
+    "details.T_K": 0.001,
+    "default": 0
+   },
+   "source": "Consistency: at 123.6227 K the nitrogen-rich liquid of the liquid–liquid split is exactly at its own bubble point (three phases in equilibrium), and below it the two liquids have the lower Gibbs energy. Before round 11 the bubble-point solver failed here.",
+   "id": "MB-394"
+  },
+  {
+   "desc": "heterogeneous bubble point (STEP 41): nitrogen / carbon dioxide 0.5 / 0.5 at 30 bar, Peng–Robinson — below the bubble point the feed is two liquids (a nitrogen-rich and a carbon dioxide-rich one); the first vapour forms when the nitrogen-rich liquid boils",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.38895129188077676
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.6110487081192232
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 30,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 123.9135,
+    "details.phases": "LL",
+    "details.vapour_fraction": 0
+   },
+   "tol": {
+    "details.T_K": 0.001,
+    "default": 0
+   },
+   "source": "Consistency: at 123.9135 K the nitrogen-rich liquid of the liquid–liquid split is exactly at its own bubble point (three phases in equilibrium), and below it the two liquids have the lower Gibbs energy. Solids are not modelled: carbon dioxide would freeze long before this temperature; the case checks the fluid-phase calculation only.",
+   "id": "MB-395"
+  },
+  {
+   "desc": "extended databank (ROUND 12): 2,3,3,3-tetrafluoropropene (R-1234yf) — bubble temperature at the reference vapour pressure for 300 K (7.18829 bar), Peng–Robinson",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 280,
+       "P_bar": 7.18828712555,
+       "components": [
+        {
+         "key": "2-3-3-3-tetrafluoropropene",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 7.18828712555,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 299.9967
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "Lemmon et al. (2022) reference equation of state in CoolProp 8.0: p_sat(300 K) = 7.18829 bar. The databank’s Wagner equation, fitted to that equation from 10 Pa to the critical point, returns 299.997 K (−0.003 K).",
+   "id": "MB-396"
+  },
+  {
+   "desc": "extended databank (ROUND 12): hexamethyldisiloxane (MM) — normal boiling point, Peng–Robinson",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 350,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "hexamethyldisiloxane",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 373.6453
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "Thol et al. (2016) reference equation of state in CoolProp 8.0: T_b = 373.658 K; engine −0.013 K.",
+   "id": "MB-397"
+  },
+  {
+   "desc": "extended databank (ROUND 12): octamethylcyclotetrasiloxane (D4) — normal boiling point, Peng–Robinson",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 400,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "octamethylcyclotetrasiloxane",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 448.8778
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "Thol (2015) reference equation of state in CoolProp 8.0: T_b = 448.891 K; engine −0.013 K.",
+   "id": "MB-398"
+  },
+  {
+   "desc": "extended databank (ROUND 12): 1,1,1,3,3-pentafluoropropane (R-245fa) liquid at 300 K and 5 bar — density (DIPPR-form saturated density + Tait), Peng–Robinson package",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "1-1-1-3-3-pentafluoropropane",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "P_bar": 5,
+      "T_K": 300
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.1.rig.props.rho_kgm3": 1334.442,
+    "streams_out.1.rig.phase": "L"
+   },
+   "tol": {
+    "streams_out.1.rig.props.rho_kgm3": 0.01,
+    "default": 0
+   },
+   "source": "Akasaka & Lemmon (2015) reference equation of state in CoolProp 8.0: ρ(300 K, 5 bar) = 1334.533 kg/m³; engine −0.007 %.",
+   "id": "MB-399"
+  },
+  {
+   "desc": "extended databank (ROUND 12): silane gas heated 300 → 800 K at 1 bar, 100 kg/h, ideal gas — duty from the NIST-JANAF heat capacity (refitted as DIPPR eq. 107)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "silane",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "ideal"
+      },
+      "T_out_K": 800,
+      "P_out_bar": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 26.6517
+   },
+   "tol": {
+    "details.duty_kW": 0.001
+   },
+   "source": "NIST-JANAF Thermochemical Tables (Chase 1998), SiH4 gas: ∫Cp dT from 300 to 800 K = 30.840 kJ/mol (cubic spline through the tabulated Cp), i.e. 26.673 kW for 100 kg/h; engine 30.815 kJ/mol (−0.08 %).",
+   "id": "MB-400"
+  },
+  {
+   "desc": "extended databank (ROUND 12): R-410A (difluoromethane / pentafluoroethane 50 / 50 by mass) at 0 °C — bubble pressure, Peng–Robinson with k_ij = 0 (no databank pair)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 273.15,
+       "P_bar": 8,
+       "components": [
+        {
+         "key": "difluoromethane",
+         "mass_fraction": 0.4999951944794182
+        },
+        {
+         "key": "pentafluoroethane",
+         "mass_fraction": 0.5000048055205818
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 273.15,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 8.015461
+   },
+   "tol": {
+    "details.P_bar": 0.0005
+   },
+   "source": "CoolProp 8.0 mixture model (Kunz–Wagner form with the Lemmon R-32 / R-125 parameters): bubble pressure 8.00702 bar at x(R-32) = 0.69761; engine +0.11 % — both pure fluids come from their reference equations, and the near-ideal pair needs no k_ij.",
+   "id": "MB-401"
+  },
+  {
+   "desc": "extended databank (ROUND 12): R-410A (difluoromethane / pentafluoroethane 50 / 50 by mass) at 0 °C — dew pressure, Peng–Robinson with k_ij = 0 (no databank pair)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 273.15,
+       "P_bar": 8,
+       "components": [
+        {
+         "key": "difluoromethane",
+         "mass_fraction": 0.4999951944794182
+        },
+        {
+         "key": "pentafluoroethane",
+         "mass_fraction": 0.5000048055205818
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 273.15,
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 7.983968
+   },
+   "tol": {
+    "details.P_bar": 0.0005
+   },
+   "source": "CoolProp 8.0 mixture model (Kunz–Wagner form with the Lemmon R-32 / R-125 parameters): dew pressure 7.98053 bar at x(R-32) = 0.69761; engine +0.04 % — both pure fluids come from their reference equations, and the near-ideal pair needs no k_ij.",
+   "id": "MB-402"
+  },
+  {
+   "desc": "extended databank (ROUND 12): 2-methyltetrahydrofuran / water heteroazeotrope at 1 atm (10.6 wt % water), Dortmund UNIFAC with vapour–liquid–liquid phases",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 0.106
+        },
+        {
+         "key": "2-methyltetrahydrofuran",
+         "mass_fraction": 0.894
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "modunifac",
+       "three_phase": true
+      },
+      "P_bar": 1.01325,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 342.1533,
+    "details.phases": "LL"
+   },
+   "tol": {
+    "details.T_K": 0.01,
+    "default": 0
+   },
+   "source": "Measured: azeotrope 71 °C with 10.6 wt % water; mutual solubilities at 20 °C 4.4 wt % water in 2-MeTHF and 14 wt % 2-MeTHF in water (International Furan Chemicals, 2-MeTHF product data sheet, 2022). Dortmund UNIFAC with the DDBST groups (CH3, THF, 2 cy-CH2) splits the liquid and boils at 69.0 °C, 2 K below the measurement; it under-predicts both solubilities (0.8 wt % and 7 wt %), so decanter designs need NRTL fitted to the solubility data.",
+   "id": "MB-403"
+  },
+  {
+   "desc": "extended databank (ROUND 12): property-info lists the source of every value of an extended-databank component (2-methyltetrahydrofuran) and marks ChemSep components as such",
+   "call": "runModule",
+   "args": [
+    "property-info",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 1,
+       "components": [
+        {
+         "key": "2-methyltetrahydrofuran",
+         "mass_fraction": 0.5
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.5
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "modunifac"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.components.0.data": "literature",
+    "details.components.0.sources.psat": "DIPPR eq. 101 fitted to the Antoine equation (Poling et al. 2001) within its range, the normal boiling point and the critical point",
+    "details.components.0.sources.modunifac": "DDBST group assignment (via thermo, MIT)",
+    "details.components.1.data": "ChemSep"
+   },
+   "tol": {
+    "default": 0
+   },
+   "source": "Consistency: the record carries the source of each value; the Antoine equation (Poling, Prausnitz & O’Connell, 5th ed.) covers 263–377 K and is extended to the critical point through the measured boiling point.",
+   "id": "MB-404"
+  },
+  {
+   "desc": "GERG-2008 (ROUND 12b): the 21-component test gas of the NIST AGA 8 reference code at 400 K and 500 bar — density",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 400,
+       "P_bar": 500,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.6077515124214085
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.02727327882592092
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.12854027335018597
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.1170984331709495
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.0643959037065398
+        },
+        {
+         "key": "isobutane",
+         "mass_fraction": 0.004243994748698679
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.008487989497397357
+        },
+        {
+         "key": "isopentane",
+         "mass_fraction": 0.0017560647706901223
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.005795013743277403
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.00901909788813361
+        },
+        {
+         "key": "nC7H16",
+         "mass_fraction": 0.004292404054354589
+        },
+        {
+         "key": "nC8H18",
+         "mass_fraction": 0.0013345266466905298
+        },
+        {
+         "key": "n-nonane",
+         "mass_fraction": 0.0009364992565557116
+        },
+        {
+         "key": "n-decane",
+         "mass_fraction": 0.0006233516153579053
+        },
+        {
+         "key": "H2",
+         "mass_fraction": 0.0003925239872318067
+        },
+        {
+         "key": "O2",
+         "mass_fraction": 0.007788345885316297
+        },
+        {
+         "key": "CO",
+         "mass_fraction": 0.0027270066012762737
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 8.769655853395815e-05
+        },
+        {
+         "key": "H2S",
+         "mass_fraction": 0.004147556807067117
+        },
+        {
+         "key": "He",
+         "mass_fraction": 0.0013638982819406448
+        },
+        {
+         "key": "Ar",
+         "mass_fraction": 0.0019446281824731897
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "gerg2008"
+      },
+      "P_bar": 500,
+      "T_K": 400
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.rig.props.rho_kgm3": 262.9119253517
+   },
+   "tol": {
+    "streams_out.0.rig.props.rho_kgm3": 1e-06
+   },
+   "source": "NIST AGA8 GERG2008 reference code, version 2.01 (GERG2008_test_01): D = 12.79828626082062 mol/l, i.e. 262.91192535 kg/m³ with the databank molar masses. The port reproduces every property of that test point (Z, h, s, c_v, c_p, w, μ_JT, κ) to 1e-14 or better; Z reported by the engine differs by 1.1e-6 because the engine’s R is the CODATA 2018 value (8.314462618) and GERG’s 8.314472.",
+   "id": "MB-405"
+  },
+  {
+   "desc": "GERG-2008 (ROUND 12b): natural gas C1 85 / C2 7 / C3 3 / nC4 1 / N2 2 / CO2 2 mol % — dew point at 30 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 260,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7144749008151351
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.11028455339675008
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.06931285599197429
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.03045363446178047
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.029355731325780544
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.046118324008579424
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "gerg2008"
+      },
+      "P_bar": 30,
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 245.5184
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "CoolProp 8.0 with the GERG-2008 mixing functions but the reference equations of the pure fluids: 245.613 K (Δ −0.09 K — the difference between GERG’s own pure-fluid equations and the reference ones for propane and butane). Peng–Robinson: 244.411 K.",
+   "id": "MB-406"
+  },
+  {
+   "desc": "GERG-2008 (ROUND 12b): methane / ethane 50 / 50 mol % — bubble point at 20 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 200,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.34790583693872457
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.6520941630612754
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "gerg2008"
+      },
+      "P_bar": 20,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 188.6782
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "CoolProp 8.0 (GERG-2008 mixture model on the reference pure-fluid equations): 188.681 K; engine −0.003 K. Peng–Robinson: 189.275 K.",
+   "id": "MB-407"
+  },
+  {
+   "desc": "GERG-2008 (ROUND 12b): methane / CO2 70 / 30 mol % — dew point at 40 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 240,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.4596209518997836
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.5403790481002165
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "gerg2008"
+      },
+      "P_bar": 40,
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 230.0361
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "CoolProp 8.0 (GERG-2008 mixture model on the reference pure-fluid equations): 230.031 K; engine +0.005 K. Peng–Robinson: 230.629 K.",
+   "id": "MB-408"
+  },
+  {
+   "desc": "GERG-2008 (ROUND 12b): natural gas compressor 30 → 90 bar, 10 t/h, isentropic efficiency 78 % (C1 75 / C2 10 / C3 7 / N2 4 / CO2 4 wt %) — power",
+   "call": "runModule",
+   "args": [
+    "compressor",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000,
+       "T_K": 300,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.75
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.1
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.07
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.04
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.04
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "gerg2008"
+      },
+      "P_out_bar": 90,
+      "efficiency": 0.78
+     }
+    }
+   ],
+   "expect": {
+    "details.power_kW": 562.076
+   },
+   "tol": {
+    "details.power_kW": 0.01
+   },
+   "source": "CoolProp 8.0, GERG-2008 mixture model on the reference pure-fluid equations: 562.083 kW, outlet 401.54 K; engine −0.001 % (outlet 401.48 K). Peng–Robinson: 559.22 kW.",
+   "id": "MB-409"
+  },
+  {
+   "desc": "reference equation of state (ROUND 12b): ammonia — saturation temperature at 10 bar (Gao et al. 2020)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 290,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 298.0627
+   },
+   "tol": {
+    "details.T_K": 0.0001
+   },
+   "source": "CoolProp 8.0, Gao et al. (2020) equation: 298.06270 K. The engine solves the saturation line from the equation itself (equal fugacities), so it agrees to the solver tolerance.",
+   "id": "MB-410"
+  },
+  {
+   "desc": "reference equation of state (ROUND 12b): CO2 let down from 100 bar, 300 K to 40 bar (Span–Wagner) — outlet temperature and vapour fraction",
+   "call": "runModule",
+   "args": [
+    "valve",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 100,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      },
+      "P_out_bar": 40
+     }
+    }
+   ],
+   "expect": {
+    "details.T_out_K": 278.4497,
+    "streams_out.0.vapour_fraction": 0.226775
+   },
+   "tol": {
+    "details.T_out_K": 0.0001,
+    "streams_out.0.vapour_fraction": 1e-06
+   },
+   "source": "CoolProp 8.0, Span & Wagner (1996): isenthalpic outlet 278.44972 K, quality 0.226775.",
+   "id": "MB-411"
+  },
+  {
+   "desc": "reference equation of state (ROUND 12b): hydrogen at 300 K and 700 bar (Leachman et al. 2009, normal hydrogen) — density",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 100,
+       "T_K": 300,
+       "P_bar": 700,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      },
+      "P_bar": 700,
+      "T_K": 300
+     }
+    }
+   ],
+   "expect": {
+    "streams_out.0.rig.props.rho_kgm3": 39.0528
+   },
+   "tol": {
+    "streams_out.0.rig.props.rho_kgm3": 0.0001
+   },
+   "source": "CoolProp 8.0, Leachman et al. (2009): 39.05280 kg/m³. Peng–Robinson: 4.5 % low with volume translation, 5.2 % high without.",
+   "id": "MB-412"
+  },
+  {
+   "desc": "Peng–Robinson 1978 (ROUND 12c): propane / n-hexadecane 60 / 40 mol % — bubble point at 10 bar (n-hexadecane ω = 0.72, so the 1978 α applies)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.2260659762
+        },
+        {
+         "key": "n-hexadecane",
+         "mass_fraction": 0.7739340238
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr78"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 326.6103
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Peng–Robinson 1978: 326.605 K (engine +0.005 K). Original Peng–Robinson: engine 326.731 K, DWSIM 326.726 K.",
+   "id": "MB-413"
+  },
+  {
+   "desc": "Peng–Robinson 1978 (ROUND 12c): propane / n-hexadecane 60 / 40 mol % — dew point at 10 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.2260659762
+        },
+        {
+         "key": "n-hexadecane",
+         "mass_fraction": 0.7739340238
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr78"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 1
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 621.9977
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Peng–Robinson 1978: 621.989 K (engine +0.008 K). Original Peng–Robinson: 621.103 K (DWSIM 621.094 K) — the 1978 α moves the dew point of the heavy end by 0.9 K.",
+   "id": "MB-414"
+  },
+  {
+   "desc": "PRSV2 (ROUND 12c): n-hexane / n-octane 50 / 50 mol % — bubble point at 0.2 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 0.2,
+       "components": [
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.4300084839
+        },
+        {
+         "key": "nC8H18",
+         "mass_fraction": 0.5699915161
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "prsv2"
+      },
+      "P_bar": 0.2,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 312.719
+   },
+   "tol": {
+    "details.T_K": 0.001
+   },
+   "source": "Raoult’s law with the databank vapour pressures (exact at this pressure but for a small non-ideality): 312.557 K. PRSV2 with κ1–κ3 fitted to those vapour pressures: 312.719 K; Peng–Robinson 311.969 K (DWSIM PR 311.963 K, DWSIM PRSV2 with its own κ table 311.962 K).",
+   "id": "MB-415"
+  },
+  {
+   "desc": "Lee–Kesler–Plöcker (ROUND 12c): methane / propane 30 / 70 mol % — bubble point at 30 bar (k_ij 1.1132 fitted to GERG-2008)",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 250,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.1348873947
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.8651126053
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "lkp"
+      },
+      "P_bar": 30,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 234.5773
+   },
+   "tol": {
+    "details.T_K": 0.002
+   },
+   "source": "GERG-2008: 231.347 K; DWSIM 10 (headless MCP server, same inputs), Lee–Kesler–Plöcker with its own k_ij: 233.833 K; Peng–Robinson 232.040 K. With k_ij = 1 Lee–Kesler–Plöcker gives 184.4 K.",
+   "id": "MB-416"
+  },
+  {
+   "desc": "Lee–Kesler–Plöcker (ROUND 12c): propane / n-hexane 50 / 50 mol % — bubble point at 10 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.3384915044
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.6615084956
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "lkp"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 332.6345
+   },
+   "tol": {
+    "details.T_K": 0.002
+   },
+   "source": "GERG-2008: 332.908 K; DWSIM 10 (headless MCP server, same inputs), Lee–Kesler–Plöcker: 336.195 K; Peng–Robinson 335.262 K.",
+   "id": "MB-417"
+  },
+  {
+   "desc": "Lee–Kesler–Plöcker (ROUND 12c): natural gas (C1 85 / C2 6 / C3 3 / nC4 1 / nC5 0.5 / N2 2 / CO2 2.5 mol %) at 220 K and 40 bar — vapour fraction and K of methane",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 220,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.7041408338
+        },
+        {
+         "key": "C2H6",
+         "mass_fraction": 0.0931623538
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.0683103243
+        },
+        {
+         "key": "nC4H10",
+         "mass_fraction": 0.0300131573
+        },
+        {
+         "key": "n-pentane",
+         "mass_fraction": 0.0186281032
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.0289311341
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.0568140936
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "lkp"
+      },
+      "T_K": 220,
+      "P_bar": 40
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.891506,
+    "details.K.CH4": 1.97324
+   },
+   "tol": {
+    "details.vapour_fraction": 1e-05,
+    "details.K.CH4": 0.0001
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Lee–Kesler–Plöcker: vapour fraction 0.89066, K(CH4) 1.9795. GERG-2008: 0.90216, 2.0443.",
+   "id": "MB-418"
+  },
+  {
+   "desc": "Lee–Kesler–Plöcker (ROUND 12c): n-hexane liquid heated 300 → 400 K at 20 bar — duty per kg/s",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 300,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "nC6H14",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "lkp"
+      },
+      "T_out_K": 400
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": 252.1898
+   },
+   "tol": {
+    "details.duty_kW": 0.01
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Lee–Kesler–Plöcker: 252.193 kJ/kg (engine −0.001 %). Peng–Robinson: 245.62 kJ/kg (both programs).",
+   "id": "MB-419"
+  },
+  {
+   "desc": "Chao–Seader (ROUND 12c): propane / n-hexane 50 / 50 mol % — bubble point at 10 bar",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 300,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.3384915044
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.6615084956
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "chao-seader"
+      },
+      "P_bar": 10,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.T_K": 336.0873
+   },
+   "tol": {
+    "details.T_K": 0.002
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Chao–Seader: 336.063 K (engine +0.025 K); dew point 403.867 K (engine 403.961 K).",
+   "id": "MB-420"
+  },
+  {
+   "desc": "Grayson–Streed (ROUND 12c): hydrotreater effluent (H2 50 / CH4 10 / C3 5 / nC6 15 / toluene 10 / nC10 10 mol %) at 450 K and 50 bar — vapour fraction and K of hydrogen",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 450,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.0244733046
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.0389519227
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.0535332232
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.3138573477
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.2237168742
+        },
+        {
+         "key": "n-decane",
+         "mass_fraction": 0.3454673276
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "grayson-streed"
+      },
+      "T_K": 450,
+      "P_bar": 50
+     }
+    }
+   ],
+   "expect": {
+    "details.vapour_fraction": 0.740846,
+    "details.K.H2": 14.81703
+   },
+   "tol": {
+    "details.vapour_fraction": 1e-05,
+    "details.K.H2": 0.001
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Grayson–Streed: vapour fraction 0.73838, K(H2) 14.904 (engine 0.74085, 14.817); K(n-hexane) 0.3338 and K(n-decane) 0.0412 within 0.3 % and 0.5 %; K(CH4) 7 % higher than DWSIM.",
+   "id": "MB-421"
+  },
+  {
+   "desc": "Chao–Seader (ROUND 12c): hydrotreater effluent cooled 450 → 350 K at 50 bar — duty per kg/s (liquid enthalpy from Lee–Kesler)",
+   "call": "runModule",
+   "args": [
+    "heater",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3600,
+       "T_K": 450,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.0244733046
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.0389519227
+        },
+        {
+         "key": "C3H8",
+         "mass_fraction": 0.0535332232
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.3138573477
+        },
+        {
+         "key": "toluene",
+         "mass_fraction": 0.2237168742
+        },
+        {
+         "key": "n-decane",
+         "mass_fraction": 0.3454673276
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "chao-seader"
+      },
+      "T_out_K": 350
+     }
+    }
+   ],
+   "expect": {
+    "details.duty_kW": -344.1481
+   },
+   "tol": {
+    "details.duty_kW": 0.01
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Chao–Seader: −344.81 kJ/kg (engine −0.19 %). Grayson–Streed −345.02 (engine −344.71), Lee–Kesler–Plöcker −336.14 (engine −336.79), Peng–Robinson −341.49 (engine −341.48).",
+   "id": "MB-422"
+  },
+  {
+   "desc": "Bubble pressure by PT-flash scan (ROUND 12c): methane / n-hexane 15 / 85 mol % at 355.3 K, Peng–Robinson — the Newton solution lands on the trivial one here",
+   "call": "runModule",
+   "args": [
+    "r-flash",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 355.3,
+       "P_bar": 30,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 0.031806959
+        },
+        {
+         "key": "nC6H14",
+         "mass_fraction": 0.968193041
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "T_K": 355.3,
+      "vapour_fraction": 0
+     }
+    }
+   ],
+   "expect": {
+    "details.P_bar": 40.2802
+   },
+   "tol": {
+    "details.P_bar": 0.001
+   },
+   "source": "DWSIM 10 (headless MCP server, same inputs), Peng–Robinson: 40.279 bar (engine 40.280). GERG-2008 39.0 bar. Before round 12c the engine reported no bubble point.",
+   "id": "MB-423"
   }
  ]
 }
