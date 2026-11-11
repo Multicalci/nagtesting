@@ -429,6 +429,7 @@ async function handleComponents(res) {
   }
   // STEP 22: append the rigorous (ChemSep) databank — keys already in the
   // picker are flagged rigorous, the rest are added with their family
+  // (ROUND 12: and the extended literature databank, data_quality 'literature')
   try {
     // mw_r: the databank molecular weight the property-method units use for
     // mass ↔ mole conversion (differs from the classic table by ~1e-5)
@@ -441,7 +442,7 @@ async function handleComponents(res) {
       const r = compdb.get(key);
       if (r.pseudo || r.user) continue;             // STEP 34/37: run-time pseudo / user components stay out of the picker
       components.push({ key, name: r.name, formula: r.formula || null, mw: r.mw, mw_r: r.mw, category: r.cat || 'other',
-        nonvolatile: false, data_quality: 'chemsep', rigorous: true });
+        nonvolatile: false, data_quality: r.ext ? 'literature' : 'chemsep', rigorous: true });
     }
   } catch (_e) { /* picker still works without the databank */ }
   sendJson(res, 200, {
