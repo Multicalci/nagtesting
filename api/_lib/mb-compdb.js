@@ -12,7 +12,10 @@
 // assignments: thermo.unifac (MIT), from the published Hansen et al. (1991),
 // Wittig et al. (2003) and Constantinescu & Gmehling (2016) parameter sets.
 // Server-side only (api/_lib) — never shipped to the browser.
+// Round 12 (added by hand at the end of the file): the extended databank in
+// mb-compdb-ext.js is merged after the ChemSep components.
 // ============================================================================
+import ext from './mb-compdb-ext.js';
 // Units: T K, P Pa, Vc m3/kmol, energies J/kmol, entropy J/(kmol K).
 // Correlations: [eqno, A, B, C, D, E, Tmin, Tmax] in ChemSep form
 // (psat Pa, cpig/cpl J/(kmol K), hvap J/kmol, rhol kmol/m3, mul/muv Pa s,
@@ -793,11 +796,21 @@ const COMPS = {"air":{"name":"Air","cas":"132259-10-0","formula":"N2O2Ar(air)","
 
 const BY_CAS = {};
 for (const k of Object.keys(COMPS)) { if (COMPS[k].cas) BY_CAS[COMPS[k].cas] = k; }
+// ROUND 12: extended databank (measured / evaluated literature data via the chemicals library, MIT) after ChemSep
+for (const [k, v] of Object.entries(ext.EXT_COMPS)) {
+  if (COMPS[k] || (v.cas && BY_CAS[v.cas])) continue;
+  COMPS[k] = v;
+  if (v.cas) BY_CAS[v.cas] = k;
+}
 
 export const CHEMSEP_VERSION = 'ChemSep v8.32 (2022)';
+export const EXT_SOURCES = ext.EXT_SOURCES;
+export const EXT_VERSION = ext.EXT_VERSION;
 export default {
   COMPS,
   CHEMSEP_VERSION,
+  EXT_SOURCES,
+  EXT_VERSION,
   get: (key) => COMPS[key] || null,
   has: (key) => Object.prototype.hasOwnProperty.call(COMPS, key),
   keys: () => Object.keys(COMPS),

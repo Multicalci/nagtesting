@@ -37,12 +37,17 @@ import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
 import groupTables from './mb-groups.js';      // STEP 37 — complete UNIFAC / Dortmund tables
 import bipExtra from './mb-bip-extra.js';
+import bipSRK from './mb-bip-srk.js';      // round 11: SRK k_ij of their own (ChemSep srk.ipd, DECHEMA)
 import mbData from './mb-data.js';
 import { makeElectrolyte, ELECTROLYTE_MODELS, ELECTROLYTE_KEYS, ELECTROLYTE_SALTS } from './mb-electrolyte.js';
 import { makeUreaLiquid, UREA_MODEL_LABEL, UREA_KEYS, UREA_OWNED, UREA_INERTS } from './mb-ureathermo.js';
 import steam from './steam-if97.js';
+import gerg from './mb-gerg.js';                // ROUND 12b — GERG-2008 (NIST AGA8 reference code, public domain)
+import helm from './mb-helmholtz.js';           // ROUND 12b — reference equations of state of pure fluids
+import prsv2 from './mb-prsv2.js';              // ROUND 12c — PRSV2 κ1, κ2, κ3 fitted to the databank vapour pressures
+import lkpKij from './mb-lkp-kij.js';                       // ROUND 12c: LKP binary parameters
 
-export const THERMO_VERSION = 'mb-thermo 1.8.0';
+export const THERMO_VERSION = 'mb-thermo 1.9.0';
 // STEP 32: calibrated / sourced binary parameters that fill gaps in the ChemSep tables
 export const BIP_EXTRA_USED = bipExtra.applyExtra(bip);
 
@@ -67,7 +72,11 @@ const num = (x) => typeof x === 'number' && isFinite(x);
 /**
  * Evaluate a ChemSep correlation [eq, A, B, C, D, E, Tmin, Tmax] at T.
  * Supported eq numbers: 1-5 (polynomials), 10 (Antoine), 16, 100, 101, 102,
- * 104, 105, 106, 116, 200 (Wagner 2.5-5, E = Pc). Tc is needed for 106/116/200.
+ * 104, 105, 106, 107 (Aly–Lee ideal-gas Cp), 116, 117 (PPDS 12 heat of
+ * vaporisation, J/kmol), 200 (Wagner 2.5-5, E = Pc) and 201 (Wagner 1.5-3-6,
+ * E = Pc). Tc is needed for 106/116/117/200/201; a ninth element c[8], where
+ * present (round-12 databank), is the Tc the correlation was fitted with and
+ * is used in its place so the curve reproduces its source exactly.
  * @param {Array<number>} c
  * @param {number} T
  * @param {number} [Tc]
@@ -75,6 +84,7 @@ const num = (x) => typeof x === 'number' && isFinite(x);
  */
 export function corr(c, T, Tc) {
   const [eq, A, B, C, D, E] = c;
+  if (c[8] > 0) Tc = c[8];
   switch (eq) {
     case 1: return A;
     case 2: return A + B * T;
@@ -96,14 +106,26 @@ export function corr(c, T, Tc) {
       if (Tr >= 1) return 0;
       return A * Math.pow(1 - Tr, B + Tr * (C + Tr * (D + E * Tr)));
     }
+    case 107: {
+      const x = C / T, y = E / T;
+      return A + B * Math.pow(x / Math.sinh(x), 2) + D * Math.pow(y / Math.cosh(y), 2);
+    }
     case 116: {
       const tau = Math.max(1 - T / Tc, 0);
       return A + B * Math.pow(tau, 0.35) + C * Math.pow(tau, 2 / 3) + D * tau + E * Math.pow(tau, 4 / 3);
+    }
+    case 117: {
+      const tau = Math.max(1 - T / Tc, 0);
+      return 1000 * R * Tc * (A * Math.cbrt(tau) + B * Math.pow(tau, 2 / 3) + C * tau + D * tau * tau + E * Math.pow(tau, 6));
     }
     case 200: {
       const tau = 1 - T / Tc;
       return E * Math.exp((Tc / T) * (A * tau + B * Math.pow(Math.abs(tau), 1.5) * Math.sign(tau) +
         C * Math.pow(Math.abs(tau), 2.5) * Math.sign(tau) + D * Math.pow(tau, 5)));
+    }
+    case 201: {
+      const tau = 1 - T / Tc;
+      return E * Math.exp((Tc / T) * (A * tau + B * Math.pow(Math.abs(tau), 1.5) * Math.sign(tau) + C * Math.pow(tau, 3) + D * Math.pow(tau, 6)));
     }
     default:
       return fail('TH_EQ', `unsupported ChemSep equation ${eq}`);
@@ -140,8 +162,18 @@ function prepComponent(key, c) {
   // equilibrium constant 2–5 % off NIST.
   const nd = mbData.get(key);
   if (nd && nd.data_quality === 'nist' && Array.isArray(nd.shomate) && nd.shomate.length && num(nd.hf_gas_298)) c._nist = nistShomate(nd, c._cp);
+  // STEP 41: property curves replaced where a reference correlation is markedly better
+  if (KL_REF[key]) c.kl = KL_REF[key];
   c._prep = true;
 }
+/**
+ * STEP 41: liquid thermal conductivity, DIPPR eq. 100 fitted to the reference correlation in CoolProp
+ * (ammonia: Monogenidou, Assael & Huber, J. Phys. Chem. Ref. Data 47 (2018) 043101) along the saturated
+ * liquid, 200–385 K, within 0.35 %. ChemSep's curve is 4 % low at 0 °C and 7 % low at −23 °C.
+ */
+const KL_REF = {
+  NH3: [100, 1.90267907, -7.67009413e-3, 1.31911417e-5, -1.14054348e-8, 0, 196, 385],
+};
 
 /**
  * NIST Shomate ideal-gas H, S on the formation basis. Below the lowest fitted
@@ -285,11 +317,25 @@ function liquidVolume(comps, T, P, x, eos, method) {
   const n = comps.length;
   // STEP 40: the method can be chosen — 'rackett' (Spencer–Danner mixture), 'costald' (always), 'eos' (the cubic's liquid root)
   if (method === 'eos' && eos) return eos.state(T, P, x, 'L').V;
-  if (method === 'rackett') return rackettMix(comps, T, x);
-  let light = method === 'costald';
-  for (let i = 0; i < n; i++) if (x[i] > 1e-4 && T > 0.95 * comps[i].Tc) light = true;
-  if (!light) {
-    let v = 0; for (let i = 0; i < n; i++) if (x[i] > 0) v += x[i] * vLiq(comps[i], T);
+  if (method === 'rackett') {
+    let wm = 0, pcm = 0, xt = 0; for (let i = 0; i < n; i++) if (x[i] > 0) { xt += x[i]; wm += x[i] * comps[i].omega; pcm += x[i] * comps[i].Pc; }
+    return rackettMix(comps, T, x) * mixTait(comps, T, P, x, rackettTcm(comps, x), wm / xt, pcm / xt);
+  }
+  // STEP 41: gases dissolved above (or near) their critical temperature — H2, N2, CH4, Ar in liquid ammonia, CO2 in
+  // water — take a partial molar volume of ½ V_c while they are dilute (< 10 mol %), and the solvent keeps its own
+  // density correlation; each subcritical liquid is compressed from its vapour pressure by the Tait form of COSTALD
+  let xl = 0, xt = 0;
+  for (let i = 0; i < n; i++) if (x[i] > 0) { xt += x[i]; if (x[i] > 1e-4 && T > 0.95 * comps[i].Tc) xl += x[i]; }
+  if (method !== 'costald' && (xl === 0 || xl < 0.1 * xt)) {
+    let v = 0;
+    for (let i = 0; i < n; i++) {
+      if (!(x[i] > 0)) continue;
+      const c = comps[i];
+      if (T > 0.95 * c.Tc) { v += x[i] * (T < c.Tc ? vLiq(c, 0.95 * c.Tc) : 0.5 * (c.vc || 0.1) / 1000); continue; }
+      let vi = vLiq(c, T);
+      if (P > 1e5) vi *= taitFactor(T, P, psatSafe(c, T), c.Tc, c.Pc, c.omega);
+      v += x[i] * vi;
+    }
     return v;
   }
   const Vs = comps.map((c) => (num(c.vcost) ? c.vcost / 1000 : (c.vc || 0.1) / 1000));       // m3/mol
@@ -306,7 +352,46 @@ function liquidVolume(comps, T, P, x, eos, method) {
   const V0 = 1 - 1.52816 * Math.cbrt(t) + 1.43907 * Math.pow(t, 2 / 3) - 0.81446 * t + 0.190454 * Math.pow(t, 4 / 3);
   const Trc = Math.min(Math.max(Tr, 0.25), 0.99);
   const Vd = (-0.296123 + 0.386914 * Trc - 0.0427258 * Trc * Trc - 0.0480645 * Trc * Trc * Trc) / (Trc - 1.00001);
-  return Vm * V0 * (1 - wm * Vd);
+  const Pcm = (0.291 - 0.080 * wm) * R * Tcm / Vm;
+  return Vm * V0 * (1 - wm * Vd) * mixTait(comps, T, P, x, Tcm, wm, Pcm);
+}
+
+/**
+ * STEP 41: compressed-liquid volume factor V(P)/V(Ps), Thomson, Brobst & Hankinson, AIChE J. 28 (1982) 671
+ * (Tait form; Poling, Prausnitz & O'Connell 5th ed. eqs 4-12.2 to 4-12.4). Against the reference equations of
+ * state in CoolProp it brings liquid densities at 100–300 bar within about 1.5 % (ammonia at 140 bar, 0 °C: −0.3 %).
+ */
+function taitFactor(T, P, Ps, Tc, Pc, w) {
+  if (!(P > Ps) || !(T < Tc) || !(Pc > 0)) return 1;
+  const tau = 1 - T / Tc;
+  const e = Math.exp(4.79594 + 0.250047 * w + 1.14188 * w * w);
+  const beta = Pc * (-1 - 9.070217 * Math.cbrt(tau) + 62.45326 * Math.pow(tau, 2 / 3) - 135.1102 * tau + e * Math.pow(tau, 4 / 3));
+  if (!(beta + Ps > 0)) return 1;
+  const f = 1 - (0.0861488 + 0.0344483 * w) * Math.log((beta + P) / (beta + Ps));
+  return f > 0.5 && f <= 1 ? f : 1;
+}
+/** vapour pressure for the Tait correction; above Tc (a pseudo value) from the Wilson form */
+function psatSafe(c, T) {
+  if (T < c.Tc) { try { const p = psat(c, T); if (p > 0 && isFinite(p)) return p; } catch (_e) { /* Wilson below */ } }
+  return c.Pc * Math.exp(5.373 * (1 + c.omega) * (1 - c.Tc / T));
+}
+/** Tait factor of a mixture on pseudo-critical constants, with a Raoult bubble pressure */
+function mixTait(comps, T, P, x, Tcm, wm, Pcm) {
+  if (!(P > 1e5) || !(T < Tcm)) return 1;
+  let ps = 0, xt = 0;
+  for (let i = 0; i < comps.length; i++) if (x[i] > 0) { xt += x[i]; ps += x[i] * psatSafe(comps[i], T); }
+  return taitFactor(T, P, ps / xt, Tcm, Pcm, wm);
+}
+function rackettTcm(comps, x) {
+  const n = comps.length, vc = comps.map((c) => (c.vc || 0.1) / 1000);
+  let sv = 0; for (let i = 0; i < n; i++) if (x[i] > 0) sv += x[i] * vc[i];
+  let Tcm = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (!(x[i] > 0 && x[j] > 0)) continue;
+    const kij1 = i === j ? 1 : 8 * Math.sqrt(vc[i] * vc[j]) / (Math.cbrt(vc[i]) + Math.cbrt(vc[j])) ** 3;
+    Tcm += (x[i] * vc[i] / sv) * (x[j] * vc[j] / sv) * kij1 * Math.sqrt(comps[i].Tc * comps[j].Tc);
+  }
+  return Tcm;
 }
 
 /**
@@ -357,7 +442,24 @@ function rackettMix(comps, T, x) {
 const EOS = {
   pr: { OA: 0.45723553, OB: 0.07779607, u: 2, w: -1, m: (w) => 0.37464 + 1.54226 * w - 0.26992 * w * w },
   srk: { OA: 0.42748023, OB: 0.08664035, u: 1, w: 0, m: (w) => 0.480 + 1.574 * w - 0.176 * w * w },
+  // ROUND 12c — PR78 (Robinson & Peng 1978): heavier compounds (ω > 0.491) take the cubic m(ω)
+  pr78: { OA: 0.45723553, OB: 0.07779607, u: 2, w: -1, m: (w) => (w <= 0.491 ? 0.37464 + 1.54226 * w - 0.26992 * w * w : 0.379642 + 1.48503 * w - 0.164423 * w * w + 0.016666 * w * w * w) },
+  // PRSV2 (Stryjek & Vera 1986): κ = κ0(ω) + [κ1 + κ2(κ3 − Tr)(1 − √Tr)](1 + √Tr)(0.7 − Tr) below Tr = 0.7
+  prsv2: { OA: 0.45723553, OB: 0.07779607, u: 2, w: -1, m: (w) => 0.378893 + 1.4897153 * w - 0.17131848 * w * w + 0.0196554 * w * w * w, alpha: prsv2Alpha },
+  // Redlich–Kwong (vapour phase of Chao–Seader and Grayson–Streed): α = Tr^−½
+  rk: { OA: 0.42748023, OB: 0.08664035, u: 1, w: 0, m: () => 0, alpha: (c, T) => { const tr = T / c.Tc; return [1 / Math.sqrt(tr), -0.5 * Math.pow(tr, -1.5) / c.Tc]; } },
 };
+function prsv2Alpha(c, T, k0) {
+  const k = prsv2.PRSV2[c.key] || [0, 0, 0];
+  const al = (t) => {
+    const tr = t / c.Tc, sr = Math.sqrt(tr);
+    const kap = k0 + (tr < 0.7 ? (k[0] + k[1] * (k[2] - tr) * (1 - sr)) * (1 + sr) * (0.7 - tr) : 0);
+    const a = 1 + kap * (1 - sr);
+    return a * a;
+  };
+  const h = 1e-5 * T;
+  return [al(T), (al(T + h) - al(T - h)) / (2 * h)];
+}
 
 /** Real roots of x³ + a x² + b x + c = 0 (ascending). */
 function cubicRoots(a, b, c) {
@@ -395,9 +497,240 @@ function cubicRoots(a, b, c) {
   return roots.sort((x, y) => x - y);
 }
 
-function makeEOS(kind, comps, kij) {
+/**
+ * STEP 41: volume translation of the cubic equations for the permanent gases (V = V_EOS − Σ x_i c_i, Péneloux et al.,
+ * Fluid Phase Equilib. 8 (1982) 7). c_i fitted here to the reference equations of state in CoolProp over 250–800 K
+ * (above 1.3 T_c) and 10–300 bar. Peng–Robinson under-predicts the molar volume of these gases by 3–7 cm³/mol, so
+ * hydrogen-rich gas came out about 4 % dense; with the shift the mean error is 0.2–0.9 %. Fugacities of all phases move
+ * by the same c_i P/RT, so phase equilibrium is unchanged; enthalpy moves by −P Σ x_i c_i, which corrects compressor
+ * work (pure H₂ or N₂ from 30 to 150 bar: −1.1 % → 0.0 % against CoolProp); entropy is unchanged. Reaction equilibria
+ * do move, by Σ ν_i c_i P/RT: ammonia at 450 °C goes from 35.41 to 36.29 mol % at 300 atm (measured 35.8) and from
+ * 64.1 to 66.6 mol % at 1000 atm (measured 69.7). volume_translation:false gives the plain cubic equation.
+ */
+const VT_C = {      // cm³/mol
+  pr: { H2: -4.998, He: -5.387, N2: -4.545, O2: -3.860, Ar: -4.055, CH4: -5.455, CO: -4.420 },
+  srk: { H2: -0.398, He: 0.806, N2: 1.900, O2: 2.306, Ar: 2.239, CH4: 3.179, CO: 2.266 },
+};
+VT_C.pr78 = VT_C.pr;
+VT_C.prsv2 = VT_C.pr;         // same cubic as PR (the shift does not depend on α)          // PR78 differs from PR only for ω > 0.491: the light gases keep the PR shifts
+
+// ---------------------------------------------------------------------------
+// ROUND 12c — Lee–Kesler–Plöcker: Lee & Kesler (AIChE J. 21 (1975) 510)
+// simple-fluid and reference-fluid (n-octane, ω_r = 0.3978) BWR equations in
+// reduced variables, Plöcker, Knapp & Prausnitz (Ind. Eng. Chem. Process Des.
+// Dev. 17 (1978) 324) mixing rules (η = 0.25, k_ij from mb-lkp-kij.js). ln φ_i
+// from the composition derivative of n·G_res/RT at constant T, P,
+// ∂(n g)/∂n_i = g + ∂g/∂x_i − Σ x_k ∂g/∂x_k, with ∂g/∂x_k analytic through
+// T_r, P_r and ω (∂ln f/∂T_r = −h/T_r², ∂ln f/∂P_r = (Z − 1)/P_r).
+// ---------------------------------------------------------------------------
+const LK_SIMPLE = { b1: 0.1181193, b2: 0.265728, b3: 0.154790, b4: 0.030323, c1: 0.0236744, c2: 0.0186984, c3: 0, c4: 0.042724, d1: 0.155488e-4, d2: 0.623689e-4, beta: 0.65392, gamma: 0.060167 };
+const LK_REF = { b1: 0.2026579, b2: 0.331511, b3: 0.027655, b4: 0.203488, c1: 0.0313385, c2: 0.0503618, c3: 0.016901, c4: 0.041577, d1: 0.48736e-4, d2: 0.0740336e-4, beta: 1.226, gamma: 0.03754 };
+const LK_OMR = 0.3978;
+/** one LK fluid at Tr, Pr on a branch: {Z, lnf = ln(f/P), h = (H − H_ig)/(R Tc)} or null */
+function lkFluid(F, Tr, Pr, phase) {
+  const B = F.b1 - F.b2 / Tr - F.b3 / (Tr * Tr) - F.b4 / (Tr * Tr * Tr), C = F.c1 - F.c2 / Tr + F.c3 / (Tr * Tr * Tr), D = F.d1 + F.d2 / Tr;
+  const e4 = F.c4 / (Tr * Tr * Tr);
+  const P = (r) => { const ex = Math.exp(-F.gamma * r * r); return Tr * (r + B * r * r + C * r * r * r + D * r ** 6 + e4 * (F.beta * r ** 3 + F.gamma * r ** 5) * ex); };
+  const dP = (r) => { const ex = Math.exp(-F.gamma * r * r); return Tr * (1 + 2 * B * r + 3 * C * r * r + 6 * D * r ** 5 + e4 * ((3 * F.beta * r * r + 5 * F.gamma * r ** 4) - 2 * F.gamma * r * (F.beta * r ** 3 + F.gamma * r ** 5)) * ex); };
+  let r;
+  if (phase === 'L') {
+    r = 12;
+    for (let k = 0; k < 80 && !(P(r) > Pr); k++) r *= 1.1;
+    let ok = false;
+    for (let it = 0; it < 200; it++) { const d = dP(r); if (!(d > 0)) break; const st = (P(r) - Pr) / d; r -= st; if (Math.abs(st) < 1e-12 * r) { ok = true; break; } }
+    if (!ok || !(r > 0)) return null;
+  } else {
+    r = Pr / Tr;
+    for (let k = 0; k < 60 && !(P(r) < Pr); k++) r *= 0.9;
+    let ok = false;
+    for (let it = 0; it < 200; it++) { const d = dP(r); if (!(d > 0)) break; const st = (Pr - P(r)) / d; r += st; if (!(r > 0)) break; if (Math.abs(st) < 1e-12 * r) { ok = true; break; } }
+    if (!ok) return null;
+  }
+  const Vr = 1 / r, Z = Pr * Vr / Tr;
+  const gv = F.gamma / (Vr * Vr), ex = Math.exp(-gv);
+  const E = F.c4 / (2 * Tr * Tr * Tr * F.gamma) * (F.beta + 1 - (F.beta + 1 + gv) * ex);
+  const lnf = Z - 1 - Math.log(Z) + B / Vr + C / (2 * Vr * Vr) + D / (5 * Vr ** 5) + E;
+  const h = Tr * (Z - 1 - (F.b2 + 2 * F.b3 / Tr + 3 * F.b4 / (Tr * Tr)) / (Tr * Vr) - (F.c2 - 3 * F.c3 / (Tr * Tr)) / (2 * Tr * Vr * Vr) + F.d2 / (5 * Tr * Vr ** 5) + 3 * E);
+  return { Z, lnf, h, r };
+}
+/** LKP k_ij matrix: user value → fitted table → correlation (hydrocarbon pairs and light gases with
+ *  hydrocarbons) → 1. Returns the matrix; notes estimated pairs in `warnings` when asked. */
+function lkpKmat(keys, comps, s, warnings, src) {
+  const n = keys.length, K = [], est = [];
+  const user = (s && s.lkp_kij) || {};
+  for (let i = 0; i < n; i++) {
+    K.push(new Array(n).fill(1));
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const [a, b] = [keys[i], keys[j]].sort(), pair = a + '|' + b;
+      const note = (t) => { if (src && i < j) src[pair] = t; };
+      if (num(user[pair]) && user[pair] > 0) { K[i][j] = user[pair]; note('user'); continue; }
+      if (num(user[b + '|' + a]) && user[b + '|' + a] > 0) { K[i][j] = user[b + '|' + a]; note('user'); continue; }
+      if (num(lkpKij.LKP_KIJ[pair])) { K[i][j] = lkpKij.LKP_KIJ[pair]; note('fitted to GERG-2008 bubble pressures (multicalci)'); continue; }
+      const e = lkpKijEstimate(keys[i], comps[i], keys[j], comps[j]);
+      if (num(e)) { K[i][j] = e; if (i < j) est.push(pair); note('correlation fitted to the GERG-2008 pairs (multicalci)'); continue; }
+      note('none (1)');
+    }
+  }
+  if (est.length && warnings) warnings.push(`Lee–Kesler–Plöcker: k_ij estimated by correlation for ${est.length} pair${est.length > 1 ? 's' : ''} (${est.slice(0, 6).join(', ')}${est.length > 6 ? ', …' : ''}) — no fitted value`);
+  return K;
+}
+/** ROUND 12c: the Lee–Kesler–Plöcker k_ij of each pair with its source (property-info) */
+export function lkpKijTable(keys, spec) {
+  const comps = keys.map((k) => component(k)), src = {};
+  const K = lkpKmat(keys, comps, spec || {}, null, src);
+  const out = {};
+  for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) { const pair = [keys[i], keys[j]].sort().join('|'); out[pair] = { kij: K[i][j], source: src[pair] }; }
+  return out;
+}
+/** estimate for a pair with no fitted value, or NaN (then k_ij = 1) */
+function lkpKijEstimate(ka, ca, kb, cb) {
+  const C = lkpKij.LKP_CORR;
+  if (!C) return NaN;
+  const hc = (k, c) => !!(c && (c.pseudo || /^C\d+H\d+$/.test(c.formula || '') || (C.hc || []).includes(k)));
+  let [k1, c1, k2, c2] = ca.Tc <= cb.Tc ? [ka, ca, kb, cb] : [kb, cb, ka, ca];        // 1 = lighter
+  if (!hc(k2, c2)) return NaN;
+  const vc = (c) => (0.2905 - 0.085 * c.omega) * R * c.Tc / c.Pc;
+  const lt = Math.log(c2.Tc / c1.Tc);
+  if (C.gas && C.gas[k1]) {                                                       // light gas + heavier hydrocarbon
+    const g = C.gas[k1], X = Math.min(Math.max(lt, g.xmin), g.xmax + 0.5);
+    return g.a + g.b * X + g.c * X * X;
+  }
+  if (hc(k1, c1) && C.hc2) {                                                       // hydrocarbon pair
+    const lv = Math.log(vc(c2) / vc(c1)), h = C.hc2;
+    return 1 + h.a * lt * lv + h.b * lt + h.c * lt * lt;
+  }
+  return NaN;
+}
+function makeLKP(keys, comps, kmat) {
+  const n = keys.length;
+  const iH2 = keys.indexOf('H2');
+  const omega = comps.map((c, i) => (i === iH2 ? 0 : c.omega));
+  const Vc0 = comps.map((c, i) => (0.2905 - 0.085 * omega[i]) * R * c.Tc / c.Pc);
+  const eta = 0.25;
+  let tcache = NaN, Vcij = null, Tcij = null;
+  // hydrogen: Gunn, Chueh & Prausnitz (AIChE J. 12 (1966) 937) quantum-corrected constants at the
+  // temperature of the calculation (M in g/mol), ω = 0, as Plöcker et al. used them
+  function pairs(T) {
+    if (T === tcache && Vcij) return;
+    const Tc = comps.map((c) => c.Tc), Vc = Vc0.slice();
+    if (iH2 >= 0) {
+      const MT = 2.01588 * T;
+      Tc[iH2] = 43.6 / (1 + 21.8 / MT);
+      Vc[iH2] = 51.5e-6 / (1 - 9.91 / MT);
+    }
+    Vcij = []; Tcij = [];
+    for (let i = 0; i < n; i++) { Vcij.push([]); Tcij.push([]); for (let j = 0; j < n; j++) { Vcij[i][j] = Math.pow((Math.cbrt(Vc[i]) + Math.cbrt(Vc[j])) / 2, 3); Tcij[i][j] = Math.sqrt(Tc[i] * Tc[j]) * (i === j ? 1 : kmat[i][j]); } }
+    tcache = T;
+  }
+  /** pseudo-critical constants and, with `deriv`, their derivatives with respect to each x_k (x not normalised) */
+  function pseudo(x, deriv) {
+    let Vm = 0, Tn = 0, wm = 0;
+    const dV = deriv ? new Array(n).fill(0) : null, dT = deriv ? new Array(n).fill(0) : null;
+    for (let i = 0; i < n; i++) {
+      if (x[i] > 0) wm += x[i] * omega[i];
+      for (let j = 0; j < n; j++) {
+        if (!(x[j] > 0)) continue;
+        const vt = Math.pow(Vcij[i][j], eta) * Tcij[i][j];
+        if (x[i] > 0) { Vm += x[i] * x[j] * Vcij[i][j]; Tn += x[i] * x[j] * vt; }
+        if (deriv) { dV[i] += 2 * x[j] * Vcij[i][j]; dT[i] += 2 * x[j] * vt; }
+      }
+    }
+    const Vme = Math.pow(Vm, eta), Tcm = Tn / Vme, zc = 0.2905 - 0.085 * wm, Pcm = zc * R * Tcm / Vm;
+    if (!deriv) return { Tcm, Pcm, wm };
+    const dTcm = dT.map((v, k) => v / Vme - eta * Tcm * dV[k] / Vm);
+    const dPcm = dTcm.map((v, k) => -0.085 * omega[k] * R * Tcm / Vm + zc * R * (v / Vm - Tcm * dV[k] / (Vm * Vm)));
+    return { Tcm, Pcm, wm, dTcm, dPcm };
+  }
+  function mix(T, P, x, phase, deriv) {
+    pairs(T);
+    const pc = pseudo(x, deriv), Tr = T / pc.Tcm, Pr = P / pc.Pcm;
+    let a = lkFluid(LK_SIMPLE, Tr, Pr, phase), b = lkFluid(LK_REF, Tr, Pr, phase);
+    const other = phase === 'L' ? 'V' : 'L';
+    if (!a) a = lkFluid(LK_SIMPLE, Tr, Pr, other);
+    if (!b) b = lkFluid(LK_REF, Tr, Pr, other);
+    if (!a || !b) fail('TH_LKP', `Lee–Kesler–Plöcker: no ${phase === 'L' ? 'liquid' : 'vapour'} root at Tr = ${Tr.toFixed(3)}, Pr = ${Pr.toFixed(3)}`);
+    const f = pc.wm / LK_OMR;
+    const g = a.lnf + f * (b.lnf - a.lnf), Z = a.Z + f * (b.Z - a.Z), hr = a.h + f * (b.h - a.h);
+    const out = { g, Z, h: R * pc.Tcm * hr };
+    if (deriv) {
+      // ∂g/∂x_k through T_r, P_r and ω: ∂ln f/∂T_r = −h_r/T_r², ∂ln f/∂P_r = (Z − 1)/P_r for each fluid
+      const gT = -hr / (Tr * Tr), gP = (Z - 1) / Pr, gW = (b.lnf - a.lnf) / LK_OMR;
+      out.dg = pc.dTcm.map((dt, k) => gT * (-Tr / pc.Tcm) * dt + gP * (-Pr / pc.Pcm) * pc.dPcm[k] + gW * omega[k]);
+    }
+    return out;
+  }
+  let cache = new Map();
+  function one(T, P, x, phase) {
+    const m0 = mix(T, P, x, phase, true), dg = m0.dg;               // analytic composition derivative of g
+    let sxd = 0;
+    for (let i = 0; i < n; i++) if (x[i] > 0) sxd += x[i] * dg[i];
+    const lnphi = x.map((xi, i) => (xi > 0 ? m0.g + dg[i] - sxd : NaN));
+    let hd = m0.h;
+    if (iH2 >= 0 && x[iH2] > 0) { const dT = 1e-3 * T; hd = -R * T * T * (mix(T + dT, P, x, phase).g - mix(T - dT, P, x, phase).g) / (2 * dT); pairs(T); }
+    return { Z: m0.Z, g: m0.g, lnphi, hDep: hd, sDep: hd / T - R * m0.g, V: m0.Z * R * T / P };
+  }
+  function state(T, P, x, phase) {
+    const key = T + '|' + P + '|' + phase + '|' + x.join(',');
+    const hit = cache.get(key);
+    if (hit) return hit;
+    let st, nRoots = 1;
+    if (phase === 'L' || phase === 'V') st = one(T, P, x, phase);
+    else { const a = one(T, P, x, 'V'), b = one(T, P, x, 'L'); nRoots = Math.abs(a.Z / b.Z - 1) > 1e-6 ? 2 : 1; st = nRoots === 2 && b.g < a.g ? b : a; }
+    const out = { Z: st.Z, lnphi: st.lnphi, hDep: st.hDep, sDep: st.sDep, V: st.V, nRoots, A: NaN, B: NaN };
+    if (cache.size > 2000) cache = new Map();
+    cache.set(key, out);
+    return out;
+  }
+  return { kind: 'lkp', state, b: keys.map(() => 0), ai: () => keys.map(() => 0) };
+}
+
+// ---------------------------------------------------------------------------
+// ROUND 12c — Chao–Seader (AIChE J. 7 (1961) 598) and Grayson–Streed (6th
+// World Petroleum Congress, 1963): K_i = ν_i γ_i / φ_i^V with the pure-liquid
+// fugacity coefficient ν from the corresponding-states correlation (simple
+// fluid + ω term; hydrogen and methane with their own constants), γ from the
+// Scatchard–Hildebrand regular solution (solubility parameters and liquid
+// volumes at 25 °C) and φ^V from Redlich–Kwong. The ω term is held at its
+// Tr = 1 value above the critical temperature. Liquid enthalpy and entropy come
+// from Lee–Kesler (Plöcker mixing), vapour ones from Redlich–Kwong.
+// ---------------------------------------------------------------------------
+const CSGS_COEF = {
+  'chao-seader': { simple: [5.75748, -3.01761, -4.985, 2.02299, 0, 0.08427, 0.26667, -0.31138, -0.02655, 0.02883], CH4: [2.4384, -2.2455, -0.34084, 0.00212, -0.00223, 0.10486, -0.03691, 0, 0, 0], H2: [1.96718, 1.02972, -0.054009, 0.0005288, 0, 0.008585, 0, 0, 0, 0] },
+  'grayson-streed': { simple: [2.05135, -2.10899, 0, -0.19396, 0.02282, 0.08852, 0, -0.00872, -0.00353, 0.00203], CH4: [1.36822, -1.54831, 0, 0.02889, -0.01076, 0.10486, -0.02529, 0, 0, 0], H2: [1.50709, 2.74283, -0.0211, 0.00011, 0, 0.008585, 0, 0, 0, 0] },
+};
+const CSGS_V25 = { H2: 31.0e-6, CH4: 52.0e-6 };    // Chao–Seader hypothetical-liquid volumes, m³/mol
+function makeCSGS(model, keys, comps) {
+  const K = CSGS_COEF[model], n = keys.length;
+  const v = comps.map((c, i) => CSGS_V25[keys[i]] || (c.Tc > 310 ? vLiq(c, 298.15) : vLiq(c, 0.7 * c.Tc)));
+  const delta = comps.map((c, i) => {
+    if (num(c.solp) && c.solp > 0) return c.solp;                        // (J/m³)^½, ChemSep
+    const Tref = Math.min(298.15, 0.7 * c.Tc);
+    return Math.sqrt(Math.max(hvap(c, Tref) - R * Tref, 0) / v[i]);
+  });
+  const log10nu = (i, T, P) => {
+    const c = comps[i], Tr = T / c.Tc, Pr = P / c.Pc;
+    const A = K[keys[i]] || K.simple;
+    let y = A[0] + A[1] / Tr + A[2] * Tr + A[3] * Tr * Tr + A[4] * Tr * Tr * Tr + (A[5] + A[6] * Tr + A[7] * Tr * Tr) * Pr + (A[8] + A[9] * Tr) * Pr * Pr - Math.log10(Pr);
+    if (!K[keys[i]]) { const t = Math.min(Tr, 1); y += c.omega * (-4.23893 + 8.65808 * t - 1.2206 / t - 3.15224 * t * t * t - 0.025 * (Pr - 0.6)); }
+    return y;
+  };
+  const lnNu = (i, T, P) => Math.LN10 * log10nu(i, T, P);
+  const dbar = (x) => { let sv = 0, sd = 0; for (let i = 0; i < n; i++) if (x[i] > 0) { sv += x[i] * v[i]; sd += x[i] * v[i] * delta[i]; } return sd / sv; };
+  const act = {
+    lnGamma(T, x) { const db = dbar(x); return v.map((vi, i) => vi * (delta[i] - db) ** 2 / (R * T)); },
+    missing: [],
+  };
+  return {
+    act, lnNu, v, delta,
+  };
+}
+
+function makeEOS(kind, comps, kij, translate) {
   const E = EOS[kind];
   const n = comps.length;
+  const vt = comps.map((c) => (translate !== false && VT_C[kind] && num(VT_C[kind][c.key]) ? VT_C[kind][c.key] * 1e-6 : 0));
+  const anyVT = vt.some((v) => v !== 0);
   const ac = comps.map((c) => E.OA * R * R * c.Tc * c.Tc / c.Pc);
   const b = comps.map((c) => E.OB * R * c.Tc / c.Pc);
   const m = comps.map((c) => E.m(c.omega));
@@ -409,6 +742,7 @@ function makeEOS(kind, comps, kij) {
     cacheT = T;
     ai = new Array(n); dai = new Array(n);
     for (let i = 0; i < n; i++) {
+      if (E.alpha) { const [al, dal] = E.alpha(comps[i], T, m[i]); ai[i] = ac[i] * al; dai[i] = ac[i] * dal; continue; }
       const sr = Math.sqrt(T / comps[i].Tc);
       const al = 1 + m[i] * (1 - sr);
       ai[i] = ac[i] * al * al;
@@ -464,11 +798,146 @@ function makeEOS(kind, comps, kij) {
       const bi = b[i] / bm;
       lnphi[i] = bi * (Z - 1) - Math.log(Z - B) - A / (B * delta) * (2 * sa[i] / am - bi) * L;
     }
-    const hDep = R * T * (Z - 1) + (T * dam - am) / (bm * delta) * L;
+    let hDep = R * T * (Z - 1) + (T * dam - am) / (bm * delta) * L;
     const sDep = R * Math.log(Z - B) + dam / (bm * delta) * L;
-    return { Z, lnphi, hDep, sDep, A, B, nRoots: roots.length, V: Z * R * T / P, am, bm };
+    let V = Z * R * T / P;
+    if (anyVT) {
+      let cm = 0; for (let i = 0; i < n; i++) { cm += x[i] * vt[i]; lnphi[i] -= vt[i] * P / (R * T); }
+      V -= cm; hDep -= P * cm;
+    }
+    return { Z, lnphi, hDep, sDep, A, B, nRoots: roots.length, V, am, bm };
   }
   return { kind, state, b, ai: (T) => { atT(T); return ai; } };
+}
+
+// ---------------------------------------------------------------------------
+// ROUND 12b — GERG-2008 as an equation-of-state package (mb-gerg.js). The same
+// state() interface as the cubic equations: density root of the requested
+// phase, ln φ_i, residual enthalpy and entropy (relative to the ideal gas at T,
+// P) and molar volume. 'min' takes the root of lower Gibbs energy.
+// ---------------------------------------------------------------------------
+const GERG_INDEX = Object.fromEntries(gerg.GERG_KEYS.map((k, i) => [k, i + 1]));
+function makeGERG(keys) {
+  const idx = keys.map((k) => GERG_INDEX[k] || 0);
+  const bad = keys.filter((_k, i) => !idx[i]);
+  if (bad.length) fail('TH_GERG', `GERG-2008 covers methane, nitrogen, CO2, ethane, propane, the butanes, pentanes, n-hexane to n-decane, hydrogen, oxygen, CO, water, H2S, helium and argon — not ${bad.join(', ')}; use Peng–Robinson or SRK for this mixture`, 'property_package');
+  const n = keys.length;
+  let cache = new Map();
+  const toG = (x) => {
+    const xg = new Array(gerg.NC + 1).fill(0);
+    let sum = 0;
+    for (let i = 0; i < n; i++) { const v = x[i] > 0 ? x[i] : 0; xg[idx[i]] += v; sum += v; }
+    for (let j = 1; j <= gerg.NC; j++) xg[j] /= sum;
+    return xg;
+  };
+  const gres = (st, xg) => { let g = 0; for (let j = 1; j <= gerg.NC; j++) if (xg[j] > 0) g += xg[j] * st.lnphi[j]; return g; };
+  function solve(T, P, xg, phase) {
+    let st = gerg.phaseState(T, P, xg, phase);
+    if (st.ierr && phase === 'L') { const v = gerg.phaseState(T, P, xg, 'V'); if (!v.ierr) st = v; }
+    return st;
+  }
+  function state(T, P, x, phase) {
+    const key = T + '|' + P + '|' + phase + '|' + x.join(',');
+    const hit = cache.get(key);
+    if (hit) return hit;
+    const xg = toG(x);
+    let st, nRoots = 1;
+    if (phase === 'L' || phase === 'V') st = solve(T, P, xg, phase);
+    else {
+      const a = solve(T, P, xg, 'V'), b = solve(T, P, xg, 'L');
+      nRoots = Math.abs(a.D / b.D - 1) > 1e-6 ? 2 : 1;
+      st = nRoots === 2 && gres(b, xg) < gres(a, xg) ? b : a;
+    }
+    const out = { Z: st.Z, lnphi: idx.map((g) => st.lnphi[g]), hDep: st.hres, sDep: st.sres, V: st.V, nRoots, A: NaN, B: NaN, D: st.D, ierr: st.ierr };
+    if (cache.size > 2000) cache = new Map();
+    cache.set(key, out);
+    return out;
+  }
+  // pure-component critical points of the equation (its reducing values)
+  const crit = (i) => { const gi = idx[i], xu = new Array(gerg.NC + 1).fill(0); xu[gi] = 1; return { Tc: gerg.TC[gi], Pc: 1000 * gerg.pressure(gerg.TC[gi], gerg.DC[gi], xu).P }; };
+  return { kind: 'gerg2008', state, idx, crit, b: keys.map(() => 0), ai: () => keys.map(() => 0) };
+}
+
+/**
+ * ROUND 12b — reference equation of state of one pure fluid (mb-helmholtz.js) with the EOS-package interface.
+ * The liquid branch starts from the databank liquid density; 'min' takes the root of lower Gibbs energy.
+ */
+function makeRefEOS(keys) {
+  const f = keys.length === 1 ? helm.fluid(keys[0]) : null;
+  if (!f) fail('TH_REFEOS', `the reference equations are for one pure fluid at a time — ammonia, CO2, nitrogen, hydrogen, methane, argon or oxygen${keys.length > 1 ? ' (got a mixture: use GERG-2008 for natural gas and syngas components, else Peng–Robinson)' : ' (not ' + keys[0] + ')'}`, 'property_package');
+  const c = component(keys[0]);
+  let cache = new Map();
+  const solve = (T, P, ph) => {
+    const guess = ph === 'L' && T < f.Tc ? 1 / (vLiq(c, T) * 1.0) : 0;
+    let rho = helm.densityTP(f, T, P, ph, guess);
+    if (rho === null) rho = helm.densityTP(f, T, P, ph === 'L' ? 'V' : 'L', 0);
+    if (rho === null) fail('TH_REFEOS', `${f.name}: no density found at ${T.toFixed(2)} K, ${(P / 1e5).toFixed(3)} bar`, 'T_K');
+    return helm.stateTrho(f, T, rho);
+  };
+  function state(T, P, x, phase) {
+    if (T > f.Tmax * 1.0001 || P > f.pmax) fail('TH_REFEOS_RANGE', `${f.name}: the reference equation is valid to ${f.Tmax} K and ${(f.pmax / 1e5).toFixed(0)} bar`, 'T_K');
+    const key = T + '|' + P + '|' + phase;
+    const hit = cache.get(key);
+    if (hit) return hit;
+    let st, nRoots = 1;
+    if (phase === 'L' || phase === 'V') st = solve(T, P, phase);
+    else { const a = solve(T, P, 'V'), b = solve(T, P, 'L'); nRoots = Math.abs(a.rho / b.rho - 1) > 1e-7 ? 2 : 1; st = nRoots === 2 && b.lnphi < a.lnphi ? b : a; }
+    const out = { Z: st.Z, lnphi: [st.lnphi], hDep: st.hres, sDep: st.sres, V: 1 / st.rho, nRoots, A: NaN, B: NaN, rho: st.rho, cp: st.cp, w: st.w };
+    if (cache.size > 2000) cache = new Map();
+    cache.set(key, out);
+    return out;
+  }
+  return { kind: 'reference', state, f, idx: [0], crit: () => ({ Tc: f.Tc, Pc: f.pc }), b: [0], ai: () => [0] };
+}
+
+/**
+ * Saturation line of a pure component on an equation-of-state package (ROUND 12b — GERG-2008 and the reference
+ * equations): p_sat(T) from ln φ_L = ln φ_V by Newton in ln P (slope Z_L − Z_V), T_sat(P) by Newton in T (slope
+ * Δh_vap / RT²), each started from the databank correlation. The critical point is where the liquid and vapour
+ * roots merge, located by bisection on T; above it, or where no two roots exist, the hooks report a supercritical
+ * state as the flashes expect.
+ */
+function eosPureSat(eos, n, i, c, crit) {
+  const unit = new Array(n).fill(0); unit[i] = 1;
+  const two = (T, P) => { const L = eos.state(T, P, unit, 'L'), V = eos.state(T, P, unit, 'V'); return { L, V, split: Math.abs(L.Z / V.Z - 1) > 1e-5 }; };
+  function psatEOS(T) {
+    let lnP = Math.log(psat(c, Math.min(T, 0.999 * c.Tc)));
+    for (let it = 0; it < 60; it++) {
+      const P = Math.exp(lnP), q = two(T, P);
+      if (!q.split) {
+        // both roots on one side: step towards the two-phase pressure range
+        lnP += q.L.Z < 0.3 ? -0.05 : 0.05;
+        continue;
+      }
+      const f = q.L.lnphi[i] - q.V.lnphi[i], d = q.L.Z - q.V.Z;
+      const step = f / d;
+      lnP -= Math.max(-0.5, Math.min(0.5, step));
+      if (Math.abs(step) < 1e-11) return Math.exp(lnP);
+    }
+    return NaN;
+  }
+  let Tc = crit && crit.Tc, Pc = crit && crit.Pc;
+  if (!Tc) {
+    // merge point of the roots, starting from the databank critical temperature
+    let lo = 0.7 * c.Tc, hi = 1.05 * c.Tc;
+    for (let it = 0; it < 40; it++) { const m = 0.5 * (lo + hi); if (Number.isFinite(psatEOS(m))) lo = m; else hi = m; }
+    Tc = lo; Pc = psatEOS(lo);
+  }
+  function tsatEOS(P) {
+    if (P >= Pc) return Infinity;
+    let T = Math.min(satT(c, P), 0.999 * Tc);
+    for (let it = 0; it < 60; it++) {
+      const q = two(T, P);
+      if (!q.split) { T *= q.L.Z < 0.3 ? 1.01 : 0.99; continue; }
+      const f = q.L.lnphi[i] - q.V.lnphi[i];
+      const d = (q.V.hDep - q.L.hDep) / (R * T * T);
+      const step = f / d;
+      T -= Math.max(-0.1 * T, Math.min(0.1 * T, step));
+      if (Math.abs(step) < 1e-9 * T) return T;
+    }
+    return NaN;
+  }
+  return { Tc, Pc, psat: (T) => (T >= Tc ? Pc : psatEOS(T)), tsat: tsatEOS };
 }
 
 const UF_ALL = {
@@ -580,17 +1049,17 @@ function fillPairs(model, keys, comps, missing, fill, set, warnings) {
 
 function makeNRTL(keys, user, warnings, comps, fill) {
   const n = keys.length;
-  const b = [], a = [], al = [];
+  const b = [], a = [], al = [], e = [], f = [];
   const missing = [];
   for (let i = 0; i < n; i++) {
-    b.push(new Array(n).fill(0)); a.push(new Array(n).fill(0)); al.push(new Array(n).fill(0.3));
+    b.push(new Array(n).fill(0)); a.push(new Array(n).fill(0)); al.push(new Array(n).fill(0.3)); e.push(new Array(n).fill(0)); f.push(new Array(n).fill(0));
   }
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     if (i === j) continue;
     const u = user && user[keys[i] + '|' + keys[j]];
-    if (u) { a[i][j] = u.a || 0; b[i][j] = u.b || 0; if (num(u.alpha)) { al[i][j] = u.alpha; al[j][i] = u.alpha; } continue; }
-    const p = pairLookup(bip.NRTL, keys[i], keys[j]);
-    if (p) { b[i][j] = p[0]; al[i][j] = p[1]; al[j][i] = p[1]; continue; }
+    if (u) { a[i][j] = u.a || 0; b[i][j] = u.b || 0; e[i][j] = u.e || 0; f[i][j] = u.f || 0; if (num(u.alpha)) { al[i][j] = u.alpha; al[j][i] = u.alpha; } continue; }
+    const p = pairLookup(bip.NRTL, keys[i], keys[j]);     // [b, α] (ChemSep) or [b, α, a, e, f] (mb-bip-extra.js)
+    if (p) { b[i][j] = p[0]; al[i][j] = p[1]; al[j][i] = p[1]; a[i][j] = p[2] || 0; e[i][j] = p[3] || 0; f[i][j] = p[4] || 0; continue; }
     if (i < j && !pairLookup(bip.NRTL, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
   }
   const est = fillPairs('nrtl', keys, comps, missing, fill, (i, j, f) => { a[i][j] = f.a12; b[i][j] = f.b12; a[j][i] = f.a21; b[j][i] = f.b21; al[i][j] = al[j][i] = 0.3; }, warnings);
@@ -598,10 +1067,10 @@ function makeNRTL(keys, user, warnings, comps, fill) {
   return {
     missing, estimated: est,
     lnGamma(T, x) {
-      const tau = [], G = [];
+      const tau = [], G = [], lnT = Math.log(T);
       for (let i = 0; i < n; i++) {
         tau.push(new Array(n)); G.push(new Array(n));
-        for (let j = 0; j < n; j++) { tau[i][j] = a[i][j] + b[i][j] / T; G[i][j] = Math.exp(-al[i][j] * tau[i][j]); }
+        for (let j = 0; j < n; j++) { tau[i][j] = a[i][j] + b[i][j] / T + e[i][j] * lnT + f[i][j] * T; G[i][j] = Math.exp(-al[i][j] * tau[i][j]); }
       }
       const S = new Array(n), C = new Array(n);
       for (let j = 0; j < n; j++) {
@@ -626,15 +1095,15 @@ function makeUNIQUAC(keys, comps, user, warnings, fill) {
   if (r.some((v) => !num(v)) || q.some((v) => !num(v))) {
     fail('TH_UNIQUAC_RQ', 'UNIQUAC needs r and q for every component: ' + keys.filter((k, i) => !num(r[i]) || !num(q[i])).join(', '));
   }
-  const bb = [], aa = [];
+  const bb = [], aa = [], ee = [], ff = [];
   const missing = [];
-  for (let i = 0; i < n; i++) { bb.push(new Array(n).fill(0)); aa.push(new Array(n).fill(0)); }
+  for (let i = 0; i < n; i++) { bb.push(new Array(n).fill(0)); aa.push(new Array(n).fill(0)); ee.push(new Array(n).fill(0)); ff.push(new Array(n).fill(0)); }
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     if (i === j) continue;
     const u = user && user[keys[i] + '|' + keys[j]];
-    if (u) { aa[i][j] = u.a || 0; bb[i][j] = u.b || 0; continue; }
-    const p = pairLookup(bip.UNIQUAC, keys[i], keys[j]);
-    if (p) { bb[i][j] = p[0]; continue; }
+    if (u) { aa[i][j] = u.a || 0; bb[i][j] = u.b || 0; ee[i][j] = u.e || 0; ff[i][j] = u.f || 0; continue; }
+    const p = pairLookup(bip.UNIQUAC, keys[i], keys[j]);  // [b] (ChemSep) or [b, a, e, f] (mb-bip-extra.js)
+    if (p) { bb[i][j] = p[0]; aa[i][j] = p[1] || 0; ee[i][j] = p[2] || 0; ff[i][j] = p[3] || 0; continue; }
     if (i < j && !pairLookup(bip.UNIQUAC, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
   }
   const est = fillPairs('uniquac', keys, comps, missing, fill, (i, j, f) => { aa[i][j] = f.a12; bb[i][j] = f.b12; aa[j][i] = f.a21; bb[j][i] = f.b21; }, warnings);
@@ -649,7 +1118,8 @@ function makeUNIQUAC(keys, comps, user, warnings, fill) {
       const phi = r.map((ri, i) => ri / sr), th = q.map((qi, i) => x[i] * qi / sq);
       let sxl = 0; for (let i = 0; i < n; i++) sxl += x[i] * l[i];
       const tau = [];
-      for (let i = 0; i < n; i++) { tau.push(new Array(n)); for (let j = 0; j < n; j++) tau[i][j] = Math.exp(aa[i][j] + bb[i][j] / T); }
+      const lnT = Math.log(T);
+      for (let i = 0; i < n; i++) { tau.push(new Array(n)); for (let j = 0; j < n; j++) tau[i][j] = Math.exp(aa[i][j] + bb[i][j] / T + ee[i][j] * lnT + ff[i][j] * T); }
       const st = new Array(n);
       for (let j = 0; j < n; j++) { let s = 0; for (let k = 0; k < n; k++) s += th[k] * tau[k][j]; st[j] = s; }
       const out = new Array(n);
@@ -668,13 +1138,13 @@ function makeUNIQUAC(keys, comps, user, warnings, fill) {
 
 function makeWilson(keys, comps, user, warnings, fill) {
   const n = keys.length;
-  const aa = [], bb = [];
+  const aa = [], bb = [], ee = [], ff = [];
   const missing = [];
-  for (let i = 0; i < n; i++) { aa.push(new Array(n).fill(0)); bb.push(new Array(n).fill(0)); }
+  for (let i = 0; i < n; i++) { aa.push(new Array(n).fill(0)); bb.push(new Array(n).fill(0)); ee.push(new Array(n).fill(0)); ff.push(new Array(n).fill(0)); }
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
     if (i === j) continue;
     const u = user && user[keys[i] + '|' + keys[j]];
-    if (u) { aa[i][j] = u.a || 0; bb[i][j] = u.b || 0; continue; }
+    if (u) { aa[i][j] = u.a || 0; bb[i][j] = u.b || 0; ee[i][j] = u.e || 0; ff[i][j] = u.f || 0; continue; }
     const p = pairLookup(bip.WILSON, keys[i], keys[j]);
     if (p) { aa[i][j] = p[0]; bb[i][j] = p[1]; continue; }
     if (i < j && !pairLookup(bip.WILSON, keys[j], keys[i]) && !(user && user[keys[j] + '|' + keys[i]])) missing.push(keys[i] + '–' + keys[j]);
@@ -685,7 +1155,8 @@ function makeWilson(keys, comps, user, warnings, fill) {
     missing, estimated: est,
     lnGamma(T, x) {
       const L = [];
-      for (let i = 0; i < n; i++) { L.push(new Array(n)); for (let j = 0; j < n; j++) L[i][j] = i === j ? 1 : Math.exp(aa[i][j] + bb[i][j] / T); }
+      const lnT = Math.log(T);
+      for (let i = 0; i < n; i++) { L.push(new Array(n)); for (let j = 0; j < n; j++) L[i][j] = i === j ? 1 : Math.exp(aa[i][j] + bb[i][j] / T + ee[i][j] * lnT + ff[i][j] * T); }
       const S = new Array(n);
       for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < n; j++) s += x[j] * L[i][j]; S[i] = s; }
       const out = new Array(n);
@@ -916,6 +1387,13 @@ export const PACKAGES = {
   unifac: 'UNIFAC (predictive γ–φ)',
   modunifac: 'Modified UNIFAC — Dortmund (predictive γ–φ)',
   steam: 'Steam / water (IAPWS-IF97)',
+  gerg2008: 'GERG-2008 (natural gas, 21 components)',
+  reference: 'Reference equation of state (pure fluid)',
+  pr78: 'Peng–Robinson 1978 (PR78)',
+  prsv2: 'PRSV2 (Stryjek–Vera)',
+  lkp: 'Lee–Kesler–Plöcker',
+  'chao-seader': 'Chao–Seader',
+  'grayson-streed': 'Grayson–Streed',
   ...ELECTROLYTE_MODELS,
   urea: UREA_MODEL_LABEL,
 };
@@ -927,8 +1405,8 @@ export const PACKAGES = {
  *          three_phase?:(boolean|'auto')}} spec   three_phase: units flash with a
  *        second liquid (VLLE) — see threePhase below
  *        kij: { 'A|B': value } overrides (EOS packages, and the vapour EOS of
- *        activity packages); nrtl: { 'i|j': {a, b, alpha} } (τ_ij = a + b/T);
- *        uniquac/wilson: { 'i|j': {a, b} }.
+ *        activity packages); nrtl: { 'i|j': {a, b, e?, f?, alpha} } (Aspen form τ_ij = a + b/T + e ln T + f T);
+ *        uniquac/wilson: { 'i|j': {a, b, e?, f?} } (ln τ_ij or ln Λ_ij in the same form).
  * @param {string[]} keys component keys (compdb)
  * @returns {object} package
  */
@@ -1007,9 +1485,14 @@ export function createPackage(spec, keys) {
     const bad = keys.filter((k) => !UREA_OWNED.includes(k) && !UREA_INERTS.includes(k));
     if (bad.length) fail('TH_UREA', `urea method: ${bad.join(', ')} not supported — the method holds NH3, CO2, H2O, urea and inert gases (${UREA_INERTS.join(', ')})`, 'components');
   }
-  const isEOS = model === 'pr' || model === 'srk';
-  const vapourModel = isEOS ? model : isUrea ? 'pr' : (s.vapour === 'pr' || s.vapour === 'srk' ? s.vapour : 'ideal');
-  // kij matrix (ChemSep PR table; same values used for SRK, as DWSIM does; user overrides win)
+  const isGERG = model === 'gerg2008', isRef = model === 'reference';     // ROUND 12b
+  const isHelm = isGERG || isRef;                                     // multiparameter Helmholtz equations
+  const isLKP = model === 'lkp', isCSGS = model === 'chao-seader' || model === 'grayson-streed';   // ROUND 12c
+  const isCubic = model === 'pr' || model === 'srk' || model === 'pr78' || model === 'prsv2';
+  const isEOS = isCubic || isHelm || isLKP;
+  const vapourModel = isEOS ? model : isUrea ? 'pr' : isCSGS ? 'rk' : (s.vapour === 'pr' || s.vapour === 'srk' ? s.vapour : 'ideal');
+  // kij matrix: ChemSep PR table for Peng–Robinson; for SRK the DECHEMA SRK table (mb-bip-srk.js), the PR value
+  // where SRK has none; user overrides win
   const kij = [];
   const kijUsed = {};
   for (let i = 0; i < n; i++) {
@@ -1018,7 +1501,7 @@ export function createPackage(spec, keys) {
       if (i === j) continue;
       const [a, b] = [keys[i], keys[j]].sort();
       const pair = a + '|' + b;
-      let v = bip.PR[pair] || 0;
+      let v = (vapourModel === 'srk' && num(bipSRK.SRK[pair]) && !BIP_EXTRA_USED.PR[pair] ? bipSRK.SRK[pair] : bip.PR[pair]) || 0;
       if (isUrea && pair === 'CO2|NH3' && !(s.kij && (num(s.kij[pair]) || num(s.kij['NH3|CO2'])))) v = 0.10;   // fitted to Voskov et al. 2016, Table 9
       if (s.kij && num(s.kij[pair])) v = s.kij[pair];
       else if (s.kij && num(s.kij[b + '|' + a])) v = s.kij[b + '|' + a];
@@ -1026,9 +1509,10 @@ export function createPackage(spec, keys) {
       if (v && i < j) kijUsed[pair] = v;
     }
   }
+  if (isHelm || isLKP || isCSGS) for (const k of Object.keys(kijUsed)) delete kijUsed[k];     // no cubic k_ij in these methods
   // STEP 32: gas–ammonia pairs with no k_ij — the NH3 content of loop gas and the gases
   // dissolved in liquid ammonia depend on them; say so instead of staying silent
-  if ((isEOS || vapourModel !== 'ideal') && keys.includes('NH3')) {
+  if (isCubic && keys.includes('NH3') || (!isEOS && !isCSGS && vapourModel !== 'ideal' && keys.includes('NH3'))) {
     const zero = ['H2', 'CH4', 'CO', 'He'].filter((g) => {
       if (!keys.includes(g)) return false;
       const [a, b] = [g, 'NH3'].sort();
@@ -1038,19 +1522,29 @@ export function createPackage(spec, keys) {
       'the NH3 left in separator vapour and the gases dissolved in liquid ammonia are uncertain; calibrate k_ij against separator analyses (Methods → binary data)');
   }
   // `eos` is replaced below by a free-water-corrected view when that applies (STEP 32)
-  let eos = vapourModel !== 'ideal' ? makeEOS(vapourModel, comps, kij) : null;
+  let eos = isGERG ? makeGERG(keys) : isRef ? makeRefEOS(keys) : isLKP ? makeLKP(keys, comps, lkpKmat(keys, comps, s, warnings)) : isCSGS ? makeEOS('rk', comps, keys.map(() => keys.map(() => 0)), false) : vapourModel !== 'ideal' ? makeEOS(vapourModel, comps, kij, s.volume_translation) : null;     // STEP 41: volume_translation:false turns the gas shift off
   let act = null;
   const fill = s.fill_missing === 'none' ? 'none' : 'auto';          // STEP 37: missing pairs from UNIFAC
   if (model === 'nrtl') act = makeNRTL(keys, s.nrtl, warnings, comps, fill);
   else if (model === 'uniquac') act = makeUNIQUAC(keys, comps, s.uniquac, warnings, fill);
   else if (model === 'wilson') act = makeWilson(keys, comps, s.wilson, warnings, fill);
   else if (model === 'unifac' || model === 'modunifac') act = makeUNIFAC(keys, comps, model === 'modunifac', warnings);
+  if (isLKP || isCSGS) {                                                      // ROUND 12c: corresponding states / regular solution
+    const polar = keys.filter((k, i) => num(comps[i].dip) && comps[i].dip > 4.3e-30);     // dipole moment above 1.3 D
+    if (polar.length) warnings.push(`${PACKAGES[model]}: ${polar.join(', ')} — strongly polar, outside the basis of this method (meant for hydrocarbons and light gases); ` +
+      'their phase equilibrium is rough — Peng–Robinson with free water, or an activity method, describes them better');
+  }
+  const csgs = isCSGS ? makeCSGS(model, keys, comps) : null;                  // ROUND 12c
+  // Chao–Seader / Grayson–Streed: liquid enthalpy and entropy from Lee–Kesler (as commercial simulators do) — the ν
+  // correlations were fitted to K-values and their temperature derivative gives poor heat capacities
+  const csgsLK = isCSGS ? makeLKP(keys, comps, lkpKmat(keys, comps, s, null)) : null;
+  if (csgs) act = csgs.act;
   const excessH = !!s.excess_enthalpy && !!act;
   // STEP 40: liquid molar volume method (densities, volumetric flows, pump heads) — 'auto' keeps the default
-  const liqVol = ['rackett', 'costald', 'eos'].includes(s.liquid_volume) ? s.liquid_volume : 'auto';
+  const liqVol = ['rackett', 'costald', 'eos'].includes(s.liquid_volume) ? s.liquid_volume : isHelm ? 'eos' : 'auto';     // GERG-2008 and the reference equations: their own liquid density
   if (liqVol === 'eos' && !eos) warnings.push(`${PACKAGES[model]}: liquid volume from the equation of state needs PR or SRK (as the method or its vapour model) — the default liquid volume is used`);
   const activity = !isEOS;
-  const poynting = activity && model !== 'ideal' && !elecModel && !isUrea && s.poynting !== false;   // Raoult's law: no Poynting
+  const poynting = activity && model !== 'ideal' && !elecModel && !isUrea && !isCSGS && s.poynting !== false;   // Raoult's law: no Poynting (CS / GS: in ν)
   // STEP 25 acid-gas electrolyte packages: H2O, CO2 and the solvent (MEA / K2CO3)
   // from the speciation model; any other gas by Henry's law in water
   const lnPhiSatWMemo = new Map();
@@ -1091,7 +1585,7 @@ export function createPackage(spec, keys) {
   // has no binary parameters for that pair. henry:false disables;
   // henry_components:[keys] sets the list explicitly.
   const henry = keys.map(() => null);
-  if (activity && (s.henry !== false || elec || ureaLiq)) {
+  if (activity && !isCSGS && (s.henry !== false || elec || ureaLiq)) {
     const explicit = Array.isArray(s.henry_components) && !elec ? new Set(s.henry_components) : null;
     for (let i = 0; i < n; i++) {
       const c = comps[i];
@@ -1132,8 +1626,15 @@ export function createPackage(spec, keys) {
 
   // ---- ideal-gas H, S per component (NIST Shomate where available) ----
   const useNist = s.ideal_gas_data !== 'chemsep';
-  const hig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[0] : hIG(comps[i], T));
-  const sig = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[1] : sIG(comps[i], T));
+  const hig0 = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[0] : hIG(comps[i], T));
+  const sig0 = (i, T) => (useNist && comps[i]._nist ? comps[i]._nist.at(T)[1] : sIG(comps[i], T));
+  // ROUND 12b: GERG-2008 carries its own ideal-gas heat capacities (Jaeschke & Schley); their shape is used, moved onto
+  // the package basis (formation enthalpy, third-law entropy at 101325 Pa) at 298.15 K like the steam package
+  const igOf = isGERG ? (i, T) => gerg.idealPure(eos.idx[i], T) : isRef ? (_i, T) => helm.idealGas(eos.f, T) : null;
+  const gIG = isHelm ? keys.map((k, i) => { const q = igOf(i, T0); return { dh: hig0(i, T0) - q.h, ds: sig0(i, T0) - q.s, T: NaN, h: 0, s: 0 }; }) : null;
+  const gAt = (i, T) => { const g = gIG[i]; if (T !== g.T) { const q = igOf(i, T); g.T = T; g.h = q.h + g.dh; g.s = q.s + g.ds; } return g; };
+  const hig = isHelm ? (i, T) => gAt(i, T).h : hig0;
+  const sig = isHelm ? (i, T) => gAt(i, T).s : sig0;
 
   // ---- STEP 39 pure-liquid enthalpy and entropy of activity-coefficient (and electrolyte-solvent) liquids ----
   // The ΔHvap route, h_L = h_ig − ΔHvap(T), takes the liquid heat capacity from the slope of the ΔHvap
@@ -1230,7 +1731,7 @@ export function createPackage(spec, keys) {
   // switches it off.
   const iw = keys.indexOf('H2O');
   let freeWater = null;
-  if (isEOS && iw >= 0 && s.free_water !== false) {
+  if (isCubic && iw >= 0 && s.free_water !== false) {
     const TCw = steam.TC, T1 = 0.95 * TCw, T2 = 0.99 * TCw, TL = 273.15;
     const kgw = comps[iw].MW;                                   // kJ/kg × g/mol = J/mol
     const ig0w = steam.idealGas(T0, P0 / 1e6);
@@ -1413,6 +1914,7 @@ export function createPackage(spec, keys) {
       });
     }
     const lg = act ? act.lnGamma(T, x) : new Array(n).fill(0);
+    if (csgs) return comps.map((_c, i) => lg[i] + csgs.lnNu(i, T, P));        // ROUND 12c: f_L,i = x γ ν P
     return comps.map((c, i) => {
       if (henry[i]) { const hm = henryMix(i, T, x); if (hm) return hm.lnH - Math.log(P); }
       const ps = psat(c, T);
@@ -1435,6 +1937,7 @@ export function createPackage(spec, keys) {
     if (phase === 'V') return eos ? h + eos.state(T, P, x, 'V').hDep : (assoc ? h + assoc.mix(T, P, x).h : h);
     if (ureaLiq) return ureaHS(T, P, x).h;
     if (elec) return elecH(T, P, x);
+    if (csgs) return h + csgsLK.state(T, P, x, 'L').hDep;                  // Lee–Kesler liquid departure
     for (let i = 0; i < n; i++) if (x[i] > 0) {
       const hm = henry[i] ? henryMix(i, T, x) : null;
       if (hm) { h += x[i] * R * hm.B; continue; }             // heat of solution R·B for Henry gases
@@ -1456,6 +1959,7 @@ export function createPackage(spec, keys) {
     if (phase === 'V') return s + sMix - R * Math.log(P / P0) + (eos ? eos.state(T, P, x, 'V').sDep : assoc ? assoc.mix(T, P, x).s : 0);
     if (ureaLiq) return ureaHS(T, P, x).s;
     if (elec) return elecS(T, P, x);
+    if (csgs) return s + sMix - R * Math.log(P / P0) + csgsLK.state(T, P, x, 'L').sDep;
     // liquid: pure saturated liquid at Psat, then ideal mixing + excess
     for (let i = 0; i < n; i++) if (x[i] > 0) {
       const hm = henry[i] ? henryMix(i, T, x) : null;
@@ -1569,14 +2073,15 @@ export function createPackage(spec, keys) {
   // default ('auto') for an equation of state with water plus a hydrocarbon
   // that can condense (Tc > 360 K, i.e. propane and heavier) — free water
   const hcLiquid = comps.some((c, i) => keys[i] !== 'H2O' && c.cat === 'hydrocarbon' && c.Tc > 360);
+  const gSat = [];
   const threePhase = !elec && (s.three_phase === true || ((s.three_phase === undefined || s.three_phase === 'auto') && isEOS && keys.includes('H2O') && hcLiquid));
   return {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
-    henryKeys: keys.filter((k, i) => henry[i]), poynting, excessEnthalpy: excessH, liquidVolumeMethod: liqVol,
+    henryKeys: keys.filter((k, i) => henry[i]), poynting, excessEnthalpy: excessH, liquidVolumeMethod: liqVol, volumeTranslation: !!eos && s.volume_translation !== false && keys.some((k) => VT_C[vapourModel] && num(VT_C[vapourModel][k])),
     estimatedPairs: act && act.estimated ? act.estimated : [],                  // STEP 37
     // STEP 32: free water (IAPWS-IF97 liquid water inside the EOS) and the pure-water saturation it implies
     freeWater: freeWater ? { index: iw, correction: freeWater.correction, henry: freeWater.henry } : null,
-    pureSatOf: (i) => (freeWater && i === iw ? freeWater.sat : null),
+    pureSatOf: (i) => (freeWater && i === iw ? freeWater.sat : isHelm ? (gSat[i] || (gSat[i] = eosPureSat(eos, n, i, comps[i], eos.crit(i)))) : null),
     association: assoc ? { keys: assoc.keys, sources: assoc.src } : null,
     ureaLiquid: ureaLiq || undefined,
     electrolyte: ureaLiq ? { model: 'urea', solvent: 'urea synthesis liquid', heavy: ['urea'], report: (T, x) => ureaLiq.report(T, x), warn: (T, x) => ureaLiq.warn(T, x),
@@ -1585,7 +2090,7 @@ export function createPackage(spec, keys) {
       saltLnAct: (T, x, key) => elec.saltLnAct(T, x, key || 'K2CO3'),
       nonvolatile: keys.map((k) => ELECTROLYTE_KEYS.includes(k)) } : null,
     eos, act, lnFug, lnK, hPhase, sPhase, volPhase, hig, sig,
-    idealGasData: useNist ? 'nist+chemsep' : 'chemsep',
+    idealGasData: isGERG ? 'gerg-2008' : isRef ? 'reference-eos' : useNist ? 'nist+chemsep' : 'chemsep',
     MW: comps.map((c) => c.MW),
   };
 }
@@ -2668,10 +3173,27 @@ export function flashPVF(pp, z, P, beta, Tguess) {
   if (pp.electrolyte && beta === 1 && live.some((i) => pp.electrolyte.nonvolatile[i])) {
     fail('TH_VF', 'no dew point: the dissolved salt stays in the liquid, so the liquid cannot vanish completely');
   }
-  if (num(Tguess)) { try { return vfSolve(pp, z, beta, 'T', P, Tguess); } catch (_e) { /* a poor guess can collapse onto the trivial solution — restart from Wilson */ } }
+  // an equation of state can converge onto the trivial solution (vapour = liquid) near the critical region:
+  // such a "dew point" is not a phase boundary. Reject it and locate the boundary by scanning PT flashes.
+  const eosEnd = pp.isEOS && (beta === 0 || beta === 1);
+  const trivialish = (r) => { if (!eosEnd || !r || !r.K) return false; let m = 0; for (const i of live) m = Math.max(m, Math.abs(Math.log(r.K[i]))); return m < 0.02; };
+  // round 11: a bubble point found for the feed as one liquid is not the phase boundary when that liquid splits into two
+  // (nitrogen with ethane near the critical pressure of nitrogen): then the boundary is where the lighter liquid boils
+  const checkLL = (r) => {
+    if (!(pp.isEOS && beta === 0 && r && live.length >= 2)) return r;
+    let sp = null;
+    try { sp = liquidSplit(pp, z, r.T, P); } catch (_e) { sp = null; }
+    if (!sp) return r;
+    const hb = hetBubbleEOS(pp, z, P, r.T, sp);
+    return hb || r;
+  };
+  if (num(Tguess)) { try { const r = vfSolve(pp, z, beta, 'T', P, Tguess); if (!trivialish(r)) return checkLL(r); } catch (_e) { /* a poor guess can collapse onto the trivial solution — restart from Wilson */ } }
   try {
-    return vfSolve(pp, z, beta, 'T', P, undefined);
+    const r = vfSolve(pp, z, beta, 'T', P, undefined);
+    if (trivialish(r)) { const q = vfScanT(pp, z, beta, P); if (q) return q; }
+    return checkLL(r);
   } catch (e) {
+    if (eosEnd) { const q = vfScanT(pp, z, beta, P); if (q) return q; }
     if (pp.electrolyte && pp.electrolyte.urea) { const r = vfBisect(pp, z, beta, 'T', P, Tguess); if (r) return r; }
     if (pp.electrolyte && beta === 0) {
       // the acid-gas models cover 0–250 °C; say so when the bubble point lies outside
@@ -2690,6 +3212,50 @@ export function flashPVF(pp, z, P, beta, Tguess) {
   }
 }
 
+/**
+ * STEP 41: temperature at which the feed has vapour fraction beta at pressure P when a second liquid may form
+ * (valid phases VLL). A bubble point of a liquid that splits into two liquids is heterogeneous — it lies above
+ * the bubble point of the (unstable) single liquid. The two-phase answer is kept when the three-phase flash
+ * finds no second liquid there; otherwise the vapour fraction of the three-phase PT flash is bisected in T.
+ */
+export function flashPVF3(pp, z, P, beta, Tguess) {
+  let r2 = null, e2 = null;
+  try { r2 = flashPVF(pp, z, P, beta, Tguess); } catch (e) { e2 = e; }
+  const at = (T) => { const r = flashPT3(pp, z, T, P); return { r, bV: r.phase === 'V' ? 1 : (r.phase === 'L' || r.phase === 'LL') ? 0 : r.beta }; };
+  if (r2) {
+    const q = at(r2.T);
+    if (!q.r.x2) return r2;                       // no second liquid at the two-phase answer
+  }
+  const above = (q) => (beta === 0 ? q.bV > 1e-12 : beta === 1 ? q.bV >= 1 - 1e-12 : q.bV >= beta);
+  const T0 = r2 ? r2.T : num(Tguess) ? Tguess : 350;
+  let lo = null, hi = null, qhi = null, qlo = null;
+  const q0 = at(T0);
+  if (above(q0)) { hi = T0; qhi = q0; } else { lo = T0; qlo = q0; }
+  for (let d = 1, k = 0; k < 14 && (lo === null || hi === null); k++, d *= 2) {
+    if (hi === null) { const T = lo + d, q = at(T); if (above(q)) { hi = T; qhi = q; } else { lo = T; qlo = q; } }
+    else { const T = Math.max(20, hi - d), q = at(T); if (above(q)) { hi = T; qhi = q; } else { lo = T; qlo = q; } }
+  }
+  if (lo === null || hi === null) { if (r2) return r2; throw e2 || new ThermoError('TH_VF', 'vapour-fraction point not found with a second liquid'); }
+  for (let it = 0; it < 50 && hi - lo > 1e-6; it++) {
+    const T = 0.5 * (lo + hi), q = at(T);
+    if (above(q)) { hi = T; qhi = q; } else { lo = T; qlo = q; }
+  }
+  const T = 0.5 * (lo + hi);
+  if (beta === 0) {
+    // the liquids just below the bubble point and the first vapour just above it
+    const L = qlo.r, V = qhi.r;
+    const y = V.phase === 'V' ? V.y : V.y || L.x;
+    if (L.phase === 'LL') return { T, P, beta: 0, beta2: L.beta2, x: L.x, x2: L.x2, y, phase: 'LL', iterations: 0, method: 'bisect3' };
+    return { T, P, beta: 0, x: z.slice(), y, phase: 'L', iterations: 0, method: 'bisect3' };
+  }
+  if (beta === 1) {
+    const L = qlo.r;
+    return { T, P, beta: 1, x: L.x, x2: L.x2, y: z.slice(), phase: 'V', iterations: 0, method: 'bisect3' };
+  }
+  const r = qhi.r;
+  return Object.assign({}, r, { T, method: 'bisect3' });
+}
+
 /** Pressure at which the feed has vapour fraction beta at temperature T. */
 export function flashTVF(pp, z, T, beta, Pguess) {
   if (!(beta >= 0 && beta <= 1)) fail('TH_VF', 'vapour fraction must be 0–1');
@@ -2700,13 +3266,60 @@ export function flashTVF(pp, z, T, beta, Pguess) {
     if (T >= (sat ? sat.Tc : c.Tc)) fail('TH_SUPERCRITICAL', `${pp.keys[live[0]]} is supercritical at ${T.toFixed(2)} K — no saturation pressure`);
     return { T, P: sat ? sat.psat(T) : psat(c, T), beta, x: z.slice(), y: z.slice(), phase: beta === 0 ? 'L' : beta === 1 ? 'V' : 'VL', iterations: 0 };
   }
-  if (num(Pguess) && Pguess > 0) { try { return vfSolve(pp, z, beta, 'P', T, Math.log(Pguess)); } catch (_e) { /* restart from Wilson */ } }
+  // ROUND 12c: as for bubble and dew temperatures, an equation of state can land on the trivial solution or fail
+  // (a supercritical light gas in a heavy liquid); then the boundary is found by scanning PT flashes in pressure
+  const eosEnd = pp.isEOS && (beta === 0 || beta === 1);
+  const trivialish = (r) => { if (!eosEnd || !r || !r.K) return false; let m = 0; for (const i of live) m = Math.max(m, Math.abs(Math.log(r.K[i]))); return m < 0.02; };
+  if (num(Pguess) && Pguess > 0) { try { const r = vfSolve(pp, z, beta, 'P', T, Math.log(Pguess)); if (!trivialish(r)) return r; } catch (_e) { /* restart from Wilson */ } }
   try {
-    return vfSolve(pp, z, beta, 'P', T, undefined);
+    const r = vfSolve(pp, z, beta, 'P', T, undefined);
+    if (trivialish(r)) { const q = vfScanP(pp, z, beta, T); if (q) return q; }
+    return r;
   } catch (e) {
+    if (eosEnd) { const q = vfScanP(pp, z, beta, T); if (q) return q; }
     if (pp.electrolyte && pp.electrolyte.urea) { const r = vfBisect(pp, z, beta, 'P', T, Pguess); if (r) return r; }
     throw e;
   }
+}
+
+/**
+ * ROUND 12c: bubble (beta = 0) or dew (beta = 1) pressure of an equation-of-state mixture by scanning PT flashes
+ * upwards in ln P — a dew point is the first pressure at which a liquid appears, a bubble point the pressure at
+ * which the last vapour disappears — then bisecting on the boundary. Returns null when no boundary is crossed
+ * (the temperature is above the cricondentherm, or the mixture goes dense without a phase change).
+ */
+function vfScanP(pp, z, beta, T) {
+  const live = liveIdx(z);
+  const ph = (P) => { try { const r = flashPT(pp, z, T, P); return { r, two: r.phase === 'VL' && r.beta > 0 && r.beta < 1 }; } catch (_e) { return null; } };
+  const dew = beta === 1;
+  let pmin = Infinity;
+  for (const i of live) { const c = pp.comps[i]; const v = T < c.Tc ? psat(c, T) : c.Pc; if (v > 0) pmin = Math.min(pmin, v); }
+  pmin = Math.max(1, Math.min(0.2 * pmin, 1e5));
+  let pIn = null, pOut = null, qIn = null, seenTwo = false;
+  for (let P = pmin, k = 0; k < 200 && P <= 1.5e8; k++, P *= 1.08) {
+    const q = ph(P);
+    if (!q) continue;
+    if (dew) {
+      if (q.two) { if (pOut !== null) { pIn = P; qIn = q; break; } continue; }
+      if (q.r.phase === 'V') pOut = P;
+      else if (pOut !== null) return null;                 // vapour went straight to liquid: dense fluid, no dew point
+    } else {
+      if (q.two) { seenTwo = true; pIn = P; qIn = q; continue; }
+      if (seenTwo && q.r.phase === 'L') { pOut = P; break; }
+      if (seenTwo) return null;                            // two phases then one dense non-liquid phase: above the cricondentherm side
+    }
+  }
+  if (pIn === null || pOut === null) return null;
+  for (let it = 0; it < 60 && Math.abs(Math.log(pOut / pIn)) > 1e-9; it++) {
+    const P = Math.sqrt(pOut * pIn), q = ph(P);
+    if (!q) break;
+    if (q.two) { pIn = P; qIn = q; } else pOut = P;
+  }
+  const P = Math.sqrt(pOut * pIn), r = qIn.r;
+  const res = dew ? { T, P, beta: 1, x: r.x, y: z.slice(), phase: 'V' } : { T, P, beta: 0, x: z.slice(), y: r.y, phase: 'L' };
+  res.K = (dew ? z.map((zi, i) => (r.x[i] > 0 ? zi / r.x[i] : 1)) : r.y.map((yi, i) => (z[i] > 0 ? yi / z[i] : 1)));
+  res.iterations = 0; res.scanned = true;
+  return res;
 }
 
 /**
@@ -2714,6 +3327,101 @@ export function flashTVF(pp, z, T, beta, Pguess) {
  * liquid makes the composition iteration of vfSolve fragile; β(T) and β(ln P) are monotonic).
  * mode 'T': T at fixed P; mode 'P': P at fixed T. Returns null when no bracket is found.
  */
+/**
+ * STEP 41: dew (beta = 1) or bubble (beta = 0) temperature of an equation-of-state mixture by scanning PT flashes —
+ * from the top down for a dew point (the first temperature at which a liquid appears), from the bottom up for a
+ * bubble point — then bisecting on the phase boundary. Used when the Newton solver fails or lands on the trivial
+ * solution near the critical region. Returns null when the pressure is above the cricondenbar (no boundary).
+ */
+function vfScanT(pp, z, beta, P) {
+  const live = liveIdx(z);
+  const Tcs = live.map((i) => pp.comps[i].Tc);
+  const Tmax = Math.min(1500, 1.25 * Math.max(...Tcs)), Tmin = Math.max(20, 0.3 * Math.min(...Tcs));
+  const ph = (T) => { try { const r = flashPT(pp, z, T, P); return { r, two: r.phase === 'VL' && r.beta > 0 && r.beta < 1 }; } catch (_e) { return null; } };
+  const dew = beta === 1;
+  // round 11: is the lighter phase of a split liquid-like? (Z below the critical Z of the cubic: 0.307 PR, 1/3 SRK)
+  const zc = pp.eos && pp.eos.kind === 'srk' ? 1 / 3 : 0.3074;
+  const lightIsLiquid = (T, r) => { try { return pp.eos.state(T, P, r.y, 'V').Z < zc; } catch (_e) { return false; } };
+  let tOut = null, tIn = null, qIn = null;           // tOut: single phase side, tIn: two-phase side
+  let tLL = null, qLL = null, tTwo = null;           // bubble side: two liquids seen before any vapour
+  for (let T = dew ? Tmax : Tmin, k = 0; k < 160 && T >= Tmin - 1e-9 && T <= Tmax + 1e-9; k++, T = dew ? T * 0.975 : T / 0.975) {
+    const q = ph(T);
+    if (!q) continue;
+    if (q.two) {
+      if (tOut === null) {
+        // a split before the single phase was seen (e.g. a CO2-rich liquid far below its freezing point) is not this boundary —
+        // unless it is two liquids (liquid N2 beside liquid ethane, …) whose lighter one then boils: that is a heterogeneous bubble point
+        if (!dew && pp.eos) {
+          if (lightIsLiquid(T, q.r)) { tLL = T; qLL = q; }
+          else if (tLL !== null) {
+            const hb = hetBubbleEOS(pp, z, P, tLL, { x1: qLL.r.x, x2: qLL.r.y });
+            if (hb) return hb;
+            tTwo = T; tLL = null;
+          }
+          else if (tTwo === null) tTwo = T;
+        }
+        continue;
+      }
+      tIn = T; qIn = q; break;
+    }
+    if ((dew && q.r.phase === 'V') || (!dew && q.r.phase === 'L')) { tOut = T; tLL = null; }
+    else if (tOut !== null) return null;              // vapour turned into liquid (or back) without two phases: dense / supercritical
+  }
+  if (!dew && tOut === null && (tLL !== null || tTwo !== null)) {
+    fail('TH_VF', `no bubble point at ${(P / 1e5).toFixed(3)} bar: the mixture stays in two phases from ${Tmin.toFixed(0)} K up to its dew point — ` +
+      'its components do not form a single liquid at this pressure (one of them is above or near its critical point)');
+  }
+  if (tIn === null || tOut === null) return null;
+  for (let it = 0; it < 60 && Math.abs(tOut - tIn) > 1e-7 * tIn; it++) {
+    const T = 0.5 * (tOut + tIn), q = ph(T);
+    if (!q) break;
+    if (q.two) { tIn = T; qIn = q; } else tOut = T;
+  }
+  const T = 0.5 * (tOut + tIn), r = qIn.r;
+  const res = dew ? { T, P, beta: 1, x: r.x, y: z.slice(), phase: 'V' } : { T, P, beta: 0, x: z.slice(), y: r.y, phase: 'L' };
+  res.K = (dew ? z.map((zi, i) => (r.x[i] > 0 ? zi / r.x[i] : 1)) : r.y.map((yi, i) => (z[i] > 0 ? yi / z[i] : 1)));
+  res.iterations = 0; res.method = 'scan';
+  // polish with the Newton solver from the bracketed temperature; keep it only if it stays non-trivial and close
+  try {
+    const q = vfSolve(pp, z, beta, 'T', P, T);
+    let m = 0; for (const i of live) m = Math.max(m, Math.abs(Math.log(q.K[i])));
+    if (m >= 0.02 && Math.abs(q.T - T) < 0.05) return q;
+  } catch (_e) { /* keep the bracketed result */ }
+  return res;
+}
+
+/**
+ * Round 11: heterogeneous bubble point of an equation-of-state mixture that is two liquids below its bubble point
+ * (nitrogen with ethane, propane or CO2 near the critical pressure of nitrogen, for example): the temperature at
+ * which the lighter liquid boils, so that vapour, light liquid and heavy liquid coexist. Found as the fixed point
+ * T = T_bubble(light liquid of the liquid–liquid split at T) — the vapour that forms is in equilibrium with both
+ * liquids. Starts from a temperature T0 at which the feed is two liquids, with an optional split as the hint.
+ * Returns null when the two liquids merge or no fixed point is found.
+ */
+function hetBubbleEOS(pp, z, P, T0, hint) {
+  let T = T0, sp = liquidSplit(pp, z, T, P, hint), b = null;
+  if (!sp) return null;
+  const lightOf = (q) => (molarMassOf(pp, q.x1) < molarMassOf(pp, q.x2) ? q.x1 : q.x2);
+  for (let it = 0; it < 60; it++) {
+    b = null;
+    for (const g of [T, undefined]) { try { b = vfSolve(pp, lightOf(sp), 0, 'T', P, g); break; } catch (_e) { b = null; } }   // the guess can collapse onto the trivial solution: retry from Wilson
+    if (!b) return null;
+    let m = 0; for (const i of liveIdx(b.x)) m = Math.max(m, Math.abs(Math.log(b.K[i])));
+    if (m < 0.02) return null;                                     // the light liquid's bubble point collapsed onto the trivial solution
+    const dT = b.T - T;
+    T = b.T;
+    const n = liquidSplit(pp, z, T, P, sp);
+    if (!n) return null;                                           // the liquids merged before the light one boiled
+    sp = n;
+    if (Math.abs(dT) < 1e-7 * T) break;
+  }
+  const light = lightOf(sp), heavy = light === sp.x1 ? sp.x2 : sp.x1;
+  const bLight = light === sp.x1 ? 1 - sp.beta : sp.beta;          // ssLL: beta is the share of x2
+  return { T, P, beta: 0, x: heavy, x2: light, beta2: bLight, y: b.y, phase: 'LL', iterations: 0, method: 'het-bubble',
+    note: 'heterogeneous bubble point — below it the feed is two liquids' };
+}
+const molarMassOf = (pp, x) => x.reduce((a, v, i) => a + v * pp.MW[i], 0);
+
 function vfBisect(pp, z, beta, mode, fixed, guess) {
   const bOf = (u) => {
     const T = mode === 'T' ? u : fixed, P = mode === 'T' ? fixed : Math.exp(u);
@@ -3169,10 +3877,16 @@ function mixKL(pp, T, x, est) {
   if (pp.electrolyte && pp.electrolyte.conductivity) { try { const k = pp.electrolyte.conductivity(T, x); if (k > 0) return k; } catch (_e) { /* generic below */ } }
   if (pp.electrolyte && pp.electrolyte.waterTransport) { const k = pureKL(component('H2O'), T, null); if (k > 0) return k; }
   // Li (1976): k = Σ Σ φi φj kij, kij = 2 / (1/ki + 1/kj), φ = x V / Σ x V
+  // STEP 41: gases dissolved above their critical temperature (H2, N2, CH4 … in liquid ammonia) have no
+  // liquid conductivity of their own; while they are dilute (< 10 mol %) the solvent carries the conduction
+  let xsc = 0, xall = 0;
+  for (let i = 0; i < pp.n; i++) if (x[i] > 0) { xall += x[i]; if (T > pp.comps[i].Tc) xsc += x[i]; }
+  const skipSC = xsc > 0 && xsc < 0.1 * xall;
   const idx = [], ks = [], phi = [];
   let tot = 0;
   for (let i = 0; i < pp.n; i++) if (x[i] > 0) {
     const c = pp.comps[i];
+    if (skipSC && T > c.Tc) continue;
     let k = pureKL(c, T, est); if (!(k > 0)) k = 0.15;
     const v = x[i] * vLiq(c, Math.min(T, 0.99 * c.Tc));
     idx.push(i); ks.push(k); phi.push(v); tot += v;
@@ -3256,7 +3970,7 @@ export { ThermoError, R, T0, P0 };
 export default {
   THERMO_VERSION, PACKAGES, ThermoError, R, T0, P0,
   corr, component, hIG, sIG, psat, hvap, vLiq, satT,
-  createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashTVF,
-  hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED,
-  pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC, liquidSplit,
+  createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashPVF3, flashTVF,
+  hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED, BIP_SRK: bipSRK,
+  pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC, liquidSplit, lkpKijTable,
 };

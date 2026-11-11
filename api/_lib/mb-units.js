@@ -39,6 +39,7 @@ const th = Object.assign({}, thBase, {
   flashPT: (pp, z, T, P) => (pp.threePhase ? thBase.flashPT3(pp, z, T, P) : thBase.flashPT(pp, z, T, P)),
   flashPH: (pp, z, P, H, Tg, hint) => (pp.threePhase ? thBase.flashPH3(pp, z, P, H, Tg, hint) : thBase.flashPH(pp, z, P, H, Tg, hint)),
   flashPS: (pp, z, P, S, Tg, hint) => (pp.threePhase ? thBase.flashPS3(pp, z, P, S, Tg, hint) : thBase.flashPS(pp, z, P, S, Tg, hint)),
+  flashPVF: (pp, z, P, b, Tg) => (pp.threePhase ? thBase.flashPVF3(pp, z, P, b, Tg) : thBase.flashPVF(pp, z, P, b, Tg)),       // STEP 41: heterogeneous bubble points
 });
 import compdb from './mb-compdb.js';
 import bip from './mb-bip.js';
@@ -123,7 +124,7 @@ function noteState(pp, r) {
     if (!IGV.flash || !(res <= IGV.flash.residual)) IGV.flash = { T: r.T, P: r.P, residual: res, phase: r.phase };
     IGV.flashCount = (IGV.flashCount || 0) + 1;
   }
-  if (pp.isEOS && !pp.freeWater && pp.index && pp.index.H2O !== undefined && r.phase !== 'V') {
+  if (pp.isEOS && (pp.model === 'pr' || pp.model === 'srk') && !pp.freeWater && pp.index && pp.index.H2O !== undefined && r.phase !== 'V') {
     const iw = pp.index.H2O, liq = [];
     if (r.x && (r.phase === 'L' || r.phase === 'VL' || r.phase === 'LL' || r.phase === 'VLL')) liq.push(r.x);
     if (r.x2) liq.push(r.x2);
@@ -1395,6 +1396,9 @@ function solveConvReactor(inp) {
 // binary parameters found in the databank, so a user can see the gaps
 // before running. streams: one or more streams carrying the components.
 // ---------------------------------------------------------------------------
+// GERG-2008 binaries with a departure function (Kunz & Wagner 2012, Table A8; generalized ones included)
+const GERG_DEP = new Set(['CH4|N2', 'CH4|CO2', 'C2H6|CH4', 'C3H8|CH4', 'CH4|isobutane', 'CH4|nC4H10', 'CH4|H2', 'CO2|N2', 'C2H6|N2', 'C2H6|C3H8', 'C2H6|isobutane', 'C2H6|nC4H10',
+  'C3H8|isobutane', 'C3H8|nC4H10', 'isobutane|nC4H10']);
 function propertyInfo(inp) {
   const { streams, params: p } = input(inp, 1, 20, 'property-info');
   const all = keysOf(...streams);
@@ -1410,9 +1414,14 @@ function propertyInfo(inp) {
     const c = compdb.get(k) || {};
     return { key: k, name: c.name || k, formula: c.formula || null, cas: c.cas || null, mw: r4(c.mw), Tc_K: r4(c.tc), Pc_bar: r4(c.pc / 1e5),
       omega: r4(c.w), Tb_K: r4(c.tb), Hf_kJmol: r4(c.hf / 1e6), unifac: !!c.unifac, modunifac: !!c.modunifac,
-      uniquac_rq: num(c.uqr) && num(c.uqq), category: c.cat || null };
+      uniquac_rq: num(c.uqr) && num(c.uqq), category: c.cat || null,
+      // ROUND 12: where each value of an extended-databank component comes from
+      data: c.ext ? 'literature' : c.user ? 'user' : c.pseudo ? 'pseudo' : 'ChemSep',
+      sources: c.ext && c.src ? Object.fromEntries(Object.entries(c.src).map(([f, i]) => [f, compdb.EXT_SOURCES[i]])) : undefined,
+      no_formation_data: c.noform ? true : undefined };
   });
   const pairs = [];
+  let lkpTab = null;
   const userOf = (tab, a, b) => (tab && tab[a + '|' + b]) || null;
   // STEP 37: pairs the package estimated from UNIFAC
   const estMap = new Map((pp.estimatedPairs || []).map((e) => [e.pair, e]));
@@ -1427,26 +1436,43 @@ function propertyInfo(inp) {
   for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) {
     const a = keys[i], b = keys[j];
     const row = { i: a, j: b };
-    if (model === 'pr' || model === 'srk' || pp.vapourModel !== 'ideal') {
+    if (model === 'gerg2008') row.source = 'GERG-2008 (Kunz & Wagner 2012): binary reducing parameters' + (GERG_DEP.has([a, b].sort().join('|')) ? ' and departure function' : '');
+    else if (model === 'lkp') {                                   // ROUND 12c: multiplier on T_c,ij
+      const t = (lkpTab = lkpTab || th.lkpKijTable(keys, spec))[[a, b].sort().join('|')];
+      row.kij = t ? Number(t.kij.toFixed(4)) : 1; row.kij_source = t ? t.source : 'none (1)'; row.kij_kind = 'LKP multiplier on Tc,ij';
+    } else if (model === 'chao-seader' || model === 'grayson-streed') row.source = 'none — regular solution of the solubility parameters (no binary parameters)';
+    else if (model === 'pr' || model === 'srk' || model === 'pr78' || model === 'prsv2' || pp.vapourModel === 'pr' || pp.vapourModel === 'srk') {
       const [x, y] = [a, b].sort();
       const u = spec.kij && (num(spec.kij[x + '|' + y]) ? spec.kij[x + '|' + y] : num(spec.kij[y + '|' + x]) ? spec.kij[y + '|' + x] : null);
-      const v = num(u) ? u : bip.PR[x + '|' + y];
+      const srk = (pp.vapourModel === 'srk' || model === 'srk') && th.BIP_SRK && num(th.BIP_SRK.SRK[x + '|' + y]) && !(th.BIP_EXTRA_USED && th.BIP_EXTRA_USED.PR[x + '|' + y]);
+      const v = num(u) ? u : srk ? th.BIP_SRK.SRK[x + '|' + y] : bip.PR[x + '|' + y];
       row.kij = num(v) ? v : 0;
-      row.kij_source = num(u) ? 'user' : th.BIP_EXTRA_USED && th.BIP_EXTRA_USED.PR[x + '|' + y] ? th.BIP_EXTRA_USED.PR[x + '|' + y] : num(v) ? 'ChemSep' : 'none (0)';
+      row.kij_source = num(u) ? 'user' : th.BIP_EXTRA_USED && th.BIP_EXTRA_USED.PR[x + '|' + y] ? th.BIP_EXTRA_USED.PR[x + '|' + y]
+        : srk ? (/^Peng–Robinson value/.test(th.BIP_SRK.SRK_NOTE[x + '|' + y]) ? 'ChemSep PR' + th.BIP_SRK.SRK_NOTE[x + '|' + y].replace(/^Peng–Robinson value/, '') : 'ChemSep SRK — ' + th.BIP_SRK.SRK_NOTE[x + '|' + y]) : num(v) ? ((pp.vapourModel === 'srk' || model === 'srk') ? 'ChemSep PR (no SRK value)' : 'ChemSep') : 'none (0)';
     }
     if (model === 'nrtl') {
       const ua = userOf(spec.nrtl, a, b), ub = userOf(spec.nrtl, b, a);
       const da = bip.NRTL[a + '|' + b], db = bip.NRTL[b + '|' + a];
-      row.nrtl = { b_ij: ua ? ua.b || 0 : da ? da[0] : 0, b_ji: ub ? ub.b || 0 : db ? db[0] : 0, a_ij: ua ? ua.a || 0 : 0, a_ji: ub ? ub.a || 0 : 0,
+      const xs = th.BIP_EXTRA_USED && (th.BIP_EXTRA_USED.NRTL[a + '|' + b] || th.BIP_EXTRA_USED.NRTL[b + '|' + a]);
+      const pick = (u, d, k, idx) => (u ? u[k] || 0 : d ? d[idx] || 0 : 0);
+      row.nrtl = { b_ij: pick(ua, da, 'b', 0), b_ji: pick(ub, db, 'b', 0), a_ij: pick(ua, da, 'a', 2), a_ji: pick(ub, db, 'a', 2),
+        e_ij: pick(ua, da, 'e', 3), e_ji: pick(ub, db, 'e', 3), f_ij: pick(ua, da, 'f', 4), f_ji: pick(ub, db, 'f', 4),
         alpha: ua && num(ua.alpha) ? ua.alpha : da ? da[1] : db ? db[1] : 0.3 };
-      row.source = ua || ub ? 'user' : da || db ? 'ChemSep' : 'none (ideal)';
+      row.source = ua || ub ? 'user' : xs ? xs : da || db ? 'ChemSep' : 'none (ideal)';
+      const tr = th.BIP_EXTRA_USED && (th.BIP_EXTRA_USED.T.NRTL[a + '|' + b] || th.BIP_EXTRA_USED.T.NRTL[b + '|' + a]);
+      if (!ua && !ub && tr) row.T_range_K = tr;
       const es = !ua && !ub && !da && !db ? estOf(a, b) : null;
       if (es) { row.nrtl = { b_ij: es.b_ij, b_ji: es.b_ji, a_ij: es.a_ij, a_ji: es.a_ji, alpha: 0.3 }; row.source = es.source; }
     } else if (model === 'uniquac') {
       const ua = userOf(spec.uniquac, a, b), ub = userOf(spec.uniquac, b, a);
       const da = bip.UNIQUAC[a + '|' + b], db = bip.UNIQUAC[b + '|' + a];
-      row.uniquac = { b_ij: ua ? ua.b || 0 : da ? da[0] : 0, b_ji: ub ? ub.b || 0 : db ? db[0] : 0 };
-      row.source = ua || ub ? 'user' : da || db ? 'ChemSep' : 'none (τ = 1)';
+      const xs = th.BIP_EXTRA_USED && (th.BIP_EXTRA_USED.UNIQUAC[a + '|' + b] || th.BIP_EXTRA_USED.UNIQUAC[b + '|' + a]);
+      const pick = (u, d, k, idx) => (u ? u[k] || 0 : d ? d[idx] || 0 : 0);
+      row.uniquac = { b_ij: pick(ua, da, 'b', 0), b_ji: pick(ub, db, 'b', 0), a_ij: pick(ua, da, 'a', 1), a_ji: pick(ub, db, 'a', 1),
+        e_ij: pick(ua, da, 'e', 2), e_ji: pick(ub, db, 'e', 2), f_ij: pick(ua, da, 'f', 3), f_ji: pick(ub, db, 'f', 3) };
+      row.source = ua || ub ? 'user' : xs ? xs : da || db ? 'ChemSep' : 'none (τ = 1)';
+      const tr = th.BIP_EXTRA_USED && (th.BIP_EXTRA_USED.T.UNIQUAC[a + '|' + b] || th.BIP_EXTRA_USED.T.UNIQUAC[b + '|' + a]);
+      if (!ua && !ub && tr) row.T_range_K = tr;
       const es = !ua && !ub && !da && !db ? estOf(a, b) : null;
       if (es) { row.uniquac = { b_ij: es.b_ij, b_ji: es.b_ji, a_ij: es.a_ij, a_ji: es.a_ji }; row.source = es.source; }
     } else if (model === 'wilson') {
@@ -1475,7 +1501,8 @@ function propertyInfo(inp) {
           : 'Pitzer electrolyte model (Harvie–Møller–Weare) with the USGS PHREEQC pitzer.dat parameters and equilibrium constants: K+, CO3−−, HCO3−, CO2(aq), OH−, H+; water activity from the osmotic coefficient',
         enthalpy: 'Gibbs–Helmholtz on the liquid fugacities (heats of absorption consistent with the solubility model)' } : null,
       no_data: noData,
-      databank: (compdb.CHEMSEP_VERSION || 'ChemSep') + ' (Artistic License 2.0) · NIST Shomate ideal-gas data where available' },
+      databank: (compdb.CHEMSEP_VERSION || 'ChemSep') + ' (Artistic License 2.0) · NIST Shomate ideal-gas data where available' +
+        (comps.some((c) => c.data === 'literature') ? ' · extended databank: evaluated literature data compiled in the chemicals library (MIT) and reference equations of state in CoolProp (MIT), source of each value listed per component' : '') },
     converged: true, warnings: pp.warnings.concat(noData.length ? [`no rigorous property data for ${noData.join(', ')} — these can only be used in the classic engine models`] : []) };
 }
 
