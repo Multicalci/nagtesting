@@ -5700,6 +5700,9 @@ function newCalc() {
   return { id: 'c' + Date.now().toString(36), name: 'Calculator ' + n, active: true, imports: [], exports: [], code: '' };
 }
 function calcVarName(n) { return typeof n === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(n); }
+/* the engine's reserved words (api/_lib/mb-calc.js RESERVED): its functions, the constants pi, e, g, R, and and / or / not */
+const CALC_RESERVED = new Set(['sqrt', 'exp', 'ln', 'log', 'log10', 'abs', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'floor', 'ceil',
+  'round', 'sign', 'pow', 'atan2', 'hypot', 'min', 'max', 'clamp', 'if', 'pi', 'e', 'g', 'R', 'and', 'or', 'not']);
 function serverCalc(c) {
   const imports = (c.imports || []).map((t) => {
     if (t.src === 'input') { const v = decodeVary(t.code || '', null); const o = { name: t.name, kind: v.kind }; if (v.stream) o.stream = v.stream; if (v.block) o.block = v.block; if (v.path) o.path = v.path; if (v.kind === 'split') o.outlet = v.outlet; return o; }
@@ -5720,6 +5723,7 @@ function calcIssues(c, i) {
   const seen = new Set();
   (c.imports || []).forEach((t, j) => {
     if (!calcVarName(t.name)) add('import ' + (j + 1) + ' needs a variable name (letters, digits, _)');
+    else if (CALC_RESERVED.has(t.name)) add('“' + t.name + '” is reserved (a function, a constant pi / e / g / R, or and / or / not) — choose another name');
     else if (seen.has(t.name)) add('“' + t.name + '” is imported twice'); else seen.add(t.name);
     if (t.src === 'input') { if (!t.code || !varyOptions().some((o) => o.code === t.code)) add('import “' + (t.name || j + 1) + '”: pick the input to read'); }
     else if (t.src === 'stream') { if (!streamById(t.stream)) add('import “' + (t.name || j + 1) + '”: pick a stream'); }
@@ -5730,6 +5734,7 @@ function calcIssues(c, i) {
   });
   (c.exports || []).forEach((x, j) => {
     if (!calcVarName(x.name)) add('export ' + (j + 1) + ' needs a variable name');
+    else if (CALC_RESERVED.has(x.name)) add('“' + x.name + '” is reserved (a function, a constant pi / e / g / R, or and / or / not) — choose another name');
     if (!x.code || !varyOptions().some((o) => o.code === x.code)) add('export “' + (x.name || j + 1) + '”: pick the feed or unit specification it sets');
   });
   if (!(c.code || '').trim()) add('write the code (one “name = expression” per line)');
@@ -10002,12 +10007,12 @@ function caseSummary() {
     const br = RES.blocks[b.id], R = br && br.result;
     if (!R) continue;
     const eb = R.energy_balance || {}, D = R.details || {};
-    un[b.id] = { name: b.name, type: TYPES[b.type].label, Q: tdef(b).internalQ && num(D.duty_kW) ? D.duty_kW : eb.Q_kW, W: eb.W_kW };
+    un[b.id] = { name: b.name, type: TYPES[b.type].label, Q: qClean(tdef(b).internalQ && num(D.duty_kW) ? D.duty_kW : eb.Q_kW), W: qClean(eb.W_kW) };   // round-off (1e-12 kW) is 0, not a difference between cases
   }
   const ov = RES.overall;
   return {
     streams: st, units: un,
-    overall: ov ? { heat: ov.heat, cool: ov.cool, work: ov.work, workOut: ov.workOut, closure: ov.closure } : null,
+    overall: ov ? { heat: qClean(ov.heat), cool: qClean(ov.cool), work: qClean(ov.work), workOut: qClean(ov.workOut), closure: ov.closure } : null,
     converged: RES.loops.every((l) => l.converged) && (RES.specs || []).every((s) => s.converged),
     specs: (RES.specs || []).map((sp) => { const def = (M.specs || []).find((x) => x.id === sp.id); return { name: sp.name || (def && def.name) || sp.id, varied: sp.varied, unit: def ? varyUnit(def.vary) : 'raw' }; }),
     econ: RES.econ && !RES.econ.error ? Object.assign({ currency: RES.econ.basis.currency }, RES.econ.totals) : null,
