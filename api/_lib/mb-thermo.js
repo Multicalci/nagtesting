@@ -1807,10 +1807,15 @@ export function createPackage(spec, keys) {
     // onto IAPWS G7-04 (13 gases), or Sander's (2015) Henry constants for other
     // gases (Tb < 0 °C; ammonia keeps the cubic, it is not sparingly soluble):
     // Δ_g(T) = ln kH,ref − ln kH,EOS (raw cubic, pure water at Psat). The
-    // liquid gains G/RT = Σ_g n_g·x_w·Δ_g, so ln φ_k += (δ_kw − x_w)·S + x_w·Δ_k
-    // (S = Σ_g x_g Δ_g), H += −R T² x_w Σ_g x_g Δ_g', S from (H − G)/T —
-    // exact at infinite dilution, consistent at any composition. Same weight
-    // and the same fade-out near the critical point of water as above.
+    // liquid gains G/RT = S·φ(x_w), S = Σ_g x_g Δ_g, φ = x_w·σ(x_w) with σ a
+    // smooth step from 0 at x_w = 0.5 to 1 at x_w = 1 (σ(1) = 1, σ'(1) = 0), so
+    // ln φ_g += φ·Δ_g − x_w·φ'·S, ln φ_w += (1 − x_w)·φ'·S, ln φ_j −= x_w·φ'·S,
+    // H += −R T² φ Σ_g x_g Δ_g', S from (H − G)/T — exact at infinite dilution
+    // in water (φ = φ' = 1 there), Gibbs–Duhem consistent at any composition,
+    // and zero in a water-poor liquid (φ' = 0): a hydrocarbon liquid keeps the
+    // cubic's own water solubility. Same weight and the same fade-out near the
+    // critical point of water as above.
+    const HW0 = 0.5;
     const hIdx = [];
     for (let i = 0; i < n; i++) {
       if (i === iw || keys[i] === 'NH3') continue;
@@ -1894,8 +1899,13 @@ export function createPackage(spec, keys) {
             const xw = x[iw];
             let S = 0, Sp = 0;
             for (const [i] of hIdx) { S += x[i] * hc.D[i]; Sp += x[i] * hc.Dp[i]; }
-            for (let i = 0; i < n; i++) lnphi[i] += w * (((i === iw ? 1 : 0) - xw) * S + xw * hc.D[i]);
-            const dH = -R * T * T * xw * Sp, dG = R * T * xw * S;
+            // video round: G/RT = S·φ(x_w), φ = x_w·σ, σ a smooth step from 0 at x_w = 0.5 to 1 at x_w = 1 — φ(1) = φ'(1) = 1
+            // keep the Henry constant and its first-order slope; a water-poor liquid gets nothing (with φ = x_w, water in
+            // liquid propane got ln γ = S ≈ −6 and a propane liquid holding 40 % water came out of the flash)
+            const tq = (xw - HW0) / (1 - HW0), sg = tq <= 0 ? 0 : tq >= 1 ? 1 : tq * tq * (3 - 2 * tq), dsg = tq <= 0 || tq >= 1 ? 0 : 6 * tq * (1 - tq) / (1 - HW0);
+            const phi = xw * sg, dphi = sg + xw * dsg;
+            for (let i = 0; i < n; i++) lnphi[i] += w * (i === iw ? dphi * (1 - xw) * S : phi * hc.D[i] - dphi * xw * S);
+            const dH = -R * T * T * phi * Sp, dG = R * T * phi * S;
             hDep += w * dH;
             sDep += w * (dH - dG) / T;
           }
@@ -3016,14 +3026,14 @@ export function flashPT3(pp, z, T, P, hint) {
     const ll = ssLL(pp, z, T, P, z.map((v, i) => (v > 0 ? Math.max(hint.x[i], 1e-12) : 0)), hint.x2);
     if (ll) {
       const rLL = { T, P, beta: 0, beta2: ll.beta, x: ll.x1, y: ll.x1, x2: ll.x2, phase: 'LL', iterations: ll.it, converged: ll.converged, residual: ll.residual };
-      if (!vapourFrom(pp, T, P, rLL.x)) return orderLiquids(pp, T, P, rLL);
+      if (!vapourFrom(pp, T, P, rLL.x)) return eosLabels(pp, T, P, orderLiquids(pp, T, P, rLL));
     }
   }
   const r2 = flashPT(pp, z, T, P, hint && hint.phase === 'VL' && !hint.x2 ? hint : null);
   if (r2.phase === 'V' || liveIdx(z).length < 2) return r2;
   const xl = r2.phase === 'L' ? z : r2.x;
   const st = stabilityLiquid(pp, T, P, xl, z, r2.phase === 'VL' ? r2.y : null);
-  if (!st) return r2;
+  if (!st) return eosLabels(pp, T, P, r2);
   const cands = [r2];
   // liquid–liquid split of the whole feed
   const xs = z.map((v, i) => (v > 0 ? Math.max(xl[i], 1e-12) : 0));
@@ -3053,7 +3063,47 @@ export function flashPT3(pp, z, T, P, hint) {
   let best = cands[0], gb = gibbsRT(pp, T, P, cands[0]);
   for (const c of cands.slice(1)) { const g = gibbsRT(pp, T, P, c); if (g < gb - 1e-10) { best = c; gb = g; } }
   if (best.phase === 'VLL' && pp.isEOS) best = lightestAsVapour(pp, T, P, best);
-  return best.x2 ? orderLiquids(pp, T, P, best) : best;
+  return eosLabels(pp, T, P, best.x2 ? orderLiquids(pp, T, P, best) : best);
+}
+/**
+ * Video round: phase labels of an EOS two-phase answer from flashPT3. A phase with a single real root
+ * has an arbitrary 'vapour' / 'liquid' label, and the V/L and L/L candidates of one state tie in G/RT, so
+ * the label is set by what the phase is: gas above its pseudo-critical temperature (Li's rule), liquid
+ * below it when it is also dense (packing fraction b/V above 0.4; the critical value is about 0.25).
+ * Cases seen: a saturated natural gas over a little free water came out as 'liquid 1' (64 kg/m³) and
+ * would have left a three-phase separator through the light-liquid outlet; liquid propane over water at
+ * 69.5 bar came out as the 'vapour' of a V/L answer.
+ */
+function eosLabels(pp, T, P, r) {
+  if (!pp.isEOS || !pp.eos || typeof pp.eos.state !== 'function' || !pp.comps) return r;
+  const kind = (x) => {
+    let st;
+    try { st = pp.eos.state(T, P, x, 'min'); } catch (_e) { return null; }
+    if (!st || st.nRoots !== 1) return null;
+    let sv = 0, stc = 0;
+    for (let i = 0; i < pp.n; i++) {
+      const c = pp.comps[i];
+      if (!(x[i] > 0) || !(c.Tc > 0) || !(c.Pc > 0)) continue;
+      const vc = x[i] * (0.2905 - 0.085 * (c.omega || 0)) * c.Tc / c.Pc;   // Vc from Zc ≈ 0.2905 − 0.085ω (R cancels)
+      sv += vc; stc += vc * c.Tc;
+    }
+    if (!(sv > 0)) return null;
+    if (T > stc / sv) return 'gas';
+    return num(st.B) && num(st.Z) && st.Z > 0 && st.B / st.Z > 0.4 ? 'liquid' : null;
+  };
+  if (r.phase === 'LL' && r.x2 && r.beta2 > 0 && r.beta2 < 1) {
+    if (kind(r.x) !== 'gas' || kind(r.x2) === 'gas') return r;
+    const { x2, beta2, ...rest } = r;
+    return { ...rest, phase: 'VL', beta: 1 - beta2, y: r.x, x: x2 };
+  }
+  if (r.phase === 'VL' && !r.x2 && r.beta > 0 && r.beta < 1 && r.y && r.x) {
+    const kv = kind(r.y);
+    if (kv !== 'liquid') return r;
+    const kl = kind(r.x);
+    if (kl === 'gas') return { ...r, beta: 1 - r.beta, y: r.x, x: r.y };          // labels swapped
+    return orderLiquids(pp, T, P, { ...r, phase: 'LL', beta: 0, beta2: 1 - r.beta, x: r.y, x2: r.x, y: r.y });
+  }
+  return r;
 }
 /**
  * EOS three-phase answer: when a phase has a single real root its 'vapour' /
