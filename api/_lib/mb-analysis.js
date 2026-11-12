@@ -17,6 +17,12 @@
 //   binary-diagram   T–x–y (fixed P) or P–x–y (fixed T) for a binary, with
 //                    azeotrope detection.
 //   ternary-diagram, azeotrope-search — see mb-ternary.js (STEP 40).
+//   stream-properties  ROUND 15: one state (the stream's own, or a given T, P or
+//                    vapour fraction): mixture and per-phase flows, MW, density,
+//                    Z, H, S, Cp, Cv, Cp/Cv, speed of sound, Joule–Thomson
+//                    coefficient, viscosity, thermal conductivity, surface
+//                    tension, compositions, K-values, bubble and dew points
+//                    (DWSIM material-stream property view).
 //
 // Input: the engine's usual {streams:[stream], params:{property_package, …}}.
 // Plain ES module. Server-side only. (c) multicalci.com
@@ -26,7 +32,7 @@ import th from './mb-thermo.js';
 import units from './mb-units.js';
 import { TERNARY_MODULES } from './mb-ternary.js';
 
-export const ANALYSIS_VERSION = 'mb-analysis 1.0.1';
+export const ANALYSIS_VERSION = 'mb-analysis 1.1.0';
 const num = (x) => typeof x === 'number' && isFinite(x);
 const fail = (code, msg, field) => { throw new units.UnitError(code, msg, field); };
 const keysOf = (s) => [...new Set((s.components || []).filter((c) => num(c.mass_fraction) && c.mass_fraction > 0).map((c) => c.key))];
@@ -500,9 +506,115 @@ function solveBinary(inp) {
     converged: rows.every((r) => !r.error), warnings: w };
 }
 
+// ---------------------------------------------------------------------------
+// ROUND 15: stream properties at one state
+// Cv, Cp/Cv, speed of sound and the Joule–Thomson coefficient of each phase come from
+// the phase's own volume function (central differences in T and P at fixed composition):
+//   Cv = Cp − T (∂V/∂T)²_P / [−(∂V/∂P)_T],  w = √[(Cp/Cv) / (ρ_mass κ_T)],  κ_T = −(1/V)(∂V/∂P)_T,
+//   μ_JT = [T (∂V/∂T)_P − V] / Cp.
+// For a two-phase mixture they are given per phase only (the mixture's are not single-phase quantities).
+// A liquid's Cv, Cp/Cv and speed of sound need an accurate liquid equation of state (IAPWS-IF97, the reference
+// equations, GERG-2008): density correlations give a poor compressibility, so for other methods only the liquid's
+// Joule–Thomson coefficient (thermal expansion, no compressibility) is reported.
+// ---------------------------------------------------------------------------
+const ACCURATE_LIQUID = new Set(['steam', 'reference', 'gerg2008']);
+function phaseDerived(pp, T, P, x, type, cp, MW) {
+  const t = type === 'vapour' ? 'V' : 'L';
+  const fullL = t === 'V' || ACCURATE_LIQUID.has(pp.model);
+  const V = pp.volPhase(T, P, x, t);
+  const dT = Math.max(0.01, T * 2e-5), dP = Math.max(1, P * 2e-5);
+  const dVdT = (pp.volPhase(T + dT, P, x, t) - pp.volPhase(T - dT, P, x, t)) / (2 * dT);
+  const dVdP = (pp.volPhase(T, P + dP, x, t) - pp.volPhase(T, P - dP, x, t)) / (2 * dP);
+  if (!num(V) || !num(dVdT) || !num(cp) || !(cp > 0)) return {};
+  const out = { jt: (T * dVdT - V) / cp };
+  if (!fullL || !num(dVdP) || !(dVdP < 0)) return out;
+  const Cv = cp - T * dVdT * dVdT / (-dVdP);
+  if (Cv > 0 && Cv < cp * 1.0000001) {
+    out.Cv = Cv; out.gamma = cp / Cv;
+    const kT = -dVdP / V, rho = MW / 1000 / V;       // kg/m³
+    const w2 = out.gamma / (rho * kT);
+    if (w2 > 0) out.w = Math.sqrt(w2);
+  }
+  if (pp.steam && pp.steam.phaseProps) { const sp = pp.steam.phaseProps(T, P, t); if (sp && num(sp.w)) out.w = sp.w; }   // IAPWS-IF97 speed of sound
+  return out;
+}
+function solveStreamProperties(inp) {
+  const { s, p } = input(inp, 'stream-properties');
+  const pp = units.pkg(p.property_package, keysOf(s));
+  const a = units.stateIn(pp, s, 'stream-properties stream');
+  const z = a.z, F = a.F;
+  const w = pp.warnings.slice();
+  let r = a.r;
+  const T0 = num(p.T_K) ? p.T_K : null, P0 = num(p.P_bar) ? p.P_bar * 1e5 : null;
+  if (num(p.vapour_fraction)) {
+    const vf = Math.min(1, Math.max(0, p.vapour_fraction));
+    if (T0 !== null && P0 === null) r = th.flashTVF(pp, z, T0, vf, a.P);
+    else r = pp.threePhase ? th.flashPVF3(pp, z, P0 !== null ? P0 : a.P, vf, a.T) : th.flashPVF(pp, z, P0 !== null ? P0 : a.P, vf, a.T);
+  } else if (T0 !== null || P0 !== null) r = flashT(pp, z, T0 !== null ? T0 : a.T, P0 !== null ? P0 : a.P);
+  else if (pp.threePhase && !(r.x2 && r.beta2 > 0) && r.phase !== 'V') { try { r = flashT(pp, z, a.T, a.P); } catch (_e) { /* keep the stream's state */ } }
+  const T = r.T, P = r.P;
+  const pr = th.properties(pp, r);
+  const h = th.hOf(pp, r), sv = th.sOf(pp, r);
+  const MWm = z.reduce((q, v, i) => q + v * pp.MW[i], 0);
+  const massF = F * MWm;
+  const comp = (v) => { const o = {}; pp.keys.forEach((k, i) => { if (z[i] > 0) o[k] = r6(v[i]); }); return o; };
+  const massComp = (v) => { const m = v.map((t, i) => t * pp.MW[i]); const tot = m.reduce((q, t) => q + t, 0); const o = {}; pp.keys.forEach((k, i) => { if (z[i] > 0) o[k] = r6(tot > 0 ? m[i] / tot : 0); }); return o; };
+  const phases = pr.phases.map((q) => {
+    const d = phaseDerived(pp, T, P, q.x, q.type, q.Cp_JmolK, q.MW);
+    const nF = F * q.fraction, mF = nF * q.MW;
+    let S = null;
+    try { S = pp.sPhase(T, P, q.x, q.type === 'vapour' ? 'V' : 'L'); } catch (_e) { S = null; }
+    const o = {
+      type: q.type, mole_fraction: r6(q.fraction), mass_fraction: r6(massF > 0 ? mF / massF : q.fraction * q.MW / MWm),
+      flow_kmol_h: r6(nF), flow_kg_h: r6(mF), flow_m3_h: r6(mF / q.rho_kgm3),
+      MW: r6(q.MW), rho_kgm3: r6(q.rho_kgm3), molar_volume_m3_kmol: r6(q.MW / q.rho_kgm3), Z: r6(q.Z),
+      H_kJkmol: r6(q.H_Jmol), H_kJkg: r6(q.H_Jmol / q.MW), S_kJkmolK: r6(S),
+      Cp_kJkgK: r6(q.Cp_JmolK / q.MW), Cp_kJkmolK: r6(q.Cp_JmolK), Cv_kJkgK: num(d.Cv) ? r6(d.Cv / q.MW) : null, Cp_Cv: r6(d.gamma),
+      speed_of_sound_m_s: r6(d.w), joule_thomson_K_bar: num(d.jt) ? r6(d.jt * 1e5) : null,
+      mu_cP: r6(q.mu_Pas * 1000), k_WmK: r6(q.k_WmK), sigma_mNm: num(q.sigma_Nm) ? r6(q.sigma_Nm * 1000) : null,
+      x: comp(q.x), w: massComp(q.x),
+    };
+    if (q.estimated) o.estimated = q.estimated;
+    if (q.acid_gas) o.acid_gas = q.acid_gas;
+    return o;
+  });
+  // mixture Cp across a flash (includes latent heat inside the envelope)
+  let cpMix = null;
+  try { const dT = 0.05; cpMix = (th.hOf(pp, flashT(pp, z, T + dT, P)) - th.hOf(pp, flashT(pp, z, T - dT, P))) / (2 * dT); } catch (_e) { cpMix = null; }
+  const beta = r.phase === 'V' ? 1 : r.phase === 'L' || r.phase === 'LL' ? 0 : r.beta;
+  const single = phases.length === 1 ? phases[0] : null;
+  const overall = {
+    phase: r.phase, vapour_fraction: r6(beta), liquid2_fraction: r.x2 && r.beta2 > 0 ? r6(r.beta2) : 0,
+    vapour_mass_fraction: r6(phases.filter((q) => q.type === 'vapour').reduce((t, q) => t + q.mass_fraction, 0)),
+    T_K: r6(T), P_bar: r6(P / 1e5), flow_kmol_h: r6(F), flow_kg_h: r6(massF), flow_m3_h: r6(massF / pr.rho_kgm3),
+    std_gas_flow_Nm3_h: r6(F * 8.314462618 * 273.15 / 101325 * 1000), MW: r6(MWm), rho_kgm3: r6(pr.rho_kgm3), molar_volume_m3_kmol: r6(MWm / pr.rho_kgm3),
+    H_kJkmol: r6(h), H_kJkg: r6(h / MWm), H_kW: r6(F * h / 3600), S_kJkmolK: r6(sv), Cp_kJkgK: num(cpMix) ? r6(cpMix / MWm) : null,
+    Z: single ? single.Z : null, Cv_kJkgK: single ? single.Cv_kJkgK : null, Cp_Cv: single ? single.Cp_Cv : null,
+    speed_of_sound_m_s: single ? single.speed_of_sound_m_s : null, joule_thomson_K_bar: single ? single.joule_thomson_K_bar : null,
+    mu_cP: single ? single.mu_cP : null, k_WmK: single ? single.k_WmK : null, sigma_mNm: single ? single.sigma_mNm : null,
+    x: comp(z), w: massComp(z),
+  };
+  // K-values of a vapour–liquid split
+  let K = null;
+  if (r.phase === 'VL' || (r.beta > 0 && r.beta < 1 && r.y && r.x)) { K = {}; pp.keys.forEach((k, i) => { if (z[i] > 0 && r.x[i] > 1e-30) K[k] = r6(r.y[i] / r.x[i]); }); }
+  // bubble and dew points at this pressure and at this temperature
+  const sat = {};
+  if (p.saturation !== false) {
+    const tryv = (f) => { try { const v = f(); return num(v) ? r6(v) : null; } catch (_e) { return null; } };
+    sat.bubble_T_K = tryv(() => th.flashPVF(pp, z, P, 0, T).T);
+    sat.dew_T_K = tryv(() => th.flashPVF(pp, z, P, 1, T).T);
+    sat.bubble_P_bar = tryv(() => th.flashTVF(pp, z, T, 0, P).P / 1e5);
+    sat.dew_P_bar = tryv(() => th.flashTVF(pp, z, T, 1, P).P / 1e5);
+  }
+  return { streams_out: [], mass_balance: {}, energy_balance: {},
+    details: { pp: { model: pp.model, label: pp.label, phases: pp.threePhase ? 'VLL' : 'VL' }, keys: pp.keys.filter((k, i) => z[i] > 0), overall, phases, K, saturation: sat },
+    converged: true, warnings: [...new Set(w)] };
+}
+
 export const ANALYSIS_MODULES = {
   'phase-envelope': solvePhaseEnvelope,
   'property-table': solvePropertyTable,
+  'stream-properties': solveStreamProperties,   // ROUND 15
   'binary-diagram': solveBinary,
   ...TERNARY_MODULES,                   // STEP 40: ternary-diagram, azeotrope-search
 };
