@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets) + Round 15 (stream properties) + Round 16 (energy streams) + free water with liquid hydrocarbons, vectors MB-001..MB-447",
+  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets) + Round 15 (stream properties) + Round 16 (energy streams) + free water with liquid hydrocarbons, vectors MB-001..MB-449",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -42419,6 +42419,116 @@
    },
    "source": "Structural check. 20,000 kg/h of gas (mol %: CH₄ 82, C₂H₆ 7, C₃H₈ 4, n-C₄H₁₀ 2, CO₂ 2, H₂O 3) with 800 kg/h of water at 15 °C, 69.5 bar. The dry gas alone is single-phase vapour at this state (no C₅+), so the only liquid is the water, less what stays in the gas: 1343 kg/h, 99.76 mol % water. Before this fix the water-free hydrocarbons and the water formed a spurious liquid of 4,417 kg/h with 46 mol % water — the symmetric Henry term — and a cooler in front of the drum carried the latent heat of that false condensate.",
    "id": "MB-447"
+  },
+  {
+   "desc": "stream properties (video round 2): loaded activated-MDEA solvent at 73 °C, 40 bar, 29.073 kg/h — no spurious dew point or dew pressure; the same intensive properties at any flow",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 29.07296,
+       "T_K": 346.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.39000132
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.02500003
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.04999983
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.53499882
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea",
+       "vapour": "pr"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.saturation.dew_T_K": null,
+    "details.saturation.dew_P_bar": null,
+    "details.saturation.bubble_P_bar": 1.084851,
+    "details.phases.0.mu_cP": 1.871162,
+    "details.phases.0.rho_kgm3": 1052.021
+   },
+   "tol": {
+    "details.saturation.bubble_P_bar": 0.0001,
+    "details.phases.0.mu_cP": 1e-05,
+    "details.phases.0.rho_kgm3": 0.001,
+    "default": 0
+   },
+   "source": "Structural check. At fixed pressure a dew point cannot lie below the bubble point, and at fixed temperature a dew pressure cannot lie above the bubble pressure. Before this fix this solvent (MDEA 41 wt % CO₂-free, piperazine, loading 0.35 mol/mol MDEA) reported a dew pressure of 395.7 bar against a bubble pressure of 1.08 bar, and a dew point of 146.1 °C below its 153.2 °C bubble point — or \"not found\", depending on the warm start left by earlier calls. The intensive properties (viscosity, density, bubble pressure) are the same at 1 kmol/h (29.07 kg/h) and at 1 t/h.",
+   "id": "MB-448"
+  },
+  {
+   "desc": "stream properties (video round 2): loaded activated-MDEA solvent at 73 °C, 40 bar, 1000 kg/h — no spurious dew point or dew pressure; the same intensive properties at any flow",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 346.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "methyl-diethanolamine",
+         "mass_fraction": 0.39000132
+        },
+        {
+         "key": "piperazine",
+         "mass_fraction": 0.02500003
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.04999983
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.53499882
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "amine-mdea",
+       "vapour": "pr"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.saturation.dew_T_K": null,
+    "details.saturation.dew_P_bar": null,
+    "details.saturation.bubble_P_bar": 1.084851,
+    "details.phases.0.mu_cP": 1.871162,
+    "details.phases.0.rho_kgm3": 1052.021
+   },
+   "tol": {
+    "details.saturation.bubble_P_bar": 0.0001,
+    "details.phases.0.mu_cP": 1e-05,
+    "details.phases.0.rho_kgm3": 0.001,
+    "default": 0
+   },
+   "source": "Structural check. At fixed pressure a dew point cannot lie below the bubble point, and at fixed temperature a dew pressure cannot lie above the bubble pressure. Before this fix this solvent (MDEA 41 wt % CO₂-free, piperazine, loading 0.35 mol/mol MDEA) reported a dew pressure of 395.7 bar against a bubble pressure of 1.08 bar, and a dew point of 146.1 °C below its 153.2 °C bubble point — or \"not found\", depending on the warm start left by earlier calls. The intensive properties (viscosity, density, bubble pressure) are the same at 1 kmol/h (29.07 kg/h) and at 1 t/h.",
+   "id": "MB-449"
   }
  ]
 }
