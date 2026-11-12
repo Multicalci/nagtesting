@@ -1307,6 +1307,21 @@ QN_EXTRA = { 'block_results.T1.result.energy_balance.W_kW': 'turbine power, kW',
   'block_results.E1.result.energy_balance.Q_kW': 'source cooler duty, kW', 'block_results.E2.result.energy_balance.Q_kW': 'receiving heater duty, kW', 'block_results.E3.result.energy_balance.Q_kW': 'heater in between, duty, kW',
   'stream_results.s4.T_K': 'heated water outlet, K', 'stream_results.s2.T_K': 'heated water outlet, K' };
 const s47vec = vecTable(range(439, 442), 'x47');
+// free water with a liquid hydrocarbon (video round): structural checks — the phases found, against the old engine's answer
+const FW_BEFORE = {
+  'MB-445': '“vapour” 0.518 (the water, at the cubic’s 855 kg/m³) and a “liquid” 0.482 of 60 % propane / 40 % water',
+  'MB-446': '“liquid 1” 0.9996 (the gas, 63 kg/m³) beside “liquid 2” 0.0004 (water) — vapour fraction 0',
+  'MB-447': 'vapour 0.850 and a liquid 0.150 of 46 mol % water — 4,417 kg/h instead of the water alone',
+};
+const s48rows = ['MB-445', 'MB-446', 'MB-447'].map((id) => {
+  const { v, r } = runVec(id);
+  for (const [k, e] of Object.entries(v.expect)) {
+    const a = getP(r, k);
+    if (typeof e === 'number' ? !(Math.abs(a - e) <= tolOf(v, k)) : a !== e) fail(id + ' ' + k + ': ' + a + ' vs ' + e);
+  }
+  const now = r.details.phases.map((q) => `${esc(q.type)} ${f(q.mole_fraction, 4)} · ${f(q.rho_kgm3, 0)} kg/m³ · H<sub>2</sub>O ${f(q.x.H2O * 100, q.x.H2O < 0.1 ? 3 : 2)} mol %`).join('<br>');
+  return `<tr><td>${esc(id)}</td><td class="l">${esc(v.desc.replace(/^free water \(video round\): /, ''))}</td><td class="l">${now}</td><td class="l">${esc(FW_BEFORE[id])}</td></tr>`;
+}).join('\n');
 QN_EXTRA = {};
 console.log(`Step 41: DWSIM agreement ${dw41.agree}/${dw41.n} · water–HC worst NRTL ${f(Math.max(...whcDev.nrtl), 1)} % UNIQUAC ${f(Math.max(...whcDev.uniquac), 1)} % · compressed liquid worst ${f(Math.max(...liqDev41), 2)} %`);
 
@@ -1985,8 +2000,15 @@ ${s47vec}
 </tbody></table></div>
 <p class="note">References from the independent Python iapws library (IAPWS97) for the same water and steam states; the syngas compressor of the first case only has to absorb the 98 % of the turbine power it receives. The flowsheet example “Steam-turbine-driven compressor with heat recovery” shows both kinds of link.</p>
 
+<h2>47 · Free water beside a liquid hydrocarbon</h2>
+<p>With Peng–Robinson or SRK, free water puts liquid water on IAPWS-IF97 (section 21) and moves the infinite-dilution fugacity of each dissolved gas onto its Henry constant (section 22). The Henry term was written as an excess Gibbs energy G/RT = x<sub>w</sub>·Σ x<sub>g</sub>Δ<sub>g</sub>, exact in water but symmetric: it also gave water dissolved in a hydrocarbon-rich liquid ln γ = Σ x<sub>g</sub>Δ<sub>g</sub>, about −6 for propane, so water became hundreds of times too soluble in liquid propane and in the condensate of a wet gas. The term is now G/RT = Σ x<sub>g</sub>Δ<sub>g</sub>·x<sub>w</sub>σ(x<sub>w</sub>), with σ a smooth step from 0 at x<sub>w</sub> = 0.5 to 1 in pure water: unchanged at infinite dilution and to first order in the gas concentration (sections 21, 22 and 40 are unchanged to the printed digits; two sour-water deviations of section 37, which use the Peng–Robinson vapour, move by one percentage point), and zero in a water-poor liquid, which keeps the cubic’s own water solubility. A phase with a single real root of the equation of state is labelled by what it is — gas above its pseudo-critical temperature (Li’s rule), liquid below it when dense — instead of by which of two tied candidates the three-phase flash kept.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">State</th><th class="l">Phases now</th><th class="l">Before the fix</th></tr></thead><tbody>
+${s48rows}
+</tbody></table></div>
+<p class="note">Structural checks: liquid propane at 69.5 bar is far above its vapour pressure, so propane + water has no vapour; a gas of C₁–C₄ alone is single-phase at 15 °C and 69.5 bar, so the only liquid it can drop is water. The water left in the propane liquid, about 1 mol %, is the constant-k<sub>ij</sub> cubic’s value and is higher than measured (see Scope). Flowsheets with wet gas and a condensing hydrocarbon (C₃+ liquids, condensate, LPG) solved before this fix overstated the condensate and the cooler duties that come with it; run them again.</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–46 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-444.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–47 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-447.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
