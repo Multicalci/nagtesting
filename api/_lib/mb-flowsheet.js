@@ -25,6 +25,17 @@
 //     streams: [{ id, name?, from:{b,p}|null, to:{b,p}|null,
 //                 feed?: index into body.streams (required when from=null),
 //                 estimate?: stream (initial guess if the stream is torn) }]
+//     energy_streams: [{ id, name?, from: blockId|null, to: blockId|null,   (ROUND 16)
+//                 kW?: energy given at a free source end, efficiency?: (0, 1] }]
+//              heat or shaft work carried from one unit to another, as a
+//              simulator's energy stream: the unit at `to` takes its duty (heater,
+//              mixer, r-flash, r-flash3: duty / Q_kW) or shaft power (compressor:
+//              spec 'power') from the energy the unit at `from` gives up —
+//              value = −(Q_kW or W_kW of `from`) × efficiency (both signs positive
+//              INTO the fluid, so a cooler's or a turbine's output is positive).
+//              No `from`: kW is given. No `to`: the stream only reports the
+//              energy leaving `from`. Linked streams run as feed-forward or
+//              feedback calculators (see calculators below).
 //     specs  : [{ id?, name?, value,
 //                 vary:  { kind:'feed_flow'|'feed_T'|'feed_P', stream, lo?, hi? }
 //                      | { kind:'param', block, path:'T_out_K'|'reactions.0.conversion'|…, lo?, hi? }
@@ -92,7 +103,7 @@ import calc from './mb-calc.js';                // STEP 34 — calculator blocks
 import econ from './mb-econ.js';                // STEP 36 — equipment and utility costs
 import optim from './mb-optim.js';              // STEP 36 — bounded minimisers (generators)
 
-const FS_VERSION = 'mb-flowsheet 1.8.0';
+const FS_VERSION = 'mb-flowsheet 1.9.0';     // ROUND 16: energy streams
 // STEP 36: optimisation (objective, bounded decision variables, inequality constraints)
 const FS_MAX_OPT_VARS = 6, FS_MAX_OPT_CONS = 8, FS_MAX_OPT_EVALS = 300;
 const ECON_METRICS = ['total_annual_cost_y', 'grassroots', 'total_module', 'bare_module', 'utility_cost_y', 'annualised_capital_y'];
@@ -104,6 +115,19 @@ const FS_MAX_BLOCKS = 400;      // ROUND 14: whole-complex flowsheets (was 150 u
 const FS_MAX_STREAMS = 1000;
 const FS_MAX_SPECS = 10;
 const FS_MAX_CALCS = 20;
+const FS_MAX_ENERGY = 200;      // ROUND 16: energy streams
+/* ROUND 16: units that can take their duty or shaft power from an energy stream — the parameter
+   written, the specification parameters it replaces, and what is forced so that it is the spec */
+const ENERGY_SINKS = {
+  heater: { type: 'heat', path: 'duty_kW', drop: ['T_out_K', 'vapour_fraction'] },
+  mixer: { type: 'heat', path: 'Q_kW', drop: ['T_out_K'] },                          // classic heater / mixer
+  'r-mixer': { type: 'heat', path: 'duty_kW', drop: ['T_out_K'] },
+  'r-flash': { type: 'heat', path: 'duty_kW', drop: ['T_K', 'vapour_fraction'] },
+  'r-flash3': { type: 'heat', path: 'duty_kW', drop: ['T_K'] },
+  compressor: { type: 'work', path: 'power_kW', drop: ['T_out_K'], set: { spec: 'power' } },
+};
+const WORK_MODULES = new Set(['compressor', 'expander', 'pump', 'rotating', 'extraction-turbine', 'r-compressor-train']);
+const energyType = (module) => (WORK_MODULES.has(module) ? 'work' : 'heat');
 const VARY_KINDS = ['feed_flow', 'feed_T', 'feed_P', 'param', 'split'];
 const FS_DEF = { tol: 1e-6, max_iter: 60, spec_tol: 1e-6, spec_max_iter: 25, budget_ms: 7500 };
 const WEG_QMIN = -5;
@@ -205,6 +229,52 @@ function validate(input) {
     else if (!B.has(t.block)) return fail('MB_FS_SPEC', `${at}.target needs a stream or a block`, at + '.target');
     if (num(v.lo) && num(v.hi) && v.lo >= v.hi) return fail('MB_FS_SPEC', `${at}.vary: lo must be < hi`, at + '.vary');
   }
+  // ROUND 16: energy streams — checked before the calculators, which may not set what they set
+  const energy = [];
+  const ens = p.energy_streams === undefined || p.energy_streams === null ? [] : p.energy_streams;
+  if (!Array.isArray(ens) || ens.length > FS_MAX_ENERGY) return fail('MB_FS_ENERGY', `params.energy_streams must be an array of ≤ ${FS_MAX_ENERGY}`, 'params.energy_streams');
+  const eIds = new Set(), eSinks = new Map();
+  for (let i = 0; i < ens.length; i++) {
+    const e = ens[i], at = `params.energy_streams[${i}]`;
+    if (!isObj(e) || typeof e.id !== 'string' || !e.id) return fail('MB_FS_ENERGY', `${at}.id must be a non-empty string`, at);
+    if (eIds.has(e.id)) return fail('MB_FS_ENERGY', `duplicate energy stream id '${e.id}'`, at);
+    eIds.add(e.id);
+    const nm = typeof e.name === 'string' && e.name ? e.name.slice(0, 40) : e.id;
+    const from = e.from === undefined || e.from === null ? null : e.from, to = e.to === undefined || e.to === null ? null : e.to;
+    if (from !== null && !B.has(from)) return fail('MB_FS_ENERGY', `energy stream ${nm}: unknown unit '${from}'`, at + '.from');
+    if (to !== null && !B.has(to)) return fail('MB_FS_ENERGY', `energy stream ${nm}: unknown unit '${to}'`, at + '.to');
+    if (from === null && to === null) return fail('MB_FS_ENERGY', `energy stream ${nm} is connected to no unit`, at);
+    if (from !== null && from === to) return fail('MB_FS_ENERGY', `energy stream ${nm} starts and ends on the same unit`, at);
+    const bn = (id) => B.get(id).name || id;
+    const srcType = from ? energyType(B.get(from).module) : null;
+    let sk = null;
+    if (to) {
+      const blk = B.get(to);
+      sk = ENERGY_SINKS[blk.module];
+      if (!sk) return fail('MB_FS_ENERGY', `energy stream ${nm}: ${bn(to)} (${blk.module}) cannot take its ${srcType === 'work' ? 'power' : 'duty'} from an energy stream — a heater, mixer, flash drum, three-phase separator (heat) or compressor (shaft work) can`, at + '.to');
+      if (eSinks.has(to)) return fail('MB_FS_ENERGY', `${bn(to)} already takes its ${sk.type === 'work' ? 'power' : 'duty'} from energy stream ${eSinks.get(to)}`, at + '.to');
+      eSinks.set(to, nm);
+      if (srcType && srcType !== sk.type) return fail('MB_FS_ENERGY', `energy stream ${nm} joins ${srcType === 'work' ? 'shaft work' : 'heat'} from ${bn(from)} to ${sk.type === 'work' ? 'the shaft' : 'the duty'} of ${bn(to)} — heat goes to heat, work to work`, at);
+    }
+    if (!from && !num(e.kW)) return fail('MB_FS_ENERGY', `energy stream ${nm}: give its energy (kW) — it has no source unit`, at + '.kW');
+    if (!from && sk.type === 'work' && !(e.kW > 0)) return fail('MB_FS_ENERGY', `energy stream ${nm}: the shaft power given to ${bn(to)} must be above 0 kW`, at + '.kW');
+    const eff = e.efficiency === undefined || e.efficiency === null ? 1 : e.efficiency;
+    if (!num(eff) || !(eff > 0) || eff > 1) return fail('MB_FS_ENERGY', `energy stream ${nm}: efficiency must be in (0, 1]`, at + '.efficiency');
+    if (to) {
+      const k = 'param|' + to + '|' + sk.path;
+      if (specs.some((sp) => isObj(sp.vary) && sp.vary.kind === 'param' && sp.vary.block === to && sp.vary.path === sk.path)) return fail('MB_FS_ENERGY', `energy stream ${nm} sets the ${sk.path} of ${bn(to)}, which a design spec varies`, at);
+      if (isObj(p.sensitivity) && isObj(p.sensitivity.vary) && p.sensitivity.vary.kind === 'param' && p.sensitivity.vary.block === to && p.sensitivity.vary.path === sk.path) return fail('MB_FS_ENERGY', `energy stream ${nm} sets the quantity the sensitivity study varies`, at);
+      // the receiving unit runs on the duty / power: other specifications removed, a starting value kept for feedback passes
+      const blk = B.get(to), prm = JSON.parse(JSON.stringify(blk.params || {}));
+      for (const d of sk.drop) delete prm[d];
+      Object.assign(prm, sk.set || {});
+      if (!from) prm[sk.path] = e.kW * eff;
+      else if (!num(prm[sk.path]) || (sk.type === 'work' && !(Math.abs(prm[sk.path]) > 0))) prm[sk.path] = sk.type === 'work' ? 1 : 0;
+      B.set(to, Object.assign({}, blk, { params: prm }));
+      energy.push({ id: e.id, name: nm, type: sk.type, from, to, kW: num(e.kW) ? e.kW : null, eff, path: sk.path, key: k });
+    } else energy.push({ id: e.id, name: nm, type: srcType, from, to: null, kW: null, eff, path: null, key: null });
+  }
+  const blocksV = energy.some((e) => e.to) ? blocks.map((b) => B.get(b.id)) : blocks;     // receiving units with their duty specification (input left untouched)
   // STEP 34: calculator blocks — imports (stream / unit results, or inputs), code, exports (inputs)
   const calcs = [];
   const cl = p.calculators === undefined ? [] : p.calculators;
@@ -218,6 +288,7 @@ function validate(input) {
     return null;
   };
   const exported = new Map();
+  for (const e of energy) if (e.key) exported.set(e.key, 'energy stream ' + e.name);
   for (let i = 0; i < cl.length; i++) {
     const c = cl[i], at = `params.calculators[${i}]`;
     if (!isObj(c) || typeof c.code !== 'string') return fail('MB_FS_CALC', `${at} needs code`, at);
@@ -248,13 +319,21 @@ function validate(input) {
       if (!assigned.has(v.name) && !names.has(v.name)) return fail('MB_FS_CALC', `calculator ${nm}: export '${v.name}' is never assigned`, aj);
       const m = checkVary(v, aj); if (m) return fail('MB_FS_CALC', m, aj);
       const k = varyKey(v);
-      if (exported.has(k)) return fail('MB_FS_CALC', `calculator ${nm}: ${k.replace(/\|/g, ' ')} is already set by calculator ${exported.get(k)}`, aj);
+      if (exported.has(k)) return fail('MB_FS_CALC', `calculator ${nm}: ${k.replace(/\|/g, ' ')} is already set by ${/^energy stream /.test(exported.get(k)) ? '' : 'calculator '}${exported.get(k)}`, aj);
       exported.set(k, nm);
       if (specs.some((sp) => isObj(sp.vary) && varyKey(sp.vary) === k)) return fail('MB_FS_CALC', `calculator ${nm} sets the quantity a design spec varies (${k.replace(/\|/g, ' ')})`, aj);
       if (isObj(p.sensitivity) && isObj(p.sensitivity.vary) && varyKey(p.sensitivity.vary) === k) return fail('MB_FS_CALC', `calculator ${nm} sets the quantity the sensitivity study varies`, aj);
     }
     calcs.push({ id, name: nm, prog, imports: imps, exports: exps, order: i });
   }
+  // ROUND 16: a linked energy stream runs as a calculator: receiving unit's duty = −(source duty) × efficiency
+  energy.forEach((e, i) => {
+    if (!e.from || !e.to) return;
+    calcs.push({ id: 'energy:' + e.id, name: 'energy stream ' + e.name, energy: e.id, order: 1000 + i,
+      prog: calc.compile('energy = -source * ' + String(e.eff)),
+      imports: [{ name: 'source', block: e.from, metric: e.type === 'work' ? 'W_kW' : 'Q_kW' }],
+      exports: [{ name: 'energy', kind: 'param', block: e.to, path: e.path }] });
+  });
   let pkg = null;
   if (p.property_package !== undefined && p.property_package !== null) {
     if (!isObj(p.property_package) || typeof p.property_package.model !== 'string') return fail('MB_FS_PACKAGE', 'params.property_package must be {model, …}', 'params.property_package');
@@ -328,7 +407,7 @@ function validate(input) {
       if (vkeys.has(k)) return fail('MB_FS_OPT', `${aj}: ${k.replace(/\|/g, ' ')} is varied twice`, aj);
       vkeys.add(k);
       if (specs.some((sp) => isObj(sp.vary) && varyKey(sp.vary) === k)) return fail('MB_FS_OPT', `${aj}: a design spec already varies ${k.replace(/\|/g, ' ')}`, aj);
-      if (exported.has(k)) return fail('MB_FS_OPT', `${aj}: calculator ${exported.get(k)} sets ${k.replace(/\|/g, ' ')}`, aj);
+      if (exported.has(k)) return fail('MB_FS_OPT', `${aj}: ${/^energy stream /.test(exported.get(k)) ? '' : 'calculator '}${exported.get(k)} sets ${k.replace(/\|/g, ' ')}`, aj);
     }
     const cons = q.constraints === undefined ? [] : q.constraints;
     if (!Array.isArray(cons) || cons.length > FS_MAX_OPT_CONS) return fail('MB_FS_OPT', `${at}.constraints must be an array of ≤ ${FS_MAX_OPT_CONS}`, at);
@@ -353,7 +432,7 @@ function validate(input) {
   o.max_iter = Math.min(Math.round(o.max_iter), 500);
   o.spec_max_iter = Math.min(Math.round(o.spec_max_iter), 60);
   o.calc_max_iter = Math.min(Math.max(Math.round(num(o.calc_max_iter) ? o.calc_max_iter : 30), 1), 100);
-  return { blocks, streams, B, S, specs, opts: o, feeds: input.streams, pkg, sens, calcs, opt, econ: econSet };
+  return { blocks: blocksV, streams, B, S, specs, opts: o, feeds: input.streams, pkg, sens, calcs, opt, econ: econSet, energy };
 }
 
 // ---------------------------------------------------------------------------
@@ -1752,13 +1831,33 @@ function solveFlowsheet(input) {
   const tot = tally();
   ev.log.push(['o', `■ solved server-side · ${totalSolves} unit solves · ${ms} ms` + (tot.calls > 1 ? ` (call ${tot.calls}: ${tot.solves} unit solves · ${tot.ms} ms in all)` : '')]);
   const products = M.streams.filter((s) => s.from && !s.to && SR[s.id]).map((s) => Object.assign({ stream_id: s.id }, SR[s.id]));
+  // ROUND 16: energy streams — what each carries (positive in the direction drawn)
+  const energyOut = (V.energy || []).map((e) => {
+    const br = e.from ? ev.BR[e.from] : null, eb = br ? br.result.energy_balance || {} : {};
+    const q = e.from ? eb[e.type === 'work' ? 'W_kW' : 'Q_kW'] : null;
+    const given = num(q) ? -q : null;                                   // energy the source unit gives up
+    const kW = e.from ? (num(given) ? given * (e.to ? e.eff : 1) : null) : e.kW * e.eff;
+    const o = { id: e.id, name: e.name, type: e.type, from: e.from, to: e.to, kind: e.from && e.to ? 'link' : e.from ? 'product' : 'feed', kW, efficiency: e.eff };
+    if (e.from && e.to) o.source_kW = given;
+    if (e.to) o.sink_param = e.path;
+    if (e.from && e.to && num(kW) && kW < 0) {
+      const lab = (id) => label(M.B.get(id));
+      const m = e.type === 'work'
+        ? `energy stream ${e.name}: ${lab(e.from)} absorbs ${(-given).toFixed(1)} kW of shaft power instead of delivering it — draw the arrow from the machine that delivers power (turbine) to the one it drives`
+        : `energy stream ${e.name} carries ${kW.toFixed(1)} kW: ${lab(e.from)} takes heat in, so ${lab(e.to)} is cooled — the heat flows against the arrow`;
+      ev.warnings.push(m); if (e.type === 'work') ev.alerts.push(m); ev.log.push(['w', '⚠ ' + m]);
+    }
+    return o;
+  });
+  const eLinks = energyOut.filter((e) => e.kind === 'link' && num(e.kW));
   return {
     streams_out: products,
     stream_results: SR,
     block_results: ev.BR,
     order: plan.map((p) => (p.calc ? { calculator: p.calc } : { blocks: p.blocks, loop: p.loop, tears: p.tears })),
-    calculators: V.calcs.length ? V.calcs.map((c) => Object.assign({ id: c.id, name: c.name, kind: CP.fb.includes(c) ? 'feedback' : 'feed-forward' }, ev.calcs[c.id] || {},
+    calculators: V.calcs.some((c) => !c.energy) ? V.calcs.filter((c) => !c.energy).map((c) => Object.assign({ id: c.id, name: c.name, kind: CP.fb.includes(c) ? 'feedback' : 'feed-forward' }, ev.calcs[c.id] || {},
       CP.fb.includes(c) && ev.calcLoop ? { converged: ev.calcLoop.converged, passes: ev.calcLoop.iterations } : {})) : undefined,
+    energy_streams: energyOut.length ? energyOut.map((e) => { const c = V.calcs.find((x) => x.energy === e.id); return c ? Object.assign(e, { solved_as: CP.fb.includes(c) ? 'feedback' : 'feed-forward' }) : e; }) : undefined,
     loops: ev.loops,
     specs: specOut,
     convergence: {                // STEP 35: solver transparency
@@ -1770,7 +1869,9 @@ function solveFlowsheet(input) {
     feeds_varied: V.specs.length || V.opt ? M.feeds : undefined,
     optimization,                // STEP 36
     economics: V.econ ? (() => { try { return econOf(M, ev, V.econ); } catch (e) { return { error: e.message }; } })() : undefined,
-    overall: { feeds: feedsL, products: prodsL, mIn, mOut, closure, dH_kW: hOk ? (hOut - hIn) / 3600 : null, heat, cool, work, workOut },
+    overall: { feeds: feedsL, products: prodsL, mIn, mOut, closure, dH_kW: hOk ? (hOut - hIn) / 3600 : null, heat, cool, work, workOut,
+      heat_recovered_kW: eLinks.length ? eLinks.filter((e) => e.type === 'heat').reduce((a, e) => a + e.kW, 0) : undefined,
+      work_transferred_kW: eLinks.length ? eLinks.filter((e) => e.type === 'work').reduce((a, e) => a + e.kW, 0) : undefined },
     mass_balance: { in: mIn, out: mOut, closure_pct: closure },
     energy_balance: { Hin: hOk ? hIn : null, Hout: hOk ? hOut : null, Q_kW: hOk ? (hOut - hIn) / 3600 - (work + workOut) : null, W_kW: work + workOut, reconciliation: recon },
     details: { blocks: M.blocks.length, streams: M.streams.length, unit_solves: totalSolves, reused_results: wc.hits, warm_column_starts: wc.warmCols,
