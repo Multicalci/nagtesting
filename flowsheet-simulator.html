@@ -771,7 +771,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <h3>Kinetic reactors (plug flow and CSTR)</h3>
   <p>The <b>plug-flow</b> and <b>CSTR</b> reactors take power-law or <b>LHHW / Hougen–Watson</b> kinetics: for each reaction give the stoichiometry, k0 and the activation energy (optionally about a reference temperature), optional orders (blank = elementary, negative orders allowed), a concentration or partial-pressure basis, and whether it is reversible — with a thermodynamically consistent driving force from the Gibbs-energy equilibrium constant of the databank or your own ln K correlation, or your own reverse Arrhenius rate. For catalytic kinetics add an adsorption term (Σ Kₜ Π aᵢ^eₜᵢ)^m — the Steam reformer example carries the full Xu–Froment model. Rates can be per m³ of reactor or per kg of catalyst (with the bed density). The plug-flow reactor is isothermal, adiabatic, fixed-duty or heated / cooled through the wall (U and coolant or furnace temperature) and shows axial temperature, pressure and composition profiles; fast, equilibrium-limited kinetics are integrated with a stiff (Rosenbrock) solver. Each reactor reports conversions, the heat of every reaction in the reacting phase and the residence time.</p>
   <h3>Stream properties</h3>
-  <p><b>Stream properties</b> on the toolbar (or the start page, the Methods panel, or <b>Stream properties</b> under any stream’s Stream analysis) gives the properties of one mixture at one state, laid out like a simulator’s stream table: phase fractions, molar, mass, actual and standard gas flows, molar mass, density, molar volume, Z, enthalpy, entropy, Cp, Cv, Cp/Cv, speed of sound, Joule–Thomson coefficient, viscosity, thermal conductivity and surface tension — for the mixture and for each phase — with the compositions (mole or mass), K-values and the bubble and dew points at the stream’s pressure and temperature. Type the components and amounts (or copy a flowsheet stream), the flow, temperature and pressure (or pressure and vapour fraction) and pick any property method — Peng–Robinson, NRTL, GERG-2008, steam, amine packages and the rest; it does not change the flowsheet’s own method. The mixture Cp of a two-phase stream includes the latent heat; liquid Cv, Cp/Cv and speed of sound are given by the methods with an accurate liquid equation of state (steam, reference equations, GERG-2008). Enthalpy includes the heats of formation and entropy is absolute, so compare differences with other simulators or steam tables. Copy for Excel or download a CSV.</p>
+  <p><b>Stream properties</b> on the toolbar (or the start page, the Methods panel, or <b>Stream properties</b> under any stream’s Stream analysis) gives the properties of one mixture at one state, laid out like a simulator’s stream table: phase fractions, molar, mass, actual and standard gas flows, molar mass, density, molar volume, Z, enthalpy, entropy, Cp, Cv, Cp/Cv, speed of sound, Joule–Thomson coefficient, viscosity, thermal conductivity and surface tension — for the mixture and for each phase — with the compositions (mole or mass), K-values and the bubble and dew points at the stream’s pressure and temperature. Type the components and amounts (or copy a flowsheet stream), the flow, temperature and pressure (or pressure and vapour fraction) and pick any property method — Peng–Robinson, NRTL, GERG-2008, steam, amine packages and the rest; it does not change the flowsheet’s own method. The mixture Cp of a two-phase stream includes the latent heat; liquid Cv, Cp/Cv and speed of sound are given by the methods with an accurate liquid equation of state (steam, reference equations, GERG-2008). Enthalpy includes the heats of formation and entropy is absolute, so compare differences with other simulators or steam tables. When the components need a method with chemistry (amine or carbonate solvents, sour water, salts, urea) and another is chosen, a warning says what is lost and offers the right method; a bubble point below 0 °C in a water-rich liquid is marked not physical. Copy for Excel or download a CSV.</p>
   <h3>Stream analysis — phase envelope, property table, binary and ternary diagrams, azeotropes</h3>
   <p>Select any stream and use <b>Stream analysis</b>: the <b>phase envelope</b> traces bubble and dew curves (with quality lines) and marks the critical point, cricondenbar and cricondentherm; the <b>property table</b> sweeps temperature or pressure and tabulates phase fraction, enthalpy, Cp, densities, viscosities and conductivities; the <b>binary diagram</b> draws T–x–y or P–x–y and y–x curves with azeotropes and the three-phase line of partially miscible pairs. The <b>ternary map</b> draws residue curves for any three components with the pure components and azeotropes classified as stable nodes, unstable nodes or saddles, the distillation boundaries that split the triangle into regions, and (activity methods) the liquid–liquid envelope with tie lines at a chosen temperature — the starting point for azeotropic and extractive distillation sequences. The <b>azeotrope search</b> lists every binary, ternary and quaternary azeotrope among up to eight components, homogeneous or heterogeneous. All use the flowsheet property method and can be copied into Excel; the flowsheet panel offers the same diagrams for any components without a stream. Checked against tabulated azeotropes in validation section 39.</p>
   <h3>Drawing</h3>
@@ -6113,6 +6113,9 @@ function methodAdvice() {
     out.push({ level: 'info', text: 'NH₃ / H₂S / CO₂ in water — the Sour water method solves their ionisation and carbamate formation; equation-of-state and activity methods treat them as molecular and get stripper duties and condensate compositions badly wrong.',
       act: 'Use Sour water', apply: () => { P.model = 'sour-water'; } });
   }
+  // ROUND 16b: amine solvents on a method without the CO₂–amine chemistry
+  { const cm = chemMismatch(ks, m); if (cm && (cm.rec.model === 'amine-mea' || cm.rec.model === 'amine-mdea')) out.push({ level: 'warn', text: cm.text,
+    act: 'Use ' + (PKG_LABEL[cm.rec.model] || cm.rec.model), apply: () => { P.model = cm.rec.model; if (cm.rec.vapour) P.vapour = cm.rec.vapour; else delete P.vapour; } }); }
   // ROUND 14b: Classic engine models with a phase split — heaters put each component wholly in one phase, flash drums split by
   // vapour–liquid equilibrium, so water left in the gas shows up as a false duty in the next drum and the cooler duty is overstated
   if (m === 'classic' && M.blocks.some((b) => ['flash', 'flash3', 'threephase', 'knockout', 'rcol', 'column', 'absorber'].includes(b.type) || /flash|separator|column|absorber/i.test(TYPES[b.type].label))) {
@@ -8145,17 +8148,39 @@ function spNum(get, set, aria) {
   inp.addEventListener('input', () => { const x = parseFloat(inp.value); set(isFinite(x) ? x : null); });
   return inp;
 }
+/* ROUND 16b: a method without the chemistry the components need — the solvent's chemically held gas, salt
+   dissociation or carbamate is lost, so phases and liquid properties are wrong (not just less accurate) */
+const CHEM_PKGS = ['amine-mea', 'amine-mdea', 'hot-k2co3', 'sour-water', 'aqueous-electrolyte', 'urea'];
+const CHEM_LOST = {
+  'amine-mea': 'no CO₂–amine chemistry: the CO₂ the solvent holds chemically is treated as physically dissolved, so most of it flashes out of the liquid, and the liquid density and viscosity come from correlations that do not cover amine solutions',
+  'amine-mdea': 'no CO₂–amine chemistry: the CO₂ the solvent holds chemically is treated as physically dissolved, so most of it flashes out of the liquid, and the liquid density and viscosity come from correlations that do not cover amine solutions',
+  'hot-k2co3': 'no carbonate–bicarbonate chemistry: the CO₂ held as bicarbonate is treated as physically dissolved and the salt as a molecule',
+  'sour-water': 'no NH₃ / H₂S / CO₂ ionisation in water: the dissolved gases are held far too weakly in the liquid, so their volatility (and a stripper’s duty) is overstated',
+  'aqueous-electrolyte': 'no salt dissociation: dissolved salts are treated as molecules, so boiling-point rise, gas solubility and pH are lost',
+  'urea': 'no carbamate or urea chemistry: NH₃ and CO₂ are treated as molecules and urea has no property data',
+};
+/** → { rec, text } when the components need a chemistry method other than `model`, else null */
+function chemMismatch(keys, model) {
+  if (!keys || !keys.length || !model || model === 'classic') return null;
+  const rec = recommendMethod(keys);
+  if (!rec || !CHEM_PKGS.includes(rec.model) || rec.model === model) return null;
+  if (rec.model === 'hot-k2co3' && model === 'aqueous-electrolyte') return null;          // the general electrolyte method also holds K₂CO₃
+  return { rec, text: (PKG_LABEL[model] || model) + ' has ' + CHEM_LOST[rec.model] + '. Use ' + (PKG_LABEL[rec.model] || rec.model) + '.' };
+}
 /** results: state line, property table, composition table, saturation points, copy / CSV */
-function renderStreamProps(host, D, model, warnings, order) {
+function renderStreamProps(host, D, model, warnings, order, onUse) {
   host.textContent = '';
   const o = D.overall, ph = D.phases || [];
   const two = ph.length > 1;
   /* one phase: one column (the whole stream); two or more: mixture + each phase, as DWSIM lays it out */
   const cols = two ? [{ h: 'Mixture', q: null }, ...ph.map((q) => ({ h: SP_PH_LABEL[q.type] || q.type, q }))]
     : [{ h: ph.length ? (SP_PH_LABEL[ph[0].type] || ph[0].type) + ' (whole stream)' : 'Mixture', q: null }];
-  host.append(el('div', { class: 'banner ok', style: 'margin:0 0 10px' }, el('span', null, '✓'), el('span', null,
+  const cm = chemMismatch(D.keys || [], model);                     // ROUND 16b: wrong method for this chemistry
+  host.append(el('div', { class: 'banner ' + (cm ? 'info' : 'ok'), style: 'margin:0 0 10px' }, el('span', null, cm ? '●' : '✓'), el('span', null,
     el('b', null, (D.pp && D.pp.label) || PKG_LABEL[model] || model), ' · ', fmt(dispT(o.T_K), 6) + ' ' + PREFS.tu + ', ' + fmt(dispP(o.P_bar), 6) + ' ' + PREFS.pu + ' · ',
     (SP_PHASE_TXT[o.phase] || o.phase) + (two ? ' · vapour fraction ' + fmt(o.vapour_fraction, 5) + ' (molar), ' + fmt(o.vapour_mass_fraction, 5) + ' (mass)' : ''))));
+  if (cm) host.append(el('div', { class: 'banner warn', style: 'margin:-4px 0 10px' }, el('span', null, '●'), el('span', null, el('b', null, 'Not the method for these components. '), cm.text, ' ',
+    onUse ? el('button', { class: 'lnk', type: 'button', onclick: () => onUse(cm.rec.model, cm.rec.vapour) }, 'Calculate with ' + (PKG_LABEL[cm.rec.model] || cm.rec.model)) : null)));
   // property table
   const rows = SP_ROWS.map(([lab, f, d]) => [lab, ...cols.map((c) => f(o, c.q, two)), d]).filter((r) => r.slice(1, -1).some(num));
   const t = el('table', { class: 'st spt' + (two ? '' : ' one') });
@@ -8189,10 +8214,16 @@ function renderStreamProps(host, D, model, warnings, order) {
   host.append(compBox);
   // bubble / dew points
   const S = D.saturation || {};
-  const satItems = [['Bubble point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, num(S.bubble_T_K) ? fmt(dispT(S.bubble_T_K), 6) + ' ' + PREFS.tu : '—'],
-    ['Dew point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, num(S.dew_T_K) ? fmt(dispT(S.dew_T_K), 6) + ' ' + PREFS.tu : '—'],
-    ['Bubble pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, num(S.bubble_P_bar) ? fmt(dispP(S.bubble_P_bar), 6) + ' ' + PREFS.pu : '—'],
-    ['Dew pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, num(S.dew_P_bar) ? fmt(dispP(S.dew_P_bar), 6) + ' ' + PREFS.pu : '—']];
+  /* ROUND 16b: a saturation temperature below 0 °C in a water-rich liquid is an extrapolation, not a result — the water would freeze */
+  const xw = num((o.x || {}).H2O) ? o.x.H2O : 0;
+  const frozen = (T) => num(T) && xw >= 0.5 && T < 273.15;
+  const anySat = Object.values(S).some(num);
+  const satT = (T) => (frozen(T) ? 'not physical' : num(T) ? fmt(dispT(T), 6) + ' ' + PREFS.tu : anySat ? 'not found' : '—');
+  const satP = (P) => (num(P) ? fmt(dispP(P), 6) + ' ' + PREFS.pu : anySat ? 'not found' : '—');
+  const satItems = [['Bubble point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, satT(S.bubble_T_K)],
+    ['Dew point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, satT(S.dew_T_K)],
+    ['Bubble pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, satP(S.bubble_P_bar)],
+    ['Dew pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, satP(S.dew_P_bar)]];
   const sg = el('div', { class: 'bal', style: 'margin-top:12px' });
   for (const [a, b] of satItems) sg.append(el('div', { class: 'card' }, el('h5', null, a), el('div', { class: 'big', style: 'font-size:16px' }, b)));
   host.append(sg);
@@ -8210,6 +8241,9 @@ function renderStreamProps(host, D, model, warnings, order) {
   if (two) notes.push('Cp of the mixture is the slope of the flash enthalpy, so it includes the latent heat of the phase change; Cv, Cp/Cv, speed of sound and the Joule–Thomson coefficient are given per phase.');
   if (ph.some((q) => q.type !== 'vapour') && !ACCURATE_LIQ.includes(model)) notes.push('A liquid’s Cv, Cp/Cv and speed of sound need an accurate liquid equation of state — Steam / water, the reference equations or GERG-2008 give them; density correlations do not.');
   if (Object.values(S).every((v) => !num(v))) notes.push('No bubble or dew point: the mixture is above its critical region at these conditions, or one phase cannot form.');
+  if (frozen(S.bubble_T_K) || frozen(S.dew_T_K)) notes.push('The ' + (frozen(S.bubble_T_K) ? 'bubble' : 'dew') + ' point found, ' + fmt(dispT(frozen(S.bubble_T_K) ? S.bubble_T_K : S.dew_T_K), 4) + ' ' + PREFS.tu +
+    ', lies below 0 °C, where this water-rich liquid would freeze — an extrapolation, not a result' + (cm ? '; with the right method the dissolved gas is held in the liquid' : '') + '.');
+  if (anySat && !num(S.bubble_P_bar)) notes.push('No bubble pressure found' + (cm ? ' — with this method the dissolved gas would need a very high pressure to stay in the liquid.' : ' up to the method’s pressure limit.'));
   const est = [...new Set(ph.flatMap((q) => q.estimated || []))];
   if (est.length) notes.push('Estimated values: ' + est.slice(0, 6).join('; ') + (est.length > 6 ? ' …' : '') + '.');
   for (const w of (warnings || []).slice(0, 4)) notes.push(String(w));
@@ -8218,12 +8252,13 @@ function renderStreamProps(host, D, model, warnings, order) {
   // copy / CSV
   const tsv = (sep) => {
     const cell = (v) => { const t = String(v == null ? '' : v); return sep === ',' && /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-    const sat = (lab, v, u, conv) => [lab, num(v) ? plain(conv(v)) : '', u];
+    const sat = (lab, v, u, conv, isT) => (isT && frozen(v) ? [lab, '', 'not physical (below 0 °C in a water-rich liquid)'] : [lab, num(v) ? plain(conv(v)) : '', num(v) ? u : anySat ? 'not found' : u]);
     const R = [['Stream properties', (D.pp && D.pp.label) || model], ['Temperature, ' + PREFS.tu, plain(dispT(o.T_K))], ['Pressure, ' + PREFS.pu, plain(dispP(o.P_bar))], [],
       ['Property', ...cols.map((c) => c.h)], ...rows.map((r) => [r[0], ...r.slice(1, -1).map((v) => plain(v))]), [],
       ['Component (mole fraction)', ...cols.map((c) => c.h), ...(D.K ? ['K = y / x'] : [])],
       ...keys.map((k) => [compName(k), ...cols.map((c) => plain(((c.q || o).x || {})[k])), ...(D.K ? [plain(D.K[k])] : [])]), [],
-      sat('Bubble point at the pressure', S.bubble_T_K, PREFS.tu, dispT), sat('Dew point at the pressure', S.dew_T_K, PREFS.tu, dispT),
+      ...(cm ? [['Warning', cm.text]] : []),
+      sat('Bubble point at the pressure', S.bubble_T_K, PREFS.tu, dispT, true), sat('Dew point at the pressure', S.dew_T_K, PREFS.tu, dispT, true),
       sat('Bubble pressure at the temperature', S.bubble_P_bar, PREFS.pu, dispP), sat('Dew pressure at the temperature', S.dew_P_bar, PREFS.pu, dispP),
       ...(agRows.length ? [[], ...agRows] : [])];
     return R.map((r) => r.map(cell).join(sep)).join('\n');
@@ -8232,14 +8267,14 @@ function renderStreamProps(host, D, model, warnings, order) {
     el('button', { class: 'btn sm', onclick: () => copyText(tsv('\t'), 'Stream properties copied — paste into Excel') }, '⧉ Copy for Excel'),
     el('button', { class: 'btn sm', onclick: () => download('stream-properties.csv', '﻿' + tsv(','), 'text/csv;charset=utf-8') }, '⬇ CSV')));
 }
-async function spRun(host, btn, stream, pkg, params, order) {
+async function spRun(host, btn, stream, pkg, params, order, onUse) {
   host.textContent = '';
   host.append(el('div', { class: 'hint' }, 'Calculating with the engine…'));
   btn.disabled = true;
   try {
     const r = await apiSolve('stream-properties', { streams: [stream], params: Object.assign({ property_package: pkg }, params || {}) },
       (ms) => { host.firstChild.textContent = 'Rate limit — waiting ' + Math.ceil(ms / 1000) + ' s…'; });
-    renderStreamProps(host, r.result.details || {}, pkg.model, r.warnings, order);
+    renderStreamProps(host, r.result.details || {}, pkg.model, r.warnings, order, onUse);
   } catch (e) {
     host.textContent = '';
     host.append(el('div', { class: 'banner err', style: 'margin:0' }, el('span', null, '●'), el('span', null, e.message)));
@@ -8261,7 +8296,8 @@ function openStreamProps(s) {
   const host = el('div', { class: 'anares' });
   const go = el('button', { class: 'btn pri', onclick: () => {
     const params = E.own ? {} : { T_K: E.T, P_bar: E.P };
-    spRun(host, go, st, spPkg(E.model, E.vapour), params, flowsheetComps().length ? flowsheetComps() : null);
+    spRun(host, go, st, spPkg(E.model, E.vapour), params, flowsheetComps().length ? flowsheetComps() : null,
+      (m, v) => { E.model = m; E.vapour = spVapourFor(m, v); draw(); go.click(); });
   } }, 'Calculate');
   const draw = () => {
     ctl.textContent = '';
@@ -8319,7 +8355,8 @@ function openPropsCalc() {
     if (!si.ok) { host.textContent = ''; host.append(el('div', { class: 'banner warn', style: 'margin:0' }, el('span', null, '●'), el('span', null, si.errs.join(' · ')))); return; }
     const bad = si.stream.components.map((c) => c.key).filter(noRigData);
     if (bad.length) { host.textContent = ''; host.append(el('div', { class: 'banner warn', style: 'margin:0' }, el('span', null, '●'), el('span', null, bad.map(compLabel).join(', ') + ' — no property-method data.'))); return; }
-    spRun(host, go, si.stream, spPkg(C.model, C.vapour), C.spec === 'PVF' ? { vapour_fraction: num(C.vf) ? C.vf : 0 } : {}, C.comps.map((c) => c.key));
+    spRun(host, go, si.stream, spPkg(C.model, C.vapour), C.spec === 'PVF' ? { vapour_fraction: num(C.vf) ? C.vf : 0 } : {}, C.comps.map((c) => c.key),
+      (m, v) => { C.model = m; C.vapour = spVapourFor(m, v); spCalcSave(C); draw(); go.click(); });
   });
   function draw() {
     top.textContent = '';
