@@ -62,12 +62,12 @@ const BUCKET_IDLE_MS = 10 * 60 * 1000;        // drop buckets idle > 10 min
 const BUCKET_SWEEP_EVERY = 200;               // lazy sweep cadence (requests)
 const BUCKET_HARD_CAP = 20000;                // absolute Map size guard
 
-const MAX_BODY_BYTES = 1024 * 1024; // request body ceiling (STEP 34: large flowsheets + resume tokens)
-const MAX_STREAMS = 60;             // structural sanity caps (engine may be
+const MAX_BODY_BYTES = 4 * 1024 * 1024; // request body ceiling — ROUND 14: 400-unit flowsheets + resume tokens (Vercel accepts 4.5 MB)
+const MAX_STREAMS = 200;            // structural sanity caps (engine may be
 const MAX_COMPONENTS = 60;          // stricter; these stop abuse early)
 
 const SUPABASE_TIMEOUT_MS = 4000;   // picker fetch budget before fallback
-const SOLVE_TIMEOUT_MS = 9000;      // async-solver budget before 504
+const SOLVE_TIMEOUT_MS = 55000;     // async-solver budget before 504 (ROUND 14: vercel.json maxDuration 60 s)
 const LOG_TIMEOUT_MS = 1500;        // fire-and-forget insert budget
 
 // ---------------------------------------------------------------------------
