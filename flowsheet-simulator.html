@@ -4856,6 +4856,8 @@ function convertBasis(spec, nb) {
 function round6sig(x) { return num(x) ? Number(x.toPrecision(7)) : x; }
 
 const PRESETS = [
+  // AGA Report No. 8 "Gulf Coast" reference gas — the average of many US Gulf Coast samples, used to check natural-gas property calculators
+  { label: 'Natural gas — AGA 8 Gulf Coast reference', c: { CH4: 96.5222, N2: 0.2595, CO2: 0.5956, C2H6: 1.8186, C3H8: 0.4596, isobutane: 0.0977, nC4H10: 0.1007, isopentane: 0.0473, 'n-pentane': 0.0324, nC6H14: 0.0664 } },
   { label: 'Air (dry)', c: { N2: 78.08, O2: 20.95, Ar: 0.93, CO2: 0.04 } },
   { label: 'Natural gas (lean, typical)', c: { CH4: 90, C2H6: 6, C3H8: 3, nC4H10: 1 } },
   { label: 'Water / steam', c: { H2O: 100 } },
@@ -5354,6 +5356,7 @@ function inspectStream(s, head, body) {
   } else {
     if (r) body.append(streamResults(s, r));
     else body.append(el('div', { class: 'sec' }, el('div', { class: 'note' }, 'Calculated stream — press Run to see its temperature, pressure, flow and composition.')));
+    body.append(streamTargetSection(s));
     body.append(streamAnalysisSection(s));
     if (s.to) {
       const d = el('details', { class: 'dd' }, el('summary', null, 'Initial estimate (used only if this stream is torn in a recycle loop)'));
@@ -5685,6 +5688,54 @@ function specIssues(sp, i) {
   if (num(v.lo) && num(v.hi) && v.lo >= v.hi) add('lower bound must be below the upper bound');
   return out;
 }
+/* ---------------- "Make this a target": a design spec started from a calculated stream ----------------
+   the reverse calculation (fix an outlet value, find the input that gives it) in one click */
+const TARGET_QUICK = [['mass_flow_kg_h', 'Mass flow'], ['molar_flow_kmol_h', 'Molar flow'], ['T_K', 'Temperature'], ['P_bar', 'Pressure'], ['mole_frac', 'Mole fraction of the main component']];
+function streamTargetSection(s) {
+  const box = sec('Target');
+  const full = (M.specs || []).length >= LIMITS.specs;
+  const used = (M.specs || []).filter((sp) => sp.target && sp.target.stream === s.id);
+  const qs = el('select', { class: 'sel', 'aria-label': 'Quantity to fix' });
+  for (const [k, lab] of TARGET_QUICK) qs.append(el('option', { value: k }, lab));
+  const b = el('button', { class: 'btn', disabled: full || null, title: full ? 'up to ' + LIMITS.specs + ' design specs' : 'Add a design spec with this stream as its target',
+    onclick: () => makeStreamTarget(s, qs.value) }, '🎯 Make this a target');
+  box.append(el('div', { class: 'hint', style: 'margin-bottom:6px' }, 'Fix a value of this stream and let a design spec find the input that gives it — for example the feed flow that makes the product flow you need.'),
+    el('div', { class: 'duo' }, qs, b));
+  if (used.length) box.append(el('div', { class: 'hint', style: 'margin-top:6px' }, 'Already a target of ' + used.map((sp) => sp.name).join(', ') + ' — ',
+    el('button', { class: 'lnk', type: 'button', onclick: () => select({ kind: 'spec' }) }, 'open the specs')));
+  return box;
+}
+function makeStreamTarget(s, metric) {
+  M.specs = M.specs || [];
+  if (M.specs.length >= LIMITS.specs) { toast('Up to ' + LIMITS.specs + ' design specs', 'err'); return; }
+  const sp = newSpec();
+  sp.target = { stream: s.id, metric };
+  const r = RES && !RES.stale && RES.streams && RES.streams[s.id];
+  if (metric === 'mole_frac') {
+    // the component with the largest mole fraction in the last result, else the first component of the flowsheet
+    let key = null, best = -1;
+    if (r && Array.isArray(r.components)) for (const c of r.components) { const n = c.mass_fraction / (mwOf(c.key) || 1); if (n > best) { best = n; key = c.key; } }
+    sp.target.key = key || (flowsheetComps()[0] || null);
+    if (r && key) { const tot = r.components.reduce((a, c) => a + c.mass_fraction / (mwOf(c.key) || 1), 0); sp.value = tot > 0 ? Number((best / tot).toPrecision(6)) : null; }
+  } else if (r && num(r[metric])) sp.value = Number(r[metric].toPrecision(6));   // starts at today's value: change it to the one you need
+  const lab = (TARGET_QUICK.find((x) => x[0] === metric) || [, metric])[1].replace(' of the main component', '');
+  sp.name = (s.name + ' ' + lab.toLowerCase()).slice(0, 40);
+  const feeds = M.streams.filter((x) => !x.from && x.to);
+  if (/flow/.test(metric) && feeds.length === 1) sp.vary = decodeVary('feed_flow|' + feeds[0].id, {});   // the obvious reverse case
+  M.specs.push(sp);
+  commit();
+  select({ kind: 'spec' });
+  setTimeout(() => {
+    const cards = $('insBody').querySelectorAll('.spec-card');
+    const c = cards[cards.length - 1];
+    if (!c) return;
+    c.scrollIntoView({ block: 'center' });
+    const f = sp.vary && sp.vary.kind ? c.querySelector('input[aria-label="Target value"]') : c.querySelector('select[aria-label="Vary"]');
+    if (f) { f.focus(); if (f.select) try { f.select(); } catch (_e) { /* select() is for inputs */ } }
+  }, 30);
+  toast(sp.vary && sp.vary.kind ? 'Design spec added — type the value you need, then Run' : 'Design spec added — choose the input to vary and the value you need', 'ok');
+}
+
 function newSpec() {
   const n = (M.specs || []).length + 1;
   return { id: 'd' + Date.now().toString(36), name: 'Spec ' + n, active: true, vary: {}, target: {}, value: null };
@@ -8329,19 +8380,24 @@ function openStreamProps(s) {
 }
 
 /* stand-alone calculator: composition, conditions and method typed in directly */
+/* the calculator opens on the AGA 8 Gulf Coast natural gas at 15 °C and 50 bar(a) on Peng–Robinson until the user changes it;
+   SP_CALC_V: states saved by an older default are dropped once */
+const SP_CALC_V = 2;
 function spCalcState() {
-  const P = PREFS.spCalc || {};
-  const comps = Array.isArray(P.comps) && P.comps.length ? P.comps.filter((c) => c && typeof c.key === 'string') : (flowsheetComps().length ? flowsheetComps().map((key) => ({ key, a: null })) : [{ key: 'CH4', a: 90 }, { key: 'C2H6', a: 6 }, { key: 'N2', a: 2 }, { key: 'CO2', a: 2 }]);
-  const model = P.model && PKGS.some((x) => x[0] === P.model) ? P.model : (rigOn() ? pkgModel() : 'pr');
+  const P = PREFS.spCalc && PREFS.spCalc.v === SP_CALC_V ? PREFS.spCalc : {};
+  const gc = Object.entries(PRESETS[0].c).map(([key, a]) => ({ key, a }));
+  const comps = Array.isArray(P.comps) && P.comps.length ? P.comps.filter((c) => c && typeof c.key === 'string') : gc;
+  const model = P.model && PKGS.some((x) => x[0] === P.model) ? P.model : 'pr';
+  const tu = T_UNITS[P.TU] ? P.TU : PREFS.tu, pu = P_UNITS[P.PU] ? P.PU : PREFS.pu;
   return {
     comps, basis: BASES.some((b) => b[0] === P.basis) ? P.basis : 'mole%',
     flow: { v: num(P.flowV) ? P.flowV : 100, u: FLOW_UNITS[P.flowU] ? P.flowU : 'kmol/h' },
-    T: { v: num(P.TV) ? P.TV : 25, u: T_UNITS[P.TU] ? P.TU : PREFS.tu }, P: { v: num(P.PV) ? P.PV : 1.01325, u: P_UNITS[P.PU] ? P.PU : PREFS.pu },
-    model, vapour: spVapourFor(model, P.model ? P.vapour : (rigOn() ? (M.pkg || {}).vapour : undefined)), vf: num(P.vf) ? P.vf : null, spec: P.spec === 'PVF' ? 'PVF' : 'TP',
+    T: { v: num(P.TV) ? P.TV : round6sig(T_UNITS[tu].fromSI(288.15)), u: tu }, P: { v: num(P.PV) ? P.PV : round6sig(P_UNITS[pu].fromSI(50)), u: pu },
+    model, vapour: spVapourFor(model, P.model ? P.vapour : undefined), vf: num(P.vf) ? P.vf : null, spec: P.spec === 'PVF' ? 'PVF' : 'TP',
   };
 }
 function spCalcSave(C) {
-  PREFS.spCalc = { comps: C.comps.slice(0, LIMITS.comps), basis: C.basis, flowV: C.flow.v, flowU: C.flow.u, TV: C.T.v, TU: C.T.u, PV: C.P.v, PU: C.P.u, model: C.model, vapour: C.vapour, vf: C.vf, spec: C.spec };
+  PREFS.spCalc = { v: SP_CALC_V, comps: C.comps.slice(0, LIMITS.comps), basis: C.basis, flowV: C.flow.v, flowU: C.flow.u, TV: C.T.v, TU: C.T.u, PV: C.P.v, PU: C.P.u, model: C.model, vapour: C.vapour, vf: C.vf, spec: C.spec };
   savePrefs();
 }
 function openPropsCalc() {
@@ -8446,8 +8502,17 @@ function openPropsCalc() {
       C.T = { v: round6sig(T_UNITS[PREFS.tu].fromSI(st.T_K)), u: PREFS.tu }; C.P = { v: round6sig(P_UNITS[PREFS.pu].fromSI(st.P_bar)), u: PREFS.pu };
       spCalcSave(C); draw();
     });
+    const pre = el('select', { class: 'sel', 'aria-label': 'Typical stream', style: 'margin-bottom:8px' });
+    pre.append(el('option', { value: '' }, '⚡ Load a typical stream…'));
+    PRESETS.forEach((p, i) => { if (presetAvailable(p)) pre.append(el('option', { value: String(i) }, p.label)); });
+    pre.addEventListener('change', () => {
+      const p = PRESETS[+pre.value];
+      if (!p) return;
+      C.comps = Object.entries(p.c).map(([key, a]) => ({ key, a })); C.basis = 'mole%';
+      spCalcSave(C); draw();
+    });
     top.append(el('div', { class: 'spgrid' },
-      el('div', null, q, hits, tbl, sumHint),
+      el('div', null, pre, q, hits, tbl, sumHint),
       el('div', null, g,
         rec && rec.model !== C.model ? el('div', { class: 'hint', style: 'font-size:12px;margin:0 0 8px' }, 'Suggested for these components: ' + (PKG_LABEL[rec.model] || rec.model) + ' — ' + rec.why + ' ',
           el('button', { class: 'lnk', type: 'button', onclick: () => { C.model = rec.model; C.vapour = rec.vapour; spCalcSave(C); draw(); } }, 'Use it')) : null,
