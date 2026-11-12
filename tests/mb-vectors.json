@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets), vectors MB-001..MB-432",
+  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets) + Round 15 (stream properties) + Round 16 (energy streams), vectors MB-001..MB-444",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -41310,6 +41310,950 @@
    },
    "source": "Structural check: the chain of heaters ends at the last heater's outlet temperature; mass is conserved.",
    "id": "MB-432"
+  },
+  {
+   "desc": "stream properties (ROUND 15): N2 300 K, 1.01325 bar, reference EOS — Cv, Cp/Cv, speed of sound, Joule–Thomson",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.Cv_kJkgK": 0.74317,
+    "details.overall.Cp_Cv": 1.40124,
+    "details.overall.speed_of_sound_m_s": 353.161,
+    "details.overall.joule_thomson_K_bar": 0.21196
+   },
+   "tol": {
+    "details.overall.Cv_kJkgK": 0.0005,
+    "details.overall.Cp_Cv": 0.001,
+    "details.overall.speed_of_sound_m_s": 0.3,
+    "details.overall.joule_thomson_K_bar": 0.002,
+    "default": 0
+   },
+   "source": "CoolProp 6 (independent implementation of the same reference equation): N2 (Span et al. 2000) at 300 K, 101.325 kPa: Cv 0.74317 kJ/kg·K, Cp/Cv 1.40124, w 353.161 m/s, μJT 0.21196 K/bar.",
+   "id": "MB-433"
+  },
+  {
+   "desc": "stream properties (ROUND 15): CH4 300 K, 50 bar, reference EOS — density, speed of sound, Cp/Cv, Joule–Thomson",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 300,
+       "P_bar": 50,
+       "components": [
+        {
+         "key": "CH4",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.rho_kgm3": 34.9717,
+    "details.overall.speed_of_sound_m_s": 439.255,
+    "details.overall.Cp_Cv": 1.45902,
+    "details.overall.joule_thomson_K_bar": 0.39428
+   },
+   "tol": {
+    "details.overall.rho_kgm3": 0.02,
+    "details.overall.speed_of_sound_m_s": 0.5,
+    "details.overall.Cp_Cv": 0.002,
+    "details.overall.joule_thomson_K_bar": 0.003,
+    "default": 0
+   },
+   "source": "CoolProp 6 (independent implementation of the same reference equation): CH4 (Setzmann–Wagner 1991) at 300 K, 5 MPa: ρ 34.9717 kg/m³, w 439.255 m/s, Cp/Cv 1.45902, μJT 0.39428 K/bar.",
+   "id": "MB-434"
+  },
+  {
+   "desc": "stream properties (ROUND 15): CO2 300 K, 1.01325 bar, reference EOS — speed of sound and Joule–Thomson",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 300,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "CO2",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.speed_of_sound_m_s": 269.383,
+    "details.overall.joule_thomson_K_bar": 1.07612
+   },
+   "tol": {
+    "details.overall.speed_of_sound_m_s": 0.3,
+    "details.overall.joule_thomson_K_bar": 0.005,
+    "default": 0
+   },
+   "source": "CoolProp 6 (independent implementation of the same reference equation): CO2 (Span–Wagner 1996) at 300 K, 101.325 kPa: w 269.383 m/s, μJT 1.07612 K/bar.",
+   "id": "MB-435"
+  },
+  {
+   "desc": "stream properties (ROUND 15): liquid NH3 300 K, 20 bar, reference EOS — liquid speed of sound, Cp/Cv, Joule–Thomson",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 300,
+       "P_bar": 20,
+       "components": [
+        {
+         "key": "NH3",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "reference"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.phase": "L",
+    "details.overall.speed_of_sound_m_s": 1330.318,
+    "details.overall.Cp_Cv": 1.72234,
+    "details.overall.joule_thomson_K_bar": -0.00816
+   },
+   "tol": {
+    "details.overall.speed_of_sound_m_s": 1.0,
+    "details.overall.Cp_Cv": 0.003,
+    "details.overall.joule_thomson_K_bar": 0.0005,
+    "default": 0
+   },
+   "source": "CoolProp 6 (independent implementation of the same reference equation): NH3 (Tillner-Roth et al. 1993) at 300 K, 2 MPa (liquid): w 1330.318 m/s, Cp/Cv 1.72234, μJT −0.00816 K/bar.",
+   "id": "MB-436"
+  },
+  {
+   "desc": "stream properties (ROUND 15): liquid water 25 °C, 1.01325 bar, Steam / water (IAPWS-IF97) — Cv, speed of sound, Joule–Thomson",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000.0,
+       "T_K": 298.15,
+       "P_bar": 1.01325,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.Cv_kJkgK": 4.13756,
+    "details.overall.speed_of_sound_m_s": 1496.7,
+    "details.overall.joule_thomson_K_bar": -0.02215
+   },
+   "tol": {
+    "details.overall.Cv_kJkgK": 0.002,
+    "details.overall.speed_of_sound_m_s": 3.0,
+    "details.overall.joule_thomson_K_bar": 0.0005,
+    "default": 0
+   },
+   "source": "CoolProp 6 (independent implementation of the same reference equation): water (IAPWS-95) at 298.15 K, 101.325 kPa: Cv 4.13756 kJ/kg·K, w 1496.70 m/s, μJT −0.02215 K/bar; IF97 region 1 differs from IAPWS-95 by about 0.1 % in w.",
+   "id": "MB-437"
+  },
+  {
+   "desc": "stream properties (ROUND 15): wet gas N2 / H2O / CO2 at 40 °C, 5 bar on Peng–Robinson — phase split, K-value, water dew point",
+   "call": "runModule",
+   "args": [
+    "stream-properties",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 3241.68,
+       "T_K": 313.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "N2",
+         "mass_fraction": 0.8209724587251055
+        },
+        {
+         "key": "H2O",
+         "mass_fraction": 0.11114607240690014
+        },
+        {
+         "key": "CO2",
+         "mass_fraction": 0.06788146886799439
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.overall.phase": "VL",
+    "details.overall.vapour_fraction": 0.8463044,
+    "details.K.H2O": 0.01535002,
+    "details.saturation.dew_T_K": 366.9566
+   },
+   "tol": {
+    "details.overall.vapour_fraction": 0.0001,
+    "details.K.H2O": 0.0001,
+    "details.saturation.dew_T_K": 0.05,
+    "default": 0
+   },
+   "source": "Consistency: the same Peng–Robinson split as the flash drum of the knock-out example at 40 °C / 5 bar (vapour fraction 0.84630); dew point at 5 bar from the vapour-fraction-1 flash.",
+   "id": "MB-438"
+  },
+  {
+   "desc": "energy streams (ROUND 16): steam turbine T1 drives compressor K1 through a shaft-work energy stream delivering 98 % — K1 power = 0.98 × turbine power",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 20000.0,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 20341.0,
+       "T_K": 313.15,
+       "P_bar": 25,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.17235
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.80912
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.01853
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "pr"
+      },
+      "blocks": [
+       {
+        "id": "T1",
+        "name": "T1",
+        "module": "expander",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 4,
+         "efficiency": 0.75,
+         "property_package": {
+          "model": "steam"
+         }
+        }
+       },
+       {
+        "id": "K1",
+        "name": "K1",
+        "module": "compressor",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 60,
+         "efficiency": 0.78,
+         "property_package": {
+          "model": "pr"
+         }
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "T1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "T1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s3",
+        "from": null,
+        "to": {
+         "b": "K1",
+         "p": 0
+        },
+        "feed": 1
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "K1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "W1",
+        "from": "T1",
+        "to": "K1",
+        "efficiency": 0.98
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "block_results.T1.result.energy_balance.W_kW": -2200.373082264145,
+    "energy_streams.0.kW": 2156.365620618862,
+    "block_results.K1.result.energy_balance.W_kW": 2156.365620618862,
+    "energy_streams.0.solved_as": "feed-forward"
+   },
+   "tol": {
+    "block_results.T1.result.energy_balance.W_kW": 0.5,
+    "energy_streams.0.kW": 0.5,
+    "block_results.K1.result.energy_balance.W_kW": 0.5,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python iapws 1.5 (IAPWS97 class) for the same water / steam states; 40 bar / 400 °C steam expanded to 4 bar at 75 % isentropic efficiency: h1 = 3214.374, h2s = 2686.284 kJ/kg, turbine power 2200.37 kW; the compressor receives 0.98 × that, 2156.37 kW, as its shaft power.",
+   "id": "MB-439"
+  },
+  {
+   "desc": "energy streams (ROUND 16): heat removed by cooler E1 (steam 300 → 150 °C at 10 bar) is the duty of heater E2 on a separate water stream",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000.0,
+       "T_K": 573.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 60000.0,
+       "T_K": 303.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "E1",
+        "name": "E1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 423.15
+        }
+       },
+       {
+        "id": "E2",
+        "name": "E2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 320
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "E1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "E1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s3",
+        "from": null,
+        "to": {
+         "b": "E2",
+         "p": 0
+        },
+        "feed": 1
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "E2",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "Q1",
+        "from": "E1",
+        "to": "E2"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "block_results.E1.result.energy_balance.Q_kW": -6719.80073886126,
+    "energy_streams.0.kW": 6719.80073886126,
+    "block_results.E2.result.energy_balance.Q_kW": 6719.80073886126,
+    "stream_results.s4.T_K": 399.12259015183315
+   },
+   "tol": {
+    "block_results.E1.result.energy_balance.Q_kW": 0.5,
+    "energy_streams.0.kW": 0.5,
+    "block_results.E2.result.energy_balance.Q_kW": 0.5,
+    "stream_results.s4.T_K": 0.02,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python iapws 1.5 (IAPWS97 class) for the same water / steam states; cooler duty -6719.80 kW (10 t/h steam 300 → 150 °C at 10 bar); the heater gets +6719.80 kW, so 60 t/h of 30 °C water at 5 bar leaves at 399.123 K (heater T spec replaced by the energy stream).",
+   "id": "MB-440"
+  },
+  {
+   "desc": "energy streams (ROUND 16): 300 kW given to heater E2 by an energy stream with no source unit (its outlet-temperature spec is replaced)",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 5000,
+       "T_K": 303.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "E2",
+        "name": "E2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 400
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "E2",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "E2",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "Q2",
+        "from": null,
+        "to": "E2",
+        "kW": 300
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "block_results.E2.result.energy_balance.Q_kW": 300,
+    "stream_results.s2.T_K": 354.79192207220535,
+    "energy_streams.0.kind": "feed"
+   },
+   "tol": {
+    "block_results.E2.result.energy_balance.Q_kW": 1e-06,
+    "stream_results.s2.T_K": 0.02,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python iapws 1.5 (IAPWS97 class) for the same water / steam states; 5 t/h of 30 °C water at 5 bar heated by 300 kW leaves at 354.792 K.",
+   "id": "MB-441"
+  },
+  {
+   "desc": "energy streams (ROUND 16): feedback link — half the heat removed by E1 downstream returns to heater E2 upstream in the same water line (E3 heats to 150 °C in between)",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000.0,
+       "T_K": 303.15,
+       "P_bar": 5,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "E2",
+        "name": "E2",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 320
+        }
+       },
+       {
+        "id": "E3",
+        "name": "E3",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 423.15
+        }
+       },
+       {
+        "id": "E1",
+        "name": "E1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 373.15
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "E2",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "E2",
+         "p": 0
+        },
+        "to": {
+         "b": "E3",
+         "p": 0
+        }
+       },
+       {
+        "id": "s3",
+        "from": {
+         "b": "E3",
+         "p": 0
+        },
+        "to": {
+         "b": "E1",
+         "p": 0
+        }
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "E1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "Q1",
+        "from": "E1",
+        "to": "E2",
+        "efficiency": 0.5
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "converged": true,
+    "energy_streams.0.solved_as": "feedback",
+    "block_results.E2.result.energy_balance.Q_kW": 295.64968397963224,
+    "stream_results.s2.T_K": 328.62322275387265,
+    "block_results.E3.result.energy_balance.Q_kW": 1110.0975108043315
+   },
+   "tol": {
+    "block_results.E2.result.energy_balance.Q_kW": 0.5,
+    "stream_results.s2.T_K": 0.03,
+    "block_results.E3.result.energy_balance.Q_kW": 0.5,
+    "default": 1e-09
+   },
+   "source": "Independent reference: Python iapws 1.5 (IAPWS97 class) for the same water / steam states; E1 removes 591.30 kW (150 → 100 °C at 5 bar), E2 receives half, 295.65 kW, raising 10 t/h of water from 30 °C to 328.623 K; E3 then needs 1110.10 kW to reach 150 °C. Solved by repeated passes around the flowsheet (a feedback calculator).",
+   "id": "MB-442"
+  },
+  {
+   "desc": "energy streams (ROUND 16): heat from a cooler cannot drive a compressor — refused with MB_FS_ENERGY",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 573.15,
+       "P_bar": 10,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 20341.0,
+       "T_K": 313.15,
+       "P_bar": 25,
+       "components": [
+        {
+         "key": "H2",
+         "mass_fraction": 0.17235
+        },
+        {
+         "key": "N2",
+         "mass_fraction": 0.80912
+        },
+        {
+         "key": "CH4",
+         "mass_fraction": 0.01853
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "E1",
+        "name": "E1",
+        "module": "heater",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "T_out_K": 423.15
+        }
+       },
+       {
+        "id": "K1",
+        "name": "K1",
+        "module": "compressor",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 60,
+         "efficiency": 0.78,
+         "property_package": {
+          "model": "pr"
+         }
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "E1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "E1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s3",
+        "from": null,
+        "to": {
+         "b": "K1",
+         "p": 0
+        },
+        "feed": 1
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "K1",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "X",
+        "from": "E1",
+        "to": "K1"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_ENERGY"
+   },
+   "tol": {
+    "default": 1e-09
+   },
+   "source": "Behavioural check: heat goes to heat, shaft work to shaft work.",
+   "id": "MB-443"
+  },
+  {
+   "desc": "energy streams (ROUND 16): a turbine cannot receive its power from an energy stream — refused with MB_FS_ENERGY",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      },
+      {
+       "mass_flow_kg_h": 1000,
+       "T_K": 673.15,
+       "P_bar": 40,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1.0
+        }
+       ]
+      }
+     ],
+     "params": {
+      "property_package": {
+       "model": "steam"
+      },
+      "blocks": [
+       {
+        "id": "T1",
+        "name": "T1",
+        "module": "expander",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 4,
+         "efficiency": 0.75
+        }
+       },
+       {
+        "id": "T2",
+        "name": "T2",
+        "module": "expander",
+        "n_in": 1,
+        "n_out": 1,
+        "params": {
+         "P_out_bar": 4,
+         "efficiency": 0.75
+        }
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "T1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "T1",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s3",
+        "from": null,
+        "to": {
+         "b": "T2",
+         "p": 0
+        },
+        "feed": 1
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "T2",
+         "p": 0
+        },
+        "to": null
+       }
+      ],
+      "energy_streams": [
+       {
+        "id": "X",
+        "from": "T1",
+        "to": "T2"
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_FS_ENERGY"
+   },
+   "tol": {
+    "default": 1e-09
+   },
+   "source": "Behavioural check: the receiving units are heaters, mixers, flash drums, three-phase separators (heat) and compressors (shaft power).",
+   "id": "MB-444"
   }
  ]
 }
