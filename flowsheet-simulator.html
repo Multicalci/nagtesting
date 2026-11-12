@@ -3744,15 +3744,21 @@ function contentBox() {
   return { x0, y0, x1, y1 };
 }
 function fitView() {
-  const bb = contentBox();
-  const r = svg.getBoundingClientRect();
-  if (!bb || r.width < 10) { VIEW = { x: 40, y: 40, k: 1 }; applyView(); return; }
-  const k = clamp(Math.min((r.width - 40) / (bb.x1 - bb.x0), (r.height - 70) / (bb.y1 - bb.y0)), 0.08, 1.15);   // ROUND 14: whole-complex flowsheets fit too
-  VIEW.k = k;
-  VIEW.x = (r.width - (bb.x1 - bb.x0) * k) / 2 - bb.x0 * k;
-  VIEW.y = (r.height - (bb.y1 - bb.y0) * k) / 2 - bb.y0 * k + 12;
-  applyView();
-  renderCanvas();
+  /* the box is what is drawn: fitting from far out (names only) and landing close in brings the T·P·F tags and duties
+     back, so fit again with them — at most twice more */
+  for (let pass = 0; pass < 3; pass++) {
+    const far0 = LOD.far;
+    const bb = contentBox();
+    const r = svg.getBoundingClientRect();
+    if (!bb || r.width < 10) { VIEW = { x: 40, y: 40, k: 1 }; applyView(); return; }
+    const k = clamp(Math.min((r.width - 40) / (bb.x1 - bb.x0), (r.height - 70) / (bb.y1 - bb.y0)), 0.08, 1.15);   // ROUND 14: whole-complex flowsheets fit too
+    VIEW.k = k;
+    VIEW.x = (r.width - (bb.x1 - bb.x0) * k) / 2 - bb.x0 * k;
+    VIEW.y = (r.height - (bb.y1 - bb.y0) * k) / 2 - bb.y0 * k + 12;
+    applyView();
+    renderCanvas();
+    if (LOD.far === far0 || !far0) break;
+  }
 }
 function zoomAt(f, sx, sy) {
   const r = svg.getBoundingClientRect();
@@ -12974,7 +12980,7 @@ function finishSetup() {
   const pk = w.pick || recommendMethod(w.keys);
   if (w.fresh) {
     CASES = []; CASE_UI.base = null; CASE_UI.pick = null;
-    START.hidden = false;
+    START.hidden = true;            // setup done: the empty canvas, ready for equipment (not the start page again)
     loadModel(blankModel());
     VIEW = { x: 40, y: 40, k: 1 }; applyView();
   }
