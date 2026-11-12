@@ -1297,6 +1297,17 @@ const am45 = R45.amdea_dwsim.map((c) => {
 }).join('\n');
 const s45vec = vecTable(range(424, 431), 'x45');
 QN_EXTRA = {};
+// ROUND 15: stream properties (Cv, Cp/Cv, speed of sound, Joule–Thomson) against CoolProp
+QN_EXTRA = { 'details.overall.Cv_kJkgK': 'Cv, kJ/kg·K', 'details.overall.Cp_Cv': 'Cp/Cv', 'details.overall.speed_of_sound_m_s': 'speed of sound, m/s', 'details.overall.joule_thomson_K_bar': 'Joule–Thomson coefficient, K/bar',
+  'details.overall.rho_kgm3': 'density, kg/m³', 'details.overall.vapour_fraction': 'vapour fraction', 'details.K.H2O': 'K of water (y/x)', 'details.saturation.dew_T_K': 'dew point at 5 bar, K' };
+const s46vec = vecTable(range(433, 438), 'x46');
+QN_EXTRA = {};
+// ROUND 16: energy streams in the flowsheet solver against IAPWS-IF97 (python iapws)
+QN_EXTRA = { 'block_results.T1.result.energy_balance.W_kW': 'turbine power, kW', 'block_results.K1.result.energy_balance.W_kW': 'compressor power, kW', 'energy_streams.0.kW': 'energy stream, kW',
+  'block_results.E1.result.energy_balance.Q_kW': 'source cooler duty, kW', 'block_results.E2.result.energy_balance.Q_kW': 'receiving heater duty, kW', 'block_results.E3.result.energy_balance.Q_kW': 'heater in between, duty, kW',
+  'stream_results.s4.T_K': 'heated water outlet, K', 'stream_results.s2.T_K': 'heated water outlet, K' };
+const s47vec = vecTable(range(439, 442), 'x47');
+QN_EXTRA = {};
 console.log(`Step 41: DWSIM agreement ${dw41.agree}/${dw41.n} · water–HC worst NRTL ${f(Math.max(...whcDev.nrtl), 1)} % UNIQUAC ${f(Math.max(...whcDev.uniquac), 1)} % · compressed liquid worst ${f(Math.max(...liqDev41), 2)} %`);
 
 console.log(`Step 40: azeotrope mean |ΔT| NRTL ${f(meanArr(azDev40.nrtl), 2)} K UNIQUAC ${f(meanArr(azDev40.uniquac), 2)} K Dortmund ${f(meanArr(azDev40.modunifac), 2)} K · topology ${topo40Ok}/${topo40N} · hE Dortmund worst ${f(100 * Math.max(...hEdev40), 1)} % · density mean auto ${f(meanArr(rhoDev40.auto), 2)} % Rackett ${f(meanArr(rhoDev40.rackett), 2)} % COSTALD ${f(meanArr(rhoDev40.costald), 2)} % PR ${f(meanArr(rhoDev40.eos), 2)} %`);
@@ -1959,8 +1970,23 @@ ${am45}
 ${s45vec}
 </tbody></table></div>
 
+<h2>45 · Stream properties: C<sub>v</sub>, C<sub>p</sub>/C<sub>v</sub>, speed of sound and the Joule–Thomson coefficient</h2>
+<p>The stream-properties view reports, for each phase, the derived properties of the equation of state alongside density, enthalpy, entropy and C<sub>p</sub>. They come from the phase volume V(T, P, x) by central differences: C<sub>v</sub> = C<sub>p</sub> − T(∂V/∂T)<sub>P</sub><sup>2</sup> / [−(∂V/∂P)<sub>T</sub>]; the speed of sound w = √[(C<sub>p</sub>/C<sub>v</sub>) / (ρ κ<sub>T</sub>)] with κ<sub>T</sub> = −(1/V)(∂V/∂P)<sub>T</sub>; and μ<sub>JT</sub> = [T(∂V/∂T)<sub>P</sub> − V] / C<sub>p</sub>. A vapour gets all four from any method. A liquid gets μ<sub>JT</sub> from any method, but C<sub>v</sub>, C<sub>p</sub>/C<sub>v</sub> and w only from Steam / water, the reference equations and GERG-2008: liquid-density correlations (Rackett, COSTALD) fix the density well but not its pressure derivative, and give liquid compressibilities several times too large. The Steam / water method takes w directly from IAPWS-IF97. The mixture C<sub>p</sub> of a two-phase stream is the slope of the flash enthalpy and includes the latent heat. The bubble and dew points shown with the stream are the same bubble- and dew-point flashes as the phase envelopes of section 10.</p>
+<p>Against CoolProp, which implements the same reference equations independently:</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s46vec}
+</tbody></table></div>
+<p class="note">Water is computed with IAPWS-IF97 and compared with IAPWS-95; the two formulations differ by about 0.1 % in the speed of sound of liquid water. The wet-gas row checks that the view reproduces the flash drum of the knock-out example at the same state.</p>
+
+<h2>46 · Energy streams</h2>
+<p>An energy stream carries heat or shaft work from one unit to another, as in other sequential-modular simulators: the unit at the arrow head takes the energy the unit at the tail gives up as its own specification — its duty (heater, mixer, flash drum, three-phase separator) or its shaft power (compressor). The solver treats each link as a calculator: receiving duty = −(source duty or work) × fraction delivered, run after the source and before the receiver, or, when the receiver lies upstream of the source in the same process, converged by repeated passes around the flowsheet. An arrow with no source gives a duty you type in; an arrow with no receiver only reports the source’s duty. Heat goes to heat and work to work; turbines, pumps and exchangers cannot receive energy streams, and both refusals are tested.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s47vec}
+</tbody></table></div>
+<p class="note">References from the independent Python iapws library (IAPWS97) for the same water and steam states; the syngas compressor of the first case only has to absorb the 98 % of the turbine power it receives. The flowsheet example “Steam-turbine-driven compressor with heat recovery” shows both kinds of link.</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–44 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-432.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–46 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-444.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
