@@ -1244,6 +1244,58 @@ const prsv2Rows44 = R44.prsv2.rows.map((r) => `<tr><td>${f(r.tr, 1)}</td><td>${r
 const L44 = R44.lkp;
 const lkpEx44 = L44.examples.map((e) => `<tr><td class="l">${esc(e.pair.replace('|', ' – '))}</td><td>${f(e.kij, 4)}</td><td>${f(100 * e.aad, 1)} %</td><td>${f(100 * e.aad_k1, 0)} %</td></tr>`).join('\n');
 const s44vec = vecTable(range(413, 423), 'x44');
+
+// ---------------------------------------------------------------------------
+// Section 44 (round 12d): UNIFAC-LL, NIST-modified UNIFAC, aqueous MDEA viscosity
+// ---------------------------------------------------------------------------
+const R45 = REF.step45;
+const NM45 = { nBuOH: '1-butanol', mek: 'methyl ethyl ketone', etoac: 'ethyl acetate', benzene: 'benzene', toluene: 'toluene', mibk: 'methyl isobutyl ketone', furfural: 'furfural', EtOH: 'ethanol', H2O: 'water', acetone: 'acetone', MeOH: 'methanol', cyclohexane: 'cyclohexane' };
+const lle45 = (model, other, T) => {
+  const pp = thermoModule.createPackage({ model, three_phase: true }, ['H2O', other]);
+  const r = thermoModule.flashPT3(pp, [0.8, 0.2], T, 2e5);
+  if (!r.x2) return { aq: NaN, org: NaN };
+  const [a, b] = r.x[0] > r.x2[0] ? [r.x, r.x2] : [r.x2, r.x];
+  return { aq: a[1], org: b[0] };
+};
+let nistW45 = 0;
+const nist45 = R45.nist_dwsim.map((c) => {
+  if (c.kind === 'bubble') {
+    const keys = Object.keys(c.x), pp = thermoModule.createPackage({ model: 'nist-modunifac' }, keys);
+    const T = thermoModule.flashPVF(pp, keys.map((k) => c.x[k]), c.P, 0).T;
+    nistW45 = Math.max(nistW45, Math.abs(T - c.dwsim));
+    return `<tr><td class="l">${esc(keys.map((k) => NM45[k] + ' ' + c.x[k]).join(' / '))}</td><td class="l">bubble point at 1 atm, K</td><td>${f(c.dwsim, 3)}</td><td>${f(T, 3)}</td><td>${f(T - c.dwsim, 4)} K</td></tr>`;
+  }
+  const e = lle45('nist-modunifac', c.other, c.T), v = c.kind === 'aq' ? e.aq : e.org;
+  const dwOne = c.kind === 'aq' ? Math.abs(c.dwsim - 0.2) < 1e-6 : c.dwsim === null;
+  if (!dwOne) nistW45 = Math.max(nistW45, Math.abs(v / c.dwsim - 1) * 0);
+  return `<tr><td class="l">water / ${esc(NM45[c.other])}, 25 °C (80 / 20 mol % feed)</td><td class="l">${c.kind === 'aq' ? 'x ' + esc(NM45[c.other]) + ' in the water layer' : 'x water in the organic layer'}</td><td>${dwOne ? 'one liquid' : sci(c.dwsim)}</td><td>${sci(v)}</td><td>${dwOne ? '—' : sci(Math.abs(v / c.dwsim - 1))}</td></tr>`;
+}).join('\n');
+// mutual solubilities against the IUPAC-NIST recommended values of section 40
+const lleRows45 = REF.step41.whc.filter((w) => ['benzene', 'toluene', 'ethylbenzene', 'p-xylene', 'cyclohexane', 'nC6H14'].includes(w.key)).map((w) => {
+  const [ra, ro] = w.rec298 || [w.points[0].x_hc_in_water, w.points[0].x_water_in_hc];
+  const cells = ['unifac', 'modunifac', 'unifac-ll', 'nist-modunifac'].map((m) => {
+    const pp = thermoModule.createPackage({ model: m, three_phase: true }, ['H2O', w.key]);
+    const r = thermoModule.flashPT3(pp, [0.5, 0.5], 298.15, 2e5);
+    if (!r.x2) return '<td>—</td><td>—</td>';
+    const [a, b] = r.x[0] > r.x2[0] ? [r.x, r.x2] : [r.x2, r.x];
+    return `<td>${f(a[1] / ra, 2)}</td><td>${f(b[0] / ro, 2)}</td>`;
+  }).join('');
+  return `<tr><td class="l">${esc(w.key === 'nC6H14' ? 'n-hexane' : w.key)}</td><td>${sci(ra)}</td><td>${sci(ro)}</td>${cells}</tr>`;
+}).join('\n');
+const polar45 = ['nBuOH', 'mek', 'etoac', 'mibk', 'furfural'].map((k) => {
+  const cells = ['unifac', 'modunifac', 'unifac-ll', 'nist-modunifac'].map((m) => { const e = lle45(m, k, 298.15); return `<td>${Number.isFinite(e.aq) ? sci(e.aq) + ' / ' + f(e.org, 3) : 'one liquid'}</td>`; }).join('');
+  return `<tr><td class="l">${esc(NM45[k])}</td>${cells}</tr>`;
+}).join('\n');
+const G45 = R45.groups, VF45 = R45.visc_fit;
+const am45 = R45.amdea_dwsim.map((c) => {
+  const keys = Object.keys(c.mf), MWs = keys.map((k) => thermoModule.component(k).MW);
+  const nn = keys.map((k, i) => c.mf[k] / MWs[i]), sn = nn.reduce((a, b) => a + b, 0), z = nn.map((v) => v / sn);
+  const pp = thermoModule.createPackage({ model: 'amine-mdea' }, keys), r = thermoModule.flashPT(pp, z, c.T, Math.max(c.P, 1e5)), pr = thermoModule.properties(pp, r);
+  const L = pr.phases.find((q) => q.type === 'liquid'), cp = L.Cp_JmolK / L.MW;
+  const row = (lab, dv, ev, dg) => `<td>${f(dv, dg)} / ${f(ev, dg)}</td>`;
+  return `<tr><td class="l">${esc(c.label)}</td>${row('ρ', c.dwsim.rho, L.rho_kgm3, 1)}${row('μ', c.dwsim.mu_cP, L.mu_Pas * 1000, 3)}${row('cp', c.dwsim.cp, cp, 3)}${row('k', c.dwsim.k, L.k_WmK, 3)}${row('pH', c.dwsim.pH, L.acid_gas && L.acid_gas.pH, 2)}</tr>`;
+}).join('\n');
+const s45vec = vecTable(range(424, 431), 'x45');
 QN_EXTRA = {};
 console.log(`Step 41: DWSIM agreement ${dw41.agree}/${dw41.n} · water–HC worst NRTL ${f(Math.max(...whcDev.nrtl), 1)} % UNIQUAC ${f(Math.max(...whcDev.uniquac), 1)} % · compressed liquid worst ${f(Math.max(...liqDev41), 2)} %`);
 
@@ -1882,8 +1934,33 @@ ${dw44}
 ${s44vec}
 </tbody></table></div>
 
+<h2>44 · UNIFAC-LL, NIST-modified UNIFAC and the viscosity of aqueous MDEA</h2>
+<p><b>UNIFAC-LL</b> (Magnussen, Rasmussen &amp; Fredenslund, Ind. Eng. Chem. Process Des. Dev. 20 (1981) 331) is original UNIFAC with interaction parameters fitted to liquid–liquid equilibria — 57 subgroups in 32 main groups, temperature-independent a<sub>mn</sub>, propanols as groups of their own. <b>NIST-modified UNIFAC</b> (Kang, Diky &amp; Frenkel, Fluid Phase Equilib. 388 (2015) 128) is the Dortmund form with groups and parameters refitted to critically evaluated data — 201 subgroups, including branched ketones, ring ethers and amines, aromatic acids and esters. Both tables come from the thermo library (MIT licence; <code>scripts/gen-unifac2.py</code>, one typo in its UNIFAC-LL table corrected: R of the ring CH₂O group is 0.9183). The engine's activity coefficients equal thermo's with the same groups to ${sci(R45.thermo_check.max_rel)} (${R45.thermo_check.systems} mixtures). Groups come from each component's structure with the SMARTS of each table: ${G45.n_lle} of the ${G45.n_db} databank components get UNIFAC-LL groups (${G45.lle.smarts} from the structure, ${G45.lle.mapped} mapped from their UNIFAC groups; the rest contain groups UNIFAC-LL does not have — amines, sulfur, fluorine — and are treated with the combinatorial term only, as the run log says), ${G45.n_nist} get NIST groups; for ${G45.nist_vs_dortmund[1]} of them the NIST assignment differs from the Dortmund one because NIST has the finer group. Components added by structure take the groups mapped from their UNIFAC and Dortmund assignments.</p>
+<p>Mutual solubilities of water and hydrocarbons at 25 °C, as ratios to the IUPAC-NIST recommended values of section 40 (1.00 = exact):</p>
+<div class="tw"><table><thead><tr><th class="l" rowspan="2">Hydrocarbon</th><th rowspan="2">x<sub>HC</sub> in water</th><th rowspan="2">x<sub>water</sub> in HC</th><th colspan="2">UNIFAC</th><th colspan="2">Dortmund</th><th colspan="2">UNIFAC-LL</th><th colspan="2">NIST UNIFAC</th></tr><tr><th>HC in water</th><th>water in HC</th><th>HC in water</th><th>water in HC</th><th>HC in water</th><th>water in HC</th><th>HC in water</th><th>water in HC</th></tr></thead><tbody>
+${lleRows45}
+</tbody></table></div>
+<p>Water with polar solvents at 25 °C (80 / 20 mol % feed): x of the solvent in the water layer / x of water in the organic layer. Measured, approximately: 1-butanol 0.019 / 0.51, methyl ethyl ketone 0.07 / 0.31, ethyl acetate 0.017 / 0.13, MIBK 0.003 / 0.10.</p>
+<div class="tw"><table><thead><tr><th class="l">Solvent</th><th>UNIFAC</th><th>Dortmund</th><th>UNIFAC-LL</th><th>NIST UNIFAC</th></tr></thead><tbody>
+${polar45}
+</tbody></table></div>
+<p class="note">No version is best everywhere. UNIFAC-LL puts the 1-butanol–water layers within a few per cent of the measurements and benzene, toluene and ethylbenzene within about 25 % both ways, where Dortmund and NIST UNIFAC put 2–3 times too much water into the aromatics; but UNIFAC-LL makes ethyl acetate and methyl ethyl ketone 2–3 times too insoluble in water, and every version over-predicts alkanes in water by an order of magnitude or more. UNIFAC-LL is also the poorest of the four for vapour–liquid equilibrium (ethanol–water bubbles about 2 K high), so it is meant for extraction and decanters, not distillation. None of them replaces NRTL fitted to solubility data for a decanter design.</p>
+<p>NIST-modified UNIFAC against DWSIM ${esc(R45.dwsim_version.replace('DWSIM ', ''))}, same inputs — DWSIM carries the same Kang et al. (2015) parameters, and the two agree to the solver tolerance where both find the same phases (largest bubble-point difference ${f(nistW45, 3)} K, methyl ethyl ketone / toluene). For four of the water–solvent feeds DWSIM's flash returns a single liquid although its activity coefficients equal the engine's (bubble points inside each single-liquid region agree to 1e-8 K): the split is in the model, and the engine's stability test finds it.</p>
+<div class="tw"><table><thead><tr><th class="l">System</th><th class="l">Quantity</th><th>DWSIM</th><th>Engine</th><th>Δ</th></tr></thead><tbody>
+${nist45}
+</tbody></table></div>
+<p class="note">DWSIM 10's UNIFAC-LL is not usable as a reference: it finds no liquid split in any of the seven water–solvent feeds and puts bubble points outside the boiling points of the pure components (${R45.unifacll_dwsim_bubble.slice(0, 3).map((r) => esc(r.case.replace(/ 1\.01 bar$/, '')) + ' ' + f(r.dwsim, 1) + ' K, engine ' + f(r.engine, 1) + ' K').join('; ')}). The engine's UNIFAC-LL is checked against thermo and the measured solubilities above instead.</p>
+<p><b>Viscosity of aqueous MDEA and activated MDEA.</b> The Aqueous MDEA method had no liquid viscosity until now (reported as unavailable). It now uses the form of Weiland et al. (J. Chem. Eng. Data 43 (1998) 378), ln(μ/μ<sub>w</sub>) = W[(aW + b)T + (cW + d)][1 + α(fT + g)]/T² (W mass % amine on a CO₂-free basis, α mol CO₂ per mol amine), with a–d fitted here to ${esc(R45.visc_src.unloaded)} (${VF45.n_unloaded} points, mean deviation ${f(100 * VF45.aard_unloaded, 1)} %, largest ${f(100 * VF45.max_unloaded, 1)} %) and f, g to ${esc(R45.visc_src.loaded)} (${VF45.n_loaded} points up to α = 0.85, mean deviation ${f(100 * VF45.aard_loaded, 1)} % on μ(α)/μ(0)). Piperazine is counted as MDEA by mass — an estimate. The liquid now also reports a pH from the H⁺ molality of the speciation (activity coefficient taken as 1). Against DWSIM's CO2 Capture (eNRTL) package for the lean-solvent streams you exported from it (DWSIM / engine):</p>
+<div class="tw"><table><thead><tr><th class="l">39 wt % MDEA + 2.5 wt % PZ</th><th>Density, kg/m³</th><th>Viscosity, mPa s</th><th>c<sub>p</sub>, kJ/(kg K)</th><th>Conductivity, W/(m K)</th><th>pH</th></tr></thead><tbody>
+${am45}
+</tbody></table></div>
+<p class="note">Densities agree within 0.3 % and conductivities within 6 %. DWSIM's heat capacity of 2.2–2.5 kJ/(kg K) is about a third below the calorimetric value of 40 wt % MDEA solutions (about 3.6–3.7 kJ/(kg K) near 40 °C), and its viscosity of the loaded solvent at 73 °C (1.27 mPa s) is below the measured viscosity of the unloaded solvent at that temperature; the engine follows the measurements.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${s45vec}
+</tbody></table></div>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–43 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-423.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–44 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-432.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>
