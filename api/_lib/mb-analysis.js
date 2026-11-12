@@ -605,6 +605,17 @@ function solveStreamProperties(inp) {
     sat.dew_T_K = tryv(() => th.flashPVF(pp, z, P, 1, T).T);
     sat.bubble_P_bar = tryv(() => th.flashTVF(pp, z, T, 0, P).P / 1e5);
     sat.dew_P_bar = tryv(() => th.flashTVF(pp, z, T, 1, P).P / 1e5);
+    // a dew point below the bubble point, or a dew pressure above the bubble pressure, is not a phase boundary
+    // but a spurious root (seen with the acid-gas methods: loaded aqueous MDEA at 40 bar gave a "dew point" 7 K
+    // below its bubble point, or none, depending on the solver's warm start, and a dew pressure of 396 bar)
+    if (num(sat.bubble_T_K) && num(sat.dew_T_K) && sat.dew_T_K < sat.bubble_T_K - 0.01) {
+      w.push(`Dew point not reported: the solution found (${r6(sat.dew_T_K - 273.15)} °C) lies below the bubble point, so it is not a phase boundary.`);
+      sat.dew_T_K = null;
+    }
+    if (num(sat.bubble_P_bar) && num(sat.dew_P_bar) && sat.dew_P_bar > sat.bubble_P_bar * (1 + 1e-6)) {
+      w.push(`Dew pressure not reported: the solution found (${r6(sat.dew_P_bar)} bar) lies above the bubble pressure, so it is not a phase boundary.`);
+      sat.dew_P_bar = null;
+    }
   }
   return { streams_out: [], mass_balance: {}, energy_balance: {},
     details: { pp: { model: pp.model, label: pp.label, phases: pp.threePhase ? 'VLL' : 'VL' }, keys: pp.keys.filter((k, i) => z[i] > 0), overall, phases, K, saturation: sat },
