@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flowsheet Simulator User Guide — Build, Run and Read a Process Simulation | multicalci.com</title>
-<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate, sour water, aqueous electrolytes), rigorous columns, reactors, recycles, design specs, sensitivity studies, optimisation, equipment costing, pinch analysis, case comparison, results, reports and troubleshooting.">
+<meta name="description" content="Step-by-step user guide for the free multicalci.com flowsheet simulator: placing equipment, connecting streams, specifying feeds, choosing a property method (Peng–Robinson, NRTL, IAPWS-IF97 steam, MEA, MDEA and activated MDEA, hot potassium carbonate, sour water, aqueous electrolytes), rigorous columns, reactors, recycles, energy streams, design specs, sensitivity studies, optimisation, equipment costing, pinch analysis, case comparison, results, reports and troubleshooting.">
 <link rel="canonical" href="https://www.multicalci.com/flowsheet-user-guide">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="Flowsheet Simulator User Guide | multicalci.com">
@@ -82,7 +82,7 @@ footer{max-width:1040px;margin:0 auto;padding:0 18px 40px;font-size:12.5px;color
 <li><a href="#equipment">Equipment reference</a></li>
 <li><a href="#solve">Recycles, design specs, sensitivity studies and optimisation</a></li>
 <li><a href="#econ">Costing, pinch analysis and cases</a></li>
-<li><a href="#results">Results, stream analysis and reports</a></li>
+<li><a href="#results">Results, stream properties, stream analysis and reports</a></li>
 <li><a href="#files">Saving, opening and sharing</a></li>
 <li><a href="#examples">Ready-made examples</a></li>
 <li><a href="#trouble">Troubleshooting</a></li>
@@ -147,6 +147,18 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <li>To put a unit into an existing stream, drop it from the palette onto the stream: the stream now ends at the unit's inlet and a new stream carries on from its outlet.</li>
 <li>To turn a unit, use <span class="ui">⟳ Rotate</span> and the two <span class="ui">Flip</span> buttons under <span class="ui">Ports &amp; connections</span>, or press <kbd>R</kbd>, <kbd>H</kbd> or <kbd>V</kbd> with the unit selected; its ports turn with it.</li>
 <li>Streams with no source are <b>feeds</b> and must be specified. Streams with no destination are <b>products</b>.</li>
+</ul>
+<h3>3.2a Energy streams</h3>
+<p>An <b>energy stream</b> (a dashed arrow, orange for heat, purple for shaft work) passes heat or shaft work from one unit to another, as in other process simulators. Point at a unit to see its <b>◆ energy port</b>, then drag from it onto another unit's ◆.</p>
+<ul>
+<li>The unit at the arrow head takes the energy the unit at the tail gives up as its own specification. A heater, mixer, flash drum or three-phase separator takes it as its <b>duty</b>; a compressor on its design point (with a property method) takes it as its <b>shaft power</b>, and its discharge temperature and efficiency follow. Typical uses: a steam turbine driving a compressor, the heat of an aftercooler or a reactor's heat removal raising boiler feed water or steam.</li>
+<li>You can drag in either direction: the arrow always points at the unit that can receive. When both can, it points the way you dragged.</li>
+<li>Dropped on empty canvas, the arrow <b>shows</b> the unit's calculated duty or power. To <b>give</b> a unit a duty you type, select the arrow and set <span class="ui">From</span> to none, then enter the energy in kW. A unit already set to a duty gets a giving arrow straight away.</li>
+<li><span class="ui">Fraction delivered</span> (0–1) takes off losses: a gearbox or mechanical efficiency for shaft work, heat losses for heat.</li>
+<li>Heat goes only to heat and work only to work. Turbines, pumps and exchangers cannot receive an energy stream. Each unit has one energy port.</li>
+<li>When the receiving unit sits upstream of its source in the same process, the link is solved by repeated passes around the flowsheet and converges only if less energy comes back than goes in. For feed–effluent heat recovery use a heat exchanger instead.</li>
+<li>The receiving unit's duty or power field shows <i>from energy stream Q1</i> and its specification is locked to the duty while the arrow is connected. On a phone, use the energy row in the unit's <span class="ui">Ports &amp; connections</span> section to connect, show or give energy without dragging.</li>
+<li>Energy streams are listed in the Summary tab (with the heat and work passed between units), the Units sheet of the Excel workbook and the report's unit summary.</li>
 </ul>
 
 <div class="duo">
@@ -213,7 +225,7 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <tr><td>Hot potassium carbonate</td><td>Benfield-type hot carbonate CO₂ removal</td><td>Pitzer model. Parameters are extrapolated above about 100 °C.</td></tr>
 <tr><td>Sour water</td><td>Sour water strippers, refinery and gasifier condensates, ammonia-plant process condensate</td><td>NH₃, H₂S and CO₂ with their ionisation and carbamate, plus NaOH. Fitted to measured partial pressures from 20 to 260 °C (12–24 % mean deviation). Streams show pH and the equilibrium NH₃, H₂S and CO₂ pressures.</td></tr>
 <tr><td>Aqueous electrolytes</td><td>Brines, seawater, cooling water, caustic and acid solutions, evaporators, scaling checks</td><td>Pitzer model on the USGS PHREEQC pitzer.dat database. Salts are components by formula (NaCl, CaCl₂, Na₂SO₄, NaOH, H₂SO₄ …). Streams show pH, water activity and mineral saturation indices; solids are not precipitated.</td></tr>
-<tr><td>Classic</td><td>The engine's per-unit models (needed for the reformer, shift, methanator and urea units)</td><td>Flash drums then offer Raoult, Peng–Robinson or NRTL individually.</td></tr>
+<tr><td>Classic</td><td>The engine's per-unit models (needed for the reformer, shift, methanator and urea units)</td><td>Flash drums then offer Raoult, Peng–Robinson or NRTL individually. Heaters and coolers put each component wholly in one phase while flash drums split by vapour–liquid equilibrium, so a cooler followed by a knock-out drum shows a false duty on the drum (about 18 kW in the knock-out example, with the cooler duty about 6 % high); vapour fraction, density and viscosities are not calculated. Use a property method for anything with a phase change.</td></tr>
 </tbody></table></div>
 <div class="tip"><b>Rule of thumb.</b> Gas or hydrocarbon systems at pressure: Peng–Robinson; natural gas, CO₂ or hydrogen blends where accuracy matters: GERG-2008; hydrogen-rich refinery streams: Grayson–Streed; one pure fluid (NH₃, CO₂, N₂, H₂, CH₄, Ar, O₂): its reference equation. Water with organics: NRTL, with a Peng–Robinson vapour above about 5 bar. Pure water and steam: IAPWS-IF97. CO₂ capture with a chemical solvent: the matching acid-gas method. NH₃ / H₂S / CO₂ in water: Sour water. Water with dissolved salts, caustic or acid: Aqueous electrolytes. With the acid-gas methods, enter the solvent as its apparent components (water, the amine or K₂CO₃, CO₂). The CO₂ amount sets the loading. H₂, N₂, CH₄, CO, Ar and O₂ dissolve physically; the CO₂-removal methods do not model H₂S or NH₃.</div>
 <div class="tip"><b>Salts and CO₂.</b> In the aqueous-electrolyte method only the CO₂ component can leave the liquid. If CO₂ will boil or strip out (evaporators, strippers, flash let-down), write carbonate alkalinity as Na₂CO₃ or K₂CO₃ plus CO₂ instead of NaHCO₃ or KHCO₃ — 1 mol NaHCO₃ is ½ mol Na₂CO₃ + ½ mol CO₂ + ½ mol H₂O. A bicarbonate salt keeps its CO₂ in the liquid.</div>
@@ -336,7 +348,7 @@ Press <span class="ui">Create flowsheet</span>.</li>
 </ul>
 <p>Each value shows its difference from the base case underneath; tick which cases to compare and pick the base. <span class="ui">Restore</span> loads a case's inputs into the flowsheet (undo brings the previous inputs back). Cases are saved with the flowsheet file and in this browser, but not in share links; the report can include the summary comparison.</p>
 
-<h2 id="results">8 · Results, stream analysis and reports</h2>
+<h2 id="results">8 · Results, stream properties, stream analysis and reports</h2>
 <ul>
 <li><b>Summary</b> (opens after every run): whether the run solved and any warnings, overall mass closure and the energy-balance check, heating and cooling totals, shaft work, the property method, recycle loops and design specs, the units with the largest duties and powers, and the product streams — click a row to open that unit or stream. Closure should be close to 0 %; a large value points to a problem. An example's notes are shown here too.</li>
 <li><b>Stream table</b>: T, P, flows, phase, enthalpy and composition of every stream. The <span class="ui">Composition</span> selector switches between component flows and fractions on a mass or mole basis, and the unit selectors change the display units. On larger flowsheets a filter shows only streams whose name or unit matches, only feeds and products, or only the streams of the units selected on the drawing; <span class="ui">Copy for Excel</span>, <span class="ui">Excel H&amp;MB</span> and <span class="ui">CSV</span> always take every stream.</li>
@@ -345,6 +357,14 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <li><b>Cases</b>, <b>Pinch</b> and <b>Costs</b>: see section 7.</li>
 <li><b>Run log</b> and <b>Issues</b>: what the solver did, warnings (for example a unit outside its validity range) and anything missing. Issues ends with a <b>specification check</b> of every unit: the specification chosen, the values given, anything missing or invalid, and any value entered that the chosen specification does not use (for example a duty typed in while the heater is set to an outlet temperature). Press <kbd>F1</kbd> on a unit for its assumptions, inputs and valid ranges.</li>
 <li><b>Unit and stream panels</b>: detailed results. Columns and plug-flow reactors show profiles. Acid-gas streams show CO₂ loading, equilibrium CO₂ pressure and related values. With a property method, every stream also shows density, Cp, viscosity and thermal conductivity for each phase.</li>
+<li><b>Stream properties</b>: <span class="ui">Stream properties</span> on the toolbar opens a property calculator for one mixture at one state, like a simulator's stream table. Add the components with the search box and type their amounts (mole or mass %, fractions or flows — the sum is scaled for you), the total flow, and either temperature and pressure or pressure and vapour fraction (0 gives the bubble point, 1 the dew point); choose any property method, or <span class="ui">Copy a flowsheet stream</span> to start from one. <span class="ui">Calculate</span> gives:
+  <ul>
+  <li>a table with a column for the mixture and one for each phase: phase fractions, molar, mass, actual-volume and standard gas flows, molar mass, density, molar volume, Z, enthalpy (kJ/kg, kJ/kmol and kW), entropy, Cp, Cv, Cp/Cv, speed of sound, Joule–Thomson coefficient, viscosity, thermal conductivity and surface tension;</li>
+  <li>the composition of every phase as mole or mass fractions, with the K-values of a vapour–liquid split;</li>
+  <li>the bubble and dew points at the pressure and the bubble and dew pressures at the temperature;</li>
+  <li>for the amine, carbonate, sour-water and electrolyte methods, the liquid chemistry: CO₂ loading, equilibrium pressures, pH and ionic strength.</li>
+  </ul>
+  The same view opens from <span class="ui">Stream properties</span> under any stream's Stream analysis, at the stream's own conditions or another temperature and pressure, and from the start page and the Methods panel. The method chosen there does not change the flowsheet. Notes on reading the values: the mixture Cp of a two-phase stream is the slope of the flash enthalpy and includes the latent heat; Cv, Cp/Cv and speed of sound of a liquid need an accurate liquid equation of state and are given by Steam / water, the reference equations and GERG-2008; enthalpy includes each component's heat of formation (elements at 25 °C) and entropy is absolute, so compare differences — not absolute values — with steam tables or another simulator. <span class="ui">Copy for Excel</span> and <span class="ui">CSV</span> export everything.</li>
 <li><b>Stream analysis</b> (in a stream's panel), using the flowsheet property method:
   <ul>
   <li><span class="ui">Phase envelope</span>: bubble and dew curves, critical point, cricondenbar and cricondentherm;</li>
@@ -369,8 +389,9 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <h2 id="examples">10 · Ready-made examples</h2>
 <p>Every example is fully specified. Open one, press Run, then change something and run again. It's the quickest way to learn a unit.</p>
 <div class="tw"><table><thead><tr><th>Example</th><th>Shows</th></tr></thead><tbody>
-<tr><td>Gas cooling &amp; condensate knock-out</td><td>Mixer → cooler → flash drum. The best first example.</td></tr>
+<tr><td>Gas cooling &amp; condensate knock-out</td><td>Mixer → cooler → flash drum on Peng–Robinson. The best first example.</td></tr>
 <tr><td>Extraction steam turbine + condenser</td><td>IAPWS-IF97 steam, extraction turbine, condenser, feed-water pump</td></tr>
+<tr><td>Steam-turbine-driven compressor with heat recovery</td><td>Energy streams: turbine power drives a syngas compressor (98 % delivered), the aftercooler's heat preheats boiler feed water</td></tr>
 <tr><td>Ammonia front end (syngas train)</td><td>Primary and secondary reformers, HTS and LTS shift, CO₂ removal (as a component separator) and methanator. A design spec sets the process air for H₂/N₂ = 3.</td></tr>
 <tr><td>Shift reactor with condensate recycle</td><td>A recycle loop with a torn stream</td></tr>
 <tr><td>Ammonia loop separator &amp; let-down</td><td>Peng–Robinson flashes at loop pressure</td></tr>

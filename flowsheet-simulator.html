@@ -97,7 +97,9 @@ input,select,textarea{font:inherit;color:var(--ink)}
 .runbtn:disabled{opacity:.6;cursor:wait}
 .runbtn kbd{font:500 10px var(--mono);opacity:.75;border:1px solid rgba(255,255,255,.45);border-radius:4px;padding:1px 4px}
 .grow{flex:1}
-@media(max-width:1180px){.tbtn .lbl{display:none}.tbtn{padding:0 8px}}
+@media(max-width:1500px){.brand .s{display:none}}
+@media(max-width:1400px){.tbtn{padding:0 7px}}
+@media(max-width:1320px){.tbtn .lbl{display:none}.tbtn{padding:0 8px}a.tbtn .lbl{display:inline}}
 @media(max-width:900px){.tb .dsk{display:none}.brand .s{display:none}.runbtn kbd{display:none}}
 @media(min-width:901px){.mob{display:none!important}}
 
@@ -147,9 +149,9 @@ input,select,textarea{font:inherit;color:var(--ink)}
 #svg.connecting{cursor:crosshair}
 .blk .body{cursor:move}
 .blk .shape{stroke-width:1.7;stroke-linejoin:round}
-.blk .bname{font:600 12px var(--sans);fill:var(--ink);text-anchor:middle}
+.blk .bname{font:600 12px var(--sans);fill:var(--ink)}   /* ROUND 14b: the anchor comes from each unit's label position (a CSS anchor overrode it) */
 .blk .btype{font:500 9.5px var(--sans);fill:var(--dim);text-anchor:middle}
-.blk .duty{font:500 10px var(--mono);fill:var(--amber);text-anchor:middle}
+.blk .duty{font:500 10px var(--mono);fill:var(--amber)}
 .blk.sel .selbox{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:4 3;fill:var(--accent-soft);fill-opacity:.35}
 .blk.busy .selbox{stroke:var(--accent);stroke-width:2.5;fill:none;animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{stroke-opacity:.2}}
@@ -190,6 +192,34 @@ th .rfl.err{color:var(--err)}
 .ehandle{fill:#fff;stroke:var(--accent);stroke-width:1.8;cursor:grab}
 .marq{fill:var(--accent-soft);fill-opacity:.35;stroke:var(--accent);stroke-width:1;stroke-dasharray:4 3;pointer-events:none}
 .freeend{fill:transparent;cursor:grab}
+/* ROUND 16: energy streams and energy ports */
+.eport .hit{fill:transparent;cursor:crosshair;pointer-events:none}
+.blk:hover .eport .hit,.blk.sel .eport .hit,.eport.conn .hit,#svg.econnecting .eport.target .hit{pointer-events:all}
+.eport .ev{fill:#fff;stroke-width:1.6;opacity:0}
+.eport.heat .ev{stroke:#c2410c}
+.eport.work .ev{stroke:#6d28d9}
+.blk:hover .eport .ev,.blk.sel .eport .ev,.eport.conn .ev,#svg.econnecting .eport.target .ev{opacity:1}
+.eport.conn.heat .ev{fill:#c2410c}
+.eport.conn.work .ev{fill:#6d28d9}
+.eport.target .ev{stroke:var(--ok);stroke-width:2.4;fill:var(--ok-soft)}
+.eport.hot .ev{fill:var(--ok)}
+.eport .plbl{font:500 9.5px var(--sans);fill:var(--dim);pointer-events:none;opacity:0}
+.blk:hover .eport .plbl,.blk.sel .eport .plbl,#svg.econnecting .eport.target .plbl{opacity:1}
+#svg.econnecting .port .pv{opacity:.25}
+.estrm path.ln{fill:none;stroke-width:1.6;stroke-dasharray:7 4;stroke-linejoin:round}
+.estrm.heat path.ln{stroke:#c2410c}
+.estrm.work path.ln{stroke:#6d28d9}
+.estrm path.hit{fill:none;stroke:transparent;stroke-width:12;cursor:pointer}
+.estrm.sel path.ln{stroke-width:2.6}
+.estrm:hover path.ln{stroke-width:2.2}
+.elbl rect{fill:#fff7ed;stroke:#c2410c;stroke-width:1}
+.estrm.work .elbl rect{fill:#f5f3ff;stroke:#6d28d9}
+.elbl text{font:600 10.5px var(--mono);fill:#7c2d12;text-anchor:middle;dominant-baseline:central}
+.estrm.work .elbl text{fill:#4c1d95}
+.estrm.sel .elbl rect{stroke-width:1.8}
+.elbl.bad rect{fill:var(--err-soft);stroke:var(--err)}
+.elbl.stale text{opacity:.6}
+.elbl{cursor:pointer}
 #stage .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;padding:20px}
 #stage .empty .card{pointer-events:auto;max-width:520px;background:#fff;border:1px solid var(--line);border-radius:14px;
   padding:22px 22px 18px;box-shadow:0 10px 40px rgba(10,30,60,.08)}
@@ -205,7 +235,7 @@ th .rfl.err{color:var(--err)}
 .start .st-x:hover{background:var(--panel3);color:var(--ink2)}
 .start h2{margin:0 0 2px;padding-right:30px}
 .start .st-sub{color:var(--dim);font-size:13px}
-.start .acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 8px;flex:none}
+.start .acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 8px;flex:none}
 .start .act{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:11px 13px;border:1px solid var(--line2);border-radius:10px;background:#fff;text-decoration:none;color:inherit}
 .start .act:hover{border-color:var(--accent);background:var(--accent-soft)}
 .start .act b{font-size:14px;color:var(--ink)}
@@ -475,6 +505,16 @@ details.dd>div{padding:2px 10px 10px;overflow:auto}
 .anagrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 12px}
 .anares{margin-top:12px}
 .anaw{margin:8px 0 0 16px;font-size:12px;color:var(--warn)}
+/* ROUND 15: stream-properties calculator — inputs left, conditions right */
+.spgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.spgrid .anagrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.spgrid .wiz .hits{margin-top:4px}
+table.st.spcomp{min-width:0;width:100%;margin-top:6px}
+table.st.spt td:first-child,table.st.spcomp td:first-child{font-family:var(--sans)}
+table.st.spt.one{min-width:min(100%,560px);width:auto}
+table.st.spcomp td{vertical-align:middle}
+table.st.spcomp input.in{height:28px;width:100px;text-align:right;font-size:12.5px;padding:0 6px}
+@media(max-width:900px){.spgrid{grid-template-columns:minmax(0,1fr)}.spgrid .anagrid{grid-template-columns:minmax(0,1fr)}}
 .scrollx{overflow-x:auto}
 .mini td.miss{color:var(--warn);font-family:var(--sans)}
 .sensgrid{display:grid;grid-template-columns:minmax(300px,520px) minmax(0,1fr);gap:14px;align-items:start}
@@ -554,6 +594,7 @@ table.st.sumt th:first-child,table.st.sumt td:first-child{text-align:left;font-f
 .sheet #inspector,.sheet .insp-clone{display:flex}
 @media(min-width:901px){
   .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:min(720px,94vw);border-radius:14px;max-height:86vh}
+  .sheet.wide{width:min(1040px,94vw);height:86vh}
   .sheet .grab{display:none}
 }
 .help h3{font-size:14px;margin:14px 0 6px}
@@ -589,6 +630,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
     <button class="tbtn icon dsk" id="bRedo" title="Redo (Ctrl+Y)" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 000 10h3"/></svg></button>
     <button class="tbtn dsk" id="bTidy" title="Auto-arrange blocks left to right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="6" height="6" rx="1"/><rect x="15" y="4" width="6" height="6" rx="1"/><rect x="15" y="14" width="6" height="6" rx="1"/><path d="M9 7h6M12 7v10h3"/></svg><span class="lbl">Tidy</span></button>
     <button class="tbtn dsk" id="bMethods" title="Property method for the whole flowsheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/><path d="M7 15h10"/></svg><span class="lbl">Methods</span><span class="mchip" id="mChip">PR</span></button>
+    <button class="tbtn dsk" id="bProps" title="Stream properties — composition, temperature, pressure and a method give a property table"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 9v11"/></svg><span class="lbl">Stream properties</span></button>
     <button class="tbtn dsk" id="bSpecs" title="Design specs — vary an input to hit a target"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span class="lbl">Specs</span></button>
     <button class="tbtn dsk" id="bReport" title="Report builder — Word (.docx) or PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><span class="lbl">Report</span></button>
     <button class="tbtn dsk" id="bHelp" title="How to use"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 2-2.5 2-2.5 4"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg><span class="lbl">Help</span></button>
@@ -619,6 +661,12 @@ table.st.hlp th,table.st.spc th{text-align:left}
         </marker>
         <marker id="arwSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto">
           <path d="M0,0 L10,5 L0,10 Z" fill="#0055bb"/>
+        </marker>
+        <marker id="arwQ" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="#c2410c"/>
+        </marker>
+        <marker id="arwW" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="#6d28d9"/>
         </marker>
         <linearGradient id="vg" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f6fa"/><stop offset="1" stop-color="#e3e9f1"/>
@@ -693,7 +741,10 @@ table.st.hlp th,table.st.spc th{text-align:left}
     <li>Drag the <b>tip of an outlet arrow</b> onto an inlet port of the next unit — the two units are now connected.</li>
     <li>Or drag from any free port: release on another port to connect, or on empty canvas to make a feed or product.</li>
     <li>Select a stream and drag its end handle to re-route it. On a phone use the <b>Connections</b> dropdowns in the unit's properties.</li>
+    <li><b>Energy streams</b> (dashed arrows): point at a unit to see its ◆ energy port — orange for heat, purple for shaft work — and drag from it onto another unit's ◆ to pass that energy on: a cooler's heat into a heater, a turbine's power into the compressor it drives.</li>
   </ul>
+  <h3>Energy streams</h3>
+  <p>An energy stream carries heat (Q) or shaft work (W) from one unit to another. The unit at the arrow head takes the energy the unit at the tail gives up as its own specification: a heater, mixer, flash drum or three-phase separator takes it as its duty, a compressor (on its design point, with a property method) as its shaft power — so its discharge temperature and efficiency follow. Drag between two ◆ ports in either direction: the arrow always points at the unit that can receive. Dropped on empty canvas, the arrow shows the unit's calculated duty or power; select it and set <b>From</b> to none to give the unit a duty you type instead. A link can deliver a fraction of the energy (a gearbox efficiency, heat losses). Turbines, pumps and exchangers cannot receive energy streams, heat goes only to heat and work only to work, and each unit has one energy port. A receiver upstream of its source in the same process is solved by repeated passes and converges only when less energy comes back than goes in — for feed–effluent heat recovery use a heat exchanger. Energy streams appear in the Summary tab, the Excel workbook (Units sheet) and the report; the “Steam-turbine-driven compressor with heat recovery” example shows both kinds.</p>
   <h3>3 · Specify feeds</h3>
   <p>Click a feed arrow (blue label). Pick a typical stream (air, natural gas, steam…) or add components from the searchable dropdown, choose the basis (mole %, mass %, kmol/h, kg/h), then enter total flow, temperature and pressure in any unit — °C/K/°F, bar(a), bar(g), kg/cm²(g), psig, kPa, kmol/h, Nm³/h, t/h.</p>
   <h3>4 · Specify units and run</h3>
@@ -719,6 +770,8 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <p>The <b>rigorous column</b> solves the full stage-by-stage MESH equations (Naphtali–Sandholm Newton): choose stages, condenser (total, partial or none), reboiler (kettle or none), feed stages, top pressure and two specifications (reflux ratio, distillate or bottoms rate, duties, condenser temperature, a product purity or a recovery). Without condenser and reboiler it is an absorber or stripper. Trays can carry a <b>Murphree vapour efficiency</b> — one value for every tray, or per component (for example a low CO₂ efficiency in a chemical-solvent absorber while water stays at equilibrium); the condenser and reboiler are always equilibrium stages. Its panel shows temperature, composition and flow profiles. The <b>Gibbs reactor</b> finds chemical equilibrium by minimising Gibbs energy — list the species that may form, no reactions needed. Vapour fugacity coefficients come from the property method (switch to ideal gas if you need to compare), a temperature approach shifts the equilibrium to T + ΔT, graphite can be allowed to deposit at unit activity, and the equilibrium can be restricted to listed reactions each with its own approach (methane and shift approaches of a reformer). The carbon activity of the outlet gas is always reported. The <b>three-phase separator</b> splits vapour, light liquid and heavy (aqueous) liquid. The <b>pipe segment</b> marches a line in segments with a flash at every node (Darcy–Churchill friction, elevation, acceleration, fittings, homogeneous two-phase flow) and checks the erosional velocity and Mach number. With a property method, the reformers, shift converters and methanator solve their equilibria on it too. A valve’s results carry a <b>Size this valve</b> link to the control-valve tool, and a heat exchanger’s a <b>Rate in HeatXpert</b> link — both open with the stream data filled in.</p>
   <h3>Kinetic reactors (plug flow and CSTR)</h3>
   <p>The <b>plug-flow</b> and <b>CSTR</b> reactors take power-law or <b>LHHW / Hougen–Watson</b> kinetics: for each reaction give the stoichiometry, k0 and the activation energy (optionally about a reference temperature), optional orders (blank = elementary, negative orders allowed), a concentration or partial-pressure basis, and whether it is reversible — with a thermodynamically consistent driving force from the Gibbs-energy equilibrium constant of the databank or your own ln K correlation, or your own reverse Arrhenius rate. For catalytic kinetics add an adsorption term (Σ Kₜ Π aᵢ^eₜᵢ)^m — the Steam reformer example carries the full Xu–Froment model. Rates can be per m³ of reactor or per kg of catalyst (with the bed density). The plug-flow reactor is isothermal, adiabatic, fixed-duty or heated / cooled through the wall (U and coolant or furnace temperature) and shows axial temperature, pressure and composition profiles; fast, equilibrium-limited kinetics are integrated with a stiff (Rosenbrock) solver. Each reactor reports conversions, the heat of every reaction in the reacting phase and the residence time.</p>
+  <h3>Stream properties</h3>
+  <p><b>Stream properties</b> on the toolbar (or the start page, the Methods panel, or <b>Stream properties</b> under any stream’s Stream analysis) gives the properties of one mixture at one state, laid out like a simulator’s stream table: phase fractions, molar, mass, actual and standard gas flows, molar mass, density, molar volume, Z, enthalpy, entropy, Cp, Cv, Cp/Cv, speed of sound, Joule–Thomson coefficient, viscosity, thermal conductivity and surface tension — for the mixture and for each phase — with the compositions (mole or mass), K-values and the bubble and dew points at the stream’s pressure and temperature. Type the components and amounts (or copy a flowsheet stream), the flow, temperature and pressure (or pressure and vapour fraction) and pick any property method — Peng–Robinson, NRTL, GERG-2008, steam, amine packages and the rest; it does not change the flowsheet’s own method. The mixture Cp of a two-phase stream includes the latent heat; liquid Cv, Cp/Cv and speed of sound are given by the methods with an accurate liquid equation of state (steam, reference equations, GERG-2008). Enthalpy includes the heats of formation and entropy is absolute, so compare differences with other simulators or steam tables. Copy for Excel or download a CSV.</p>
   <h3>Stream analysis — phase envelope, property table, binary and ternary diagrams, azeotropes</h3>
   <p>Select any stream and use <b>Stream analysis</b>: the <b>phase envelope</b> traces bubble and dew curves (with quality lines) and marks the critical point, cricondenbar and cricondentherm; the <b>property table</b> sweeps temperature or pressure and tabulates phase fraction, enthalpy, Cp, densities, viscosities and conductivities; the <b>binary diagram</b> draws T–x–y or P–x–y and y–x curves with azeotropes and the three-phase line of partially miscible pairs. The <b>ternary map</b> draws residue curves for any three components with the pure components and azeotropes classified as stable nodes, unstable nodes or saddles, the distillation boundaries that split the triangle into regions, and (activity methods) the liquid–liquid envelope with tie lines at a chosen temperature — the starting point for azeotropic and extractive distillation sequences. The <b>azeotrope search</b> lists every binary, ternary and quaternary azeotrope among up to eight components, homogeneous or heterogeneous. All use the flowsheet property method and can be copied into Excel; the flowsheet panel offers the same diagrams for any components without a stream. Checked against tabulated azeotropes in validation section 39.</p>
   <h3>Drawing</h3>
@@ -1154,6 +1207,7 @@ const TYPES = {
     note: 'Raoult: near-ideal mixtures. Peng–Robinson: hydrocarbons, light gases, NH₃/syngas at pressure (dissolved gases in the liquid are predicted). NRTL: polar liquids at low pressure — enter binary parameters in Aspen form (τij = aij + bij/T, α = cij); vapour–liquid only.',
     modelNote: true,
     lbl: (w, h) => [w + 7, h * 0.5 + 4, 'start'],
+    ep: (w, h) => P(w, h * 0.82, 1, 0),          // ROUND 16: energy port beside the liquid section
     geo() {
       const w = 46, h = 92;
       return { w, h, ins: [P(0, h * 0.5, -1, 0)], outs: [P(w / 2, 0, 0, -1), P(w / 2, h, 0, 1)] };
@@ -1481,6 +1535,7 @@ const TYPES = {
       for (const k of ['P_out_bar', 'ate_smr_K', 'ate_wgs_K']) if (num(p[k])) o[k] = p[k];
       return o;
     },
+    ep: (w, h) => P(w, h * 0.3, 1, 0),
     geo() {
       const w = 58, h = 96;
       return { w, h, ins: [P(0, h * 0.6, -1, 0), P(w / 2, 0, 0, -1)], outs: [P(w, h * 0.88, 1, 0)] };
@@ -2156,6 +2211,7 @@ TYPES.flash3 = {
   },
   note: 'Three-phase flash: Michelsen stability test for a second liquid, then vapour / light liquid / heavy liquid by successive substitution with a three-phase Rachford–Rice — water + hydrocarbons with an equation of state, partially miscible liquids with NRTL / UNIQUAC / UNIFAC. A single liquid that is mostly water leaves by the heavy-liquid outlet.',
   lbl: (w, h) => [w / 2, h + 15, 'middle'],
+  ep: (w) => P(w * 0.25, 0, 0, -1),
   geo() {
     const w = 120, h = 54;
     return { w, h, ins: [P(0, h * 0.42, -1, 0)], outs: [P(w * 0.62, 0, 0, -1), P(w, h * 0.62, 1, 0), P(w * 0.82, h + 12, 0, 1)] };
@@ -2352,6 +2408,11 @@ function isRig(b) { const T = TYPES[b.type]; return !!T.rigOnly || (!!T.rig && r
 function tdef(b) { const T = TYPES[b.type]; return T.rig && rigOn() ? Object.assign({}, T, T.rig, { rig: undefined }) : T; }
 function fieldsOf(b) { return tdef(b).fields; }
 function moduleOf(b) { const m = tdef(b).module; return typeof m === 'function' ? m(b.params) : m; }
+/** ROUND 14b: the model a unit ran on, in words, for tables and downloads */
+function modelLabel(b) {
+  if (isRig(b)) return PKG_LABEL[blockPkg(b)] || blockPkg(b);
+  return 'Classic (' + (b.type === 'heater' ? 'mixer with outlet T / duty' : moduleOf(b)) + ')';
+}
 /** property method of a rigorous block: its own override, else the unit's default (extraction turbine → steam), else the flowsheet's */
 function blockPkg(b) { return b.params.pkg || TYPES[b.type].defaultPkg || pkgModel(); }
 /** the property_package object sent to the engine for a model key */
@@ -2469,7 +2530,7 @@ const UI_OPEN = new Set();
 
 /* pkg: flowsheet property method (Step 22). New flowsheets start on Peng–Robinson;
    files saved before Step 22 carry no pkg and load as 'classic'. */
-function blankModel() { return { v: 2, pkg: { model: 'pr' }, blocks: [], streams: [], specs: [], seq: { b: 0, s: 0 } }; }
+function blankModel() { return { v: 2, pkg: { model: 'pr' }, blocks: [], streams: [], estreams: [], specs: [], seq: { b: 0, s: 0, e: 0 } }; }
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(LS_PREFS)) || {}; } catch (_e) { return {}; } }
 function savePrefs() { try { localStorage.setItem(LS_PREFS, JSON.stringify(PREFS)); } catch (_e) { /* ignore */ } }
 
@@ -2565,7 +2626,7 @@ function restore(s) {
   lastSnap = s;
   for (const id of [...MSEL]) if (!blockById(id)) MSEL.delete(id);
   if (SEL && SEL.kind === 'multi') { if (MSEL.size < 2) { const one = [...MSEL][0]; MSEL.clear(); SEL = one ? { kind: 'block', id: one } : null; } }
-  else if (SEL && !(SEL.kind === 'block' ? blockById(SEL.id) : streamById(SEL.id))) SEL = null;
+  else if (SEL && !(SEL.kind === 'block' ? blockById(SEL.id) : SEL.kind === 'estream' ? estreamById(SEL.id) : streamById(SEL.id))) SEL = null;
   autosave();
   refreshAll(true);
 }
@@ -2601,13 +2662,28 @@ function loadModel(m, keepView) {
   PINCH.res = null; PINCH.key = ''; PINCH.err = '';
   const ids = new Set(M.blocks.map((b) => b.id));
   M.streams = (M.streams || []).filter((s) => (!s.from || ids.has(s.from.b)) && (!s.to || ids.has(s.to.b)) && (s.from || s.to));
+  { /* ROUND 16: energy streams — one per energy port, known units only */
+    const used = new Set();
+    M.estreams = (Array.isArray(M.estreams) ? M.estreams : []).filter((e) => {
+      if (!e || typeof e.id !== 'string' || !(e.from || e.to) || (e.from && !ids.has(e.from)) || (e.to && !ids.has(e.to)) || e.from === e.to) return false;
+      if ((e.from && used.has(e.from)) || (e.to && used.has(e.to))) return false;
+      if (e.from) used.add(e.from); if (e.to) used.add(e.to);
+      if (typeof e.name !== 'string' || !e.name) e.name = e.id.toUpperCase();
+      return true;
+    });
+  }
   for (const b of M.blocks) { b.params = b.params || {}; b.pu = b.pu || {}; applyDefaults(b); }
   for (const s of M.streams) if (!s.from && !s.spec) s.spec = blankSpec();
   if (!M.seq) M.seq = { b: 0, s: 0 };
   M.seq.b = Math.max(M.seq.b || 0, ...M.blocks.map((b) => +b.id.slice(1) || 0), 0);
   M.seq.s = Math.max(M.seq.s || 0, ...M.streams.map((s) => +s.id.slice(1) || 0), 0);
+  M.seq.e = Math.max(M.seq.e || 0, ...M.estreams.map((e) => +e.id.slice(1) || 0), 0);
   SEL = null; RES = null;
   placeStubs(false);
+  for (const e of M.estreams) if ((!e.from || !e.to) && !(num(e.x) && num(e.y))) {      // free energy arrows of examples: beside the energy port
+    const b = blockById(e.from || e.to); GEO.delete(b.id); const p = portWorld(b, 'e', 0);
+    if (p) { e.x = p.x + p.d[0] * 70; e.y = p.y + p.d[1] * 50; }
+  }
   UNDO.length = 0; REDO.length = 0; lastSnap = snap();
   autosave();
   refreshAll(true);
@@ -2638,7 +2714,9 @@ function geoOf(b) {
   if (g) return g;
   const T = TYPES[b.type];
   const gi = hasGhostIn(b), go = hasGhostOut(b);
-  g = orientGeo(b, T.geo(b, b.nIn + (gi ? 1 : 0), b.nOut + (go ? 1 : 0)));
+  const g0 = T.geo(b, b.nIn + (gi ? 1 : 0), b.nOut + (go ? 1 : 0));
+  if (energyKind(b)) g0.ep = T.ep ? T.ep(g0.w, g0.h) : P(g0.w / 2, 0, 0, -1);      // ROUND 16: energy port
+  g = orientGeo(b, g0);
   g.ghostIn = gi ? b.nIn : -1;
   g.ghostOut = go ? b.nOut : -1;
   GEO.set(b.id, g);
@@ -2660,7 +2738,7 @@ function orientGeo(b, g) {
   const swap = rot === 90 || rot === 270;
   const rt = rot === 90 ? `translate(${h0},0) rotate(90)` : rot === 180 ? `translate(${w0},${h0}) rotate(180)` : rot === 270 ? `translate(0,${w0}) rotate(270)` : '';
   const ft = o.fx ? `translate(${w0},0) scale(-1,1)` : '';
-  return Object.assign({}, g, { w: swap ? h0 : w0, h: swap ? w0 : h0, w0, h0, tf: (rt + ' ' + ft).trim(), ins: g.ins.map(tp), outs: g.outs.map(tp) });
+  return Object.assign({}, g, { w: swap ? h0 : w0, h: swap ? w0 : h0, w0, h0, tf: (rt + ' ' + ft).trim(), ins: g.ins.map(tp), outs: g.outs.map(tp), ep: g.ep ? tp(g.ep) : undefined });
 }
 function rotateBlock(b, how) {
   const o = b.orient = b.orient || { rot: 0, fx: false };
@@ -2675,7 +2753,7 @@ function rotateBlock(b, how) {
 }
 function portWorld(b, io, i) {
   const g = geoOf(b);
-  const p = (io === 'in' ? g.ins : g.outs)[i];
+  const p = io === 'e' ? g.ep : (io === 'in' ? g.ins : g.outs)[i];
   if (!p) return null;
   return { x: b.x + p.x, y: b.y + p.y, d: p.d };
 }
@@ -2690,14 +2768,15 @@ function route(s) {
   let a, da, z, dz, aBlk = null, zBlk = null;
   if (s.from) {
     const fb = blockById(s.from.b); aBlk = fb;
-    const p = portWorld(fb, 'out', s.from.p) || { x: fb.x, y: fb.y, d: [1, 0] };
+    const p = portWorld(fb, s.energy ? 'e' : 'out', s.from.p) || { x: fb.x, y: fb.y, d: [1, 0] };
     a = { x: p.x, y: p.y }; da = p.d;
   }
   if (s.to) {
     const tb = blockById(s.to.b); zBlk = tb;
-    const p = portWorld(tb, 'in', s.to.p) || { x: tb.x, y: tb.y, d: [-1, 0] };
+    const p = portWorld(tb, s.energy ? 'e' : 'in', s.to.p) || { x: tb.x, y: tb.y, d: [-1, 0] };
     z = { x: p.x, y: p.y }; dz = p.d;             // dz = outward normal of the inlet port
   }
+  if (s.energy && s.from && s.to && da[1] === -1 && dz[1] === -1) return simplify(eUpRoute(a, z, aBlk, zBlk));   // ROUND 16: energy ports on top of both units
   if (!s.from) {                                     // free start (feed)
     a = { x: s.fx, y: s.fy };
     if (dz) da = dz[0] !== 0 ? [-dz[0], 0] : [0, -dz[1]];
@@ -2741,6 +2820,15 @@ function route(s) {
   if (!freeZ) pts.push(z1);
   pts.push(z);
   return simplify(pts);
+}
+/** ROUND 16: energy link between two top ports — over both units, or round the side when one sits under the other */
+function eUpRoute(a, z, A, B) {
+  const a1y = a.y - STUB, z1y = z.y - STUB, bA = blockBox(A), bB = blockBox(B);
+  const [up, lo] = a.y <= z.y ? [{ p: a, b: bA }, { p: z, b: bB }] : [{ p: z, b: bB }, { p: a, b: bA }];
+  const under = lo.p.x >= up.b.x0 - 8 && lo.p.x <= up.b.x1 + 8 && lo.p.y > up.b.y1 - 4;
+  if (!under) { const yt = Math.min(a1y, z1y); return [a, { x: a.x, y: yt }, { x: z.x, y: yt }, z]; }
+  const xr = Math.max(bA.x1, bB.x1) + 28;
+  return [a, { x: a.x, y: a1y }, { x: xr, y: a1y }, { x: xr, y: z1y }, { x: z.x, y: z1y }, z];
 }
 function simplify(pts) {
   const out = [];
@@ -3025,7 +3113,7 @@ function blockSVG(b) {
     const dl = Array.isArray(D.duties) ? D.duties.filter((d) => d.name === 'condenser' || d.name === 'reboiler') : null;
     const q = dl && dl.length ? dl.map((d) => (d.name === 'condenser' ? 'Qc ' : 'Qr ') + fmt(d.kW, 4)).join(' · ') + ' kW'
       : tdef(b).internalQ && num(D.duty_kW) ? 'Q ' + fmt(D.duty_kW, 4) + ' kW'
-      : num(eb.W_kW) && Math.abs(eb.W_kW) > 1e-6 ? 'W ' + fmt(eb.W_kW, 4) + ' kW' : num(eb.Q_kW) ? 'Q ' + fmt(Math.abs(eb.Q_kW) < 1e-6 ? 0 : eb.Q_kW, 4) + ' kW' : '';
+      : num(eb.W_kW) && Math.abs(eb.W_kW) >= 1e-3 ? 'W ' + fmt(eb.W_kW, 4) + ' kW' : num(eb.Q_kW) ? 'Q ' + fmt(qClean(eb.Q_kW), 4) + ' kW' : '';
     if (q) h += `<text class="duty" x="${lx}" y="${ly + 12}" text-anchor="${la}">${esc(q)}</text>`;
   }
   if (ISSUE_MAP.get(b.id) === 'error') h += `<circle class="bad" cx="${g.w + 2}" cy="-2" r="5.5"><title>Input incomplete</title></circle>`;
@@ -3043,7 +3131,369 @@ function blockSVG(b) {
     const conn = !ghost && connectedOut(b, j);
     h += portSVG(b, 'out', j, p, ghost, ghost ? '+ outlet' : (ol[j] || 'Out ' + (j + 1)), ghost ? 'ghostp' : 'opt', conn);
   });
+  if (g.ep) h += eportSVG(b, g.ep);
   return h + '</g>';
+}
+
+/* =====================================================================
+   ROUND 16. ENERGY STREAMS — heat (Q) or shaft work (W) carried from one
+   unit to another, as a simulator's energy stream: a cooler's heat into a
+   heater or a flash drum, a turbine's power into the compressor it drives.
+   Each unit that has a duty or shaft power has one energy port (◆). Drag
+   from it onto another unit's energy port to connect; onto empty canvas for
+   an arrow that shows the unit's duty, or (for a unit set to a duty) gives it.
+   M.estreams: { id, name, from: blockId|null, to: blockId|null,
+                 x, y (free end), kW (given at a free start), eff (0–1] }
+   The engine solves a link as a calculator: duty of `to` = −(duty of `from`)
+   × eff (params.energy_streams of the flowsheet module).
+===================================================================== */
+const E_HEAT = new Set(['heater', 'mixer', 'flash', 'flash3', 'sep', 'reactor', 'gibbs', 'kpfr', 'kcstr', 'smr', 'shift', 'methanator']);     // units with a duty (adiabatic-only units have none)
+const E_WORK = new Set(['rotating', 'xturbine', 'ctrain']);
+const E_COL = { heat: '#c2410c', work: '#6d28d9' };
+function energyKind(b) { return !b ? null : E_WORK.has(b.type) ? 'work' : E_HEAT.has(b.type) ? 'heat' : null; }
+/** can this unit take its duty / shaft power from an energy stream (with the flowsheet as it is now)?
+ *  → { key: the duty / power field, mode: [select field, value that makes the duty the specification] } */
+function energySink(b) {
+  if (!b) return null;
+  const rig = isRig(b), p = b.params || {};
+  if (b.type === 'heater') return { key: rig ? 'duty_kW' : 'Q_kW', mode: ['spec', 'Q'] };
+  if (b.type === 'mixer') return { key: rig ? 'duty_kW' : 'Q_kW', mode: ['mode', 'heated'] };
+  if (b.type === 'flash' && rig) return { key: 'duty_kW', mode: ['fmode', 'PQ'] };
+  if (b.type === 'flash3') return { key: 'duty_kW', mode: ['fmode', 'PQ'] };
+  if (b.type === 'rotating' && rig && (p.machine || 'pump') === 'compressor' && perf(p) !== 'curve') return { key: 'power_kW', mode: ['mspec', 'power'] };
+  return null;
+}
+/** could this unit ever be a receiver (any engine / machine setting)? — for the wording of hints */
+function energySinkType(b) { return !!b && (['heater', 'mixer', 'flash', 'flash3'].includes(b.type) || (b.type === 'rotating' && (b.params.machine || 'pump') === 'compressor')); }
+const estreamById = (id) => (M.estreams || []).find((e) => e.id === id);
+const estreamAt = (bid) => (M.estreams || []).find((e) => e.from === bid || e.to === bid);
+const estreamInto = (bid) => (M.estreams || []).find((e) => e.to === bid);
+function estreamKind(e) { return energyKind(blockById(e.from || e.to)) || 'heat'; }
+/** what the stream carries: given (no source) or the last run's value; null before a run */
+function estreamValue(e) {
+  if (!e.from) return num(e.kW) ? e.kW * (num(e.eff) ? e.eff : 1) : null;
+  const r = RES && RES.energy && RES.energy.find((x) => x.id === e.id);
+  return r && num(r.kW) ? r.kW : null;
+}
+function newEStream(from, to, extra) {
+  M.estreams = M.estreams || [];
+  if (!M.seq.e) M.seq.e = 0;
+  const k = energyKind(blockById(from || to));
+  const e = Object.assign({ id: 'e' + (++M.seq.e), name: nextName(k === 'work' ? 'W' : 'Q', M.estreams), from: from || null, to: to || null }, extra || {});
+  M.estreams.push(e);
+  eFreeEnd(e);
+  eApplySink(e);
+  return e;
+}
+/** a free end with no position yet: beside the unit's energy port */
+function eFreeEnd(e) {
+  if ((e.from && e.to) || (num(e.x) && num(e.y))) return;
+  const b = blockById(e.from || e.to), p = b && portWorld(b, 'e', 0);
+  if (p) { e.x = p.x + p.d[0] * 70; e.y = p.y + p.d[1] * 50; } else if (b) { e.x = b.x; e.y = b.y - 60; }
+}
+/** the receiving unit runs on the duty / power: its specification select is set to it */
+function eApplySink(e) {
+  const b = e.to && blockById(e.to), sk = energySink(b);
+  if (sk) b.params[sk.mode[0]] = sk.mode[1];
+}
+/** which way a link between A and B points: towards a unit that can receive (A → B when both can) */
+function eDirection(A, B, prefer) {
+  const a = !!energySink(A), bb = !!energySink(B);
+  if (prefer === 'into' && a) return [B, A];
+  if (!bb && a) return [B, A];
+  return [A, B];
+}
+function eCompat(A, B) {
+  if (!A || !B || A.id === B.id) return false;
+  const ka = energyKind(A), kb = energyKind(B);
+  if (!ka || ka !== kb) return false;
+  if (estreamAt(B.id)) return false;
+  return !!(energySink(A) || energySink(B));
+}
+/** route object for route(): energy ports stand in for the material ports */
+function eRouteObj(e) {
+  eFreeEnd(e);
+  return { energy: true, from: e.from ? { b: e.from, p: 0 } : null, to: e.to ? { b: e.to, p: 0 } : null, fx: e.x, fy: e.y, tx: e.x, ty: e.y };
+}
+function eportSVG(b, p) {
+  const k = energyKind(b), conn = !!estreamAt(b.id);
+  const tgt = DRAG && DRAG.ecompat && DRAG.ecompat(b);
+  const hot = DRAG && DRAG.hover && DRAG.hover.e && DRAG.hover.b === b.id;
+  const ox = p.d[0] > 0 ? 9 : p.d[0] < 0 ? -9 : 9, oy = p.d[1] < 0 ? -6 : p.d[1] > 0 ? 14 : 4;
+  return `<g class="eport ${k}${conn ? ' conn' : ''}${tgt ? ' target' : ''}${hot ? ' hot' : ''}" data-k="eport" data-id="${b.id}" transform="translate(${p.x},${p.y})">` +
+    `<circle class="hit" r="9"/><path class="ev" d="M0,-5.5 L5.5,0 L0,5.5 L-5.5,0 Z"/>` +
+    `<text class="plbl" x="${ox}" y="${oy}" text-anchor="${p.d[0] < 0 ? 'end' : 'start'}">${k === 'work' ? 'Shaft work (W)' : 'Heat (Q)'}</text></g>`;
+}
+function estreamSVG(e, temp) {
+  const k = estreamKind(e);
+  const pts = route(eRouteObj(e));
+  if (!temp) MINI.lines.push(pts);
+  const d = pathD(pts);
+  const sel = !temp && SEL && SEL.kind === 'estream' && SEL.id === e.id;
+  const v = temp ? null : estreamValue(e);
+  /* an arrow that only shows a duty points the way the energy goes: into the unit when it takes energy in */
+  const rev = !temp && e.from && !e.to && num(v) && v < 0;
+  let h = `<g class="estrm ${k}${sel ? ' sel' : ''}${temp ? ' temp' : ''}" data-k="estream" data-id="${e.id}">`;
+  if (!temp) h += `<path class="hit" d="${d}"/>`;
+  h += `<path class="ln" d="${rev ? pathD(pts.slice().reverse()) : d}" marker-end="url(#arw${k === 'work' ? 'W' : 'Q'})"/>`;
+  if (temp) return h + '</g>';
+  const bad = ISSUE_MAP.get(e.id) === 'error';
+  const stale = RES && RES.stale && e.from;
+  const txt = e.name + (num(v) ? ' · ' + fmt(Math.abs(v), 4) + ' kW' : '') + (stale && num(v) ? ' ⌛' : '');
+  const w = textW(txt, 6.2), hh = 17;
+  let cx, cy;
+  if (!e.from || !e.to) {
+    const z = !e.from ? pts[0] : pts[pts.length - 1], y = !e.from ? (pts[1] || z) : (pts[pts.length - 2] || z);
+    const dx = !e.from ? Math.sign(z.x - y.x) : Math.sign(z.x - y.x), dy = Math.sign(z.y - y.y);
+    cx = z.x + dx * (w / 2 + 3); cy = z.y + dy * (hh / 2 + 3);
+    if (!dx && !dy) cy = z.y - hh;
+  } else {
+    /* the middle of the longest run that is clear of units and other labels */
+    const segs = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i], p1 = pts[i + 1], L = Math.hypot(p1.x - p0.x, p1.y - p0.y), vert = Math.abs(p1.x - p0.x) < 0.5;
+      segs.push({ L, ok: vert ? L > hh * 2 : L > w * 0.6, at: (t) => ({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t }) });
+    }
+    segs.sort((p, q) => q.L - p.L);
+    let pick = null;
+    for (const g of segs) {
+      if (!g.ok) continue;
+      for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) { const c = g.at(t); if (!hitsAny(c.x - w / 2, c.y - hh / 2, w, hh)) { pick = c; break; } }
+      if (pick) break;
+    }
+    pick = pick || segs[0].at(0.5);
+    cx = pick.x; cy = pick.y;
+  }
+  if (LOD.far && !sel && !bad) return h + '</g>';
+  TAGBOX.push([cx - w / 2 - 2, cy - hh / 2 - 2, w + 4, hh + 4]);
+  h += `<g class="elbl${bad ? ' bad' : ''}${stale ? ' stale' : ''}"${LOD.far ? ` transform="translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${LOD.s}) translate(${(-cx).toFixed(1)} ${(-cy).toFixed(1)})"` : ''}>` +
+    `<rect x="${(cx - w / 2).toFixed(1)}" y="${(cy - hh / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${hh}" rx="8"/>` +
+    `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}">${esc(txt)}</text></g>`;
+  if (!e.from || !e.to) {
+    const z = !e.from ? pts[0] : pts[pts.length - 1];
+    h += `<circle class="freeend" data-k="eend" data-id="${e.id}" cx="${z.x}" cy="${z.y}" r="10"><title>Drag to move, or drop on another unit’s ◆ energy port to connect</title></circle>`;
+  }
+  return h + '</g>';
+}
+function nearestEPort(w, compat) {
+  let best = null, bd = 26 / Math.min(VIEW.k, 1.4);
+  for (const b of M.blocks) {
+    const g = geoOf(b);
+    if (!g.ep || !compat(b)) continue;
+    const d = Math.hypot(b.x + g.ep.x - w.x, b.y + g.ep.y - w.y);
+    if (d < bd) { bd = d; best = { b: b.id, e: true }; }
+  }
+  return best;
+}
+/** drag from a free energy port: a new energy stream follows the pointer */
+function beginEWire(b) {
+  const p = portWorld(b, 'e', 0);
+  DRAG.mode = 'ewire';
+  DRAG.temp = { id: '_etmp', name: '', from: b.id, to: null, x: p.x, y: p.y };
+  DRAG.origin = { b: b.id, x: p.x, y: p.y, d: p.d };
+  DRAG.ecompat = (ob) => eCompat(b, ob);
+  DRAG.compat = () => false;
+}
+/** drag the free end of an energy stream: move it, or drop it on another energy port to connect */
+function beginEEnd(eid) {
+  const e = estreamById(eid);
+  if (!e || (e.from && e.to)) return;
+  const U = blockById(e.from || e.to);
+  DRAG.mode = 'ewire'; DRAG.eid = eid; DRAG.eorig = JSON.stringify(e);
+  DRAG.ecompat = (ob) => eCompat(U, ob);
+  DRAG.compat = () => false;
+  SEL = { kind: 'estream', id: eid };
+}
+function moveEWire(w) {
+  const e = DRAG.temp || estreamById(DRAG.eid);
+  if (!e) return;
+  e.x = w.x; e.y = w.y;
+  DRAG.hover = nearestEPort(w, DRAG.ecompat);
+  if (DRAG.hover) { const p = portWorld(blockById(DRAG.hover.b), 'e', 0); if (p) { e.x = p.x; e.y = p.y; } }
+  renderSoon();
+}
+function finishEWire(d, w) {
+  const hov = d.hover;
+  if (d.temp) {
+    const A = blockById(d.origin.b);
+    let e;
+    if (hov) { const [S, R] = eDirection(A, blockById(hov.b)); e = newEStream(S.id, R.id); }
+    else {
+      const far = Math.hypot(w.x - d.origin.x, w.y - d.origin.y) > 24;
+      const at = far ? { x: w.x, y: w.y } : { x: d.origin.x + d.origin.d[0] * 70, y: d.origin.y + d.origin.d[1] * 50 };
+      const sk = energySink(A);
+      /* a unit already set to a duty / power: the arrow gives it (the value moves onto the arrow); otherwise it shows the result */
+      const given = sk && A.params[sk.mode[0]] === sk.mode[1] && num(A.params[sk.key]) && A.params[sk.key] !== 0;
+      e = given ? newEStream(null, A.id, Object.assign(at, { kW: A.params[sk.key] })) : newEStream(A.id, null, at);
+    }
+    commit();
+    select({ kind: 'estream', id: e.id }, false);
+    return;
+  }
+  const e = estreamById(d.eid);
+  if (!e) { renderCanvas(); return; }
+  if (hov) {
+    const U = blockById(e.from || e.to), [S, R] = eDirection(U, blockById(hov.b), e.from ? 'out' : 'into');
+    e.from = S.id; e.to = R.id; delete e.x; delete e.y;
+    eApplySink(e);
+  } else { e.x = w.x; e.y = w.y; }
+  commit();
+  select({ kind: 'estream', id: e.id }, false);
+}
+/** click on a free energy port: an arrow that shows the unit's duty / power */
+function addEStub(b) {
+  const p = portWorld(b, 'e', 0);
+  return newEStream(b.id, null, { x: p.x + p.d[0] * 70, y: p.y + p.d[1] * 50 });
+}
+function deleteEStream(eid) {
+  M.estreams = (M.estreams || []).filter((e) => e.id !== eid);
+  if (SEL && SEL.id === eid) SEL = null;
+}
+/** readiness: energy-stream input problems (errors) and links that feed back upstream (warning) */
+function estreamIssues() {
+  const out = [];
+  for (const e of M.estreams || []) {
+    const add = (t, level) => out.push({ level: level || 'error', text: 'Energy stream ' + e.name + ': ' + t, target: { kind: 'estream', id: e.id } });
+    const A = e.from && blockById(e.from), B = e.to && blockById(e.to);
+    if (!A && !B) { add('not connected to a unit'); continue; }
+    if (B && !energySink(B)) add(B.name + ' cannot take its ' + (energyKind(B) === 'work' ? 'power' : 'duty') + ' from an energy stream ' +
+      (B.type === 'rotating' ? (rigOn() ? '— only a compressor running on its design point can (not a pump, turbine or performance curve)' : '— the compressor needs a property method') :
+        (B.type === 'flash' ? '— the flash drum needs a property method (the classic flash is isothermal)' : '')));
+    if (!A && !num(e.kW)) add('give the energy it brings to ' + (B ? B.name : 'the unit') + ' (kW)');
+    if (!A && B && energyKind(B) === 'work' && num(e.kW) && !(e.kW > 0)) add('the shaft power given must be above 0 kW');
+    if (A && B && energyKind(A) !== energyKind(B)) add('joins ' + (energyKind(A) === 'work' ? 'shaft work' : 'heat') + ' to ' + (energyKind(B) === 'work' ? 'shaft work' : 'heat') + ' — heat goes to heat, work to work');
+    if (num(e.eff) && (e.eff <= 0 || e.eff > 1)) add('the fraction delivered must be in (0, 1]');
+    if (A && B && energySink(B)) {
+      /* the receiver upstream of the source in the same process stream: solved by repeated passes */
+      const adj = new Map(M.blocks.map((b) => [b.id, []]));
+      for (const s of M.streams) if (s.from && s.to) adj.get(s.from.b).push(s.to.b);
+      const seen = new Set([B.id]), q = [B.id];
+      while (q.length) for (const x of adj.get(q.shift()) || []) if (!seen.has(x)) { seen.add(x); q.push(x); }
+      if (seen.has(A.id)) add('the heat ' + A.name + ' gives up goes back to ' + B.name + ', upstream of it in the same process — it is solved by repeated passes and converges only if the energy returned grows less than the energy received; for feed–effluent heat recovery use a heat exchanger', 'warn');
+    }
+  }
+  return out;
+}
+/** unit panel: the energy port of this unit — what is connected, and ways to connect without dragging */
+function energyConnRow(b) {
+  const k = energyKind(b);
+  if (!k) return null;
+  const e = estreamAt(b.id), sk = energySink(b), wk = k === 'work' ? 'shaft power' : 'duty';
+  const sel = el('select', { class: 'sel', 'aria-label': 'Energy stream' });
+  sel.append(el('option', { value: 'none' }, '— no energy stream —'));
+  if (e) sel.append(el('option', { value: 'cur' }, e.name + (e.from === b.id ? (e.to ? ' → ' + blockById(e.to).name : ' (shows the ' + wk + ')') : (e.from ? ' ← ' + blockById(e.from).name : ' (gives the ' + wk + ')'))));
+  if (!e) {
+    sel.append(el('option', { value: 'show' }, '＋ Arrow showing the ' + wk));
+    if (sk) sel.append(el('option', { value: 'give' }, '＋ Arrow giving the ' + wk + ' (kW)'));
+    const ogF = el('optgroup', { label: sk ? 'Take the ' + wk + ' from…' : '' }), ogT = el('optgroup', { label: 'Give the ' + (k === 'work' ? 'power' : 'heat') + ' to…' });
+    for (const ob of M.blocks) {
+      if (ob === b || energyKind(ob) !== k || estreamAt(ob.id)) continue;
+      if (sk) ogF.append(el('option', { value: 'from:' + ob.id }, ob.name));
+      if (energySink(ob)) ogT.append(el('option', { value: 'to:' + ob.id }, ob.name));
+    }
+    if (sk && ogF.children.length) sel.append(ogF);
+    if (ogT.children.length) sel.append(ogT);
+  }
+  sel.value = e ? 'cur' : 'none';
+  sel.addEventListener('change', () => {
+    const v = sel.value;
+    if (v === 'none' && e) deleteEStream(e.id);
+    else if (v === 'show') addEStub(b);
+    else if (v === 'give') { const p = portWorld(b, 'e', 0); newEStream(null, b.id, { x: p.x + p.d[0] * 70, y: p.y + p.d[1] * 50, kW: num(b.params[sk.key]) ? b.params[sk.key] : null }); }
+    else if (v.startsWith('from:')) newEStream(v.slice(5), b.id);
+    else if (v.startsWith('to:')) newEStream(b.id, v.slice(3));
+    commit(); renderInspector();
+  });
+  const val = e ? estreamValue(e) : null;
+  return [el('span', { class: 'pl', style: 'color:' + E_COL[k] }, '◆ ' + (k === 'work' ? 'Shaft work' : 'Heat')), sel,
+    ...(e ? [el('span'), el('div', { class: 'hint', style: 'margin:-2px 0 4px' }, num(val) ? e.name + ' carries ' + fmt(val, 5) + ' kW' + (RES && RES.stale && e.from ? ' (last run)' : '') : e.from ? 'value after the next run' : 'give the energy in ' + e.name)] : [])];
+}
+/* ---------- energy stream panel ---------- */
+function estreamIcon(k) { return `<svg viewBox="0 0 40 34" width="40" height="34"><path d="M4,17 H30" stroke="${E_COL[k]}" stroke-width="2" stroke-dasharray="6 3"/><path d="M28,11 L36,17 L28,23 Z" fill="${E_COL[k]}"/><path d="M12,9 L16,17 L12,25 L8,17 Z" fill="#fff" stroke="${E_COL[k]}" stroke-width="1.6"/></svg>`; }
+function inspectEStream(e, head, body) {
+  const k = estreamKind(e), wk = k === 'work' ? 'shaft power' : 'duty';
+  const A = e.from && blockById(e.from), B = e.to && blockById(e.to);
+  const nm = el('input', { value: e.name, 'aria-label': 'Energy stream name', maxlength: 16 });
+  nm.addEventListener('change', () => {
+    const v = nm.value.trim().slice(0, 16);
+    if (!v) { nm.value = e.name; return; }
+    if ((M.estreams || []).some((x) => x !== e && x.name === v)) { toast('Name already used', 'err'); nm.value = e.name; return; }
+    e.name = v; commit();
+  });
+  head.append(el('div', { class: 'ic', html: estreamIcon(k) }), el('div', { class: 'tt' }, nm, el('small', null, (k === 'work' ? 'Shaft work · ' : 'Heat · ') + (A ? A.name : 'given') + '  →  ' + (B ? B.name : 'shown'))),
+    el('button', { class: 'x', title: 'Delete energy stream (Del)', 'aria-label': 'Delete energy stream', onclick: () => deleteSelection() }, '🗑'));
+  const iss = estreamIssues().filter((i) => i.target.id === e.id && i.level === 'error');
+  const s1 = sec('Energy stream', iss.length ? pillEl(iss.length + ' to fix', 'err') : pillEl('complete', 'ok'));
+  s1.append(moreHint(e.from && e.to ? 'The ' + (k === 'work' ? 'shaft power' : 'heat') + ' ' + A.name + ' gives up is the ' + wk + ' of ' + B.name + '.'
+    : !e.from ? 'Gives ' + (B ? B.name : 'the unit') + ' its ' + wk + '.' : 'Shows the ' + wk + ' of ' + (A ? A.name : 'the unit') + '.',
+  'Energy streams carry heat (Q) or shaft work (W) between units, as in other simulators. A link sets the receiving unit’s ' + (k === 'work' ? 'shaft power (compressor: “Shaft power → outlet T and efficiency”)' : 'duty (heater, mixer, flash drum or three-phase separator on “duty”)') +
+    ' to the energy the source gives up: a cooler’s heat, a reactor’s heat removal, a turbine’s power — times the fraction delivered. A free arrow either gives a unit a duty you type, or shows a unit’s calculated duty. Each unit has one energy port.', 'estream'));
+  const pick = (cur, list, none, onch, aria) => {
+    const s = el('select', { class: 'sel', 'aria-label': aria });
+    s.append(el('option', { value: '' }, none));
+    for (const ob of list) s.append(el('option', { value: ob.id }, ob.name));
+    s.value = cur || '';
+    s.addEventListener('change', () => onch(s.value || null));
+    return s;
+  };
+  const free = (ob) => !estreamAt(ob.id) || ob.id === e.from || ob.id === e.to;
+  const srcs = M.blocks.filter((ob) => energyKind(ob) === k && free(ob) && ob.id !== e.to);
+  const snks = M.blocks.filter((ob) => energyKind(ob) === k && free(ob) && ob.id !== e.from && energySink(ob));
+  const setEnd = (which, id) => {
+    if (!id && !(which === 'from' ? e.to : e.from)) {
+      /* a free arrow on one unit: “none” swaps between showing the unit's duty and giving it one */
+      const U = blockById(e.from || e.to), sk = energySink(U);
+      if (which === 'from' && e.from) {
+        if (!sk) { toast(U.name + ' cannot take its ' + wk + ' from an energy stream — the arrow can only show it', 'err'); renderInspector(); return; }
+        e.to = e.from; e.from = null;
+        if (!num(e.kW) && num(U.params[sk.key])) e.kW = U.params[sk.key];
+        eApplySink(e);
+      } else if (which === 'to' && e.to) { e.from = e.to; e.to = null; }
+      commit(); renderInspector(); return;
+    }
+    const other = which === 'from' ? e.to : e.from;
+    const ob = blockById(other || id);
+    if (!id) { const p = portWorld(ob, 'e', 0); e.x = p.x + p.d[0] * 70; e.y = p.y + p.d[1] * 50; if (which === 'from' && !num(e.kW)) { const sk = energySink(ob); if (sk && num(ob.params[sk.key])) e.kW = ob.params[sk.key]; } }
+    e[which] = id;
+    if (e.from && e.to) { delete e.x; delete e.y; }
+    eApplySink(e);
+    commit(); renderInspector();
+  };
+  s1.append(fld('From (source of the ' + (k === 'work' ? 'power' : 'heat') + ')', pick(e.from, srcs, '— none: the energy is given here —', (v) => setEnd('from', v), 'From unit')),
+    fld('To (receives it as its ' + wk + ')', pick(e.to, snks, '— none: the arrow shows the value —', (v) => setEnd('to', v), 'To unit'),
+      snks.length ? null : 'No unit here can receive ' + (k === 'work' ? 'shaft power: a compressor on its design point, with a property method' : 'heat: a heater, mixer, flash drum or three-phase separator')));
+  if (!e.from) {
+    const inp = numInput(() => e.kW, (v) => { e.kW = num(v) ? v : null; }, { aria: 'Energy given' });
+    if (!num(e.kW)) inp.classList.add('badv');
+    s1.append(fld('Energy given (+ into ' + (B ? B.name : 'the unit') + ')', el('div', { class: 'duo' }, inp, el('select', { disabled: true, 'aria-hidden': 'true' }, el('option', null, 'kW'))), k === 'work' ? 'shaft power absorbed by the compressor' : 'negative = heat removed', true));
+  }
+  if (e.from && e.to) {
+    const inp = numInput(() => e.eff, (v) => { e.eff = num(v) ? v : undefined; }, { aria: 'Fraction delivered', ph: '1' });
+    s1.append(fld('Fraction delivered (0–1]', el('div', { class: 'duo' }, inp, el('select', { disabled: true, 'aria-hidden': 'true' }, el('option', null, '–'))),
+      k === 'work' ? 'mechanical / gearbox efficiency of the drive — blank = 1' : 'share of the heat reaching ' + B.name + ' (losses) — blank = 1'));
+  }
+  if (iss.length) s1.append(el('div', { class: 'banner err' }, el('span', null, '●'), el('span', null, iss.map((i) => i.text.replace(/^Energy stream [^:]*:\s*/, '')).join(' · '))));
+  const wn = estreamIssues().filter((i) => i.target.id === e.id && i.level === 'warn');
+  if (wn.length) s1.append(el('div', { class: 'banner warn' }, el('span', null, '●'), el('span', null, wn.map((i) => i.text.replace(/^Energy stream [^:]*:\s*/, '')).join(' · '))));
+  body.append(s1);
+  const r = RES && RES.energy && RES.energy.find((x) => x.id === e.id);
+  const s2 = sec('Results');
+  if (r && num(r.kW)) {
+    const rows = [['Energy carried', fmt(r.kW, 6) + ' kW']];
+    if (num(r.source_kW)) rows.push([A.name + ' gives up', fmt(r.source_kW, 6) + ' kW']);
+    if (e.from && e.to) rows.push([B.name + ' receives (' + (k === 'work' ? 'shaft power' : 'duty') + ')', fmt(r.kW, 6) + ' kW']);
+    if (r.solved_as) rows.push(['Solved as', r.solved_as === 'feedback' ? 'feedback (repeated passes)' : 'in the calculation order']);
+    s2.append(el('div', { class: 'kv' }, rows.flatMap(([a2, b2]) => [el('b', null, a2), el('span', null, b2)])));
+    if (RES.stale) s2.append(el('div', { class: 'hint' }, 'Out of date — inputs changed since the last run.'));
+  } else s2.append(el('div', { class: 'note' }, e.from ? 'Press Run to see the energy it carries.' : 'Gives ' + (num(e.kW) ? fmt(e.kW, 6) + ' kW' : '—') + '.'));
+  body.append(s2);
+}
+/* ---------- results: energy streams as a small table (summary, downloads) ---------- */
+function estreamRows() {
+  return (M.estreams || []).map((e) => {
+    const A = e.from && blockById(e.from), B = e.to && blockById(e.to);
+    return { e, kind: estreamKind(e) === 'work' ? 'Shaft work' : 'Heat', from: A ? A.name : 'given', to: B ? B.name : '—', kW: estreamValue(e), eff: e.from && e.to ? (num(e.eff) ? e.eff : 1) : null };
+  });
 }
 
 /* ROUND 14: level of detail — below 55 % zoom the drawing shows names only, at a readable size */
@@ -3064,12 +3514,13 @@ function renderCanvas() {
   /* label boxes of every stream also block tags */
   let sh = '';
   for (const s of M.streams) if (!(DRAG && DRAG.hideStream === s.id)) sh += streamSVG(s);
+  for (const e of M.estreams || []) sh += estreamSVG(e);           // ROUND 16
   sh += placeTags();
   sh += tagLegendSVG();
   let bh = '';
   for (const b of M.blocks) bh += blockSVG(b);
   let oh = '';
-  if (DRAG && DRAG.temp) oh += streamSVG(DRAG.temp, true);
+  if (DRAG && DRAG.temp) oh += DRAG.mode === 'ewire' ? estreamSVG(DRAG.temp, true) : streamSVG(DRAG.temp, true);
   if (DRAG && DRAG.mode === 'box' && DRAG.w1) {
     const x0 = Math.min(DRAG.w0.x, DRAG.w1.x), y0 = Math.min(DRAG.w0.y, DRAG.w1.y);
     oh += `<rect class="marq" x="${x0}" y="${y0}" width="${Math.abs(DRAG.w1.x - DRAG.w0.x)}" height="${Math.abs(DRAG.w1.y - DRAG.w0.y)}"/>`;
@@ -3089,7 +3540,8 @@ function renderCanvas() {
   lBlocks.innerHTML = bh;
   lOver.innerHTML = oh;
   applyView();
-  svg.classList.toggle('connecting', !!(DRAG && DRAG.compat));
+  svg.classList.toggle('connecting', !!(DRAG && DRAG.compat && !DRAG.ecompat));
+  svg.classList.toggle('econnecting', !!(DRAG && DRAG.ecompat));
   $('emptyHint').classList.toggle('hidden', M.blocks.length > 0 || START.hidden);
   $('app').classList.toggle('empty-start', !M.blocks.length && !START.hidden);   // ROUND 13: the start page gets the whole centre
   $('tTags').classList.toggle('far', LOD.far && !!PREFS.tags);   // ROUND 14: tags are hidden below 55 % zoom
@@ -3221,11 +3673,17 @@ let TIP_T = 0;
 function hoverTip(e) {
   const tip = $('hoverTip');
   if (!RES || DRAG || PD) { tip.classList.add('hidden'); return; }
-  const g = e.target.closest && e.target.closest('[data-k="stream"],[data-k="block"]');
+  const g = e.target.closest && e.target.closest('[data-k="stream"],[data-k="block"],[data-k="estream"]');
   if (!g) { tip.classList.add('hidden'); return; }
   const id = g.getAttribute('data-id'), kind = g.getAttribute('data-k');
   let lines = null, name = '';
-  if (kind === 'stream') {
+  if (kind === 'estream') {
+    const x = estreamById(id), v = x && estreamValue(x);
+    if (!x || !num(v)) { tip.classList.add('hidden'); return; }
+    name = x.name;
+    const A = x.from && blockById(x.from), B = x.to && blockById(x.to);
+    lines = [(estreamKind(x) === 'work' ? 'Shaft work ' : 'Heat ') + fmt(v, 5) + ' kW', (A ? A.name : 'given') + ' → ' + (B ? B.name : 'shown')];
+  } else if (kind === 'stream') {
     const x = streamById(id), r = RES.streams[id];
     if (!x || !r) { tip.classList.add('hidden'); return; }
     name = x.name;
@@ -3235,7 +3693,7 @@ function hoverTip(e) {
     if (!b || !eb) { tip.classList.add('hidden'); return; }
     name = b.name;
     lines = [TYPES[b.type].label];
-    if (num(eb.Q_kW) && Math.abs(eb.Q_kW) > 1e-6) lines.push('Q ' + fmt(eb.Q_kW, 5) + ' kW');
+    if (num(eb.Q_kW) && Math.abs(eb.Q_kW) >= 1e-3) lines.push('Q ' + fmt(eb.Q_kW, 5) + ' kW');
     if (num(eb.W_kW) && Math.abs(eb.W_kW) > 1e-6) lines.push('W ' + fmt(eb.W_kW, 5) + ' kW');
   }
   tip.textContent = '';
@@ -3379,7 +3837,10 @@ svg.addEventListener('pointermove', (e) => {
       const s = streamById(st.id);
       if (st.k === 'f') { s.fx = st.x + ddx; s.fy = st.y + ddy; } else { s.tx = st.x + ddx; s.ty = st.y + ddy; }
     }
+    for (const st of DRAG.estubs || []) { const e = estreamById(st.id); if (e) { e.x = st.x + ddx; e.y = st.y + ddy; } }
     renderSoon();
+  } else if (DRAG.mode === 'ewire') {
+    moveEWire(w);
   } else if (DRAG.mode === 'wire') {
     const s = DRAG.temp || streamById(DRAG.sid);
     if (DRAG.which === 'end') { s.tx = w.x; s.ty = w.y; } else { s.fx = w.x; s.fy = w.y; }
@@ -3421,9 +3882,16 @@ function startDrag(e) {
     DRAG.mode = 'gmove'; DRAG.group = selBlocks().map((b) => ({ id: b.id, x: b.x, y: b.y }));
     return;
   }
-  if (h.kind === 'bg' || h.kind === 'stream') {
+  if (h.kind === 'bg' || h.kind === 'stream' || h.kind === 'estream') {
     DRAG.mode = 'pan'; DRAG.vx = VIEW.x; DRAG.vy = VIEW.y; svg.classList.add('panning');
     return;
+  }
+  if (h.kind === 'eend') { beginEEnd(h.id); if (DRAG.mode === 'ewire') return; }          // ROUND 16
+  if (h.kind === 'eport') {
+    const b = blockById(h.id), occ = b && estreamAt(b.id);
+    if (occ && (!occ.from || !occ.to)) { beginEEnd(occ.id); return; }
+    if (occ) { beginMove(b.id); return; }
+    if (b) { beginEWire(b); return; }
   }
   if (h.kind === 'block') { beginMove(h.id); return; }
   if (h.kind === 'end') { beginEndDrag(h.id, h.w); return; }
@@ -3460,6 +3928,7 @@ function beginMove(bid) {
     if (s.to && s.to.b === bid && !s.from) DRAG.stubs.push({ id: s.id, k: 'f', x: s.fx, y: s.fy });
     if (s.from && s.from.b === bid && !s.to) DRAG.stubs.push({ id: s.id, k: 't', x: s.tx, y: s.ty });
   }
+  DRAG.estubs = (M.estreams || []).filter((e) => (e.from === bid || e.to === bid) && (!e.from || !e.to)).map((e) => ({ id: e.id, x: e.x, y: e.y }));
 }
 function beginEndDrag(sid, which) {
   const s = streamById(sid);
@@ -3515,17 +3984,20 @@ function endPointer(e, cancelled) {
   if (e.pointerId !== DRAG.pid) return;
   const d = DRAG;
   DRAG = null;
-  if (cancelled) { if (d.orig) restoreStream(d); renderCanvas(); return; }
+  if (cancelled) { if (d.orig) restoreStream(d); if (d.eorig) restoreEStream(d); renderCanvas(); return; }
   if (d.mode === 'pending') { clickOn(d.hit, e); return; }
   if (d.mode === 'move' || d.mode === 'gmove') { commit(); return; }
   if (d.mode === 'mid') { commit(); renderInspector(); return; }
   if (d.mode === 'box') { finishBox(d); return; }
   if (d.mode === 'wire') { finishWire(d, toWorld(e.clientX, e.clientY)); return; }
+  if (d.mode === 'ewire') { finishEWire(d, toWorld(e.clientX, e.clientY)); return; }
   renderCanvas();
 }
 function cancelDrag() {
   if (!DRAG) return;
   if (DRAG.orig) restoreStream(DRAG);
+  if (DRAG.eorig) restoreEStream(DRAG);
+  if (DRAG.mode === 'move') for (const st of DRAG.estubs || []) { const e = estreamById(st.id); if (e) { e.x = st.x; e.y = st.y; } }
   if (DRAG.mode === 'gmove') for (const g of DRAG.group) { const b = blockById(g.id); if (b) shiftBlock(b, g.x - b.x, g.y - b.y); }
   if (DRAG.mode === 'move') { const b = blockById(DRAG.bid); if (b) { b.x = DRAG.bx; b.y = DRAG.by; } for (const st of DRAG.stubs) { const s = streamById(st.id); if (st.k === 'f') { s.fx = st.x; s.fy = st.y; } else { s.tx = st.x; s.ty = st.y; } } }
   DRAG = null;
@@ -3536,6 +4008,11 @@ function restoreStream(d) {
   const o = JSON.parse(d.orig);
   const i = M.streams.findIndex((s) => s.id === o.id);
   if (i >= 0) M.streams[i] = o;
+}
+function restoreEStream(d) {
+  const o = JSON.parse(d.eorig);
+  const i = (M.estreams || []).findIndex((e) => e.id === o.id);
+  if (i >= 0) M.estreams[i] = o;
 }
 
 /** units inside (or touched by) the dragged box join the selection */
@@ -3550,6 +4027,12 @@ function clickOn(h, e) {
   if (h.kind === 'block' && e && (e.shiftKey || e.ctrlKey || e.metaKey)) { toggleMulti(h.id); return; }
   if (h.kind === 'block') { select({ kind: 'block', id: h.id }, true); return; }
   if (h.kind === 'stream' || h.kind === 'end') { select({ kind: 'stream', id: h.id }, true); return; }
+  if (h.kind === 'estream' || h.kind === 'eend') { select({ kind: 'estream', id: h.id }, true); return; }
+  if (h.kind === 'eport') {
+    const b = blockById(h.id), occ = b && estreamAt(b.id);
+    if (occ) { select({ kind: 'estream', id: occ.id }, true); return; }
+    if (b) { const e = addEStub(b); commit(); select({ kind: 'estream', id: e.id }, true); return; }
+  }
   if (h.kind === 'port') {
     const b = blockById(h.id);
     const occ = h.ghost ? null : (h.io === 'in' ? streamTo(b.id, h.i) : streamFrom(b.id, h.i));
@@ -3665,6 +4148,7 @@ svg.addEventListener('wheel', (e) => {
 svg.addEventListener('dblclick', (e) => {
   const h = hitInfo(e.target);
   if (h.kind === 'bg') { fitView(); return; }
+  if (h.kind === 'estream' || h.kind === 'eend') { select({ kind: 'estream', id: h.id }, true); return; }
   if (h.kind === 'block' || h.kind === 'stream' || h.kind === 'end') {
     select({ kind: h.kind === 'block' ? 'block' : 'stream', id: h.id }, true);
     const f = $('insBody').querySelector('input:not([type=search]),select');
@@ -3788,6 +4272,7 @@ function deleteBlock(bid) {
   }
   M.streams = M.streams.filter((s) => s.from || s.to);
   M.blocks = M.blocks.filter((x) => x !== b);
+  M.estreams = (M.estreams || []).filter((e) => e.from !== bid && e.to !== bid);      // ROUND 16
   if (SEL && SEL.id === bid) SEL = null;
 }
 function deleteStream(sid) {
@@ -3797,7 +4282,7 @@ function deleteStream(sid) {
 function deleteSelection() {
   if (MSEL.size) { for (const id of [...MSEL]) deleteBlock(id); MSEL.clear(); SEL = null; commit(); renderInspector(); return; }
   if (!SEL) return;
-  if (SEL.kind === 'block') deleteBlock(SEL.id); else deleteStream(SEL.id);
+  if (SEL.kind === 'block') deleteBlock(SEL.id); else if (SEL.kind === 'estream') deleteEStream(SEL.id); else deleteStream(SEL.id);
   SEL = null;
   commit();
   renderInspector();
@@ -3856,6 +4341,7 @@ function shiftBlock(b, dx, dy) {
     if (s.to && s.to.b === b.id && !s.from) { s.fx += dx; s.fy += dy; }
     if (s.from && s.from.b === b.id && !s.to) { s.tx += dx; s.ty += dy; }
   }
+  for (const e of M.estreams || []) if ((e.from === b.id || e.to === b.id) && (!e.from || !e.to) && num(e.x)) { e.x += dx; e.y += dy; }
 }
 /* ---- align / distribute ---- */
 function alignBlocks(how) {
@@ -3903,7 +4389,8 @@ function clipOfSelection() {
   if (bs.length) {
     const ids = new Set(bs.map((b) => b.id));
     const streams = M.streams.filter((s) => (s.from ? ids.has(s.from.b) : true) && (s.to ? ids.has(s.to.b) : true) && (s.from || s.to));
-    return { app: CLIP_APP, v: 1, src: Math.random().toString(36).slice(2), blocks: deep(bs), streams: deep(streams), pseudo: deep(M.pseudo || []), ucomps: deep(M.ucomps || []) };
+    const estreams = (M.estreams || []).filter((e) => (e.from ? ids.has(e.from) : true) && (e.to ? ids.has(e.to) : true));
+    return { app: CLIP_APP, v: 1, src: Math.random().toString(36).slice(2), blocks: deep(bs), streams: deep(streams), estreams: deep(estreams), pseudo: deep(M.pseudo || []), ucomps: deep(M.ucomps || []) };
   }
   if (SEL && SEL.kind === 'stream') {
     const s = streamById(SEL.id);
@@ -3974,6 +4461,15 @@ function pasteClip(c) {
     if (!s.from && !s.spec) s.spec = blankSpec();
     delete s.estimate;
     M.streams.push(s);
+  }
+  for (const e0 of c.estreams || []) {                                   // ROUND 16: energy streams among the pasted units
+    const e = deep(e0);
+    if ((e.from && !map[e.from]) || (e.to && !map[e.to])) continue;
+    e.from = e.from ? map[e.from] : null; e.to = e.to ? map[e.to] : null;
+    if (num(e.x)) { e.x += off; e.y += off; }
+    if (!M.seq.e) M.seq.e = 0;
+    e.id = 'e' + (++M.seq.e); e.name = copyName(e0.name, M.estreams || []);
+    M.estreams = (M.estreams || []).concat([e]);
   }
   // ports that were connected outside the copied group get fresh feed / product stubs
   for (const b of made) {
@@ -4379,6 +4875,7 @@ function renderInspector() {
   head.textContent = ''; body.textContent = '';
   if (SEL && SEL.kind === 'block') { const b = blockById(SEL.id); if (b) return inspectBlock(b, head, body); }
   if (SEL && SEL.kind === 'stream') { const s = streamById(SEL.id); if (s) return inspectStream(s, head, body); }
+  if (SEL && SEL.kind === 'estream') { const e = estreamById(SEL.id); if (e) return inspectEStream(e, head, body); }
   if (SEL && SEL.kind === 'multi' && MSEL.size >= 2) return inspectMulti(head, body);
   const jump = SEL && SEL.kind === 'spec' ? 'specsSec' : SEL && SEL.kind === 'calc' ? 'calcsSec' : SEL && SEL.kind === 'sens' ? 'sensSec' : SEL && SEL.kind === 'methods' ? 'methodsSec' : SEL && SEL.kind === 'opt' ? 'optSec' : SEL && SEL.kind === 'econ' ? 'econSec' : null;
   SEL = null;
@@ -4506,8 +5003,20 @@ function inspectBlock(b, head, body) {
   const s1 = sec('Specifications', issues.length ? pillEl(issues.length + ' missing', 'err') : pillEl('complete', 'ok'));
   if (T.note) s1.append(typeof T.note === 'string' ? noteShort(T.note, 'unit:' + b.type) : el('div', { class: 'note', style: 'margin-bottom:10px' }, T.note));
   if (TYPES[b.type].rig && !rigOn()) s1.append(el('div', { class: 'hint', style: 'margin:-4px 0 10px' }, 'Classic model — choose a property method (click empty canvas → Property method) for the rigorous version of this unit.'));
+  const ein = estreamInto(b.id), esk = ein && energySink(b);      // ROUND 16: duty / power set by an energy stream
   for (const f of fieldsOf(b)) {
     if (f.showIf && !f.showIf(b.params)) continue;
+    if (esk && f.key === esk.mode[0]) {
+      const sl = el('select', { disabled: true }, el('option', null, (f.options.find((o) => o[0] === esk.mode[1]) || [, esk.mode[1]])[1]));
+      s1.append(fld(f.label, sl, 'set by energy stream ' + ein.name));
+      continue;
+    }
+    if (esk && f.key === esk.key) {
+      const v = estreamValue(ein);
+      s1.append(fld(f.label, el('div', { class: 'duo' }, el('input', { disabled: true, value: num(v) ? String(round6sig(v)) : '', placeholder: 'from ' + ein.name, 'aria-label': f.label }), el('select', { disabled: true, 'aria-hidden': 'true' }, el('option', null, f.unit || 'kW'))),
+        el('span', null, 'from energy stream ', el('button', { class: 'lnk', type: 'button', onclick: () => select({ kind: 'estream', id: ein.id }, true) }, ein.name), ein.from ? ' (' + blockById(ein.from).name + ')' : ' (given)')));
+      continue;
+    }
     if (f.kind === 'fractions') s1.append(fractionsField(b));
     else if (f.kind === 'reactions') s1.append(f.equil ? equilReactionsField(b) : reactionsField(b));
     else if (f.kind === 'splits') s1.append(splitsField(b));
@@ -4767,6 +5276,7 @@ function connectionsSection(b) {
   for (let i = 0; i < b.nIn; i++) grid.append(el('span', { class: 'pl' }, '▶ ' + inletLabel(b, i) + (i < T.inlets.min ? ' *' : '')), mkSel('in', i));
   const ol = outletLabels(b);
   for (let j = 0; j < b.nOut; j++) grid.append(el('span', { class: 'pl' }, ol[j] + ' ▶'), mkSel('out', j));
+  { const er = energyConnRow(b); if (er) grid.append(...er); }      // ROUND 16
   s.append(grid);
   const bt = el('div', { class: 'btns' });
   if (T.inlets.max > T.inlets.min) {
@@ -5603,6 +6113,13 @@ function methodAdvice() {
     out.push({ level: 'info', text: 'NH₃ / H₂S / CO₂ in water — the Sour water method solves their ionisation and carbamate formation; equation-of-state and activity methods treat them as molecular and get stripper duties and condensate compositions badly wrong.',
       act: 'Use Sour water', apply: () => { P.model = 'sour-water'; } });
   }
+  // ROUND 14b: Classic engine models with a phase split — heaters put each component wholly in one phase, flash drums split by
+  // vapour–liquid equilibrium, so water left in the gas shows up as a false duty in the next drum and the cooler duty is overstated
+  if (m === 'classic' && M.blocks.some((b) => ['flash', 'flash3', 'threephase', 'knockout', 'rcol', 'column', 'absorber'].includes(b.type) || /flash|separator|column|absorber/i.test(TYPES[b.type].label))) {
+    const rec = recommendMethod(ks);
+    out.push({ level: 'warn', text: 'Classic engine models: a heater or cooler treats each component as wholly liquid or wholly vapour, while the flash drums split by vapour–liquid equilibrium — water that stays in the gas then appears as a false duty in the next drum, and the cooler duty is overstated. Vapour fraction, density and viscosities are not calculated either. A property method keeps one phase calculation through every unit.',
+      act: 'Use ' + (PKG_LABEL[rec.model] || rec.model), apply: () => { P.model = rec.model; if (rec.vapour) P.vapour = rec.vapour; else delete P.vapour; if (rec.phases) P.phases = rec.phases; } });
+  }
   if (ks.length === 1 && ks[0] === 'H2O' && m !== 'steam') {
     out.push({ level: 'info', text: 'Water / steam only — Steam / water (IAPWS-IF97) is the exact method for this flowsheet (turbines, pumps, boilers, let-down valves). Other methods treat steam less accurately; an activity method with an ideal-gas vapour misses the real-gas enthalpy of steam at pressure.',
       act: 'Use Steam / water (IAPWS-IF97)', apply: () => { P.model = 'steam'; } });
@@ -6131,6 +6648,8 @@ function methodsSection() {
     det.append(el('div', null, adv));
     s.append(det);
   }
+  s.append(el('div', { class: 'hint', style: 'font-size:12px;margin-top:8px' }, 'Properties of any mixture at one temperature and pressure:'),
+    el('div', { class: 'btns', style: 'margin-top:4px' }, el('button', { class: 'btn sm', onclick: openPropsCalc }, 'Stream properties')));
   if (!isElecPkg(P.model) && P.model !== 'urea' && P.model !== 'steam') {
     // STEP 40: property analysis of any components (Aspen Properties → Analysis)
     const fs = { id: '__flowsheet', name: 'Components of the flowsheet', from: null, spec: null };
@@ -6561,6 +7080,45 @@ function stageTable(D) {
   t.append(tb);
   return el('div', { class: 'scrollx' }, t);
 }
+/** ROUND 15: the speciation report of an electrolyte liquid (loading, pH, equilibrium pressures …) as label / value rows */
+function acidGasRows(ag) {
+  const out = [];
+  if (num(ag.loading_mol_CO2_per_mol_MEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MEA, 4) + ' mol/mol MEA']);
+  if (num(ag.loading_mol_CO2_per_mol_MDEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MDEA, 4) + ' mol/mol MDEA']);
+  if (num(ag.MDEA_wt_pct_CO2_free)) out.push(['MDEA (CO₂-free basis)', fmt(ag.MDEA_wt_pct_CO2_free, 4) + ' wt %']);
+  if (num(ag.protonated_MDEA_fraction)) out.push(['Protonated MDEA (MDEAH⁺)', fmt(100 * ag.protonated_MDEA_fraction, 3) + ' %']);
+  if (num(ag.piperazine_wt_pct_CO2_free)) out.push(['Piperazine (CO₂-free basis)', fmt(ag.piperazine_wt_pct_CO2_free, 4) + ' wt %']);
+  if (num(ag.loading_mol_CO2_per_mol_amine)) out.push(['CO₂ loading (MDEA + PZ)', fmt(ag.loading_mol_CO2_per_mol_amine, 4) + ' mol/mol amine']);
+  if (num(ag.piperazine_as_carbamate_fraction)) out.push(['Piperazine as carbamates', fmt(100 * ag.piperazine_as_carbamate_fraction, 3) + ' %']);
+  if (num(ag.ionic_strength_mol_kg)) out.push(['Ionic strength', fmt(ag.ionic_strength_mol_kg, 4) + ' mol/kg water']);
+  if (num(ag.salt_molality) && ag.salt_molality > 0) out.push(['Dissolved salts', fmt(ag.salt_molality, 4) + ' mol/kg water']);
+  if (num(ag.P_NH3_eq_kPa) && ag.P_NH3_eq_kPa > 0) out.push(['Equilibrium NH₃ pressure', fmt(ag.P_NH3_eq_kPa, 4) + ' kPa']);
+  if (num(ag.P_H2S_eq_kPa) && ag.P_H2S_eq_kPa > 0) out.push(['Equilibrium H₂S pressure', fmt(ag.P_H2S_eq_kPa, 4) + ' kPa']);
+  if (num(ag.P_HCl_eq_kPa)) out.push(['Equilibrium HCl pressure', fmt(ag.P_HCl_eq_kPa, 4) + ' kPa']);
+  if (num(ag.free_NH3_fraction)) out.push(['Free (molecular) NH₃', fmt(100 * ag.free_NH3_fraction, 3) + ' % of NH₃']);
+  if (num(ag.conversion_to_KHCO3)) out.push(['Conversion to KHCO₃', fmt(ag.conversion_to_KHCO3, 4)]);
+  if (num(ag.P_CO2_eq_kPa)) out.push(['Equilibrium CO₂ pressure', fmt(ag.P_CO2_eq_kPa, 4) + ' kPa']);
+  if (num(ag.free_MEA_fraction)) out.push(['Free (unreacted) MEA', fmt(100 * ag.free_MEA_fraction, 3) + ' %']);
+  if (num(ag.water_activity)) out.push(['Water activity', fmt(ag.water_activity, 4)]);
+  if (num(ag.pH)) out.push([ag.pH_scale === 'MacInnes' ? 'pH (MacInnes scale, as PHREEQC)' : ag.pH_scale === 'molality' ? 'pH (H⁺ molality, γ = 1)' : 'pH (unscaled Pitzer)', fmt(ag.pH, 4)]);
+  if (num(ag.osmotic_coefficient)) out.push(['Osmotic coefficient', fmt(ag.osmotic_coefficient, 4)]);
+  if (ag.saturation_index && Object.keys(ag.saturation_index).length) {
+    const si = Object.entries(ag.saturation_index).filter(([, v]) => num(v) && v > -3).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (si.length) out.push(['Saturation index log(IAP/K)', si.map(([k, v]) => k + ' ' + (v > 0 ? '+' : '') + fmt(v, 3)).join(' · ') + (si[0][1] > 0.05 ? ' — above 0: scale / crystals can form' : '')]);
+  }
+  if (ag.molality && (ag.model === 'sour-water' || ag.model === 'aqueous-electrolyte')) {
+    const ion = (k) => k.replace(/--$/, '²⁻').replace(/-2$/, '²⁻').replace(/\+2$/, '²⁺').replace(/-$/, '⁻').replace(/\+$/, '⁺').replace(/(\d)/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
+    const sp = Object.entries(ag.molality).filter(([, v]) => num(v) && v > 1e-7).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    if (sp.length) out.push(['True species, mol/kg water', sp.map(([k, v]) => ion(k) + ' ' + fmt(v, 3)).join(' · ')]);
+  }
+  if (ag.extrapolated) out.push(['Note', ag.extrapolated]);
+  if (num(ag.L_NH3_CO2)) out.push(['N/C (NH₃/CO₂, apparent)', fmt(ag.L_NH3_CO2, 5)], ['H/C (H₂O/CO₂, apparent)', fmt(ag.W_H2O_CO2, 5)]);
+  if (num(ag.urea_conversion)) out.push(['CO₂ converted to urea', fmt(100 * ag.urea_conversion, 4) + ' %']);
+  if (num(ag.carbamate_fraction_of_CO2)) out.push(['Free CO₂ as carbamate', fmt(100 * ag.carbamate_fraction_of_CO2, 4) + ' %']);
+  if (ag.x_true && num(ag.x_true.carbamate)) out.push(['True species, mol %', Object.entries(ag.x_true).map(([k, v]) => (k === 'carbamate' ? 'carbamate' : k === 'bicarbonate' ? 'bicarbonate' : compLabel(k)) + ' ' + fmt(100 * v, 3)).join(' · ')]);
+  if (ag.note) out.push(['Note', ag.note]);
+  return out;
+}
 /** phase-property rows for a rigorous stream (empty for classic streams) */
 function rigPropRows(r) {
   const out = [];
@@ -6576,43 +7134,7 @@ function rigPropRows(r) {
     if (num(ph.sigma_mNm)) out.push([n + ' surface tension', fmt(ph.sigma_mNm, 4) + ' mN/m']);
     if ((ph.estimated || []).length) out.push([n + ' transport, estimated', ph.estimated.map(nameKeys).join('; ')]);
     if (ph.type === 'vapour' && num(ph.Z)) out.push(['Vapour Z', fmt(ph.Z, 5)]);
-    const ag = ph.acid_gas;
-    if (ag) {
-      if (num(ag.loading_mol_CO2_per_mol_MEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MEA, 4) + ' mol/mol MEA']);
-      if (num(ag.loading_mol_CO2_per_mol_MDEA)) out.push(['CO₂ loading', fmt(ag.loading_mol_CO2_per_mol_MDEA, 4) + ' mol/mol MDEA']);
-      if (num(ag.MDEA_wt_pct_CO2_free)) out.push(['MDEA (CO₂-free basis)', fmt(ag.MDEA_wt_pct_CO2_free, 4) + ' wt %']);
-      if (num(ag.protonated_MDEA_fraction)) out.push(['Protonated MDEA (MDEAH⁺)', fmt(100 * ag.protonated_MDEA_fraction, 3) + ' %']);
-      if (num(ag.piperazine_wt_pct_CO2_free)) out.push(['Piperazine (CO₂-free basis)', fmt(ag.piperazine_wt_pct_CO2_free, 4) + ' wt %']);
-      if (num(ag.loading_mol_CO2_per_mol_amine)) out.push(['CO₂ loading (MDEA + PZ)', fmt(ag.loading_mol_CO2_per_mol_amine, 4) + ' mol/mol amine']);
-      if (num(ag.piperazine_as_carbamate_fraction)) out.push(['Piperazine as carbamates', fmt(100 * ag.piperazine_as_carbamate_fraction, 3) + ' %']);
-      if (num(ag.ionic_strength_mol_kg)) out.push(['Ionic strength', fmt(ag.ionic_strength_mol_kg, 4) + ' mol/kg water']);
-      if (num(ag.salt_molality) && ag.salt_molality > 0) out.push(['Dissolved salts', fmt(ag.salt_molality, 4) + ' mol/kg water']);
-      if (num(ag.P_NH3_eq_kPa) && ag.P_NH3_eq_kPa > 0) out.push(['Equilibrium NH₃ pressure', fmt(ag.P_NH3_eq_kPa, 4) + ' kPa']);
-      if (num(ag.P_H2S_eq_kPa) && ag.P_H2S_eq_kPa > 0) out.push(['Equilibrium H₂S pressure', fmt(ag.P_H2S_eq_kPa, 4) + ' kPa']);
-      if (num(ag.P_HCl_eq_kPa)) out.push(['Equilibrium HCl pressure', fmt(ag.P_HCl_eq_kPa, 4) + ' kPa']);
-      if (num(ag.free_NH3_fraction)) out.push(['Free (molecular) NH₃', fmt(100 * ag.free_NH3_fraction, 3) + ' % of NH₃']);
-      if (num(ag.conversion_to_KHCO3)) out.push(['Conversion to KHCO₃', fmt(ag.conversion_to_KHCO3, 4)]);
-      if (num(ag.P_CO2_eq_kPa)) out.push(['Equilibrium CO₂ pressure', fmt(ag.P_CO2_eq_kPa, 4) + ' kPa']);
-      if (num(ag.free_MEA_fraction)) out.push(['Free (unreacted) MEA', fmt(100 * ag.free_MEA_fraction, 3) + ' %']);
-      if (num(ag.water_activity)) out.push(['Water activity', fmt(ag.water_activity, 4)]);
-      if (num(ag.pH)) out.push([ag.pH_scale === 'MacInnes' ? 'pH (MacInnes scale, as PHREEQC)' : ag.pH_scale === 'molality' ? 'pH (H⁺ molality, γ = 1)' : 'pH (unscaled Pitzer)', fmt(ag.pH, 4)]);
-      if (num(ag.osmotic_coefficient)) out.push(['Osmotic coefficient', fmt(ag.osmotic_coefficient, 4)]);
-      if (ag.saturation_index && Object.keys(ag.saturation_index).length) {
-        const si = Object.entries(ag.saturation_index).filter(([, v]) => num(v) && v > -3).sort((a, b) => b[1] - a[1]).slice(0, 8);
-        if (si.length) out.push(['Saturation index log(IAP/K)', si.map(([k, v]) => k + ' ' + (v > 0 ? '+' : '') + fmt(v, 3)).join(' · ') + (si[0][1] > 0.05 ? ' — above 0: scale / crystals can form' : '')]);
-      }
-      if (ag.molality && (ag.model === 'sour-water' || ag.model === 'aqueous-electrolyte')) {
-        const ion = (k) => k.replace(/--$/, '²⁻').replace(/-2$/, '²⁻').replace(/\+2$/, '²⁺').replace(/-$/, '⁻').replace(/\+$/, '⁺').replace(/(\d)/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[d]);
-        const sp = Object.entries(ag.molality).filter(([, v]) => num(v) && v > 1e-7).sort((a, b) => b[1] - a[1]).slice(0, 10);
-        if (sp.length) out.push(['True species, mol/kg water', sp.map(([k, v]) => ion(k) + ' ' + fmt(v, 3)).join(' · ')]);
-      }
-      if (ag.extrapolated) out.push(['Note', ag.extrapolated]);
-      if (num(ag.L_NH3_CO2)) out.push(['N/C (NH₃/CO₂, apparent)', fmt(ag.L_NH3_CO2, 5)], ['H/C (H₂O/CO₂, apparent)', fmt(ag.W_H2O_CO2, 5)]);
-      if (num(ag.urea_conversion)) out.push(['CO₂ converted to urea', fmt(100 * ag.urea_conversion, 4) + ' %']);
-      if (num(ag.carbamate_fraction_of_CO2)) out.push(['Free CO₂ as carbamate', fmt(100 * ag.carbamate_fraction_of_CO2, 4) + ' %']);
-      if (ag.x_true && num(ag.x_true.carbamate)) out.push(['True species, mol %', Object.entries(ag.x_true).map(([k, v]) => (k === 'carbamate' ? 'carbamate' : k === 'bicarbonate' ? 'bicarbonate' : compLabel(k)) + ' ' + fmt(100 * v, 3)).join(' · ')]);
-      if (ag.note) out.push(['Note', ag.note]);
-    }
+    if (ph.acid_gas) out.push(...acidGasRows(ph.acid_gas));
   }
   if (rg.model) out.push(['Property method', PKG_LABEL[rg.model] || rg.model]);
   return out;
@@ -7098,11 +7620,12 @@ function anaPkgLabel() { return rigOn() ? PKG_LABEL[pkgModel()] || pkgModel() : 
 function streamAnalysisSection(s) {
   const box = sec('Stream analysis');
   const st = analysisStream(s);
-  box.append(el('div', { class: 'note' }, 'Phase envelope, property table, binary and ternary diagrams and azeotrope search for this stream’s components — ' + anaPkgLabel() + '.'));
+  box.append(el('div', { class: 'note' }, 'Stream properties with any method, phase envelope, property table, binary and ternary diagrams and azeotrope search for this stream’s components — ' + anaPkgLabel() + '.'));
   const multi = st && st.components.length >= 2;
   const elec = isElecPkg(pkgModel()) || pkgModel() === 'urea';
   const why = 'not available with an electrolyte or urea method — use the property table';
   box.append(el('div', { class: 'btns' },
+    el('button', { class: 'btn sm', disabled: !st, title: 'mixture and phase properties — density, Z, H, S, Cp, Cv, speed of sound, viscosity, conductivity — with any method', onclick: () => openStreamProps(s) }, 'Stream properties'),
     el('button', { class: 'btn sm', disabled: !multi || elec, title: elec ? why : multi ? '' : 'needs at least two components', onclick: () => openAnalysis('env', s) }, 'Phase envelope'),
     el('button', { class: 'btn sm', disabled: !st, onclick: () => openAnalysis('table', s) }, 'Property table'),
     el('button', { class: 'btn sm', disabled: elec, title: elec ? why : '', onclick: () => openAnalysis('bin', s) }, 'Binary T-x-y / P-x-y'),
@@ -7553,6 +8076,340 @@ function drawAzeo(host, D) {
 }
 
 /* =====================================================================
+   ROUND 15. STREAM PROPERTIES — one state, mixture and each phase
+   (DWSIM material-stream property view): flows, MW, density, Z, H, S, Cp,
+   Cv, Cp/Cv, speed of sound, Joule–Thomson coefficient, viscosity, thermal
+   conductivity, surface tension, compositions, K-values, bubble / dew points.
+   Two ways in: any stream of the flowsheet (Stream analysis → Stream
+   properties), or the stand-alone calculator (toolbar → Properties) where the
+   composition, conditions and method are typed in directly.
+===================================================================== */
+const SP_PH_LABEL = { vapour: 'Vapour', liquid: 'Liquid', 'liquid 2': 'Liquid 2' };
+const SP_ROWS = [
+  ['Phase fraction (molar)', (o, q, two) => (q ? q.mole_fraction : two ? 1 : null), 5],
+  ['Phase fraction (mass)', (o, q, two) => (q ? q.mass_fraction : two ? 1 : null), 5],
+  ['Molar flow, kmol/h', (o, q) => (q || o).flow_kmol_h, 6],
+  ['Mass flow, kg/h', (o, q) => (q || o).flow_kg_h, 6],
+  ['Actual volume flow, m³/h', (o, q) => (q || o).flow_m3_h, 5],
+  ['Standard gas flow, Nm³/h (0 °C, 1 atm)', (o, q) => (q ? (q.type === 'vapour' && num(q.flow_kmol_h) ? q.flow_kmol_h * 22.41397 : null) : o.std_gas_flow_Nm3_h), 6],
+  ['Molar mass, kg/kmol', (o, q) => (q || o).MW, 5],
+  ['Density, kg/m³', (o, q) => (q || o).rho_kgm3, 5],
+  ['Molar volume, m³/kmol', (o, q) => (q || o).molar_volume_m3_kmol, 5],
+  ['Compressibility factor Z', (o, q) => (q || o).Z, 5],
+  ['Enthalpy, kJ/kg', (o, q) => (q || o).H_kJkg, 6],
+  ['Enthalpy, kJ/kmol', (o, q) => (q || o).H_kJkmol, 6],
+  ['Enthalpy flow, kW', (o, q) => (q ? (num(q.H_kJkmol) && num(q.flow_kmol_h) ? q.H_kJkmol * q.flow_kmol_h / 3600 : null) : o.H_kW), 6],
+  ['Entropy, kJ/kmol·K', (o, q) => (q || o).S_kJkmolK, 5],
+  ['Heat capacity Cp, kJ/kg·K', (o, q) => (q || o).Cp_kJkgK, 5],
+  ['Heat capacity Cv, kJ/kg·K', (o, q) => (q || o).Cv_kJkgK, 5],
+  ['Cp/Cv', (o, q) => (q || o).Cp_Cv, 5],
+  ['Speed of sound, m/s', (o, q) => (q || o).speed_of_sound_m_s, 5],
+  ['Joule–Thomson coefficient, K/bar', (o, q) => (q || o).joule_thomson_K_bar, 4],
+  ['Viscosity, cP', (o, q) => (q || o).mu_cP, 5],
+  ['Thermal conductivity, W/m·K', (o, q) => (q || o).k_WmK, 5],
+  ['Surface tension, mN/m', (o, q) => (q || o).sigma_mNm, 5],
+];
+const SP_PHASE_TXT = { V: 'vapour', L: 'liquid', VL: 'vapour + liquid', LL: 'two liquids', VLL: 'vapour + two liquids' };
+const ACCURATE_LIQ = ['steam', 'reference', 'gerg2008'];
+/** the property package object for a method chosen in a properties dialog */
+function spPkg(model, vapour) {
+  /* the flowsheet's own method keeps its options (binary parameters, liquid volume …); any other is used as published */
+  const o = rigOn() && model === pkgModel() ? pkgSpec(model) : { model };
+  if (isActivityPkg(model) || isElecPkg(model)) { if (vapour === 'pr' || vapour === 'srk') o.vapour = vapour; else delete o.vapour; }
+  return o;
+}
+function spVapourFor(model, cur) { return isElecPkg(model) && !cur ? 'pr' : cur; }
+function spMethodSelect(cur, onch) {
+  const s = el('select', { class: 'sel', 'aria-label': 'Property method' });
+  for (const [grp, lbl] of PKG_GROUPS) {
+    const og = el('optgroup', { label: lbl });
+    for (const p of PKGS.filter((x) => x[2] === grp)) og.append(el('option', { value: p[0] }, p[1]));
+    s.append(og);
+  }
+  s.value = cur;
+  s.addEventListener('change', () => onch(s.value));
+  return s;
+}
+function spVapourSelect(cur, onch) {
+  const s = el('select', { class: 'sel', 'aria-label': 'Vapour phase model' });
+  for (const [v, t] of [['ideal', 'Ideal gas'], ['pr', 'Peng–Robinson'], ['srk', 'Soave–Redlich–Kwong']]) s.append(el('option', { value: v }, t));
+  s.value = cur || 'ideal';
+  s.addEventListener('change', () => onch(s.value));     // 'ideal' is kept, so an explicit choice survives spVapourFor
+  return s;
+}
+/** a number field that does not touch the flowsheet (no commit / undo) */
+function spNum(get, set, aria) {
+  const inp = el('input', { type: 'number', step: 'any', inputmode: 'decimal', 'aria-label': aria || '' });
+  const v = get();
+  if (num(v)) inp.value = String(round6sig(v));
+  inp.addEventListener('input', () => { const x = parseFloat(inp.value); set(isFinite(x) ? x : null); });
+  return inp;
+}
+/** results: state line, property table, composition table, saturation points, copy / CSV */
+function renderStreamProps(host, D, model, warnings, order) {
+  host.textContent = '';
+  const o = D.overall, ph = D.phases || [];
+  const two = ph.length > 1;
+  /* one phase: one column (the whole stream); two or more: mixture + each phase, as DWSIM lays it out */
+  const cols = two ? [{ h: 'Mixture', q: null }, ...ph.map((q) => ({ h: SP_PH_LABEL[q.type] || q.type, q }))]
+    : [{ h: ph.length ? (SP_PH_LABEL[ph[0].type] || ph[0].type) + ' (whole stream)' : 'Mixture', q: null }];
+  host.append(el('div', { class: 'banner ok', style: 'margin:0 0 10px' }, el('span', null, '✓'), el('span', null,
+    el('b', null, (D.pp && D.pp.label) || PKG_LABEL[model] || model), ' · ', fmt(dispT(o.T_K), 6) + ' ' + PREFS.tu + ', ' + fmt(dispP(o.P_bar), 6) + ' ' + PREFS.pu + ' · ',
+    (SP_PHASE_TXT[o.phase] || o.phase) + (two ? ' · vapour fraction ' + fmt(o.vapour_fraction, 5) + ' (molar), ' + fmt(o.vapour_mass_fraction, 5) + ' (mass)' : ''))));
+  // property table
+  const rows = SP_ROWS.map(([lab, f, d]) => [lab, ...cols.map((c) => f(o, c.q, two)), d]).filter((r) => r.slice(1, -1).some(num));
+  const t = el('table', { class: 'st spt' + (two ? '' : ' one') });
+  t.append(el('thead', null, el('tr', null, el('th', null, 'Property'), ...cols.map((c) => el('th', null, c.h)))));
+  const tb = el('tbody');
+  for (const r of rows) tb.append(el('tr', null, el('td', null, r[0]), ...r.slice(1, -1).map((v) => el('td', null, num(v) ? fmt(v, r[r.length - 1]) : '—'))));
+  t.append(tb);
+  host.append(el('div', { class: 'scrollx' }, t));
+  // composition — in the order the components were entered, else by mole fraction
+  const at = (k) => { const i = (order || []).indexOf(k); return i < 0 ? 1e9 : i; };
+  const keys = (D.keys || []).slice().sort((a, b) => at(a) - at(b) || ((o.x || {})[b] || 0) - ((o.x || {})[a] || 0));
+  const basis = { v: 'x' };
+  const compBox = el('div', { style: 'margin-top:12px' });
+  const drawComp = () => {
+    compBox.textContent = '';
+    const bs = el('select', { 'aria-label': 'Composition basis' }, el('option', { value: 'x' }, 'Mole fractions'), el('option', { value: 'w' }, 'Mass fractions'));
+    bs.value = basis.v;
+    bs.addEventListener('change', () => { basis.v = bs.value; drawComp(); });
+    const ct = el('table', { class: 'st spt' + (cols.length + (D.K ? 1 : 0) > 2 ? '' : ' one') });
+    ct.append(el('thead', null, el('tr', null, el('th', null, 'Component'), ...cols.map((c) => el('th', null, c.h)), D.K ? el('th', null, 'K = y / x') : null)));
+    const cb = el('tbody');
+    for (const k of keys) {
+      cb.append(el('tr', null, el('td', null, compLabel(k) + ' ', el('small', null, compName(k))),
+        ...cols.map((c) => { const v = ((c.q || o)[basis.v] || {})[k]; return el('td', null, num(v) ? fmt(v, 5) : '—'); }),
+        D.K ? el('td', null, num(D.K[k]) ? fmt(D.K[k], 5) : '—') : null));
+    }
+    ct.append(cb);
+    compBox.append(el('div', { class: 'dock-tools', style: 'padding:0 0 6px' }, el('b', { style: 'font-size:12.5px' }, 'Composition'), bs), el('div', { class: 'scrollx' }, ct));
+  };
+  drawComp();
+  host.append(compBox);
+  // bubble / dew points
+  const S = D.saturation || {};
+  const satItems = [['Bubble point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, num(S.bubble_T_K) ? fmt(dispT(S.bubble_T_K), 6) + ' ' + PREFS.tu : '—'],
+    ['Dew point at ' + fmt(dispP(o.P_bar), 5) + ' ' + PREFS.pu, num(S.dew_T_K) ? fmt(dispT(S.dew_T_K), 6) + ' ' + PREFS.tu : '—'],
+    ['Bubble pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, num(S.bubble_P_bar) ? fmt(dispP(S.bubble_P_bar), 6) + ' ' + PREFS.pu : '—'],
+    ['Dew pressure at ' + fmt(dispT(o.T_K), 5) + ' ' + PREFS.tu, num(S.dew_P_bar) ? fmt(dispP(S.dew_P_bar), 6) + ' ' + PREFS.pu : '—']];
+  const sg = el('div', { class: 'bal', style: 'margin-top:12px' });
+  for (const [a, b] of satItems) sg.append(el('div', { class: 'card' }, el('h5', null, a), el('div', { class: 'big', style: 'font-size:16px' }, b)));
+  host.append(sg);
+  // electrolyte methods: the liquid's speciation (loading, pH, equilibrium pressures)
+  const agp = ph.find((q) => q.acid_gas);
+  const agRows = agp ? acidGasRows(agp.acid_gas) : [];
+  if (agRows.length) {
+    const at2 = el('table', { class: 'st spc spt', style: 'margin-top:12px' });
+    at2.append(el('thead', null, el('tr', null, el('th', null, 'Liquid chemistry'), el('th', null, ''))));
+    at2.append(el('tbody', null, agRows.map(([a, b2]) => el('tr', null, el('td', null, a), el('td', null, b2)))));
+    host.append(el('div', { class: 'scrollx' }, at2));
+  }
+  // notes
+  const notes = [];
+  if (two) notes.push('Cp of the mixture is the slope of the flash enthalpy, so it includes the latent heat of the phase change; Cv, Cp/Cv, speed of sound and the Joule–Thomson coefficient are given per phase.');
+  if (ph.some((q) => q.type !== 'vapour') && !ACCURATE_LIQ.includes(model)) notes.push('A liquid’s Cv, Cp/Cv and speed of sound need an accurate liquid equation of state — Steam / water, the reference equations or GERG-2008 give them; density correlations do not.');
+  if (Object.values(S).every((v) => !num(v))) notes.push('No bubble or dew point: the mixture is above its critical region at these conditions, or one phase cannot form.');
+  const est = [...new Set(ph.flatMap((q) => q.estimated || []))];
+  if (est.length) notes.push('Estimated values: ' + est.slice(0, 6).join('; ') + (est.length > 6 ? ' …' : '') + '.');
+  for (const w of (warnings || []).slice(0, 4)) notes.push(String(w));
+  if (notes.length) host.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, notes.map((n) => el('li', null, n))));
+  host.append(el('div', { class: 'hint', style: 'font-size:11.5px;margin-top:8px' }, 'Enthalpy includes each component’s heat of formation (elements at 25 °C); entropy is absolute (third law, ideal-gas reference 1 atm). Steam tables and other simulators use other reference states — compare enthalpy and entropy differences, not absolute values.'));
+  // copy / CSV
+  const tsv = (sep) => {
+    const cell = (v) => { const t = String(v == null ? '' : v); return sep === ',' && /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const sat = (lab, v, u, conv) => [lab, num(v) ? plain(conv(v)) : '', u];
+    const R = [['Stream properties', (D.pp && D.pp.label) || model], ['Temperature, ' + PREFS.tu, plain(dispT(o.T_K))], ['Pressure, ' + PREFS.pu, plain(dispP(o.P_bar))], [],
+      ['Property', ...cols.map((c) => c.h)], ...rows.map((r) => [r[0], ...r.slice(1, -1).map((v) => plain(v))]), [],
+      ['Component (mole fraction)', ...cols.map((c) => c.h), ...(D.K ? ['K = y / x'] : [])],
+      ...keys.map((k) => [compName(k), ...cols.map((c) => plain(((c.q || o).x || {})[k])), ...(D.K ? [plain(D.K[k])] : [])]), [],
+      sat('Bubble point at the pressure', S.bubble_T_K, PREFS.tu, dispT), sat('Dew point at the pressure', S.dew_T_K, PREFS.tu, dispT),
+      sat('Bubble pressure at the temperature', S.bubble_P_bar, PREFS.pu, dispP), sat('Dew pressure at the temperature', S.dew_P_bar, PREFS.pu, dispP),
+      ...(agRows.length ? [[], ...agRows] : [])];
+    return R.map((r) => r.map(cell).join(sep)).join('\n');
+  };
+  host.append(el('div', { class: 'btns', style: 'margin-top:10px' },
+    el('button', { class: 'btn sm', onclick: () => copyText(tsv('\t'), 'Stream properties copied — paste into Excel') }, '⧉ Copy for Excel'),
+    el('button', { class: 'btn sm', onclick: () => download('stream-properties.csv', '﻿' + tsv(','), 'text/csv;charset=utf-8') }, '⬇ CSV')));
+}
+async function spRun(host, btn, stream, pkg, params, order) {
+  host.textContent = '';
+  host.append(el('div', { class: 'hint' }, 'Calculating with the engine…'));
+  btn.disabled = true;
+  try {
+    const r = await apiSolve('stream-properties', { streams: [stream], params: Object.assign({ property_package: pkg }, params || {}) },
+      (ms) => { host.firstChild.textContent = 'Rate limit — waiting ' + Math.ceil(ms / 1000) + ' s…'; });
+    renderStreamProps(host, r.result.details || {}, pkg.model, r.warnings, order);
+  } catch (e) {
+    host.textContent = '';
+    host.append(el('div', { class: 'banner err', style: 'margin:0' }, el('span', null, '●'), el('span', null, e.message)));
+  } finally { btn.disabled = false; }
+}
+/** a stream of the flowsheet: its own state, or another T / P; any method */
+function openStreamProps(s) {
+  const st = analysisStream(s);
+  if (!st) { toast(s.from ? 'Run the flowsheet first' : 'Complete the feed specification first', 'err'); return; }
+  const bad = st.components.map((c) => c.key).filter(noRigData);
+  if (bad.length) { toast(bad.map(compLabel).join(', ') + ': no property-method data', 'err'); return; }
+  const rec = recommendMethod(st.components.map((c) => c.key));
+  const m0 = rigOn() ? pkgModel() : rec.model;
+  const E = { model: m0, vapour: spVapourFor(m0, rigOn() ? (M.pkg || {}).vapour : rec.vapour), T: st.T_K, P: st.P_bar, own: true };
+  const body = el('div', { class: 'ana' });
+  openSheet('Stream properties · ' + s.name, body);
+  $('sheet').classList.add('wide');
+  const ctl = el('div', { class: 'anagrid', style: 'grid-template-columns:repeat(auto-fill,minmax(240px,1fr))' });
+  const host = el('div', { class: 'anares' });
+  const go = el('button', { class: 'btn pri', onclick: () => {
+    const params = E.own ? {} : { T_K: E.T, P_bar: E.P };
+    spRun(host, go, st, spPkg(E.model, E.vapour), params, flowsheetComps().length ? flowsheetComps() : null);
+  } }, 'Calculate');
+  const draw = () => {
+    ctl.textContent = '';
+    ctl.append(fld('Property method', spMethodSelect(E.model, (v) => { E.model = v; E.vapour = spVapourFor(v, E.vapour); draw(); go.click(); })));
+    if (isActivityPkg(E.model) || isElecPkg(E.model)) ctl.append(fld('Vapour phase', spVapourSelect(E.vapour, (v) => { E.vapour = v; go.click(); })));
+    const at = el('select', { 'aria-label': 'Conditions' }, el('option', { value: 'own' }, 'The stream’s own conditions'), el('option', { value: 'tp' }, 'Another temperature and pressure'));
+    at.value = E.own ? 'own' : 'tp';
+    at.addEventListener('change', () => { E.own = at.value === 'own'; draw(); });
+    ctl.append(fld('Conditions', at));
+    if (!E.own) {
+      ctl.append(fld('Temperature (' + PREFS.tu + ')', spNum(() => T_UNITS[PREFS.tu].fromSI(E.T), (v) => { E.T = num(v) ? T_UNITS[PREFS.tu].toSI(v) : null; }, 'Temperature')),
+        fld('Pressure (' + PREFS.pu + ')', spNum(() => P_UNITS[PREFS.pu].fromSI(E.P), (v) => { E.P = num(v) ? P_UNITS[PREFS.pu].toSI(v) : null; }, 'Pressure')));
+    }
+  };
+  draw();
+  body.append(el('div', { class: 'hint', style: 'margin-bottom:8px' }, 'Composition (mol): ' + anaCompLine(st)), ctl, el('div', { class: 'btns' }, go), host);
+  go.click();
+}
+
+/* stand-alone calculator: composition, conditions and method typed in directly */
+function spCalcState() {
+  const P = PREFS.spCalc || {};
+  const comps = Array.isArray(P.comps) && P.comps.length ? P.comps.filter((c) => c && typeof c.key === 'string') : (flowsheetComps().length ? flowsheetComps().map((key) => ({ key, a: null })) : [{ key: 'CH4', a: 90 }, { key: 'C2H6', a: 6 }, { key: 'N2', a: 2 }, { key: 'CO2', a: 2 }]);
+  const model = P.model && PKGS.some((x) => x[0] === P.model) ? P.model : (rigOn() ? pkgModel() : 'pr');
+  return {
+    comps, basis: BASES.some((b) => b[0] === P.basis) ? P.basis : 'mole%',
+    flow: { v: num(P.flowV) ? P.flowV : 100, u: FLOW_UNITS[P.flowU] ? P.flowU : 'kmol/h' },
+    T: { v: num(P.TV) ? P.TV : 25, u: T_UNITS[P.TU] ? P.TU : PREFS.tu }, P: { v: num(P.PV) ? P.PV : 1.01325, u: P_UNITS[P.PU] ? P.PU : PREFS.pu },
+    model, vapour: spVapourFor(model, P.model ? P.vapour : (rigOn() ? (M.pkg || {}).vapour : undefined)), vf: num(P.vf) ? P.vf : null, spec: P.spec === 'PVF' ? 'PVF' : 'TP',
+  };
+}
+function spCalcSave(C) {
+  PREFS.spCalc = { comps: C.comps.slice(0, LIMITS.comps), basis: C.basis, flowV: C.flow.v, flowU: C.flow.u, TV: C.T.v, TU: C.T.u, PV: C.P.v, PU: C.P.u, model: C.model, vapour: C.vapour, vf: C.vf, spec: C.spec };
+  savePrefs();
+}
+function openPropsCalc() {
+  const C = spCalcState();
+  const body = el('div', { class: 'ana' });
+  openSheet('Stream properties', body);
+  $('sheet').classList.add('wide');
+  if (!componentsDB) loadComponents().then(() => draw(), () => draw());
+  const top = el('div');
+  const host = el('div', { class: 'anares' });
+  const go = el('button', { class: 'btn pri' }, 'Calculate');
+  top.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('input[type=number]')) { e.preventDefault(); e.target.dispatchEvent(new Event('change')); go.click(); } });
+  go.addEventListener('click', () => {
+    spCalcSave(C);
+    const comps = C.comps.filter((c) => num(c.a) && c.a > 0).map((c) => ({ key: c.key, a: c.a }));
+    const target = C.basis.endsWith('%') ? 100 : C.basis.endsWith('frac') ? 1 : null;
+    const sum = comps.reduce((a, c) => a + c.a, 0);
+    if (target && sum > 0) for (const c of comps) c.a = c.a * target / sum;      // normalised here, not an error
+    const spec = { flow: C.flow, T: C.spec === 'PVF' ? { v: 25, u: '°C' } : C.T, P: C.P, basis: C.basis, comps };
+    if (!spec.comps.length) { host.textContent = ''; host.append(el('div', { class: 'banner warn', style: 'margin:0' }, el('span', null, '●'), el('span', null, 'Type the amount of at least one component.'))); return; }
+    const si = specToSI(spec);
+    if (!si.ok) { host.textContent = ''; host.append(el('div', { class: 'banner warn', style: 'margin:0' }, el('span', null, '●'), el('span', null, si.errs.join(' · ')))); return; }
+    const bad = si.stream.components.map((c) => c.key).filter(noRigData);
+    if (bad.length) { host.textContent = ''; host.append(el('div', { class: 'banner warn', style: 'margin:0' }, el('span', null, '●'), el('span', null, bad.map(compLabel).join(', ') + ' — no property-method data.'))); return; }
+    spRun(host, go, si.stream, spPkg(C.model, C.vapour), C.spec === 'PVF' ? { vapour_fraction: num(C.vf) ? C.vf : 0 } : {}, C.comps.map((c) => c.key));
+  });
+  function draw() {
+    top.textContent = '';
+    // components
+    const q = el('input', { type: 'search', class: 'in', placeholder: 'Add a component — name or formula (methane, CO2, MDEA …)', 'aria-label': 'Add a component' });
+    const hits = el('div', { class: 'wiz' }, el('div', { class: 'hits', hidden: true }));
+    const hl = hits.firstChild;
+    hits.style.padding = '0';
+    q.addEventListener('input', () => {
+      hl.textContent = '';
+      const t = q.value.trim();
+      const list = t ? wizHits(t).slice(0, 12) : [];
+      hl.hidden = !list.length;
+      for (const c of list) {
+        const on = C.comps.some((x) => x.key === c.key);
+        hl.append(el('button', { class: 'hit', type: 'button', disabled: on || null, onclick: () => { C.comps.push({ key: c.key, a: null }); spCalcSave(C); draw(); } },
+          el('span', null, c.name), el('small', null, prettyF(c.formula || c.key) + (COMP_ALIAS[c.key] ? ' · ' + COMP_ALIAS[c.key] : '') + (c.rigorous === false ? ' · classic units only' : '')), el('span', { class: 'add' }, on ? 'added' : '＋ Add')));
+      }
+    });
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const b = hl.querySelector('.hit:not([disabled])'); if (b) b.click(); } });
+    const tbl = el('table', { class: 'st spcomp' });
+    const bu = (BASES.find((b) => b[0] === C.basis) || [, C.basis])[1];
+    tbl.append(el('thead', null, el('tr', null, el('th', null, 'Component'), el('th', null, bu), el('th', null, ''))));
+    const tb = el('tbody');
+    const target = C.basis.endsWith('%') ? 100 : C.basis.endsWith('frac') ? 1 : null;
+    const sumTd = el('td');
+    const sumHint = el('div', { class: 'hint', style: 'font-size:11.5px;margin-top:4px' });
+    const updSum = () => {
+      const sum = C.comps.reduce((t, c) => t + (num(c.a) ? c.a : 0), 0);
+      const off = target && sum > 0 && Math.abs(sum - target) > 0.005 * target;
+      sumTd.textContent = fmt(sum, 6);
+      sumTd.style.color = off ? 'var(--warn)' : '';
+      sumHint.textContent = off ? 'Scaled to ' + target + ' when you press Calculate.' : '';
+      sumHint.hidden = !off;
+    };
+    C.comps.forEach((c, i) => {
+      const inp = spNum(() => c.a, (v) => { c.a = v; }, compName(c.key) + ' amount');
+      inp.className = 'in num';
+      inp.addEventListener('input', updSum);
+      inp.addEventListener('change', () => spCalcSave(C));
+      tb.append(el('tr', null, el('td', null, compLabel(c.key) + ' ', el('small', null, compName(c.key))), el('td', null, inp),
+        el('td', null, el('button', { class: 'lnk', type: 'button', 'aria-label': 'Remove ' + compName(c.key), onclick: () => { C.comps.splice(i, 1); spCalcSave(C); draw(); } }, '✕'))));
+    });
+    tb.append(el('tr', null, el('td', null, el('b', null, 'Sum')), sumTd, el('td', null, '')));
+    tbl.append(tb);
+    updSum();
+    // basis, flow, conditions
+    const bs = el('select', { 'aria-label': 'Composition basis' });
+    for (const [v, t] of BASES) bs.append(el('option', { value: v }, t));
+    bs.value = C.basis;
+    bs.addEventListener('change', () => { C.basis = bs.value; spCalcSave(C); draw(); });
+    const flowBasis = !C.basis.endsWith('%') && !C.basis.endsWith('frac');
+    const g = el('div', { class: 'anagrid' });
+    g.append(fld('Composition basis', bs));
+    if (!flowBasis) g.append(fld('Total flow', el('div', { class: 'duo' }, spNum(() => C.flow.v, (v) => { C.flow.v = v; }, 'Total flow'), unitSelect(FLOW_UNITS, C.flow.u, (v) => { C.flow.u = v; spCalcSave(C); }, 'Flow unit'))));
+    const sp = el('select', { 'aria-label': 'State given by' }, el('option', { value: 'TP' }, 'Temperature and pressure'), el('option', { value: 'PVF' }, 'Pressure and vapour fraction'));
+    sp.value = C.spec;
+    sp.addEventListener('change', () => { C.spec = sp.value; spCalcSave(C); draw(); });
+    g.append(fld('State', sp));
+    if (C.spec === 'TP') g.append(fld('Temperature', el('div', { class: 'duo' }, spNum(() => C.T.v, (v) => { C.T.v = v; }, 'Temperature'), unitSelect(T_UNITS, C.T.u, (v) => { C.T.u = v; spCalcSave(C); }, 'Temperature unit'))));
+    else g.append(fld('Vapour fraction (molar)', spNum(() => C.vf, (v) => { C.vf = v; }, 'Vapour fraction'), '0 = bubble point, 1 = dew point'));
+    g.append(fld('Pressure', el('div', { class: 'duo' }, spNum(() => C.P.v, (v) => { C.P.v = v; }, 'Pressure'), unitSelect(P_UNITS, C.P.u, (v) => { C.P.u = v; spCalcSave(C); }, 'Pressure unit'))));
+    g.append(fld('Property method', spMethodSelect(C.model, (v) => { C.model = v; C.vapour = spVapourFor(v, C.vapour); spCalcSave(C); draw(); })));
+    if (isActivityPkg(C.model) || isElecPkg(C.model)) g.append(fld('Vapour phase', spVapourSelect(C.vapour, (v) => { C.vapour = v; spCalcSave(C); })));
+    const rec = C.comps.length ? recommendMethod(C.comps.map((c) => c.key)) : null;
+    const from = el('select', { 'aria-label': 'Copy from a flowsheet stream' });
+    from.append(el('option', { value: '' }, 'Copy a flowsheet stream…'));
+    for (const s of M.streams) if (analysisStream(s)) from.append(el('option', { value: s.id }, s.name + (s.from ? '' : ' (feed)')));
+    from.addEventListener('change', () => {
+      const s = streamById(from.value), st = s && analysisStream(s);
+      if (!st) return;
+      const n = st.components.map((c) => ({ key: c.key, kmol: c.mass_fraction * st.mass_flow_kg_h / (mwOf(c.key) || 1) }));
+      const tot = n.reduce((a, c) => a + c.kmol, 0);
+      C.comps = n.map((c) => ({ key: c.key, a: round6sig(100 * c.kmol / tot) }));
+      C.basis = 'mole%'; C.flow = { v: round6sig(tot), u: 'kmol/h' }; C.spec = 'TP';
+      C.T = { v: round6sig(T_UNITS[PREFS.tu].fromSI(st.T_K)), u: PREFS.tu }; C.P = { v: round6sig(P_UNITS[PREFS.pu].fromSI(st.P_bar)), u: PREFS.pu };
+      spCalcSave(C); draw();
+    });
+    top.append(el('div', { class: 'spgrid' },
+      el('div', null, q, hits, tbl, sumHint),
+      el('div', null, g,
+        rec && rec.model !== C.model ? el('div', { class: 'hint', style: 'font-size:12px;margin:0 0 8px' }, 'Suggested for these components: ' + (PKG_LABEL[rec.model] || rec.model) + ' — ' + rec.why + ' ',
+          el('button', { class: 'lnk', type: 'button', onclick: () => { C.model = rec.model; C.vapour = rec.vapour; spCalcSave(C); draw(); } }, 'Use it')) : null,
+        el('div', { class: 'btns' }, go, M.streams.some((s) => analysisStream(s)) ? from : null))));
+  }
+  draw();
+  body.append(top, host);
+}
+
+/* =====================================================================
    9. READINESS (Aspen-style "required input incomplete" list)
 ===================================================================== */
 function blockIssues(b) {
@@ -7563,8 +8420,10 @@ function blockIssues(b) {
   for (let i = 0; i < b.nIn; i++) {
     if (!connectedIn(b, i) && (i < T.inlets.min || i < last)) add('inlet “' + inletLabel(b, i) + '” has no stream');
   }
+  const esk = estreamInto(b.id) && energySink(b);
   for (const f of fieldsOf(b)) {
     if (f.showIf && !f.showIf(p)) continue;
+    if (esk && f.key === esk.key) continue;                 // ROUND 16: set by an energy stream
     if (f.required && f.required(p) && !['select', 'fractions', 'reactions', 'splits', 'sepout', 'colfeeds', 'colspecs', 'sidedraws', 'complist', 'kinetics', 'curve'].includes(f.kind) && !num(p[f.key])) {
       add('“' + f.label + '” is required');
     }
@@ -7666,6 +8525,7 @@ function readiness() {
   }
   (M.specs || []).forEach((sp, i) => { if (sp.active !== false) issues.push(...specIssues(sp, i)); });
   (M.calcs || []).forEach((c, i) => { if (c.active !== false) issues.push(...calcIssues(c, i)); });
+  issues.push(...estreamIssues());        // ROUND 16
   issues.push(...sensIssues());
   issues.push(...econIssues());
   issues.push(...optIssues());
@@ -7687,6 +8547,7 @@ function inputSig() {
     k: M.pkg || null, z: M.sens && M.sens.active ? M.sens : null,
     b: M.blocks.map((b) => [b.id, b.type, b.nIn, b.nOut, b.params]),
     s: M.streams.map((s) => [s.id, s.from, s.to, s.spec || null]),
+    en: (M.estreams || []).map((e) => [e.id, e.from, e.to, e.from ? null : e.kW, e.from && e.to ? e.eff : null]),
     d: (M.specs || []).filter((x) => x.active !== false).map((x) => [x.vary, x.target, x.value]),
     c: (M.calcs || []).filter((x) => x.active !== false).map((x) => [x.code, x.imports, x.exports]),
     q: (M.pseudo || []).map(pseudoDef), u: (M.ucomps || []).map(ucompDef),
@@ -7826,6 +8687,22 @@ function onWait(ms) { runText('Pacing for the engine’s rate limit · ' + (ms /
 function nameKeys(t) {
   return String(t).replace(/\b(UC[0-9A-F]{8}|PC\d+\.\d_\d\.\d{4}(?:_M\d+\.\d{2})?(?:_[0-9A-Za-z]+)?)\b/g, (m) => (compByKey[m] ? compByKey[m].name : m));
 }
+/* ROUND 14b: engine notes that are not warnings (property shortcuts of the classic models) — reworded, no ⚠ badge, not counted */
+const NOTE_RULES = [
+  [/^(?:flash:\s*)?(\S+) supercritical at [\d.]+ K — treated as noncondensable \(all-vapou?r\)$/, (m) => m[1] + ' is above its critical temperature — counted as a non-condensable gas'],
+  [/waterMolarH: gas at [\d.]+ K\/[\d.]+ bar below saturation/, () => 'water vapour below its saturation pressure — enthalpy taken as saturated vapour at the same temperature'],
+  [/waterMolarH: liquid at [\d.]+ K\/[\d.]+ bar above saturation/, () => 'liquid water above its boiling point — enthalpy taken as saturated liquid at the same temperature'],
+  [/dhvapT\(([^)]+)\): T clamped to 0\.98·Tc/, (m) => m[1] + ': latent heat taken at 0.98 Tc (it is above its critical point)'],
+  [/hLiqMolar\(([^)]+)\): via h_gas − Watson ΔHvap/, (m) => m[1] + ': liquid enthalpy = gas enthalpy − latent heat (no liquid data)'],
+];
+function asNote(w) { const t = String(w); for (const [re, f] of NOTE_RULES) { const m = re.exec(t); if (m) return f(m); } return null; }
+function splitNotes(list) {
+  const warn = [], notes = [];
+  for (const w of list) { const n = asNote(w); if (n) { if (!notes.includes(n)) notes.push(n); } else warn.push(w); }
+  return { warn, notes };
+}
+/** ROUND 14b: a duty or power that is only rounding noise (below 1 W) shows as zero */
+const qClean = (v) => (num(v) && Math.abs(v) < 1e-3 ? 0 : v);
 function wlist(arr) {
   const out = [];
   for (const w of arr || []) { const t = nameKeys(typeof w === 'string' ? w : (w && w.message) || JSON.stringify(w)); if (!out.includes(t)) out.push(t); }
@@ -7909,6 +8786,18 @@ function buildServerBody() {
   const params = { blocks, streams, specs, options: { tol: PREFS.tol, max_iter: PREFS.maxIt, accelerator: PREFS.accel === 'wegstein' ? 'wegstein' : 'broyden' } };
   const calcs = (M.calcs || []).filter((x) => x.active !== false).map(serverCalc);
   if (calcs.length) params.calculators = calcs;
+  if ((M.estreams || []).length) {                    // ROUND 16: energy streams
+    params.energy_streams = M.estreams.map((e) => {
+      const o = { id: e.id, name: e.name, from: e.from || null, to: e.to || null };
+      if (!e.from) o.kW = e.kW;
+      if (e.from && e.to && num(e.eff)) o.efficiency = e.eff;
+      /* a feedback link starts from the last run's value */
+      const last = RES && RES.energy && RES.energy.find((x) => x.id === e.id && x.solved_as === 'feedback' && num(x.kW) && x.sink_param);
+      const blk = last && blocks.find((x) => x.id === e.to);
+      if (blk && (last.sink_param !== 'power_kW' || last.kW > 0)) blk.params[last.sink_param] = last.kW;
+      return o;
+    });
+  }
   if ((M.pseudo || []).length) params.pseudo_components = M.pseudo.map(pseudoDef);
   if ((M.ucomps || []).length) params.user_components = M.ucomps.map(ucompDef);
   if (rigOn()) params.property_package = pkgSpec(pkgModel());
@@ -7924,7 +8813,8 @@ function applyServer(R, r) {
   for (const sid in r.stream_results || {}) R.streams[sid] = r.stream_results[sid];
   for (const bid in r.block_results || {}) {
     const br = r.block_results[bid];
-    R.blocks[bid] = { result: br.result, warnings: wlist(br.result.warnings) };
+    const sp = splitNotes(wlist(br.result.warnings));
+    R.blocks[bid] = { result: br.result, warnings: sp.warn, notes: sp.notes };
   }
   R.loops = (r.loops || []).map((l) => ({ blocks: l.blocks, tears: l.tears, iters: l.iterations, err: l.err, converged: l.converged,
     history: l.history || [], histFirst: l.history_first_evaluation || null, tearStatus: l.tear_status || [], itersAll: l.iterations_all_evaluations,
@@ -7933,11 +8823,12 @@ function applyServer(R, r) {
   R.tears = R.loops.flatMap((l) => l.tears);
   R.log = (r.log || []).slice();
   { const ol = R.log.find((x) => /^Calculation order: /.test(x[1])); R.orderTxt = ol ? ol[1].replace(/^Calculation order: /, '') : ''; }
-  R.warnings = (r.alerts || []).map(nameKeys);
+  { const sp = splitNotes((r.alerts || []).map(nameKeys)); R.warnings = sp.warn; R.notes = sp.notes; }
   if (r.overall) R.overall = Object.assign({}, r.overall, { prods: r.overall.products || [] });
   R.recon = (r.energy_balance && r.energy_balance.reconciliation) || null;        // STEP 32
   R.specs = r.specs || [];
   R.calcs = r.calculators || [];
+  R.energy = r.energy_streams || [];               // ROUND 16
   R.sens = r.sensitivity || null;
   R.opt = r.optimization || null;                  // STEP 36
   R.econ = r.economics || null;
@@ -8251,6 +9142,7 @@ function blockResults(b, br) {
     for (const w of br.warnings) ul.append(el('li', null, w));
     box.append(ul);
   }
+  if ((br.notes || []).length) box.append(moreHint('Notes on the property shortcuts used (' + br.notes.length + ')', el('ul', { style: 'margin:2px 0 0 14px' }, br.notes.map((n) => el('li', null, capFirst(n)))), 'notes:' + b.type));
   if (isCol) box.append(columnResults(b, D));
   if (isKin) box.append(kineticResults(b, D));
   if (D.svg && Array.isArray(D.svg.equilibrium)) {
@@ -9616,6 +10508,9 @@ function hmbWorkbook() {
     ['Liquid viscosity, cP', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props, ph = p && (p.phases || []).find((x) => x.type === 'liquid'); return N(ph ? ph.mu_cP : NaN, XS.f4); })],
     ['Liquid surface tension, mN/m', ...cols.map((c) => { const p = R(c.id).rig && R(c.id).rig.props, ph = p && (p.phases || []).find((x) => x.type === 'liquid'); return N(ph && num(ph.sigma_mNm) ? ph.sigma_mNm : NaN, XS.f4); })],
   ];
+  // ROUND 14b: leave out property rows no stream has (classic models give no vapour fraction, density or transport properties)
+  for (let i = rows.length - 1; i > 3; i--) if (Array.isArray(rows[i]) && rows[i].length > 1 && rows[i].slice(1).every((v) => v === '')) rows.splice(i, 1);
+  if (pkgModel() === 'classic') rows[2] = ['Classic engine models: vapour fraction, density and transport properties need a property method.'];   // in the blank line, so the header stays on row 4
   const keys = [];
   for (const c of cols) for (const k of (R(c.id).components || [])) if (!keys.includes(k.key)) keys.push(k.key);
   const nk = (c, k) => { const r = R(c.id), x = (r.components || []).find((q) => q.key === k), mw = mwOf(k); return x && mw ? x.mass_fraction * r.mass_flow_kg_h / mw : 0; };
@@ -9632,12 +10527,17 @@ function hmbWorkbook() {
     ['Unit', 'Type', 'Model', 'Duty, kW', 'Power, kW', 'Mass in, kg/h', 'Mass out, kg/h', 'Closure, %', 'Outlet T, ' + PREFS.tu, 'Outlet P, ' + PREFS.pu, 'Converged', 'Warnings', 'Key result'].map((v) => ({ v, s: XS.head }))];
   for (const b of M.blocks.slice().sort((a, c) => natSort(a.name, c.name))) {
     const br = RES.blocks[b.id], Rr = br && br.result;
-    if (!Rr) { urows.push([b.name, TYPES[b.type].label, moduleOf(b), '', '', '', '', '', '', '', 'not run']); continue; }
+    if (!Rr) { urows.push([b.name, TYPES[b.type].label, modelLabel(b), '', '', '', '', '', '', '', 'not run']); continue; }
     const eb = Rr.energy_balance || {}, mb = Rr.mass_balance || {}, D = Rr.details || {}, o0 = (Rr.streams_out || [])[0];
     const q = tdef(b).internalQ && num(D.duty_kW) ? D.duty_kW : eb.Q_kW;
     const key = unitKeyResult(b, Rr);
-    urows.push([b.name, TYPES[b.type].label, moduleOf(b), N(Math.abs(q) < 1e-9 ? 0 : q, XS.f2c), N(eb.W_kW, XS.f2c), N(mb.in, XS.f2c), N(mb.out, XS.f2c), N(mb.closure_pct, XS.f6),
+    urows.push([b.name, TYPES[b.type].label, modelLabel(b), N(qClean(q), XS.f2c), N(qClean(eb.W_kW), XS.f2c), N(mb.in, XS.f2c), N(mb.out, XS.f2c), N(mb.closure_pct, XS.f6),
       N(o0 ? dispT(o0.T_K) : NaN, XS.f2), N(o0 ? dispP(o0.P_bar) : NaN, XS.f3), Rr.converged === false ? 'NO' : 'yes', (br.warnings || []).length, key]);
+  }
+  const er = estreamRows();                                            // ROUND 16: energy streams under the units
+  if (er.length) {
+    urows.push([], [{ v: 'Energy streams', s: XS.bold }], ['Energy stream', 'Type', 'From', 'To', 'Energy, kW', 'Fraction delivered'].map((v) => ({ v, s: XS.head })));
+    for (const x of er) urows.push([x.e.name, x.kind, x.from, x.to === '—' ? 'shown only' : x.to, N(x.kW, XS.f2c), x.eff === null ? '' : N(x.eff, XS.f4)]);
   }
   const sh2 = { name: 'Units', rows: urows, widths: [12, 26, 16, 13, 12, 14, 14, 11, 12, 12, 10, 10, 40], freeze: { r: 4, c: 1 }, footer: foot };
   // --- Summary
@@ -9647,6 +10547,8 @@ function hmbWorkbook() {
     [{ v: 'Overall balance', s: XS.bold }], ['Feeds, kg/h', N(o.mIn, XS.f2c)], ['Products, kg/h', N(o.mOut, XS.f2c)], ['Mass closure, %', N(o.closure, XS.f6)],
     ['Heating duty Σ Q > 0, kW', N(o.heat, XS.f2c)], ['Cooling duty Σ Q < 0, kW', N(o.cool, XS.f2c)], ['Shaft work in, kW', N(o.work, XS.f2c)], ['Shaft work recovered, kW', N(o.workOut, XS.f2c)],
     ['ΔH products − feeds, kW', N(o.dH_kW, XS.f2c)]];
+  if (num(o.heat_recovered_kW) && o.heat_recovered_kW) srows.push(['Heat passed by energy streams, kW', N(o.heat_recovered_kW, XS.f2c)]);
+  if (num(o.work_transferred_kW) && o.work_transferred_kW) srows.push(['Shaft work passed by energy streams, kW', N(o.work_transferred_kW, XS.f2c)]);
   if (RES.recon) srows.push(['Energy balance check', RES.recon.ok ? 'closes' : 'does not close'], ['  imbalance, kW', N(RES.recon.imbalance_kW, XS.f6)], ['  tolerance, kW', N(RES.recon.tolerance_kW, XS.f6)]);
   if ((RES.specs || []).length) {
     srows.push([], [{ v: 'Design specifications', s: XS.bold }], ['Specification', 'Target', 'Reached', 'Varied value', 'Converged'].map((v) => ({ v, s: XS.head })));
@@ -9664,6 +10566,10 @@ function hmbWorkbook() {
   if (rf) for (const [id, f] of rf.S) for (const m of f.msgs) wrows.push(['Stream ' + ((streamById(id) || {}).name || id), m]);
   for (const b of M.blocks) { const br = RES.blocks[b.id]; for (const w of (br && br.warnings) || []) wrows.push(['Unit ' + b.name, w]); }
   if (wrows.length === 3) wrows.push(['', 'none']);
+  const nrows = [];
+  for (const n of RES.notes || []) nrows.push(['Flowsheet', capFirst(n)]);
+  for (const b of M.blocks) { const br = RES.blocks[b.id]; for (const n of (br && br.notes) || []) nrows.push(['Unit ' + b.name, capFirst(n)]); }
+  if (nrows.length) wrows.push([], [{ v: 'Notes — property shortcuts, not warnings', s: XS.bold }], ...nrows);
   const sh4 = { name: 'Warnings', rows: wrows, widths: [18, 120], footer: foot };
   const out = [sh1, sh2, sh3, sh4];
   // --- Sensitivity
@@ -9708,7 +10614,7 @@ function blockTableView() {
     const eb = (R && R.energy_balance) || {}, mb = (R && R.mass_balance) || {};
     tb.append(el('tr', { class: 'clk', onclick: () => select({ kind: 'block', id: b.id }, true) },
       el('td', null, b.name), el('td', null, TYPES[b.type].label + (isRig(b) ? ' · R' : '')),
-      el('td', null, R ? fmt(eb.Q_kW, 6) : '—'), el('td', null, R ? fmt(eb.W_kW, 6) : '—'),
+      el('td', null, R ? fmt(qClean(eb.Q_kW), 6) : '—'), el('td', null, R ? fmt(qClean(eb.W_kW), 6) : '—'),
       el('td', null, R ? fmt(mb.in, 6) : '—'), el('td', null, R ? fmt(mb.out, 6) : '—'),
       el('td', null, R ? fmt(mb.closure_pct, 3) : '—'), el('td', null, R ? (R.converged === false ? 'NO' : 'yes') : 'not run'),
       el('td', { style: br && br.warnings.length ? 'color:var(--warn)' : '' }, br ? String(br.warnings.length) : '—')));
@@ -9727,9 +10633,9 @@ function balanceView() {
   const g = el('div', { class: 'bal' });
   g.append(
     card('Overall mass balance', fmt(o.closure, 3) + ' %', 'feeds ' + fmt(o.mIn, 6) + ' kg/h · products ' + fmt(o.mOut, 6) + ' kg/h'),
-    card('Heating duty (Σ Q > 0)', fmt(o.heat, 6) + ' kW', 'heaters, reactors, mixers, reformers…'),
-    card('Cooling duty (Σ Q < 0)', fmt(o.cool, 6) + ' kW', 'exchanger internal duties excluded'),
-    card('Shaft work', fmt(o.work, 6) + ' kW in', num(o.workOut) && o.workOut ? fmt(o.workOut, 6) + ' kW recovered' : null),
+    card('Heating duty (Σ Q > 0)', fmt(o.heat, 6) + ' kW', num(o.heat_recovered_kW) && o.heat_recovered_kW ? 'of which ' + fmt(o.heat_recovered_kW, 5) + ' kW comes from other units by energy streams' : 'heaters, reactors, mixers, reformers…'),
+    card('Cooling duty (Σ Q < 0)', fmt(o.cool, 6) + ' kW', num(o.heat_recovered_kW) && o.heat_recovered_kW ? 'of which ' + fmt(o.heat_recovered_kW, 5) + ' kW goes to other units by energy streams' : 'exchanger internal duties excluded'),
+    card('Shaft work', fmt(o.work, 6) + ' kW in', [num(o.workOut) && o.workOut ? fmt(o.workOut, 6) + ' kW recovered' : null, num(o.work_transferred_kW) && o.work_transferred_kW ? fmt(o.work_transferred_kW, 5) + ' kW passed by energy streams' : null].filter(Boolean).join(' · ') || null),
     card('ΔH products − feeds', fmt(o.dH_kW, 6) + ' kW', 'formation-enthalpy basis'),
     RES.recon && RES.recon.ok !== null && RES.recon.ok !== undefined
       ? card('Energy balance check', RES.recon.ok ? 'closes' : 'does NOT close',
@@ -9767,6 +10673,9 @@ function summaryHead() {
   const meta = [M.blocks.length + ' units', M.streams.length + ' streams', num(R.ms) ? (R.ms / 1000).toFixed(1) + ' s' : null,
     R.calls > 1 ? R.calls + ' server calls' : null, R.cached ? 'reused from the last identical run' : null].filter(Boolean).join(' · ');
   const box = el('div', { style: 'margin:0 0 10px' }, el('div', { class: 'banner ' + lvl, style: 'margin:0' }, el('span', null, lvl === 'ok' ? '✓' : '●'), el('span', null, el('b', null, head), ' · ', meta)));
+  if (pkgModel() === 'classic') box.append(el('div', { class: 'banner warn', style: 'margin:6px 0 0' }, el('span', null, '●'), el('span', null,
+    'Classic engine models — duties across a phase change are approximate, and vapour fraction, density and viscosities are not calculated. ',
+    el('a', { href: '#', onclick: (e) => { e.preventDefault(); if (PREFS.insMin) { PREFS.insMin = false; savePrefs(); applyPanels(); } select({ kind: 'methods' }, true); } }, 'Choose a property method →'))));   // ROUND 14b
   if (nW) {
     const ul = el('ul', { style: 'margin:6px 0 0 18px;font-size:12px;color:var(--ink2)' });
     for (const w of R.warnings.slice(0, 4)) ul.append(el('li', null, w));
@@ -9784,7 +10693,7 @@ function summaryTables() {
     const eb = br && br.result && br.result.energy_balance;
     if (!eb) continue;
     const q = num(eb.Q_kW) ? eb.Q_kW : 0, w = num(eb.W_kW) ? eb.W_kW : 0;
-    if (Math.abs(q) > 1e-6 || Math.abs(w) > 1e-6) units.push({ b, q, w, m: Math.max(Math.abs(q), Math.abs(w)), internal: !!tdef(b).internalQ });
+    if (Math.abs(q) >= 1e-3 || Math.abs(w) >= 1e-3) units.push({ b, q, w, m: Math.max(Math.abs(q), Math.abs(w)), internal: !!tdef(b).internalQ });
   }
   units.sort((a, c) => c.m - a.m);
   if (units.length) {
@@ -9793,7 +10702,7 @@ function summaryTables() {
     const tb = el('tbody');
     for (const u of units.slice(0, 10)) tb.append(el('tr', { class: 'clk', title: 'Open ' + u.b.name, onclick: () => select({ kind: 'block', id: u.b.id }, true) },
       el('td', null, u.b.name + ' ', el('small', null, TYPES[u.b.type].label + (u.internal ? ' · exchanged' : ''))),
-      el('td', null, Math.abs(u.q) > 1e-6 ? fmt(u.q, 5) : '—'), el('td', null, Math.abs(u.w) > 1e-6 ? fmt(u.w, 5) : '—')));
+      el('td', null, Math.abs(u.q) >= 1e-3 ? fmt(u.q, 5) : '—'), el('td', null, Math.abs(u.w) >= 1e-3 ? fmt(u.w, 5) : '—')));
     t.append(tb);
     wrap.append(el('div', null, t, units.length > 10 ? el('div', { class: 'hint' }, (units.length - 10) + ' more in the Units tab') : null));
   }
@@ -9807,6 +10716,20 @@ function summaryTables() {
       el('td', null, fmt(dispT(r.T_K), 5)), el('td', null, fmt(dispP(r.P_bar), 5)), el('td', null, phaseOf(r))));
     t.append(tb);
     wrap.append(el('div', null, t, prods.length > 10 ? el('div', { class: 'hint' }, (prods.length - 10) + ' more in the Stream table') : null));
+  }
+  const er = estreamRows();                                          // ROUND 16: energy streams
+  if (er.length) {
+    const t = el('table', { class: 'st sumt' });
+    t.append(el('thead', null, el('tr', null, el('th', null, 'Energy streams'), el('th', null, 'kW'), el('th', null, 'From'), el('th', null, 'To'))));
+    const tb = el('tbody');
+    for (const x of er) tb.append(el('tr', { class: 'clk', title: 'Open ' + x.e.name, onclick: () => select({ kind: 'estream', id: x.e.id }, true) },
+      el('td', null, x.e.name + ' ', el('small', null, x.kind + (x.eff !== null && x.eff !== 1 ? ' · ' + fmt(100 * x.eff, 4) + ' % delivered' : ''))), el('td', null, num(x.kW) ? fmt(x.kW, 5) : '—'),
+      el('td', null, x.from), el('td', null, x.to)));
+    t.append(tb);
+    const o = RES.overall || {};
+    const sumTxt = [num(o.heat_recovered_kW) && o.heat_recovered_kW ? 'heat passed between units ' + fmt(o.heat_recovered_kW, 5) + ' kW' : null,
+      num(o.work_transferred_kW) && o.work_transferred_kW ? 'shaft work passed between units ' + fmt(o.work_transferred_kW, 5) + ' kW' : null].filter(Boolean).join(' · ');
+    wrap.append(el('div', null, t, sumTxt ? el('div', { class: 'hint' }, sumTxt) : null));
   }
   return wrap;
 }
@@ -10191,6 +11114,7 @@ $('bTidy').addEventListener('click', tidy);
 $('bReport').addEventListener('click', openReport);
 $('bSpecs').addEventListener('click', () => select({ kind: 'spec' }, true));
 $('bMethods').addEventListener('click', () => select({ kind: 'methods' }, true));
+$('bProps').addEventListener('click', openPropsCalc);
 $('bHelp').addEventListener('click', openHelp);
 $('bRun').addEventListener('click', runFlowsheet);
 $('bMenuM').addEventListener('click', (e) => openMenu(e.currentTarget, [
@@ -10200,6 +11124,7 @@ $('bMenuM').addEventListener('click', (e) => openMenu(e.currentTarget, [
   { label: 'Copy selection', run: () => copySelection(false), disabled: !(SEL || MSEL.size) },
   { label: 'Paste', run: () => pasteClip(CLIP), disabled: !CLIP },
   { label: 'Property method', run: () => select({ kind: 'methods' }, true) },
+  { label: 'Stream properties', sub: 'composition + method → property table', run: openPropsCalc },
   { label: 'Design specs', run: () => select({ kind: 'spec' }, true) },
   { label: 'Tidy layout', run: tidy }, { label: 'Fit to screen', run: fitView },
   { label: 'Help', run: openHelp }, { label: 'Classic worksheet', run: () => { location.href = '/material-balance'; } },
@@ -10219,6 +11144,7 @@ function openSheet(title, node, onClose) {
   closeSheet();
   const sh = $('sheet');
   sh.textContent = '';
+  sh.classList.remove('wide');
   sh.append(el('div', { class: 'grab' }),
     el('div', { class: 'sh-h' }, el('h3', null, title), el('button', { class: 'tbtn icon', 'aria-label': 'Close', onclick: closeSheet }, '✕')),
     el('div', { class: 'sh-b' }, node));
@@ -10236,7 +11162,7 @@ function openInspectorSheet() {
   const ins = $('inspector');
   const holder = el('div', { style: 'display:flex;flex-direction:column;min-height:0;height:100%' });
   holder.append(ins);
-  openSheet(SEL ? (SEL.kind === 'block' ? 'Unit' : 'Stream') : 'Flowsheet', holder, () => { $('app').append(ins); });
+  openSheet(SEL ? (SEL.kind === 'block' ? 'Unit' : SEL.kind === 'estream' ? 'Energy stream' : 'Stream') : 'Flowsheet', holder, () => { $('app').append(ins); });
 }
 function openPaletteSheet() {
   const list = el('div', { style: 'padding:8px 12px 20px' });
@@ -10283,7 +11209,7 @@ $('mEdit').addEventListener('click', () => openInspectorSheet());
 $('mRes').addEventListener('click', openResultsSheet);
 $('mEx').addEventListener('click', openExamples);
 function updateMobileBar() {
-  const s = SEL && (SEL.kind === 'block' ? blockById(SEL.id) : streamById(SEL.id));
+  const s = SEL && (SEL.kind === 'block' ? blockById(SEL.id) : SEL.kind === 'estream' ? estreamById(SEL.id) : streamById(SEL.id));
   $('mEdit').textContent = s ? 'Edit ' + s.name : 'Properties';
 }
 
@@ -10551,6 +11477,12 @@ function reportModel(o) {
     });
     B.push({ t: 'table', head: ['Unit', 'Type', 'Duty, kW', 'Power, kW', 'Mass in, kg/h', 'Closure, %', 'T out, ' + PREFS.tu, 'P out, ' + PREFS.pu, 'Conv.', 'Key result'],
       right: [0, 0, 1, 1, 1, 1, 1, 1, 0, 0], w: [1, 1.7, 0.95, 0.95, 1.15, 1, 1, 1.1, 0.8, 2.8], rows });
+    const er = estreamRows();                                        // ROUND 16
+    if (er.length) {
+      B.push({ t: 'h2', text: 'Energy streams' });
+      B.push({ t: 'table', head: ['Energy stream', 'Type', 'From', 'To', 'Energy, kW', 'Fraction delivered'], right: [0, 0, 0, 0, 1, 1], w: [1.1, 1.1, 1.3, 1.3, 1, 1.1],
+        rows: er.map((x) => [x.e.name, x.kind, x.from, x.to === '—' ? 'shown only' : x.to, num(x.kW) ? nfix(x.kW, 1) : '', x.eff === null ? '' : fmt(x.eff, 4)]) });
+    }
   }
   if (has && o.sec.details && U.length) {
     B.push({ t: 'h1', text: 'Unit details' });
@@ -10558,7 +11490,7 @@ function reportModel(o) {
       const br = RES.blocks[b.id], Rr = br && br.result;
       B.push({ t: 'h2', text: b.name + ' — ' + TYPES[b.type].label });
       const sc = specCheck(b);
-      const rows = [['Model', moduleOf(b) + (isRig(b) ? ' · ' + (PKG_LABEL[blockPkg(b)] || blockPkg(b)) : '')]];
+      const rows = [['Model', modelLabel(b)]];
       for (const m of sc.modes) rows.push(m.split(': ').length > 1 ? [m.split(': ')[0], m.split(': ').slice(1).join(': ')] : ['Specification', m]);
       for (const g of sc.given) { const i = g.indexOf(' = '); rows.push([g.slice(0, i), g.slice(i + 3)]); }
       for (const f of fieldsOf(b)) if (TABLE_KINDS.includes(f.kind) && (!f.showIf || f.showIf(b.params))) rows.push([f.label, tableFieldText(b, f)]);
@@ -10689,7 +11621,7 @@ function drawingSVG() {
   const pad = 12;
   const vb = [bb.x0 - pad, bb.y0 - pad, bb.x1 - bb.x0 + 2 * pad, bb.y1 - bb.y0 + 2 * pad];
   const keepSel = SEL; SEL = null; renderCanvas();
-  const css = document.querySelector('style').textContent + '\n.bad,.port .pv,.port .hit{display:none} .port .plbl{opacity:0!important} .blk.sel .selbox{display:none}';
+  const css = document.querySelector('style').textContent + '\n.bad,.port .pv,.port .hit,.eport .hit,.eport:not(.conn) .ev,.freeend{display:none} .port .plbl,.eport .plbl{opacity:0!important} .blk.sel .selbox{display:none}';
   const inner = $('svg').querySelector('defs').outerHTML + lStreams.outerHTML + lBlocks.outerHTML;
   SEL = keepSel; LOD_NEAR = false; renderCanvas();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.map((v) => v.toFixed(1)).join(' ')}" width="${vb[2].toFixed(0)}" height="${vb[3].toFixed(0)}"><style>${css.replace(/<\/style/gi, '')}</style><rect x="${vb[0]}" y="${vb[1]}" width="${vb[2]}" height="${vb[3]}" fill="#fff"/>${inner}</svg>`;
@@ -11003,8 +11935,36 @@ const EXAMPLES = [
     note: 'Steam / water (IAPWS-IF97) method. ST-101 expands 100 t/h of 100 bar / 500 °C steam, passes 20 t/h out at 10 bar and condenses the rest at 0.1 bar; E-101 is the condenser (outlet vapour fraction 0) and P-101 the condensate pump. Open ST-101 for the power of each section, exhaust quality and steam rate. Swap ST-101 for a pump / compressor / turbine block to back-calculate an efficiency from a measured exhaust temperature (Known value → Outlet temperature).',
   },
   {
+    id: 'turbine-drive', label: 'Steam-turbine-driven compressor with heat recovery (energy streams)',
+    desc: 'Turbine power → syngas compressor (W1) · aftercooler heat → boiler feed water (Q1)',
+    model: {
+      pkg: { model: 'pr' },
+      blocks: [
+        { id: 'b1', name: 'ST-1', type: 'rotating', x: 180, y: 110, nIn: 1, nOut: 1, params: { machine: 'turbine', P_out_bar: 4, mspec: 'efficiency', efficiency: 0.75, mode: 'isentropic', pkg: 'steam' }, pu: {} },
+        { id: 'b2', name: 'K-1', type: 'rotating', x: 420, y: 300, nIn: 1, nOut: 1, params: { machine: 'compressor', perf: 'point', P_out_bar: 60, mspec: 'power', efficiency: 0.78, mode: 'isentropic' }, pu: {} },
+        { id: 'b3', name: 'E-1', type: 'heater', x: 600, y: 302, nIn: 1, nOut: 1, params: { spec: 'T', T_out_K: 313.15 }, pu: {} },
+        { id: 'b4', name: 'E-2', type: 'heater', x: 600, y: 500, nIn: 1, nOut: 1, params: { spec: 'Q', pkg: 'steam' }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'HP STEAM', from: null, to: { b: 'b1', p: 0 }, spec: sp(400, '°C', 40, 'bar(a)', 20000, 'kg/h', 'mole%', { H2O: 100 }) },
+        { id: 's2', name: 'LP STEAM', from: { b: 'b1', p: 0 }, to: null },
+        { id: 's3', name: 'SYNGAS', from: null, to: { b: 'b2', p: 0 }, spec: sp(40, '°C', 25, 'bar(a)', 2350, 'kmol/h', 'mole%', { H2: 74, N2: 25, CH4: 1 }) },
+        { id: 's4', name: 'S4', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's5', name: 'HP SYNGAS', from: { b: 'b3', p: 0 }, to: null },
+        { id: 's6', name: 'BFW', from: null, to: { b: 'b4', p: 0 }, spec: sp(105, '°C', 45, 'bar(a)', 15000, 'kg/h', 'mole%', { H2O: 100 }) },
+        { id: 's7', name: 'HOT BFW', from: { b: 'b4', p: 0 }, to: null },
+      ],
+      estreams: [
+        { id: 'e1', name: 'W1', from: 'b1', to: 'b2', eff: 0.98 },
+        { id: 'e2', name: 'Q1', from: 'b3', to: 'b4' },
+      ],
+      seq: { b: 4, s: 7, e: 2 },
+    },
+    note: 'Energy streams. ST-1 expands 20 t/h of 40 bar / 400 °C steam to 4 bar on the Steam / water (IAPWS-IF97) method; its shaft power, less 2 % mechanical loss, drives the syngas compressor K-1 through energy stream W1 — K-1 is set to “Shaft power”, so its discharge temperature and isentropic efficiency follow from the power it receives. The heat the aftercooler E-1 removes reaches the boiler feed water in E-2 through energy stream Q1, which sets E-2’s duty. Change the steam flow and watch the compressor efficiency: a design spec on it (varying the steam flow) matches the turbine to the compressor. Drag from any unit’s ◆ energy port to make energy streams of your own.',
+  },
+  {
     id: 'knockout', label: 'Gas cooling & condensate knock-out',
-    desc: 'Mixer → cooler → flash drum · good first example',
+    desc: 'Mixer → cooler → flash drum on Peng–Robinson · good first example',
     model: {
       blocks: [
         { id: 'b1', name: 'M1', type: 'mixer', x: 200, y: 170, nIn: 2, nOut: 1, params: { mode: 'adiabatic' }, pu: {} },
@@ -11019,6 +11979,7 @@ const EXAMPLES = [
         { id: 's5', name: 'GAS', from: { b: 'b3', p: 0 }, to: null },
         { id: 's6', name: 'COND', from: { b: 'b3', p: 1 }, to: null },
       ],
+      pkg: { model: 'pr' },   // ROUND 14b: one phase calculation through every unit (classic heaters put each component wholly in one phase)
       seq: { b: 3, s: 6 },
     },
   },
@@ -11086,6 +12047,7 @@ const EXAMPLES = [
         { id: 's8', name: 'RCY', from: { b: 'b5', p: 0 }, to: { b: 'b1', p: 2 } },
         { id: 's9', name: 'PURGE', from: { b: 'b5', p: 1 }, to: null },
       ],
+      pkg: { model: 'pr' },   // ROUND 14b: one phase calculation through every unit (classic heaters put each component wholly in one phase)
       seq: { b: 5, s: 9 },
     },
     note: 'Half the condensate is recycled to the mixer. RCY is the tear stream; the solver converges it in a handful of iterations.',
@@ -11095,9 +12057,9 @@ const EXAMPLES = [
     desc: 'PR flash predicts dissolved H₂/N₂ and the let-down gas',
     model: {
       blocks: [
-        { id: 'b1', name: 'SEP', type: 'flash', x: 260, y: 150, nIn: 1, nOut: 2, params: { T_K: 253.15, P_bar: 140, model: 'pr' }, pu: {} },
+        { id: 'b1', name: 'SEP', type: 'flash', x: 260, y: 150, nIn: 1, nOut: 2, params: { T_K: 253.15, P_bar: 140 }, pu: {} },
         { id: 'b2', name: 'LV', type: 'valve', x: 420, y: 330, nIn: 1, nOut: 1, params: { pspec: 'P', P_out_bar: 20 }, pu: {} },
-        { id: 'b3', name: 'LDD', type: 'flash', x: 580, y: 290, nIn: 1, nOut: 2, params: { T_K: 253.15, P_bar: 20, model: 'pr' }, pu: {} },
+        { id: 'b3', name: 'LDD', type: 'flash', x: 580, y: 290, nIn: 1, nOut: 2, params: { T_K: 253.15, P_bar: 20 }, pu: {} },
       ],
       streams: [
         { id: 's1', name: 'LOOP GAS', from: null, to: { b: 'b1', p: 0 }, spec: sp(-20, '°C', 140, 'bar(a)', 1000, 'kmol/h', 'mole%', { H2: 60, N2: 20, NH3: 17, CH4: 2, Ar: 1 }) },
@@ -11107,9 +12069,10 @@ const EXAMPLES = [
         { id: 's5', name: 'LETDOWN GAS', from: { b: 'b3', p: 0 }, to: null },
         { id: 's6', name: 'NH3 PRODUCT', from: { b: 'b3', p: 1 }, to: null },
       ],
+      pkg: { model: 'pr' },   // ROUND 14b: one phase calculation through every unit (classic heaters put each component wholly in one phase)
       seq: { b: 3, s: 6 },
     },
-    note: 'Both drums use the Peng–Robinson model — switch SEP to “Ideal — Raoult” and re-run to see dissolved gases and let-down gas disappear.',
+    note: 'Both drums use Peng–Robinson — set SEP’s property method to Ideal (unit panel → Property method) and re-run to see the dissolved gases and the let-down gas disappear.',
   },
   {
     id: 'bt-column', label: 'Benzene / toluene column (rigorous, Peng–Robinson)',
@@ -11631,7 +12594,7 @@ const EX_GROUP_OF = {
   knockout: 'gas', 'gas-dewpoint': 'gas', 'three-phase': 'gas',
   'sour-water-stripper': 'ref', 'ethane-cracker': 'ref', 'bt-column': 'ref',
   'meoh-water': 'chem', 'eo-glycol': 'chem', 'etoac-cstr': 'chem',
-  'steam-turbine': 'util', 'seawater-evaporator': 'util',
+  'steam-turbine': 'util', 'seawater-evaporator': 'util', 'turbine-drive': 'util',
 };
 const EX_FIRST = 'knockout';
 const exGroup = (x) => EX_GROUP_OF[x.id] || 'chem';
@@ -11696,6 +12659,8 @@ function renderStart() {
         el('b', null, 'New flowsheet'), el('span', null, 'Guided setup: components → property method → units')),
       el('button', { class: 'act', type: 'button', onclick: () => $('fileIn').click() },
         el('b', null, 'Open a file'), el('span', null, 'A .json flowsheet saved from this page')),
+      el('button', { class: 'act', type: 'button', onclick: openPropsCalc },
+        el('b', null, 'Stream properties'), el('span', null, 'Composition, T, P and a method → property table')),
       el('a', { class: 'act', href: '/flowsheet-user-guide', target: '_blank', rel: 'noopener' },
         el('b', null, 'User guide'), el('span', null, 'Step-by-step guide and method selection'))),
     el('div', { class: 'howto' }, phone
