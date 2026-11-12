@@ -1414,6 +1414,7 @@ function propertyInfo(inp) {
     const c = compdb.get(k) || {};
     return { key: k, name: c.name || k, formula: c.formula || null, cas: c.cas || null, mw: r4(c.mw), Tc_K: r4(c.tc), Pc_bar: r4(c.pc / 1e5),
       omega: r4(c.w), Tb_K: r4(c.tb), Hf_kJmol: r4(c.hf / 1e6), unifac: !!c.unifac, modunifac: !!c.modunifac,
+      unifac_ll: !!th.unifacGroups('unifac-ll', th.component(k)), nist_unifac: !!th.unifacGroups('nist-modunifac', th.component(k)),   // ROUND 12d
       uniquac_rq: num(c.uqr) && num(c.uqq), category: c.cat || null,
       // ROUND 12: where each value of an extended-databank component comes from
       data: c.ext ? 'literature' : c.user ? 'user' : c.pseudo ? 'pseudo' : 'ChemSep',

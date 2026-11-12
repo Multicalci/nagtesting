@@ -1261,8 +1261,22 @@ function makeMDEA(n, idx, deps) {
       return o;
     },
     volume(T, xs) { return vol(T, xs); },
-    /** no viscosity correlation for loaded MDEA in the sources used — reported as unavailable, not guessed */
-    viscosity() { return NaN; },
+    /**
+     * ROUND 12d: liquid viscosity [Pa s] — the Weiland et al. (J. Chem. Eng. Data 43 (1998) 378) form,
+     *   ln(μ/μ_w) = W[(aW + b)T + (cW + d)][1 + α(fT + g)]/T²,  W = mass % amine (CO2-free), α = mol CO2/mol amine,
+     * with a–d fitted here to the aqueous MDEA viscosities of Arachchige et al. (2013; 10–60 mass %, 20–80 °C; AARD
+     * 1.4 %) and f, g to the loaded 45 mass % MDEA data of Fluid Phase Equilib. (2015), DOI
+     * 10.1016/j.fluid.2015.06.034 (30–90 °C, α ≤ 0.85; AARD 3.9 % on μ(α)/μ(0)). Piperazine is counted as
+     * MDEA by mass (an estimate for activated MDEA).
+     */
+    viscosity(T, xs) {
+      const massW = xs.w * 18.01528, massA = xs.a * 119.1622, massP = hasPZ ? xs.p * 86.1356 : 0;
+      const W = 100 * (massA + massP) / Math.max(massA + massW + massP, 1e-30);
+      const am = xs.a + (hasPZ ? xs.p : 0), alpha = am > 1e-12 ? Math.min(xs.g / am, 1) : 0;
+      const muW = 1.002e-3 * Math.pow(10, 1.3272 * (293.15 - T - 0.001053 * (T - 293.15) * (T - 293.15)) / (T - 168.15));
+      const [a, b, c, d, f, g] = [-0.240972, 4.61846, 94.866, 1635.58, 0.00447859, -1.035];
+      return muW * Math.exp(W * ((a * W + b) * T + (c * W + d)) * (1 + alpha * (f * T + g)) / (T * T));
+    },
     report(T, xs) {
       const c = core(T, xs.w, xs.a, xs.g, xs.p), sp = c.sp;
       const SP = hasPZ ? AM_SP : EUQ_SP, ZZ = hasPZ ? AM_Z : EUQ_Z;
@@ -1279,6 +1293,9 @@ function makeMDEA(n, idx, deps) {
         density_kg_m3: (xs.w * 18.01528 + xs.a * 119.1622 + xs.g * 44.0095 + massP) / 1000 / vol(T, xs),
         speciation_converged: sp.ok,
       };
+      // ROUND 12d: pH from the H+ molality of the speciation (activity coefficient taken as 1)
+      const iH = SP.indexOf('H+');
+      if (iH >= 0 && sp.n[iH] > 0 && sp.n[0] > 0) { r.pH = -Math.log10(sp.n[iH] / (sp.n[0] * EUQ_MW)); r.pH_scale = 'molality'; }
       if (hasPZ) {
         const pz = sp.n.slice(8, 13), tot = pz.reduce((s, v) => s + v, 0);
         r.piperazine_wt_pct_CO2_free = 100 * massP / (massA + massW + massP);

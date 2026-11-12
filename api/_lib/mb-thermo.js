@@ -46,8 +46,9 @@ import gerg from './mb-gerg.js';                // ROUND 12b — GERG-2008 (NIST
 import helm from './mb-helmholtz.js';           // ROUND 12b — reference equations of state of pure fluids
 import prsv2 from './mb-prsv2.js';              // ROUND 12c — PRSV2 κ1, κ2, κ3 fitted to the databank vapour pressures
 import lkpKij from './mb-lkp-kij.js';                       // ROUND 12c: LKP binary parameters
+import unifac2 from './mb-unifac2.js';                     // ROUND 12d: UNIFAC-LL and NIST-modified UNIFAC
 
-export const THERMO_VERSION = 'mb-thermo 1.9.0';
+export const THERMO_VERSION = 'mb-thermo 1.10.0';
 // STEP 32: calibrated / sourced binary parameters that fill gaps in the ChemSep tables
 export const BIP_EXTRA_USED = bipExtra.applyExtra(bip);
 
@@ -1170,21 +1171,52 @@ function makeWilson(keys, comps, user, warnings, fill) {
 }
 
 /**
- * UNIFAC — original (VLE, Hansen 1991) or modified Dortmund (Gmehling 2016).
- * Components without a group assignment (light gases, NH3, …) keep their
- * UNIQUAC r, q in the combinatorial term and contribute no groups (ideal
- * residual) — a warning names them.
+ * UNIFAC — original (VLE, Hansen 1991), modified Dortmund (Gmehling 2016), UNIFAC-LL (Magnussen et al. 1981,
+ * fitted to liquid–liquid equilibria; original form) or NIST-modified UNIFAC (Kang et al. 2015; Dortmund form).
+ * Components without a group assignment (light gases, NH3, …) keep their UNIQUAC r, q in the combinatorial
+ * term and contribute no groups (ideal residual) — a warning names them.
  */
-function makeUNIFAC(keys, comps, dortmund, warnings) {
+const UF_VARIANT = {
+  unifac: { label: 'UNIFAC', tdep: false, r34: false },
+  modunifac: { label: 'Dortmund UNIFAC', tdep: true, r34: true },
+  'unifac-ll': { label: 'UNIFAC-LL', tdep: false, r34: false },
+  'nist-modunifac': { label: 'NIST modified UNIFAC', tdep: true, r34: true },
+};
+/** ROUND 12d: a component's subgroups for a UNIFAC variant (databank assignment, else mapped from UNIFAC / Dortmund) */
+function mapGroups(assign, table) {
+  if (!assign) return null;
+  const out = {};
+  for (const [s, n] of Object.entries(assign)) {
+    const t = table[s];
+    if (t === undefined || t === null) return null;
+    if (typeof t === 'object') for (const [q, m] of Object.entries(t)) out[q] = (out[q] || 0) + m * n;
+    else out[t] = (out[t] || 0) + n;
+  }
+  return out;
+}
+export function unifacGroups(variant, c) {
+  if (!c) return null;
+  if (variant === 'unifac' || variant === 'modunifac') return c[variant] || null;
+  if (variant === 'unifac-ll') return c.unifac_ll || (!c.user && unifac2.LLE_ASSIGN[c.key]) || mapGroups(c.unifac, unifac2.U2LLE);
+  return c.nist_unifac || (!c.user && unifac2.NIST_ASSIGN[c.key]) || mapGroups(c.modunifac, unifac2.D2NIST);
+}
+function makeUNIFAC(keys, comps, variant, warnings) {
   const n = keys.length;
-  const field = dortmund ? 'modunifac' : 'unifac';
+  if (variant === true) variant = 'modunifac'; else if (variant === false) variant = 'unifac';
+  const V = UF_VARIANT[variant], dortmund = V.tdep;
   // STEP 37: the complete subgroup / interaction tables (user components may carry any subgroup)
-  const SUB = dortmund ? UF_ALL.DSUB : UF_ALL.USUB;
-  const AMN = dortmund ? UF_ALL.DA : UF_ALL.UA;
-  const grouped = comps.map((c) => !!c[field]);
+  const SUB = variant === 'modunifac' ? UF_ALL.DSUB : variant === 'unifac' ? UF_ALL.USUB : variant === 'unifac-ll' ? unifac2.LLE_SUB : unifac2.NIST_SUB;
+  const AMN = variant === 'modunifac' ? UF_ALL.DA : variant === 'unifac' ? UF_ALL.UA : variant === 'unifac-ll' ? unifac2.LLE_A : unifac2.NIST_A;
+  const GR = comps.map((c) => {
+    const g = unifacGroups(variant, c);
+    return g && Object.keys(g).every((s) => SUB[s]) ? g : null;
+  });
+  const grouped = GR.map((g) => !!g);
   const ung = keys.filter((k, i) => !grouped[i]);
-  if (ung.length === n) fail('TH_UNIFAC_GROUPS', `${dortmund ? 'Dortmund UNIFAC' : 'UNIFAC'} group assignment not available for any of: ${keys.join(', ')}`);
-  if (ung.length) warnings.push(`${dortmund ? 'Dortmund UNIFAC' : 'UNIFAC'}: no group assignment for ${ung.join(', ')} — combinatorial term only (residual treated as ideal)`);
+  if (ung.length === n) fail('TH_UNIFAC_GROUPS', `${V.label} group assignment not available for any of: ${keys.join(', ')}`);
+  if (ung.length) warnings.push(`${V.label}: no group assignment for ${ung.join(', ')} — combinatorial term only (residual treated as ideal)`);
+  const field = '_g';
+  comps = comps.map((c, i) => ({ uqr: c.uqr, uqq: c.uqq, _g: GR[i] }));
   const subs = [...new Set(comps.flatMap((c) => (c[field] ? Object.keys(c[field]).map(Number) : [])))];
   const G = subs.length;
   const Rk = subs.map((s) => SUB[s][1]), Qk = subs.map((s) => SUB[s][2]);
@@ -1203,7 +1235,7 @@ function makeUNIFAC(keys, comps, dortmund, warnings) {
       if (v === undefined) { missingPairs.add(Math.min(main[k], main[m]) + '/' + Math.max(main[k], main[m])); amn[k][m] = dortmund ? [0, 0, 0] : 0; } else amn[k][m] = v;
     }
   }
-  if (missingPairs.size) warnings.push(`${dortmund ? 'Dortmund UNIFAC' : 'UNIFAC'}: no interaction parameters for main groups ${[...missingPairs].join(', ')} — treated as 0`);
+  if (missingPairs.size) warnings.push(`${V.label}: no interaction parameters for main groups ${[...missingPairs].join(', ')} — treated as 0`);
   const psiAt = (T) => amn.map((row) => row.map((a) => (dortmund ? Math.exp(-(a[0] + a[1] * T + a[2] * T * T) / T) : Math.exp(-a / T))));
   const lnGammaGroups = (psi, X) => {
     let sQX = 0; for (let k = 0; k < G; k++) sQX += Qk[k] * X[k];
@@ -1235,9 +1267,9 @@ function makeUNIFAC(keys, comps, dortmund, warnings) {
       for (let i = 0; i < n; i++) { sr += x[i] * r[i]; sq += x[i] * q[i]; sr34 += x[i] * r34[i]; }
       const out = new Array(n);
       for (let i = 0; i < n; i++) {
-        const V = r[i] / sr, F = q[i] / sq;
-        const Vp = dortmund ? r34[i] / sr34 : V;
-        const comb = 1 - Vp + Math.log(Vp) - 5 * q[i] * (1 - V / F + Math.log(V / F));
+        const Vv = r[i] / sr, F = q[i] / sq;
+        const Vp = V.r34 ? r34[i] / sr34 : Vv;
+        const comb = 1 - Vp + Math.log(Vp) - 5 * q[i] * (1 - Vv / F + Math.log(Vv / F));
         let res = 0;
         if (grouped[i] && lgm) for (let k = 0; k < G; k++) if (nu[i][k]) res += nu[i][k] * (lgm[k] - pureLn[i][k]);
         out[i] = comb + res;
@@ -1386,6 +1418,8 @@ export const PACKAGES = {
   wilson: 'Wilson (γ–φ)',
   unifac: 'UNIFAC (predictive γ–φ)',
   modunifac: 'Modified UNIFAC — Dortmund (predictive γ–φ)',
+  'unifac-ll': 'UNIFAC-LL — liquid–liquid parameters (predictive γ–φ)',          // ROUND 12d
+  'nist-modunifac': 'Modified UNIFAC — NIST (predictive γ–φ)',
   steam: 'Steam / water (IAPWS-IF97)',
   gerg2008: 'GERG-2008 (natural gas, 21 components)',
   reference: 'Reference equation of state (pure fluid)',
@@ -1528,7 +1562,7 @@ export function createPackage(spec, keys) {
   if (model === 'nrtl') act = makeNRTL(keys, s.nrtl, warnings, comps, fill);
   else if (model === 'uniquac') act = makeUNIQUAC(keys, comps, s.uniquac, warnings, fill);
   else if (model === 'wilson') act = makeWilson(keys, comps, s.wilson, warnings, fill);
-  else if (model === 'unifac' || model === 'modunifac') act = makeUNIFAC(keys, comps, model === 'modunifac', warnings);
+  else if (model === 'unifac' || model === 'modunifac' || model === 'unifac-ll' || model === 'nist-modunifac') act = makeUNIFAC(keys, comps, model, warnings);
   if (isLKP || isCSGS) {                                                      // ROUND 12c: corresponding states / regular solution
     const polar = keys.filter((k, i) => num(comps[i].dip) && comps[i].dip > 4.3e-30);     // dipole moment above 1.3 D
     if (polar.length) warnings.push(`${PACKAGES[model]}: ${polar.join(', ')} — strongly polar, outside the basis of this method (meant for hydrocarbons and light gases); ` +
@@ -2074,7 +2108,7 @@ export function createPackage(spec, keys) {
   // that can condense (Tc > 360 K, i.e. propane and heavier) — free water
   const hcLiquid = comps.some((c, i) => keys[i] !== 'H2O' && c.cat === 'hydrocarbon' && c.Tc > 360);
   const gSat = [];
-  const threePhase = !elec && (s.three_phase === true || ((s.three_phase === undefined || s.three_phase === 'auto') && isEOS && keys.includes('H2O') && hcLiquid));
+  const threePhase = !elec && (s.three_phase === true || ((s.three_phase === undefined || s.three_phase === 'auto') && ((isEOS && keys.includes('H2O') && hcLiquid) || model === 'unifac-ll')));   // ROUND 12d: UNIFAC-LL is for two liquids
   return {
     model, label: PACKAGES[model], keys, comps, n, isEOS, vapourModel, warnings, kijUsed, threePhase,
     henryKeys: keys.filter((k, i) => henry[i]), poynting, excessEnthalpy: excessH, liquidVolumeMethod: liqVol, volumeTranslation: !!eos && s.volume_translation !== false && keys.some((k) => VT_C[vapourModel] && num(VT_C[vapourModel][k])),
@@ -3971,6 +4005,6 @@ export default {
   THERMO_VERSION, PACKAGES, ThermoError, R, T0, P0,
   corr, component, hIG, sIG, psat, hvap, vLiq, satT,
   createPackage, rachfordRice, rachfordRice3, flashPT, flashPT3, flashPH, flashPH3, flashPS, flashPS3, flashPVF, flashPVF3, flashTVF,
-  hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED, BIP_SRK: bipSRK,
+  hOf, sOf, properties, lnKhG704, BIP_EXTRA_USED, BIP_SRK: bipSRK, unifacGroups,
   pureMuL, pureMuV, pureKV, pureKL, pureSigma, fitPairFromUNIFAC, liquidSplit, lkpKijTable,
 };

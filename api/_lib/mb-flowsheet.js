@@ -92,7 +92,7 @@ import calc from './mb-calc.js';                // STEP 34 — calculator blocks
 import econ from './mb-econ.js';                // STEP 36 — equipment and utility costs
 import optim from './mb-optim.js';              // STEP 36 — bounded minimisers (generators)
 
-const FS_VERSION = 'mb-flowsheet 1.7.0';
+const FS_VERSION = 'mb-flowsheet 1.8.0';
 // STEP 36: optimisation (objective, bounded decision variables, inequality constraints)
 const FS_MAX_OPT_VARS = 6, FS_MAX_OPT_CONS = 8, FS_MAX_OPT_EVALS = 300;
 const ECON_METRICS = ['total_annual_cost_y', 'grassroots', 'total_module', 'bare_module', 'utility_cost_y', 'annualised_capital_y'];
@@ -100,8 +100,8 @@ const ECON_METRICS = ['total_annual_cost_y', 'grassroots', 'total_module', 'bare
 // unchanged; big flowsheets continue over further calls with the resume token
 const FS_MAX_SENS_POINTS = 60;
 const FS_MAX_SENS_OUT = 16;
-const FS_MAX_BLOCKS = 150;
-const FS_MAX_STREAMS = 400;
+const FS_MAX_BLOCKS = 400;      // ROUND 14: whole-complex flowsheets (was 150 units / 400 streams)
+const FS_MAX_STREAMS = 1000;
 const FS_MAX_SPECS = 10;
 const FS_MAX_CALCS = 20;
 const VARY_KINDS = ['feed_flow', 'feed_T', 'feed_P', 'param', 'split'];
@@ -348,7 +348,7 @@ function validate(input) {
   if (sens) for (const t of sens.outputs) if (t.economics !== undefined) { const m = checkTarget(t, 'params.sensitivity.outputs'); if (m) return fail('MB_FS_SENS', m, 'params.sensitivity'); }
   const o = Object.assign({}, FS_DEF, isObj(p.options) ? p.options : {});
   for (const k of Object.keys(FS_DEF)) if (!num(o[k]) || o[k] <= 0) o[k] = FS_DEF[k];
-  o.budget_ms = Math.min(o.budget_ms, 8500);                 // Vercel limit (10 s) — larger flowsheets continue over further calls
+  o.budget_ms = Math.min(o.budget_ms, 50000);                // ROUND 14: vercel.json gives this function 60 s (default stays 7.5 s; the page asks for 25 s) — larger flowsheets continue over further calls
   o.accelerator = (isObj(p.options) && p.options.accelerator === 'wegstein') ? 'wegstein' : 'broyden';
   o.max_iter = Math.min(Math.round(o.max_iter), 500);
   o.spec_max_iter = Math.min(Math.round(o.spec_max_iter), 60);
@@ -647,6 +647,12 @@ function broydenStep(st, x, g) {
 // STEP 30 per-request warm context: block-result cache, column profiles, last tear values
 const NO_CACHE = new Set(['r-pfr', 'r-cstr']);
 const CACHE_MAX = 600;            // entries (FIFO) — a few MB at most
+// ROUND 14: converged unit solves are also kept between calls on the same server instance (LRU, copies in and out),
+// so a flowsheet too large for one call re-runs its finished part from here in the next call instead of solving it again.
+// The key holds the unit id, its inlet streams and every parameter, property package included — a hit is the same calculation.
+const SHARED = new Map(), SHARED_MAX = 1500;
+const sharedGet = (k) => { const v = SHARED.get(k); if (v === undefined) return undefined; SHARED.delete(k); SHARED.set(k, v); return structuredClone(v); };
+const sharedSet = (k, v) => { if (SHARED.size >= SHARED_MAX) SHARED.delete(SHARED.keys().next().value); SHARED.set(k, structuredClone(v)); };
 function newWarm() { return { cache: new Map(), col: {}, tear: {}, bro: {}, hits: 0, warmCols: 0, specX: null, solves: 0, loopTot: {}, firstHist: {}, evals: 0, hist: null, histBase: null }; }
 // STEP 35: convergence history of a recycle loop — one entry per pass, kept to HIST_MAX entries
 // (the first HIST_HEAD and the latest ones) so a long run stays small in the reply and the token
@@ -776,12 +782,16 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
     // request (blocks outside the loop being iterated, re-evaluations at the same point)
     // reuses that result instead of solving again
     const cacheable = !NO_CACHE.has(b.module);
-    const ck = cacheable ? bid + '\u0001' + JSON.stringify(ins) + '\u0001' + JSON.stringify(params) : null;
+    const key = bid + '\u0001' + JSON.stringify(ins) + '\u0001' + JSON.stringify(params);
+    const ck = cacheable ? key : null;
     let r = ck ? wc.cache.get(ck) : undefined;
+    if (r === undefined) { r = sharedGet(key); if (r !== undefined && ck) wc.cache.set(ck, r); }   // ROUND 14: also completed kinetic reactors
     if (r) wc.hits++;
     else {
       // integrating units get what is left of the flowsheet's time budget (Vercel limit)
-      if (b.module === 'r-pfr' || b.module === 'r-cstr') params.budget_ms = Math.max(200, Math.min(num(params.budget_ms) ? params.budget_ms : 5000, deadline - Date.now()));
+      const integ = b.module === 'r-pfr' || b.module === 'r-cstr';
+      let cut = false;
+      if (integ) { const want = num(params.budget_ms) ? params.budget_ms : 5000; params.budget_ms = Math.max(200, Math.min(want, deadline - Date.now())); cut = params.budget_ms < want; }
       // rigorous columns: warm start from this column's last converged profile, and never past the budget
       const isCol = b.module === 'column' || b.module === 'r-urea-stripper';
       if (isCol) {
@@ -791,6 +801,8 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
       }
       r = TB.runModule(b.module, { streams: ins, params });
       solves++; wc.solves++;
+      // ROUND 14: a reactor stopped only because the call's time was nearly used up — continue in the next call
+      if (integ && cut && r && r.error && /BUDGET/.test(r.error.code || '')) throw new FsError('MB_FS_BUDGET', `flowsheet exceeded the server time budget (in ${label(b)})`, 'params.options');
       if (isCol && r && !r.error) {
         if (r.warm_state) wc.col[bid] = r.warm_state;
         r = Object.assign({}, r);
@@ -798,9 +810,12 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
         // a column cut short by the time budget: stop here so the next call continues from its profile
         if (r.converged === false && Date.now() > deadline - 150) throw new FsError('MB_FS_BUDGET', `flowsheet exceeded the server time budget (in ${label(b)})`, 'params.options');
       }
-      if (ck && r && !r.error && r.converged !== false) {
-        if (wc.cache.size >= CACHE_MAX) wc.cache.delete(wc.cache.keys().next().value);
-        wc.cache.set(ck, r);
+      if (r && !r.error && r.converged !== false) {
+        if (ck) {
+          if (wc.cache.size >= CACHE_MAX) wc.cache.delete(wc.cache.keys().next().value);
+          wc.cache.set(ck, r);
+        }
+        sharedSet(key, r);
       }
     }
     if (r.error) throw new FsError(r.error.code, `${label(b)} (${b.module}): ${r.error.message}`, r.error.field);

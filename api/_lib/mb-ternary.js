@@ -34,7 +34,7 @@ export const TERNARY_VERSION = 'mb-ternary 1.0.0';
 const num = (x) => typeof x === 'number' && isFinite(x);
 const fail = (code, msg, field) => { throw new units.UnitError(code, msg, field); };
 const r6 = (x) => (num(x) ? Number(x.toPrecision(7)) : null);
-const LL_MODELS = new Set(['nrtl', 'uniquac', 'unifac', 'modunifac']);
+const LL_MODELS = new Set(['nrtl', 'uniquac', 'unifac', 'modunifac', 'unifac-ll', 'nist-modunifac']);
 
 /**
  * Bubble point of a liquid at pressure P that splits into two liquids where it must.
