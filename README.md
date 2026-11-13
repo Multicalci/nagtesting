@@ -153,10 +153,10 @@ Pressure-temperature class lookup. Select flange class and material group, enter
 
 ---
 
-### Material & Energy Balance *(Beta)*
-**URL:** https://www.multicalci.com/material-balance
+### Flowsheet Simulator *(Beta)*
+**URL:** https://www.multicalci.com/flowsheet-simulator
 
-Flowsheet mass and energy balances across mixer, splitter, flash drum, heat exchanger, pump/compressor/turbine and conversion reactor unit operations. NIST-based enthalpies on a formation basis, IAPWS-IF97 steam properties, chainable units.
+Drag-and-drop process simulation: separators, heat exchangers, rotating equipment, valves, conversion, Gibbs and kinetic reactors, and rigorous distillation and absorption columns. Peng–Robinson, SRK, NRTL, UNIQUAC and UNIFAC property methods, IAPWS-IF97 steam, recycle loops and design specs, with Excel and Word/PDF reports.
 
 ---
 
