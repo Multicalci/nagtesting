@@ -2371,5 +2371,57 @@ function resetVsQuiz() {
   buildVsQuiz();
 }
 </script>
+<script>
+/* Prefill from the flowsheet simulator (#mb=…): a flash drum or three-phase separator
+   sends its vapour and liquid loads at the drum conditions (actual m³/h and densities;
+   oil viscosity for three phases). A two-phase drum fills both the horizontal and the
+   vertical separator and opens the suggested one. Everything stays editable. */
+(function () {
+  var m = location.hash.match(/#mb=([^&]+)/); if (!m) return;
+  var d = null;
+  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return; }
+  var ok = function (x) { return typeof x === 'number' && isFinite(x); };
+  if (!d || (d.kind !== '2p' && d.kind !== '3p') || !ok(d.P_bar) || !ok(d.Qg_m3_h) || !ok(d.rhog)) return;
+  var $ = function (id) { return document.getElementById(id); };
+  function set(id, v, dig) { var e = $(id); if (e && ok(v)) e.value = String(+v.toPrecision(dig || 6)); }
+  function pick(id, v) { var e = $(id); if (e) e.value = v; }
+  function note(slide, text) {
+    var s = document.querySelectorAll('.slide')[slide]; if (!s) return;
+    var t = s.querySelector('.slide-title'); if (!t || s.querySelector('.mb-note')) return;
+    var n = document.createElement('div');
+    n.className = 'mb-note';
+    n.setAttribute('role', 'status');
+    n.style.cssText = 'margin:0 0 12px;padding:9px 12px;border-radius:6px;background:#eef4ff;border:1px solid #9db8ee;color:#12305f;font-size:.82rem;line-height:1.45';
+    n.textContent = text;
+    t.parentNode.insertBefore(n, t.nextSibling);
+  }
+  var r = function (x, n) { return +x.toPrecision(n || 4); };
+  var from = 'Loads from the flowsheet' + (d.name ? ' (' + String(d.name).slice(0, 40) + ')' : '') + ' at ' + r(d.P_bar) + ' bar a' + (ok(d.T_C) ? ' and ' + r(d.T_C) + ' °C' : '') + ': gas ' + r(d.Qg_m3_h, 5) + ' m³/h at ' + r(d.rhog) + ' kg/m³';
+  var tail = ' Retention time, surge factor, K-factor and the other design choices are this page’s defaults — set your own.';
+  function apply() {
+    if (d.kind === '2p') {
+      ['h2p', 'v2p'].forEach(function (p) {
+        set(p + '-qg', d.Qg_m3_h, 6); pick(p + '-qg-u', 'm3h'); set(p + '-ql', d.Ql_m3_h, 6); pick(p + '-ql-u', 'm3h');
+        set(p + '-P', d.P_bar, 5); pick(p + '-Pu', 'bara'); set(p + '-T', d.T_C, 5); pick(p + '-Tu', 'C');
+        set(p + '-rhog', d.rhog, 5); pick(p + '-rhou-g', 'kgm3'); set(p + '-rhol', d.rhol, 5); pick(p + '-rhou-l', 'kgm3');
+      });
+      var txt = from + ', liquid ' + r(d.Ql_m3_h, 5) + ' m³/h at ' + r(d.rhol) + ' kg/m³. Both the horizontal and the vertical separator are filled.' + tail;
+      note(0, txt); note(1, txt);
+      goTo(d.orient === 'v' ? 1 : 0);
+      if (typeof calcH2P === 'function') calcH2P(document.querySelector('.calc-btn[onclick^="calcH2P"]'));
+      if (typeof calcV2P === 'function') calcV2P(document.querySelector('.calc-btn[onclick^="calcV2P"]'));
+    } else {
+      set('p3-qg', d.Qg_m3_h, 6); pick('p3-qg-u', 'm3h'); set('p3-qo', d.Qo_m3_h, 6); pick('p3-qo-u', 'm3h'); set('p3-qw', d.Qw_m3_h, 6); pick('p3-qw-u', 'm3h');
+      set('p3-rhog', d.rhog, 5); pick('p3-rhou-g', 'kgm3'); set('p3-rhoo', d.rhoo, 5); pick('p3-rhou-o', 'kgm3'); set('p3-rhow', d.rhow, 5); pick('p3-rhou-w', 'kgm3');
+      set('p3-P', d.P_bar, 5); pick('p3-Pu', 'bara'); set('p3-mu', d.mu_cP, 4);
+      note(2, from + ', light liquid ' + r(d.Qo_m3_h, 5) + ' m³/h at ' + r(d.rhoo) + ' kg/m³ (viscosity ' + r(d.mu_cP) + ' cP), heavy liquid ' + r(d.Qw_m3_h, 5) + ' m³/h at ' + r(d.rhow) + ' kg/m³.' + tail);
+      goTo(2);
+      if (typeof calc3P === 'function') calc3P(document.querySelector('.calc-btn[onclick^="calc3P"]'));
+    }
+  }
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', function () { setTimeout(apply, 60); });
+  else setTimeout(apply, 60);
+})();
+</script>
 </body>
 </html>
