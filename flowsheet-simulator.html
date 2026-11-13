@@ -608,7 +608,7 @@ table.st.hlp th,table.st.spc th{text-align:left}
 /* toasts */
 #toasts{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:120;display:flex;flex-direction:column;gap:8px;width:min(460px,92vw);pointer-events:none}
 .toast{pointer-events:auto;border-radius:10px;padding:9px 14px;font-size:13px;background:#0d1726;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.25);animation:tin .18s ease-out}
-.toast.err{background:#8f1222} .toast.ok{background:#11592e}
+.toast.err{background:#8f1222} .toast.ok{background:#11592e} .toast.warn{background:#7a4b00}
 @keyframes tin{from{opacity:0;transform:translateY(6px)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .seo{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -918,7 +918,7 @@ function toast(msg, kind) {
   const host = $('toasts');
   while (host.children.length >= (window.innerWidth < 900 ? 1 : 2)) host.firstChild.remove();
   host.append(t);
-  setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3200);
+  setTimeout(() => t.remove(), kind === 'err' || kind === 'warn' ? 7000 : 3200);
 }
 
 /* =====================================================================
@@ -4856,22 +4856,148 @@ function convertBasis(spec, nb) {
 function round6sig(x) { return num(x) ? Number(x.toPrecision(7)) : x; }
 
 const PRESETS = [
-  // AGA Report No. 8 "Gulf Coast" reference gas — the average of many US Gulf Coast samples, used to check natural-gas property calculators
-  { label: 'Natural gas — AGA 8 Gulf Coast reference', c: { CH4: 96.5222, N2: 0.2595, CO2: 0.5956, C2H6: 1.8186, C3H8: 0.4596, isobutane: 0.0977, nC4H10: 0.1007, isopentane: 0.0473, 'n-pentane': 0.0324, nC6H14: 0.0664 } },
-  { label: 'Air (dry)', c: { N2: 78.08, O2: 20.95, Ar: 0.93, CO2: 0.04 } },
-  { label: 'Natural gas (lean, typical)', c: { CH4: 90, C2H6: 6, C3H8: 3, nC4H10: 1 } },
-  { label: 'Water / steam', c: { H2O: 100 } },
-  { label: 'Ammonia make-up gas (H₂/N₂ = 3)', c: { H2: 74.0, N2: 24.7, CH4: 1.0, Ar: 0.3 } },
-  { label: 'Ammonia', c: { NH3: 100 } },
-  { label: 'Carbon dioxide', c: { CO2: 100 } },
-  { label: 'Nitrogen', c: { N2: 100 } },
-  { label: 'Hydrogen', c: { H2: 100 } },
-  { label: 'Oxygen', c: { O2: 100 } },
-  { label: 'Methane', c: { CH4: 100 } },
+  /* g: group in the menu · c: composition in mole % unless b says mass % · typical compositions to start from; edit them freely */
+  // AGA Report No. 8 reference gases — averages of many field samples, used to check natural-gas property calculators
+  { g: 'Natural gas & LNG', label: 'Natural gas — AGA 8 Gulf Coast reference', c: { CH4: 96.5222, N2: 0.2595, CO2: 0.5956, C2H6: 1.8186, C3H8: 0.4596, isobutane: 0.0977, nC4H10: 0.1007, isopentane: 0.0473, 'n-pentane': 0.0324, nC6H14: 0.0664 } },
+  { g: 'Natural gas & LNG', label: 'Natural gas — AGA 8 Amarillo reference', c: { CH4: 90.6724, N2: 3.1284, CO2: 0.4676, C2H6: 4.5279, C3H8: 0.828, isobutane: 0.1037, nC4H10: 0.1563, isopentane: 0.0321, 'n-pentane': 0.0443, nC6H14: 0.0393 } },
+  { g: 'Natural gas & LNG', label: 'Natural gas — AGA 8 Ekofisk reference', c: { CH4: 85.9063, N2: 1.0068, CO2: 1.4954, C2H6: 8.4919, C3H8: 2.3015, isobutane: 0.3486, nC4H10: 0.3506, isopentane: 0.0509, 'n-pentane': 0.048 } },
+  { g: 'Natural gas & LNG', label: 'Natural gas — AGA 8 high-N₂ reference', c: { CH4: 81.441, N2: 13.465, CO2: 0.985, C2H6: 3.3, C3H8: 0.605, isobutane: 0.1, nC4H10: 0.104 } },
+  { g: 'Natural gas & LNG', label: 'Natural gas — AGA 8 high-CO₂/N₂ reference', c: { CH4: 81.211, N2: 5.702, CO2: 7.585, C2H6: 4.303, C3H8: 0.895, isobutane: 0.151, nC4H10: 0.152 } },
+  { g: 'Natural gas & LNG', label: 'Natural gas (lean, typical)', c: { CH4: 90, C2H6: 6, C3H8: 3, nC4H10: 1 } },
+  { g: 'Natural gas & LNG', label: 'Associated gas (rich, typical)', c: { CH4: 75, C2H6: 10, C3H8: 6, isobutane: 1.5, nC4H10: 2.5, isopentane: 0.8, 'n-pentane': 0.8, nC6H14: 0.6, nC7H16: 0.3, N2: 1, CO2: 1.5 } },
+  { g: 'Natural gas & LNG', label: 'Sour gas (5 % H₂S, 5 % CO₂)', c: { CH4: 80, C2H6: 5, C3H8: 2, nC4H10: 1, N2: 2, CO2: 5, H2S: 5 } },
+  { g: 'Natural gas & LNG', label: 'LNG (typical)', c: { CH4: 92, C2H6: 5.5, C3H8: 1.5, isobutane: 0.3, nC4H10: 0.3, N2: 0.4 } },
+  { g: 'Natural gas & LNG', label: 'NGL (ethane-plus)', c: { C2H6: 40, C3H8: 28, isobutane: 6, nC4H10: 12, isopentane: 4, 'n-pentane': 4, nC6H14: 6 } },
+  { g: 'Natural gas & LNG', label: 'Gas condensate (light)', c: { C3H8: 2, isobutane: 2, nC4H10: 5, isopentane: 8, 'n-pentane': 10, nC6H14: 20, nC7H16: 20, nC8H18: 15, 'n-nonane': 10, 'n-decane': 8 } },
+  { g: 'Natural gas & LNG', label: 'Biogas (typical)', c: { CH4: 60, CO2: 38.5, N2: 1, O2: 0.3, H2S: 0.2 } },
+
+  { g: 'Air, flue gas & combustion', label: 'Air (dry)', c: { N2: 78.08, O2: 20.95, Ar: 0.93, CO2: 0.04 } },
+  { g: 'Air, flue gas & combustion', label: 'Air (humid — 60 % RH at 25 °C)', c: { N2: 76.6, O2: 20.55, Ar: 0.91, CO2: 0.04, H2O: 1.9 } },
+  { g: 'Air, flue gas & combustion', label: 'Flue gas — natural-gas boiler (15 % excess air)', c: { N2: 71.76, CO2: 8.3, H2O: 16.6, O2: 2.49, Ar: 0.85 } },
+  { g: 'Air, flue gas & combustion', label: 'Flue gas — coal-fired boiler (typical)', c: { N2: 74.2, CO2: 13.5, H2O: 8, O2: 4, Ar: 0.2, SO2: 0.1 } },
+  { g: 'Air, flue gas & combustion', label: 'Gas-turbine exhaust (typical)', c: { N2: 74.6, O2: 13.5, H2O: 7.5, CO2: 3.5, Ar: 0.9 } },
+
+  { g: 'Syngas, hydrogen & ammonia', label: 'Ammonia make-up gas (H₂/N₂ = 3)', c: { H2: 74.0, N2: 24.7, CH4: 1.0, Ar: 0.3 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Primary reformer outlet (wet, typical)', c: { H2: 47, CO: 7, CO2: 6.5, CH4: 6, H2O: 33.5 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Secondary reformer outlet — ammonia plant (wet)', c: { H2: 37, N2: 14, CO: 8, CO2: 5.5, CH4: 0.3, Ar: 0.17, H2O: 35.03 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'LT shift outlet — ammonia plant (wet)', c: { H2: 45, N2: 15, CO: 0.2, CO2: 12.5, CH4: 0.2, Ar: 0.2, H2O: 26.9 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Raw syngas to CO₂ removal (ammonia plant)', c: { H2: 60.68205, N2: 20.36108, CO2: 17.65296, CH4: 0.4012, Ar: 0.3009, CO: 0.3009, H2O: 0.3009 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Ammonia converter inlet (loop gas)', c: { H2: 66, N2: 22, NH3: 3, CH4: 6, Ar: 3 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Ammonia converter outlet', c: { H2: 54, N2: 18, NH3: 17, CH4: 7, Ar: 4 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Ammonia loop purge gas', c: { H2: 60, N2: 20, CH4: 12, Ar: 5.5, NH3: 2.5 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Methanol synthesis gas (SN ≈ 2.05)', c: { H2: 67, CO: 25, CO2: 5, CH4: 2, N2: 1 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Coal gasifier syngas (O₂-blown, dry)', c: { CO: 45, H2: 35, CO2: 15, N2: 3, H2S: 1, CH4: 0.5, Ar: 0.5 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Coke-oven gas (typical)', c: { H2: 57, CH4: 26, CO: 6, N2: 5, CO2: 2, C2H4: 2.5, C2H6: 1, O2: 0.5 } },
+  { g: 'Syngas, hydrogen & ammonia', label: 'Hydrogen — PSA product (99.9 %)', c: { H2: 99.9, CH4: 0.05, N2: 0.05 } },
+
+  { g: 'Urea and CO₂-removal solvents', label: 'Urea reactor feed (urea method)', c: { NH3: 57.06134, CO2: 17.1184, H2O: 18.54494, urea: 7.13267, N2: 0.14265 } },
+  { g: 'Urea and CO₂-removal solvents', label: 'Urea solution, 70 wt % (urea method)', b: 'mass%', c: { urea: 70, H2O: 30 } },
+  { g: 'Urea and CO₂-removal solvents', label: 'CO₂ to urea synthesis', c: { CO2: 99.40358, N2: 0.59642 } },
+  { g: 'Urea and CO₂-removal solvents', label: 'Lean MDEA, 40 wt % (amine method)', c: { 'methyl-diethanolamine': 9.1342, H2O: 90.8201, CO2: 0.0457 } },
+  { g: 'Urea and CO₂-removal solvents', label: 'Lean MEA, 30 wt %, loading 0.2 (amine method)', b: 'mass%', c: { MEA: 28.76, H2O: 67.1, CO2: 4.14 } },
+  { g: 'Urea and CO₂-removal solvents', label: 'Lean hot potassium carbonate (Benfield-type)', c: { K2CO3: 5.22177, H2O: 93.47279, CO2: 1.30544 } },
+
+  { g: 'Water, steam & aqueous solutions', label: 'Water / steam', c: { H2O: 100 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Seawater (35 g/kg salinity)', c: { H2O: 98.99789, NaCl: 0.8628027, KCl: 0.01886833, CaCl2: 0.01917347, MgCl2: 0.04543828, MgSO4: 0.0521913, Na2CO3: 0.002029294, CO2: 0.001605369 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Brine — sodium chloride, 20 wt %', b: 'mass%', c: { NaCl: 20, H2O: 80 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Brine — calcium chloride, 25 wt %', b: 'mass%', c: { CaCl2: 25, H2O: 75 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Caustic soda, 20 wt % NaOH', b: 'mass%', c: { NaOH: 20, H2O: 80 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Sulphuric acid, 10 wt %', b: 'mass%', c: { H2SO4: 10, H2O: 90 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Hydrochloric acid, 10 wt %', b: 'mass%', c: { HCl: 10, H2O: 90 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Aqueous ammonia, 25 wt %', b: 'mass%', c: { NH3: 25, H2O: 75 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Sour water (refinery, typical)', c: { H2O: 96.4, NH3: 2.0, H2S: 1.5, CO2: 0.1 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Ethylene glycol – water, 50 wt %', b: 'mass%', c: { MEG: 50, H2O: 50 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Lean TEG, 99 wt % (gas dehydration)', b: 'mass%', c: { TEG: 99, H2O: 1 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Methanol – water, 80 wt % (crude methanol)', b: 'mass%', c: { MeOH: 80, H2O: 20 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Ethanol – water azeotrope (95.6 wt %)', b: 'mass%', c: { EtOH: 95.6, H2O: 4.4 } },
+  { g: 'Water, steam & aqueous solutions', label: 'Fermentation broth (10 wt % ethanol)', b: 'mass%', c: { EtOH: 10, H2O: 90 } },
+
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Refinery fuel gas (typical)', c: { H2: 30, CH4: 40, C2H6: 12, C2H4: 3, C3H8: 7, C3H6: 3, nC4H10: 2, N2: 2, CO2: 0.9, H2S: 0.1 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'LPG — propane / butane', c: { C3H8: 60, nC4H10: 25, isobutane: 15 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Commercial propane', c: { C3H8: 95, C2H6: 2.5, C3H6: 1.5, isobutane: 1 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Light naphtha (surrogate)', c: { 'n-pentane': 10, isopentane: 10, nC6H14: 25, methylcyclopentane: 10, cyclohexane: 10, benzene: 5, nC7H16: 20, toluene: 10 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Gasoline (surrogate: iso-octane / toluene / n-heptane)', b: 'mass%', c: { isooctane: 55, toluene: 30, nC7H16: 15 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Kerosene / jet fuel (surrogate: n-decane / 1,2,4-trimethylbenzene)', b: 'mass%', c: { 'n-decane': 80, '1-2-4-trimethylbenzene': 20 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Mixed xylenes', c: { oxylene: 20, 'm-xylene': 44, 'p-xylene': 20, ethylbenzene: 16 } },
+  { g: 'Refinery & hydrocarbon mixtures', label: 'Benzene / toluene (50 / 50)', c: { benzene: 50, toluene: 50 } },
+
+  { g: 'Refrigerants & cryogens', label: 'Ammonia (R-717)', c: { NH3: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'Carbon dioxide (R-744)', c: { CO2: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'Propane (R-290)', c: { C3H8: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'Isobutane (R-600a)', c: { isobutane: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'Propylene (R-1270)', c: { C3H6: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'Ethylene (R-1150)', c: { C2H4: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'R-32 (difluoromethane)', c: { difluoromethane: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'R-125 (pentafluoroethane)', c: { pentafluoroethane: 100 } },
+  { g: 'Refrigerants & cryogens', label: 'R-143a (1,1,1-trifluoroethane)', c: { '1-1-1-trifluoroethane': 100 } },
+  { g: 'Refrigerants & cryogens', label: 'R-1234yf (2,3,3,3-tetrafluoropropene)', c: { '2-3-3-3-tetrafluoropropene': 100 } },
+  { g: 'Refrigerants & cryogens', label: 'R-410A (R-32 / R-125, 50 / 50 wt %)', b: 'mass%', c: { difluoromethane: 50, pentafluoroethane: 50 } },
+  { g: 'Refrigerants & cryogens', label: 'R-507A (R-125 / R-143a, 50 / 50 wt %)', b: 'mass%', c: { pentafluoroethane: 50, '1-1-1-trifluoroethane': 50 } },
+  { g: 'Refrigerants & cryogens', label: 'Mixed refrigerant (LNG, typical)', c: { N2: 5, CH4: 40, C2H6: 45, C3H8: 10 } },
+
+  { g: 'Pure gases', label: 'Nitrogen', c: { N2: 100 } },
+  { g: 'Pure gases', label: 'Oxygen', c: { O2: 100 } },
+  { g: 'Pure gases', label: 'Hydrogen', c: { H2: 100 } },
+  { g: 'Pure gases', label: 'Argon', c: { Ar: 100 } },
+  { g: 'Pure gases', label: 'Helium', c: { He: 100 } },
+  { g: 'Pure gases', label: 'Methane', c: { CH4: 100 } },
+  { g: 'Pure gases', label: 'Carbon monoxide', c: { CO: 100 } },
+  { g: 'Pure gases', label: 'Carbon dioxide', c: { CO2: 100 } },
+  { g: 'Pure gases', label: 'Hydrogen sulphide', c: { H2S: 100 } },
+  { g: 'Pure gases', label: 'Sulphur dioxide', c: { SO2: 100 } },
+  { g: 'Pure gases', label: 'Ammonia', c: { NH3: 100 } },
+
+  { g: 'Pure hydrocarbons', label: 'Ethane', c: { C2H6: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Propane', c: { C3H8: 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Butane', c: { nC4H10: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Isobutane', c: { isobutane: 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Pentane', c: { 'n-pentane': 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Hexane', c: { nC6H14: 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Heptane', c: { nC7H16: 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Octane', c: { nC8H18: 100 } },
+  { g: 'Pure hydrocarbons', label: 'n-Decane', c: { 'n-decane': 100 } },
+  { g: 'Pure hydrocarbons', label: 'Ethylene', c: { C2H4: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Propylene', c: { C3H6: 100 } },
+  { g: 'Pure hydrocarbons', label: '1,3-Butadiene', c: { '1-3-butadiene': 100 } },
+  { g: 'Pure hydrocarbons', label: 'Cyclohexane', c: { cyclohexane: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Benzene', c: { benzene: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Toluene', c: { toluene: 100 } },
+  { g: 'Pure hydrocarbons', label: 'Styrene', c: { styrene: 100 } },
+
+  { g: 'Solvents & chemicals', label: 'Methanol', c: { MeOH: 100 } },
+  { g: 'Solvents & chemicals', label: 'Ethanol', c: { EtOH: 100 } },
+  { g: 'Solvents & chemicals', label: 'Isopropanol', c: { iPrOH: 100 } },
+  { g: 'Solvents & chemicals', label: 'Acetone', c: { acetone: 100 } },
+  { g: 'Solvents & chemicals', label: 'Methyl ethyl ketone', c: { mek: 100 } },
+  { g: 'Solvents & chemicals', label: 'Ethyl acetate', c: { etoac: 100 } },
+  { g: 'Solvents & chemicals', label: 'Acetic acid', c: { AcOH: 100 } },
+  { g: 'Solvents & chemicals', label: 'Ethylene glycol (MEG)', c: { MEG: 100 } },
+  { g: 'Solvents & chemicals', label: 'Triethylene glycol (TEG)', c: { TEG: 100 } },
+  { g: 'Solvents & chemicals', label: 'Glycerol', c: { glycerol: 100 } },
+  { g: 'Solvents & chemicals', label: 'Dichloromethane', c: { dichloromethane: 100 } },
+  { g: 'Solvents & chemicals', label: 'Acetonitrile', c: { mecn: 100 } },
+  { g: 'Solvents & chemicals', label: 'Tetrahydrofuran', c: { thf: 100 } },
+  { g: 'Solvents & chemicals', label: 'Phenol', c: { phenol: 100 } },
+  { g: 'Solvents & chemicals', label: 'Methyl tert-butyl ether', c: { 'methyl-tert-butyl-ether': 100 } },
+  { g: 'Solvents & chemicals', label: 'Dimethyl ether', c: { 'dimethyl-ether': 100 } },
+  { g: 'Solvents & chemicals', label: 'Ethylene oxide', c: { 'ethylene-oxide': 100 } },
+  { g: 'Solvents & chemicals', label: 'Vinyl chloride', c: { 'vinyl-chloride': 100 } },
 ];
 function presetAvailable(p) {
   if (!componentsDB) return true;
   return Object.keys(p.c).every((k) => compByKey[k]);
+}
+/** the typical-stream menu, grouped */
+function presetSelect(style) {
+  const pre = el('select', Object.assign({ class: 'sel', 'aria-label': 'Typical stream' }, style ? { style } : {}));
+  pre.append(el('option', { value: '' }, '⚡ Load a typical stream… (' + PRESETS.filter(presetAvailable).length + ')'));
+  let og = null;
+  PRESETS.forEach((p, i) => {
+    if (!presetAvailable(p)) return;
+    if (!og || og.label !== p.g) { og = el('optgroup', { label: p.g }); pre.append(og); }
+    og.append(el('option', { value: String(i) }, p.label));
+  });
+  return pre;
 }
 
 /* =====================================================================
@@ -5378,19 +5504,22 @@ function specEditor(s, isEstimate) {
   const box = sec(isEstimate ? 'Estimate' : 'Feed specification', isEstimate ? null : (chk.ok ? pillEl('complete', 'ok') : pillEl('incomplete', 'err')));
 
   /* typical-stream preset */
-  const pre = el('select', { class: 'sel', 'aria-label': 'Typical stream' });
-  pre.append(el('option', { value: '' }, '⚡ Load a typical stream…'));
-  PRESETS.forEach((p, i) => { if (presetAvailable(p)) pre.append(el('option', { value: String(i) }, p.label)); });
+  const pre = presetSelect();
   pre.addEventListener('change', () => {
     const p = PRESETS[+pre.value];
     if (!p) return;
-    sp.basis = 'mole%';
+    sp.basis = p.b || 'mole%';
     sp.comps = Object.entries(p.c).map(([key, a]) => ({ key, a }));
-    if (!num(sp.flow.v)) sp.flow.u = 'kmol/h';
+    if (!num(sp.flow.v)) sp.flow.u = p.b === 'mass%' ? 'kg/h' : 'kmol/h';
     commit(); renderInspector();
-    toast(p.label + ' loaded (mole %) — now set flow, T and P', 'ok');
+    const hint = feedMethodHint(Object.keys(p.c));
+    toast(p.label + ' loaded (' + (p.b === 'mass%' ? 'mass' : 'mole') + ' %) — now set flow, T and P' + hint, hint ? 'warn' : 'ok');
   });
   box.append(el('div', { class: 'fld' }, pre));
+  if (!isEstimate) box.append(el('div', { style: 'display:flex;gap:8px;align-items:center;margin:-4px 0 10px' },
+    el('button', { class: 'btn sm', style: 'flex:none', title: 'Build and check the fluid in the Stream properties calculator, then use it for this feed',
+      onclick: () => openPropsCalc(s.id) }, 'Build in Stream properties…'),
+    el('span', { class: 'hint', style: 'font-size:11.5px;line-height:1.3' }, 'all components, copy any stream, check the properties')));
 
   /* T, P */
   const tIn = numInput(() => sp.T.v, (v) => { sp.T.v = v; }, { aria: 'Temperature' });
@@ -8403,10 +8532,52 @@ function spCalcSave(C) {
   PREFS.spCalc = { v: SP_CALC_V, comps: C.comps.slice(0, LIMITS.comps), basis: C.basis, flowV: C.flow.v, flowU: C.flow.u, TV: C.T.v, TU: C.T.u, PV: C.P.v, PU: C.P.u, model: C.model, vapour: C.vapour, vf: C.vf, spec: C.spec };
   savePrefs();
 }
-function openPropsCalc() {
+/** a solvent, brine or urea stream needs its own method: name it when the flowsheet uses another ('' otherwise) */
+function feedMethodHint(keys) {
+  const rec = recommendMethod(keys), cur = pkgModel();
+  const chem = ['amine-mea', 'amine-mdea', 'hot-k2co3', 'sour-water', 'aqueous-electrolyte', 'urea'];
+  return chem.includes(rec.model) && rec.model !== cur ? ' · this stream needs ' + (PKG_LABEL[rec.model] || rec.model) + ' (Methods)' : '';
+}
+/* Stream properties ↔ feed streams: start the calculator from a feed's specification (and the flowsheet's
+   method), and write the calculator's fluid, flow, T and P back into a feed */
+function spFromFeed(C, s) {
+  const sp = s.spec;
+  if (sp.comps.length) { C.comps = sp.comps.map((c) => ({ key: c.key, a: num(c.a) ? c.a : null })); C.basis = sp.basis; }
+  if (num(sp.flow.v) && !isFlowBasis(sp.basis)) C.flow = { v: sp.flow.v, u: sp.flow.u };
+  if (num(sp.T.v)) C.T = { v: sp.T.v, u: sp.T.u };
+  if (num(sp.P.v)) C.P = { v: sp.P.v, u: sp.P.u };
+  C.spec = 'TP';
+  const pk = anaPkg();
+  if (PKGS.some((x) => x[0] === pk.model)) { C.model = pk.model; C.vapour = spVapourFor(pk.model, pk.vapour); }
+}
+function spToFeed(C, s) {
+  const comps = C.comps.filter((c) => c && num(c.a) && c.a > 0);
+  if (!comps.length) { toast('Type the amount of at least one component first', 'err'); return false; }
+  if (C.spec !== 'TP') { toast('Switch the state to temperature and pressure — a feed is given by T and P', 'err'); return false; }
+  if (!isFlowBasis(C.basis) && !num(C.flow.v)) { toast('Give the total flow first', 'err'); return false; }
+  const sp = s.spec;
+  sp.comps = comps.map((c) => ({ key: c.key, a: c.a }));
+  sp.basis = C.basis;
+  if (!isFlowBasis(C.basis)) sp.flow = { v: C.flow.v, u: C.flow.u };
+  sp.T = { v: C.T.v, u: C.T.u };
+  sp.P = { v: C.P.v, u: C.P.u };
+  spCalcSave(C);
+  commit();
+  closeSheet();
+  select({ kind: 'stream', id: s.id });
+  const cur = pkgModel();
+  const other = rigOn() && C.model !== cur ? ' · the flowsheet calculates it with ' + (PKG_LABEL[cur] || cur) + ', not ' + (PKG_LABEL[C.model] || C.model) : '';
+  const hint = feedMethodHint(sp.comps.map((c) => c.key));
+  toast(s.name + ' now carries this fluid' + (hint || other) + ' — Ctrl+Z undoes it', hint || other ? 'warn' : 'ok');
+  return true;
+}
+function openPropsCalc(linkId) {
   const C = spCalcState();
+  // opened from a feed's panel: start from that feed and offer “Use for …” (a click event is not an id)
+  const ls = typeof linkId === 'string' ? M.streams.find((x) => x.id === linkId && !x.from) || null : null;
+  if (ls) spFromFeed(C, ls);
   const body = el('div', { class: 'ana' });
-  openSheet('Stream properties', body);
+  openSheet('Stream properties' + (ls ? ' · for ' + ls.name : ''), body);
   $('sheet').classList.add('wide');
   if (!componentsDB) loadComponents().then(() => draw(), () => draw());
   const top = el('div');
@@ -8505,13 +8676,11 @@ function openPropsCalc() {
       C.T = { v: round6sig(T_UNITS[PREFS.tu].fromSI(st.T_K)), u: PREFS.tu }; C.P = { v: round6sig(P_UNITS[PREFS.pu].fromSI(st.P_bar)), u: PREFS.pu };
       spCalcSave(C); draw();
     });
-    const pre = el('select', { class: 'sel', 'aria-label': 'Typical stream', style: 'margin-bottom:8px' });
-    pre.append(el('option', { value: '' }, '⚡ Load a typical stream…'));
-    PRESETS.forEach((p, i) => { if (presetAvailable(p)) pre.append(el('option', { value: String(i) }, p.label)); });
+    const pre = presetSelect('margin-bottom:8px');
     pre.addEventListener('change', () => {
       const p = PRESETS[+pre.value];
       if (!p) return;
-      C.comps = Object.entries(p.c).map(([key, a]) => ({ key, a })); C.basis = 'mole%';
+      C.comps = Object.entries(p.c).map(([key, a]) => ({ key, a })); C.basis = p.b || 'mole%';
       spCalcSave(C); draw();
     });
     top.append(el('div', { class: 'spgrid' },
@@ -8519,8 +8688,18 @@ function openPropsCalc() {
       el('div', null, g,
         rec && rec.model !== C.model ? el('div', { class: 'hint', style: 'font-size:12px;margin:0 0 8px' }, 'Suggested for these components: ' + (PKG_LABEL[rec.model] || rec.model) + ' — ' + rec.why + ' ',
           el('button', { class: 'lnk', type: 'button', onclick: () => { C.model = rec.model; C.vapour = rec.vapour; spCalcSave(C); draw(); } }, 'Use it')) : null,
-        el('div', { class: 'btns' }, go, M.streams.some((s) => analysisStream(s)) ? from : null))));
+        el('div', { class: 'btns' }, go, useB, M.streams.some((s) => analysisStream(s)) ? from : null, !ls && feeds.length ? toFeed : null))));
   }
+  // write the fluid back into a feed: the linked one, or one picked from the list
+  const feeds = M.streams.filter((x) => !x.from);
+  const useB = ls ? el('button', { class: 'btn pri', title: 'Copy the components, basis, flow, temperature and pressure into ' + ls.name, onclick: () => spToFeed(C, ls) }, 'Use for ' + ls.name) : null;
+  if (ls) go.className = 'btn';
+  const toFeed = el('select', { 'aria-label': 'Use this fluid for a feed stream' });
+  toFeed.append(el('option', { value: '' }, 'Use for a feed stream…'));
+  for (const f of feeds) toFeed.append(el('option', { value: f.id }, f.name + (specToSI(f.spec).ok ? '' : ' (incomplete)')));
+  toFeed.addEventListener('change', () => { const f = streamById(toFeed.value); if (f && !spToFeed(C, f)) toFeed.value = ''; });
+  if (ls) body.append(el('div', { class: 'note', style: 'margin:0 0 10px' }, 'Linked to feed ', el('b', null, ls.name),
+    ' — search any component, load a typical stream or copy another stream, check the properties with Calculate, then press ', el('b', null, 'Use for ' + ls.name), '.'));
   draw();
   body.append(top, host);
 }
