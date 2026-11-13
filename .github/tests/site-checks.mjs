@@ -1,0 +1,137 @@
+#!/usr/bin/env node
+/**
+ * Site checks for the multicalci.com flowsheet simulator — run by .github/workflows/flowsheet-tests.yml
+ * on every upload that touches the API, the simulator pages or the tests. They catch the mistakes that
+ * break a deployment before the engine test cases even start:
+ *   1. vercel.json is valid JSON, and every file named in its "functions" block exists
+ *   2. api/ holds no more serverless functions than the Vercel Hobby plan deploys (12), and no helper
+ *      module that belongs in api/_lib/ (a file in api/ without a default export)
+ *   3. every relative import in api/ resolves to a file that is there
+ *   4. the inline scripts of the simulator pages parse (and their JSON-LD blocks are valid JSON)
+ *   5. the engine loads and reports its version
+ * Usage: node tests/site-checks.mjs [repo root]      (exit code 1 when anything fails)
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+
+const root = path.resolve(process.argv[2] || '.');
+const HOBBY_FUNCTION_LIMIT = 12;
+const PAGES = ['flowsheet-simulator.html', 'flowsheet-validation.html', 'flowsheet-user-guide.html', 'material-balance.html'];
+const FUNC_EXT = /\.(js|mjs|cjs|ts|mts|py)$/;
+
+const results = [];                         // [ok, title, detail]
+const pass = (title, detail) => results.push([true, title, detail || '']);
+const fail = (title, detail) => results.push([false, title, detail || '']);
+const rel = (p) => path.relative(root, p).split(path.sep).join('/');
+const exists = (p) => { try { return fs.statSync(p).isFile(); } catch (_e) { return false; } };
+
+/* 1. vercel.json */
+let vercel = null;
+try {
+  vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  pass('vercel.json is valid JSON');
+} catch (e) {
+  fail('vercel.json is valid JSON', e.message);
+}
+if (vercel && vercel.functions) {
+  const missing = Object.keys(vercel.functions).filter((k) => !/[*?{[]/.test(k) && !exists(path.join(root, k)));
+  if (missing.length) fail('every file in vercel.json "functions" exists', 'missing: ' + missing.join(', ') + ' — Vercel stops a deployment whose functions entry matches no file');
+  else pass('every file in vercel.json "functions" exists', Object.keys(vercel.functions).length + ' entries');
+}
+
+/* 2. serverless functions in api/ (files and folders starting with _ or . are not functions) */
+const apiDir = path.join(root, 'api');
+const functions = [], allJs = [];
+(function walk(dir, inPrivate) {
+  let names = [];
+  try { names = fs.readdirSync(dir, { withFileTypes: true }); } catch (_e) { return; }
+  for (const d of names) {
+    const p = path.join(dir, d.name);
+    const priv = inPrivate || d.name.startsWith('_') || d.name.startsWith('.');
+    if (d.isDirectory()) { if (d.name !== 'node_modules') walk(p, priv); continue; }
+    if (/\.(js|mjs|cjs)$/.test(d.name)) allJs.push(p);
+    if (!priv && FUNC_EXT.test(d.name) && !d.name.endsWith('.d.ts')) functions.push(p);
+  }
+})(apiDir, false);
+if (functions.length > HOBBY_FUNCTION_LIMIT) {
+  fail('api/ holds at most ' + HOBBY_FUNCTION_LIMIT + ' serverless functions', functions.length + ' found: ' + functions.map(rel).join(', ') +
+    ' — the Vercel Hobby plan stops the deployment. A helper module uploaded to api/ instead of api/_lib/ is the usual cause.');
+} else pass('api/ holds at most ' + HOBBY_FUNCTION_LIMIT + ' serverless functions', functions.length + ' found');
+const libs = functions.filter((p) => /\.(js|mjs|cjs)$/.test(p) && !/export\s+default\b|module\.exports\b|exports\.handler\b/.test(fs.readFileSync(p, 'utf8')));
+if (libs.length) fail('every file in api/ is a function (has a default export)', libs.map(rel).join(', ') + ' — no default export: a library module, which belongs in api/_lib/');
+else pass('every file in api/ is a function (has a default export)');
+
+/* 3. relative imports in api/ resolve */
+const IMPORT_RES = [
+  /\b(?:import|export)\s[^'"`;]*?\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]/g,
+  /\bimport\s*['"](\.{1,2}\/[^'"]+)['"]/g,
+  /\bimport\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g,
+  /\brequire\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g,
+];
+const broken = [];
+let nImports = 0;
+for (const f of allJs) {
+  const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  for (const re of IMPORT_RES) {
+    for (const m of src.matchAll(re)) {
+      nImports++;
+      const t = path.resolve(path.dirname(f), m[1]);
+      if (!(exists(t) || exists(t + '.js') || exists(t + '.mjs') || exists(path.join(t, 'index.js')))) broken.push(rel(f) + ' → ' + m[1]);
+    }
+  }
+}
+if (broken.length) fail('every relative import in api/ resolves', broken.join('; ') + ' — a file is missing or sits in the wrong folder');
+else pass('every relative import in api/ resolves', nImports + ' imports in ' + allJs.length + ' files');
+
+/* 4. inline scripts of the simulator pages parse */
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-site-'));
+for (const page of PAGES) {
+  const file = path.join(root, page);
+  if (!exists(file)) { fail(page + ' is present'); continue; }
+  const html = fs.readFileSync(file, 'utf8');
+  let n = 0;
+  const bad = [];
+  for (const m of html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi)) {
+    const attrs = m[1] || '', code = m[2];
+    if (/\bsrc\s*=/.test(attrs) || !code.trim()) continue;
+    n++;
+    if (/application\/ld\+json/i.test(attrs)) {
+      try { JSON.parse(code); } catch (e) { bad.push('JSON-LD block ' + n + ': ' + e.message); }
+      continue;
+    }
+    const f = path.join(tmp, page.replace(/\W/g, '_') + '_' + n + (/type\s*=\s*["']?module/i.test(attrs) ? '.mjs' : '.cjs'));
+    fs.writeFileSync(f, code);
+    try { execFileSync(process.execPath, ['--check', f], { stdio: 'pipe' }); } catch (e) {
+      const msg = String(e.stderr || e.message).split('\n').filter((l) => l.trim()).slice(0, 4).join(' | ').replace(f, 'script ' + n);
+      bad.push(msg);
+    }
+  }
+  if (bad.length) fail(page + ' — inline scripts parse', bad.join(' ;; '));
+  else pass(page + ' — inline scripts parse', n + ' script blocks');
+}
+fs.rmSync(tmp, { recursive: true, force: true });
+
+/* 5. the engine loads */
+try {
+  const mod = await import(pathToFileURL(path.join(root, 'api/_lib/mb-engine.js')).href);
+  const eng = mod.default || mod;
+  const v = eng.ENGINE_VERSION || mod.ENGINE_VERSION;
+  if (typeof v === 'string' && v) pass('the engine loads', v.slice(0, v.indexOf(' (') > 0 ? v.indexOf(' (') : 40));
+  else fail('the engine loads', 'api/_lib/mb-engine.js has no ENGINE_VERSION');
+} catch (e) {
+  fail('the engine loads', String(e && e.message || e).split('\n')[0]);
+}
+
+/* report */
+const failed = results.filter((r) => !r[0]);
+for (const [ok, title, detail] of results) console.log((ok ? '✓ ' : '✗ ') + title + (detail ? '  — ' + detail : ''));
+console.log(failed.length ? `\n${failed.length} check(s) failed` : `\nall ${results.length} checks passed`);
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const md = ['### Site checks', '', '| | Check | Detail |', '|---|---|---|',
+    ...results.map(([ok, t, d]) => `| ${ok ? '✅' : '❌'} | ${t} | ${String(d).replace(/\|/g, '\\|').slice(0, 400)} |`), ''];
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md.join('\n') + '\n');
+}
+process.exit(failed.length ? 1 : 0);
