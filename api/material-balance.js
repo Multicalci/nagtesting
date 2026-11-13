@@ -14,6 +14,14 @@
 //                                   merged with fluids.js physicals.
 //                                   Cache-Control: public, max-age=86400.
 //   GET  ?selftest=1              → engine smoke checks → {pass, fail, ms}
+//   GET  ?module=sim-examples     → flowsheet simulator example gallery list
+//   GET  ?module=sim-example&id=… → one example flowsheet (inputs only)
+//   GET  ?module=sim-presets      → typical-stream compositions for the feed menu
+//                                   (api/_lib/sim-content.js; cached 1 h)
+//   POST ?module=size-equipment   → simulator → calculator hand-off sheets and
+//                                   links (api/_lib/sim-sizing.js); its stream
+//                                   properties run through the same validate +
+//                                   dispatch path as ?module=stream-properties
 //   POST ?module={name}           → refresh correlation_params (TTL-cached),
 //                                   shape-validate body, throttle, dispatch to
 //                                   MODULES[name] in mb-engine.js, wrap as
@@ -43,6 +51,8 @@ import engine from './_lib/mb-engine.js';
 import compdb from './_lib/mb-compdb.js';   // STEP 22 — rigorous databank for the picker
 import mbData from './_lib/mb-data.js';
 import fluids from './_lib/fluids.js';
+import simContent from './_lib/sim-content.js';   // Nov 2026 — simulator examples / presets served, not shipped in the page
+import simSizing from './_lib/sim-sizing.js';     // Nov 2026 — simulator "Size equipment" rules
 
 const API_VERSION = 'material-balance api 1.0.0';
 const COPYRIGHT = '(c) multicalci.com';
@@ -310,7 +320,7 @@ function logSolve(moduleName, ok, ms, ipHash) {
  * @returns {{streams:Array<object>, params:object}|{error:object}}
  */
 // modules that take no streams (STEP 34: pseudo-component characterisation, TBP assay cutting)
-const NO_STREAM_MODULES = new Set(['assay-cut', 'pseudo-props', 'pinch-analysis', 'user-components']);
+const NO_STREAM_MODULES = new Set(['assay-cut', 'pseudo-props', 'pinch-analysis', 'user-components', 'size-equipment']);
 function validateBody(body, moduleName) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return errObj('MB_BODY', 'request body must be a JSON object', 'body');
@@ -502,7 +512,9 @@ async function handleSolve(req, res, moduleName, ipHash) {
   }
 
   // ---- module lookup ----
-  const solver = engine.MODULES && engine.MODULES[moduleName];
+  const solver = moduleName === 'size-equipment'
+    ? (input) => simSizing.sizeEquipment(input, runModuleInternal)
+    : engine.MODULES && engine.MODULES[moduleName];
   if (typeof solver !== 'function') {
     const known = Object.keys(engine.MODULES || {});
     sendErr(res, 400, 'MB_UNKNOWN_MODULE',
@@ -583,6 +595,34 @@ async function handleSolve(req, res, moduleName, ipHash) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Validate and dispatch one engine module from inside another request (the same
+ * checks and solver a POST ?module=<name> gets). Used by size-equipment.
+ * @returns {Promise<object>} the module result or an {error} envelope
+ */
+async function runModuleInternal(name, streams, params) {
+  const solver = engine.MODULES && engine.MODULES[name];
+  if (typeof solver !== 'function') return errObj('MB_UNKNOWN_MODULE', `unknown module '${name}'`, 'module');
+  const shaped = validateBody({ streams, params }, name);
+  if (shaped.error) return shaped;
+  let r = solver({ streams: shaped.streams, params: shaped.params });
+  if (r && typeof r.then === 'function') r = await r;
+  return r;
+}
+
+/** GET simulator content (examples, presets): public data, cached by the browser and the CDN for an hour */
+function handleSimContent(res, q) {
+  const send = (obj) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400');
+    sendJson(res, 200, Object.assign({ ok: true, version: simContent.SIM_CONTENT_VERSION }, obj));
+  };
+  if (q.module === 'sim-examples') return send({ examples: simContent.examplesList() });
+  if (q.module === 'sim-presets') return send({ presets: simContent.presetsList() });
+  const x = simContent.exampleById(String(q.id || ''));
+  if (!x) return sendErr(res, 404, 'MB_EXAMPLE', 'no example with that id', 'id');
+  return send({ example: x });
+}
+
+/**
  * Vercel Node serverless handler.
  * @param {object} req IncomingMessage (+ req.query / req.body on Vercel)
  * @param {object} res ServerResponse
@@ -614,8 +654,9 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       if (q.selftest === '1' || q.selftest === 'true') { handleSelftest(res); return; }
       if (q.module === 'components') { await handleComponents(res); return; }
+      if (q.module === 'sim-examples' || q.module === 'sim-example' || q.module === 'sim-presets') { handleSimContent(res, q); return; }
       sendErr(res, 400, 'MB_ROUTE',
-        'GET supports ?module=components or ?selftest=1', 'module');
+        'GET supports ?module=components, sim-examples, sim-example, sim-presets or ?selftest=1', 'module');
       return;
     }
 

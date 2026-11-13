@@ -12,6 +12,7 @@
  *   6. the published simulator files are the protected build of the current src/ files (build hash matches,
  *      no source comments left), and .vercelignore keeps src/ and scripts/ off the site
  *   7. the retired /material-balance page redirects to the simulator and nothing links to it
+ *   8. the simulator's examples, presets and "Size equipment" rules are served by the API, not shipped in the page
  * Usage: node tests/site-checks.mjs [repo root]      (exit code 1 when anything fails)
  */
 import fs from 'node:fs';
@@ -167,6 +168,40 @@ for (const [src, out] of PROTECTED) {
   })(root);
   if (linking.length) fail('no page links to the retired /material-balance page', linking.join(', '));
   else pass('no page links to the retired /material-balance page');
+}
+
+/* 8. simulator content and "Size equipment" rules live on the server, not in the page */
+{
+  const pub = fs.readFileSync(path.join(root, 'flowsheet-simulator.html'), 'utf8');
+  const srcp = path.join(root, 'src/flowsheet-simulator.source.html');
+  const src = exists(srcp) ? fs.readFileSync(srcp, 'utf8') : '';
+  // a few signatures of the moved content: steam-table latent heat, a Sch 40 bore, an example, a preset, a sizing rule
+  const SIG = ['2120.2', '154.06', '100 bar / 500 °C steam', 'AGA 8 Gulf Coast reference', 'smallest Schedule 40 size'];
+  const left = SIG.filter((x) => pub.includes(x) || src.includes(x));
+  if (left.length) fail('the simulator page carries no examples, presets or sizing rules', 'found in the page: ' + left.join(', '));
+  else pass('the simulator page carries no examples, presets or sizing rules', 'served by ?module=sim-examples / sim-presets / size-equipment');
+  try {
+    const C = (await import(pathToFileURL(path.join(root, 'api/_lib/sim-content.js')).href)).default;
+    const L = C.examplesList(), ids = new Set(L.map((x) => x.id)), P = C.presetsList();
+    const broken = L.filter((x) => { const e = C.exampleById(x.id); return !e || !e.model || !Array.isArray(e.model.blocks) || !e.model.blocks.length; });
+    if (L.length < 20 || ids.size !== L.length || broken.length || P.length < 100) fail('simulator examples and presets load', L.length + ' examples (' + ids.size + ' ids), ' + P.length + ' presets' + (broken.length ? ', broken: ' + broken.map((x) => x.id).join(', ') : ''));
+    else pass('simulator examples and presets load', L.length + ' examples, ' + P.length + ' typical streams');
+  } catch (e) { fail('simulator examples and presets load', String(e && e.message || e).split('\n')[0]); }
+  try {
+    const S = (await import(pathToFileURL(path.join(root, 'api/_lib/sim-sizing.js')).href)).default;
+    const E = (await import(pathToFileURL(path.join(root, 'api/_lib/mb-engine.js')).href)).default;
+    const run = async (name, streams, params) => E.MODULES[name]({ streams, params });
+    const gas = { mass_flow_kg_h: 10000, T_K: 313.15, P_bar: 20, components: [{ key: 'CH4', mass_fraction: 0.9 }, { key: 'C2H6', mass_fraction: 0.1 }] };
+    const r = await S.sizeEquipment({ streams: [gas], params: { kind: 'line', name: 'S1', property_package: { model: 'pr' }, pkg_model: 'pr' } }, run);
+    const sh = r && r.sheet;
+    const ok = sh && sh.link && /^\/pressure-drop-calculator#mb=/.test(sh.link.href) && sh.fields.length === 2 && sh.fields[0].value === 154.06;
+    const v = await S.sizeEquipment({ streams: [], params: { kind: 'heater', nIn: 1, Q_kW: 500,
+      ri: { T_K: 303.15, P_bar: 5, mass_flow_kg_h: 5000, vapour_fraction: 0, components: [{ key: 'H2O', mass_fraction: 1 }] },
+      ro: { T_K: 363.15, vapour_fraction: 0 } } }, run);
+    const okH = v && v.links && v.links.buttons.length === 1 && /4\.5 bar a/.test(v.links.note);
+    if (ok && okH) pass('"Size equipment" runs on the server', 'gas line → 6" Sch 40 start, heater → 4.5 bar a steam');
+    else fail('"Size equipment" runs on the server', JSON.stringify(r).slice(0, 160) + ' | ' + JSON.stringify(v).slice(0, 120));
+  } catch (e) { fail('"Size equipment" runs on the server', String(e && e.message || e).split('\n')[0]); }
 }
 
 /* report */
