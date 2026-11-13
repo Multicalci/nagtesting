@@ -3781,4 +3781,60 @@ function eFaq(btn) {
     <div class="footer-links">
       <a href="https://www.multicalci.com/">🏠 All Calculators</a>
       <a href="https://www.multicalci.com/about.html">About</a>
-      <a href="h
+      <a href="https://www.multicalci.com/contact/">Contact</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Prefill from the flowsheet simulator (#mb=…): a stream sends its pressure, temperature
+   and properties (molar mass, Z, ideal-gas k and viscosity for a gas; specific gravity and
+   viscosity for a liquid; steam uses this page's IAPWS-IF97) with the flow, a pipe size
+   and a differential pressure. The page opens on bore sizing. Everything stays editable. */
+(function () {
+  var m = location.hash.match(/#mb=([^&]+)/); if (!m) return;
+  var d = null;
+  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return; }
+  var ok = function (x) { return typeof x === 'number' && isFinite(x); };
+  if (!d || ['gas', 'liquid', 'steam'].indexOf(d.cat) < 0 || !ok(d.P_bar) || !ok(d.T_C) || !ok(d.W_kg_h)) return;
+  var $ = function (id) { return document.getElementById(id); };
+  function set(id, v, dig) { var e = $(id); if (e && ok(v)) e.value = String(+v.toPrecision(dig || 6)); }
+  function apply() {
+    if (typeof UNITS !== 'undefined' && UNITS !== 'metric') { var ub = document.querySelector('.unit-btn[onclick*="metric"]'); if (ub) ub.click(); }
+    $('f_cat').value = d.cat; onCatChange();
+    if (d.cat === 'gas') {
+      setGasMode('mw');
+      set('custom_mw', d.MW, 6); set('d_val', d.MW / 28.964, 5); set('custom_rho', d.MW / 28.964, 5);
+      set('zf', d.Z, 5); set('isen_k', d.k, 4); set('visc', d.mu_Pas, 4);
+    } else if (d.cat === 'liquid') {
+      clearChipSel(); set('d_val', d.SG, 5); set('custom_rho', d.SG, 5); set('visc', d.mu_Pas, 4);
+    }
+    $('p_unit_sel').value = 'bara'; $('p_unit_sel').dataset.prev = 'bara';
+    set('p_val', d.P_bar, 6); set('t_val', d.T_C, 5);
+    var nps = $('pipe_nps');
+    if (d.nps && nps && [].some.call(nps.options, function (o) { return o.value === d.nps; })) { nps.value = d.nps; onPipeNpsChange('40 / STD / 40S'); }
+    else if (ok(d.D_mm)) { if (nps) { nps.value = 'custom'; onPipeNpsChange(); } $('pid_unit_sel').value = 'mm'; set('p_id', d.D_mm, 6); }
+    setMode('beta');
+    $('f_unit_sel').value = 'kghr'; set('f_val', d.W_kg_h, 6);
+    if (ok(d.dp_mmH2O)) { $('dp_unit_sel').value = 'mmH2O'; set('dp_v', d.dp_mmH2O, 5); }
+    updateFluidProps();
+    var host = document.querySelector('.card-head');
+    if (host && !$('mbNote')) {
+      var n = document.createElement('div');
+      n.id = 'mbNote';
+      n.setAttribute('role', 'status');
+      n.style.cssText = 'margin:0 0 12px;padding:9px 12px;border-radius:6px;background:#eef4ff;border:1px solid #9db8ee;color:#12305f;font-size:.8rem;line-height:1.45';
+      n.textContent = 'Stream data from the flowsheet' + (d.name ? ' (' + String(d.name).slice(0, 40) + ')' : '') + ': ' + (+d.W_kg_h.toPrecision(5)) + ' kg/h at ' +
+        (+d.P_bar.toPrecision(4)) + ' bar a and ' + (+d.T_C.toPrecision(4)) + ' °C' +
+        (d.cat === 'gas' ? ', molar mass ' + (+d.MW.toPrecision(5)) + ', Z ' + (+d.Z.toPrecision(4)) + ', ideal-gas k ' + (+d.k.toPrecision(4)) : d.cat === 'liquid' ? ', SG ' + (+d.SG.toPrecision(4)) : ' (steam: IAPWS-IF97)') +
+        '. Sized for the bore at this flow and differential pressure — set the full-scale flow, the ΔP range and the line size you use.';
+      host.parentNode.insertBefore(n, host);
+    }
+    setTimeout(runNow, 300);
+  }
+  window.addEventListener('DOMContentLoaded', function () { setTimeout(apply, 60); });
+})();
+</script>
+
+</body>
+</html>
