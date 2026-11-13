@@ -4,7 +4,7 @@
 //   npm i --no-save terser          (or TERSER=/path/to/terser/main.js)
 //   node scripts/build-protected.mjs
 //
-// src/flowsheet-simulator.html  →  flowsheet-simulator.html
+// src/flowsheet-simulator.source.html  →  flowsheet-simulator.html
 //
 // What the build does to a page:
 //   - every inline script is minified with terser: comments removed, local
@@ -31,7 +31,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { minify } = await import(process.env.TERSER || 'terser');
 
 export const PAGES = [
-  { src: 'src/flowsheet-simulator.html', out: 'flowsheet-simulator.html', toplevel: true },
+  { src: 'src/flowsheet-simulator.source.html', out: 'flowsheet-simulator.html', toplevel: true },
 ];
 export const sha = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex').slice(0, 16);
 const NOTICE = (h) => `(c) multicalci.com — all rights reserved. Not licensed for copying or reuse. build ${h}`;
