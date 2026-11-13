@@ -5352,11 +5352,13 @@ function inspectStream(s, head, body) {
   if (!s.from) {
     body.append(specEditor(s, false));
     if (r) body.append(streamResults(s, r));
+    body.append(streamSizeSection(s));
     body.append(streamAnalysisSection(s));
   } else {
     if (r) body.append(streamResults(s, r));
     else body.append(el('div', { class: 'sec' }, el('div', { class: 'note' }, 'Calculated stream — press Run to see its temperature, pressure, flow and composition.')));
     body.append(streamTargetSection(s));
+    body.append(streamSizeSection(s));
     body.append(streamAnalysisSection(s));
     if (s.to) {
       const d = el('details', { class: 'dd' }, el('summary', null, 'Initial estimate (used only if this stream is torn in a recycle loop)'));
@@ -8168,6 +8170,7 @@ const SP_ROWS = [
   ['Heat capacity Cp, kJ/kg·K', (o, q) => (q || o).Cp_kJkgK, 5],
   ['Heat capacity Cv, kJ/kg·K', (o, q) => (q || o).Cv_kJkgK, 5],
   ['Cp/Cv', (o, q) => (q || o).Cp_Cv, 5],
+  ['Cp/Cv of the ideal gas (valve sizing)', (o, q) => (q || o).Cp_Cv_ideal_gas, 5],
   ['Speed of sound, m/s', (o, q) => (q || o).speed_of_sound_m_s, 5],
   ['Joule–Thomson coefficient, K/bar', (o, q) => (q || o).joule_thomson_K_bar, 4],
   ['Viscosity, cP', (o, q) => (q || o).mu_cP, 5],
@@ -9301,7 +9304,8 @@ function pipeResults(D) {
 }
 
 /* STEP 33 — open the result in the site's equipment tools: control-valve sizing for a valve,
-   HeatXpert rating for a heat exchanger (all values stay editable there) */
+   HeatXpert rating for a heat exchanger or a heater / cooler, separator sizing for a flash drum
+   (all values stay editable there) */
 const b64json = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o))));
 const HX_FLUID = { H2O: (vf) => (vf > 0.5 ? 'steam' : 'water'), N2: 'nitrogen', O2: 'oxygen', H2: 'hydrogen', CH4: 'methane', CO2: 'co2',
   NH3: (vf) => (vf > 0.5 ? 'ammonia-gas' : 'ammonia-liquid'), benzene: 'benzene', toluene: 'toluene', 'o-xylene': 'xylene', 'm-xylene': 'xylene', 'p-xylene': 'xylene',
@@ -9346,8 +9350,350 @@ function toolLinks(b, br) {
     const ph = (hi.vapour_fraction || 0) !== (ho.vapour_fraction || 0) || (ci.vapour_fraction || 0) !== (co.vapour_fraction || 0);
     note.textContent = 'Opens a shell-and-tube design with these temperatures, flows and pressures (duty ' + fmt(D.duty_kW, 5) + ' kW). HeatXpert uses its own property set: hot side “' + fh.fluid + '”' + (fh.exact ? '' : ' (nearest to ' + (fh.top || 'the mixture') + ')') +
       ', cold side “' + fc.fluid + '”' + (fc.exact ? '' : ' (nearest to ' + (fc.top || 'the mixture') + ')') + (ph && !cond && !boil ? '. A side changes phase only partly — the case opens as single-phase; check the shell mode.' : '.');
+  } else if (b.type === 'flash' || b.type === 'flash3') {
+    if (!(R.streams_out || []).length) return null;
+    box.append(el('button', { class: 'btn sm', onclick: () => openDrumSizing(b, R) }, 'Size the drum…'));
+    note.textContent = 'Sends the gas and liquid loads at the drum conditions to the separator sizing page (' + (b.type === 'flash3' ? 'three-phase separator' : 'vertical and horizontal two-phase separators') + ').';
+  } else if (b.type === 'heater') {
+    const hc = heaterHxCase(b, R);
+    if (!hc) return null;
+    if (hc.url) box.append(el('a', { class: 'btn sm', href: hc.url, target: '_blank', rel: 'noopener' }, 'Design in HeatXpert ↗'));
+    note.textContent = hc.note;
   } else return null;
   return el('div', null, box, note);
+}
+/* Calculator hand-off — size a line, a relief valve or a flow orifice for a stream, or a
+   separator drum for a flash, in the site's calculators with the flow and properties filled
+   in. The properties come from the engine's stream-properties module with the flowsheet's
+   method (ideal-gas Cp/Cv, Z, density, viscosity, bubble pressure); the calculator opens in
+   a new tab, in SI units, and every value stays editable there. */
+const SIZE_TOOLS = {
+  line: { title: 'Line size & pressure drop', path: '/pressure-drop-calculator', open: 'Open the pressure-drop calculator ↗' },
+  psv: { title: 'Relief valve', path: '/pressure-relief-valve-sizing', open: 'Open the relief-valve sizing ↗' },
+  orifice: { title: 'Flow orifice', path: '/orifice-flow-calculator', open: 'Open the orifice calculator ↗' },
+  drum: { title: 'Separator drum', path: '/vessel-separator-sizing', open: 'Open the separator sizing ↗' },
+};
+/* ASME B36.10M inside diameters, mm: Schedule 40 up to 24", standard wall for 30" and 36" */
+const NPS40 = [['1/2', 15.80], ['3/4', 20.93], ['1', 26.64], ['1-1/2', 40.90], ['2', 52.51], ['3', 77.92], ['4', 102.26], ['6', 154.06], ['8', 202.72],
+  ['10', 254.51], ['12', 303.23], ['14', 333.34], ['16', 381.0], ['18', 428.66], ['20', 477.82], ['24', 574.64], ['30', 742.95], ['36', 895.35]];
+const pipeVel = (Q_m3_h, id_mm) => Q_m3_h / 3600 / (Math.PI / 4 * (id_mm / 1000) ** 2);
+/** smallest listed pipe with a velocity at or below vMax, m/s (the largest if none) */
+function pipeFor(Q_m3_h, vMax) {
+  for (const [nps, id] of NPS40) if (pipeVel(Q_m3_h, id) <= vMax) return { nps, id };
+  const [nps, id] = NPS40[NPS40.length - 1];
+  return { nps, id };
+}
+const npsOf = (id) => { const p = NPS40.find((q) => Math.abs(q[1] - id) < 0.01); return p ? p[0] : null; };
+const sizeUrl = (kind, data) => {
+  const o = { v: 1, src: 'flowsheet' };
+  for (const k in data) o[k] = typeof data[k] === 'number' ? Number(data[k].toPrecision(7)) : data[k];
+  return SIZE_TOOLS[kind].path + '#mb=' + b64json(o);
+};
+/** the stream is pure water (Steam / water method, or water alone) */
+function isWaterOnly(st) { return pkgModel() === 'steam' || (st.components.length === 1 && st.components[0].key === 'H2O'); }
+async function sizingProps(st, params) {
+  const r = await apiSolve('stream-properties', { streams: [st], params: Object.assign({ property_package: anaPkg(), saturation: true }, params || {}) });
+  return { D: r.result.details || {}, warnings: r.warnings || [] };
+}
+/** phase state of a stream-properties result: 'gas' | 'liquid' | 'two-phase' and the values a sizing tool takes.
+ *  trim: a trace of the other phase (under 1 % of the mass) is set aside and the main phase's properties used */
+function sizingState(D, trim) {
+  const o = D.overall || {}, ph = D.phases || [];
+  let vap = ph.filter((q) => q.type === 'vapour'), liq = ph.filter((q) => q.type !== 'vapour');
+  const beta = num(o.vapour_fraction) ? o.vapour_fraction : vap.length ? 1 : 0;
+  const vmf = num(o.vapour_mass_fraction) ? o.vapour_mass_fraction : vap.reduce((t, q) => t + (q.mass_fraction || 0), 0);
+  let trace = null;
+  if (vap.length && liq.length && trim && vmf >= 0.99) { trace = { phase: 'liquid', mass: 1 - vmf }; liq = []; }
+  else if (vap.length && liq.length && trim && vmf <= 0.01) { trace = { phase: 'vapour', mass: vmf }; vap = []; }
+  if (vap.length && liq.length) return { kind: 'two-phase', beta, vmf, o };
+  const set = vap.length ? vap : liq;
+  const main = set.slice().sort((a, b) => b.flow_m3_h - a.flow_m3_h)[0] || {};
+  return { kind: vap.length ? 'gas' : 'liquid', beta, vmf, o, main, trace, twoLiquids: liq.length > 1 && !vap.length,
+    rho: trace ? main.rho_kgm3 : o.rho_kgm3,
+    Q: trace ? set.reduce((t, q) => t + q.flow_m3_h, 0) : o.flow_m3_h,
+    mu: !trace && num(o.mu_cP) ? o.mu_cP : main.mu_cP, MW: trace ? main.MW : o.MW, Z: !trace && num(o.Z) ? o.Z : main.Z,
+    kIG: !trace && num(o.Cp_Cv_ideal_gas) ? o.Cp_Cv_ideal_gas : main.Cp_Cv_ideal_gas };
+}
+/* a number box local to the sheet (does not touch the flowsheet model) */
+function sizeInput(val, onIn, aria) {
+  const inp = el('input', { type: 'number', step: 'any', inputmode: 'decimal', 'aria-label': aria });
+  if (num(val)) inp.value = String(round6sig(val));
+  inp.addEventListener('input', () => { const x = parseFloat(inp.value); onIn(isFinite(x) ? x : null); });
+  return inp;
+}
+function sizeKV(rows) {
+  const kv = el('div', { class: 'kv', style: 'margin-top:4px' });
+  for (const [k, v] of rows) if (v !== null && v !== undefined && v !== '') kv.append(el('b', null, k), el('span', null, v));
+  return kv;
+}
+function sizeLink(kind, data, extra) {
+  return el('a', Object.assign({ class: 'btn pri', href: sizeUrl(kind, data), target: '_blank', rel: 'noopener', style: 'display:inline-flex;align-items:center;text-decoration:none' }, extra || {}), SIZE_TOOLS[kind].open);
+}
+function sizeErr(host, msg) {
+  host.textContent = '';
+  host.append(el('div', { class: 'banner err', style: 'margin:0' }, el('span', null, '●'), el('span', null, msg)));
+}
+
+/* ---------- stream inspector section ---------- */
+function streamSizeSection(s) {
+  const box = sec('Size equipment');
+  const st = analysisStream(s);
+  box.append(el('div', { class: 'hint', style: 'margin-bottom:6px' }, 'Open one of the site’s calculators with this stream’s flow and properties filled in — they stay editable there.'));
+  const b = (kind, label, title) => el('button', { class: 'btn sm', disabled: !st, title, onclick: () => openSizing(kind, s) }, label);
+  box.append(el('div', { class: 'btns', style: 'margin-top:0' },
+    b('line', 'Line size & ΔP', 'pipe pressure drop and velocity (Darcy–Weisbach) for a line carrying this stream'),
+    b('psv', 'Relief valve', 'API 520 relief-valve area with this stream as the relieving fluid'),
+    b('orifice', 'Flow orifice', 'ISO 5167 orifice bore for this flow')));
+  if (!st) box.append(el('div', { class: 'hint', style: 'margin-top:6px' }, s.from ? 'Run the flowsheet to size for this calculated stream.' : 'Complete the feed specification to size for it.'));
+  return box;
+}
+
+function openSizing(kind, s) {
+  const st = analysisStream(s);
+  if (!st) { toast(s.from ? 'Run the flowsheet first' : 'Complete the feed specification first', 'err'); return; }
+  const bad = st.components.map((c) => c.key).filter(noRigData);
+  if (bad.length) { toast(bad.map(compLabel).join(', ') + ': no property-method data', 'err'); return; }
+  if (!(st.mass_flow_kg_h > 0)) { toast('The stream has no flow', 'err'); return; }
+  const body = el('div', { class: 'ana' });
+  openSheet(SIZE_TOOLS[kind].title + ' · ' + s.name, body);
+  const ctl = el('div', { class: 'anagrid' });
+  const host = el('div', { class: 'anares' });
+  body.append(el('div', { class: 'note', style: 'margin:0 0 10px' }, 'Properties from the engine with ' + anaPkgLabel() + (s.from && RES && RES.stale ? ' — last run’s results (out of date)' : '') +
+    '. The calculator opens in a new tab in SI units, with everything editable.'), ctl, host);
+  host.append(el('div', { class: 'hint' }, 'Calculating with the engine…'));
+  if (kind === 'psv') { psvSheet(s, st, ctl, host); return; }
+  sizingProps(st).then(({ D, warnings }) => {
+    const z = sizingState(D);
+    z.sat = D.saturation || {};
+    if (kind === 'line') lineSheet(s, st, z, ctl, host, warnings);
+    else orificeSheet(s, st, z, ctl, host, warnings);
+  }).catch((e) => sizeErr(host, e.message));
+}
+
+/** a usual transmitter range, mmH₂O, that keeps β = d/D at 0.65 or less for this flow (C ≈ 0.605, ε ≈ 1) */
+function orificeDp(W_kg_h, rho, D_mm) {
+  const b = 0.65, A = Math.PI / 4 * (b * D_mm / 1000) ** 2, C = 0.605 / Math.sqrt(1 - b ** 4);
+  const need = (W_kg_h / 3600 / (C * A)) ** 2 / (2 * rho) / 9.80665;
+  return [500, 1000, 1250, 2000, 2500, 5000, 10000, 20000].find((v) => v >= need) || 20000;
+}
+function lineSheet(s, st, z, ctl, host, warnings) {
+  host.textContent = '';
+  if (z.kind === 'two-phase') {
+    host.append(el('div', { class: 'hint' }, 'Two-phase flow (vapour fraction ' + fmt(z.beta, 3) + ') — the pressure-drop calculator is for one phase. Put a Pipe segment unit in the flowsheet instead: it integrates the two-phase pressure drop and the flashing along the line.'));
+    return;
+  }
+  const gas = z.kind === 'gas';
+  const vMax = gas ? Math.min(20, Math.sqrt(15000 / z.rho)) : 2;     // gas: 20 m/s and ρv² ≤ 15 000 Pa
+  const p0 = pipeFor(z.Q, vMax);
+  const E = { D: p0.id, L: 100 };
+  const out = el('div');
+  const draw = () => {
+    out.textContent = '';
+    if (!(E.D > 0) || !(E.L > 0)) { out.append(el('div', { class: 'hint' }, 'Enter a pipe inside diameter and length.')); return; }
+    const nps = npsOf(E.D), v = pipeVel(z.Q, E.D);
+    const pv = !gas ? D_bubble(z) : null;
+    const data = { name: s.name, phase: z.kind, T_C: st.T_K - 273.15, P_bar: st.P_bar, flow_m3_h: z.Q, rho_kgm3: z.rho, mu_cP: z.mu, D_mm: E.D, L_m: E.L };
+    if (num(pv)) data.pv_bar = pv;
+    out.append(sizeKV([
+      ['Flow at line conditions', fmt(z.Q, 5) + ' m³/h (' + fmt(st.mass_flow_kg_h, 5) + ' kg/h)'],
+      ['Density', fmt(z.rho, 5) + ' kg/m³'], ['Viscosity', fmt(z.mu, 4) + ' cP'],
+      ['Temperature / pressure', fmt(st.T_K - 273.15, 5) + ' °C · ' + fmt(st.P_bar, 5) + ' bar a'],
+      ['Vapour pressure (bubble)', num(pv) ? fmt(pv, 4) + ' bar a' : null],
+      ['Velocity in this pipe', fmt(v, 3) + ' m/s' + (nps ? ' — ' + nps + '" Sch ' + (/^(30|36)$/.test(nps) ? 'STD' : '40') : '')],
+      ['ρv²', fmt(z.rho * v * v, 3) + ' Pa'],
+    ]));
+    out.append(el('div', { class: 'btns' }, sizeLink('line', data)));
+    const notes = ['The starting pipe is the smallest Schedule 40 size with ' + (gas ? 'a velocity of 20 m/s or less and ρv² of 15,000 Pa or less (gas rule of thumb)' : 'a velocity of 2 m/s or less (liquid rule of thumb)') + '; the length is a placeholder — enter your line and its fittings in the calculator.'];
+    if (gas) notes.push('The calculator treats the flow as incompressible, which holds while the pressure drop stays below about 10 % of the inlet pressure; for longer gas lines use a Pipe segment unit in the flowsheet.');
+    if (z.twoLiquids) notes.push('Two liquid phases: the density is the mixture’s and the viscosity that of the larger liquid phase.');
+    for (const w of warnings.slice(0, 3)) notes.push(String(w));
+    out.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, notes.map((n) => el('li', null, n))));
+  };
+  ctl.append(fld('Pipe inside diameter, mm', sizeInput(E.D, (x) => { E.D = x; draw(); }, 'Pipe inside diameter'), 'starting size: ' + p0.nps + '" Sch 40'),
+    fld('Line length, m', sizeInput(E.L, (x) => { E.L = x; draw(); }, 'Line length')));
+  host.append(out);
+  draw();
+}
+/** bubble pressure at the stream temperature (the vapour pressure of a liquid mixture), bar a */
+function D_bubble(z) { return z && z.sat && num(z.sat.bubble_P_bar) ? z.sat.bubble_P_bar : null; }
+
+function orificeSheet(s, st, z, ctl, host, warnings) {
+  host.textContent = '';
+  if (z.kind === 'two-phase') {
+    host.append(el('div', { class: 'hint' }, 'Two-phase flow (vapour fraction ' + fmt(z.beta, 3) + ') — meter a single-phase stream, or use the two-phase correlations on the orifice page with your own quality.'));
+    return;
+  }
+  const steam = z.kind === 'gas' && isWaterOnly(st);
+  const cat = steam ? 'steam' : z.kind;
+  if (cat === 'gas' && !num(z.kIG)) { host.append(el('div', { class: 'hint' }, 'No ideal-gas Cp/Cv for this method — use Stream properties and enter k on the orifice page.')); return; }
+  // ISO 5167 orifices need D ≥ 50 mm: at least 2"
+  let p0 = pipeFor(z.Q, z.kind === 'gas' ? Math.min(20, Math.sqrt(15000 / z.rho)) : 2);
+  if (p0.id < 50) p0 = { nps: '2', id: 52.51 };
+  const E = { D: p0.id, dp: orificeDp(st.mass_flow_kg_h, z.rho, p0.id), W: st.mass_flow_kg_h };
+  const out = el('div');
+  const draw = () => {
+    out.textContent = '';
+    if (!(E.D > 0) || !(E.dp > 0) || !(E.W > 0)) { out.append(el('div', { class: 'hint' }, 'Enter the pipe diameter, the differential pressure and the flow.')); return; }
+    const data = { name: s.name, cat, P_bar: st.P_bar, T_C: st.T_K - 273.15, W_kg_h: E.W, D_mm: E.D, dp_mmH2O: E.dp };
+    const nps = npsOf(E.D); if (nps && nps !== '30' && nps !== '36') data.nps = nps;
+    if (cat === 'gas') Object.assign(data, { MW: z.MW, Z: z.Z, k: z.kIG, mu_Pas: z.mu / 1000 });
+    if (cat === 'liquid') Object.assign(data, { SG: z.rho / 1000, mu_Pas: z.mu / 1000 });
+    out.append(sizeKV([
+      ['Flow', fmt(E.W, 5) + ' kg/h · ' + fmt(E.W / z.rho, 5) + ' m³/h at flow conditions'],
+      ['Pressure / temperature', fmt(st.P_bar, 5) + ' bar a · ' + fmt(st.T_K - 273.15, 5) + ' °C'],
+      ['Density', fmt(z.rho, 5) + ' kg/m³'],
+      cat === 'gas' ? ['Molar mass · Z · ideal-gas k', fmt(z.MW, 5) + ' · ' + fmt(z.Z, 4) + ' · ' + fmt(z.kIG, 4)] : cat === 'liquid' ? ['Specific gravity (ρ / 1000)', fmt(z.rho / 1000, 5)] : ['Steam', 'IAPWS-IF97 on the orifice page'],
+      cat !== 'steam' ? ['Viscosity', fmt(z.mu, 4) + ' cP'] : null,
+    ].filter(Boolean)));
+    out.append(el('div', { class: 'btns' }, sizeLink('orifice', data)));
+    const notes = ['Opens on bore sizing (sharp-edged orifice, flange taps by default) for this flow at the chosen differential pressure. Meters are usually sized for a full-scale flow of 1.2–1.3 times the normal flow — enter that flow here or on the page.'];
+    for (const w of warnings.slice(0, 3)) notes.push(String(w));
+    out.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, notes.map((n) => el('li', null, n))));
+  };
+  ctl.append(fld('Flow at full-scale ΔP, kg/h', sizeInput(E.W, (x) => { E.W = x; draw(); }, 'Meter flow'), 'normal flow: ' + fmt(st.mass_flow_kg_h, 5) + ' kg/h'),
+    fld('Differential pressure, mmH₂O', sizeInput(E.dp, (x) => { E.dp = x; draw(); }, 'Differential pressure'), 'a usual range giving β ≤ 0.65'),
+    fld('Pipe inside diameter, mm', sizeInput(E.D, (x) => { E.D = x; draw(); }, 'Pipe inside diameter'), 'starting size: ' + p0.nps + '" Sch 40 (ISO 5167: 50 mm or more)'));
+  host.append(out);
+  draw();
+}
+
+/* relief valve: properties at the relieving pressure (set pressure + 10 % or 0.207 bar, whichever is larger) */
+function psvSheet(s, st, ctl, host) {
+  const Pg0 = st.P_bar - 1.01325;
+  const E = { set: Pg0 > 0.1 ? Number(Pg0.toFixed(2)) : 0.1, W: Number(st.mass_flow_kg_h.toPrecision(6)) };
+  const P1 = () => E.set + Math.max(0.1 * E.set, 0.207) + 1.01325;
+  let timer = null, seq = 0;
+  const run = () => {
+    if (!(E.set > 0) || !(E.W > 0)) { host.textContent = ''; host.append(el('div', { class: 'hint' }, 'Enter a set pressure and a relief load.')); return; }
+    const my = ++seq, p1 = P1();
+    host.textContent = '';
+    host.append(el('div', { class: 'hint' }, 'Calculating the relieving properties at ' + fmt(p1, 4) + ' bar a…'));
+    sizingProps(st, { P_bar: p1, T_K: st.T_K }).then(({ D, warnings }) => {
+      if (my !== seq) return;
+      host.textContent = '';
+      const z = sizingState(D, true);
+      z.sat = D.saturation || {};
+      const T_C = st.T_K - 273.15;
+      let data = null, rows = [];
+      const notes = ['Properties at the relieving pressure P₁ = ' + fmt(p1, 4) + ' bar a (set pressure + 10 % overpressure, at least 0.207 bar) and the stream temperature; for a fire case or another relieving temperature use Stream properties at those conditions.',
+        'The set pressure and relief load come from the stream — replace them with the design set pressure and the load of the governing relief case.'];
+      if (z.kind === 'two-phase') {
+        host.append(el('div', { class: 'hint' }, 'Two-phase at the relieving conditions (vapour fraction ' + fmt(z.beta, 3) + ', ' + fmt(100 * z.vmf, 3) + ' % of the mass) — size with the Ω method on the two-phase tab of the relief-valve page; the flowsheet does not fill it in.'));
+        return;
+      }
+      if (z.trace) notes.push(fmt(100 * z.trace.mass, 2) + ' % of the mass ' + (z.trace.phase === 'liquid' ? 'condenses' : 'flashes') + ' at P₁ and the stream temperature; the ' + (z.trace.phase === 'liquid' ? 'vapour' : 'liquid') + '’s properties are used for the whole load.');
+      if (z.kind === 'gas' && isWaterOnly(st)) {
+        const Ts = num(z.sat.dew_T_K) ? z.sat.dew_T_K : num(z.sat.bubble_T_K) ? z.sat.bubble_T_K : null;
+        const sup = !num(Ts) || st.T_K > Ts + 0.5;
+        data = { name: s.name, kind: 'steam', setP_barg: E.set, W_kg_h: E.W, T_C, superheated: sup };
+        rows = [['Fluid', sup ? 'superheated steam' : 'saturated steam'], ['Saturation temperature at P₁', num(Ts) ? fmt(Ts - 273.15, 5) + ' °C' : null], ['Steam temperature', fmt(T_C, 5) + ' °C']];
+      } else if (z.kind === 'gas') {
+        if (!num(z.kIG) || !num(z.Z)) { host.append(el('div', { class: 'hint' }, 'This method gives no ideal-gas Cp/Cv or Z — enter M, k and Z on the relief-valve page from Stream properties.')); return; }
+        data = { name: s.name, kind: 'gas', setP_barg: E.set, W_kg_h: E.W, T_C, M: z.MW, k: z.kIG, Z: z.Z, P1_bar: p1 };
+        rows = [['Molar mass M', fmt(z.MW, 5)], ['k = Cp/Cv (ideal gas)', fmt(z.kIG, 4) + (num(z.o.Cp_Cv) ? ' · real gas ' + fmt(z.o.Cp_Cv, 4) : '')], ['Compressibility Z at P₁', fmt(z.Z, 4)], ['Relieving temperature', fmt(T_C, 5) + ' °C']];
+        notes.push('API 520 takes k for the ideal gas at the relieving temperature and the real-gas effects through Z.');
+      } else {
+        const Q = E.W / z.rho;
+        data = { name: s.name, kind: 'liquid', setP_barg: E.set, Q_m3_h: Q, G: z.rho / 999.0, mu_cP: z.mu, T_C };
+        rows = [['Flow at relieving temperature', fmt(Q, 5) + ' m³/h'], ['Specific gravity G (ρ / 999 kg/m³)', fmt(z.rho / 999.0, 5)], ['Viscosity', fmt(z.mu, 4) + ' cP'],
+          ['Bubble pressure at T', num(z.sat.bubble_P_bar) ? fmt(z.sat.bubble_P_bar, 4) + ' bar a' : null]];
+        if (num(z.sat.bubble_P_bar) && z.sat.bubble_P_bar > p1 * 0.9) notes.push('The bubble pressure is close to the relieving pressure: the liquid may flash in the valve — check with the two-phase (Ω) method.');
+      }
+      host.append(sizeKV([['Set pressure / P₁', fmt(E.set, 5) + ' bar g · ' + fmt(p1, 5) + ' bar a'], ['Relief load', fmt(E.W, 5) + ' kg/h'], ...rows]));
+      host.append(el('div', { class: 'btns' }, sizeLink('psv', data)));
+      for (const w of warnings.slice(0, 3)) notes.push(String(w));
+      host.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, notes.map((n) => el('li', null, n))));
+    }).catch((e) => { if (my === seq) sizeErr(host, e.message); });
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(run, 500); };
+  ctl.append(fld('Set pressure, bar g', sizeInput(E.set, (x) => { E.set = x; later(); }, 'Set pressure'), 'stream: ' + fmt(st.P_bar - 1.01325, 5) + ' bar g'),
+    fld('Relief load, kg/h', sizeInput(E.W, (x) => { E.W = x; later(); }, 'Relief load'), 'stream: ' + fmt(st.mass_flow_kg_h, 5) + ' kg/h'));
+  run();
+}
+
+/* ---------- unit: separator drum from a flash drum or three-phase separator ---------- */
+function openDrumSizing(b, R) {
+  const outs = R.streams_out || [];
+  const three = b.type === 'flash3';
+  const body = el('div', { class: 'ana' });
+  openSheet(SIZE_TOOLS.drum.title + ' · ' + b.name, body);
+  const ctl = el('div', { class: 'anagrid' }), host = el('div', { class: 'anares' });
+  body.append(el('div', { class: 'note', style: 'margin:0 0 10px' }, 'Gas and liquid loads at the drum conditions, from the outlet streams with ' + anaPkgLabel() + '. The separator page opens in a new tab with everything editable.'), ctl, host);
+  host.append(el('div', { class: 'hint' }, 'Calculating with the engine…'));
+  const idx = three ? [0, 1, 2] : [0, 1];
+  Promise.all(idx.map((j) => (outs[j] && outs[j].mass_flow_kg_h > 1e-9 ? sizingProps(apiStream(outs[j]), { saturation: false }).then((r) => sizingState(r.D)) : Promise.resolve(null)))).then((zs) => {
+    host.textContent = '';
+    const [g, l1, l2] = zs;
+    if (!g) { host.append(el('div', { class: 'hint' }, 'No vapour leaves this unit — it works as a liquid–liquid decanter or a liquid drum; size it from the liquid hold-up.')); return; }
+    const vo = outs[0];
+    const base = { name: b.name, P_bar: vo.P_bar, T_C: vo.T_K - 273.15, Qg_m3_h: g.Q, rhog: g.rho };
+    if (three) {
+      const data = Object.assign({ kind: '3p', Qo_m3_h: l1 ? l1.Q : 0, rhoo: l1 ? l1.rho : null, Qw_m3_h: l2 ? l2.Q : 0, rhow: l2 ? l2.rho : null, mu_cP: l1 ? l1.mu : null }, base);
+      host.append(sizeKV([['Drum', fmt(base.P_bar, 5) + ' bar a · ' + fmt(base.T_C, 5) + ' °C'], ['Gas', fmt(g.Q, 5) + ' m³/h at ' + fmt(g.rho, 5) + ' kg/m³'],
+        ['Light liquid', l1 ? fmt(l1.Q, 5) + ' m³/h at ' + fmt(l1.rho, 5) + ' kg/m³ · ' + fmt(l1.mu, 4) + ' cP' : 'none'], ['Heavy liquid', l2 ? fmt(l2.Q, 5) + ' m³/h at ' + fmt(l2.rho, 5) + ' kg/m³' : 'none']]));
+      host.append(el('div', { class: 'btns' }, sizeLink('drum', data)));
+      host.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, el('li', null, 'Opens the three-phase separator with the light liquid as the oil and the heavy liquid as the water; retention times, droplet size and K-factor are the page’s defaults.')));
+      return;
+    }
+    const liq = l1;
+    const vmf = vo.mass_flow_kg_h / ((vo.mass_flow_kg_h + ((outs[1] || {}).mass_flow_kg_h || 0)) || 1);
+    const E = { orient: vmf >= 0.5 ? 'v' : 'h' };
+    const sel = el('select', { 'aria-label': 'Orientation' }, el('option', { value: 'v' }, 'Vertical'), el('option', { value: 'h' }, 'Horizontal'));
+    sel.value = E.orient;
+    const out = el('div');
+    const draw = () => {
+      out.textContent = '';
+      const data = Object.assign({ kind: '2p', orient: E.orient, Ql_m3_h: liq ? liq.Q : 0, rhol: liq ? liq.rho : null }, base);
+      out.append(sizeKV([['Drum', fmt(base.P_bar, 5) + ' bar a · ' + fmt(base.T_C, 5) + ' °C'], ['Gas', fmt(g.Q, 5) + ' m³/h at ' + fmt(g.rho, 5) + ' kg/m³ (' + fmt(vo.mass_flow_kg_h, 5) + ' kg/h)'],
+        ['Liquid', liq ? fmt(liq.Q, 5) + ' m³/h at ' + fmt(liq.rho, 5) + ' kg/m³ (' + fmt(outs[1].mass_flow_kg_h, 5) + ' kg/h)' : 'none']]));
+      out.append(el('div', { class: 'btns' }, sizeLink('drum', data)));
+      const notes = ['Both the vertical and the horizontal separator are filled; the one chosen opens first. ' + (vmf >= 0.5 ? 'Most of the feed leaves as gas, so a vertical knock-out drum is the usual choice.' : 'Most of the feed leaves as liquid, so a horizontal drum is the usual choice.'),
+        'Retention time, surge factor and K-factor are the page’s defaults — set your own.'];
+      if (liq && liq.twoLiquids) notes.push('The liquid holds two liquid phases — a three-phase separator unit in the flowsheet gives the separate loads.');
+      out.append(el('ul', { class: 'anaw', style: 'margin-top:10px' }, notes.map((n) => el('li', null, n))));
+    };
+    sel.addEventListener('change', () => { E.orient = sel.value; draw(); });
+    ctl.append(fld('Orientation', sel));
+    host.append(out);
+    draw();
+  }).catch((e) => sizeErr(host, e.message));
+}
+
+/* ---------- unit: heater / cooler → HeatXpert with a utility on the other side ---------- */
+/* saturated steam levels, bar a: T_sat °C and latent heat kJ/kg (IAPWS-IF97) */
+const STEAM_LEVELS = [{ P: 4.5, Ts: 147.91, hfg: 2120.2 }, { P: 11, Ts: 184.07, hfg: 1999.5 }, { P: 21, Ts: 214.87, hfg: 1879.4 }, { P: 41, Ts: 251.83, hfg: 1705.8 }];
+function heaterHxCase(b, R) {
+  if (b.nIn > 1) return { note: 'Several inlets — HeatXpert takes one process stream; mix them first.' };
+  const si = streamTo(b.id, 0), ri = si && RES.streams[si.id], ro = (R.streams_out || [])[0];
+  const Q = R.energy_balance && R.energy_balance.Q_kW;
+  if (!ri || !ro || !num(Q) || Math.abs(Q) < 1e-3 || !(ri.mass_flow_kg_h > 0)) return null;
+  const Ti = ri.T_K - 273.15, To = ro.T_K - 273.15, fp = hxFluidOf(ri);
+  const vi = ri.vapour_fraction || 0, vo = ro.vapour_fraction || 0;
+  const r3 = (x) => +x.toFixed(3), p6 = (x) => +x.toPrecision(6), p5 = (x) => +x.toPrecision(5);
+  const fluidNote = 'HeatXpert uses its own property set: process side “' + fp.fluid + '”' + (fp.exact ? '' : ' (nearest to ' + (fp.top || 'the mixture') + ')');
+  if (Q < 0) {
+    const cw = To >= 40 ? { Ti: 30, To: 40, lab: 'cooling water 30 → 40 °C' } : To >= 17 ? { Ti: 7, To: 12, lab: 'chilled water 7 → 12 °C' } : null;
+    if (!cw) return { note: 'The outlet is below 17 °C — that needs a refrigerant, which HeatXpert does not rate.' };
+    const cond = vi > 0.5 && vo < 0.01;                 // a (mostly) vapour condensed to liquid
+    // HeatXpert condenses a dry saturated vapour: from a wet inlet send the vapour part only (the liquid passes through)
+    const pv = ri.rig && ri.rig.props && (ri.rig.props.phases || []).find((q) => q.type === 'vapour');
+    const vmf = pv && num(pv.MW) && num(ri.rig.props.MW) ? Math.min(1, pv.fraction * pv.MW / ri.rig.props.MW) : vi;
+    const wet = cond && vmf < 0.99;
+    const v = { st_shellMode: cond ? 'condensing' : 'single-phase', st_type: '1-2', st_flow: 'counter',
+      st_hFl: fp.fluid, st_hTi: r3(Ti), st_hTo: r3(To), st_hF: p6(ri.mass_flow_kg_h * (wet ? vmf : 1)), st_hFunit: 'kgh', st_hPop: p5(ri.P_bar),
+      st_cFl: 'water', st_cTi: cw.Ti, st_cTo: cw.To, st_cF: p6(-Q * 3600 / (4.18 * (cw.To - cw.Ti))), st_cFunit: 'kgh', st_cPop: 4 };
+    return { url: '/heat-exchanger-design#case=' + b64json({ t: 'shell-tube', u: 'metric', coldMode: 'temp', v }),
+      note: 'Opens a shell-and-tube cooler for this duty (' + fmt(-Q, 5) + ' kW) with ' + cw.lab + ' on the tube side; HeatXpert works out the water flow. ' + fluidNote +
+        (cond ? '; the process side condenses on the shell' + (wet ? ' — the inlet is ' + fmt(100 * vmf, 3) + ' % vapour by mass, so the condensing flow sent is that part, ' + fmt(ri.mass_flow_kg_h * vmf, 5) + ' kg/h' : '') + '.' : vi !== vo ? '. The process stream changes phase only partly — the case opens as single-phase; check the shell mode.' : '.') };
+  }
+  const lv = STEAM_LEVELS.find((q) => q.Ts >= To + 10);
+  if (!lv) return { note: 'The outlet is above 240 °C — beyond saturated steam up to 41 bar a; a fired heater or hot oil would serve, which HeatXpert does not rate here.' };
+  const v = { st_shellMode: 'condensing', st_satLink: 1, st_type: '1-2', st_flow: 'counter', st_hFl: 'steam', st_hTi: lv.Ts, st_hTo: lv.Ts,
+    st_hF: p6(Q * 3600 / lv.hfg), st_hFunit: 'kgh', st_hPop: lv.P,
+    st_cFl: fp.fluid, st_cTi: r3(Ti), st_cF: p6(ri.mass_flow_kg_h), st_cFunit: 'kgh', st_cPop: p5(ri.P_bar) };
+  return { url: '/heat-exchanger-design#case=' + b64json({ t: 'shell-tube', u: 'metric', coldMode: 'flow', v }),
+    note: 'Opens a shell-and-tube heater for this duty (' + fmt(Q, 5) + ' kW) with saturated steam as the utility, at ' + lv.P + ' bar a (' + lv.Ts + ' °C, ' + fmt(Q * 3600 / lv.hfg, 5) + ' kg/h) condensing on the shell side, the lowest of 4.5 / 11 / 21 / 41 bar a at least 10 K above the ' +
+      fmt(To, 4) + ' °C outlet. ' + fluidNote + (vi !== vo ? '. The process stream changes phase — HeatXpert rates it as single-phase on the tube side; treat the area as indicative.' : '.') };
 }
 function flattenDetails(obj, prefix, kv) {
   for (const k in obj) {
