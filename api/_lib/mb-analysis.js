@@ -32,7 +32,7 @@ import th from './mb-thermo.js';
 import units from './mb-units.js';
 import { TERNARY_MODULES } from './mb-ternary.js';
 
-export const ANALYSIS_VERSION = 'mb-analysis 1.1.0';
+export const ANALYSIS_VERSION = 'mb-analysis 1.1.1';
 const num = (x) => typeof x === 'number' && isFinite(x);
 const fail = (code, msg, field) => { throw new units.UnitError(code, msg, field); };
 const keysOf = (s) => [...new Set((s.components || []).filter((c) => num(c.mass_fraction) && c.mass_fraction > 0).map((c) => c.key))];
@@ -564,12 +564,22 @@ function solveStreamProperties(inp) {
     const nF = F * q.fraction, mF = nF * q.MW;
     let S = null;
     try { S = pp.sPhase(T, P, q.x, q.type === 'vapour' ? 'V' : 'L'); } catch (_e) { S = null; }
+    // ideal-gas Cp/Cv = Cp°/(Cp° − R) of a vapour at T: the k that relief-valve (API 520) and
+    // control-valve (IEC 60534) sizing use together with Z for the real-gas effects
+    let kIG = null;
+    if (q.type === 'vapour') {
+      try {
+        let cp0 = 0;
+        for (let i = 0; i < pp.n; i++) if (q.x[i] > 0) cp0 += q.x[i] * (pp.hig(i, T + 0.05) - pp.hig(i, T - 0.05)) / 0.1;
+        if (cp0 > th.R) kIG = cp0 / (cp0 - th.R);
+      } catch (_e) { kIG = null; }
+    }
     const o = {
       type: q.type, mole_fraction: r6(q.fraction), mass_fraction: r6(massF > 0 ? mF / massF : q.fraction * q.MW / MWm),
       flow_kmol_h: r6(nF), flow_kg_h: r6(mF), flow_m3_h: r6(mF / q.rho_kgm3),
       MW: r6(q.MW), rho_kgm3: r6(q.rho_kgm3), molar_volume_m3_kmol: r6(q.MW / q.rho_kgm3), Z: r6(q.Z),
       H_kJkmol: r6(q.H_Jmol), H_kJkg: r6(q.H_Jmol / q.MW), S_kJkmolK: r6(S),
-      Cp_kJkgK: r6(q.Cp_JmolK / q.MW), Cp_kJkmolK: r6(q.Cp_JmolK), Cv_kJkgK: num(d.Cv) ? r6(d.Cv / q.MW) : null, Cp_Cv: r6(d.gamma),
+      Cp_kJkgK: r6(q.Cp_JmolK / q.MW), Cp_kJkmolK: r6(q.Cp_JmolK), Cv_kJkgK: num(d.Cv) ? r6(d.Cv / q.MW) : null, Cp_Cv: r6(d.gamma), Cp_Cv_ideal_gas: num(kIG) ? r6(kIG) : null,
       speed_of_sound_m_s: r6(d.w), joule_thomson_K_bar: num(d.jt) ? r6(d.jt * 1e5) : null,
       mu_cP: r6(q.mu_Pas * 1000), k_WmK: r6(q.k_WmK), sigma_mNm: num(q.sigma_Nm) ? r6(q.sigma_Nm * 1000) : null,
       x: comp(q.x), w: massComp(q.x),
@@ -589,7 +599,7 @@ function solveStreamProperties(inp) {
     T_K: r6(T), P_bar: r6(P / 1e5), flow_kmol_h: r6(F), flow_kg_h: r6(massF), flow_m3_h: r6(massF / pr.rho_kgm3),
     std_gas_flow_Nm3_h: r6(F * 8.314462618 * 273.15 / 101325 * 1000), MW: r6(MWm), rho_kgm3: r6(pr.rho_kgm3), molar_volume_m3_kmol: r6(MWm / pr.rho_kgm3),
     H_kJkmol: r6(h), H_kJkg: r6(h / MWm), H_kW: r6(F * h / 3600), S_kJkmolK: r6(sv), Cp_kJkgK: num(cpMix) ? r6(cpMix / MWm) : null,
-    Z: single ? single.Z : null, Cv_kJkgK: single ? single.Cv_kJkgK : null, Cp_Cv: single ? single.Cp_Cv : null,
+    Z: single ? single.Z : null, Cv_kJkgK: single ? single.Cv_kJkgK : null, Cp_Cv: single ? single.Cp_Cv : null, Cp_Cv_ideal_gas: single ? single.Cp_Cv_ideal_gas : null,
     speed_of_sound_m_s: single ? single.speed_of_sound_m_s : null, joule_thomson_K_bar: single ? single.joule_thomson_K_bar : null,
     mu_cP: single ? single.mu_cP : null, k_WmK: single ? single.k_WmK : null, sigma_mNm: single ? single.sigma_mNm : null,
     x: comp(z), w: massComp(z),
