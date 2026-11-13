@@ -617,11 +617,11 @@ select option{background:var(--ink2)}
       </div>
       <div class="row2" id="atmField" style="display:none;margin-bottom:6px">
         <div class="field"><label>Atmospheric Ref <span class="hint">added to gauge → abs</span></label>
-          <div class="iw"><input type="number" id="atmRef" value="1.01325" step="0.00001" oninput="calc()"><span class="iunit" id="atmRefUnit">bar</span></div></div>
+          <div class="iw"><input type="number" id="atmRef" value="1.01325" step="0.00001" oninput="calc();autoLiquidProps()"><span class="iunit" id="atmRefUnit">bar</span></div></div>
       </div>
       <div class="row2">
         <div class="field"><label>Inlet Pressure P₁</label>
-          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ()"><span class="iunit" id="uP">psi</span></div>
+          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ();autoLiquidProps()"><span class="iunit" id="uP">psi</span></div>
           <span id="p1AbsHint" style="font-family:var(--mono);font-size:.66rem;color:var(--text3)"></span></div>
         <div class="field"><label>Outlet Pressure P₂</label>
           <div class="iw"><input type="number" id="p2" value="70" oninput="calc()"><span class="iunit" id="uP2">psi</span></div>
@@ -1003,7 +1003,7 @@ const FLUID_DB={
   //    the fallback reference point (≈20 °C) shown before the first auto-calc; the
   //    live values come from computeLiquidProps(). Names MUST match FLUID_THERMO keys.
   liq_gen:[
-    {n:"Water",sg:0.998,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.9},
+    {n:"Water",sg:0.998,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.64},
     {n:"Sea Water",sg:1.025,pv:0.30,k:1,z:1,type:'l',visc:1.05,Pc:220.9},
     {n:"Diesel Fuel",sg:0.850,pv:0.009,k:1,z:1,type:'l',visc:3.2,Pc:42.0},
     {n:"Petrol/Gasoline",sg:0.740,pv:7.50,k:1,z:1,type:'l',visc:0.6,Pc:36.5},
@@ -1125,11 +1125,75 @@ function _viscosity_cP(v,T_C){
   if(v.model==='andrade') return Math.exp(v.A + v.B/Tk);
   return v.val;
 }
+// ============================================================================
+//  WATER — IAPWS-IF97 (FIX FP-2)
+//  The old Water entry used a 0–100 °C density polynomial + low-range Antoine and
+//  CLAMPED T at 100 °C, so hot water (BFW, condensate, HP process water) was sized
+//  with 100 °C properties: e.g. 209 °C / 115 bar(a) gave SG 0.964 (true 0.862) and
+//  Pv 1.01 bar (true 18.9 bar) — Cv ~6 % low and σ / choked-ΔP far too optimistic.
+//  Now: Region 1 compressed-liquid density at (T, P1), Region 4 saturation
+//  pressure, IAPWS R12-08 viscosity. Valid 0–350 °C, P up to 1000 bar.
+//  Coefficients copied verbatim from api/_lib/steam-if97.js (verified there
+//  against the IAPWS R7-97(2012) / R12-08 check tables).
+// ============================================================================
+const _IF97_R1_I=[0,0,0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,3,3,3,4,4,4,5,8,8,21,23,29,30,31,32];
+const _IF97_R1_J=[-2,-1,0,1,2,3,4,5,-9,-7,-1,0,1,3,-3,0,1,3,17,-4,0,6,-5,-2,10,-8,-11,-6,-29,-31,-38,-39,-40,-41];
+const _IF97_R1_N=[0.14632971213167,-0.84548187169114,-3.756360367204,3.3855169168385,-0.95791963387872,0.15772038513228,-0.016616417199501,0.00081214629983568,0.00028319080123804,-0.00060706301565874,-0.018990068218419,-0.032529748770505,-0.021841717175414,-5.283835796993e-05,-0.00047184321073267,-0.00030001780793026,4.7661393906987e-05,-4.4141845330846e-06,-7.2694996297594e-16,-3.1679644845054e-05,-2.8270797985312e-06,-8.5205128120103e-10,-2.2425281908e-06,-6.5171222895601e-07,-1.4341729937924e-13,-4.0516996860117e-07,-1.2734301741641e-09,-1.7424871230634e-10,-6.8762131295531e-19,1.4478307828521e-20,2.6335781662795e-23,-1.1947622640071e-23,1.8228094581404e-24,-9.3537087292458e-26];
+const _IF97_R4_N=[0,0.11670521452767e4,-0.72421316703206e6,-0.17073846940092e2,0.12020824702470e5,
+  -0.32325550322333e7,0.14915108613530e2,-0.48232657361591e4,0.40511340542057e6,
+  -0.23855557567849,0.65017534844798e3];
+const _IAPWS_MU_H0=[1.67752,2.20462,0.6366564,-0.241605];
+const _IAPWS_MU_H=[
+  [0.520094,0.222531,-0.281378,0.161913,-0.0325372,0,0],
+  [0.0850895,0.999115,-0.906851,0.257399,0,0,0],
+  [-1.08374,1.88797,-0.772479,0,0,0,0],
+  [-0.289555,1.26613,-0.489837,0,0.0698452,0,-0.00435673],
+  [0,0,-0.25704,0,0,0.00872102,0],
+  [0,0.120573,0,0,0,0,-0.000593264]];
+// saturation pressure [MPa] at T [K], 273.15–647.096 K (IF97 Eq. 30)
+function _if97Psat_MPa(T){
+  const n=_IF97_R4_N, th=T+n[9]/(T-n[10]);
+  const A=th*th+n[1]*th+n[2], B=n[3]*th*th+n[4]*th+n[5], C=n[6]*th*th+n[7]*th+n[8];
+  return Math.pow(2*C/(-B+Math.sqrt(B*B-4*A*C)),4);
+}
+// saturation temperature [K] at p [MPa], 611.213 Pa–22.064 MPa (IF97 Eq. 31)
+function _if97Tsat_K(p){
+  const n=_IF97_R4_N, b=Math.pow(p,0.25);
+  const E=b*b+n[3]*b+n[6], F=n[1]*b*b+n[4]*b+n[7], G=n[2]*b*b+n[5]*b+n[8];
+  const D=2*G/(-F-Math.sqrt(F*F-4*E*G));
+  return (n[10]+D-Math.sqrt((n[10]+D)*(n[10]+D)-4*(n[9]+n[10]*D)))/2;
+}
+// Region 1 density [kg/m³] at T [K], p [MPa]: v = π·γπ·R·T/p
+function _if97R1_rho(T,p){
+  const pi=p/16.53, tau=1386/T, a=7.1-pi, b=tau-1.222;
+  let gp=0;
+  for(let k=0;k<34;k++){const I=_IF97_R1_I[k];
+    gp-=_IF97_R1_N[k]*I*Math.pow(a,I-1)*Math.pow(b,_IF97_R1_J[k]);}
+  return 1/(pi*gp*0.461526*T/(p*1000));
+}
+// dynamic viscosity [Pa·s] at ρ [kg/m³], T [K] — IAPWS R12-08 industrial form
+function _iapwsMu_Pas(rho,T){
+  const Tr=T/647.096, dr=rho/322;
+  let s0=0; for(let i=0;i<4;i++) s0+=_IAPWS_MU_H0[i]/Math.pow(Tr,i);
+  let s1=0;
+  for(let i=0;i<6;i++){const ti=Math.pow(1/Tr-1,i);
+    for(let j=0;j<7;j++) if(_IAPWS_MU_H[i][j]) s1+=_IAPWS_MU_H[i][j]*ti*Math.pow(dr-1,j);}
+  return 100*Math.sqrt(Tr)/s0*Math.exp(dr*s1)*1e-6;
+}
+// liquid water at T [°C] and inlet pressure P [bar(a)]. If P is missing or below
+// Psat(T) the liquid is evaluated on the saturation line (subcooled=false → caller warns).
+function _waterPropsIF97(T_C,P_bar){
+  const Tin=T_C+273.15, T=Math.max(273.15,Math.min(623.15,Tin));
+  const ps=_if97Psat_MPa(T);
+  const hasP=isFinite(P_bar)&&P_bar>0, p=hasP?P_bar/10:ps;
+  const pUse=Math.min(100,Math.max(p,ps));
+  const rho=_if97R1_rho(T,pUse);
+  return {rho, pv_bar:ps*10, mu_cP:_iapwsMu_Pas(rho,T)*1000,
+          clamped:Math.abs(T-Tin)>0.001, hasP, subcooled:!hasP||p>ps*1.0001,
+          tsatP1_C:(hasP&&p>=611.213e-6&&p<=22.064)?_if97Tsat_K(p)-273.15:null};
+}
 const FLUID_THERMO={
-  "Water":{Tmin:0,Tmax:100,Pc:220.9,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'poly',a:1000.28,b:-0.01858,c:-0.0035787},
-    vis:{model:'vogel',A:-3.7188,B:578.919,C:137.546}},
+  "Water":{model:'if97',Tmin:0,Tmax:350,Pc:220.64},
   "Sea Water":{Tmin:0,Tmax:100,Pc:220.9,approx:true,
     pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
     den:{model:'poly',a:1027.9,b:-0.01858,c:-0.0035787},
@@ -1275,8 +1339,15 @@ const FLUID_THERMO={
     vis:{model:'andrade',A:-5.65,B:2145}},
 };
 // returns {sg, pv_psia, visc_cP, visc_cSt, approx, clamped, Tmin, Tmax, Pc} at T_C
-function computeLiquidProps(name, T_C){
+// P_bar (absolute inlet pressure) is used only by pressure-aware models (Water/IF97).
+function computeLiquidProps(name, T_C, P_bar){
   const th=FLUID_THERMO[name]; if(!th) return null;
+  if(th.model==='if97'){
+    const w=_waterPropsIF97(T_C,P_bar), sg=w.rho/999.0, cSt=w.mu_cP/Math.max(sg,0.05);
+    return {sg:+sg.toFixed(4), pv_psia:+(w.pv_bar/_BAR_PER_PSI).toFixed(4), visc_cP:+w.mu_cP.toFixed(4),
+            visc_cSt:+cSt.toFixed(4), approx:false, clamped:w.clamped, Tmin:th.Tmin, Tmax:th.Tmax, Pc:th.Pc,
+            if97:true, rho:+w.rho.toFixed(2), hasP:w.hasP, subcooled:w.subcooled, tsatP1_C:w.tsatP1_C};
+  }
   const Tc=Math.max(th.Tmin, Math.min(th.Tmax, T_C));
   const clamped=(Math.abs(Tc-T_C)>0.001);
   const rho=_density_kgm3(th.den,Tc);
@@ -1332,6 +1403,7 @@ function onPressureUnitChange(){
   }
   updatePressureUnitLabels();
   calc();
+  autoLiquidProps();   // FIX FP-2: P1 in bar(a) changed → IF97 water density
 }
 
 function updatePressureUnitLabels(){
@@ -2298,7 +2370,8 @@ function autoLiquidProps(){
   const m = UNITS==='met';
   const T_C = getTempC();             // FIX U-5: unit-aware (°C/°F/K dropdown)
   if(!isFinite(T_C)){ return; }
-  const p = computeLiquidProps(selFluid.n, T_C);
+  const P1_bar = pRawToAbsBar(document.getElementById('p1').value);   // FIX FP-2: IF97 water is P-aware
+  const p = computeLiquidProps(selFluid.n, T_C, P1_bar);
   if(!p) return;
 
   const tip = 'Computed at ' + (m ? T_C.toFixed(1)+' °C' : (T_C*9/5+32).toFixed(1)+' °F') +
@@ -2318,6 +2391,14 @@ function autoLiquidProps(){
   // note line: temperature validity + approximate-fluid flag
   const bits=[];
   if(p.approx) bits.push('≈ estimate (mixture/petroleum cut)');
+  if(p.if97){
+    const fT = c => m ? c.toFixed(1)+' °C' : (c*9/5+32).toFixed(1)+' °F';
+    bits.push('IAPWS-IF97 at T & P₁');
+    if(p.hasP && !p.subcooled)
+      bits.push('<span style="color:#f87171">⚠ T ≥ Tsat at P₁'+(p.tsatP1_C!=null?' ('+fT(p.tsatP1_C)+')':'')+
+                ' — inlet is not subcooled liquid (flashing / steam): check P₁, T or phase</span>');
+    else if(p.tsatP1_C!=null) bits.push('Tsat @ P₁ = '+fT(p.tsatP1_C));
+  }
   if(p.clamped) bits.push('⚠ T outside '+p.Tmin+'–'+p.Tmax+' °C corr. range — clamped');
   else bits.push('corr. range '+p.Tmin+'–'+p.Tmax+' °C');
   document.getElementById('liqPropNote').innerHTML = bits.join(' · ');
