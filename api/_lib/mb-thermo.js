@@ -2716,12 +2716,15 @@ function labelSingleEOS(pp, z, T, P) {
     const v = pp.eos.state(T, P, z, 'V');
     return Math.abs(v.Z - st.Z) < 1e-12 ? 'V' : 'L';
   }
-  // one root: pseudo-critical temperature (Li's rule) decides the label
+  // one root: pseudo-critical temperature (Li's rule) decides the label — above it a vapour; below it a
+  // liquid only if denser than the critical point (b/v above 0.25, the cubic's critical b/v): near the
+  // critical temperature the gas at low pressure is also the only root (CO₂ with traces of N₂ at 25 °C)
   let sv = 0; for (let i = 0; i < pp.n; i++) sv += z[i] * (pp.comps[i].vc || 0);
   let Tpc = 0;
   if (sv > 0) for (let i = 0; i < pp.n; i++) Tpc += z[i] * (pp.comps[i].vc || 0) / sv * pp.comps[i].Tc;
   else for (let i = 0; i < pp.n; i++) Tpc += z[i] * pp.comps[i].Tc;
-  return T >= Tpc ? 'V' : 'L';
+  if (T >= Tpc) return 'V';
+  return num(st.B) && num(st.Z) && st.Z > 0 && st.B / st.Z < 0.25 ? 'V' : 'L';
 }
 
 function kOf(r) { return r.y.map((v, i) => (r.x[i] > 0 && v > 0 ? v / r.x[i] : 1)); }
