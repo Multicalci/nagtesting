@@ -1,0 +1,67 @@
+name: Flowsheet simulator tests
+
+# Runs on every upload that touches the API, the simulator pages or the tests:
+#   - Site checks (tests/site-checks.mjs): vercel.json, the number of serverless functions in api/,
+#     helper modules in api/_lib/, every import resolving, the simulator pages' scripts parsing
+#   - Engine test cases (tests/run-tests.js on tests/mb-vectors.json)
+# A red cross on the commit means something is broken; the run's summary page says what.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'api/**'
+      - 'tests/mb-vectors.json'
+      - 'tests/run-tests.js'
+      - 'tests/site-checks.mjs'
+      - 'flowsheet-*.html'
+      - 'material-balance.html'
+      - 'vercel.json'
+      - 'package.json'
+      - '.github/workflows/flowsheet-tests.yml'
+
+# several files uploaded one after another: only the last upload's run is finished
+concurrency:
+  group: flowsheet-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    name: Site checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Check folders, functions, imports and page scripts
+        run: node tests/site-checks.mjs
+
+  engine:
+    name: Engine test cases
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Run the engine test cases
+        shell: bash
+        run: |
+          set -o pipefail
+          node tests/run-tests.js | tee test-output.txt
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          [ -f test-output.txt ] || exit 0
+          {
+            echo '### Engine test cases'
+            echo
+            echo '```'
+            grep -E '^FAIL ' test-output.txt | head -n 50 || true
+            tail -n 2 test-output.txt | head -n 1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
