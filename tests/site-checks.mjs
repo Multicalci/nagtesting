@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(process.argv[2] || '.');
 const HOBBY_FUNCTION_LIMIT = 12;
-const PAGES = ['flowsheet-simulator.html', 'flowsheet-validation.html', 'flowsheet-user-guide.html', 'src/flowsheet-simulator.html',
+const PAGES = ['flowsheet-simulator.html', 'flowsheet-validation.html', 'flowsheet-user-guide.html', 'src/flowsheet-simulator.source.html',
   // calculators the simulator opens pre-filled (#mb= / #case= links)
   'control-valve-sizing/index.html', 'heat-exchanger-design/index.html', 'pressure-drop-calculator/index.html', 'pressure-relief-valve-sizing/index.html',
   'orifice-flow-calculator/index.html', 'vessel-separator-sizing/index.html'];
@@ -133,7 +133,7 @@ try {
 }
 
 /* 6. protected build: the published files come from src/ through scripts/build-protected.mjs */
-const PROTECTED = [['src/flowsheet-simulator.html', 'flowsheet-simulator.html']];
+const PROTECTED = [['src/flowsheet-simulator.source.html', 'flowsheet-simulator.html']];
 for (const [src, out] of PROTECTED) {
   if (!exists(path.join(root, src)) || !exists(path.join(root, out))) { fail(out + ' is the protected build of ' + src, 'missing file'); continue; }
   const s = fs.readFileSync(path.join(root, src), 'utf8'), o = fs.readFileSync(path.join(root, out), 'utf8');
