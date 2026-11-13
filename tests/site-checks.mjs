@@ -9,9 +9,13 @@
  *   3. every relative import in api/ resolves to a file that is there
  *   4. the inline scripts of the simulator pages parse (and their JSON-LD blocks are valid JSON)
  *   5. the engine loads and reports its version
+ *   6. the published simulator files are the protected build of the current src/ files (build hash matches,
+ *      no source comments left), and .vercelignore keeps src/ and scripts/ off the site
+ *   7. the retired /material-balance page redirects to the simulator and nothing links to it
  * Usage: node tests/site-checks.mjs [repo root]      (exit code 1 when anything fails)
  */
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -19,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(process.argv[2] || '.');
 const HOBBY_FUNCTION_LIMIT = 12;
-const PAGES = ['flowsheet-simulator.html', 'flowsheet-validation.html', 'flowsheet-user-guide.html', 'material-balance.html',
+const PAGES = ['flowsheet-simulator.html', 'flowsheet-validation.html', 'flowsheet-user-guide.html', 'src/flowsheet-simulator.html',
   // calculators the simulator opens pre-filled (#mb= / #case= links)
   'control-valve-sizing/index.html', 'heat-exchanger-design/index.html', 'pressure-drop-calculator/index.html', 'pressure-relief-valve-sizing/index.html',
   'orifice-flow-calculator/index.html', 'vessel-separator-sizing/index.html'];
@@ -126,6 +130,43 @@ try {
   else fail('the engine loads', 'api/_lib/mb-engine.js has no ENGINE_VERSION');
 } catch (e) {
   fail('the engine loads', String(e && e.message || e).split('\n')[0]);
+}
+
+/* 6. protected build: the published files come from src/ through scripts/build-protected.mjs */
+const PROTECTED = [['src/flowsheet-simulator.html', 'flowsheet-simulator.html']];
+for (const [src, out] of PROTECTED) {
+  if (!exists(path.join(root, src)) || !exists(path.join(root, out))) { fail(out + ' is the protected build of ' + src, 'missing file'); continue; }
+  const s = fs.readFileSync(path.join(root, src), 'utf8'), o = fs.readFileSync(path.join(root, out), 'utf8');
+  const h = crypto.createHash('sha256').update(s, 'utf8').digest('hex').slice(0, 16);
+  const m = o.slice(0, 400).match(/build ([0-9a-f]{16})/);
+  const leftovers = (o.match(/ROUND \d|REPO PATH:/g) || []).length;
+  if (!m) fail(out + ' is the protected build of ' + src, 'no build stamp — run: node scripts/build-protected.mjs');
+  else if (m[1] !== h) fail(out + ' is the protected build of ' + src, src + ' changed since the last build (' + m[1] + ' ≠ ' + h + ') — run: node scripts/build-protected.mjs');
+  else if (leftovers) fail(out + ' is the protected build of ' + src, leftovers + ' source comments left in the published file');
+  else pass(out + ' is the protected build of ' + src, 'build ' + h + ', ' + (o.length / 1024).toFixed(0) + ' KB from ' + (s.length / 1024).toFixed(0) + ' KB');
+}
+{
+  const ign = exists(path.join(root, '.vercelignore')) ? fs.readFileSync(path.join(root, '.vercelignore'), 'utf8').split(/\r?\n/).map((l) => l.trim()) : [];
+  const need = ['src/', 'scripts/'].filter((x) => !ign.includes(x) && !ign.includes(x.slice(0, -1)));
+  if (need.length) fail('.vercelignore keeps the readable sources off the site', 'add: ' + need.join(', '));
+  else pass('.vercelignore keeps the readable sources off the site', 'src/ and scripts/ are not deployed');
+}
+/* the retired single-unit worksheet: its address redirects to the simulator and no page links to it */
+{
+  const red = (vercel && vercel.redirects || []).filter((r) => /^\/material-balance(\.html)?$/.test(r.source) && r.destination === '/flowsheet-simulator');
+  if (red.length < 2) fail('/material-balance redirects to the flowsheet simulator', 'vercel.json needs redirects for /material-balance and /material-balance.html');
+  else pass('/material-balance redirects to the flowsheet simulator');
+  const linking = [];
+  (function walk(dir) {
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (d.name.startsWith('.') || d.name === 'node_modules' || d.name === 'tests') continue;
+      const p = path.join(dir, d.name);
+      if (d.isDirectory()) walk(p);
+      else if (d.name.endsWith('.html') && /href=["']\/material-balance(\.html)?["'#?]/.test(fs.readFileSync(p, 'utf8'))) linking.push(rel(p));
+    }
+  })(root);
+  if (linking.length) fail('no page links to the retired /material-balance page', linking.join(', '));
+  else pass('no page links to the retired /material-balance page');
 }
 
 /* report */
