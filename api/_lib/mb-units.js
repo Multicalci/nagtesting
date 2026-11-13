@@ -1417,7 +1417,7 @@ function propertyInfo(inp) {
       unifac_ll: !!th.unifacGroups('unifac-ll', th.component(k)), nist_unifac: !!th.unifacGroups('nist-modunifac', th.component(k)),   // ROUND 12d
       uniquac_rq: num(c.uqr) && num(c.uqq), category: c.cat || null,
       // ROUND 12: where each value of an extended-databank component comes from
-      data: c.ext ? 'literature' : c.user ? 'user' : c.pseudo ? 'pseudo' : 'ChemSep',
+      data: c.ext ? (c.cq === 'compiled' ? 'compiled' : 'literature') : c.user ? 'user' : c.pseudo ? 'pseudo' : 'ChemSep',
       sources: c.ext && c.src ? Object.fromEntries(Object.entries(c.src).map(([f, i]) => [f, compdb.EXT_SOURCES[i]])) : undefined,
       no_formation_data: c.noform ? true : undefined };
   });
@@ -1503,7 +1503,8 @@ function propertyInfo(inp) {
         enthalpy: 'Gibbs–Helmholtz on the liquid fugacities (heats of absorption consistent with the solubility model)' } : null,
       no_data: noData,
       databank: (compdb.CHEMSEP_VERSION || 'ChemSep') + ' (Artistic License 2.0) · NIST Shomate ideal-gas data where available' +
-        (comps.some((c) => c.data === 'literature') ? ' · extended databank: evaluated literature data compiled in the chemicals library (MIT) and reference equations of state in CoolProp (MIT), source of each value listed per component' : '') },
+        (comps.some((c) => c.data === 'literature' || c.data === 'compiled') ? ' · extended databank: evaluated literature data compiled in the chemicals library (MIT) and reference equations of state in CoolProp (MIT), source of each value listed per component' : '') +
+        (comps.some((c) => c.data === 'compiled') ? ' · components marked “compiled”: critical constants from Yaws’ compilation (Thermophysical Properties of Chemicals and Hydrocarbons, 2014), with a measured boiling point and vapour-pressure equation' : '') },
     converged: true, warnings: pp.warnings.concat(noData.length ? [`no rigorous property data for ${noData.join(', ')} — these can only be used in the classic engine models`] : []) };
 }
 
