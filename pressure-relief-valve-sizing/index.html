@@ -1722,5 +1722,61 @@ function shareLinkedIn(){ window.open('https://www.linkedin.com/sharing/share-of
 function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent(SHARE_TXT+' '+PAGE_URL),'_blank'); }
 function copyLink(){ navigator.clipboard.writeText(PAGE_URL).then(()=>alert('Link copied!')); }
 </script>
+<script>
+/* Prefill from the flowsheet simulator (#mb=…): a stream sends the relieving fluid —
+   molar mass, ideal-gas k = Cp/Cv and Z at the relieving pressure for a gas or vapour,
+   steam state for steam, specific gravity and viscosity for a liquid — with a set
+   pressure and relief load to replace by the governing case. Everything stays editable. */
+(function () {
+  var m = location.hash.match(/#mb=([^&]+)/); if (!m) return;
+  var d = null;
+  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return; }
+  var ok = function (x) { return typeof x === 'number' && isFinite(x); };
+  if (!d || !ok(d.setP_barg) || ['gas', 'steam', 'liquid'].indexOf(d.kind) < 0) return;
+  function set(id, v, dig) { var e = document.getElementById(id); if (e && ok(v)) e.value = String(+v.toPrecision(dig || 6)); }
+  function pick(id, v) { var e = document.getElementById(id); if (e) e.value = v; }
+  function note(slide, text) {
+    var s = document.querySelectorAll('.slide')[slide]; if (!s) return;
+    var t = s.querySelector('.slide-title'); if (!t || document.getElementById('mbNote')) return;
+    var n = document.createElement('div');
+    n.id = 'mbNote';
+    n.setAttribute('role', 'status');
+    n.style.cssText = 'margin:0 0 12px;padding:9px 12px;border-radius:6px;background:#eef4ff;border:1px solid #9db8ee;color:#12305f;font-size:.82rem;line-height:1.45';
+    n.textContent = text;
+    t.parentNode.insertBefore(n, t.nextSibling);
+  }
+  var from = 'Relieving fluid from the flowsheet' + (d.name ? ' (' + String(d.name).slice(0, 40) + ')' : '') + '. ';
+  var check = ' The set pressure and relief rate are filled from the stream — replace them with the design set pressure and the load of the governing relief case, then size again.';
+  function apply() {
+    if (d.kind === 'gas') {
+      goTo(0);
+      set('g-setP', d.setP_barg, 5); pick('g-setP-u', 'barg'); pick('g-scenario', 'process'); pick('g-op', '');
+      set('g-W', d.W_kg_h, 6); pick('g-W-u', 'kghr'); set('g-T', d.T_C, 5); pick('g-T-u', 'C');
+      pick('g-fluid', 'custom'); if (typeof onFluid === 'function') onFluid('g');
+      set('g-M', d.M, 5); set('g-k', d.k, 4); set('g-Z', d.Z, 4);
+      note(0, from + 'M ' + (+d.M.toPrecision(5)) + ', ideal-gas k ' + (+d.k.toPrecision(4)) + ' and Z ' + (+d.Z.toPrecision(4)) + (ok(d.P1_bar) ? ' at ' + (+d.P1_bar.toPrecision(4)) + ' bar a (set pressure + 10 % overpressure)' : '') + ' and ' + (+d.T_C.toPrecision(4)) + ' °C.' + check);
+      var b = document.querySelector('.calc-btn[onclick^="runGas"]'); if (typeof runGas === 'function') runGas(b);
+    } else if (d.kind === 'steam') {
+      goTo(1);
+      set('s-setP', d.setP_barg, 5); pick('s-setP-u', 'barg'); set('s-W', d.W_kg_h, 6); pick('s-W-u', 'kghr');
+      pick('s-state', d.superheated ? 'superheated' : 'saturated');
+      var w = document.getElementById('s-Twrap'); if (w) w.style.display = d.superheated ? 'flex' : 'none';
+      if (d.superheated) { set('s-T', d.T_C, 5); pick('s-T-u', 'C'); }
+      pick('s-op', '');
+      note(1, from + (d.superheated ? 'Superheated steam at ' + (+d.T_C.toPrecision(4)) + ' °C.' : 'Saturated steam.') + check);
+      var b2 = document.querySelector('.calc-btn[onclick^="runSteam"]'); if (typeof runSteam === 'function') runSteam(b2);
+    } else {
+      goTo(2);
+      set('l-setP', d.setP_barg, 5); pick('l-setP-u', 'barg'); set('l-Q', d.Q_m3_h, 6); pick('l-Q-u', 'm3hr');
+      set('l-G', d.G, 5); set('l-mu', d.mu_cP, 4); pick('l-op', '');
+      note(2, from + 'Specific gravity ' + (+d.G.toPrecision(4)) + ' and viscosity ' + (+d.mu_cP.toPrecision(4)) + ' cP at ' + (+d.T_C.toPrecision(4)) + ' °C; flow ' + (+d.Q_m3_h.toPrecision(5)) + ' m³/h at the relieving temperature.' + check);
+      var b3 = document.querySelector('.calc-btn[onclick^="runLiquid"]'); if (typeof runLiquid === 'function') runLiquid(b3);
+    }
+  }
+  // after the page fills its fluid lists
+  window.addEventListener('DOMContentLoaded', function () { setTimeout(apply, 80); });
+})();
+</script>
+
 </body>
 </html>
