@@ -1,0 +1,21 @@
+# .github/workflows/valve-props-tests.yml
+# Liquid property accuracy regression test for the control-valve page.
+name: Valve liquid properties
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'control-valve-sizing/**', '.github/tests/valve-liquid-props.test.mjs' ]
+  pull_request:
+    paths: [ 'control-valve-sizing/**', '.github/tests/valve-liquid-props.test.mjs' ]
+
+jobs:
+  props:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check SG / Pv / viscosity against reference data
+        run: node .github/tests/valve-liquid-props.test.mjs
