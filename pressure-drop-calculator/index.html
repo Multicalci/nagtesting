@@ -2940,5 +2940,46 @@ function shrFb(txt){const t=document.createElement('textarea');t.value=txt;t.sty
 </script>
 
 
+<script>
+/* Prefill from the flowsheet simulator (#mb=…): a stream sends its flow at the line
+   conditions, density, viscosity and vapour pressure, with a starting pipe size and
+   length. The fluid list is cleared so these values are used as given; everything
+   stays editable. */
+(function () {
+  var m = location.hash.match(/#mb=([^&]+)/); if (!m) return;
+  var d = null;
+  try { d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return; }
+  var ok = function (x) { return typeof x === 'number' && isFinite(x); };
+  if (!d || !ok(d.flow_m3_h) || !ok(d.rho_kgm3) || !ok(d.mu_cP)) return;
+  function set(id, v, dig) { var e = document.getElementById(id); if (e && ok(v)) e.value = String(+v.toPrecision(dig || 6)); }
+  function apply() {
+    if (typeof unitMode !== 'undefined' && unitMode !== 'metric') { var b = document.querySelector('.upbtn[data-unit="metric"]'); if (b) b.click(); }
+    if (typeof clearFluidSelection === 'function') clearFluidSelection();
+    set('diameter', d.D_mm, 5); set('length', d.L_m, 5); set('elevation', 0);
+    set('opTemp', d.T_C, 5); set('opPres', d.P_bar, 5);
+    set('flowrate', d.flow_m3_h, 6); set('density', d.rho_kgm3, 6); set('viscosity', d.mu_cP, 5);
+    if (ok(d.pv_bar)) { set('vapPressure', d.pv_bar, 5); set('npsh-Pvap', d.pv_bar, 5); }
+    var form = document.getElementById('calcForm');
+    if (form && !document.getElementById('mbNote')) {
+      var n = document.createElement('div');
+      n.id = 'mbNote';
+      n.setAttribute('role', 'status');
+      n.style.cssText = 'margin:0 0 12px;padding:9px 12px;border-radius:6px;background:#eef4ff;border:1px solid #9db8ee;color:#12305f;font-size:.82rem;line-height:1.45';
+      n.textContent = 'Stream data from the flowsheet' + (d.name ? ' (' + String(d.name).slice(0, 40) + ')' : '') + ': flow ' + (+d.flow_m3_h.toPrecision(5)) + ' m³/h at ' +
+        (+d.T_C.toPrecision(4)) + ' °C and ' + (+d.P_bar.toPrecision(4)) + ' bar a, density ' + (+d.rho_kgm3.toPrecision(5)) + ' kg/m³, viscosity ' + (+d.mu_cP.toPrecision(4)) +
+        ' cP. The pipe size and length are a starting point — set your own, check the fittings, then recalculate.';
+      form.insertBefore(n, form.firstChild);
+    }
+    if (typeof calculate === 'function') calculate();
+  }
+  // wait for the page's own start-up (fluid list and default fittings) before filling and calculating
+  var t0 = Date.now();
+  (function wait() {
+    if ((typeof fittingsList !== 'undefined' && fittingsList.length) || Date.now() - t0 > 5000) { apply(); return; }
+    setTimeout(wait, 100);
+  })();
+})();
+</script>
+
 </body>
 </html>
