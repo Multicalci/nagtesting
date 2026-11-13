@@ -3,7 +3,10 @@
 Round 12 — measured pure-component data for the extended databank (step 1 of 2).
 
 Collects, for every compound with measured or evaluated critical constants (IUPAC, Matthews, CRC Handbook, PSRK)
-that is not already in the ChemSep databank, the data Caleb Bell's `chemicals` library (MIT licence) carries:
+that is not already in the ChemSep databank, the data Caleb Bell's `chemicals` library (MIT licence) carries
+(round 13: also compounds whose critical constants come only from Yaws' compilation, Thermophysical Properties of
+Chemicals and Hydrocarbons — some of them estimated there — admitted only with a measured normal boiling point and a
+measured vapour-pressure equation, which the build step checks against each other):
 critical constants, acentric factor, normal boiling and melting points, gas-phase formation enthalpy and entropy,
 dipole moment, and the temperature correlations that exist for it — vapour pressure (Wagner, PPDS, DIPPR 101,
 Antoine), ideal-gas heat capacity (TRC, Poling), heat of vaporisation (DIPPR 106, PPDS 12, CRC at Tb), liquid
@@ -48,6 +51,8 @@ DIPPR_PM = 'DIPPR 801 (Pina-Martinez et al., Fluid Phase Equilib. 485 (2019) 264
 CRIT = [('IUPAC', C.critical_data_IUPAC), ('Matthews', C.critical_data_Matthews), ('CRC Handbook', C.critical_data_CRC),
         (DIPPR_PM, __import__('pandas').read_csv(os.path.join(_CDIR, 'DIPPRPinaMartines.tsv'), sep='\t', index_col=0)),
         ('PSRK (Horstmann et al.)', C.critical_data_PSRKR4)]
+YAWS = 'Yaws, Thermophysical Properties of Chemicals and Hydrocarbons, 2nd ed. (2014) — compiled critical constants'
+CRIT_YAWS = [(YAWS, C.critical_data_Yaws)]          # round 13: only for a constant no table above has
 import pandas as pd
 _MDIR = os.path.join(os.path.dirname(chemicals.__file__), 'Misc')
 def _cas_fmt(n):
@@ -60,11 +65,20 @@ TB_NAMES = {'HEOS': 'reference equation of state (CoolProp)', 'CRC_ORG': 'CRC Ha
             'COMMON_CHEMISTRY': 'CAS Common Chemistry', 'WEBBOOK': 'NIST Chemistry WebBook', 'YAWS': 'Yaws, Thermophysical Properties of Chemicals and Hydrocarbons', 'WIKIDATA': 'Wikidata'}
 
 def pick_crit(cas, field):
-    for name, df in CRIT:
+    for name, df in CRIT + CRIT_YAWS:
         if cas in df.index and field in df.columns:
             v = df.at[cas, field]
             if v == v and v is not None and float(v) > 0: return float(v), name
     return None, None
+
+def _tab(cas, field, tables):
+    return [[float(df.at[cas, field]), nm] for nm, df in tables if cas in df.index and field in df.columns and df.at[cas, field] == df.at[cas, field] and float(df.at[cas, field]) > 0]
+
+def crit_cands(cas, field):
+    """tabulated values in priority order; Yaws' compiled values only for a compound no other table has Tc or Pc for
+    (so the compounds of round 12 keep exactly their data)"""
+    if _tab(cas, 'Tc', CRIT) or _tab(cas, 'Pc', CRIT): return _tab(cas, field, CRIT)
+    return _tab(cas, field, CRIT_YAWS)
 
 def rel(a, b): return abs(a - b) / max(abs(b), 1e-300)
 
@@ -371,7 +385,7 @@ def main():
     have = existing_cas()
     cpmap = coolprop_map()
     cand = set()
-    for _, df in CRIT: cand |= set(df.index)
+    for _, df in CRIT + CRIT_YAWS: cand |= set(df.index)
     cand -= have
     out, skipped = [], {}
     def skip(why): skipped[why] = skipped.get(why, 0) + 1
@@ -389,8 +403,7 @@ def main():
         if not (Tc and Pc): skip('no Tc / Pc'); continue
         MW = float(m.MW)
         if MW > 500: skip('MW > 500'); continue
-        cands = {f: [[float(df.at[cas, f]), nm] for nm, df in CRIT if cas in df.index and f in df.columns and df.at[cas, f] == df.at[cas, f] and float(df.at[cas, f]) > 0]
-                 for f in ('Tc', 'Pc', 'Vc')}
+        cands = {f: crit_cands(cas, f) for f in ('Tc', 'Pc', 'Vc')}
         rec = {'cas': cas, 'name': m.common_name or m.iupac_name, 'iupac': m.iupac_name, 'formula': m.formula, 'smiles': smi, 'mw': MW, 'inchikey': m.InChI_key,
                'Tc': Tc, 'Pc': Pc, 'Vc': Vc, 'cands': cands, 'src': {'Tc': sTc, 'Pc': sPc}, 'corr': {}}
         if Vc: rec['src']['Vc'] = sVc
@@ -456,9 +469,10 @@ def main():
         if 'kl' not in rec['corr'] and cas in KT.k_data_VDI_PPDS_9.index:
             r = KT.k_data_VDI_PPDS_9.loc[cas]
             rec['corr']['kl'] = [100] + [float(r[x]) for x in 'ABCDE'] + [max(0.4 * Tc, 150), 0.9 * Tc]; rec['src']['kl'] = 'VDI Heat Atlas polynomial'
-        # critical constants from DIPPR only: the compound goes in only with a measured boiling point and vapour-pressure equation
-        if all(x[1] == DIPPR_PM for x in cands['Tc'] + cands['Pc']) and cas not in cpmap and not ('psat' in rec['corr'] and rec['Tb']):
-            skip('critical constants from DIPPR only, without a measured boiling point and vapour-pressure equation'); continue
+        # critical constants from DIPPR or Yaws only: the compound goes in only with a measured boiling point and vapour-pressure equation
+        if all(x[1] in (DIPPR_PM, YAWS) for x in cands['Tc'] + cands['Pc']) and cas not in cpmap and not ('psat' in rec['corr'] and rec['Tb']):
+            skip('critical constants from DIPPR or Yaws only, without a measured boiling point and vapour-pressure equation'); continue
+        if any(x[1] == YAWS for x in cands['Tc'] + cands['Pc']): rec['crit_compiled'] = True
         if cas in CRC_ORG.index and CRC_ORG.at[cas, 'rho'] == CRC_ORG.at[cas, 'rho'] and float(CRC_ORG.at[cas, 'rho']) > 0:
             rec['rho_point'] = [float(CRC_ORG.at[cas, 'rho']), 293.15, 'CRC Handbook density (20 °C)']
         if 'mul' not in rec['corr'] and cas in MU.mu_data_VN3.index:

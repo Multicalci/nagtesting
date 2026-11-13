@@ -1331,6 +1331,25 @@ QN_EXTRA = {};
 QN_EXTRA = { 'details.overall.vapour_fraction': 'vapour fraction' };
 const s50vec = vecTable(range(453, 456), 'x50');
 QN_EXTRA = {};
+// round 13: compounds whose critical constants come from Yaws' compilation
+const R46 = REF.step46;
+const C46 = compdb.keys().filter((k) => compdb.get(k).cq === 'compiled');
+const SRC46 = compdb.EXT_SOURCES || [];
+const cat46 = Object.entries(C46.reduce((m, k) => { const c = compdb.get(k).cat || 'other'; m[c] = (m[c] || 0) + 1; return m; }, {})).sort((x, y) => y[1] - x[1]).map(([c, n]) => n + ' ' + c).join(', ');
+const meas46 = (f, re) => C46.filter((k) => { const i = compdb.get(k).src && compdb.get(k).src[f]; return i !== undefined && !re.test(SRC46[i] || ''); }).length;
+const n46 = { cpig: meas46('cpig', /Joback/), hvap: meas46('hvap', /Riedel/), rhol: meas46('rhol', /Rackett/), mul: C46.filter((k) => compdb.get(k).mul && !/estimate/.test(SRC46[compdb.get(k).src.mul] || '')).length };
+const tbDev46 = [];
+for (const k of C46) {
+  try { const pp = thermoModule.createPackage({ model: 'pr' }, [k]); tbDev46.push(Math.abs(thermoModule.flashPVF(pp, [1], 101325, 0).T - compdb.get(k).tb)); } catch (_e) { tbDev46.push(Infinity); }
+}
+tbDev46.sort((x, y) => x - y);
+const q46 = (p) => tbDev46[Math.min(tbDev46.length - 1, Math.floor(p * (tbDev46.length - 1)))];
+const case46 = R46.cases.map((c) => {
+  const { r } = runVec(c.id);
+  const T = r ? (r.result || r).details.T_K : NaN;
+  return `<tr><td>${esc(c.id)}</td><td class="l">${esc(compdb.get(c.key).name)}</td><td>${f(c.Tc, 1)}</td><td>${f(c.Pc_bar, 2)}</td><td class="l">${c.tb_tab.map(([v, s2]) => f(v, 2) + ' (' + esc(s2.replace(/,.*$/, '')) + ')').join('; ')}</td><td>${f(T, 2)}</td></tr>`;
+}).join('\n');
+const drop46 = Object.entries(R46.dropped).sort((x, y) => y[1] - x[1]).map(([w, n]) => `<li>${n} — ${esc(w)}</li>`).join('');
 console.log(`Step 41: DWSIM agreement ${dw41.agree}/${dw41.n} · water–HC worst NRTL ${f(Math.max(...whcDev.nrtl), 1)} % UNIQUAC ${f(Math.max(...whcDev.uniquac), 1)} % · compressed liquid worst ${f(Math.max(...liqDev41), 2)} %`);
 
 console.log(`Step 40: azeotrope mean |ΔT| NRTL ${f(meanArr(azDev40.nrtl), 2)} K UNIQUAC ${f(meanArr(azDev40.uniquac), 2)} K Dortmund ${f(meanArr(azDev40.modunifac), 2)} K · topology ${topo40Ok}/${topo40N} · hE Dortmund worst ${f(100 * Math.max(...hEdev40), 1)} % · density mean auto ${f(meanArr(rhoDev40.auto), 2)} % Rackett ${f(meanArr(rhoDev40.rackett), 2)} % COSTALD ${f(meanArr(rhoDev40.costald), 2)} % PR ${f(meanArr(rhoDev40.eos), 2)} %`);
@@ -2029,8 +2048,17 @@ ${s50vec}
 </tbody></table></div>
 <p class="note">References: saturation pressures of CO₂ (64.3 bar at 25 °C, Span–Wagner) and ethylene (about 28 bar at 270 K) from the NIST Chemistry WebBook. Case MB-455 at 80 bar stays a liquid.</p>
 
+<h2>50 · Extended databank, round 13: compiled critical constants</h2>
+<p>Round 13 adds ${C46.length.toLocaleString('en-US')} compounds (${cat46}) whose critical constants are found only in Yaws' compilation, <i>Thermophysical Properties of Chemicals and Hydrocarbons</i> (2nd ed., 2014) — some of them estimated by Yaws rather than measured. They go in on a stricter condition than the compounds of section 41: every one has a <b>measured vapour-pressure equation</b> that reaches 1 atm within 3 K of a tabulated normal boiling point, so the curve that sets phase equilibrium is measured even where T<sub>c</sub> and P<sub>c</sub> are not. ${R46.gather_skips_compiled.toLocaleString('en-US')} compounds with DIPPR or Yaws critical constants but no measured boiling point and vapour-pressure equation were left out at the start, and of the ${R46.candidates.toLocaleString('en-US')} that had both, ${R46.n_dropped} failed the checks of section 41 or a new one on the liquid density:</p>
+<ul>${drop46}</ul>
+<p>Of the compounds added, ${n46.cpig} have a measured ideal-gas heat capacity, ${n46.hvap} a measured heat of vaporisation, ${n46.rhol} a measured liquid-density equation and ${n46.mul} a measured liquid viscosity; the rest are estimated as for a component given by its structure (Joback, Riedel–Watson, Rackett, corresponding states). With Peng–Robinson the normal boiling point of each compound comes out within ${f(q46(0.5), 3)} K of its databank value at the median and ${f(q46(1), 2)} K at worst. The picker shows them with a pink dot and the <b>Data</b> column of <i>Review pure-component &amp; binary data</i> calls them “compiled”. Compounds already in the databank keep their keys and data.</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Compound</th><th>T<sub>c</sub>, K (Yaws)</th><th>P<sub>c</sub>, bar (Yaws)</th><th class="l">Tabulated normal boiling points, K</th><th>Engine T<sub>b</sub>, K (Peng–Robinson)</th></tr></thead><tbody>
+${case46}
+</tbody></table></div>
+<p class="note">The engine boiling point follows the measured vapour-pressure equation (Landolt–Börnstein IV/20, Antoine) that the build checked against the tabulated values. Case MB-460 checks that a compiled compound is labelled as such. Treat T<sub>c</sub> and P<sub>c</sub> of these compounds — and so supercritical and high-pressure results — with more caution than the measured constants of the other compounds.</p>
+
 <h2>Scope</h2>
-<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–49 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-456.</p>
+<p>These checks verify the implementation against independent references. Agreement with another simulator shows the equations are solved correctly for the given parameters; it does not make a property method suitable for every system — Peng–Robinson without fitted k<sub>ij</sub> over-predicts the solubility of water in hydrocarbon liquids, ChemSep NRTL / UNIQUAC parameters are fitted to vapour–liquid data, and the classic urea units remain empirical correlations (the urea synthesis method of section 30 is the rigorous alternative). Use the results for preliminary engineering and confirm them against plant data before design use. Kinetic reactors are only as good as the rate expressions entered, and the acid association model covers dimerisation only (no acid–water cross association; binary parameters fitted without association may need refitting). The CO₂ packages cover CO₂ only (H₂S and NH₃ chemistry is the sour-water method of section 37), the piperazine part of activated MDEA is a fit to measured CO₂ pressures (section 20), and tray efficiencies stand in for rate-based mass transfer. The Steam / water method takes pure water only. Sections 21–50 are generated by this page's build script from the references in <code>tests/validation-references.json</code>. Peng–Robinson has no built-in k<sub>ij</sub> for H₂–NH₃ or CH₄–NH₃; calibrate them against plant separator data for ammonia-loop work. The inputs for every other case above are in the engine test set, cases MB-089 to MB-460.</p>
 </main>
 <footer>Generated ${today} · multicalci.com</footer>
 <script>

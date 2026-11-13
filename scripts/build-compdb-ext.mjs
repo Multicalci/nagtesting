@@ -53,6 +53,9 @@ const groupStats = { unifac: { same: 0, differ: 0, added: 0, own: 0 }, modunifac
 const base = compdb.keys().filter((k) => !compdb.get(k).ext);
 const baseCas = new Set(base.map((k) => compdb.get(k).cas).filter(Boolean));
 const used = new Set(base.map((k) => k.toLowerCase()));
+// round 13: compounds already in the extended databank keep their keys (saved flowsheets refer to them)
+const OLD_KEY = new Map(compdb.keys().filter((k) => compdb.get(k).ext && compdb.get(k).cas).map((k) => [compdb.get(k).cas, k]));
+for (const k of OLD_KEY.values()) used.add(k.toLowerCase());
 
 const SOURCES = [];
 const sid = (s) => { let i = SOURCES.indexOf(s); if (i < 0) { SOURCES.push(s); i = SOURCES.length - 1; } return i; };
@@ -82,6 +85,20 @@ function prettyName(n) {
     break;
   }
   return s.slice(0, 60);
+}
+// round 13: a compound filed under its CAS number takes its IUPAC name (PubChem's “fluoranyl” forms written as fluoro …);
+// a trailing formula in brackets is dropped ("Sulfur chloride (scl2)")
+function nameOf(r) {
+  let n = String(r.name || '');
+  if ((!n || /^\d+-\d\d-\d$/.test(n)) && r.iupac) {
+    n = String(r.iupac).replace(/\b(bis|tris|tetrakis)\((fluor|chlor|brom|iod)anyl\)/g, (m, k, h) => ({ bis: 'di', tris: 'tri', tetrakis: 'tetra' })[k] + h + 'o')
+      .replace(/(fluor|chlor|brom|iod)anyl/g, '$1o').replace(/\((\d+[rs](?:,\d+[rs])*)\)/g, (m) => m.toUpperCase());
+  }
+  const f = String(r.formula || '').toLowerCase();
+  const m = n.match(/^(.*\S)\s*\(([A-Za-z0-9]+)\)$/);
+  const chars = (x) => x.toLowerCase().split('').sort().join('');
+  if (m && chars(m[2]) === chars(f)) n = m[1];
+  return n;
 }
 function slug(n, cas) {
   let k = String(n).toLowerCase().replace(/[′']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -266,7 +283,7 @@ function build(r) {
     const wd = -Math.log10(ev(ps, 0.7 * Tc, Tc) / Pc) - 1;
     if (num(wd) && Math.abs(lkP(Tb, Tc, Pc, wd) / P0 - 1) < 0.10) { w = wd; wsrc = 'definition (vapour pressure at Tr = 0.7)'; }
   }
-  if (/^DIPPR/.test(tc.src) && /^DIPPR/.test(pc.src) && !ps) return drop(r, 'critical constants from DIPPR only and no vapour-pressure equation that passes');
+  if (/^(DIPPR|Yaws)/.test(tc.src) && /^(DIPPR|Yaws)/.test(pc.src) && !ps) return drop(r, 'critical constants from DIPPR or Yaws only and no vapour-pressure equation that passes');
   if (!num(w)) { w = uc.leeKeslerOmega(Tb, Tc, Pc / 1e5); wsrc = 'Lee–Kesler through Tb'; }
   if (!(w > -0.4 && w < 1.6)) return drop(r, `acentric factor ${w.toFixed(3)}`);
   src.omega = sid(wsrc);
@@ -326,8 +343,9 @@ function build(r) {
   }
   if (rec.unifac) { rec.uqr = 0; rec.uqq = 0; for (const [id, n] of Object.entries(rec.unifac)) { rec.uqr += n * USUB[id][1]; rec.uqq += n * USUB[id][2]; } }
   rec.ext = true;
+  if (/^Yaws/.test(tc.src) || /^Yaws/.test(pc.src)) rec.cq = 'compiled';      // round 13: critical constants from Yaws' compilation
   if (noForm) rec.noform = true;
-  rec.name = prettyName(r.name);
+  rec.name = prettyName(nameOf(r));
   if (F.N) rec.name = rec.name.replace(/^n(,n)?-/, (x) => x.toUpperCase());
   rec.cas = r.cas;
   rec.mw = +MW.toPrecision(8);
@@ -365,6 +383,12 @@ function build(r) {
   // final consistency: the vapour pressure used meets the boiling point
   const pb = ev(rec.psat, Tb, Tc) / P0 - 1;
   if (!(Math.abs(pb) < 0.06)) return drop(r, `final vapour pressure ${(100 * pb).toFixed(1)} % off at Tb`);
+  // round 13: the liquid density in use (measured or estimated) is physical near room temperature — a Rackett estimate from
+  // inconsistent compiled critical constants can come out at twice the real density (checked for the compounds added in round 13)
+  {
+    const Tq = Math.min(Math.max(T0, (num(rec.tm) ? rec.tm : 0) + 1), 0.9 * Tc, Tb), vq = ev(rec.rhol, inRange(rec.rhol, Tq), Tc) * MW;
+    if (!OLD_KEY.has(r.cas) && !(vq > 300 && vq < 3500)) return drop(r, `liquid density ${num(vq) ? vq.toFixed(0) : '?'} kg/m³ at ${Tq.toFixed(0)} K (inconsistent critical constants)`);
+  }
   // rounding (8 significant figures) keeps the module small without changing a value that matters
   const rd = (v) => (num(v) ? +v.toPrecision(8) : v);
   for (const [k, v] of Object.entries(rec)) {
@@ -390,15 +414,17 @@ for (const [r, rec] of built) {
   const n = rec.name.toLowerCase();
   if (baseNames.has(n)) { drop(r, 'same name as a ChemSep component (another CAS number of it)'); continue; }
   const prev = byName.get(n);
-  const better = !prev || (/@/.test(prev[1].smiles) && !/@/.test(rec.smiles)) || (/@/.test(prev[1].smiles) === /@/.test(rec.smiles) && measured(rec) > measured(prev[1]));
+  const isOld = (x) => OLD_KEY.has(x.cas);
+  const better = !prev || (isOld(r) !== isOld(prev[0]) ? isOld(r) :                  // a compound already in the databank stays
+    (/@/.test(prev[1].smiles) && !/@/.test(rec.smiles)) || (/@/.test(prev[1].smiles) === /@/.test(rec.smiles) && measured(rec) > measured(prev[1])));
   if (prev) drop(better ? prev[0] : r, 'duplicate name (stereo-isomer or second CAS number)');
   if (better) byName.set(n, [r, rec]);
 }
 for (const [r, rec] of byName.values()) {
-  const key = slug(rec.name, r.cas);
+  const key = OLD_KEY.get(r.cas) || slug(rec.name, r.cas);
   // field order as in mb-compdb.js
   const order = ['name', 'cas', 'formula', 'smiles', 'family', 'mw', 'tc', 'pc', 'vc', 'zc', 'w', 'tb', 'tm', 'hf', 'gf', 's0', 'dip', 'zra', 'vcost', 'wcost', 'uqr', 'uqq',
-    'psat', 'cpig', 'hvap', 'rhol', 'cpl', 'mul', 'muv', 'kl', 'kv', 'st', 'cat', 'unifac', 'modunifac', 'src', 'ext', 'noform'];
+    'psat', 'cpig', 'hvap', 'rhol', 'cpl', 'mul', 'muv', 'kl', 'kv', 'st', 'cat', 'unifac', 'modunifac', 'src', 'ext', 'cq', 'noform'];
   const o = {};
   for (const k of order) if (rec[k] !== undefined && rec[k] !== null) o[k] = rec[k];
   out[key] = o;
@@ -407,14 +433,17 @@ for (const [r, rec] of byName.values()) {
 const n = Object.keys(out).length;
 const cnt = (f) => Object.values(out).filter(f).length;
 const measuredPs = cnt((c) => !/Lee–Kesler/.test(SOURCES[c.src.psat])), measuredCp = cnt((c) => !/Joback/.test(SOURCES[c.src.cpig]));
+const nCompiled = cnt((c) => c.cq === 'compiled');
 const header = `// ============================================================================
 // REPO PATH: api/_lib/mb-compdb-ext.js
 // ============================================================================
 // multicalci.com — GENERATED by scripts/gather-compdb-ext.py and
-// scripts/build-compdb-ext.mjs (round 12). Do not edit by hand.
+// scripts/build-compdb-ext.mjs (rounds 12 and 13). Do not edit by hand.
 // Extended pure-component databank: ${n} compounds not in the ChemSep databank,
-// each with measured or evaluated critical constants and normal boiling point;
-// ${measuredPs} carry a measured vapour-pressure equation and ${measuredCp} a measured
+// each with a measured normal boiling point; ${n - nCompiled} with measured or evaluated
+// critical constants, ${nCompiled} (marked cq: 'compiled') with critical constants
+// from Yaws' compilation and therefore always a measured vapour-pressure
+// equation. ${measuredPs} carry a measured vapour-pressure equation and ${measuredCp} a measured
 // ideal-gas heat capacity. Properties without measured data are estimated
 // (Joback; Lee–Kesler vapour pressure through the measured Tb, Tc, Pc;
 // Riedel–Watson; Rackett) exactly as for a component given by its structure.
@@ -431,7 +460,9 @@ const header = `// =============================================================
 // Thermodynamics of Organic Compounds in the Gas State (1994); NIST-JANAF
 // Thermochemical Tables (1998); NIST Chemistry WebBook; Active Thermochemical
 // Tables and API Technical Data Book (formation enthalpies); Jasper, J. Phys.
-// Chem. Ref. Data 1 (1972) 841 (surface tension). Correlations are converted to
+// Chem. Ref. Data 1 (1972) 841 (surface tension); Yaws, Thermophysical
+// Properties of Chemicals and Hydrocarbons, 2nd ed. (2014) for critical
+// constants no other table has (round 13). Correlations are converted to
 // ChemSep equation forms and checked against the source function.
 // Units and correlation layout as in mb-compdb.js; a ninth correlation element
 // is the Tc the equation was fitted with (see corr() in mb-thermo.js).
@@ -440,7 +471,7 @@ const header = `// =============================================================
 `;
 const body = 'export const EXT_SOURCES = ' + JSON.stringify(SOURCES) + ';\n\nexport const EXT_COMPS = {\n' +
   Object.entries(out).map(([k, v]) => JSON.stringify(k) + ':' + JSON.stringify(v)).join(',\n') + '\n};\n\n' +
-  `export const EXT_VERSION = 'extended databank r12 (${n} compounds; chemicals ${input.chemicals_version})';\n` +
+  `export const EXT_VERSION = 'extended databank r13 (${n} compounds, ${nCompiled} with compiled critical constants; chemicals ${input.chemicals_version})';\n` +
   'export default { EXT_COMPS, EXT_SOURCES, EXT_VERSION };\n';
 fs.writeFileSync(OUT, header + body);
 fs.writeFileSync(path.join(path.dirname(IN), 'build-compdb-ext-report.json'), JSON.stringify(report, null, 1));
