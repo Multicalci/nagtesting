@@ -165,8 +165,19 @@ function prepComponent(key, c) {
   if (nd && nd.data_quality === 'nist' && Array.isArray(nd.shomate) && nd.shomate.length && num(nd.hf_gas_298)) c._nist = nistShomate(nd, c._cp);
   // STEP 41: property curves replaced where a reference correlation is markedly better
   if (KL_REF[key]) c.kl = KL_REF[key];
+  if (KV_REF[key]) c.kvRef = KV_REF[key];
   c._prep = true;
 }
+/**
+ * Nov 2026: hydrogen gas thermal conductivity, DIPPR eq. 100 fitted to the reference correlation in
+ * CoolProp (normal hydrogen: Assael, Assael, Huber, Perkins & Takata, J. Phys. Chem. Ref. Data 40 (2011)
+ * 033101), dilute gas, 150–1000 K, within 0.25 %. ChemSep's curve is 4 % low at 300 K, 3 % low at 400 K
+ * and 1.9 % low at 500 K. Outside 150–1000 K pureKV uses the databank curve scaled to meet this one at
+ * the end point (eq. 100 must not be extrapolated).
+ */
+const KV_REF = {
+  H2: [100, -0.02287774885, 0.001002226731, -1.358916968e-6, 1.281437485e-9, -4.42650093e-13, 150, 1000],
+};
 /**
  * STEP 41: liquid thermal conductivity, DIPPR eq. 100 fitted to the reference correlation in CoolProp
  * (ammonia: Monogenidou, Assael & Huber, J. Phys. Chem. Ref. Data 47 (2018) 043101) along the saturated
@@ -3773,8 +3784,9 @@ export function flashPS3(pp, z, P, S, Tguess, hint) { return stateFlash(pp, z, P
 //   surface tension    Brock–Bird (scaled to the correlation's end point)
 // Mixtures (Poling, Prausnitz & O'Connell, 5th ed.):
 //   vapour μ  Herning–Zipperer + Jossi–Stiel–Thodos dense-gas term (§9-5, 9-6)
-//   vapour k  Wassiljewa with the Mason–Saxena coefficients (ε = 1) + Stiel–
-//             Thodos dense-gas term on pseudo-critical constants (§10-5, 10-6)
+//   vapour k  Wassiljewa with the Mason–Saxena coefficients (ε = 1; ε = 1.23
+//             for every pair with hydrogen, see mixKV) + Stiel–Thodos
+//             dense-gas term on pseudo-critical constants (§10-5, 10-6)
 //   liquid μ  Grunberg–Nissan without interaction (ln-mole-fraction mean) +
 //             Lucas (1981) compressed-liquid correction above the saturation
 //             pressure (§9-10, 9-12)
@@ -3843,6 +3855,14 @@ function chungKV(c, T, muV) {
 }
 function hIGcp(c, T) { const h = 0.05; return (c._cp.at(T + h)[0] - c._cp.at(T - h)[0]) / (2 * h); }
 export function pureKV(c, T, est) {
+  if (c.kvRef) {
+    const lo = c.kvRef[6], hi = c.kvRef[7];
+    if (T >= lo && T <= hi) { const k = tcorr(c.kvRef, T, c.Tc); if (k > 0) return k; }
+    else if (c.kv) {            // outside the reference range: the databank shape, scaled to meet the reference curve
+      const Te = T < lo ? lo : hi, kd = tcorr(c.kv, Te, c.Tc), kr = tcorr(c.kvRef, Te, c.Tc), k = tcorr(c.kv, T, c.Tc);
+      if (kd > 0 && kr > 0 && k > 0) return k * kr / kd;
+    }
+  }
   if (c.kv) { const k = tcorr(c.kv, T, c.Tc); if (k > 0) return k; }
   noteEst(est, 'kV ' + c.key + ' (Chung)');
   return chungKV(c, T, pureMuV(c, T));
@@ -3976,11 +3996,22 @@ function mixVisV(pp, T, y, V, est) {
   const dmu = (Math.pow(lhs, 4) - 1) / xi;                                                 // μP
   return mu0 + Math.max(dmu, 0) * 1e-7;
 }
+/**
+ * Nov 2026: Mason–Saxena ε for every pair with hydrogen. With ε = 1 the Wassiljewa equation puts
+ * hydrogen mixtures 8–15 % above the measured conductivity (Assael & Wakeham, J. Chem. Soc. Faraday
+ * Trans. 1, 78 (1982) 185, and Assael, PhD thesis, Imperial College 1980: transient hot wire, ±0.2 %,
+ * 35 °C, H2–N2 x(H2) 0.21–0.73 and H2–Ar x(H2) 0.26–0.75). One ε = 1.23 fitted to those 7 points
+ * represents both systems within 2.2 % (mean 1.2 %); fitted separately, H2–N2 gives 1.265 and H2–Ar
+ * 1.21. Pairs without hydrogen keep ε = 1 (dry air: test MB-302). Applied to H2 with CH4, CO, CO2,
+ * H2O and NH3 too: no accurate data were found for those pairs, and the overestimate comes from the
+ * light hydrogen molecule, which the N2 and Ar results show behaves the same with either partner.
+ */
+const EPS_H2_PAIR = 1.23;
 function mixKV(pp, T, y, V, est) {
-  const idx = [], ks = [], mus = [], Ms = [];
+  const idx = [], ks = [], mus = [], Ms = [], h2 = [];
   for (let i = 0; i < pp.n; i++) if (y[i] > 0) {
     const c = pp.comps[i];
-    idx.push(i); Ms.push(c.MW);
+    idx.push(i); Ms.push(c.MW); h2.push(c.key === 'H2');
     let mu = pureMuV(c, T, est); if (!(mu > 0)) mu = 1.2e-5; mus.push(mu);
     let k = pureKV(c, T, est); if (!(k > 0)) k = 0.03; ks.push(k);
   }
@@ -3988,7 +4019,8 @@ function mixKV(pp, T, y, V, est) {
   for (let a = 0; a < idx.length; a++) {
     let d = 0;
     for (let b = 0; b < idx.length; b++) {
-      const phi = Math.pow(1 + Math.sqrt(mus[a] / mus[b]) * Math.pow(Ms[b] / Ms[a], 0.25), 2) / Math.sqrt(8 * (1 + Ms[a] / Ms[b]));
+      const eps = a !== b && (h2[a] || h2[b]) ? EPS_H2_PAIR : 1;
+      const phi = eps * Math.pow(1 + Math.sqrt(mus[a] / mus[b]) * Math.pow(Ms[b] / Ms[a], 0.25), 2) / Math.sqrt(8 * (1 + Ms[a] / Ms[b]));
       d += y[idx[b]] * phi;
     }
     k0 += y[idx[a]] * ks[a] / d;
