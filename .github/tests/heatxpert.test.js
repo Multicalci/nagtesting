@@ -78,10 +78,12 @@ describe('Router / CORS', () => {
 // SECTION 2 — SHELL & TUBE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// cold flow 80 000 kg/h: the cold water rises 30 K to about 55 °C, below the 60 °C hot outlet. (With 40 000 kg/h it
+// would reach 85 °C — a 25 K temperature cross that a single 1-2 shell cannot achieve; the API rejects it, F undefined.)
 const ST_BASELINE = {
   calcType: 'shellTube',
   hFlKey: 'water', hTi: 90, hTo: 60, hF: 80000,
-  cFlKey: 'water', cTi: 25, cF: 40000, coldMode: 'flow',
+  cFlKey: 'water', cTi: 25, cF: 80000, coldMode: 'flow',
   OD: 25.4, tw: 2.0, L: 4.88, pitch: 1.25, arr: 'counter',
   mat: 'ss316', tema: 'C', hxType: '1-2',
   Rfo: 0.0002, Rfi: 0.0002,
@@ -257,10 +259,13 @@ describe('Shell & Tube — pressure drop direction', () => {
     cFlKey: 'water', cTi: 25, coldMode: 'flow',
     OD: 25.4, tw: 2.0, L: 4.88, pitch: 1.25, arr: 'counter',
     mat: 'ss304', tema: 'C', hxType: '1-2',
+    autoPasses: false,   // keep 2 tube passes: the API otherwise picks the pass count for the target velocity (Oct 2026), and
+                         // fewer passes at the higher flow halve the tube path, so ΔP need not rise with flow
   };
 
   test('tubeDp increases with increasing cold flow', async () => {
-    const lo = await post({ ...ST_SMALL, cF: 10000 });
+    // 25 000 kg/h is the lowest of the two that stays clear of a temperature cross (cold outlet ≈ 49 °C < 70 °C hot outlet)
+    const lo = await post({ ...ST_SMALL, cF: 25000 });
     const hi = await post({ ...ST_SMALL, cF: 50000 });
     expect(lo.body.tubeDp).toBeGreaterThan(0);
     expect(hi.body.tubeDp).toBeGreaterThan(0);
@@ -294,7 +299,7 @@ const PLATE_BASE = {
   calcType: 'plate',
   hFlKey: 'water', hTi: 80, hTo: 50, hF: 30000,
   cFlKey: 'water', cTi: 20, cF: 25000, coldMode: 'flow',
-  th: 0.6, angle: 45, gap: 3.0, pw: 0.5, plen: 1.2, phi: 1.17,
+  th: 0.6, angle: 45, gap: 3.0, pw: 500, plen: 1200, phi: 1.17,   // plate width and length in mm, as the page sends them
   mat: 'ss316', foul: 0.0002,
   pdAllowH: 1.5, pdAllowC: 1.5,
 };
@@ -625,10 +630,21 @@ describe('Wall Thickness — ASME Sec. VIII UG-27', () => {
     near(body.t_thin_mm, t_exp, 0.03, 'thin-wall formula');
   });
 
-  test('thick-wall Lamé triggered at P=250 barg (t/R >= 0.1)', async () => {
+  // ASME VIII Div.1 UG-27(c)(1) holds while t <= R/2 and P <= 0.385·S·E; beyond that Appendix 1-2(a)(1) applies.
+  // R is the corroded inside radius, D/2 + CA.
+  test('250 barg stays on UG-27 (P < 0.385·S·E, t < R/2)', async () => {
     const { body } = await post({ ...WT_BASE, P: 250 });
+    const P = 25, R = WT_BASE.D / 2 + WT_BASE.CA, SE = WT_BASE.S * WT_BASE.E;
+    expect(body.isThickWall).toBe(false);
+    near(body.t_calc_mm, P * R / (SE - 0.6 * P), 0.01, 'UG-27(c)(1) thickness');
+  });
+
+  test('600 barg (P > 0.385·S·E) switches to the Appendix 1-2 thick-cylinder formula', async () => {
+    const { body } = await post({ ...WT_BASE, P: 600 });
+    const P = 60, R = WT_BASE.D / 2 + WT_BASE.CA, SE = WT_BASE.S * WT_BASE.E;
     expect(body.isThickWall).toBe(true);
-    expect(body.lameT).toBeGreaterThan(0);
+    expect(body.method).toBe('thick-wall');
+    near(body.t_calc_mm, R * (Math.sqrt((SE + P) / (SE - P)) - 1), 0.01, 'Appendix 1-2 thickness');
   });
 
   test('sphere gives smaller t than cylinder', async () => {

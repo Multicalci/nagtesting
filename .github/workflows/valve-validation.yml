@@ -1,8 +1,8 @@
 # .github/workflows/valve-validation.yml
-# Runs the control-valve validation/regression suite after every Vercel deploy,
-# against the exact deployment that was just built (preview OR production).
-# Uses a Vercel "Protection Bypass for Automation" secret to get past
-# Deployment Protection on preview URLs.
+# Runs the control-valve validation/regression suite after every Vercel deploy:
+# production on https://www.multicalci.com; a preview on its own URL when the
+# Vercel "Protection Bypass for Automation" secret (VERCEL_AUTOMATION_BYPASS_SECRET)
+# is set as a repository secret, otherwise the preview run is skipped.
 
 name: Valve sizing validation
 
@@ -21,7 +21,21 @@ jobs:
         with:
           node-version: '20'
 
+      # Production deployments are checked on the public domain (not behind Deployment Protection).
+      # Preview URLs need the bypass secret; without it the preview run is skipped with a notice
+      # instead of failing on HTTP 401.
       - name: Run control-valve validation suite
         env:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: node .github/tests/validate.mjs "${{ github.event.deployment_status.target_url }}"
+          DEPLOY_ENV: ${{ github.event.deployment.environment }}
+          TARGET_URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          case "$DEPLOY_ENV" in
+            Production*) URL="https://www.multicalci.com" ;;
+            *)           URL="$TARGET_URL" ;;
+          esac
+          if [ "$URL" != "https://www.multicalci.com" ] && [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "::notice::Preview deployment is behind Vercel Deployment Protection and VERCEL_AUTOMATION_BYPASS_SECRET is not set - preview run skipped. Production deployments are validated on https://www.multicalci.com."
+            exit 0
+          fi
+          node .github/tests/validate.mjs "$URL"
