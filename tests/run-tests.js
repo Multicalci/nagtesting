@@ -21,6 +21,8 @@
 //     tol    : number (absolute, applied to every numeric expect)
 //              | { "<dotted.path>": number, "default": number },
 //     source : provenance of the expected value (NIST / steam tables / ...)
+//     max_ms : optional — the call must finish within this many milliseconds
+//              (guards a performance fix; set well above the normal time)
 //   }
 //
 // COMPOSITE CALLS (keep vectors declarative, no code in JSON):
@@ -352,8 +354,17 @@ function main() {
   const failures = [];
 
   for (const vec of vectors) {
+    const t0 = Date.now();
     const result = execute(vec);
-    const { pass, lines, warnings } = check(vec, result);
+    const ms = Date.now() - t0;
+    const chk = check(vec, result);
+    let { pass } = chk;
+    const { lines, warnings } = chk;
+    if (num(vec.max_ms)) {
+      const ok = ms <= vec.max_ms;
+      lines.push(`time: ${ms} ms (limit ${vec.max_ms} ms) ${ok ? '✓' : '✗'}`);
+      if (!ok) pass = false;
+    }
     if (pass) passed++;
     else failures.push(vec.id);
 

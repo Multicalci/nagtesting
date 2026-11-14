@@ -1649,6 +1649,9 @@ export function createPackage(spec, keys) {
   }
   /** solvent-weighted ln H [Pa] and B [K] for Henry component i, or null when no solvent is present */
   function henryMix(i, T, x) {
+    // no Henry data for this gas among the components (its solvent is absent: CO₂ with a trace of N₂
+    // and no water in the urea method) — treated as not dissolved, as when the solvent's fraction is nil
+    if (!henry[i]) return null;
     let sw = 0, lnH = 0, B = 0;
     for (const [j, A, Bj] of henry[i]) { sw += x[j]; lnH += x[j] * (A + Bj / T); B += x[j] * Bj; }
     if (!(sw > 1e-12)) return null;
@@ -2330,7 +2333,7 @@ export function flashPT(pp, z, T, P, hint) {
  * (x from the material balance, well conditioned as β → 0), for large β the
  * unknowns are ln x_i and β. Non-volatile salts stay in the liquid.
  */
-function flashPT_elec(pp, z, T, P) {
+function flashPT_elec(pp, z, T, P, guess, noCont) {
   const n = pp.n, nv = pp.electrolyte.nonvolatile;
   // a mere trace of salt (carried into a gas by a column's numerics) cannot be resolved
   // as a brine droplet: flash the salt-free remainder and put the salt in its liquid
@@ -2512,7 +2515,14 @@ function flashPT_elec(pp, z, T, P) {
     if (dw0 && dw0.sx <= 1 + 1e-9) return single(pp, z, T, P, 'V');
   }
   let res = null, best = null, closest = null;
-  for (const b0 of [beta0, Math.min(0.5, Math.max(1e-6, beta0 * 3)), Math.max(1e-9, beta0 / 10), 0.5, 0.9]) {
+  // a neighbouring two-phase solution (pressure continuation, below) starts Newton first
+  if (guess && guess.phase === 'VL' && guess.beta > 0 && guess.beta < 1) {
+    vapRich = vol.map((i) => guess.beta * guess.y[i] > (1 - guess.beta) * guess.x[i]);
+    const rg = newton(vol.map((i, q) => Math.log(Math.max(vapRich[q] ? guess.x[i] : guess.y[i], 1e-300))).concat([guess.beta]));
+    if (rg && rg.nrm < 1e-9) best = rg;
+    else if (rg) closest = rg;
+  }
+  for (const b0 of best ? [] : [beta0, Math.min(0.5, Math.max(1e-6, beta0 * 3)), Math.max(1e-9, beta0 / 10), 0.5, 0.9]) {
     res = newton(start(b0));
     if (res && (!closest || res.nrm < closest.nrm)) closest = res;
     if (res && res.nrm < 1e-9) {
@@ -2573,6 +2583,13 @@ function flashPT_elec(pp, z, T, P) {
       if (err < 1e-10) { if (b < 1e-13) return single(pp, z, T, P, 'L'); if (b > 1 - 1e-13 && !salt.length) return single(pp, z, T, P, 'V'); return { T, P, beta: b, x, y: yv, phase: 'VL', iterations: it }; }
     }
   }
+  if ((!res || !(res.nrm < 1e-6)) && !salt.length && !noCont && !pp.electrolyte.urea) {
+    // pressure continuation (acid-gas methods, no salt): where the liquid changes character fast — a trace
+    // of amine mist taking up water just below the water dew point — Newton loses its way from the usual
+    // starts; solve at a nearby pressure that converges and step to P from that solution
+    const c = flashElecContinue(pp, z, T, P);
+    if (c) return c;
+  }
   if (!res || !(res.nrm < 1e-6)) {
     if (pp.electrolyte.urea) {
       const iW = pp.keys.indexOf('H2O'), iU = pp.keys.indexOf('urea');
@@ -2585,6 +2602,30 @@ function flashPT_elec(pp, z, T, P) {
   if (res.beta < 1e-13 || !vapLike(res.st.yn)) return single(pp, z, T, P, 'L');
   if (!salt.length && res.beta > 1 - 1e-13) return single(pp, z, T, P, 'V');
   return { T, P, beta: res.beta, x: res.st.xn, y: res.st.yn, phase: 'VL', iterations: 0 };
+}
+/** acid-gas flash at P reached from a converged two-phase solution at a nearby pressure in small steps, or null */
+function flashElecContinue(pp, z, T, P) {
+  const tryAt = (Pk, g) => { try { return flashPT_elec(pp, z, T, Pk, g, true); } catch (_e) { return null; } };
+  for (const f of [0.98, 1.02, 0.95, 1.05]) {
+    const Pa = P * f;
+    let prev = tryAt(Pa, null);
+    if (!prev || prev.phase !== 'VL') continue;
+    let Pc = Pa, step = (P - Pa) / 8, guard = 0;
+    while (guard++ < 40) {
+      const Pn = Math.abs(P - Pc) <= Math.abs(step) * 1.000001 ? P : Pc + step;
+      const r = tryAt(Pn, prev);
+      if (r && r.phase === 'VL') {
+        prev = r; Pc = Pn;
+        if (Pn === P) return r;
+        step *= 1.5; if (Math.abs(step) > Math.abs(P - Pa) / 4) step = (P - Pa) / 4;
+        continue;
+      }
+      if (r && Pn === P) return r;                       // one phase at P itself: the neighbour's liquid vanished
+      step /= 2;
+      if (Math.abs(step) < Math.abs(P) * 1e-7) break;
+    }
+  }
+  return null;
 }
 function solveLin(A, b) {
   const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
@@ -3517,15 +3558,17 @@ function vfBisect(pp, z, beta, mode, fixed, guess) {
   };
   // residual increasing in u: β − target in T, target − β in ln P
   const g = (q) => (mode === 'T' ? q.b - beta : beta - q.b);
-  let lo = mode === 'T' ? 250 : Math.log(1e4), hi = mode === 'T' ? 700 : Math.log(1e9);
+  const LO = mode === 'T' ? 250 : Math.log(1e4), HI = mode === 'T' ? 700 : Math.log(1e9);
+  let lo = LO, hi = HI;
   const u0 = num(guess) && guess > 0 ? (mode === 'T' ? guess : Math.log(guess)) : null;
   let qlo = null, qhi = null;
   try {
-    if (u0 !== null) {
-      // walk out from the guess
+    if (u0 !== null && u0 > LO && u0 < HI) {
+      // walk out from the guess — never past the range: the speciated liquid outside it (tens of K, millions
+      // of bar) takes up to a minute per flash and yields no boundary
       let d = mode === 'T' ? 5 : 0.05, q0 = bOf(u0);
-      if (g(q0) < 0) { lo = u0; qlo = q0; for (let k = 0; k < 30; k++) { const u = u0 + d; const q = bOf(u); if (g(q) >= 0) { hi = u; qhi = q; break; } lo = u; qlo = q; d *= 2; } }
-      else { hi = u0; qhi = q0; for (let k = 0; k < 30; k++) { const u = u0 - d; const q = bOf(u); if (g(q) < 0) { lo = u; qlo = q; break; } hi = u; qhi = q; d *= 2; } }
+      if (g(q0) < 0) { lo = u0; qlo = q0; for (let k = 0; k < 30; k++) { const u = Math.min(u0 + d, HI); const q = bOf(u); if (g(q) >= 0) { hi = u; qhi = q; break; } lo = u; qlo = q; if (u >= HI) break; d *= 2; } }
+      else { hi = u0; qhi = q0; for (let k = 0; k < 30; k++) { const u = Math.max(u0 - d, LO); const q = bOf(u); if (g(q) < 0) { lo = u; qlo = q; break; } hi = u; qhi = q; if (u <= LO) break; d *= 2; } }
     }
     if (!qlo) qlo = bOf(lo);
     if (!qhi) qhi = bOf(hi);
