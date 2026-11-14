@@ -802,7 +802,7 @@ Object.assign(NICE, { [C0 + 'MW']: 'molar mass, kg/kmol', [C0 + 'Tb_K']: 'Tb, K'
   [C0 + 'unifac.1.n']: 'UNIFAC group 2, count', [C0 + 'modunifac.0.id']: 'Dortmund group 1, id', [C0 + 'modunifac.0.n']: 'Dortmund group 1, count', [C0 + 'modunifac.1.id']: 'Dortmund group 2, id',
   [C0 + 'modunifac.1.n']: 'Dortmund group 2, count', [C0 + 'modunifac.2.id']: 'Dortmund group 3, id', 'details.y.benzene': 'vapour y benzene', 'details.y.UC5ADF6CCF': 'vapour y ethanol (user component)',
   'details.rows.0.phases.vapour.mu_cP': 'vapour viscosity, cP', 'details.rows.0.phases.vapour.k_WmK': 'vapour conductivity, W/(m·K)', 'details.rows.0.phases.liquid.k_WmK': 'liquid conductivity, W/(m·K)',
-  'details.rows.0.phases.liquid.sigma_mNm': 'surface tension, mN/m' });
+  'details.rows.0.phases.liquid.sigma_mNm': 'surface tension, mN/m', 'details.overall.k_WmK': 'vapour conductivity, W/(m·K)' });
 const ucVecTable = vecTable(range(291, 295), 'uc');
 const fillVecTable = vecTable(['MB-298', 'MB-299', 'MB-300', 'MB-302'], 'fill');
 // (e) transport against CoolProp
@@ -832,6 +832,7 @@ const airRows = R37.coolprop_air.map((q) => {
   return `<tr><td>${f(q.T_K, 0)}</td><td>${f(v.mu_cP * 1e3, 3)}</td><td>${f(q.mu_cP * 1e3, 3)}</td><td>${f((v.mu_cP - q.mu_cP) / q.mu_cP * 100, 1)} %</td><td>${f(v.k_WmK * 1e3, 2)}</td><td>${f(q.k_WmK * 1e3, 2)}</td><td>${f((v.k_WmK - q.k_WmK) / q.k_WmK * 100, 1)} %</td></tr>`;
 }).join('\n');
 const s37vec = vecTable(range(303, 305), 'tp');
+const h2kVec = vecTable(range(466, 474), 'tp');   // Nov 2026: hydrogen-mixture vapour conductivity vs hot-wire data
 console.log(`Step 37: groups ${fragAgree.unifac}/${fragAgree.modunifac}/${fragAgree.joback} of ${nFrag} · estimates over ${estN} molecules · fill-in worst ΔTbub ${f(fillWorst, 2)} K · transport vs CoolProp mean |Δ| databank μ ${f(avg37(tpDev.db.mu), 1)} % SMILES μ ${f(avg37(tpDev.est.mu), 1)} %`);
 
 /* ---------- STEP 38: aqueous electrolytes (PHREEQC pitzer.dat) and sour water ---------- */
@@ -1823,6 +1824,10 @@ ${airRows}
 </tbody></table></div>
 <div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
 ${s37vec}
+</tbody></table></div>
+<p>Hydrogen mixtures against measurement: with the plain Mason–Saxena coefficients (ε = 1) the Wassiljewa equation put hydrogen–nitrogen and hydrogen–argon 3–10 % above transient hot-wire data (Assael &amp; Wakeham 1982, ±0.2 %, 35 °C) and up to 15 % above with exact pure-gas values. The engine now uses ε = 1.23 for every pair with hydrogen, fitted to these seven points, and hydrogen's own conductivity from the reference correlation (Assael et al. 2011, via CoolProp) in place of the databank curve, which was 4 % low at room temperature. Pairs without hydrogen are unchanged (dry air above).</p>
+<div class="tw"><table><thead><tr><th>Case</th><th class="l">Description</th><th class="l">Quantity</th><th>Engine</th><th>Reference</th><th>|Δ|</th></tr></thead><tbody>
+${h2kVec}
 </tbody></table></div>
 <p class="note">The few group assignments that differ from thermo over the large set are fused polycyclic hydrocarbons and quinodimethanes written in Kekulé form, where which rings count as aromatic is a convention. Group-contribution estimates are screening values: a large or strongly polar molecule can be off by more than the 90th percentile above, and Joback has no groups for some structures (formates, sulfones, furfural-type rings) — enter Tb, Tc and Pc for those. Estimated liquid viscosity is the weakest property; one measured value anchors it. Filled binary pairs are predictions, flagged in the run log and the property information; replace them with fitted data for design (vectors MB-291 to MB-305).</p>
 
