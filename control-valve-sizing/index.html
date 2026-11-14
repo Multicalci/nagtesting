@@ -617,11 +617,11 @@ select option{background:var(--ink2)}
       </div>
       <div class="row2" id="atmField" style="display:none;margin-bottom:6px">
         <div class="field"><label>Atmospheric Ref <span class="hint">added to gauge → abs</span></label>
-          <div class="iw"><input type="number" id="atmRef" value="1.01325" step="0.00001" oninput="calc()"><span class="iunit" id="atmRefUnit">bar</span></div></div>
+          <div class="iw"><input type="number" id="atmRef" value="1.01325" step="0.00001" oninput="calc();autoLiquidProps()"><span class="iunit" id="atmRefUnit">bar</span></div></div>
       </div>
       <div class="row2">
         <div class="field"><label>Inlet Pressure P₁</label>
-          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ()"><span class="iunit" id="uP">psi</span></div>
+          <div class="iw"><input type="number" id="p1" value="100" oninput="calc();autoZ();autoLiquidProps()"><span class="iunit" id="uP">psi</span></div>
           <span id="p1AbsHint" style="font-family:var(--mono);font-size:.66rem;color:var(--text3)"></span></div>
         <div class="field"><label>Outlet Pressure P₂</label>
           <div class="iw"><input type="number" id="p2" value="70" oninput="calc()"><span class="iunit" id="uP2">psi</span></div>
@@ -1003,7 +1003,7 @@ const FLUID_DB={
   //    the fallback reference point (≈20 °C) shown before the first auto-calc; the
   //    live values come from computeLiquidProps(). Names MUST match FLUID_THERMO keys.
   liq_gen:[
-    {n:"Water",sg:0.998,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.9},
+    {n:"Water",sg:0.998,pv:0.34,k:1,z:1,type:'l',visc:1.004,Pc:220.64},
     {n:"Sea Water",sg:1.025,pv:0.30,k:1,z:1,type:'l',visc:1.05,Pc:220.9},
     {n:"Diesel Fuel",sg:0.850,pv:0.009,k:1,z:1,type:'l',visc:3.2,Pc:42.0},
     {n:"Petrol/Gasoline",sg:0.740,pv:7.50,k:1,z:1,type:'l',visc:0.6,Pc:36.5},
@@ -1047,8 +1047,8 @@ const FLUID_DB={
     {n:"Urea Solution 70%",sg:1.201,pv:1.790,k:1,z:1,type:'l',visc:2.7,Pc:220.9},
   ],
   gas_gen:[
-    {n:"Air",          sg:28.97,pv:0,k:1.40,z:1.000,type:'g',Tc:132.5,Pc_bar:37.86,omega:0.035},
-    {n:"Nitrogen (N₂)",sg:28.01,pv:0,k:1.40,z:1.000,type:'g',Tc:126.2,Pc_bar:34.00,omega:0.039},
+    {n:"Air",          sg:28.97,pv:0,k:1.40,z:1.000,type:'g',Tc:132.5,Pc_bar:37.86,omega:0.0335},
+    {n:"Nitrogen (N₂)",sg:28.01,pv:0,k:1.40,z:1.000,type:'g',Tc:126.2,Pc_bar:34.00,omega:0.0372},
     {n:"Oxygen (O₂)",  sg:32.00,pv:0,k:1.40,z:1.000,type:'g',Tc:154.6,Pc_bar:50.43,omega:0.022},
     {n:"Hydrogen (H₂)",sg:2.016,pv:0,k:1.41,z:1.000,type:'g',Tc:33.19,Pc_bar:13.13,omega:-0.219},
     {n:"Carbon Dioxide",sg:44.01,pv:0,k:1.30,z:0.994,type:'g',Tc:304.2,Pc_bar:73.83,omega:0.225},
@@ -1057,8 +1057,8 @@ const FLUID_DB={
     {n:"Chlorine",     sg:70.90,pv:0,k:1.34,z:0.990,type:'g',Tc:416.9,Pc_bar:79.91,omega:0.069},
     {n:"Argon",        sg:39.95,pv:0,k:1.67,z:1.000,type:'g',Tc:150.8,Pc_bar:48.87,omega:0.000},
     {n:"Helium",       sg:4.003,pv:0,k:1.67,z:1.000,type:'g',Tc:5.19, Pc_bar:2.27, omega:-0.390},
-    {n:"SO₂",          sg:64.07,pv:0,k:1.29,z:0.990,type:'g',Tc:430.8,Pc_bar:78.84,omega:0.245},
-    {n:"H₂S",          sg:34.08,pv:0,k:1.32,z:0.990,type:'g',Tc:373.2,Pc_bar:89.63,omega:0.094},
+    {n:"SO₂",          sg:64.07,pv:0,k:1.29,z:0.990,type:'g',Tc:430.8,Pc_bar:78.84,omega:0.256},
+    {n:"H₂S",          sg:34.08,pv:0,k:1.32,z:0.990,type:'g',Tc:373.2,Pc_bar:89.63,omega:0.100},
     {n:"Syngas (3H₂+N₂)",sg:8.52,pv:0,k:1.40,z:1.000,type:'g',Tc:56.4, Pc_bar:18.35,omega:-0.154}, // NH₃ synthesis make-up gas (pseudo-critical mix)
     {n:"Flue Gas",     sg:29.2, pv:0,k:1.36,z:0.995,type:'g',Tc:201.0,Pc_bar:58.00,omega:0.100},   // typ. N₂/CO₂/H₂O/O₂ mix (pseudo)
     {n:"Biogas 60% CH₄",sg:27.23,pv:0,k:1.30,z:0.990,type:'g',Tc:236.1,Pc_bar:57.20,omega:0.097}, // 60/40 CH₄/CO₂ (pseudo)
@@ -1092,16 +1092,22 @@ const FLUID_DB={
 //  The Cv SIZING MATH stays 100% server-side; this only populates inputs, exactly
 //  like the old fixed presets did — but now T-aware, with per-field manual override.
 //
-//  Vapor pressure : Antoine  log10(P) = A − B/(T + C), constants stored in their
-//                   NATIVE published units {pUnit:'bar'|'mmHg', tUnit:'K'|'C'} so
-//                   they are used verbatim (no manual-conversion errors). Multi-range
-//                   fluids (ammonia) store an array r:[...]. Verified vs NIST WebBook.
-//  Density        : rho(T)[kg/m³]; SG = rho/999. 'poly' = a+bT+cT² ; 'beta' = linear.
-//  Viscosity      : mu(T)[cP]; 'vogel'=exp(A+B/(Tk−C)), 'andrade'=exp(A+B/Tk),
-//                   'const'=fixed. Field is populated in cSt (kinematic = cP/SG),
-//                   which is what the server Reynolds-number correction expects.
-//  Every correlation was regression-tested against the previously-shipped preset
-//  values (all SG within 0.8 %, Pv within ~4 %) before shipping.
+//  FIX FP-3 (accuracy audit, Nov 2026): every liquid was re-fitted to a reference
+//  source over a widened T range (see each entry's ref:). Forms used:
+//  Vapor pressure : 'd101'  P[bar] = exp(c0 + c1/T + c2·lnT + c3·T^E), T in K
+//                   (DIPPR-101 form; also carries AP-42 / Clausius-Clapeyron fits
+//                   with c2=c3=0). 'const_psia' only for oils with negligible Pv.
+//  Density        : rho(T)[kg/m³]; SG = rho/999. 'tau' = Σ cᵢ·τ^eᵢ, τ = 1−T/Tc,
+//                   e = 0, 0.35, 2/3, 1, 4/3 (saturated-liquid form, valid to ~0.9 Tc);
+//                   'poly' = a+bT+cT² (°C); 'beta' = linear expansion.
+//  Viscosity      : mu(T)[cP]; 'd101' as above; 'andrade'=exp(A+B/Tk); 'const'.
+//                   Field is populated in cSt (kinematic = cP/SG), which is what the
+//                   server Reynolds-number correction expects.
+//  References: CoolProp/REFPROP-class EOS for pure fluids, DIPPR (Perry 8e) and
+//  VDI-PPDS for other pure chemicals, Laliberté (2009) for electrolytes, MIT
+//  seawater, EPA AP-42 Table 7.1-2 / Figs 7.1-15/16 for petroleum TVP, ASTM D341
+//  for lube/hydraulic grades. Pure-fluid fits reproduce their reference within
+//  0.1 % (ρ), 0.6 % (Pv), 2 % (μ). Regression test: .github/tests/valve-liquid-props.test.mjs
 // ============================================================================
 const _MMHG_PER_PSI=51.71493, _BAR_PER_PSI=0.06894757;
 function _antoineP_psia(spec,T_C){
@@ -1115,177 +1121,271 @@ function _antoineP_psia(spec,T_C){
   if(r.pUnit==='mmHg') return P/_MMHG_PER_PSI;
   return P;
 }
+const _TAU_E=[0,0.35,2/3,1,4/3];
+function _d101(s,Tk){ const c=s.c; return Math.exp(c[0] + c[1]/Tk + c[2]*Math.log(Tk) + c[3]*Math.pow(Tk,s.E)); }
+function _pv_psia(spec,T_C){
+  if(spec.model==='const_psia') return spec.val;
+  if(spec.model==='d101') return _d101(spec,T_C+273.15)/_BAR_PER_PSI;
+  return _antoineP_psia(spec,T_C);
+}
 function _density_kgm3(d,T_C){
+  if(d.model==='tau'){ const tau=Math.max(0,1-(T_C+273.15)/d.Tc); let r=0;
+    for(let i=0;i<d.c.length;i++) r+=d.c[i]*Math.pow(tau,_TAU_E[i]); return r; }
   if(d.model==='poly') return d.a + d.b*T_C + d.c*T_C*T_C;
   return d.rhoRef*(1 - d.beta*(T_C - d.Tref));
 }
 function _viscosity_cP(v,T_C){
   const Tk=T_C+273.15;
+  if(v.model==='d101')    return _d101(v,Tk);
   if(v.model==='vogel')   return Math.exp(v.A + v.B/(Tk - v.C));
   if(v.model==='andrade') return Math.exp(v.A + v.B/Tk);
   return v.val;
 }
+// ============================================================================
+//  WATER — IAPWS-IF97 (FIX FP-2)
+//  The old Water entry used a 0–100 °C density polynomial + low-range Antoine and
+//  CLAMPED T at 100 °C, so hot water (BFW, condensate, HP process water) was sized
+//  with 100 °C properties: e.g. 209 °C / 115 bar(a) gave SG 0.964 (true 0.862) and
+//  Pv 1.01 bar (true 18.9 bar) — Cv ~6 % low and σ / choked-ΔP far too optimistic.
+//  Now: Region 1 compressed-liquid density at (T, P1), Region 4 saturation
+//  pressure, IAPWS R12-08 viscosity. Valid 0–350 °C, P up to 1000 bar.
+//  Coefficients copied verbatim from api/_lib/steam-if97.js (verified there
+//  against the IAPWS R7-97(2012) / R12-08 check tables).
+// ============================================================================
+const _IF97_R1_I=[0,0,0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,3,3,3,4,4,4,5,8,8,21,23,29,30,31,32];
+const _IF97_R1_J=[-2,-1,0,1,2,3,4,5,-9,-7,-1,0,1,3,-3,0,1,3,17,-4,0,6,-5,-2,10,-8,-11,-6,-29,-31,-38,-39,-40,-41];
+const _IF97_R1_N=[0.14632971213167,-0.84548187169114,-3.756360367204,3.3855169168385,-0.95791963387872,0.15772038513228,-0.016616417199501,0.00081214629983568,0.00028319080123804,-0.00060706301565874,-0.018990068218419,-0.032529748770505,-0.021841717175414,-5.283835796993e-05,-0.00047184321073267,-0.00030001780793026,4.7661393906987e-05,-4.4141845330846e-06,-7.2694996297594e-16,-3.1679644845054e-05,-2.8270797985312e-06,-8.5205128120103e-10,-2.2425281908e-06,-6.5171222895601e-07,-1.4341729937924e-13,-4.0516996860117e-07,-1.2734301741641e-09,-1.7424871230634e-10,-6.8762131295531e-19,1.4478307828521e-20,2.6335781662795e-23,-1.1947622640071e-23,1.8228094581404e-24,-9.3537087292458e-26];
+const _IF97_R4_N=[0,0.11670521452767e4,-0.72421316703206e6,-0.17073846940092e2,0.12020824702470e5,
+  -0.32325550322333e7,0.14915108613530e2,-0.48232657361591e4,0.40511340542057e6,
+  -0.23855557567849,0.65017534844798e3];
+const _IAPWS_MU_H0=[1.67752,2.20462,0.6366564,-0.241605];
+const _IAPWS_MU_H=[
+  [0.520094,0.222531,-0.281378,0.161913,-0.0325372,0,0],
+  [0.0850895,0.999115,-0.906851,0.257399,0,0,0],
+  [-1.08374,1.88797,-0.772479,0,0,0,0],
+  [-0.289555,1.26613,-0.489837,0,0.0698452,0,-0.00435673],
+  [0,0,-0.25704,0,0,0.00872102,0],
+  [0,0.120573,0,0,0,0,-0.000593264]];
+// saturation pressure [MPa] at T [K], 273.15–647.096 K (IF97 Eq. 30)
+function _if97Psat_MPa(T){
+  const n=_IF97_R4_N, th=T+n[9]/(T-n[10]);
+  const A=th*th+n[1]*th+n[2], B=n[3]*th*th+n[4]*th+n[5], C=n[6]*th*th+n[7]*th+n[8];
+  return Math.pow(2*C/(-B+Math.sqrt(B*B-4*A*C)),4);
+}
+// saturation temperature [K] at p [MPa], 611.213 Pa–22.064 MPa (IF97 Eq. 31)
+function _if97Tsat_K(p){
+  const n=_IF97_R4_N, b=Math.pow(p,0.25);
+  const E=b*b+n[3]*b+n[6], F=n[1]*b*b+n[4]*b+n[7], G=n[2]*b*b+n[5]*b+n[8];
+  const D=2*G/(-F-Math.sqrt(F*F-4*E*G));
+  return (n[10]+D-Math.sqrt((n[10]+D)*(n[10]+D)-4*(n[9]+n[10]*D)))/2;
+}
+// Region 1 density [kg/m³] at T [K], p [MPa]: v = π·γπ·R·T/p
+function _if97R1_rho(T,p){
+  const pi=p/16.53, tau=1386/T, a=7.1-pi, b=tau-1.222;
+  let gp=0;
+  for(let k=0;k<34;k++){const I=_IF97_R1_I[k];
+    gp-=_IF97_R1_N[k]*I*Math.pow(a,I-1)*Math.pow(b,_IF97_R1_J[k]);}
+  return 1/(pi*gp*0.461526*T/(p*1000));
+}
+// dynamic viscosity [Pa·s] at ρ [kg/m³], T [K] — IAPWS R12-08 industrial form
+function _iapwsMu_Pas(rho,T){
+  const Tr=T/647.096, dr=rho/322;
+  let s0=0; for(let i=0;i<4;i++) s0+=_IAPWS_MU_H0[i]/Math.pow(Tr,i);
+  let s1=0;
+  for(let i=0;i<6;i++){const ti=Math.pow(1/Tr-1,i);
+    for(let j=0;j<7;j++) if(_IAPWS_MU_H[i][j]) s1+=_IAPWS_MU_H[i][j]*ti*Math.pow(dr-1,j);}
+  return 100*Math.sqrt(Tr)/s0*Math.exp(dr*s1)*1e-6;
+}
+// liquid water at T [°C] and inlet pressure P [bar(a)]. If P is missing or below
+// Psat(T) the liquid is evaluated on the saturation line (subcooled=false → caller warns).
+function _waterPropsIF97(T_C,P_bar){
+  const Tin=T_C+273.15, T=Math.max(273.15,Math.min(623.15,Tin));
+  const ps=_if97Psat_MPa(T);
+  const hasP=isFinite(P_bar)&&P_bar>0, p=hasP?P_bar/10:ps;
+  const pUse=Math.min(100,Math.max(p,ps));
+  const rho=_if97R1_rho(T,pUse);
+  return {rho, pv_bar:ps*10, mu_cP:_iapwsMu_Pas(rho,T)*1000,
+          clamped:Math.abs(T-Tin)>0.001, hasP, subcooled:!hasP||p>ps*1.0001,
+          tsatP1_C:(hasP&&p>=611.213e-6&&p<=22.064)?_if97Tsat_K(p)-273.15:null};
+}
 const FLUID_THERMO={
-  "Water":{Tmin:0,Tmax:100,Pc:220.9,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'poly',a:1000.28,b:-0.01858,c:-0.0035787},
-    vis:{model:'vogel',A:-3.7188,B:578.919,C:137.546}},
-  "Sea Water":{Tmin:0,Tmax:100,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'poly',a:1027.9,b:-0.01858,c:-0.0035787},
-    vis:{model:'vogel',A:-3.6,B:578.919,C:137.546}},
-  "Liq. Ammonia":{Tmin:-40,Tmax:60,Pc:113.3,
-    pv:{r:[{A:3.18757,B:506.713,C:-80.78,kmin:164.0,kmax:239.6,pUnit:'bar',tUnit:'K'},
-           {A:4.86886,B:1113.928,C:-10.409,kmin:239.6,kmax:371.5,pUnit:'bar',tUnit:'K'}]},
-    den:{model:'poly',a:638.6,b:-1.372,c:-0.002153},
-    vis:{model:'andrade',A:-3.223,B:463.0}},
-  "Diesel Fuel":{Tmin:-10,Tmax:150,Pc:42.0,approx:true,
-    pv:{model:'const_psia',val:0.009},den:{model:'beta',rhoRef:850,Tref:15,beta:0.00083},
-    vis:{model:'andrade',A:-5.35,B:2100}},
-  "Petrol/Gasoline":{Tmin:-20,Tmax:60,Pc:36.5,approx:true,
-    pv:{model:'const_psia',val:7.50},den:{model:'beta',rhoRef:740,Tref:15,beta:0.00110},
+  "Water":{model:'if97',Tmin:0,Tmax:350,Pc:220.64,ref:'IAPWS-IF97 (ρ at T & P₁) + IAPWS R12-08 μ'},
+  "Sea Water":{Tmin:0,Tmax:120,Pc:220.9,ref:'MIT seawater (CoolProp), S = 35 g/kg; Pv = 0.981·Pw',
+    pv:{model:'d101',c:[56.13630575,-7042.641868,-6.360981443,2.88517848e-06],E:2},
+    den:{model:'poly',a:1028.94392,b:-0.159615811,c:-0.00286424441},
+    vis:{model:'d101',c:[-127.5896316,7230.742592,18.15076252,-1.651152081e-16],E:6}},
+  "Liq. Ammonia":{Tmin:-70,Tmax:100,Pc:113.3,ref:'CoolProp (Tillner-Roth EOS)',
+    pv:{model:'d101',c:[54.68042454,-4257.783482,-6.839421042,9.829939814e-06],E:2},
+    den:{model:'tau',Tc:405.56,c:[252.124287,288.485242,645.755569,-556.891768,298.723784]},
+    vis:{model:'d101',c:[-66.34091648,2521.0067,10.21377308,-2.625211519e-05],E:2}},
+  "Diesel Fuel":{Tmin:-10,Tmax:150,Pc:42,approx:true,ref:'AP-42 Tbl 7.1-2 (distillate No.2) Pv; KV40 = 3.0 cSt (EN 590 mid)',
+    pv:{model:'d101',c:[9.426591124,-4948.333333,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:835,Tref:15,beta:0.00083},
+    vis:{model:'andrade',A:-5.80873,B:2100}},
+  "Petrol/Gasoline":{Tmin:-20,Tmax:60,Pc:36.5,approx:true,ref:'AP-42 refined-stock TVP, RVP 9 psi (≈62 kPa), S = 3',
+    pv:{model:'d101',c:[9.081826311,-2952.809935,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:740,Tref:15,beta:0.00110},
     vis:{model:'const',val:0.5}},
-  "Crude Oil API 30":{Tmin:0,Tmax:200,Pc:25.0,approx:true,
-    pv:{model:'const_psia',val:1.20},den:{model:'beta',rhoRef:876,Tref:15,beta:0.00072},
+  "Crude Oil API 30":{Tmin:0,Tmax:200,Pc:25,approx:true,ref:'AP-42 crude TVP, RVP 5 psi (AP-42 default crude)',
+    pv:{model:'d101',c:[8.588942775,-2946.624166,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:876,Tref:15,beta:0.00072},
     vis:{model:'andrade',A:-6.1,B:2700}},
-  "Kerosene":{Tmin:-20,Tmax:150,Pc:22.0,approx:true,
-    pv:{model:'const_psia',val:0.05},den:{model:'beta',rhoRef:800,Tref:15,beta:0.00090},
-    vis:{model:'andrade',A:-5.1,B:1900}},
-  "Hydraulic Oil":{Tmin:-10,Tmax:120,Pc:15.0,approx:true,
-    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:870,Tref:15,beta:0.00070},
-    vis:{model:'andrade',A:-6.6,B:3400}},
-  "Lube Oil SAE30":{Tmin:-10,Tmax:150,Pc:15.0,approx:true,
-    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:891,Tref:15,beta:0.00070},
-    vis:{model:'andrade',A:-7.4,B:4100}},
-  "Ethylene Glycol":{Tmin:-10,Tmax:150,Pc:77.0,
-    pv:{A:8.0908,B:2088.9,C:203.5,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:1113,Tref:20,beta:0.00062},
-    vis:{model:'andrade',A:-9.39,B:3646}},
-  "Glycerin":{Tmin:10,Tmax:150,Pc:75.0,approx:true,
-    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:1261,Tref:20,beta:0.00047},
-    vis:{model:'andrade',A:-18.06,B:7420}},
-  "Sulfuric Acid 98%":{Tmin:0,Tmax:200,Pc:64.0,approx:true,
-    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:1840,Tref:20,beta:0.00055},
-    vis:{model:'andrade',A:-7.0,B:3200}},
-  "Sulfuric Acid 70%":{Tmin:0,Tmax:150,Pc:64.0,approx:true,
-    pv:{model:'const_psia',val:0.002},den:{model:'beta',rhoRef:1610,Tref:20,beta:0.00050},
-    vis:{model:'andrade',A:-6.2,B:2600}},
-  "Nitric Acid 60%":{Tmin:0,Tmax:120,Pc:68.9,approx:true,
-    pv:{model:'const_psia',val:0.100},den:{model:'beta',rhoRef:1370,Tref:20,beta:0.00055},
-    vis:{model:'const',val:1.8}},
-  "Phosphoric Acid 85%":{Tmin:0,Tmax:150,Pc:70.0,approx:true,
-    pv:{model:'const_psia',val:0.030},den:{model:'beta',rhoRef:1690,Tref:20,beta:0.00050},
-    vis:{model:'andrade',A:-7.5,B:3300}},
-  "Caustic Soda 50%":{Tmin:10,Tmax:120,Pc:220.9,approx:true,
-    pv:{model:'const_psia',val:0.010},den:{model:'beta',rhoRef:1530,Tref:20,beta:0.00050},
-    vis:{model:'andrade',A:-6.9,B:3100}},
-  "HCl 36%":{Tmin:0,Tmax:80,Pc:83.1,approx:true,
-    pv:{model:'const_psia',val:0.500},den:{model:'beta',rhoRef:1180,Tref:20,beta:0.00045},
-    vis:{model:'const',val:1.9}},
-  "Acetic Acid":{Tmin:17,Tmax:118,Pc:57.9,
-    pv:{A:7.2996,B:1479.02,C:216.82,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:1049,Tref:20,beta:0.00107},
-    vis:{model:'andrade',A:-4.9,B:1700}},
-  "Acetone":{Tmin:-20,Tmax:80,Pc:47.0,
-    pv:{A:7.02447,B:1161.0,C:224.0,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:791,Tref:20,beta:0.00143},
-    vis:{model:'andrade',A:-4.6,B:1080}},
-  "Methanol":{Tmin:-20,Tmax:80,Pc:81.0,
-    pv:{A:8.08097,B:1582.271,C:239.726,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:792,Tref:20,beta:0.00119},
-    vis:{model:'andrade',A:-5.3,B:1450}},
-  "Ethanol 96%":{Tmin:-20,Tmax:78,Pc:61.5,
-    pv:{A:8.20417,B:1642.89,C:230.300,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:789,Tref:20,beta:0.00109},
-    vis:{model:'andrade',A:-6.2,B:1990}},
-  "Benzene":{Tmin:6,Tmax:80,Pc:48.9,
-    pv:{A:6.90565,B:1211.033,C:220.79,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:879,Tref:20,beta:0.00114},
-    vis:{model:'andrade',A:-4.7,B:1200}},
-  "Toluene":{Tmin:-20,Tmax:110,Pc:41.1,
-    pv:{A:6.95464,B:1344.8,C:219.48,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:867,Tref:20,beta:0.00107},
-    vis:{model:'andrade',A:-4.9,B:1290}},
-  "Chloroform":{Tmin:-10,Tmax:60,Pc:53.7,
-    pv:{A:6.4934,B:929.44,C:196.03,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:1489,Tref:20,beta:0.00128},
-    vis:{model:'andrade',A:-4.6,B:990}},
-  // ── new general liquids ──
-  "Naphtha":{Tmin:-20,Tmax:100,Pc:30.0,approx:true,
-    pv:{model:'const_psia',val:2.00},den:{model:'beta',rhoRef:720,Tref:15,beta:0.00115},
+  "Kerosene":{Tmin:-20,Tmax:150,Pc:22,approx:true,ref:'AP-42 (jet kerosene) Pv; KV40 = 1.7 cSt (ASTM D396 No.1 mid)',
+    pv:{model:'d101',c:[9.715591124,-4962.777778,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:800,Tref:15,beta:0.00090},
+    vis:{model:'andrade',A:-5.78265,B:1900}},
+  "Hydraulic Oil":{Tmin:-10,Tmax:120,Pc:15,approx:true,ref:'ISO VG 46 (46 cSt @40, 6.8 @100 °C), ASTM D341',
+    pv:{model:'d101',c:[-9.582164155,0.0,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:870,Tref:15,beta:0.0007},
+    vis:{model:'d101',c:[295.6040683,-31529.61,-39.8450788,3699794.582],E:-2}},
+  "Lube Oil SAE30":{Tmin:-10,Tmax:150,Pc:15,approx:true,ref:'SAE 30 (≈100 cSt @40, 11 @100 °C), ASTM D341',
+    pv:{model:'d101',c:[-9.582164155,0.0,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:891,Tref:15,beta:0.0007},
+    vis:{model:'d101',c:[277.6196416,-30863.58759,-37.19267258,3838620.137],E:-2}},
+  "Ethylene Glycol":{Tmin:-10,Tmax:250,Pc:77,ref:'REFPROP-fit ρ/Pv + DIPPR μ',
+    pv:{model:'d101',c:[74.01397091,-10452.21721,-8.423575828,5.211649572e-18],E:6},
+    den:{model:'tau',Tc:719.0,c:[2569.07895,-12960.9836,28717.2201,-25991.9323,8998.13805]},
+    vis:{model:'d101',c:[79.29280127,-8906.432656,-10.92835602,1393070.332],E:-2}},
+  "Glycerin":{Tmin:10,Tmax:200,Pc:75,ref:'VDI-PPDS',
+    pv:{model:'d101',c:[91.90080179,-14299.85415,-10.52298744,66006.20936],E:-2},
+    den:{model:'tau',Tc:850.0,c:[349.392443,1340.29786,-1166.32539,1428.51211,-527.437268]},
+    vis:{model:'d101',c:[-102.9479936,4080.631595,14.59039651,1152650.924],E:-2}},
+  "Sulfuric Acid 98%":{Tmin:0,Tmax:120,Pc:64.0,approx:true,ref:'μ Corechem/Veolia table 0–70 °C (extrapolated to 120); ρ CRC; Pv 1 mmHg @145.8 °C + bp 338 °C',
+    pv:{model:'d101',c:[14.47257534,-8836.869858,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:1836,Tref:20,beta:0.00055},
+    vis:{model:'d101',c:[-83.13948592,6424.760851,11.33386058,0.0],E:0}},
+  "Sulfuric Acid 70%":{Tmin:0,Tmax:100,Pc:220.9,approx:true,ref:'Laliberté (2009) ρ/μ; Pv Clausius-Clapeyron (a_w @25 °C, bp 166 °C)',
+    pv:{model:'d101',c:[14.7561763,-6474.394295,0.0,0.0],E:2},
+    den:{model:'poly',a:1628.12915,b:-1.06450424,c:0.00410639427},
+    vis:{model:'d101',c:[75.07775146,-6929.807361,-10.55472247,933444.9738],E:-2}},
+  "Nitric Acid 60%":{Tmin:0,Tmax:100,Pc:220.9,approx:true,ref:'Laliberté ρ; μ RoyMech; Pv Ullmann (20 °C) + bp 120.4 °C',
+    pv:{model:'d101',c:[14.26100612,-5607.238663,0.0,0.0],E:2},
+    den:{model:'poly',a:1397.3922,b:-1.64080991,c:0.00522037034},
+    vis:{model:'d101',c:[15.62235491,703.3835625,-3.017584279,0.0],E:0}},
+  "Phosphoric Acid 85%":{Tmin:20,Tmax:100,Pc:220.9,approx:true,ref:'Laliberté ρ/μ (μ matches PCS 43.5 cP @25 °C); Pv Merck + bp 158 °C',
+    pv:{model:'d101',c:[12.43149798,-5354.165133,0.0,0.0],E:2},
+    den:{model:'poly',a:1706.74191,b:-0.900707408,c:0.00113712646},
+    vis:{model:'d101',c:[718.6907581,-72666.08568,-97.03558521,7256228.983],E:-2}},
+  "Caustic Soda 50%":{Tmin:15,Tmax:120,Pc:220.9,approx:true,ref:'Laliberté ρ/μ (matches Vinnolit/ICT μ); Pv TDS + bp 143 °C',
+    pv:{model:'d101',c:[15.73816826,-6517.447153,0.0,0.0],E:2},
+    den:{model:'poly',a:1515.92656,b:0.0982802287,c:-0.00337968523},
+    vis:{model:'d101',c:[719.363326,-73881.94556,-97.04288641,7591265.89],E:-2}},
+  "HCl 36%":{Tmin:0,Tmax:80,Pc:220.9,approx:true,ref:'Laliberté ρ/μ; total Pv ICT (14.1 kPa @20 °C) + bp 61 °C',
+    pv:{model:'d101',c:[14.11409537,-4711.826556,0.0,0.0],E:2},
+    den:{model:'poly',a:1195.39747,b:-0.869841662,c:0.00232799883},
+    vis:{model:'d101',c:[144.2457493,-13274.39503,-19.97066887,1304443.505],E:-2}},
+  "Acetic Acid":{Tmin:17,Tmax:200,Pc:57.9,ref:'DIPPR (Perry 8e) + VDI Pv',
+    pv:{model:'d101',c:[63.21597519,-7046.731397,-7.708524256,5.414769875e-06],E:2},
+    den:{model:'tau',Tc:590.7,c:[383.066967,645.10351,171.554527,84.4472317,13.4475953]},
+    vis:{model:'d101',c:[-2.122244721,1212.3,-0.322,0.0],E:0}},
+  "Acetone":{Tmin:-40,Tmax:190,Pc:47,ref:'CoolProp EOS + DIPPR μ',
+    pv:{model:'d101',c:[67.6860741,-6005.102292,-8.673449339,7.795165078e-06],E:2},
+    den:{model:'tau',Tc:508.10001,c:[463.616748,-950.414079,3946.50263,-4215.33418,1855.1991]},
+    vis:{model:'d101',c:[1.403251645,579.370933,-0.7870609023,-2.274742654e-17],E:6}},
+  "Methanol":{Tmin:-40,Tmax:200,Pc:81,ref:'CoolProp EOS',
+    pv:{model:'d101',c:[47.86973044,-6003.115199,-5.229475265,3.231590789e-06],E:2},
+    den:{model:'tau',Tc:513.37951,c:[710.967457,-3059.42724,9998.46102,-11569.0624,5040.92566]},
+    vis:{model:'d101',c:[-9.645285961,1446.415926,0.7390903229,-3.995636454e-17],E:6}},
+  "Ethanol 96%":{Tmin:-40,Tmax:150,Pc:61.5,ref:'CoolProp ethanol EOS scaled to 96 %v/v',
+    pv:{model:'d101',c:[47.65980201,-6586.529067,-4.945377909,3.411519666e-07],E:2},
+    den:{model:'tau',Tc:514.70928,c:[1003.58918,-5217.4113,15164.1614,-16719.4687,6892.73011]},
+    vis:{model:'d101',c:[4.687615683,1225.716662,-1.528065104,-1.87813267e-17],E:6}},
+  "Benzene":{Tmin:6,Tmax:250,Pc:48.9,ref:'CoolProp EOS',
+    pv:{model:'d101',c:[70.28854234,-6430.228078,-9.019679802,6.802997628e-06],E:2},
+    den:{model:'tau',Tc:562.01969,c:[322.197085,375.259105,896.242499,-1209.98464,794.574711]},
+    vis:{model:'d101',c:[-12.00126906,1522.799862,1.124530121,-2.584028954e-17],E:6}},
+  "Toluene":{Tmin:-40,Tmax:280,Pc:41.1,ref:'CoolProp EOS',
+    pv:{model:'d101',c:[71.67221323,-6989.659162,-9.135092632,6.173348088e-06],E:2},
+    den:{model:'tau',Tc:591.74908,c:[402.222031,-414.108094,2923.21512,-3407.93178,1636.63769]},
+    vis:{model:'d101',c:[-14.79998236,1532.941955,1.593294327,-2.080666154e-17],E:6}},
+  "Chloroform":{Tmin:-40,Tmax:200,Pc:53.7,ref:'DIPPR + VDI-PPDS',
+    pv:{model:'d101',c:[92.15681255,-6915.713395,-12.53065047,1.230648863e-05],E:2},
+    den:{model:'tau',Tc:536.2,c:[536.897562,949.136394,224.033541,213.566087,19.0266331]},
+    vis:{model:'d101',c:[-7.46240449,1059.232514,0.5777647632,-1.145943072e-18],E:6}},
+  "Naphtha":{Tmin:-20,Tmax:100,Pc:30,approx:true,ref:'AP-42 refined-stock TVP, RVP 8 psi, S = 3 (light naphtha)',
+    pv:{model:'d101',c:[9.117878207,-3001.118653,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:720,Tref:15,beta:0.00115},
     vis:{model:'const',val:0.50}},
-  "Jet Fuel (ATF)":{Tmin:-40,Tmax:150,Pc:23.0,approx:true,
-    pv:{model:'const_psia',val:0.02},den:{model:'beta',rhoRef:795,Tref:15,beta:0.00088},
+  "Jet Fuel (ATF)":{Tmin:-40,Tmax:150,Pc:23,approx:true,ref:'AP-42 (jet kerosene) Pv; μ unchanged (3.9 cSt @−20 °C, ≤8 spec)',
+    pv:{model:'d101',c:[9.715591124,-4962.777778,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:795,Tref:15,beta:0.00088},
     vis:{model:'andrade',A:-4.92,B:1541}},
-  "Heavy Fuel Oil":{Tmin:20,Tmax:200,Pc:15.0,approx:true,
-    pv:{model:'const_psia',val:0.001},den:{model:'beta',rhoRef:985,Tref:15,beta:0.00064},
-    vis:{model:'andrade',A:-12.12,B:5828}},                          // ~370 cP @50C (HFO 380 grade)
-  "Crude Oil API 40":{Tmin:0,Tmax:200,Pc:28.0,approx:true,
-    pv:{model:'const_psia',val:3.00},den:{model:'beta',rhoRef:825,Tref:15,beta:0.00080},
+  "Heavy Fuel Oil":{Tmin:20,Tmax:200,Pc:15,approx:true,ref:'AP-42 (residual No.6) Pv; μ unchanged (385 cSt @50 °C ≈ RMG 380)',
+    pv:{model:'d101',c:[7.429591124,-5819.444444,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:985,Tref:15,beta:0.00064},
+    vis:{model:'andrade',A:-12.12,B:5828}},
+  "Crude Oil API 40":{Tmin:0,Tmax:200,Pc:28,approx:true,ref:'AP-42 crude TVP, RVP 7 psi',
+    pv:{model:'d101',c:[8.263506828,-2719.318477,0.0,0.0],E:2},
+    den:{model:'beta',rhoRef:825,Tref:15,beta:0.00080},
     vis:{model:'andrade',A:-6.08,B:2190}},
-  "Liq. Propane":{Tmin:-40,Tmax:60,Pc:42.5,
-    pv:{r:[{A:3.98292,B:819.296,C:-24.417,kmin:230.6,kmax:300.0,pUnit:'bar',tUnit:'K'},   // NIST Stull low
-           {A:4.53678,B:1149.36,C:24.906,kmin:300.0,kmax:360.8,pUnit:'bar',tUnit:'K'}]},  // NIST high
-    den:{model:'beta',rhoRef:500,Tref:20,beta:0.00280},              // sat-liq C3
-    vis:{model:'andrade',A:-4.53,B:681}},
-  "Liq. Butane":{Tmin:-20,Tmax:80,Pc:38.0,
-    pv:{A:4.35576,B:1175.581,C:-2.071,pUnit:'bar',tUnit:'K'},        // NIST n-butane
-    den:{model:'beta',rhoRef:579,Tref:20,beta:0.00200},
-    vis:{model:'andrade',A:-4.93,B:926}},
-  "Brine CaCl₂ 25%":{Tmin:-25,Tmax:100,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (slightly conservative)
-    den:{model:'beta',rhoRef:1233,Tref:20,beta:0.00040},
-    vis:{model:'andrade',A:-6.87,B:2316}},
-  // ── new chemical liquids ──
-  "Isopropanol (IPA)":{Tmin:-20,Tmax:82,Pc:47.6,
-    pv:{A:8.11778,B:1580.92,C:219.61,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:786,Tref:20,beta:0.00105},
-    vis:{model:'andrade',A:-8.37,B:2709}},
-  "n-Hexane":{Tmin:-20,Tmax:68,Pc:30.2,
-    pv:{A:6.87601,B:1171.17,C:224.41,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:659,Tref:20,beta:0.00135},
-    vis:{model:'const',val:0.31}},
-  "Xylene":{Tmin:0,Tmax:138,Pc:35.2,
-    pv:{A:7.00908,B:1462.266,C:215.11,pUnit:'mmHg',tUnit:'C'},       // m-xylene
-    den:{model:'beta',rhoRef:864,Tref:20,beta:0.00099},
-    vis:{model:'andrade',A:-3.84,B:986}},
-  "MEK":{Tmin:-20,Tmax:79,Pc:41.5,
-    pv:{A:7.06356,B:1261.34,C:221.97,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:805,Tref:20,beta:0.00130},
-    vis:{model:'const',val:0.42}},
-  "Ethyl Acetate":{Tmin:-20,Tmax:77,Pc:38.3,
-    pv:{A:7.10179,B:1244.95,C:217.88,pUnit:'mmHg',tUnit:'C'},
-    den:{model:'beta',rhoRef:902,Tref:20,beta:0.00135},
-    vis:{model:'const',val:0.45}},
-  "MEA 30%":{Tmin:5,Tmax:130,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (aqueous amine)
+  "Liq. Propane":{Tmin:-80,Tmax:70,Pc:42.5,ref:'CoolProp (Lemmon EOS)',
+    pv:{model:'d101',c:[47.98529698,-3496.463997,-6.144192501,1.12762749e-05],E:2},
+    den:{model:'tau',Tc:369.89001,c:[256.441984,100.93166,955.965232,-1038.6101,536.317605]},
+    vis:{model:'d101',c:[2.471651425,319.3878412,-0.9995699744,-2.551050115e-16],E:6}},
+  "Liq. Butane":{Tmin:-50,Tmax:120,Pc:38,ref:'CoolProp (Bücker-Wagner EOS)',
+    pv:{model:'d101',c:[54.4116187,-4350.199481,-6.97844689,9.321245233e-06],E:2},
+    den:{model:'tau',Tc:425.125,c:[280.232277,21.5059443,1198.64188,-1288.24117,639.57599]},
+    vis:{model:'d101',c:[-0.2176898299,515.7873123,-0.5736041882,-1.218752002e-16],E:6}},
+  "Brine CaCl₂ 25%":{Tmin:-20,Tmax:100,Pc:220.9,approx:true,ref:'Laliberté ρ/μ; Pv = water (conservative)',
+    pv:{model:'d101',c:[57.88809209,-7098.698091,-6.639557767,3.36696037e-06],E:2},
+    den:{model:'poly',a:1234.8011,b:-0.278769139,c:-0.00275836322},
+    vis:{model:'d101',c:[194.2763852,-17576.82886,-27.01454476,1723131.743],E:-2}},
+  "Isopropanol (IPA)":{Tmin:-40,Tmax:200,Pc:47.6,ref:'DIPPR + VDI-PPDS',
+    pv:{model:'d101',c:[73.73988494,-8106.536984,-8.670841433,4.113791244e-18],E:6},
+    den:{model:'tau',Tc:508.3,c:[292.614246,592.502804,-13.8626829,170.414554,-27.5585583]},
+    vis:{model:'d101',c:[-3.657648987,2396.953991,-0.645573625,-7.602094614e-18],E:6}},
+  "n-Hexane":{Tmin:-40,Tmax:190,Pc:30.2,ref:'CoolProp EOS',
+    pv:{model:'d101',c:[71.99387845,-6221.249721,-9.382969266,8.227561422e-06],E:2},
+    den:{model:'tau',Tc:507.82,c:[276.602247,74.5549302,1239.09561,-1442.12,754.071217]},
+    vis:{model:'d101',c:[1.275380268,595.7675815,-0.7826175021,-3.848381144e-17],E:6}},
+  "Xylene":{Tmin:-20,Tmax:300,Pc:35.2,ref:'CoolProp (m-xylene) EOS',
+    pv:{model:'d101',c:[74.31261135,-7653.556767,-9.413670776,5.605396398e-06],E:2},
+    den:{model:'tau',Tc:616.89,c:[291.67675,389.011714,880.627819,-1150.65782,692.025585]},
+    vis:{model:'d101',c:[-6.27879826,1117.622245,0.3523238941,-1.585923318e-17],E:6}},
+  "MEK":{Tmin:-40,Tmax:200,Pc:41.5,ref:'DIPPR + VDI-PPDS',
+    pv:{model:'d101',c:[42.63092318,-5540.20117,-4.592046479,1.258743398e-17],E:6},
+    den:{model:'tau',Tc:536.7,c:[265.817412,529.058277,77.1824962,192.768549,13.7605393]},
+    vis:{model:'d101',c:[1.265633142,652.8884801,-0.7489305437,-1.310839448e-06],E:2}},
+  "Ethyl Acetate":{Tmin:-40,Tmax:200,Pc:38.3,ref:'DIPPR + VDI-PPDS',
+    pv:{model:'d101',c:[81.72406138,-7075.932793,-10.66820515,8.087038407e-06],E:2},
+    den:{model:'tau',Tc:523.3,c:[323.563594,583.586152,119.641212,150.872041,7.80947032]},
+    vis:{model:'d101',c:[21.00488165,-143.1080065,-3.750383807,-3.113752929e-19],E:6}},
+  "MEA 30%":{Tmin:5,Tmax:130,Pc:220.9,approx:true,ref:'Weiland-type fit (±10 % μ vs Amundsen 2009); Pv = water (conservative)',
+    pv:{model:'d101',c:[57.88809209,-7098.698091,-6.639557767,3.36696037e-06],E:2},
     den:{model:'beta',rhoRef:1012,Tref:20,beta:0.00055},
     vis:{model:'andrade',A:-7.10,B:2391}},
-  "MDEA 45%":{Tmin:10,Tmax:130,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (aqueous amine)
+  "MDEA 45%":{Tmin:10,Tmax:130,Pc:220.9,approx:true,ref:'typical 45 wt% MDEA (±15 % μ); Pv = water (conservative)',
+    pv:{model:'d101',c:[57.88809209,-7098.698091,-6.639557767,3.36696037e-06],E:2},
     den:{model:'beta',rhoRef:1042,Tref:20,beta:0.00055},
-    vis:{model:'andrade',A:-7.96,B:3061}},                           // ~10 cP @25C
-  "Benfield (K₂CO₃ 30%)":{Tmin:20,Tmax:130,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (hot pot. carbonate, conservative Pv)
-    den:{model:'beta',rhoRef:1290,Tref:20,beta:0.00060},
-    vis:{model:'andrade',A:-5.82,B:1983}},
-  "Urea Solution 70%":{Tmin:40,Tmax:130,Pc:220.9,approx:true,
-    pv:{A:8.07131,B:1730.63,C:233.426,pUnit:'mmHg',tUnit:'C'},       // ≈ water (conservative; urea lowers Pv)
-    den:{model:'beta',rhoRef:1200,Tref:50,beta:0.00055},             // keep >40C: crystallization risk below
-    vis:{model:'andrade',A:-5.65,B:2145}},
+    vis:{model:'andrade',A:-7.96,B:3061}},
+  "Benfield (K₂CO₃ 30%)":{Tmin:20,Tmax:130,Pc:220.9,approx:true,ref:'Laliberté K₂CO₃ ρ/μ (no KHCO₃/DEA); Pv = water (conservative)',
+    pv:{model:'d101',c:[57.88809209,-7098.698091,-6.639557767,3.36696037e-06],E:2},
+    den:{model:'poly',a:1301.32992,b:-0.374160623,c:-0.00294912451},
+    vis:{model:'d101',c:[91.95666481,-9418.476049,-12.69377016,1137895.192],E:-2}},
+  "Urea Solution 70%":{Tmin:40,Tmax:130,Pc:220.9,approx:true,ref:'μ anchored to Terra urea-liquor data (1.70 cP @57 °C); Pv = water (conservative)',
+    pv:{model:'d101',c:[57.88809209,-7098.698091,-6.639557767,3.36696037e-06],E:2},
+    den:{model:'beta',rhoRef:1200,Tref:50,beta:0.00055},
+    vis:{model:'andrade',A:-5.9625,B:2145}},
 };
 // returns {sg, pv_psia, visc_cP, visc_cSt, approx, clamped, Tmin, Tmax, Pc} at T_C
-function computeLiquidProps(name, T_C){
+// P_bar (absolute inlet pressure) is used only by pressure-aware models (Water/IF97).
+function computeLiquidProps(name, T_C, P_bar){
   const th=FLUID_THERMO[name]; if(!th) return null;
+  if(th.model==='if97'){
+    const w=_waterPropsIF97(T_C,P_bar), sg=w.rho/999.0, cSt=w.mu_cP/Math.max(sg,0.05);
+    return {sg:+sg.toFixed(4), pv_psia:+(w.pv_bar/_BAR_PER_PSI).toFixed(4), visc_cP:+w.mu_cP.toFixed(4),
+            visc_cSt:+cSt.toFixed(4), approx:false, clamped:w.clamped, Tmin:th.Tmin, Tmax:th.Tmax, Pc:th.Pc,
+            if97:true, rho:+w.rho.toFixed(2), hasP:w.hasP, subcooled:w.subcooled, tsatP1_C:w.tsatP1_C, ref:th.ref||''};
+  }
   const Tc=Math.max(th.Tmin, Math.min(th.Tmax, T_C));
   const clamped=(Math.abs(Tc-T_C)>0.001);
   const rho=_density_kgm3(th.den,Tc);
   const sg=rho/999.0;
-  const pv=(th.pv.model==='const_psia')?th.pv.val:_antoineP_psia(th.pv,Tc);
+  const pv=_pv_psia(th.pv,Tc);
   const cP=_viscosity_cP(th.vis,Tc);
   const cSt=cP/Math.max(sg,0.05);   // kinematic (server Reynolds correction wants cSt)
   return {sg:+sg.toFixed(4), pv_psia:+pv.toFixed(4), visc_cP:+cP.toFixed(4),
-          visc_cSt:+cSt.toFixed(4), approx:!!th.approx, clamped, Tmin:th.Tmin, Tmax:th.Tmax, Pc:th.Pc};
+          visc_cSt:+cSt.toFixed(4), approx:!!th.approx, clamped, Tmin:th.Tmin, Tmax:th.Tmax, Pc:th.Pc, ref:th.ref||''};
 }
 
 const VALVE_FL={globe:0.90,globe_angle:0.85,ball_seg:0.60,ball_full:0.55,
@@ -1332,6 +1432,7 @@ function onPressureUnitChange(){
   }
   updatePressureUnitLabels();
   calc();
+  autoLiquidProps();   // FIX FP-2: P1 in bar(a) changed → IF97 water density
 }
 
 function updatePressureUnitLabels(){
@@ -2298,7 +2399,8 @@ function autoLiquidProps(){
   const m = UNITS==='met';
   const T_C = getTempC();             // FIX U-5: unit-aware (°C/°F/K dropdown)
   if(!isFinite(T_C)){ return; }
-  const p = computeLiquidProps(selFluid.n, T_C);
+  const P1_bar = pRawToAbsBar(document.getElementById('p1').value);   // FIX FP-2: IF97 water is P-aware
+  const p = computeLiquidProps(selFluid.n, T_C, P1_bar);
   if(!p) return;
 
   const tip = 'Computed at ' + (m ? T_C.toFixed(1)+' °C' : (T_C*9/5+32).toFixed(1)+' °F') +
@@ -2318,9 +2420,18 @@ function autoLiquidProps(){
   // note line: temperature validity + approximate-fluid flag
   const bits=[];
   if(p.approx) bits.push('≈ estimate (mixture/petroleum cut)');
+  if(p.if97){
+    const fT = c => m ? c.toFixed(1)+' °C' : (c*9/5+32).toFixed(1)+' °F';
+    bits.push('IAPWS-IF97 at T & P₁');
+    if(p.hasP && !p.subcooled)
+      bits.push('<span style="color:#f87171">⚠ T ≥ Tsat at P₁'+(p.tsatP1_C!=null?' ('+fT(p.tsatP1_C)+')':'')+
+                ' — inlet is not subcooled liquid (flashing / steam): check P₁, T or phase</span>');
+    else if(p.tsatP1_C!=null) bits.push('Tsat @ P₁ = '+fT(p.tsatP1_C));
+  }
   if(p.clamped) bits.push('⚠ T outside '+p.Tmin+'–'+p.Tmax+' °C corr. range — clamped');
   else bits.push('corr. range '+p.Tmin+'–'+p.Tmax+' °C');
-  document.getElementById('liqPropNote').innerHTML = bits.join(' · ');
+  const noteEl=document.getElementById('liqPropNote');
+  noteEl.innerHTML = bits.join(' · ') + (p.ref ? ' · <span title="'+p.ref.replace(/"/g,'&quot;')+'" style="text-decoration:underline dotted;cursor:help">basis</span>' : '');
   calc();
 }
 
