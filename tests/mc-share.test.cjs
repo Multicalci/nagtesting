@@ -1,5 +1,5 @@
 /* jsdom tests for /assets/mc-share.js
-   Run:  node mc-share.test.js <path-to-mc-share.js> [path-to-calc-common.js]   */
+   Run:  node mc-share.test.cjs <path-to-mc-share.js> [path-to-calc-common.js]   */
 'use strict';
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require('jsdom');
