@@ -260,6 +260,26 @@ th .rfl.err{color:var(--err)}
 .excard .t{font-weight:600;font-size:13px;color:var(--ink);line-height:1.3}
 .excard .d{font-size:12px;color:var(--dim);line-height:1.35}
 .excard .m{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+/* Nov 2026: My flowsheets — start-page cards and the dialog */
+.start .libgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px;flex:none}
+.start .libgrid .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lib{padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.lib-save{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2)}
+.lib-lbl{font-size:12.5px;color:var(--ink2);margin-bottom:7px}
+.lib-row{display:flex;gap:8px;flex-wrap:wrap}
+.lib-row input,.lib-ren input,.lib .lib-q{flex:1;min-width:180px;height:32px;border:1px solid var(--line2);border-radius:7px;padding:0 10px;font-size:13px;background:#fff}
+.lib-list{display:flex;flex-direction:column;gap:6px}
+.lib-item{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:5px 8px 5px 4px;background:#fff}
+.lib-item.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
+.lib-open{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:5px 8px;border-radius:7px}
+.lib-open:hover{background:var(--accent-soft)}
+.lib-open b{font-size:13.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lib-open span{font-size:12px;color:var(--dim)}
+.lib-ren{flex:1;min-width:0;display:flex;padding:3px 4px}
+.lib-acts{display:flex;gap:6px;flex:none}
+.lib-empty{color:var(--dim);font-size:13px;padding:4px 2px}
+.lib-note{font-size:12px;color:var(--dim);line-height:1.45}
+@media(max-width:600px){.lib-item{flex-wrap:wrap}.lib-acts{width:100%;justify-content:flex-end;padding:0 0 3px}.start .libgrid{grid-template-columns:1fr}}
 .excard .m span{font-size:10.5px;padding:1px 7px;border-radius:9px;background:var(--panel3);color:var(--ink2);font-weight:500}
 .excard .m span.go{background:var(--ok-soft);color:var(--ok)}
 .exnone{grid-column:1/-1;color:var(--faint);font-size:13px;padding:14px 4px}
@@ -792,6 +812,8 @@ table.st.hlp th,table.st.spc th{text-align:left}
   <p>The <b>Pinch</b> tab takes every heating and cooling duty of the last run — heaters and coolers, condensers and reboilers, intercoolers, reactor and flash duties (utility-served) and both sides of process exchangers — and computes the minimum hot and cold utility for a chosen ΔT<sub>min</sub> by the problem-table algorithm, the pinch temperatures, the composite and grand composite curves, and the utility heaters below or coolers above the pinch that cause the excess. With a property method, heater and exchanger curves are flashed along their path, so boiling and condensation show as plateaus. Untick a duty that cannot take part in heat recovery.</p>
   <h3>Cases</h3>
   <p>The <b>Cases</b> tab saves the inputs and main results of a run as a named case (up to 10). Change the inputs, run and save again, then compare the cases side by side — a summary (duties, design-spec values, costs, optimum, products), unit duties, any one stream, or the inputs that differ — with the difference from a base case under each value. <b>Restore</b> loads a case's inputs back (undo returns). Cases are saved with the flowsheet file and in this browser, not in share links; the report can include the comparison.</p>
+  <h3>My flowsheets</h3>
+  <p><b>File → My flowsheets</b> keeps up to 60 named flowsheets, with their cases, in this browser. <b>Save to My flowsheets</b> asks for a name the first time; after that it updates the same entry (<b>Save as copy</b> keeps the old one). Saved flowsheets appear on the start page and in the dialog — open, rename, download or delete them there. They stay on this device: clearing the browser's data removes them, so download the ones you need to keep or to open on another computer.</p>
   <h3>Recycle loops</h3>
   <p>Loops are detected automatically. The fewest streams that break every loop are torn and iterated — two Wegstein steps, then Broyden's quasi-Newton method — until they converge (relative tolerance 1e-5 by default). Torn streams are drawn dashed. You can give a stream an initial estimate from its properties panel; when the estimated streams break every loop they are the ones torn. A flowsheet too large for one server call is continued automatically over further calls. The <b>Convergence</b> tab plots each loop's error pass by pass (marked by how each pass was started — guess, substitution, Wegstein or Broyden), lists the last change in flow, temperature, pressure and the worst component of every torn stream, and shows the design-spec Newton steps (scaled residual, step length, Jacobian) and feedback-calculator passes. Choose <b>Broyden</b> or <b>Wegstein only</b> under Run options in the flowsheet panel.</p>
   <h3>Results</h3>
@@ -2635,10 +2657,11 @@ function restore(s) {
 function undo() { if (!UNDO.length) return; REDO.push(lastSnap); restore(UNDO.pop()); }
 function redo() { if (!REDO.length) return; UNDO.push(lastSnap); restore(REDO.pop()); }
 let saveT = null;
+let LIB_CUR = null;   // Nov 2026: the My flowsheets entry on the canvas, {id, h} — see "My flowsheets" under file ops
 function autosave() {
   clearTimeout(saveT);
   saveT = setTimeout(() => {
-    try { localStorage.setItem(LS_MODEL, JSON.stringify({ t: Date.now(), m: M, view: VIEW, cases: CASES.length ? CASES : undefined })); }
+    try { localStorage.setItem(LS_MODEL, JSON.stringify({ t: Date.now(), m: M, view: VIEW, cases: CASES.length ? CASES : undefined, lib: LIB_CUR || undefined })); }
     catch (_e) { if (CASES.length) toast('Browser storage is full — save the flowsheet to a file to keep the cases', 'err'); }
   }, 400);
 }
@@ -11391,9 +11414,14 @@ function openMenu(anchor, items) {
   }, 0);
 }
 function fileItems() {
+  const nLib = libIndex().length, cur = libCurEntry();
   return [
     { label: 'New flowsheet…', sub: 'guided setup: components, method, units', run: () => openSetup({ fresh: true }) },
     { label: 'New blank canvas', sub: 'clear the canvas', run: newFlowsheet },
+    { label: 'My flowsheets…', sub: nLib ? nLib + ' saved in this browser — open, rename, delete' : 'named flowsheets kept in this browser', run: () => openLibrary() },
+    { label: cur ? 'Save “' + (cur.name.length > 34 ? cur.name.slice(0, 33) + '…' : cur.name) + '”' : 'Save to My flowsheets…',
+      sub: cur ? (libDirty() ? 'update it in My flowsheets' : 'no changes since it was saved') : 'name it and keep it in this browser', run: libQuickSave, disabled: !M.blocks.length },
+    'hr',
     { label: 'Open file…', sub: 'a .json saved from this page', run: () => $('fileIn').click() },
     { label: 'Save to file', sub: 'download .json (Ctrl+S)', run: saveFile },
     { label: 'Copy share link', sub: 'the whole flowsheet in one URL', run: shareLink },
@@ -11527,6 +11555,7 @@ $('fileIn').addEventListener('change', async () => {
     const m = j.model || j;
     if (!Array.isArray(m.blocks) || !Array.isArray(m.streams)) throw new Error('not a flowsheet file');
     CASES = sanitizeCases(j.cases); CASE_UI.base = null; CASE_UI.pick = null;
+    LIB_CUR = null;
     loadModel(m);
     toast('Flowsheet loaded' + (CASES.length ? ' with ' + CASES.length + ' case' + (CASES.length === 1 ? '' : 's') : ''), 'ok');
   } catch (e) { toast('Could not open file: ' + e.message, 'err'); }
@@ -11535,8 +11564,184 @@ function newFlowsheet() {
   if (M.blocks.length && !confirm('Clear the current flowsheet? (Save it first if you need it.)')) return;
   CASES = []; CASE_UI.base = null; CASE_UI.pick = null;
   START.hidden = false;
+  LIB_CUR = null;
   loadModel(blankModel());
   VIEW = { x: 40, y: 40, k: 1 }; applyView();
+  renderStart();
+}
+
+/* ---------------- Nov 2026: My flowsheets — named flowsheets kept in this browser ----------------
+   The autosave keeps only the one flowsheet on the canvas; this keeps up to LIB_MAX named ones.
+   An index (LS_LIB_INDEX: [{id, name, saved, units, cases}], newest first) and one key per
+   flowsheet (LS_LIB_ITEM + id: {m, view, cases}), so the list never parses every flowsheet and a
+   failed write leaves the others intact. LIB_CUR = {id, h} links the canvas to the entry it was
+   opened from or saved to (h: hash of the model and cases then), so Save updates that entry and
+   opening another one can warn about unsaved changes. The link goes with the autosave and is
+   dropped whenever another flowsheet comes onto the canvas (new, file, example, share link);
+   restoring a case keeps it. Browser storage only: nothing leaves the device. */
+const LS_LIB_INDEX = 'mc_flowsheet_lib_v1';
+const LS_LIB_ITEM = 'mc_flowsheet_lib_v1_';
+const LIB_MAX = 60;
+function libHash(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36) + '.' + s.length.toString(36);
+}
+const libState = () => libHash(snap() + '\u0000' + (CASES.length ? JSON.stringify(CASES) : ''));
+function libIndex() {
+  try {
+    const a = JSON.parse(localStorage.getItem(LS_LIB_INDEX) || '[]');
+    return Array.isArray(a) ? a.filter((e) => e && typeof e.id === 'string' && typeof e.name === 'string' && num(e.saved)) : [];
+  } catch (_e) { return []; }
+}
+function libGet(id) { try { return JSON.parse(localStorage.getItem(LS_LIB_ITEM + id) || 'null'); } catch (_e) { return null; } }
+function libCurEntry() { return LIB_CUR ? libIndex().find((e) => e.id === LIB_CUR.id) || null : null; }
+const libDirty = () => !LIB_CUR || libState() !== LIB_CUR.h;
+const libWhen = (t) => { try { return new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (_e) { return new Date(t).toISOString().slice(0, 16).replace('T', ' '); } };
+const libMeta = (e) => libWhen(e.saved) + ' · ' + e.units + ' unit' + (e.units === 1 ? '' : 's') + (e.cases ? ' · ' + e.cases + ' case' + (e.cases === 1 ? '' : 's') : '');
+function libSuggestName() {
+  const labels = M.blocks.map((b) => (TYPES[b.type] && TYPES[b.type].label) || b.name);
+  const uniq = [...new Set(labels)];
+  const base = uniq.length <= 3 ? uniq.join(' + ') : uniq.slice(0, 2).join(' + ') + ' + ' + (M.blocks.length - 2) + ' more units';
+  let d = '';
+  try { d = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (_e) { /* ignore */ }
+  return (base + (d ? ' · ' + d : '')).slice(0, 80);
+}
+/** save the canvas: update the linked entry, or a new one (asNew, or nothing linked) */
+function libSave(name, asNew) {
+  if (!M.blocks.length) { toast('Nothing to save yet — draw or open a flowsheet first', 'err'); return false; }
+  name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 80) || libSuggestName();
+  const idx = libIndex();
+  let e = !asNew && LIB_CUR ? idx.find((x) => x.id === LIB_CUR.id) : null;
+  if (!e) {
+    const same = idx.find((x) => x.name.toLowerCase() === name.toLowerCase());
+    if (same) { if (!confirm('A flowsheet named “' + same.name + '” is already in My flowsheets. Replace it?')) return false; e = same; }
+    else if (idx.length >= LIB_MAX) { toast('My flowsheets holds ' + LIB_MAX + ' flowsheets — delete one first', 'err'); return false; }
+  }
+  const id = e ? e.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const key = LS_LIB_ITEM + id, prev = localStorage.getItem(key);
+  try {
+    localStorage.setItem(key, JSON.stringify({ m: M, view: VIEW, cases: CASES.length ? CASES : undefined }));
+    localStorage.setItem(LS_LIB_INDEX, JSON.stringify([{ id, name, saved: Date.now(), units: M.blocks.length, cases: CASES.length }, ...idx.filter((x) => x.id !== id)]));
+  } catch (_e) {
+    try { if (prev === null) localStorage.removeItem(key); else localStorage.setItem(key, prev); } catch (_e2) { /* ignore */ }
+    toast('Browser storage is full — delete flowsheets you no longer need from My flowsheets, or use File → Save to file', 'err');
+    return false;
+  }
+  LIB_CUR = { id, h: libState() };
+  autosave();
+  renderStart();
+  toast('Saved “' + name + '” in My flowsheets', 'ok');
+  return true;
+}
+function libOpen(id) {
+  const e = libIndex().find((x) => x.id === id), d = libGet(id);
+  if (!e || !d || !d.m || !Array.isArray(d.m.blocks) || !Array.isArray(d.m.streams)) { toast('This saved flowsheet could not be read', 'err'); return; }
+  if (M.blocks.length && libDirty() && !confirm(LIB_CUR && LIB_CUR.id === id
+    ? 'Go back to the saved “' + e.name + '”? Changes made since it was saved will be lost.'
+    : 'Replace the flowsheet on the canvas with “' + e.name + '”? Changes that are not saved will be lost.')) return;
+  closeSheet();
+  CASES = sanitizeCases(d.cases); CASE_UI.base = null; CASE_UI.pick = null;
+  loadModel(d.m, true);
+  LIB_CUR = { id, h: libState() };
+  if (d.view && num(d.view.x) && num(d.view.y) && num(d.view.k)) { VIEW = { x: d.view.x, y: d.view.y, k: d.view.k }; applyView(); renderCanvas(); }
+  else requestAnimationFrame(fitView);
+  autosave();
+  toast('Opened “' + e.name + '” — press Run', 'ok');
+}
+function libRename(id, name) {
+  name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!name) return false;
+  const idx = libIndex(), e = idx.find((x) => x.id === id);
+  if (!e) return false;
+  e.name = name;
+  try { localStorage.setItem(LS_LIB_INDEX, JSON.stringify(idx)); } catch (_e) { toast('Could not rename — browser storage is full', 'err'); return false; }
+  renderStart();
+  return true;
+}
+function libDelete(id) {
+  const idx = libIndex(), e = idx.find((x) => x.id === id);
+  if (!e || !confirm('Delete “' + e.name + '” from My flowsheets? This cannot be undone.')) return false;
+  try { localStorage.setItem(LS_LIB_INDEX, JSON.stringify(idx.filter((x) => x.id !== id))); localStorage.removeItem(LS_LIB_ITEM + id); } catch (_e) { /* ignore */ }
+  if (LIB_CUR && LIB_CUR.id === id) { LIB_CUR = null; autosave(); }
+  renderStart();
+  toast('Deleted “' + e.name + '”', 'ok');
+  return true;
+}
+function libDownload(id) {
+  const e = libIndex().find((x) => x.id === id), d = libGet(id);
+  if (!e || !d || !d.m) { toast('This saved flowsheet could not be read', 'err'); return; }
+  const o = { app: 'multicalci-flowsheet', v: 1, saved: new Date(e.saved).toISOString(), model: d.m };
+  if (Array.isArray(d.cases) && d.cases.length) o.cases = d.cases;
+  const file = (e.name.replace(/[—–·•]/g, '-').replace(/[‘’]/g, "'").replace(/[\\/:*?"<>|“”«»]+/g, ' ')   // typographic punctuation can make a browser drop the name
+    .replace(/\s+/g, ' ').trim().slice(0, 60) || 'flowsheet') + '.json';
+  download(file, JSON.stringify(o, null, 1), 'application/json');
+}
+/** the My flowsheets dialog; focusName puts the cursor in the name box (File → Save to My flowsheets) */
+function openLibrary(focusName) {
+  const body = el('div', { class: 'lib' });
+  let renaming = null, q = '', nameBox = null;
+  const draw = () => {
+    body.textContent = '';
+    const idx = libIndex(), cur = libCurEntry(), can = M.blocks.length > 0;
+    nameBox = el('input', { type: 'text', maxlength: '80', value: cur ? cur.name : can ? libSuggestName() : '', placeholder: 'Name of this flowsheet', 'aria-label': 'Name of this flowsheet', disabled: !can });
+    const save = (asNew) => { if (libSave(nameBox.value, asNew)) draw(); };
+    nameBox.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save(false); });
+    body.append(el('div', { class: 'lib-save' },
+      el('div', { class: 'lib-lbl' }, !can ? 'Draw or open a flowsheet to save it here.'
+        : cur ? 'The flowsheet on the canvas is saved as “' + cur.name + '”' + (libDirty() ? ' — changed since, not saved yet.' : ' — no changes since.')
+        : 'Save the flowsheet on the canvas under a name:'),
+      el('div', { class: 'lib-row' }, nameBox,
+        el('button', { class: 'btn pri', type: 'button', disabled: !can, onclick: () => save(false) }, 'Save'),
+        cur ? el('button', { class: 'btn', type: 'button', disabled: !can, title: 'Keep the saved one as it is and save the canvas as a new flowsheet', onclick: () => save(true) }, 'Save as copy') : null)));
+    if (!idx.length) body.append(el('div', { class: 'lib-empty' }, 'No flowsheets saved yet.'));
+    else {
+      if (idx.length > 6) {
+        const s = el('input', { type: 'search', value: q, placeholder: 'Search ' + idx.length + ' saved flowsheets…', 'aria-label': 'Search saved flowsheets', class: 'lib-q' });
+        s.addEventListener('input', () => { q = s.value.trim().toLowerCase(); drawList(); });
+        body.append(s);
+      }
+      const list = el('div', { class: 'lib-list' });
+      const drawList = () => {
+        list.textContent = '';
+        const hits = idx.filter((e) => !q || e.name.toLowerCase().includes(q));
+        if (!hits.length) list.append(el('div', { class: 'lib-empty' }, 'No saved flowsheet matches “' + q + '”.'));
+        for (const e of hits) {
+          const on = !!(LIB_CUR && LIB_CUR.id === e.id);
+          const row = el('div', { class: 'lib-item' + (on ? ' cur' : '') });
+          if (renaming === e.id) {
+            const inp = el('input', { type: 'text', maxlength: '80', value: e.name, 'aria-label': 'New name' });
+            const ok = () => { if (libRename(e.id, inp.value)) { renaming = null; draw(); } };
+            inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ok(); if (ev.key === 'Escape') { renaming = null; drawList(); } });
+            row.append(el('div', { class: 'lib-ren' }, inp),
+              el('div', { class: 'lib-acts' },
+                el('button', { class: 'btn sm pri', type: 'button', onclick: ok }, 'OK'),
+                el('button', { class: 'btn sm', type: 'button', onclick: () => { renaming = null; drawList(); } }, 'Cancel')));
+            setTimeout(() => { inp.focus(); inp.select(); }, 0);
+          } else {
+            row.append(el('button', { class: 'lib-open', type: 'button', title: 'Open “' + e.name + '”', onclick: () => libOpen(e.id) },
+              el('b', null, e.name), el('span', null, libMeta(e) + (on ? ' · on the canvas' : ''))),
+            el('div', { class: 'lib-acts' },
+              el('button', { class: 'btn sm', type: 'button', onclick: () => { renaming = e.id; drawList(); } }, 'Rename'),
+              el('button', { class: 'btn sm', type: 'button', title: 'Download as a .json file — keep a copy, or open it on another computer', onclick: () => libDownload(e.id) }, 'Download'),
+              el('button', { class: 'btn sm dng', type: 'button', onclick: () => { if (libDelete(e.id)) draw(); } }, 'Delete')));
+          }
+          list.append(row);
+        }
+      };
+      drawList();
+      body.append(list);
+    }
+    body.append(el('div', { class: 'lib-note' }, 'Kept in this browser on this device only (up to ' + LIB_MAX + '). Clearing the browser’s data deletes them, and they do not appear on another computer — use Download to keep a copy or to move one.'));
+  };
+  draw();
+  openSheet('My flowsheets', body);
+  if (focusName && nameBox && !nameBox.disabled) setTimeout(() => { nameBox.focus(); nameBox.select(); }, 50);
+}
+/** File → Save to My flowsheets: update the linked entry at once, else ask for a name */
+function libQuickSave() {
+  const cur = libCurEntry();
+  if (cur) libSave(cur.name, false); else openLibrary(true);
 }
 function b64u(bytes) {
   let s = '';
@@ -12308,6 +12513,12 @@ function renderStart() {
   c.textContent = '';
   const g = exampleGallery((x) => loadExample(x), START);
   const phone = window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+  const lib = libIndex(), nShow = phone ? 2 : 4;   // Nov 2026: My flowsheets, newest first
+  const mine = lib.length ? [
+    el('div', { class: 'ex-h' }, el('h3', null, 'My flowsheets'),
+      el('button', { class: 'btn sm', type: 'button', onclick: () => openLibrary() }, lib.length > nShow ? 'All ' + lib.length + ' — manage' : 'Manage')),
+    el('div', { class: 'libgrid' }, ...lib.slice(0, nShow).map((e) => el('button', { class: 'excard', type: 'button', title: 'Open “' + e.name + '”', onclick: () => libOpen(e.id) },
+      el('div', { class: 't' }, e.name), el('div', { class: 'd' }, libMeta(e)))))] : [];
   c.append(
     el('button', { class: 'st-x', type: 'button', title: 'Hide the start page and draw on the empty canvas', 'aria-label': 'Hide the start page', onclick: () => { START.hidden = true; refreshView(); } }, '✕'),
     el('h2', null, 'Start a flowsheet'),
@@ -12324,6 +12535,7 @@ function renderStart() {
     el('div', { class: 'howto' }, phone
       ? 'Or draw straight away: tap + Equipment to place a unit, tap its red inlet arrow to fill in the feed, then Run.'
       : 'Or draw straight away: drag equipment from the palette onto the canvas, click a red inlet arrow to fill in the feed, drag an outlet arrow onto the next unit, then press Run.'),
+    ...mine,
     el('div', { class: 'ex-h' }, el('h3', null, 'Examples'), g.q),
     g.chips, g.grid);
 }
@@ -12594,7 +12806,7 @@ function finishSetup() {
   if (!w) return;
   const pk = w.pick || recommendMethod(w.keys);
   if (w.fresh) {
-    CASES = []; CASE_UI.base = null; CASE_UI.pick = null;
+    CASES = []; CASE_UI.base = null; CASE_UI.pick = null; LIB_CUR = null;
     START.hidden = true;            // setup done: the empty canvas, ready for equipment (not the start page again)
     loadModel(blankModel());
     VIEW = { x: 40, y: 40, k: 1 }; applyView();
@@ -12621,7 +12833,7 @@ async function loadExample(card) {
   catch (e) { toast('The example could not be loaded — ' + e.message, 'err'); return; }
   const m = JSON.parse(JSON.stringify(x.model));
   if (x.note) m.note = x.note;   // ROUND 14: the example's notes live in the Summary tab, not in a long toast over the drawing
-  CASES = []; CASE_UI.base = null; CASE_UI.pick = null;
+  CASES = []; CASE_UI.base = null; CASE_UI.pick = null; LIB_CUR = null;
   loadModel(m, true);
   placeStubs(false);
   lastSnap = snap();
@@ -12645,13 +12857,14 @@ async function loadExample(card) {
   renderStart();   // ROUND 13: start page with the example gallery
   let restored = false;
   const fromHash = await readHash();
-  if (fromHash && Array.isArray(fromHash.blocks)) { CASES = []; loadModel(fromHash, true); placeStubs(false); restored = true; toast('Flowsheet loaded from the share link', 'ok'); }
+  if (fromHash && Array.isArray(fromHash.blocks)) { CASES = []; LIB_CUR = null; loadModel(fromHash, true); placeStubs(false); restored = true; toast('Flowsheet loaded from the share link', 'ok'); }
   if (!restored) {
     try {
       const raw = JSON.parse(localStorage.getItem(LS_MODEL) || 'null');
       if (raw && raw.m && Array.isArray(raw.m.blocks) && raw.m.blocks.length) {
         CASES = sanitizeCases(raw.cases);
         loadModel(raw.m, true);
+        if (raw.lib && typeof raw.lib.id === 'string' && typeof raw.lib.h === 'string' && libIndex().some((e) => e.id === raw.lib.id)) LIB_CUR = { id: raw.lib.id, h: raw.lib.h };   // Nov 2026: still linked to its My flowsheets entry
         if (raw.view && num(raw.view.k)) { VIEW = raw.view; }
         restored = true;
       }
@@ -12662,7 +12875,7 @@ async function loadExample(card) {
   requestAnimationFrame(() => { if (restored && location.hash) fitView(); else { applyView(); renderCanvas(); } });
   loadComponents().then(() => { renderInspector(); refreshView(); }).catch(() => { renderInspector(); });
   window.addEventListener('resize', () => { renderCanvas(); clearTimeout(window.__rdT); window.__rdT = setTimeout(renderDock, 150); });
-  window.addEventListener('beforeunload', () => { try { localStorage.setItem(LS_MODEL, JSON.stringify({ t: Date.now(), m: M, view: VIEW, cases: CASES.length ? CASES : undefined })); } catch (_e) { /* ignore */ } });
+  window.addEventListener('beforeunload', () => { try { localStorage.setItem(LS_MODEL, JSON.stringify({ t: Date.now(), m: M, view: VIEW, cases: CASES.length ? CASES : undefined, lib: LIB_CUR || undefined })); } catch (_e) { /* ignore */ } });
 })();
 
 </script>
