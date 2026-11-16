@@ -86,7 +86,7 @@ export const config = { api: { bodyParser: true } };
 // Build marker — returned on every response as `apiBuild`, and on its own via
 // {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
 // actually serving without reading the logs.
-const API_BUILD = '2026-10-review-fixes-r2';
+const API_BUILD = '2026-11-audit-r3';
 
 // Status = worst of the calculator's own checks and the severity of every
 // message it returns (✗ fails, ⚠ check, ℹ note). Keeps the verdict and the
@@ -146,7 +146,9 @@ async function heatxpert_handler(req, res) {
         if (body[k] != null) body[k] = toSI_temp(body[k], 'imperial');
       });
       ['hF','cF','F','tF_kgh'].forEach(k => {
-        if (body[k] != null) body[k] = toSI_flow(body[k], 'imperial');
+        // lb/h → kg/h for MASS flows only; Nm³/h and Sm³/h are converted below
+        const unit = k === 'hF' ? body.hFunit : k === 'cF' ? body.cFunit : 'kgh';
+        if (body[k] != null && (!unit || unit === 'kgh')) body[k] = toSI_flow(body[k], 'imperial');
       });
       // FIX (audit 2026-07): pressures were never converted in imperial mode.
       // psi → bar. Affects gas density / Z-factor / Nm³-Sm³ conversion.
@@ -184,8 +186,16 @@ async function heatxpert_handler(req, res) {
       default:            return res.status(400).json({ error: 'Unknown calcType: ' + calcType });
     }
   } catch (err) {
-    console.error('HeatXpert API error:', err);
-    return res.status(500).json({ error: 'Calculation error: ' + (err.message || 'unknown') });
+    // FIX 2026-11: input problems (temperature cross, outlet above inlet, …) are
+    // the caller's to fix → 400 with the plain message. Only genuine faults in
+    // this code (TypeError etc.) are 500s and get a stack trace in the log.
+    const internal = err instanceof TypeError || err instanceof ReferenceError || err instanceof RangeError || err instanceof SyntaxError;
+    if (internal) {
+      console.error('HeatXpert API error:', err);
+      return res.status(500).json({ error: 'Internal calculation error: ' + (err.message || 'unknown') + ' — please report this case.' });
+    }
+    console.warn('HeatXpert input rejected:', err.message);
+    return res.status(400).json({ error: err.message || 'Invalid input' });
   }
 }
 
@@ -366,7 +376,18 @@ const FP = {
   'beer':               {rho:1010,mu:1.5,   cp:4.00,  k:0.580, name:'Beer'},
   'sugar-solution':     {rho:1250,mu:15,    cp:3.20,  k:0.450, name:'Sugar Solution 50%'},
   'molten-salt':        {rho:1900,mu:5.0,   cp:1.50,  k:0.500, name:'Molten Salt'},
-  'dowtherm':           {rho:1060,mu:3.5,   cp:2.20,  k:0.130, name:'Dowtherm A'},
+  // FIX 2026-11: Dowtherm A was one set of mixed-temperature constants (ρ, μ at
+  // 20 °C but cp near 250 °C) — μ 3.5 mPa·s is ~17× too high at 300 °C where the
+  // fluid is used. Now tabulated 15–400 °C (approximate manufacturer data —
+  // confirm against the current Dow datasheet for final design).
+  'dowtherm': {
+    rho:1060, mu:3.7, cp:1.58, k:0.137,
+    rho_pts:[[15,1063],[25,1056],[50,1036],[100,995],[150,952],[200,908],[250,862],[300,813],[350,760],[400,700]],
+    mu_pts: [[15,4.7],[25,3.7],[50,2.2],[100,0.98],[150,0.56],[200,0.38],[250,0.28],[300,0.21],[350,0.17],[400,0.13]],
+    cp_pts: [[15,1.55],[25,1.58],[50,1.63],[100,1.75],[150,1.86],[200,1.97],[250,2.08],[300,2.19],[350,2.31],[400,2.43]],
+    k_pts:  [[15,0.139],[25,0.137],[50,0.135],[100,0.128],[150,0.121],[200,0.113],[250,0.105],[300,0.097],[350,0.088],[400,0.079]],
+    name:'Dowtherm A'
+  },
   'mercury':            {rho:13600,mu:1.5,  cp:0.14,  k:8.300, name:'Mercury'},
   'sodium':             {rho:930, mu:0.7,   cp:1.38,  k:86.00, name:'Liquid Sodium'},
 };
@@ -378,6 +399,11 @@ const RHOMAT = {cs:7850,  ss304:8000,  ss316:8000,  copper:8960,  titanium:4510,
 // Vapour ↔ liquid phase-pair mapping for two-phase services
 const VAPOUR_OF = {'water':'steam','ammonia-liquid':'ammonia-gas','r717':'ammonia-gas'};
 const LIQUID_OF = {'steam':'water','ammonia-gas':'ammonia-liquid'};
+// Phase-explicit key of a substance (falls back to the key itself when the
+// library has only one entry for it, e.g. methanol — CoolProp then resolves
+// the phase from T and P).
+const vapourKeyOf = k => VAPOUR_OF[(k || '').toLowerCase().trim()] || (k || '').toLowerCase().trim();
+const liquidKeyOf = k => LIQUID_OF[(k || '').toLowerCase().trim()] || (k || '').toLowerCase().trim();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SATURATION PROPERTY LAYER (upgrade v7, 2026-07)
@@ -649,6 +675,52 @@ function hvapAtT(fluidKey, T_degC) {
   return f.hvap * Math.pow(Math.max(Tc - T_K, 1) / (Tc - Tref), 0.38);
 }
 
+// ── Phase-state check for single-phase streams (NEW 2026-11) ────────────────
+// A '…liquid' entered above its boiling point at the entered pressure (or a
+// vapour below its dew point) cannot exist as entered. The property layer then
+// returns saturated-liquid (or saturated-vapour) properties — e.g. water at
+// 150 °C with the default 1.013 bar a is evaluated as 100 °C water (μ 0.28
+// instead of 0.18 mPa·s) — so the user is told rather than left to guess.
+const SATURABLE_LIQUIDS = new Set(['water','ammonia-liquid','r717','methanol','ethanol','acetone','benzene','toluene','r134a']);
+const SATURABLE_VAPOURS = new Set(['steam','ammonia-gas']);
+function _satT(key, P) {
+  const name = COOLPROP_NAME[key];
+  if (CPI && name && !name.startsWith('INCOMP')) {
+    try { return CPI.PropsSI('T', 'P', Math.max(P, 0.001) * 1e5, 'Q', 0, name) - 273.15; } catch {}
+  }
+  return satTemperature(key, P);
+}
+function _satP(key, T) {
+  const name = COOLPROP_NAME[key];
+  if (CPI && name && !name.startsWith('INCOMP')) {
+    try { return CPI.PropsSI('P', 'T', T + 273.15, 'Q', 0, name) / 1e5; } catch {}
+  }
+  return satPressure(key, T);
+}
+function phaseStateNote(fluidKey, Ta, Tb, P_bar, role) {
+  const k = (fluidKey || '').toLowerCase().trim(), f = FP[k];
+  if (!f || !isFinite(Ta) || !isFinite(Tb)) return null;
+  const P = parseFloat(P_bar) || P_REF_DB;
+  const Tmax = Math.max(Ta, Tb), Tmin = Math.min(Ta, Tb);
+  if (SATURABLE_LIQUIDS.has(k)) {
+    const Ts = _satT(k, P);
+    if (Ts != null && isFinite(Ts) && Tmax > Ts + 0.5) {
+      const Pn = _satP(k, Tmax);
+      return `⚠ ${role}: ${f.name} at ${Tmax.toFixed(1)} °C is above its boiling point (${Ts.toFixed(1)} °C at ` +
+        `${P.toFixed(2)} bar a), so it cannot be liquid as entered — properties were taken at saturation instead. ` +
+        `Enter the real operating pressure${Pn && isFinite(Pn) ? ` (at least ${(Pn * 1.05).toFixed(2)} bar a)` : ''}, ` +
+        `or choose a phase-change mode if the stream boils.`;
+    }
+  } else if (SATURABLE_VAPOURS.has(k)) {
+    const Ts = _satT(k, P);
+    if (Ts != null && isFinite(Ts) && Tmin < Ts - 0.5)
+      return `⚠ ${role}: ${f.name} at ${Tmin.toFixed(1)} °C is below its condensing temperature (${Ts.toFixed(1)} °C at ` +
+        `${P.toFixed(2)} bar a), so part of it would condense — properties were taken as saturated vapour. ` +
+        `Check the pressure, or choose Condensing mode.`;
+  }
+  return null;
+}
+
 // Normalize fluid key lookup (case-insensitive)
 function getFluid(key) { return FP[(key||"").toLowerCase().trim()] || FP.water; }
 
@@ -681,13 +753,28 @@ const VISC_MODEL = {
   'propylene-glycol-30':['andrade',2600], 'propylene-glycol-50':['andrade',3000], 'milk':['andrade',1900],
   'juice':['andrade',1900], 'beer':['andrade',1800], 'sugar-solution':['andrade',2900],
 };
+// NEW 2026-11 — petroleum liquids without data tables: cp and k now follow the
+// Cragoe correlations (API Technical Data Book / Perry's), on the density at
+// 15 °C implied by the database value at 20 °C:
+//   cp = (1.6848 + 0.003391·T) / √SG    kJ/kgK     T in °C
+//   k  = 0.11717 / SG · (1 − 0.00054·T) W/mK
+// Before, cp was one constant at all temperatures (diesel 2.00 kJ/kgK; Cragoe
+// gives 2.17 at 90 °C, i.e. the duty was ≈8 % low for a hot diesel cooler).
+const CRAGOE = new Set(['crude-oil-heavy','diesel','gasoline','kerosene','fuel-oil','lube-oil','hydraulic-oil','thermal-oil']);
 function getFluidAtT(key, T_degC) {
   const k0 = (key||'').toLowerCase().trim();
   const raw = FP[k0] || FP.water;
   let rho = raw.rho_pts ? interpProp(raw.rho_pts, T_degC, raw.rho) : raw.rho;
   let mu  = raw.mu_pts  ? interpProp(raw.mu_pts,  T_degC, raw.mu)  : raw.mu;
   let k   = raw.k_pts   ? interpProp(raw.k_pts,   T_degC, raw.k)   : raw.k;
-  let viscModel = raw.mu_pts ? 'table' : 'constant';
+  let cpT = raw.cp_pts  ? interpProp(raw.cp_pts,  T_degC, raw.cp)  : raw.cp;
+  if (CRAGOE.has(k0) && !raw.cp_pts) {
+    const SG15 = (raw.rho * (1 + 0.00065 * 5)) / 999.1;            // 20 °C → 15 °C
+    const Tc = Math.max(-20, Math.min(T_degC, 350));
+    cpT = (1.6848 + 0.003391 * Tc) / Math.sqrt(SG15);
+    if (!raw.k_pts) k = 0.11717 / SG15 * (1 - 0.00054 * Tc);
+  }
+  let viscModel = raw.mu_pts ? 'table' : (CRAGOE.has(k0) ? 'constant+cragoe' : 'constant');
   const vm = VISC_MODEL[k0];
   const T_K = T_degC + 273.15;
   if (!raw.mu_pts && vm && vm[0] === 'walther') {
@@ -703,7 +790,7 @@ function getFluidAtT(key, T_degC) {
   }
   return {
     rho, mu,
-    cp:   raw.cp_pts   ? interpProp(raw.cp_pts,   T_degC, raw.cp)  : raw.cp,
+    cp:   cpT,
     k,
     name: raw.name, MW: raw.MW, Tc: raw.Tc, Pc: raw.Pc,
     omega: raw.omega, hvap: raw.hvap, Tsat: raw.Tsat, viscModel
@@ -1271,13 +1358,36 @@ function layoutPitches(PT, pitchLayout) {
   return { Ptef: PT, Pp: 0.866 * PT, key: 30 };                  // triangular (30°)
 }
 const _clamp1 = x => Math.max(-1, Math.min(1, x));
+// Rear-head / bundle type. 'fixed' covers fixed tubesheets (BEM/AEL/NEN) and
+// U-tube bundles (BEU/AEU), which have the same small bundle clearance.
+function normaliseHeadType(h) {
+  const k = String(h || 'fixed').toLowerCase().trim();
+  if (k === 'u-tube' || k === 'utube' || k === 'u') return 'u-tube';
+  if (k === 'split-ring' || k === 's' || k === 'aes') return 'split-ring';
+  if (k === 'pull-through' || k === 't' || k === 'aet') return 'pull-through';
+  return 'fixed';
+}
+// Bundle-to-shell diametral clearance L_bb (mm), Taborek chart fits.
+function bundleClearance_mm(headType, Ds_mm) {
+  const base = headType === 'pull-through' ? 95 : headType === 'split-ring' ? 35 : 12;
+  return base + 0.005 * (Ds_mm || 0);
+}
+// Sealing-strip pairs. 'auto' (default): none for fixed / U-tube bundles; one
+// pair per ~5 crossflow rows for floating heads, where the bypass lane is wide
+// and sealing strips are standard practice (Taborek, HEDH 3.3.5).
+function sealStripPairs(spec, headType, Nc) {
+  if (spec === undefined || spec === null || spec === '' || spec === 'auto')
+    return (headType === 'split-ring' || headType === 'pull-through') ? Math.max(1, Math.round(Nc / 5)) : 0;
+  const n = parseInt(spec);
+  return isFinite(n) && n > 0 ? n : 0;
+}
 
 function bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, headType = 'fixed', pitchLayout = 'triangular') {
   const Ds = shellID_m, Ds_mm = Ds * 1000, Do = OD_m;
   const PT = pitch_ratio * Do;
   const B  = bsp_ratio * Ds;
   const { Ptef, Pp, key } = layoutPitches(PT, pitchLayout);
-  const L_bb = ((headType === 'pull-through' ? 95 : headType === 'split-ring' ? 35 : 12) + 0.005 * Ds_mm) / 1000;
+  const L_bb = bundleClearance_mm(headType, Ds_mm) / 1000;
   const Dotl = Math.max(Ds - L_bb, 2 * Do);
   const Dctl = Math.max(Dotl - Do, Do);
   // Crossflow area at the bundle centreline
@@ -1338,7 +1448,7 @@ function taborekIdeal(Re, pitch_ratio, layoutKey) {
 }
 
 function calcBellDelaware(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, L_m, nTubes,
-                          tema = 'C', pitchLayout = 'triangular', headType = 'fixed') {
+                          tema = 'C', pitchLayout = 'triangular', headType = 'fixed', sealStrips = 'auto') {
   const { rho, mu: mu_mPas, cp, k } = fluid;
   const mu = mu_mPas * 1e-3;
   const g  = bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, headType, pitchLayout);
@@ -1353,8 +1463,8 @@ function calcBellDelaware(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut
   const Jc = 0.55 + 0.72 * g.F_c;
   // Jl — leakage
   const Jl = Math.max(0.2, 0.44 * (1 - g.r_s) + (1 - 0.44 * (1 - g.r_s)) * Math.exp(-2.2 * g.r_lm));
-  // Jb — bypass (no sealing strips modelled → r_ss = 0, conservative)
-  const Nss  = 0;
+  // Jb — bypass, with sealing strips (pairs) where fitted
+  const Nss  = sealStripPairs(sealStrips, headType, g.Nc);
   const r_ss = Nss / Math.max(g.Nc, 1);
   const C_j  = Re_s < 100 ? 1.35 : 1.25;
   const Jb   = r_ss >= 0.5 ? 1.0 : Math.exp(-C_j * g.F_sbp * (1 - Math.cbrt(Math.max(2 * r_ss, 0))));
@@ -1367,7 +1477,7 @@ function calcBellDelaware(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut
   const Js = 1.0;
   const Jtotal = Jc * Jl * Jb * Jr * Js;
   return { hShell: h_ideal * Jtotal, hTube: 0, Jc, Jl, Jb, Jr, Js, Jtotal, jh, f_ideal,
-           shellVel: G_s / rho, shellRe: Re_s, G_s, nBaffles, leakGeom: g, r_ss };
+           shellVel: G_s / rho, shellRe: Re_s, G_s, nBaffles, leakGeom: g, r_ss, Nss, headType };
 }
 
 // ─── PRESSURE DROP TUBE ───────────────────────────────────────────────────────
@@ -1411,7 +1521,7 @@ function calcPressDropTube(fluid, massFlowKgS, Di_m, L_m, nPasses, nozzle_id_m) 
 // applied R_b to the windows and used the dimensionally wrong S_m above.
 // Nozzle losses are NOT included (nozzle sizes are not an input).
 function calcBellDelawareDPdetail(fluid, massFlowKgS, shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, L_m, nTubes,
-                                  bdHtcResult, pitchLayout = 'triangular', headType = 'fixed') {
+                                  bdHtcResult, pitchLayout = 'triangular', headType = 'fixed', sealStrips, phiVisc = 1) {
   const { rho, mu: mu_mPas } = fluid;
   const mu = mu_mPas * 1e-3;
   const g  = bdLeakGeometry(shellID_m, OD_m, pitch_ratio, bcut_frac, bsp_ratio, nTubes, headType, pitchLayout);
@@ -1419,12 +1529,14 @@ function calcBellDelawareDPdetail(fluid, massFlowKgS, shellID_m, OD_m, pitch_rat
   const G  = massFlowKgS / Math.max(g.Sm, 1e-9);
   const Re = G * OD_m / mu;
   const { f } = taborekIdeal(Re, pitch_ratio, g.layoutKey);
-  const dP_bi = 2 * f * g.Nc * G * G / rho;
+  // (μw/μ)^0.14 on the bundle terms (Taborek) — passed in as φ = (μ/μw)^0.14
+  const dP_bi = 2 * f * g.Nc * G * G / rho / Math.max(phiVisc || 1, 0.5);
   const G_w = massFlowKgS / Math.sqrt(Math.max(g.Sm * g.Sw, 1e-12));
   const dP_wi = Re >= 100
     ? (2 + 0.6 * g.Ncw) * G_w * G_w / (2 * rho)
     : 26 * mu * G_w / rho * (g.Ncw / Math.max(PT - OD_m, 1e-4) + g.B / Math.max(g.Dw * g.Dw, 1e-8)) + G_w * G_w / rho;
-  const r_ss = bdHtcResult?.r_ss || 0;
+  const r_ss = sealStrips !== undefined ? sealStripPairs(sealStrips, headType, g.Nc) / Math.max(g.Nc, 1)
+                                        : (bdHtcResult?.r_ss || 0);
   const p_exp = 0.8 - 0.15 * (1 + g.r_s);
   const Rl = Math.exp(-1.33 * (1 + g.r_s) * Math.pow(Math.max(g.r_lm, 1e-9), p_exp));
   const C_bp = Re < 100 ? 4.5 : 3.7;
@@ -1444,14 +1556,21 @@ function viscNotes(...fluids) {
   const out = [];
   for (const f of fluids) {
     if (!f) continue;
-    if (f.viscModel === 'walther') out.push(`ℹ ${f.name}: viscosity follows a generic mineral-oil curve (Walther) anchored at 20 °C — use the actual oil data for final design.`);
+    if (f.viscModel === 'walther') out.push(`ℹ ${f.name}: viscosity follows a generic mineral-oil curve (Walther, anchored at 20 °C) and cp, k follow the Cragoe correlations — use the actual oil data for final design.`);
     else if (f.viscModel === 'andrade') out.push(`ℹ ${f.name}: viscosity follows a generic temperature curve anchored at 20 °C — use measured data for final design.`);
+    else if (f.viscModel === 'constant+cragoe') out.push(`ℹ ${f.name}: viscosity and density are constant (20 °C values); cp and k follow the Cragoe correlations — use measured data for final design.`);
     else if (f.viscModel === 'constant' && f._src !== 'coolprop' && !f._isGas) out.push(`ℹ ${f.name}: properties are constant (20 °C values) — no temperature data in the library.`);
   }
   return [...new Set(out)];
 }
 
 // ─── INPUT VALIDATION HELPER ──────────────────────────────────────────────────
+// Number from input, or the default when blank/invalid — unlike `x || d`, a
+// genuine 0 is kept. Optional lower bound.
+function finiteOr(val, dflt, min = -Infinity) {
+  const x = parseFloat(val);
+  return isFinite(x) ? Math.max(x, min) : dflt;
+}
 function requireFinite(val, name) {
   if (!isFinite(parseFloat(val))) throw new Error(`Invalid input: ${name} must be a finite number`);
   return parseFloat(val);
@@ -1489,12 +1608,13 @@ function calcResistanceBreakdown(hShell, hTube, Rfo, Rfi, Rwall, Ao_Ai) {
   const Rt      = r_shell + r_tube + r_fo + r_fi + r_w;
   if (Rt <= 0) return [];
   const pct = v => parseFloat((v / Rt * 100).toFixed(1));
+  // R = each resistance on the outside-area basis (m²K/W) — shown on the datasheet
   return [
-    { label: 'Shell-side film', pct: pct(r_shell), color: '#E24B4A' },
-    { label: 'Tube-side film',  pct: pct(r_tube),  color: '#378ADD' },
-    { label: 'Shell fouling',   pct: pct(r_fo),    color: '#BA7517' },
-    { label: 'Tube fouling',    pct: pct(r_fi),    color: '#854F0B' },
-    { label: 'Wall conduction', pct: pct(r_w),     color: '#1D9E75' },
+    { label: 'Shell-side film', pct: pct(r_shell), R: r_shell, color: '#E24B4A' },
+    { label: 'Tube-side film',  pct: pct(r_tube),  R: r_tube,  color: '#378ADD' },
+    { label: 'Shell fouling',   pct: pct(r_fo),    R: r_fo,    color: '#BA7517' },
+    { label: 'Tube fouling',    pct: pct(r_fi),    R: r_fi,    color: '#854F0B' },
+    { label: 'Wall conduction', pct: pct(r_w),     R: r_w,     color: '#1D9E75' },
   ];
 }
 
@@ -1548,6 +1668,9 @@ function calcLMTD_twophase(hTi, hTo, cTi, cTo, shellMode, arr) {
 // design zone model, not an HTRI incremental rating.
 // ═══════════════════════════════════════════════════════════════════════════
 const N_PHASE_INCREMENTS = 8;
+// Exit vapour quality used when the cold flow of an in-tube evaporator is
+// sized from the duty ("Know T_out" mode) — kept short of dryout.
+const EVAP_DESIGN_X_EXIT = 0.90;
 
 function zoneLMTD(Th1, Th2, Tc1, Tc2) {
   // Terminal ΔTs of one zone (counter-current orientation already applied)
@@ -1565,7 +1688,7 @@ function marchCondensingZones(p) {
   const zones = [];
   // Build hot-side zone boundaries from hTi → hTo
   if (p.hTi > p.Tsat + 0.1) {
-    const Qd = p.massH * fluidAtConditions(p.hFlKey, (p.hTi + p.Tsat) / 2, p.hPop).cp * (p.hTi - p.Tsat);
+    const Qd = p.massH * fluidAtConditions(vapourKeyOf(p.hFlKey), (p.hTi + p.Tsat) / 2, p.hPop).cp * (p.hTi - p.Tsat);
     zones.push({ name: 'Desuperheat', kind: 'vap', Th1: p.hTi, Th2: p.Tsat, Q: Qd });
   }
   const Qlat = p.massH * p.hvap_kJkg;
@@ -1574,7 +1697,7 @@ function marchCondensingZones(p) {
                  kind: 'cond', Th1: p.Tsat, Th2: p.Tsat, Q: Qlat / N_PHASE_INCREMENTS,
                  xm: 1 - (i + 0.5) / N_PHASE_INCREMENTS });
   }
-  if (p.hTo < p.Tsat - 0.1) {
+  if (p.hTo < p.Tsat - 0.01) {
     const Qs = p.massH * fluidAtConditions(liqKey, (p.Tsat + p.hTo) / 2, p.hPop).cp * (p.Tsat - p.hTo);
     zones.push({ name: 'Subcool', kind: 'liq', Th1: p.Tsat, Th2: p.hTo, Q: Qs });
   }
@@ -1610,10 +1733,10 @@ function marchCondensingZones(p) {
       // with the McNaught (1982) shear term h_sh = 1.26·(1/Xtt)^0.78·h_l,
       // h = √(h_grav² + h_sh²); Breber J*g labels the governing regime.
       const vapB = fluidAtConditions(VAPOUR_OF[liqKey] || p.hFlKey, p.Tsat, p.hPop);
-      const gLkC = bdLeakGeometry(p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.nTubes, 'fixed', p.pitchLayout);
+      const gLkC = bdLeakGeometry(p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.nTubes, p.headType || 'fixed', p.pitchLayout);
       const G_shC = p.massH / Math.max(gLkC.Sm, 1e-6);
       const h_l_cf = calcBellDelaware(liq, Math.max(p.massH * (1 - (z.xm ?? 0.5)), 0.02 * p.massH),
-                     p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+                     p.shellID, p.OD, p.pitch, p.bcut, p.bsp, p.L_eff, p.nTubes, p.tema, p.pitchLayout, p.headType, p.sealStrips).hShell;
       let Twall = (p.Tsat + TcM) / 2, U_i = 800, bres = null;
       for (let it = 0; it < 3; it++) {
         bres = calcHcondenseBundle(liqProps, vapB, z.xm ?? 0.5, G_shC, p.OD, N_vert, h_l_cf, Twall, p.L_eff);
@@ -1623,10 +1746,10 @@ function marchCondensingZones(p) {
       }
       regime = `${bres.regime} (J*g=${bres.Jg}; grav ${bres.h_grav}×N${N_vert}⁻¹ᐟ⁶ ⊕ shear ${bres.h_sh})`;
     } else {
-      const key = z.kind === 'vap' ? p.hFlKey : liqKey;
+      const key = z.kind === 'vap' ? vapourKeyOf(p.hFlKey) : liqKey;
       const sLoc = fluidAtConditions(key, ThM, p.hPop);
       hS = calcBellDelaware(sLoc, p.massH, p.shellID, p.OD, p.pitch, p.bcut, p.bsp,
-                            p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+                            p.L_eff, p.nTubes, p.tema, p.pitchLayout, p.headType, p.sealStrips).hShell;
       regime = z.kind === 'vap' ? 'single-phase vapour crossflow' : 'single-phase liquid crossflow';
     }
     const U_i = 1 / (1 / hS + p.Rfo + p.Ao_Ai / hT + p.Ao_Ai * p.Rfi + p.Rwall);
@@ -1674,7 +1797,7 @@ function marchEvaporatingZones(p) {
     // Shell-side hot local h
     const sLoc = fluidAtConditions(p.hFlKey, ThM, p.hPop);
     const hS = calcBellDelaware(sLoc, p.massH, p.shellID, p.OD, p.pitch, p.bcut, p.bsp,
-                                p.L_eff, p.nTubes, p.tema, p.pitchLayout).hShell;
+                                p.L_eff, p.nTubes, p.tema, p.pitchLayout, p.headType, p.sealStrips).hShell;
     // Tube-side cold local h
     const cLoc = fluidAtConditions(p.cFlKey, z.kind === 'boil' ? p.Tsat : (p.cTi + p.Tsat) / 2, p.cPop);
     const tubeRes = calcHtube(cLoc, p.massC / p.nTubesPerPass, p.Di, p.L_eff);
@@ -1937,9 +2060,12 @@ function calcShellTubeCore(b) {
   //   In both cases the three-zone Q is used automatically.
 
   const hFluidInit = fluidAtConditions(hFlKey, (hTi+hTo)/2, hPop);
-  const cFluidInit = fluidAtConditions(cFlKey, (cTi + (cTi+30))/2, cPop);
   let cF=parseFloat(b.cF)||0, cTo=parseFloat(b.cTo)||0;
   const coldMode=b.coldMode||'flow';
+  // FIX 2026-11: with a known cold outlet the first cp is taken at the real
+  // cold mean temperature (was cTi + 15 °C whatever the duty).
+  const cFluidInit = fluidAtConditions(cFlKey,
+    (coldMode === 'temp' && shellMode !== 'evaporating' && cTo > cTi) ? (cTi + cTo) / 2 : cTi + 15, cPop);
   const massH_kgs = hF / 3600;   // kg/s — used in phase-change heat duty below
   // shellMode is declared above (needed by the hot-side temperature validation)
 
@@ -1961,24 +2087,18 @@ function calcShellTubeCore(b) {
                       ? hFluidInit.hvap
                       : (hvapAtT(hFlKey, Tsat_h) || hFluidInit.hvap || 2257);
     const massH_kgs = hF / 3600;
-    if (hTi > Tsat_h + 0.1) {
-      // Superheated inlet → three zones
-      const hFluidVap  = fluidAtConditions(hFlKey, (hTi + Tsat_h) / 2, hPop);
-      const hFluidLiq  = fluidAtConditions(hFlKey.replace('steam','water').replace('-gas','-liquid'), (Tsat_h + hTo) / 2, hPop);
-      const Q_desup    = massH_kgs * hFluidVap.cp * (hTi - Tsat_h);   // kW
-      const Q_latent   = massH_kgs * hvap_kJkg;                        // kW
-      const Q_subcool  = massH_kgs * (hFluidLiq.cp || hFluidInit.cp) * (Tsat_h - hTo); // kW (0 if hTo=Tsat)
-      Qhot = Q_desup + Q_latent + Math.max(0, Q_subcool);
-      phaseZones = { mode:'condensing', Tsat:Tsat_h, Q_desup, Q_latent, Q_subcool:Math.max(0,Q_subcool),
-                     hvap_kJkg, superheated: true };
-    } else {
-      // Inlet at or below Tsat — pure condensation + optional subcooling
-      const Q_latent   = massH_kgs * hvap_kJkg;
-      const Q_subcool  = massH_kgs * hFluidInit.cp * Math.max(0, Tsat_h - hTo);
-      Qhot = Q_latent + Q_subcool;
-      phaseZones = { mode:'condensing', Tsat:Tsat_h, Q_desup:0, Q_latent, Q_subcool,
-                     hvap_kJkg, superheated: false };
-    }
+    // FIX 2026-11: each zone now takes the properties of the phase that is
+    // actually present, whichever key the user picked for the condensing fluid.
+    //   desuperheating → VAPOUR cp   (was liquid cp when the key was 'water')
+    //   subcooling     → LIQUID cp   (was vapour cp when the key was 'steam' and
+    //                                 the inlet was saturated — half the duty)
+    const Q_desup   = hTi > Tsat_h + 0.1
+      ? massH_kgs * fluidAtConditions(vapourKeyOf(hFlKey), (hTi + Tsat_h) / 2, hPop).cp * (hTi - Tsat_h) : 0;
+    const Q_latent  = massH_kgs * hvap_kJkg;
+    const Q_subcool = hTo < Tsat_h - 0.01
+      ? massH_kgs * fluidAtConditions(liquidKeyOf(hFlKey), (Tsat_h + hTo) / 2, hPop).cp * (Tsat_h - hTo) : 0;
+    Qhot = Q_desup + Q_latent + Q_subcool;
+    phaseZones = { mode:'condensing', Tsat:Tsat_h, Q_desup, Q_latent, Q_subcool, hvap_kJkg, superheated: Q_desup > 0 };
   } else if (shellMode === 'evaporating') {
     // Cold side is evaporating (boiling). Q = hot-side sensible heat.
     // UPGRADE v7 (2026-07): pressure-dependent boiling point — ammonia at
@@ -2001,6 +2121,12 @@ function calcShellTubeCore(b) {
     Qhot = (hF/3600) * hFluidInit.cp * (hTi - hTo);
   }
 
+  // A boiling stream must enter at or below its boiling point.
+  if (shellMode === 'evaporating' && phaseZones?.Tsat != null && cTi > phaseZones.Tsat + 0.5)
+    throw new Error(`Cold inlet ${cTi.toFixed(1)} °C is above the boiling point of the cold fluid ` +
+      `(${phaseZones.Tsat.toFixed(1)} °C at ${cPop.toFixed(2)} bar a) — it would enter as vapour. ` +
+      `Raise the tube-side pressure or lower the inlet temperature.`);
+  let evapFlowNote = null;
   if (coldMode==='flow') {
     if (cF<=0) throw new Error('Cold flow must be positive');
     if (shellMode === 'evaporating' && phaseZones?.Tsat != null) {
@@ -2018,16 +2144,28 @@ function calcShellTubeCore(b) {
       if (cTo > cTo_max) {
         const cF_required = (Qhot / ((cTo_max - cTi) * cFluidInit.cp)) * 3600;
         throw new Error(
-          `Condensing: cold outlet ${cTo.toFixed(1)}°C would exceed Tsat ${phaseZones.Tsat}°C. ` +
-          `Increase cold flow to at least ${cF_required.toFixed(0)} kg/h, or use "Know T_out" mode.`
+          `Condensing: the cold outlet would reach ${cTo.toFixed(1)} °C, closer than 5 °C to the condensing ` +
+          `temperature (${phaseZones.Tsat.toFixed(1)} °C). Increase the cold flow to at least ` +
+          `${cF_required.toFixed(0)} kg/h, or use "Know T_out" mode.`
         );
       }
     }
+  } else if (shellMode === 'evaporating' && phaseZones?.Tsat != null) {
+    // FIX 2026-11: "Know T_out" for a BOILING stream. Its outlet is fixed at
+    // Tsat, so the flow follows from the latent heat — the old sensible-heat
+    // formula Q/(cp·ΔT) put out ~90× the right flow (or failed on ΔT = 0).
+    // Sized for an exit quality of EVAP_DESIGN_X_EXIT, short of dryout.
+    const cLiq = fluidAtConditions(cFlKey, (cTi + phaseZones.Tsat) / 2, cPop);
+    cTo = phaseZones.Tsat;
+    cF  = Qhot / (cLiq.cp * Math.max(phaseZones.Tsat - cTi, 0) + EVAP_DESIGN_X_EXIT * phaseZones.hvap_kJkg) * 3600;
+    evapFlowNote = `ℹ Cold flow set to ${cF.toFixed(0)} kg/h so that the boiling stream leaves at a vapour quality of ` +
+      `${EVAP_DESIGN_X_EXIT.toFixed(2)} (outlet at T_sat = ${phaseZones.Tsat.toFixed(1)} °C).`;
   } else {
     if (cTo<=cTi) throw new Error('Cold outlet must be > cold inlet');
     if (cTo>=hTi) throw new Error('Cold outlet must be < hot inlet');
     cF = (Qhot/(cFluidInit.cp*(cTo-cTi)))*3600;
   }
+  if (phaseZones?.mode === 'evaporating') phaseZones.Q_latent_avail = (cF / 3600) * phaseZones.hvap_kJkg;
   // For evaporating: cTo=Tsat=cTi is physically valid (isothermal boiling inlet)
   if (cTo<cTi && shellMode !== 'evaporating') throw new Error('Cold outlet must be greater than cold inlet');
   if (hTi<=cTi) throw new Error('Hot inlet must be above cold inlet');
@@ -2040,7 +2178,8 @@ function calcShellTubeCore(b) {
   const shell_OD_max= parseFloat(b.shell_OD_max) || Infinity;   // mm — max allowed shell OD
   const L_effective = Math.min(L, L_max);                        // enforce length constraint
   const pitch=parseFloat(b.pitch)||1.25;
-  const Rfo=Math.max(parseFloat(b.Rfo)||0.0002,0), Rfi=Math.max(parseFloat(b.Rfi)||0.0002,0);
+  // FIX 2026-11: a typed 0 (clean service) is kept — `|| 0.0002` turned it into 0.0002
+  const Rfo=finiteOr(b.Rfo, 0.0002, 0), Rfi=finiteOr(b.Rfi, 0.0002, 0);
   const arr=b.arr||'counter', kw=KMAT[b.mat]||16;
   // nPasses = tube passes PER SHELL. '2-4' is modelled as two 1-2 shells in
   // series (4 tube passes in total) — FIX 2026-10: previously all tubes were
@@ -2058,35 +2197,43 @@ function calcShellTubeCore(b) {
   const bcut_frac=parseFloat(b.bcut)||0.25;
   let bsp_ratio=parseFloat(b.bsp)||0.50;          // may be re-chosen per geometry in auto mode
   const bspMode = b.bspMode === 'auto' ? 'auto' : 'fixed';
-  const headType = b.headType || 'fixed';
+  // TEMA rear head / bundle type sets the bundle-to-shell clearance (bypass)
+  // and the default number of sealing-strip pairs.
+  const headType = normaliseHeadType(b.headType);
+  const sealSpec = b.sealStrips;
   const velMode=(b.velMode==='fixedtubes')?'fixedtubes':'target';   // 'manual'/'targetKeepPasses' behave as target here
   const targetVel=parseFloat(b.targetVel)||1.5;
   const pdAllowShell=parseFloat(b.pdAllowShell)||0.70;
   const pdAllowTube=parseFloat(b.pdAllowTube)||1.00;
   const pitchLayout=b.pitchLayout||'triangular';
-  const bundleAreaFactor=pitchLayout==='triangular'?0.866:1.0;
-  // ── FIX 1: TEMA Table D-5 discrete shell ID steps (mm) ──────────────────
-  // Continuous formula gave ±15% error vs actual available shell sizes.
-  // Now we: (a) compute the theoretical minimum ID, (b) round UP to next
-  // standard TEMA size, and (c) return both so the UI can warn between sizes.
+  // ── Shell ID from tube count (rewritten 2026-11) ────────────────────────
+  // Bundle diameter for n tubes on the chosen layout (×1.10 margin, as before),
+  // LESS the tubes lost to pass-partition lanes, PLUS the extra bundle-to-shell
+  // clearance of a floating head. Lane loss ≈ 0.6 tube rows per lane
+  // (calibrated on the Kern/TEMA tube-count tables: 3/4" on 15/16" triangular,
+  // 27" shell holds 637 / 624 / 588 / 548 / 518 tubes for 1 / 2 / 4 / 6 / 8
+  // passes). The old estimate ignored passes, so 6- and 8-pass bundles were
+  // put in shells one size too small — shell velocity and h_shell too high.
+  // Standard shell IDs (mm) — pipe sizes to 23¼", rolled plate above.
   const TEMA_SHELL_IDS_MM = [
     152, 203, 254, 305, 337, 387, 438, 489, 540, 591,
     635, 686, 737, 787, 838, 889, 940, 991, 1067, 1143,
     1219, 1295, 1372, 1448, 1524
   ];
-  function estimateShellID(n) {
-    const bA  = n * pitchLen * pitchLen * bundleAreaFactor;
-    const D_min = Math.sqrt(4 * bA / Math.PI) * 1.10;  // theoretical min (m)
-    const D_min_mm = D_min * 1000;
-    // Find next standard TEMA size ≥ theoretical minimum
-    const standard = TEMA_SHELL_IDS_MM.find(d => d >= D_min_mm);
-    const D_std_mm  = standard || (D_min_mm * 1.05); // fallback if > largest table entry
-    return D_std_mm / 1000;  // return in metres
+  const CL_LAYOUT = pitchLayout === 'triangular' ? 0.866 : 1.0;
+  function bundleShellMin_m(n, np = nPasses, pl = pitchLen) {
+    const a  = Math.PI / (4 * 1.21 * CL_LAYOUT * pl * pl);
+    const bb = 0.6 * Math.max(np - 1, 0) / pl;
+    const D_fixed = (bb + Math.sqrt(bb * bb + 4 * a * Math.max(n, 1))) / (2 * a);
+    return D_fixed + (bundleClearance_mm(headType, 0) - bundleClearance_mm('fixed', 0)) / 1000;
   }
-  function estimateShellID_detail(n) {
-    const bA      = n * pitchLen * pitchLen * bundleAreaFactor;
-    const D_min   = Math.sqrt(4 * bA / Math.PI) * 1.10;
-    const D_min_mm = D_min * 1000;
+  function estimateShellID(n, np = nPasses, pl = pitchLen) {
+    const D_min_mm = bundleShellMin_m(n, np, pl) * 1000;
+    const standard = TEMA_SHELL_IDS_MM.find(d => d >= D_min_mm);
+    return (standard || D_min_mm * 1.05) / 1000;      // metres
+  }
+  function estimateShellID_detail(n, np = nPasses) {
+    const D_min_mm = bundleShellMin_m(n, np) * 1000;
     const standard = TEMA_SHELL_IDS_MM.find(d => d >= D_min_mm);
     const D_std_mm  = standard || (D_min_mm * 1.05);
     const prev = TEMA_SHELL_IDS_MM.filter(d => d < D_min_mm).slice(-1)[0] || null;
@@ -2151,7 +2298,7 @@ function calcShellTubeCore(b) {
                (isHotGas || isColdGas) ? 80 : 800);
 
   let U_iter = U_seed;
-  let hShell_iter, hTube_iter, bdRes_iter, tubeRes_iter;
+  let hShell_iter, hTube_iter, bdRes_iter, tubeRes_iter, phiH_last = 1;
   let U_actual_iter, U_clean_iter;
   let iterCount = 0;
   let U_deviation_pct = 100;
@@ -2162,15 +2309,28 @@ function calcShellTubeCore(b) {
     iterCount = iter + 1;
 
     // ── Step 1: Re-evaluate fluid props at bulk mean temperatures ──
-    const R_shell_est = 1 / Math.max(U_iter, 1);
-    const R_tube_est  = 1 / Math.max(U_iter, 1);
-    Twall_shell = hTmean - (hTmean - cTmean) * 0.5 * (R_shell_est / (R_shell_est + R_tube_est));
-    Twall_tube  = cTmean + (hTmean - cTmean) * 0.5 * (R_tube_est  / (R_shell_est + R_tube_est));
+    // FIX 2026-11: wall-surface temperatures for the (μ/μw)^0.14 corrections now
+    // come from the actual resistance split, Tw = Tb ∓ ΔT·R_film/R_total, using the
+    // film coefficients of the previous pass. The old estimate put each wall a
+    // fixed quarter of ΔT from its own bulk whatever the coefficients, so for an
+    // oil cooler (oil film ≈ 90 % of the resistance) the oil-side wall was taken
+    // ≈12 K too hot and h_shell came out ≈7 % high.
+    {
+      const Ao_Ai_w = OD / Di, dTb = hTmean - cTmean;
+      const R_fix = Rfo + Ao_Ai_w * Rfi + Rwall;
+      let Rs, Rt;
+      if (hShell_iter > 0 && hTube_iter > 0) { Rs = 1 / hShell_iter; Rt = Ao_Ai_w / hTube_iter; }
+      else { Rs = Rt = Math.max(1 / Math.max(U_iter, 1) - R_fix, 0.3 / Math.max(U_iter, 1)) / 2; }
+      const R_tot = Rs + Rt + R_fix;
+      Twall_shell = hTmean - dTb * Rs / R_tot;
+      Twall_tube  = cTmean + dTb * Rt / R_tot;
+    }
     hFluid = fluidAtConditions(hFlKey, hTmean, hPop);
     cFluid = fluidAtConditions(cFlKey, cTmean, cPop);
     const hFluid_wall = fluidAtConditions(hFlKey, Twall_shell, hPop);
     const cFluid_wall = fluidAtConditions(cFlKey, Twall_tube,  cPop);
     const phi_h = Math.pow(Math.max(hFluid.mu / Math.max(hFluid_wall.mu, 0.001), 0.1), 0.14);
+    phiH_last = shellMode === 'condensing' ? 1 : Math.max(0.5, Math.min(phi_h, 2));
     const phi_c = Math.pow(Math.max(cFluid.mu / Math.max(cFluid_wall.mu, 0.001), 0.1), 0.14);
 
     // ── FIX 3: Recalculate cTo INSIDE the convergence loop ────────────────
@@ -2218,8 +2378,8 @@ function calcShellTubeCore(b) {
       hShell_iter = calcHcondense(hSatLiq, Twall_h, OD, L_eff, 'horizontal');
     } else {
       // Single-phase or evaporating: Bell-Delaware crossflow HTC on shell side
-      bdRes_iter  = calcBellDelaware(hFluid, massH, shellID_geo, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_geo, tema, pitchLayout, b.headType || 'fixed');
-      hShell_iter = bdRes_iter.hShell * phi_h;
+      bdRes_iter  = calcBellDelaware(hFluid, massH, shellID_geo, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_geo, tema, pitchLayout, headType, sealSpec);
+      hShell_iter = bdRes_iter.hShell * phiH_last;
     }
 
     // ── Step 3: Tube-side HTC ─────────────────────────────────────────────
@@ -2350,7 +2510,7 @@ function calcShellTubeCore(b) {
     hFlKey, hPop, massH, cFlKey, cPop, massC, cTi, cTo,
     OD, Di, L_eff, nTubesPerPass: nTubesPerPass_geo, shellID: shellID_geo,
     pitch, bcut: bcut_frac, bsp: bsp_ratio, nTubes: numTubes_geo, tema, pitchLayout,
-    Rfo, Rfi, Rwall, Ao_Ai, boilCorr: b.boilCorr || 'gungor-winterton'
+    Rfo, Rfi, Rwall, Ao_Ai, boilCorr: b.boilCorr || 'gungor-winterton', headType, sealStrips: sealSpec
   };
   let dryoutWarn = null;
   if (shellMode === 'condensing' && phaseZones) {
@@ -2373,7 +2533,8 @@ function calcShellTubeCore(b) {
 
     return { converged, U, U_clean, hShell, hTube, bdRes, lmtdRes, lmtd, F, dT1, dT2, FLMTD,
              Qh, Qc, Q, balErr, Wh, Wc, zoneModel, dryoutWarn, area, U_effective,
-             iterCount, U_deviation_pct, U_seed, iterHistory, lmtdArr, _numTubes: numTubes_geo };
+             iterCount, U_deviation_pct, U_seed, iterHistory, lmtdArr, _numTubes: numTubes_geo, _shellID: shellID_geo,
+             phiShell: phiH_last, Twall_shell, Twall_tube };
   } // end evaluateGeometry
 
   // ── FIX 2026-10: GEOMETRY ⇄ U CONSISTENCY LOOP ────────────────────────────
@@ -2395,7 +2556,7 @@ function calcShellTubeCore(b) {
   const L_temaSpan = (56.06 * (OD * 1000) + 455.9) / 1000;
   function autoBaffleRatio(nT, Ds) {
     const target = 0.9 * pdAllowShell / nShells;
-    const dp = r => calcBellDelawareDPdetail(dpShellFluid, massH, Ds, OD, pitch, bcut_frac, r, L_eff, nT, null, pitchLayout, headType).total * dpFactor;
+    const dp = r => calcBellDelawareDPdetail(dpShellFluid, massH, Ds, OD, pitch, bcut_frac, r, L_eff, nT, null, pitchLayout, headType, sealSpec).total * dpFactor;
     // TEMA allows 0.2·Ds, but below ≈0.3·Ds the leakage streams grow (Jl < 0.55)
     // and ΔP rises 2–3× for a few % more h — not worth it in an automatic choice.
     const rMin = Math.max(0.3, 0.0508 / Ds);
@@ -2409,11 +2570,38 @@ function calcShellTubeCore(b) {
     for (let i = 0; i < 40; i++) { const mid = 0.5 * (lo + hi); if (dp(mid) > target) lo = mid; else hi = mid; }
     return hi;
   }
+  // ── Shell for N tubes, including the gas-velocity limit (FIX 2026-11) ─────
+  // For a single-phase gas on the shell side the crossflow velocity is held at
+  // ≤ 30 m/s by stepping up through the standard shells. This is now done
+  // INSIDE the geometry loop, so h_shell, U, the required area and ΔP are all
+  // evaluated at the shell that is reported. (Before, only ΔP was recomputed for
+  // the enlarged shell — U and the area still belonged to the smaller one, which
+  // overstated h_shell by the full velocity ratio.)
+  const GAS_VEL_LIMIT = 30;                        // m/s, erosion / vibration
+  const gasShellCheck = isHotGas && shellMode !== 'condensing';
+  function shellFor(N) {
+    const D0 = estimateShellID(N);
+    if (!gasShellCheck) return { D: D0, D_bundle: D0, vel0: null, vel: null, infeasible: false };
+    const velAt = D => {
+      const r = bspMode === 'auto' ? autoBaffleRatio(N, D) : bsp_ratio;
+      const Sm = bdLeakGeometry(D, OD, pitch, bcut_frac, r, N, headType, pitchLayout).Sm;
+      return massH / Math.max(Sm * dpShellFluid.rho, 1e-9);
+    };
+    const v0 = velAt(D0);
+    if (v0 <= GAS_VEL_LIMIT) return { D: D0, D_bundle: D0, vel0: v0, vel: v0, infeasible: false };
+    for (const mm of TEMA_SHELL_IDS_MM) {
+      const D = mm / 1000; if (D <= D0 + 1e-9) continue;
+      const v = velAt(D); if (v <= GAS_VEL_LIMIT) return { D, D_bundle: D0, vel0: v0, vel: v, infeasible: false };
+    }
+    const Dm = Math.max(TEMA_SHELL_IDS_MM[TEMA_SHELL_IDS_MM.length - 1] / 1000, D0);
+    return { D: Dm, D_bundle: D0, vel0: v0, vel: velAt(Dm), infeasible: true };
+  }
   let geo = { numTubes: numTubes_geo, nTPP: nTubesPerPass_geo, shellID: shellID_geo };
-  let ev = null, geoIterations = 0, geoConverged = (velMode === 'fixedtubes');
+  let ev = null, geoIterations = 0, geoConverged = (velMode === 'fixedtubes'), shellInfo = null;
   const geoHistory = [];
   for (let gi = 0; gi < 30; gi++) {
     geoIterations = gi + 1;
+    shellInfo = shellFor(geo.numTubes); geo.shellID = shellInfo.D;
     if (bspMode === 'auto') bsp_ratio = autoBaffleRatio(geo.numTubes, geo.shellID);
     ev = evaluateGeometry(geo.numTubes, geo.nTPP, geo.shellID, ev ? ev.U : null);
     const nArea = Math.max(nPasses, Math.ceil(ev.area / (Math.PI * OD * L_eff * nShells) / nPasses) * nPasses);
@@ -2423,7 +2611,8 @@ function calcShellTubeCore(b) {
     if (nArea <= geo.numTubes) { geoConverged = true; break; }
     geo = { numTubes: nArea, nTPP: nArea / nPasses, shellID: estimateShellID(nArea) };
   }
-  if (ev._numTubes !== geo.numTubes) {
+  if (ev._numTubes !== geo.numTubes || Math.abs(ev._shellID - geo.shellID) > 1e-9) {
+    shellInfo = shellFor(geo.numTubes); geo.shellID = shellInfo.D;
     if (bspMode === 'auto') bsp_ratio = autoBaffleRatio(geo.numTubes, geo.shellID);
     ev = evaluateGeometry(geo.numTubes, geo.nTPP, geo.shellID, ev.U);
   }
@@ -2486,17 +2675,21 @@ function calcShellTubeCore(b) {
   const Qmax = Cmin * (hTi - cTi);
   const eff  = Qmax > 0 ? Q / Qmax : 0;
 
-  // ── GAS/STEAM SHELL AUTO-RESIZE ────────────────────────────────────────────
-  // For gas/steam on shell side: if crossflow velocity > 30 m/s, the shell is
-  // undersized. Auto-step through TEMA standard IDs until velocity is acceptable,
-  // then recompute ΔP with the correctly sized shell.
-  // This prevents the formula from returning physically impossible ΔP values and
-  // gives the engineer a valid starting point for gas-service design.
-  let shellID_gas = shellID_final;     // may be enlarged below
-  let shellDP_gas_resized = false;
+  // ── Shell-side ΔP at the final geometry ───────────────────────────────────
+  // Gas shells were already sized for ≤ 30 m/s inside the geometry loop
+  // (shellFor), so heat transfer and ΔP both belong to the reported shell.
+  const shellID_gas = shellID_final;
   let gasResizeNote = null;
-  let shellDPd = calcBellDelawareDPdetail(hFluid, massH, shellID_final, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_final, bdRes, pitchLayout, b.headType || 'fixed');
-  let shellDP = shellDPd.total * nShells * dpFactor;
+  const shellDPd = calcBellDelawareDPdetail(hFluid, massH, shellID_final, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_final,
+                                            bdRes, pitchLayout, headType, sealSpec, ev.phiShell);
+  const shellDP = shellDPd.total * nShells * dpFactor;
+  if (shellInfo && shellInfo.vel0 != null && shellInfo.D > shellInfo.D_bundle + 1e-9) {
+    gasResizeNote = {
+      original_mm: Math.round(shellInfo.D_bundle * 1000), required_mm: Math.round(shellInfo.D * 1000),
+      vel_original: shellInfo.vel0.toFixed(0), vel_new: shellInfo.vel.toFixed(1), dp_new: shellDP.toFixed(3),
+      infeasible: !!shellInfo.infeasible
+    };
+  }
   // Condensing shells: vapour velocity at the inlet is the governing check
   let condVapourVel = null;
   if (shellMode === 'condensing') {
@@ -2504,66 +2697,12 @@ function calcShellTubeCore(b) {
     condVapourVel = massH / Math.max(Sm_c * hFluid.rho, 1e-9);
   }
 
-  if (isHotGas && shellMode !== 'condensing') {
-    // FIX (2026-07): the 30 m/s erosion limit and the shell auto-resize that
-    // follows are a SINGLE-PHASE gas-service rule. In a condenser the vapour is
-    // being destroyed as it flows — volumetric flow falls from full inlet rate
-    // to near zero at the outlet — so sizing the whole shell on the inlet
-    // velocity is not meaningful. Applied to steam at 0.20 bar it demanded a
-    // 3550 mm shell and reported "infeasible", while the actual computed
-    // shell-side ΔP was 0.038 bar against 0.70 bar allowable. Condenser vapour
-    // belt / inlet nozzle sizing is a separate check, not a shell diameter one.
-    const GAS_VEL_LIMIT = 30; // m/s — erosion/vibration limit for shell-side gas
-    const pitch_m = pitch * OD;
-    const Sm_current = bdLeakGeometry(shellID_final, OD, pitch, bcut_frac, bsp_ratio, numTubes_final, b.headType || 'fixed', pitchLayout).Sm;
-    const shellVelCheck = massH / Math.max(Sm_current * hFluid.rho, 1e-9);
-
-    if (shellVelCheck > GAS_VEL_LIMIT) {
-      // Step through TEMA standard shells to find minimum size that works
-      let foundGasShell = false;
-      for (const D_mm of TEMA_SHELL_IDS_MM) {
-        const D_m = D_mm / 1000;
-        const Sm_try = bdLeakGeometry(D_m, OD, pitch, bcut_frac, bsp_ratio, numTubes_final, b.headType || 'fixed', pitchLayout).Sm;
-        const vel_try = massH / Math.max(Sm_try * hFluid.rho, 1e-9);
-        if (vel_try <= GAS_VEL_LIMIT) {
-          shellID_gas = D_m;
-          shellDP_gas_resized = true;
-          // Recompute ΔP with the gas-appropriate shell (but keep tube geometry unchanged)
-          shellDPd = calcBellDelawareDPdetail(hFluid, massH, D_m, OD, pitch, bcut_frac, bsp_ratio, L_eff, numTubes_final, bdRes, pitchLayout, b.headType || 'fixed');
-          shellDP = shellDPd.total * nShells * dpFactor;
-          gasResizeNote = {
-            original_mm: Math.round(shellID_final * 1000),
-            required_mm: D_mm,
-            vel_original: shellVelCheck.toFixed(0),
-            vel_new: vel_try.toFixed(1),
-            dp_new: shellDP.toFixed(3)
-          };
-          foundGasShell = true;
-          break;
-        }
-      }
-      if (!foundGasShell) {
-        // Beyond largest TEMA standard (1524mm) — flag as infeasible
-        // Sm ≈ B·Ds·(PT−Do)/PT = bsp_ratio·Ds²·(PT−Do)/PT  →  Ds = √(Sm·PT / (bsp_ratio·(PT−Do)))
-        const Sm_needed = massH / (hFluid.rho * GAS_VEL_LIMIT);
-        const shellID_needed_mm = Math.round(Math.sqrt(Sm_needed * pitch_m / (bsp_ratio * (pitch_m - OD))) * 1000);
-        gasResizeNote = {
-          original_mm: Math.round(shellID_final * 1000),
-          required_mm: shellID_needed_mm,
-          vel_original: shellVelCheck.toFixed(0),
-          vel_new: null,
-          dp_new: null,
-          infeasible: true
-        };
-      }
-    }
-  }
-
   // Recalculate tube velocity with FINAL tube count
   const tubeVel = massC / (nTubesPerPass_final * cFluid.rho * A_tube);
   const tubeDp = calcPressDropTube(cFluid, massC / nTubesPerPass_final, Di, L_eff, nPasses) * nShells;
 
   const warns = [];
+  if (evapFlowNote) warns.push(evapFlowNote);
   if (dryoutWarn) warns.push(dryoutWarn);
   if (area_enforcement_note) warns.push(area_enforcement_note.startsWith('ℹ') ? area_enforcement_note : '⚠ ' + area_enforcement_note);
   if (!converged) warns.push(`⚠ U convergence not fully achieved after ${iterCount} iterations — final deviation ${U_deviation_pct.toFixed(2)}%`);
@@ -2572,15 +2711,15 @@ function calcShellTubeCore(b) {
   if (gasResizeNote) {
     if (gasResizeNote.infeasible) {
       warns.push(
-        `⚠ GAS SERVICE — Shell velocity ${gasResizeNote.vel_original} m/s exceeds 30 m/s limit. ` +
-        `Required shell ID ${gasResizeNote.required_mm} mm exceeds largest TEMA standard (1524 mm). ` +
-        `Consider: reduce gas flow rate, increase baffle spacing, or use multiple shells in parallel.`
+        `⚠ Gas on the shell side: even the largest standard shell (${gasResizeNote.required_mm} mm) leaves the crossflow ` +
+        `velocity at ${gasResizeNote.vel_new} m/s, above the 30 m/s limit. Put the gas in the tubes, use wider baffle ` +
+        `spacing or a double-segmental / no-tubes-in-window baffle, or split the flow between shells in parallel.`
       );
     } else {
       warns.push(
-        `ℹ GAS SERVICE — Shell auto-resized from ${gasResizeNote.original_mm} mm to ${gasResizeNote.required_mm} mm ` +
-        `(tube bundle unchanged) to limit crossflow velocity to ≤30 m/s. ` +
-        `Shell ΔP recomputed: ${gasResizeNote.dp_new} bar at ${gasResizeNote.vel_new} m/s crossflow.`
+        `ℹ Gas on the shell side: shell enlarged from ${gasResizeNote.original_mm} mm (bundle size) to ${gasResizeNote.required_mm} mm ` +
+        `to keep the crossflow velocity at ${gasResizeNote.vel_new} m/s (limit 30 m/s; it would be ${gasResizeNote.vel_original} m/s). ` +
+        `Heat transfer, area and ΔP are all evaluated at the enlarged shell.`
       );
     }
   }
@@ -2609,26 +2748,19 @@ function calcShellTubeCore(b) {
   if (phaseZones) {
     if (phaseZones.mode === 'condensing') {
       const total = phaseZones.Q_desup + phaseZones.Q_latent + phaseZones.Q_subcool;
-      if (phaseZones.superheated) {
-        warns.push(
-          `ℹ Condensing: three-zone heat duty — ` +
-          `Desuperheat ${phaseZones.Q_desup.toFixed(1)} kW + ` +
-          `Latent ${phaseZones.Q_latent.toFixed(1)} kW (hvap=${phaseZones.hvap_kJkg} kJ/kg) + ` +
-          `Subcool ${phaseZones.Q_subcool.toFixed(1)} kW = ${total.toFixed(1)} kW total. ` +
-          `Tsat=${phaseZones.Tsat}°C.`
-        );
-      } else {
-        warns.push(
-          `ℹ Condensing: Q = latent ${phaseZones.Q_latent.toFixed(1)} kW + ` +
-          `subcool ${phaseZones.Q_subcool.toFixed(1)} kW. ` +
-          `hvap=${phaseZones.hvap_kJkg} kJ/kg, Tsat=${phaseZones.Tsat}°C.`
-        );
-      }
-    } else if (phaseZones.mode === 'evaporating') {
       warns.push(
-        `ℹ Evaporating: hot side drives Q=${Qhot.toFixed(1)} kW. ` +
-        `Tsat=${phaseZones.Tsat}°C, hvap=${phaseZones.hvap_kJkg} kJ/kg. ` +
-        `Verify cold flow rate provides sufficient latent heat capacity.`
+        `ℹ Condensing duty: ` +
+        (phaseZones.Q_desup > 0 ? `desuperheating ${phaseZones.Q_desup.toFixed(1)} kW + ` : '') +
+        `condensation ${phaseZones.Q_latent.toFixed(1)} kW` +
+        (phaseZones.Q_subcool > 0 ? ` + subcooling ${phaseZones.Q_subcool.toFixed(1)} kW` : '') +
+        ` = ${total.toFixed(1)} kW (T_sat ${phaseZones.Tsat.toFixed(1)} °C, h_fg ${phaseZones.hvap_kJkg.toFixed(0)} kJ/kg).`
+      );
+    } else if (phaseZones.mode === 'evaporating') {
+      const zq = zoneModel?.x_exit;
+      warns.push(
+        `ℹ Evaporating: the hot stream gives up ${Qhot.toFixed(1)} kW; the cold stream boils at ` +
+        `${phaseZones.Tsat.toFixed(1)} °C (h_fg ${phaseZones.hvap_kJkg.toFixed(0)} kJ/kg)` +
+        (zq != null ? ` and leaves at a vapour quality of ${zq.toFixed(2)}.` : '.')
       );
     }
   }
@@ -2689,6 +2821,8 @@ function calcShellTubeCore(b) {
   if (shellMode === 'evaporating' && !cFluidDB.hvap) warns.push('⚠ Evaporating mode: no latent-heat data for the cold fluid — a default latent heat was used.');
 
   warns.push(...viscNotes(hFluid, cFluid));
+  if (shellMode !== 'condensing')  { const n = phaseStateNote(hFlKey, hTi, hTo, hPop, 'Hot (shell) side');  if (n) warns.push(n); }
+  if (shellMode !== 'evaporating') { const n = phaseStateNote(cFlKey, cTi, cTo, cPop, 'Cold (tube) side'); if (n) warns.push(n); }
 
   // ── UPGRADE (2026-07): flow-induced vibration screening ───────────────────
   // Runs on every S&T design using the final geometry. For condensing shells
@@ -2763,7 +2897,7 @@ function calcShellTubeCore(b) {
       const nTPP       = nTubes_req / np;
       const vel        = massC / (nTPP * cFluid.rho * A_cross);
       return { nTubes: nTubes_req, nTPP: +nTPP.toFixed(0), velocity: +vel.toFixed(3),
-               shellID_mm: +(estimateShellID(nTubes_req) * 1000).toFixed(0) };
+               shellID_mm: +(estimateShellID(nTubes_req, np, pitch * od_m) * 1000).toFixed(0) };
     }
 
     // ── LEVER A: Shortest TEMA standard length that achieves target velocity ──
@@ -2806,7 +2940,7 @@ function calcShellTubeCore(b) {
     // ── LEVER B: Increase tube passes at current length ────────────────────
     // Correctly re-solves required tube count for each pass count.
     let leverB = null;
-    for (let np = nPasses + 2; np <= 8; np += 2) {
+    for (const np of [2, 4, 6, 8].filter(n => n > nPasses)) {   // FIX 2026-11: was nPasses+2 → odd counts for a 1-pass base
       const cfg = solveConfig(OD, Di, np, L_eff);
       if (!cfg) continue;
       if (cfg.velocity >= VEL_THRESHOLD) {
@@ -2838,7 +2972,7 @@ function calcShellTubeCore(b) {
           tubesPerShell: nTubes_per_shell,
           nTubesPerPass: +nTPP.toFixed(0),
           velocity:      +vel.toFixed(3),
-          shellID_mm:    +(estimateShellID(nTubes_per_shell) * 1000).toFixed(0),
+          shellID_mm:    +(estimateShellID(nTubes_per_shell, nPasses) * 1000).toFixed(0),
           note: `Each shell handles ${(100/ns).toFixed(0)}% of total duty. Series arrangement maintains temperature driving force.`
         };
         break;
@@ -2880,7 +3014,7 @@ function calcShellTubeCore(b) {
       outerLoop:
       for (const L_try of TEMA_LENGTHS) {
         if (L_try <= L_eff * 1.05) continue;
-        for (let np = nPasses + 2; np <= 8; np += 2) {
+        for (const np of [2, 4, 6, 8].filter(n => n > nPasses)) {
           const cfg = solveConfig(OD, Di, np, L_try);
           if (!cfg) continue;
           if (cfg.velocity >= VEL_THRESHOLD) {
@@ -2903,6 +3037,8 @@ function calcShellTubeCore(b) {
       problem: `Tube velocity ${tubeVel.toFixed(3)} m/s is below target ${targetVel} m/s. ` +
                `Area requirement (${area.toFixed(1)} m²) forces ${numTubes_final} tubes at L=${L_eff.toFixed(1)} m, ` +
                `giving ${nTubesPerPass_final} tubes/pass — too many for target velocity.`,
+      basis: 'Lever figures are estimates at the present U and F. More passes lower F when the duty has a close ' +
+             'approach, and a higher velocity raises U — press Apply for the full recalculation.',
       currentVelocity: +tubeVel.toFixed(3),
       targetVelocity:  targetVel,
       requiredArea_m2: +area.toFixed(2),
@@ -2928,7 +3064,7 @@ function calcShellTubeCore(b) {
     numTubes_velocity: numTubes_geo,
     geometryLoop: { iterations: geoIterations, converged: geoConverged, history: geoHistory },
     nPasses, nShells, shellID: shellID_gas || shellID_final, Di, OD, L: L_eff,
-    shellID_tube_bundle: shellID_final,   // shell sized for tube bundle
+    shellID_tube_bundle: shellInfo?.D_bundle ?? shellID_final,   // shell the bundle alone needs
     shellID_gas_service: shellID_gas,     // shell sized for gas velocity limit (may differ)
     gasResizeNote,
     tubeVel, targetVel, velMode, bsp: bsp_ratio, bspMode, baffleSpacing_mm: bsp_ratio * shellID_final * 1000,
@@ -2945,6 +3081,9 @@ function calcShellTubeCore(b) {
     // returned, so it printed "—" for fouling, tube material, pitch ratio and
     // tube-side Reynolds even though every one of them was used in the maths.
     Rfo, Rfi, pitchRatio: pitch, tubeMat: b.mat || null, tubeK: kw, Cr,
+    hxType: b.hxType || '1-2', headType, sealStripPairs: bdRes?.Nss ?? 0,
+    tubeMatName: ({cs:'Carbon steel', ss304:'SS 304', ss316:'SS 316', copper:'Copper', titanium:'Titanium', inconel:'Inconel 625', nickel:'Nickel alloy'})[b.mat] || (b.mat || null),
+    Twall_shell: ev.Twall_shell, Twall_tube: ev.Twall_tube,
     massH_kgh: massH * 3600, massC_kgh: massC * 3600,
     hTi, hTo, cTi, cTo, hPop, cPop,
     hFluid, cFluid, hFluidDB, cFluidDB,
@@ -3027,7 +3166,7 @@ function calcPlate(b) {
   const th = requireFinite(b.th, 'th') / 1000, angle = parseFloat(b.angle) || 45;
   const gap = requireFinite(b.gap, 'gap') / 1000, pw = requireFinite(b.pw, 'pw') / 1000;
   const plen = requireFinite(b.plen, 'plen') / 1000, phi = parseFloat(b.phi) || 1.17;
-  const kw = KMAT[b.mat] || 14, foul = parseFloat(b.foul) || 0.0002;
+  const kw = KMAT[b.mat] || 14, foul = finiteOr(b.foul, 0.0002, 0);
   const pdAllowH = parseFloat(b.pdAllowH) || 1.5, pdAllowC = parseFloat(b.pdAllowC) || 1.5;
   
   const lmtdRes = calcLMTD(hTi, hTo, cTi, cTo, 'counter');
@@ -3209,6 +3348,7 @@ function calcPlate(b) {
     if (r.Re < 50) warns.push(`ℹ ${lbl}-side Re ${r.Re.toFixed(0)} — laminar channel flow.`);
   }
   warns.push(...viscNotes(hFluid, cFluid));
+  for (const n of [phaseStateNote(hFlKey, hTi, hTo, hPop, 'Hot side'), phaseStateNote(cFlKey, cTi, cTo, cPop, 'Cold side')]) if (n) warns.push(n);
   if (hFluidDB.rho < GAS_RHO_THRESHOLD || cFluidDB.rho < GAS_RHO_THRESHOLD)
     warns.push('⚠ Gas service in a gasketed plate exchanger is unusual — check ΔP and gasket limits.');
   const { st, stTxt } = finalizeStatus((overDesign < 0 || dpH > pdAllowH || dpC > pdAllowC) ? 'err'
@@ -3296,7 +3436,7 @@ function calcAirCooled(b) {
   const nTubes  = Math.max(nRows, parseInt(b.nTubes) || 40);
   const nPasses = Math.max(1, Math.min(nTubes, parseInt(b.nPasses) || 1));
   const tubeLen = parseFloat(b.tubeLen)  || 6.0;
-  const Rfo     = Math.max(parseFloat(b.Rfo) || 0.0002, 0);      // air-side fouling
+  const Rfo     = finiteOr(b.Rfo, 0.0002, 0);                     // air-side fouling (a typed 0 is kept)
   const Rfi     = isFinite(parseFloat(b.Rfi)) ? Math.max(parseFloat(b.Rfi), 0) : 0.0002;   // tube-side fouling
   const pdAllow = parseFloat(b.pdAllow) || 0.7;
   const FIN_K = { aluminum:222, alum:222, al1100:222, al3003:190, al6063:200, copper:385, cs:50, ss:16, titanium:21 };
@@ -3365,6 +3505,7 @@ function calcAirCooled(b) {
   if (tubeRes.Re < 2300) warns.push(`⚠ Tube-side flow is laminar (Re ${tubeRes.Re.toFixed(0)}) — add tube passes to raise velocity.`);
   if (A.Re < 1100 || A.Re > 18000) warns.push(`ℹ Air-side Re ${A.Re.toFixed(0)} is outside the Briggs & Young data range (1,100–18,000).`);
   warns.push('ℹ Fan power assumes 65 % fan efficiency; bundle ΔP from Robinson & Briggs.');
+  { const n = phaseStateNote(flKey, Ti, To, Pop, 'Process side'); if (n) warns.push(n); }
   const { st, stTxt } = finalizeStatus(overDesign < 0 || dpTube > pdAllow ? 'err' : (overDesign < 5 || ApproachTemp < 15 || v_face > 4) ? 'warn' : 'ok', warns);
 
   return {
@@ -3460,7 +3601,10 @@ function calcDoublePipe(b) {
     const U=1/(1/hAnn+Ao_Ai/htInner.h+Rwall+foul);
     const A_req=Q*1000/(U*FLMTD);
     const A_provided=Math.PI*iOD*L_total;
-    const dpInner=calcPressDropTube(hFluid,hF/3600,iID,L_total,1);
+    // FIX 2026-11: inner-pipe ΔP now includes the 180° return bend of every
+    // hairpin (2·n − 1 bends, K ≈ 1.5 each) — they were missing entirely.
+    const dpInner=calcPressDropTube(hFluid,hF/3600,iID,L_total,1)
+      + (2*nHairpins-1)*1.5*hFluid.rho*htInner.vel*htInner.vel/2/1e5;
     const f_ann=Re_ann<2300?64/Math.max(Re_ann,1):Math.pow(0.790*Math.log(Math.max(Re_ann,10))-1.64,-2);
     const dpAnn=(f_ann*(L_total/Dh_ann)+2.0*nHairpins)*cFluid.rho*velAnn*velAnn/2/1e5;
     return {nHairpins,L_total,htInner,hAnn,U,A_req,A_provided,overDesign:(A_provided/A_req-1)*100,dpInner,dpAnn};
@@ -3488,12 +3632,13 @@ function calcDoublePipe(b) {
   if(Re_ann<2300) warns.push(`⚠ Annulus flow is laminar (Re ${Re_ann.toFixed(0)}).`);
   if(balErr>2) warns.push(`⚠ Energy balance differs by ${balErr.toFixed(1)} %.`);
   warns.push(...viscNotes(hFluid, cFluid));
+  for (const n of [phaseStateNote(hFlKey, hTi, hTo, hPop, 'Inner pipe'), phaseStateNote(cFlKey, cTi, cTo, cPop, 'Annulus')]) if (n) warns.push(n);
   const { st, stTxt } = finalizeStatus((overDesign<0||dpInner>pdAllowInner||dpAnn>pdAllowAnn)?'err':((overDesign<5&&nHP_user)||FLMTD<3)?'warn':'ok', warns);
   return {
     Q,Qhot,Qcold,U,balErr,lmtd,F,FLMTD,dT1,dT2,
     A_req,A_provided,overDesign,hInner:htInner.h,hAnn,
     dpInner,dpAnn,pdAllow:pdAllowInner,pdAllowInner,pdAllowAnn,NTU,eff,
-    hTi,hTo,cTi,cTo,cF,hF,iID,iOD,oID,Dh_ann,L,L_total,nHairpins,nHairpinsAuto:!nHP_user,
+    hTi,hTo,cTi,cTo,cF,hF,iID,iOD,oID,Dh_ann,L,L_total,nHairpins,nHairpinsAuto:!nHP_user,arr,
     hFluid,cFluid,Re_inner:htInner.Re,Re_ann,velInner:htInner.vel,velAnn,
     st,stTxt,warns
   };
@@ -3639,6 +3784,11 @@ function calcFinFan(b) {
   if (tRes.Re < 2300) warns.push(`⚠ Tube-side flow is laminar (Re ${tRes.Re.toFixed(0)}) — add tube passes.`);
   if (A.Re < 1100 || A.Re > 18000) warns.push(`ℹ Air-side Re ${A.Re.toFixed(0)} is outside the Briggs & Young data range (1,100–18,000).`);
   if (tubeLayout === 'inline') warns.push('ℹ Robinson & Briggs ΔP is for staggered banks — in-line air ΔP is approximate.');
+  { const n = phaseStateNote(tFlKey, tTi, tTo, tPop, 'Tube side'); if (n) warns.push(n); }
+  { const wRow = nTubesPerRow * pitchT;   // bundle width implied by the tube layout
+    if (Math.abs(bundleW / wRow - 1) > 0.10)
+      warns.push(`⚠ Bundle width ${(bundleW * 1000).toFixed(0)} mm does not match the tube layout (${nTubesPerRow.toFixed(0)} tubes per row × ` +
+        `${(pitchT * 1000).toFixed(1)} mm pitch ≈ ${(wRow * 1000).toFixed(0)} mm). Face velocity uses the bundle width; air-side h and ΔP use the tube layout.`); }
   const { st, stTxt } = finalizeStatus(
     (overDesign < 0 || dpTube > tPdAllow || nFanTotal === 0 || P_fan_each > driverKW) ? 'err'
     : (overDesign < 5 || v_face > 4 || (nFanTotal > 0 && fanAreaRatio < 0.40)) ? 'warn' : 'ok', warns);
@@ -3716,7 +3866,11 @@ function calcWallThickness(b) {
   let S_MPa=parseFloat(b.S)||138;
   const CA_mm=Math.max(parseFloat(b.CA)||0,0), MT_mm=Math.max(parseFloat(b.MT)||0,0);
   const E=parseFloat(b.E)||1.0, alpha=parseFloat(b.alpha)||30;
-  if(b.mat&&b.mat!=='custom') S_MPa=parseFloat(b.mat)||S_MPa;   // dropdown sends the stress value
+  // FIX 2026-11: an explicitly entered allowable stress S always wins. The
+  // material dropdown value is used only when no S is sent — before, a typed S
+  // was silently replaced by the dropdown (e.g. S = 100 MPa → 138 MPa, giving a
+  // wall 28 % too thin).
+  if (!(parseFloat(b.S) > 0) && b.mat && b.mat !== 'custom') S_MPa = parseFloat(b.mat) || S_MPa;
   const P=P_barg*0.1;                                             // MPa
   if(P<=0||D_mm<=0||S_MPa<=0) throw new Error('Enter valid pressure, diameter and allowable stress');
   const SE=S_MPa*E;
@@ -3837,6 +3991,20 @@ function runSelfTest() {
     ok('Tube-side h at the reported tubes per pass (within wall-viscosity correction)', r.bdCorr.hTube / ht.h > 0.9 && r.bdCorr.hTube / ht.h < 1.15, (r.bdCorr.hTube / ht.h).toFixed(3), 'Gnielinski × (μ/μw)^0.14');
   } catch (e) { ok('Shell & tube reference case runs', false, e.message, ''); }
 
+  // Audit 2026-11 additions
+  near('Petroleum cp, diesel at 90 °C (Cragoe)', getFluidAtT('diesel', 90).cp, (1.6848 + 0.003391 * 90) / Math.sqrt(840 * 1.00325 / 999.1), 0.005, 'cp = (1.6848 + 0.003391·T)/√SG');
+  try {
+    const base = { hFlKey: 'water', cFlKey: 'water', hPop: 4, cPop: 3, hTi: 90, hTo: 55, cTi: 30, hF: 20000, cF: 60000, coldMode: 'flow',
+      OD: 19.05, tw: 1.65, L: 3.66, pitch: 1.25, Rfo: 0.0002, Rfi: 0.0002, mat: 'cs', tema: 'C', bcut: 0.25, bspMode: 'auto',
+      velMode: 'fixedtubes', numTubesFixed: 288, pdAllowShell: 0.7, pdAllowTube: 0.7, pitchLayout: 'triangular', shellMode: 'single-phase' };
+    const s2 = calcShellTube({ ...base, hxType: '1-2' }).shellID, s8 = calcShellTube({ ...base, hxType: '1-8' }).shellID;
+    ok('Shell ID allows for pass-partition lanes (288 tubes, 2 → 8 passes)', s8 > s2, `${Math.round(s2 * 1000)} → ${Math.round(s8 * 1000)} mm`, 'Kern / TEMA tube-count tables');
+    const c = calcShellTube({ ...base, velMode: 'target', hxType: '1-2', shellMode: 'condensing', hFlKey: 'steam', hPop: 2, hTi: 120.21, hTo: 90, hF: 2000,
+      cTi: 32, cF: 60000, L: 2.44, pdAllowShell: 0.3, mat: 'ss304', Rfo: 0.0001 });
+    near('Condenser subcooling duty uses liquid cp (kW)', c.phaseZones.Q_subcool, 2000 / 3600 * 4.226 * (c.phaseZones.Tsat - 90), 1.5, 'Q_sub = ṁ·cp,l·ΔT');
+    near('Condenser zone duty = reported hot duty (kW)', c.zoneModel.Qtot, c.Qh, 0.5, 'Σ zone Q = Q_hot');
+  } catch (e) { ok('Audit 2026-11 shell & tube checks run', false, e.message, ''); }
+
   return { apiBuild: API_BUILD, passed: out.filter(t => t.pass).length, total: out.length, tests: out };
 }
 
@@ -3856,8 +4024,8 @@ function calcBalance(b) {
     Tsat_h = satTemperature(hFlKey, hPop);
     if (Tsat_h == null) return { ok: false, msg: 'No saturation data for this hot fluid.' };
     const hv = hvapAtT(hFlKey, Tsat_h);
-    const vap = fluidAtConditions(hFlKey, Math.max(hTi, Tsat_h), hPop);
-    const liq = fluidAtConditions(LIQUID_OF[hFlKey] || hFlKey, Math.min(hTo, Tsat_h), hPop);
+    const vap = fluidAtConditions(vapourKeyOf(hFlKey), (Math.max(hTi, Tsat_h) + Tsat_h) / 2, hPop);
+    const liq = fluidAtConditions(liquidKeyOf(hFlKey), (Math.min(hTo, Tsat_h) + Tsat_h) / 2, hPop);
     Q = mH * (vap.cp * Math.max(hTi - Tsat_h, 0) + hv + liq.cp * Math.max(Tsat_h - hTo, 0));
   } else {
     if (hTo >= hTi) return { ok: false, msg: 'Hot outlet must be below hot inlet.' };
@@ -3870,7 +4038,7 @@ function calcBalance(b) {
     cTo = Tsat_c;
     if (coldMode !== 'flow' || !(cF > 0)) {
       const c = fluidAtConditions(cFlKey, cTi, cPop);
-      cF = Q / (c.cp * Math.max(Tsat_c - cTi, 0) + hvapAtT(cFlKey, Tsat_c)) * 3600;
+      cF = Q / (c.cp * Math.max(Tsat_c - cTi, 0) + EVAP_DESIGN_X_EXIT * hvapAtT(cFlKey, Tsat_c)) * 3600;
     }
   } else if (coldMode === 'flow') {
     if (!(cF > 0)) return { ok: false, msg: 'Enter the cold flow rate.' };
@@ -3935,7 +4103,7 @@ function calcGeometryOptimizer(b) {
         // Each shell sees 1/ns of the total area requirement
         const area_per_shell = area_req / ns;
         const n_total = Math.ceil(area_per_shell / A_per_tube / np) * np;
-        if (n_total < 1 || n_total > 500) return;
+        if (n_total < 1 || n_total > 2000) return;    // same cap as the Design Advisor (was 500)
         const nTPP    = n_total / np;
         const vel     = massC_kgs / (nTPP * rho_c * A_cross);
         const A_prov  = A_per_tube * n_total * ns;
