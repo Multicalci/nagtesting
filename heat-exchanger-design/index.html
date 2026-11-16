@@ -3821,6 +3821,11 @@ tr:hover td{background:#eef4ff}
 .note-pdf{background:#f0f9f7;border-left:2.5px solid #008f76;padding:6px 8px;
           border-radius:3px;font-size:7pt;color:#2d3a4a;margin-top:6px;line-height:1.6}
 .note-pdf.warn{background:#fff8ee;border-left-color:#b36000}
+/* ── Design checks (warnings printed on the datasheet) ── */
+.dsw{font-size:7pt;line-height:1.5;padding:5px 8px;border-radius:3px;margin-bottom:4px;border-left:2.5px solid #7d94b5;background:#f4f7fb;color:#2d3a4a}
+.dsw ul{margin:2px 0 0 14px;padding:0}.dsw li{margin:1px 0}
+.dsw-crit{background:#fff1f0;border-left-color:#c0201a;color:#7a1410}
+.dsw-check{background:#fff8ee;border-left-color:#b35a00;color:#6b3a00}
 .no-res{background:#fff8ee;border:0.5px solid #f0d090;padding:6px 8px;border-radius:3px;
         color:#8a5a00;font-size:8pt;font-weight:600}
 
@@ -4052,7 +4057,7 @@ ${st?`
     </tr>
     <tr>
       <td class="lbl">Tube material (k)</td><td>W/mK</td><td>${st.tubeMatName||st.tubeMat||'—'}${st.tubeK!=null?' ('+st.tubeK+')':''}</td>
-      <td class="lbl">Fouling R_fo (shell)</td><td>m²K/W</td><td>${st.Rfo!=null?st.Rfo.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'} / R_fi (tube): ${st.Rfi!=null?st.Rfi.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'}</td>
+      <td class="lbl">Fouling R_fo / R_fi (shell / tube)</td><td>m²K/W</td><td>${st.Rfo!=null?st.Rfo.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'} / ${st.Rfi!=null?st.Rfi.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'}</td>
     </tr>
     ${st.bdCorr && st.bdCorr.bdApplicable===false?`<tr>
       <td class="lbl">Bell-Delaware J factors</td>
@@ -4085,6 +4090,7 @@ ${(()=>{
           <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>${segs.every(x=>x.R!=null)?segs.reduce((a,x)=>a+x.R,0).toExponential(3):'—'}</td><td><b>100%</b></td></tr>
         </tbody>
       </table>
+      <div style="font-size:6.5pt;color:#666;margin-top:3px;line-height:1.4">All resistances are referred to the tube outside area, so tube-side film and fouling are multiplied by D<sub>o</sub>/D<sub>i</sub>${st.OD&&st.Di?` = ${(st.OD/st.Di).toFixed(3)} (e.g. R<sub>fi</sub> ${st.Rfi!=null?st.Rfi.toExponential(2):''} → ${st.Rfi!=null?(st.Rfi*st.OD/st.Di).toExponential(3):''})`:''}. 1/U = sum of the column.</div>
     </div>
     <div style="flex-shrink:0;padding-top:4px">${thermalPieSVG(segs)}</div>
   </div>
@@ -4103,13 +4109,14 @@ ${(()=>{
   <div class="div-item">U Convergence: <span style="color:${st.convergence.converged?'#1b7a3e':'#c0201a'}">${st.convergence.converged?'✓':'⚠'} ${st.convergence.iterations} iter / ${st.convergence.deviation_pct}% dev</span></div>`:''}
   ${st.convergence?.twophase_lmtd?`<span class="div-sep">|</span><div class="div-item">LMTD Mode: <span style="color:#0055c8">Two-phase (F=1.0)</span></div>`:''}
 </div>
+${dsWarnBlock(st)}
 
 ${(()=>{
   if(!st.convergence) return '';
   const cv=st.convergence;
   return `<div style="margin-top:6px;page-break-inside:avoid">
   <div class="mini-sec" style="color:#6b21d4;border-bottom-color:#dab8fa">🔁 U Convergence Iteration Log — Temperature-Dependent Fluid Properties</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start">
     <table>
       <thead><tr><th>Iter</th><th>U Assumed (W/m²K)</th><th>U Actual (W/m²K)</th><th>Dev %</th></tr></thead>
       <tbody>
@@ -4239,6 +4246,7 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
   <span class="div-sep">|</span>
   <div class="div-item">Balance Error: <span>${pl.balErr!=null?pl.balErr.toFixed(2)+'%':'—'}</span></div>
 </div>
+${dsWarnBlock(pl)}
 `:''}
 
 
@@ -4268,6 +4276,7 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
     <tr><td class="lbl">Fins</td><td>—</td><td colspan="2">${ac.finDens||'—'} fins/m, ${ac.finMat||'—'}, fin efficiency ${ac.eta_fin!=null?(ac.eta_fin*100).toFixed(0):'—'} %</td></tr>
   </tbody>
 </table>
+${dsWarnBlock(ac)}
 `:''}
 
 
@@ -4446,6 +4455,7 @@ ${(()=>{
 </table>
 </div>
 </div>
+${dsWarnBlock(ff)}
 `:''}
 
 
@@ -4533,6 +4543,7 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
     </tr>
   </tbody>
 </table>
+${dsWarnBlock(dp)}
 `:''}
 
 
@@ -6274,6 +6285,19 @@ function renderWarnGroups(warns) {
   const block = (key, title) => groups[key].length
     ? `<details class="wgrp wg-${key}" ${key !== 'info' ? 'open' : ''}><summary>${title} <span class="wg-n">${groups[key].length}</span></summary><ul>${groups[key].map(x => `<li>${x}</li>`).join('')}</ul></details>` : '';
   return `<div class="wgrps">${block('crit', '✗ Must fix')}${block('check', '⚠ Check')}${block('info', 'ℹ Notes')}</div>`;
+}
+
+// Datasheet version of the warning list — printed flat (no <details>), so the
+// "Check warnings" status on the datasheet always says WHICH checks failed.
+function dsWarnBlock(r) {
+  const warns = (r && r.warns) || [];
+  if (!warns.length) return '';
+  const groups = { crit: [], check: [], info: [] };
+  [...new Set(warns)].forEach(w => groups[classifyWarn(w)].push(_esc(stripIcon(w))));
+  const title = { crit: '✗ Must fix', check: '⚠ Check', info: 'ℹ Notes' };
+  const block = k => groups[k].length
+    ? `<div class="dsw dsw-${k}"><b>${title[k]} (${groups[k].length})</b><ul>${groups[k].map(x => `<li>${x}</li>`).join('')}</ul></div>` : '';
+  return `<div style="page-break-inside:avoid;margin-top:6px"><div class="mini-sec gold">⚠ Design Checks &amp; Warnings</div>${block('crit')}${block('check')}${block('info')}</div>`;
 }
 
 function renderVerdict(r) {
