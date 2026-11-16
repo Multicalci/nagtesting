@@ -4051,6 +4051,7 @@ async function orificeFlow_handler(req, res) {
 // api/pressure-drop-calculator.js
 // Vercel Serverless Function — Pressure Drop Calculator
 // Handles: fluidList, fluidProps, fittingsList, calculate, calcHW
+// Rev. Nov-2026: reference fluid tables, Churchill transition, gas Z/ΔP-P₁/Mach checks, NPSH removed.
 // All engineering computation lives here — zero physics in the browser.
 
 'use strict';
@@ -4090,699 +4091,160 @@ function err(res, status, msg) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   FLUID DATABASE  (120+ fluids — Andrade liquids · Sutherland gas)
-   Sources: Perry's ChE Handbook · NIST WebBook · Yaws' Handbook
+   FLUID DATABASE  (142 fluids)
+   Liquids: tabulated ρ(T), μ(T) generated from reference sources —
+     IAPWS-95 / CoolProp Helmholtz EOS (water, NH₃, CO₂, LPG, refrigerants),
+     CoolProp INCOMP (glycols, brines, seawater), DIPPR/Perry via the thermo
+     library (pure organics), ASTM D341 Walther from ν40/ν100 (oils),
+     Glasø (crudes) and handbook data (acids, food, others).
+     Each entry carries a `src` string describing its basis and accuracy.
+   Gases: ideal gas + Pitzer 2nd-virial Z, Sutherland viscosity.
 ═══════════════════════════════════════════════════════════════ */
 const FLUID_DB_pdrop = [
-  // ── WATER & AQUEOUS ──────────────────────────────────────────────────────
-  {id:'water',       name:'Water',                      cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'poly_water', viscModel:'andrade', A:-3.5985, B:1061.0,
-   Pv_A:8.07131, Pv_B:1730.63, Pv_C:233.426,
-   vp:[[0,0.611],[10,1.228],[20,2.338],[30,4.243],[40,7.384],[50,12.35],[60,19.94],[70,31.18],[80,47.39],[90,70.11],[100,101.3],[110,143.3],[120,198.5],[150,476.2],[200,1554]]},
-
-  {id:'seawater',    name:'Seawater (3.5% NaCl)',       cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1025, Tref:20, k_rho:-0.30,
-   viscModel:'andrade', A:-3.35, B:1030.0,
-   vp:[[0,0.54],[10,1.08],[20,2.1],[30,3.81],[50,10.9],[80,44.3],[100,97.0]]},
-
-  {id:'brine10',     name:'Brine 10% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1071, Tref:20, k_rho:-0.35,
-   viscModel:'andrade', A:-3.60, B:1010.0,
-   vp:[[0,0.54],[20,2.1],[50,10.5],[80,43.0],[100,96.0]]},
-
-  {id:'brine20',     name:'Brine 20% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1148, Tref:20, k_rho:-0.40,
-   viscModel:'linear', mu0:1.90, Tref_mu:20, k_mu:-0.030,
-   vp:[[0,0.5],[20,1.95],[50,10.0],[80,41.5],[100,93.0]]},
-
-  {id:'brine25',     name:'Brine 25% NaCl',             cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1188, Tref:20, k_rho:-0.45,
-   viscModel:'linear', mu0:2.30, Tref_mu:20, k_mu:-0.040, vapFixed:0.017},
-
-  {id:'cacl2_20',    name:'CaCl₂ Solution 20%',         cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1176, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-3.40, B:1100.0,
-   vp:[[0,0.48],[20,1.85],[50,9.5],[80,40.0],[100,90.0]]},
-
-  {id:'cacl2_30',    name:'CaCl₂ Solution 30%',         cat:'Water & Aqueous',     isGas:false,
-   rhoModel:'linear', rho0:1280, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:-2.80, B:1350.0,
-   vp:[[0,0.4],[20,1.6],[50,8.5],[80,36.0],[100,82.0]]},
-
-  // ── GLYCOLS & COOLANTS ────────────────────────────────────────────────────
-  {id:'eg30',        name:'Ethylene Glycol 30%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1054, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-4.50, B:1350.0, vapFixed:0.021},
-
-  {id:'eg50',        name:'Ethylene Glycol 50%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1080, Tref:20, k_rho:-0.58,
-   viscModel:'andrade', A:-3.80, B:1650.0,
-   vp:[[0,0.3],[20,1.2],[50,8.0],[80,34],[100,78]]},
-
-  {id:'eg70',        name:'Ethylene Glycol 70%',        cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1096, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-2.80, B:2100.0,
-   vp:[[0,0.18],[20,0.8],[50,6.0],[80,28],[100,68]]},
-
-  {id:'pg30',        name:'Propylene Glycol 30%',       cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-4.00, B:1400.0,
-   vp:[[0,0.5],[20,1.8],[50,10.0],[80,40],[100,90]]},
-
-  {id:'pg50',        name:'Propylene Glycol 50%',       cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1059, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-3.20, B:1800.0,
-   vp:[[0,0.35],[20,1.3],[50,8.5],[80,35],[100,80]]},
-
-  {id:'deg',         name:'Diethylene Glycol (DEG)',    cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1118, Tref:20, k_rho:-0.60,
-   viscModel:'andrade', A:-6.40, B:2924.7, vapFixed:0.0003},
-
-  {id:'teg',         name:'Triethylene Glycol (TEG)',   cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:-9.64, B:3954.1, vapFixed:0.00001},
-
-  {id:'mea30',       name:'MEA 30% (Monoethanolamine)', cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1013, Tref:25, k_rho:-0.50,
-   viscModel:'andrade', A:-3.60, B:1400.0, vapFixed:0.010},
-
-  {id:'dea35',       name:'DEA 35% (Diethanolamine)',   cat:'Glycols & Coolants',  isGas:false,
-   rhoModel:'linear', rho0:1038, Tref:25, k_rho:-0.52,
-   viscModel:'andrade', A:-2.80, B:1700.0, vapFixed:0.006},
-
-  // ── PETROLEUM & FUELS ─────────────────────────────────────────────────────
-  {id:'gasoline',    name:'Gasoline (Petrol)',           cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:740, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:900.0,
-   Pv_A:6.80, Pv_B:1064.0, Pv_C:228.0,
-   vp:[[0,10],[10,16],[20,25],[30,38.5],[40,57],[50,82],[60,115]]},
-
-  {id:'diesel',      name:'Diesel Fuel',                 cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:840, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:-3.20, B:1600.0,
-   vp:[[20,0.01],[40,0.03],[60,0.07],[80,0.15],[100,0.3]]},
-
-  {id:'kerosene',    name:'Kerosene / Jet-A',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:800, Tref:20, k_rho:-0.68,
-   viscModel:'andrade', A:-3.90, B:1500.0, vapFixed:0.003},
-
-  {id:'jeta1',       name:'Jet A-1 Fuel',                cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:804, Tref:15, k_rho:-0.72,
-   viscModel:'andrade', A:-3.85, B:1480.0, vapFixed:0.003},
-
-  {id:'hfo',         name:'Heavy Fuel Oil (HFO 380)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:975, Tref:15, k_rho:-0.60,
-   viscModel:'andrade', A:3.00, B:4200.0, vapFixed:0.001},
-
-  {id:'crude20',     name:'Crude Oil API 20 (heavy)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:934, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:1.00, B:3200.0,
-   vp:[[20,0.05],[40,0.16],[80,1.0]]},
-
-  {id:'crude30',     name:'Crude Oil API 30',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:876, Tref:20, k_rho:-0.70,
-   viscModel:'andrade', A:-1.80, B:2200.0, vapFixed:0.020},
-
-  {id:'crude40',     name:'Crude Oil API 40',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:825, Tref:20, k_rho:-0.72,
-   viscModel:'andrade', A:-3.00, B:1700.0, vapFixed:0.040},
-
-  {id:'crude50',     name:'Crude Oil API 50 (light)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:780, Tref:20, k_rho:-0.75,
-   viscModel:'andrade', A:-4.00, B:1400.0,
-   vp:[[20,0.02],[40,0.08],[80,0.6]]},
-
-  {id:'naphtha',     name:'Naphtha (light)',              cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:690, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-4.90, B:880.0,
-   Pv_A:6.90, Pv_B:1100.0, Pv_C:225.0},
-
-  {id:'naphtha_h',   name:'Naphtha (heavy)',              cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:730, Tref:20, k_rho:-0.80,
-   viscModel:'andrade', A:-4.50, B:1000.0, vapFixed:0.030},
-
-  {id:'atmresid',    name:'Atmospheric Residue (ATB)',    cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:960, Tref:60, k_rho:-0.62,
-   viscModel:'andrade', A:5.00, B:4800.0, vapFixed:0.001},
-
-  {id:'vacresid',    name:'Vacuum Residue (VTB)',         cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:985, Tref:80, k_rho:-0.60,
-   viscModel:'andrade', A:7.50, B:5200.0, vapFixed:0.0001},
-
-  {id:'bitumen',     name:'Bitumen / Asphalt',            cat:'Petroleum & Fuels',   isGas:false,
-   rhoModel:'linear', rho0:1030, Tref:150, k_rho:-0.55,
-   viscModel:'andrade', A:8.00, B:5500.0, vapFixed:0.0001},
-
-  // ── LUBRICANTS & HYDRAULIC OILS ───────────────────────────────────────────
-  {id:'lube32',      name:'Lube Oil ISO VG 32',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:858, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.20, B:2700.0, vapFixed:0.001},
-
-  {id:'lube46',      name:'Lube Oil ISO VG 46',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:870, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.20, B:3100.0, vapFixed:0.001},
-
-  {id:'lube68',      name:'Lube Oil ISO VG 68',          cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:872, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.60, B:3300.0, vapFixed:0.001},
-
-  {id:'lube100',     name:'Lube Oil ISO VG 100',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:874, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.00, B:3600.0, vapFixed:0.001},
-
-  {id:'lube150',     name:'Lube Oil ISO VG 150',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:875, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.40, B:3800.0, vapFixed:0.001},
-
-  {id:'lube220',     name:'Lube Oil ISO VG 220',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:880, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.90, B:4000.0, vapFixed:0.001},
-
-  {id:'hydr32',      name:'Hydraulic Oil ISO 32',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:860, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.50, B:2800.0, vapFixed:0.001},
-
-  {id:'hydr46',      name:'Hydraulic Oil ISO 46',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:870, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.90, B:3000.0, vapFixed:0.001},
-
-  {id:'hydr68',      name:'Hydraulic Oil ISO 68',        cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:875, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:1.40, B:3200.0, vapFixed:0.001},
-
-  {id:'hydr100',     name:'Hydraulic Oil ISO 100',       cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:880, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:2.00, B:3500.0, vapFixed:0.001},
-
-  {id:'thermoil',    name:'Thermal / Heat Transfer Oil', cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:855, Tref:100, k_rho:-0.65,
-   viscModel:'andrade', A:-0.50, B:2500.0, vapFixed:0.001},
-
-  {id:'turbineoil',  name:'Turbine Oil ISO VG 46',       cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:869, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:0.85, B:2950.0, vapFixed:0.001},
-
-  {id:'gearoil320',  name:'Gear Oil ISO VG 320',         cat:'Lubricants & Hydraulic', isGas:false,
-   rhoModel:'linear', rho0:890, Tref:40, k_rho:-0.65,
-   viscModel:'andrade', A:3.80, B:4400.0, vapFixed:0.001},
-
-  // ── ALCOHOLS ──────────────────────────────────────────────────────────────
-  {id:'methanol',    name:'Methanol',                    cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:792, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.50, B:1020.0,
-   Pv_A:7.8974, Pv_B:1474.08, Pv_C:229.13,
-   vp:[[0,4.06],[10,6.97],[20,12.9],[30,21.9],[40,35.4],[64.7,101.3]]},
-
-  {id:'ethanol',     name:'Ethanol (96%)',               cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:789, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-4.80, B:1310.0,
-   Pv_A:8.1122, Pv_B:1592.864, Pv_C:226.184,
-   vp:[[0,1.63],[10,3.12],[20,5.95],[30,10.5],[40,17.7],[50,29.4],[60,47.1],[78.3,101.3]]},
-
-  {id:'ethanol_abs', name:'Ethanol Absolute (99.9%)',    cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:785, Tref:20, k_rho:-1.06,
-   viscModel:'andrade', A:-4.90, B:1320.0,
-   Pv_A:8.1122, Pv_B:1592.864, Pv_C:226.184},
-
-  {id:'ipa',         name:'Isopropanol (IPA)',           cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:786, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-7.32, B:2393.4,
-   Pv_A:8.1178, Pv_B:1580.92, Pv_C:219.61,
-   vp:[[0,1.33],[20,4.38],[40,13.2],[82.3,101.3]]},
-
-  {id:'nbutanol',    name:'n-Butanol',                   cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:810, Tref:20, k_rho:-0.82,
-  viscModel:'andrade', A:-7.78, B:2598.0,
-   Pv_A:7.8366, Pv_B:1558.19, Pv_C:196.88,
-   vp:[[0,0.58],[20,0.59],[40,4.35],[50,6.9],[80,22.4],[117.7,101.3]]},
-
-  {id:'glycerol',    name:'Glycerol (100%)',             cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:1261, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:4.50, B:5400.0,
-   vp:[[20,0.0002],[60,0.004],[100,0.05],[150,0.55]]},
-
-  {id:'glycerol50',  name:'Glycerol 50% in Water',      cat:'Alcohols',            isGas:false,
-   rhoModel:'linear', rho0:1126, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-8.43, B:3011.6,
-   vp:[[20,0.1],[40,0.35],[80,3.5],[100,10]]},
-
-  // ── AROMATICS ─────────────────────────────────────────────────────────────
-  {id:'benzene',     name:'Benzene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:879, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.60, B:1100.0,
-   Pv_A:6.90565, Pv_B:1211.033, Pv_C:220.790,
-   vp:[[0,3.52],[20,10.0],[40,24.4],[60,52.0],[80.1,101.3]]},
-
-  {id:'toluene',     name:'Toluene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:867, Tref:20, k_rho:-0.92,
-   viscModel:'andrade', A:-5.00, B:1200.0,
-   Pv_A:6.95464, Pv_B:1344.800, Pv_C:219.482,
-   vp:[[0,1.57],[20,3.79],[40,9.87],[60,23.4],[110.6,101.3]]},
-
-  {id:'xylene',      name:'Xylene (mixed)',               cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:864, Tref:20, k_rho:-0.88,
-   viscModel:'andrade', A:-4.50, B:1350.0,
-   Pv_A:6.99052, Pv_B:1453.430, Pv_C:215.307},
-
-  {id:'oxylene',     name:'o-Xylene',                    cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:880, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.30, B:1370.0,
-   Pv_A:6.99891, Pv_B:1474.679, Pv_C:213.686},
-
-  {id:'styrene',     name:'Styrene',                     cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:906, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.40, B:1350.0,
-   Pv_A:7.14016, Pv_B:1574.51, Pv_C:218.38,
-   vp:[[0,0.3],[20,0.81],[60,5.05],[100,23.1],[145,101.3]]},
-
-  {id:'cumene',      name:'Cumene (Isopropylbenzene)',    cat:'Aromatics',           isGas:false,
-   rhoModel:'linear', rho0:862, Tref:20, k_rho:-0.88,
-   viscModel:'andrade', A:-4.60, B:1380.0,
-   vp:[[0,0.35],[20,0.8],[40,2.2],[80,10.6],[152.4,101.3]]},
-
-  // ── ALIPHATICS ────────────────────────────────────────────────────────────
-  {id:'hexane',      name:'n-Hexane',                    cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:659, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.40, B:900.0,
-   Pv_A:6.87601, Pv_B:1171.17, Pv_C:224.408},
-
-  {id:'heptane',     name:'n-Heptane',                   cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:684, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-5.10, B:1060.0,
-   Pv_A:6.89385, Pv_B:1264.13, Pv_C:216.640},
-
-  {id:'octane',      name:'n-Octane',                    cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:703, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:1140.0,
-   Pv_A:6.91868, Pv_B:1351.99, Pv_C:209.155,
-   vp:[[0,1.4],[20,1.47],[40,6.1],[60,11.5],[80,20.2],[125.7,101.3]]},
-
-  {id:'cyclohex',    name:'Cyclohexane',                 cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:779, Tref:20, k_rho:-0.97,
-   viscModel:'andrade', A:-4.90, B:1100.0,
-   Pv_A:6.84498, Pv_B:1203.526, Pv_C:222.863},
-
-  {id:'isooctane',   name:'Isooctane (2,2,4-TMP)',       cat:'Aliphatics',          isGas:false,
-   rhoModel:'linear', rho0:692, Tref:20, k_rho:-0.92,
-   viscModel:'andrade', A:-5.20, B:1000.0, vapFixed:0.050},
-
-  // ── CHLORINATED SOLVENTS ──────────────────────────────────────────────────
-  {id:'dcm',         name:'Dichloromethane (DCM)',        cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1325, Tref:20, k_rho:-1.80,
-   viscModel:'andrade', A:-5.50, B:900.0,
-   Pv_A:7.0820, Pv_B:1138.91, Pv_C:231.50,
-   vp:[[0,16.7],[20,46.5],[40,110],[39.6,101.3]]},
-
-  {id:'chloroform',  name:'Chloroform (CHCl₃)',          cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1489, Tref:20, k_rho:-1.85,
-   viscModel:'andrade', A:-5.20, B:1000.0,
-   Pv_A:6.9360, Pv_B:1170.966, Pv_C:226.232},
-
-  {id:'cctc',        name:'Carbon Tetrachloride (CCl₄)', cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1594, Tref:20, k_rho:-1.90,
-   viscModel:'andrade', A:-5.10, B:1050.0,
-   Pv_A:6.93390, Pv_B:1242.43, Pv_C:230.0},
-
-  {id:'tce',         name:'Trichloroethylene',            cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1462, Tref:20, k_rho:-1.60,
-   viscModel:'andrade', A:-4.80, B:1200.0,
-   Pv_A:6.9730, Pv_B:1315.0, Pv_C:217.0,
-   vp:[[0,3.36],[20,9.08],[40,21.6],[87.2,101.3]]},
-
-  {id:'pce',         name:'Perchloroethylene (PCE)',      cat:'Chlorinated Solvents', isGas:false,
-   rhoModel:'linear', rho0:1623, Tref:20, k_rho:-1.70,
-   viscModel:'andrade', A:-4.60, B:1280.0,
-   vp:[[0,1.87],[20,1.93],[40,10.9],[60,24.8],[121.3,101.3]]},
-
-  // ── KETONES & ESTERS ──────────────────────────────────────────────────────
-  {id:'acetone',     name:'Acetone',                      cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:791, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.80, B:900.0,
-   Pv_A:7.11714, Pv_B:1210.595, Pv_C:229.664,
-   vp:[[0,9.9],[20,24.5],[40,53.7],[56,101.3]]},
-
-  {id:'mek',         name:'MEK (Methyl Ethyl Ketone)',    cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:805, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-5.40, B:1100.0,
-   Pv_A:7.0652, Pv_B:1261.34, Pv_C:221.97,
-   vp:[[0,3.5],[20,10.1],[40,25.0],[60,55],[79.6,101.3]]},
-
-  {id:'mibk',        name:'MIBK (Methyl Isobutyl Ketone)',cat:'Ketones & Esters',   isGas:false,
-   rhoModel:'linear', rho0:801, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-5.00, B:1150.0,
-   vp:[[0,1.0],[20,3.0],[40,8.0],[60,18.9],[115.9,101.3]]},
-
-  {id:'cyclohexanone',name:'Cyclohexanone',               cat:'Ketones & Esters',   isGas:false,
-   rhoModel:'linear', rho0:948, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.20, B:1500.0,
-   vp:[[0,0.4],[20,0.53],[40,2.27],[60,8.09],[80,22.8],[155.6,101.3]]},
-
-  {id:'ethacet',     name:'Ethyl Acetate',                cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:900, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.20, B:1090.0,
-   Pv_A:7.0145, Pv_B:1244.95, Pv_C:217.88},
-
-  {id:'butacet',     name:'Butyl Acetate',                cat:'Ketones & Esters',    isGas:false,
-   rhoModel:'linear', rho0:882, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.80, B:1250.0, vapFixed:0.015},
-
-  // ── ACIDS & BASES ─────────────────────────────────────────────────────────
-  {id:'h2so4_98',    name:'Sulfuric Acid 98%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1840, Tref:25, k_rho:-0.70,
-   viscModel:'andrade', A:-6.90, B:2955.5,
-   vp:[[20,3e-05],[100,0.01],[200,0.5]]},
-
-  {id:'h2so4_50',    name:'Sulfuric Acid 50%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1395, Tref:25, k_rho:-0.80,
-   viscModel:'andrade', A:-4.97, B:1845.6, vapFixed:0.020},
-
-  {id:'h2so4_10',    name:'Sulfuric Acid 10%',           cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1066, Tref:25, k_rho:-0.45,
-   viscModel:'andrade', A:-3.60, B:1100.0,
-   vp:[[20,2.3],[50,10.0],[80,38],[100,90]]},
-
-  {id:'hcl30',       name:'Hydrochloric Acid 30%',       cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1149, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-4.00, B:1050.0, vapFixed:0.060},
-
-  {id:'hcl10',       name:'Hydrochloric Acid 10%',       cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1047, Tref:20, k_rho:-0.40,
-   viscModel:'andrade', A:-3.80, B:1000.0,
-   vp:[[10,25],[20,42],[30,65],[50,120]]},
-
-  {id:'hno3_65',     name:'Nitric Acid 65%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1391, Tref:20, k_rho:-0.90,
-   viscModel:'andrade', A:-4.80, B:1000.0, vapFixed:0.040},
-
-  {id:'hno3_30',     name:'Nitric Acid 30%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1180, Tref:20, k_rho:-0.70,
-   viscModel:'andrade', A:-4.20, B:1050.0,
-   vp:[[0,1.2],[20,3.0],[50,11.0],[80,35]]},
-
-  {id:'h3po4_85',    name:'Phosphoric Acid 85%',         cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1685, Tref:25, k_rho:-0.95,
-   viscModel:'andrade', A:0.50, B:3200.0,
-   vp:[[20,0.01],[60,0.04],[100,0.15],[150,1.0]]},
-
-  {id:'naoh30',      name:'NaOH (Caustic) 30%',          cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1328, Tref:20, k_rho:-0.45,
-   viscModel:'andrade', A:-3.00, B:1400.0, vapFixed:0.020},
-
-  {id:'naoh50',      name:'NaOH (Caustic) 50%',          cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1525, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:-11.58, B:4692.1,
-   vp:[[20,0.5],[50,4.0],[80,25],[100,70]]},
-
-  {id:'koh30',       name:'KOH Solution 30%',            cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1290, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:-3.00, B:1500.0,
-   vp:[[20,1.5],[50,8.0],[80,35],[100,85]]},
-
-  {id:'aceticac',    name:'Acetic Acid (glacial)',        cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1049, Tref:20, k_rho:-1.05,
-   viscModel:'andrade', A:-4.20, B:1400.0,
-   Pv_A:7.38782, Pv_B:1533.313, Pv_C:222.309},
-
-  {id:'aceticac_50', name:'Acetic Acid 50%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1062, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-3.80, B:1350.0, vapFixed:0.040},
-
-  {id:'formicac',    name:'Formic Acid 85%',             cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:1193, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.60, B:1450.0, vapFixed:0.040},
-
-  {id:'ammonia_aq',  name:'Ammonia Solution 25%',        cat:'Acids & Bases',       isGas:false,
-   rhoModel:'linear', rho0:910, Tref:20, k_rho:-0.85,
-   viscModel:'andrade', A:-4.50, B:900.0,
-   vp:[[0,0.55],[20,2.0],[40,6.5],[80,35],[100,90]]},
-
-  // ── LIQUEFIED GASES ────────────────────────────────────────────────────────
-  {id:'lpg',         name:'LPG (Propane/Butane mix)',    cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:530, Tref:20, k_rho:-1.80,
-   viscModel:'andrade', A:-7.00, B:700.0, vapFixed:8.0},
-
-  {id:'propane_liq', name:'Liquid Propane',              cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:493, Tref:20, k_rho:-1.90,
-   viscModel:'andrade', A:-7.20, B:650.0, vapFixed:8.4},
-
-  {id:'butane_liq',  name:'Liquid Butane',               cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:580, Tref:20, k_rho:-1.70,
-   viscModel:'andrade', A:-6.50, B:700.0, vapFixed:2.1},
-
-  {id:'ammonia_liq', name:'Liquid Ammonia',              cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:610, Tref:20, k_rho:-2.00,
-   viscModel:'andrade', A:-4.729, B:800.0,
-   vp:[[-50,40.8],[-40,71.7],[-33.35,101.3],[-20,190.1],[0,429.6],[20,857.2],[35,1351],[50,2032],[75,3588],[100,6253]]},
-  // ── AMMONIA (dual-phase: auto liquid/gas based on T & P) ─────────────────
-  {id:'ammonia',     name:'Ammonia (NH₃) — auto phase',   cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   // Antoine: log10(Pv/mmHg) = A - B/(C + T°C), valid -83 to 133°C
-   Pv_A:7.596673, Pv_B:1028.083, Pv_C:251.369,
-   Tc:132.25, Pc:112.8,
-   // Liquid phase
-   liq_rhoModel:'linear', liq_rho0:682.0, liq_Tref:-33.35, liq_k_rho:-1.88,
-   liq_viscModel:'andrade', liq_A:-6.743, liq_B:632.0,
-   // Gas phase
-   gas_rhoModel:'ideal_gas', gas_MW:17.03,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01010e-3, gas_T_ref:293.15, gas_C_su:370.0,
-   vp:[[-50,40.8],[-40,71.7],[-33.35,101.3],[-20,190.1],[0,429.6],[20,857.2],[35,1351],[50,2032],[75,3588],[100,6253]]},
-
-
-
-  {id:'co2_liq',     name:'Liquid CO₂ (subcritical)',    cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:773, Tref:20, k_rho:-3.50,
-   viscModel:'andrade', A:-7.50, B:600.0, vapFixed:57.3},
-
-  {id:'r134a',       name:'Refrigerant R-134a',          cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1206, Tref:20, k_rho:-3.50,
-   viscModel:'andrade', A:-6.00, B:800.0,
-   vp:[[-26.4,101.3],[0,293],[20,572],[40,1017],[60,1682]]},
-
-  {id:'r22',         name:'Refrigerant R-22',            cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1194, Tref:20, k_rho:-3.40,
-   viscModel:'andrade', A:-6.20, B:750.0,
-   vp:[[-40.8,101.3],[-20,245],[0,499],[20,909],[40,1535]]},
-
-  {id:'r410a',       name:'Refrigerant R-410A',          cat:'Liquefied Gases',     isGas:false,
-   rhoModel:'linear', rho0:1062, Tref:20, k_rho:-3.80,
-   viscModel:'andrade', A:-6.50, B:720.0,
-   vp:[[-51.4,101.3],[-20,400],[0,799],[20,1358],[40,2143]]},
-
-  // ── GASES (ideal gas law for ρ, Sutherland for μ) ─────────────────────────
-  {id:'air',         name:'Air',                          cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.97,
-   viscModel:'sutherland', mu_ref:0.01827e-3, T_ref:291.15, C_su:120.0},
-
-  {id:'nitrogen',    name:'Nitrogen (N₂)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.01,
-   viscModel:'sutherland', mu_ref:0.01781e-3, T_ref:300.55, C_su:111.0},
-
-  {id:'oxygen',      name:'Oxygen (O₂)',                  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:32.00,
-   viscModel:'sutherland', mu_ref:0.02018e-3, T_ref:292.25, C_su:127.0},
-
-  {id:'hydrogen',    name:'Hydrogen (H₂)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:2.016,
-   viscModel:'sutherland', mu_ref:0.00876e-3, T_ref:293.85, C_su:72.0},
-
-  {id:'helium',      name:'Helium (He)',                  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:4.003,
-   viscModel:'sutherland', mu_ref:0.01960e-3, T_ref:273.15, C_su:79.4},
-
-  {id:'argon',       name:'Argon (Ar)',                   cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:39.95,
-   viscModel:'sutherland', mu_ref:0.02228e-3, T_ref:273.15, C_su:144.4},
-
-  {id:'co2gas',      name:'CO₂ Gas',                      cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:44.01,
-   viscModel:'sutherland', mu_ref:0.01480e-3, T_ref:293.15, C_su:240.0},
-
-  {id:'cogas',       name:'CO Gas (Carbon Monoxide)',     cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:28.01,
-   viscModel:'sutherland', mu_ref:0.01661e-3, T_ref:273.15, C_su:118.0},
-
-  {id:'methane',     name:'Methane (CH₄)',                cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:16.04,
-   viscModel:'sutherland', mu_ref:0.01100e-3, T_ref:293.15, C_su:198.0},
-
-  {id:'ethane',      name:'Ethane (C₂H₆)',               cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:30.07,
-   viscModel:'sutherland', mu_ref:0.00900e-3, T_ref:293.15, C_su:252.0},
-
-  {id:'propgas',     name:'Propane Gas (C₃H₈)',          cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:44.10,
-   viscModel:'sutherland', mu_ref:0.00820e-3, T_ref:293.15, C_su:330.0},
-
-  {id:'natgas',      name:'Natural Gas (SG 0.65)',        cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:18.83,
-   viscModel:'sutherland', mu_ref:0.01100e-3, T_ref:293.15, C_su:180.0},
-
-  {id:'natgas_h',    name:'Natural Gas (SG 0.75, rich)',  cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:21.73,
-   viscModel:'sutherland', mu_ref:0.01050e-3, T_ref:293.15, C_su:185.0},
-
-  {id:'h2s',         name:'Hydrogen Sulfide (H₂S)',       cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:34.08,
-   viscModel:'sutherland', mu_ref:0.01180e-3, T_ref:293.15, C_su:331.0},
-
-  {id:'so2',         name:'Sulfur Dioxide (SO₂)',         cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:64.06,
-   viscModel:'sutherland', mu_ref:0.01257e-3, T_ref:293.15, C_su:416.0},
-
-  {id:'chlorinegas', name:'Chlorine Gas (Cl₂)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:70.90,
-   viscModel:'sutherland', mu_ref:0.01330e-3, T_ref:293.15, C_su:351.0},
-
-  {id:'steam_gas',   name:'Steam (superheated)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:18.015,
-   viscModel:'sutherland', mu_ref:0.01200e-3, T_ref:373.15, C_su:1064.0},
-
-  {id:'ammgas',      name:'Ammonia Gas (NH₃)',            cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:17.03,
-   viscModel:'sutherland', mu_ref:0.01010e-3, T_ref:293.15, C_su:370.0},
-
-  {id:'fluegas',     name:'Flue Gas (typical)',           cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:29.0,
-   viscModel:'sutherland', mu_ref:0.01900e-3, T_ref:473.15, C_su:110.0},
-
-  {id:'biogas',      name:'Biogas (60% CH₄, 40% CO₂)',   cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:27.22,
-   viscModel:'sutherland', mu_ref:0.01250e-3, T_ref:293.15, C_su:200.0},
-
-  {id:'syngas',      name:'Syngas (H₂+CO mixture)',       cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:15.50,
-   viscModel:'sutherland', mu_ref:0.01300e-3, T_ref:293.15, C_su:150.0},
-
-  {id:'hclgas',      name:'HCl Gas',                      cat:'Gases (⚠ Compressible)', isGas:true,
-   rhoModel:'ideal_gas', MW:36.46,
-   viscModel:'sutherland', mu_ref:0.01426e-3, T_ref:273.15, C_su:360.0},
-
-  // ── CHEMICAL PROCESS ──────────────────────────────────────────────────────
-  {id:'dmf',         name:'DMF (Dimethylformamide)',       cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:944, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.50, B:1200.0, vapFixed:0.004},
-
-  {id:'dmso',        name:'DMSO (Dimethyl Sulfoxide)',     cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1101, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-5.15, B:1739.6, vapFixed:0.001},
-
-  {id:'thf',         name:'THF (Tetrahydrofuran)',          cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:889, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.20, B:1000.0,
-   Pv_A:6.9953, Pv_B:1202.29, Pv_C:226.25},
-
-  {id:'nmp',         name:'N-Methylpyrrolidone (NMP)',     cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1028, Tref:20, k_rho:-0.96,
-   viscModel:'andrade', A:-3.40, B:1700.0,
-   vp:[[20,0.04],[50,0.37],[80,2.4],[100,5.8],[202,101.3]]},
-
-  {id:'acetonitrile',name:'Acetonitrile (MeCN)',           cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:786, Tref:20, k_rho:-1.10,
-   viscModel:'andrade', A:-5.60, B:950.0,
-   Pv_A:7.1190, Pv_B:1314.4, Pv_C:230.0},
-
-  {id:'diethether',  name:'Diethyl Ether',                 cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:713, Tref:20, k_rho:-1.20,
-   viscModel:'andrade', A:-5.90, B:850.0,
-   Pv_A:6.9267, Pv_B:1064.07, Pv_C:228.799},
-
-  {id:'dioxane',     name:'1,4-Dioxane',                   cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-1.00,
-   viscModel:'andrade', A:-4.80, B:1250.0, vapFixed:0.038},
-
-  {id:'furfural',    name:'Furfural',                      cat:'Chemical Process',    isGas:false,
-   rhoModel:'linear', rho0:1160, Tref:20, k_rho:-0.95,
-   viscModel:'andrade', A:-3.60, B:1600.0, vapFixed:0.003},
-
-  // ── FOOD & PHARMA ──────────────────────────────────────────────────────────
-  {id:'milk',        name:'Milk (whole)',                  cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1030, Tref:20, k_rho:-0.35,
-   viscModel:'andrade', A:-3.80, B:1100.0, vapFixed:0.023},
-
-  {id:'milk_skim',   name:'Skim Milk',                     cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1034, Tref:20, k_rho:-0.33,
-   viscModel:'andrade', A:-4.00, B:1050.0, vapFixed:0.023},
-
-  {id:'olive',       name:'Olive Oil',                     cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:910, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:1.00, B:3200.0, vapFixed:0.001},
-
-  {id:'sunflower',   name:'Sunflower Oil',                 cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:919, Tref:20, k_rho:-0.65,
-   viscModel:'andrade', A:0.90, B:3000.0,
-   vp:[[40,0.001],[80,0.01],[100,0.03]]},
-
-  {id:'palmoil',     name:'Palm Oil',                      cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:891, Tref:50, k_rho:-0.67,
-   viscModel:'andrade', A:1.20, B:3400.0, vapFixed:0.001},
-
-  {id:'cornsyrup',   name:'Corn Syrup 63° Brix',          cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1303, Tref:20, k_rho:-0.55,
-   viscModel:'andrade', A:3.20, B:3500.0, vapFixed:0.010},
-
-  {id:'honey',       name:'Honey',                         cat:'Food & Pharma',       isGas:false,
-   rhoModel:'linear', rho0:1420, Tref:20, k_rho:-0.50,
-   viscModel:'andrade', A:5.00, B:4800.0, vapFixed:0.005},
-
-  // ── SPECIAL & METALS ──────────────────────────────────────────────────────
-  {id:'mercury',     name:'Mercury (liquid)',              cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:13534, Tref:20, k_rho:-2.45,
-   viscModel:'andrade', A:-3.50, B:800.0,
-   vp:[[20,0.000227],[100,0.016],[200,0.279],[356.7,101.3]]},
-
-  {id:'molten_s',    name:'Molten Sulfur',                 cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1800, Tref:130, k_rho:-0.95,
-   viscModel:'andrade', A:-3.80, B:1500.0, vapFixed:0.001},
-
-  {id:'slurry10',    name:'Slurry (10% solids)',           cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1100, Tref:20, k_rho:-0.35,
-   viscModel:'linear', mu0:5.0, Tref_mu:20, k_mu:-0.05, vapFixed:0.020},
-
-  {id:'slurry30',    name:'Slurry (30% solids)',           cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1350, Tref:20, k_rho:-0.40,
-   viscModel:'linear', mu0:20.0, Tref_mu:20, k_mu:-0.15, vapFixed:0.015},
-
-  {id:'slurry50',    name:'Slurry (50% solids, dense)',    cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1650, Tref:20, k_rho:-0.45,
-   viscModel:'linear', mu0:80.0, Tref_mu:20, k_mu:-0.40, vapFixed:0.010},
-
-  {id:'drilling_mud',name:'Drilling Mud (12 ppg)',         cat:'Special & Metals',    isGas:false,
-   rhoModel:'linear', rho0:1440, Tref:25, k_rho:-0.50,
-   viscModel:'linear', mu0:30.0, Tref_mu:25, k_mu:-0.20, vapFixed:0.015},
-
-  // ── PROPANE (dual-phase) ──────────────────────────────────────────────────
-  {id:'propane',     name:'Propane (C₃H₈) — auto phase',  cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_A:6.82973, Pv_B:803.810, Pv_C:246.990,
-   Tc:96.68, Pc:42.48,
-   liq_rhoModel:'linear', liq_rho0:493.0, liq_Tref:-42.1, liq_k_rho:-1.90,
-   liq_viscModel:'andrade', liq_A:-7.20, liq_B:650.0,
-   gas_rhoModel:'ideal_gas', gas_MW:44.10,
-   gas_viscModel:'sutherland', gas_mu_ref:0.00820e-3, gas_T_ref:293.15, gas_C_su:330.0,
-   vp:[[-42.1,101.3],[-30,161],[-20,245],[0,474],[20,879],[40,1530],[50,1771],[96.68,4248]]},
-
-  // ── CO₂ (dual-phase) ─────────────────────────────────────────────────────
-  {id:'co2',         name:'CO₂ — auto phase',              cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_form:'cc_ln', Pv_A:10.79, Pv_B:-1977,
-   Tc:31.04, Pc:73.77,
-   liq_rhoModel:'linear', liq_rho0:773.0, liq_Tref:20.0, liq_k_rho:-3.50,
-   liq_viscModel:'andrade', liq_A:-7.50, liq_B:600.0,
-   gas_rhoModel:'ideal_gas', gas_MW:44.01,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01480e-3, gas_T_ref:293.15, gas_C_su:240.0,
-   vp:[[-56.6,517],[-40,1013],[-20,1969],[0,3484],[20,5729],[30,7176]]},
-
-  // ── WATER / STEAM (dual-phase) ────────────────────────────────────────────
-  {id:'water_steam', name:'Water/Steam — auto phase',       cat:'Dual-Phase (auto L/G)', isGas:'auto',
-   Pv_A:8.07131, Pv_B:1730.63, Pv_C:233.426,
-   Tc:373.95, Pc:220.64,
-   liq_rhoModel:'poly_water', 
-   liq_viscModel:'andrade', liq_A:-3.5985, liq_B:1061.0,
-   gas_rhoModel:'ideal_gas', gas_MW:18.015,
-   gas_viscModel:'sutherland', gas_mu_ref:0.01200e-3, gas_T_ref:373.15, gas_C_su:1064.0,
-   vp:[[0,0.611],[20,2.338],[40,7.384],[60,19.94],[80,47.39],[100,101.3],[120,198.5],[150,476.2],[200,1554],[250,3975],[300,8592],[373.95,22064]]},
-
+  {id:"water", name:"Water", cat:"Water & Aqueous", isGas:false, tab:[[0,999.8,1.791],[10,999.7,1.306],[20,998.2,1.002],[30,995.6,0.7972],[40,992.2,0.6527],[50,988.0,0.5465],[60,983.2,0.466],[70,977.8,0.4035],[80,971.8,0.3541],[90,965.3,0.3142],[100,958.4,0.2816],[110,950.9,0.2546],[120,943.1,0.232],[140,926.1,0.1966],[160,907.5,0.1704],[180,887.0,0.1504],[200,864.7,0.1346]], vp:[[0,0.6112],[10,1.228],[20,2.339],[30,4.247],[40,7.385],[50,12.35],[60,19.95],[70,31.2],[80,47.41],[90,70.18],[100,101.4],[110,143.4],[120,198.7],[140,361.5],[160,618.2],[180,1003.0],[200,1555.0]], src:"IAPWS-95 via CoolProp"},
+  {id:"seawater", name:"Seawater (3.5% NaCl)", cat:"Water & Aqueous", isGas:false, tab:[[0,1028.1,1.889],[10,1026.9,1.407],[20,1024.9,1.085],[30,1022.0,0.8631],[40,1018.4,0.7057],[50,1014.0,0.5911],[60,1009.1,0.5055],[70,1003.5,0.4399],[80,997.5,0.3882],[90,991.0,0.3462],[100,984.1,0.311]], vp:[[0,0.54],[10,1.08],[20,2.1],[30,3.81],[50,10.9],[80,44.3],[100,97.0]], src:"CoolProp INCOMP (SecCool/Melinder data)"},
+  {id:"brine10", name:"Brine 10% NaCl", cat:"Water & Aqueous", isGas:false, tab:[[-5,1078.0,2.437],[0,1076.8,2.071],[10,1073.9,1.542],[20,1070.6,1.193],[30,1066.7,0.9605],[40,1062.3,0.804],[50,1058.1,0.6732],[60,1053.3,0.5741],[70,1047.8,0.4971],[80,1041.9,0.4361],[90,1035.4,0.387],[100,1028.4,0.3469]], vp:[[0,0.54],[20,2.1],[50,10.5],[80,43.0],[100,96.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"brine20", name:"Brine 20% NaCl", cat:"Water & Aqueous", isGas:false, tab:[[-15,1162.7,4.649],[-10,1160.7,3.833],[0,1156.7,2.696],[10,1152.3,1.986],[20,1147.8,1.532],[30,1142.9,1.237],[40,1137.8,1.047],[50,1133.6,0.8764],[60,1128.8,0.7474],[70,1123.3,0.6471],[80,1117.4,0.5678],[90,1110.9,0.5038],[100,1103.9,0.4516]], vp:[[0,0.5],[20,1.95],[50,10.0],[80,41.5],[100,93.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"brine25", name:"Brine 25% NaCl", cat:"Water & Aqueous", isGas:false, tab:[[-15,1203.6,5.766],[-10,1201.7,4.753],[0,1197.6,3.344],[10,1193.3,2.463],[20,1188.7,1.9],[30,1183.8,1.535],[40,1178.7,1.298],[50,1174.5,1.087],[60,1169.7,0.9269],[70,1164.3,0.8026],[80,1158.3,0.7042],[90,1151.8,0.6249],[100,1144.9,0.5601]], vapFixed:0.017, src:"Handbook point data, ±10–20%"},
+  {id:"cacl2_20", name:"CaCl₂ Solution 20%", cat:"Water & Aqueous", isGas:false, tab:[[-15,1188.4,5.143],[-10,1186.9,4.336],[0,1184.8,3.183],[10,1183.0,2.427],[20,1180.6,1.913],[30,1176.5,1.55],[40,1169.8,1.285],[50,1165.7,1.076],[60,1160.8,0.9176],[70,1155.4,0.7945],[80,1149.4,0.6971],[90,1142.9,0.6186],[100,1136.0,0.5544]], vp:[[0,0.48],[20,1.85],[50,9.5],[80,40.0],[100,90.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"cacl2_30", name:"CaCl₂ Solution 30%", cat:"Water & Aqueous", isGas:false, tab:[[-30,1304.9,17.84],[-20,1301.1,11.18],[-10,1296.7,7.627],[0,1291.7,5.572],[10,1286.5,4.294],[20,1281.2,3.438],[30,1276.2,2.817],[40,1271.5,2.325],[50,1267.3,1.947],[60,1262.4,1.66],[70,1257.0,1.438],[80,1251.0,1.261],[90,1244.5,1.119],[100,1237.6,1.003]], vp:[[0,0.4],[20,1.6],[50,8.5],[80,36.0],[100,82.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"eg30", name:"Ethylene Glycol 30%", cat:"Glycols & Coolants", isGas:false, tab:[[-10,1047.5,6.508],[0,1045.0,4.298],[10,1041.8,2.983],[20,1038.0,2.166],[30,1033.7,1.639],[40,1028.8,1.286],[50,1023.4,1.041],[60,1017.5,0.866],[70,1011.1,0.7371],[80,1004.3,0.6388],[90,997.0,0.5613],[100,989.4,0.4977]], vapFixed:0.021, src:"CoolProp INCOMP (SecCool/Melinder data)"},
+  {id:"eg50", name:"Ethylene Glycol 50%", cat:"Glycols & Coolants", isGas:false, tab:[[-30,1085.1,41.77],[-20,1082.2,22.18],[-10,1078.7,12.78],[0,1074.6,7.93],[10,1070.0,5.257],[20,1064.9,3.693],[30,1059.4,2.729],[40,1053.4,2.103],[50,1047.1,1.678],[60,1040.5,1.375],[70,1033.6,1.148],[80,1026.4,0.9685],[90,1019.0,0.8195],[100,1011.5,0.69]], vp:[[0,0.3],[20,1.2],[50,8.0],[80,34.0],[100,78.0]], src:"CoolProp INCOMP (SecCool/Melinder data)"},
+  {id:"eg70", name:"Ethylene Glycol 70%", cat:"Glycols & Coolants", isGas:false, tab:[[-30,1114.0,111.4],[-20,1110.4,50.74],[-10,1106.1,26.06],[0,1101.1,14.9],[10,1095.5,9.351],[20,1089.3,6.356],[30,1082.8,4.615],[40,1075.8,3.532],[50,1068.5,2.81],[60,1061.0,2.293],[70,1053.4,1.893],[80,1045.6,1.559],[90,1037.8,1.265],[100,1030.1,0.9963]], vp:[[0,0.18],[20,0.8],[50,6.0],[80,28.0],[100,68.0]], src:"Handbook point data, ±10–20% (extrapolated from CoolProp MEG 50/60%)"},
+  {id:"pg30", name:"Propylene Glycol 30%", cat:"Glycols & Coolants", isGas:false, tab:[[-10,1034.3,12.33],[0,1031.6,7.117],[10,1028.0,4.438],[20,1023.8,2.965],[30,1018.9,2.104],[40,1013.4,1.573],[50,1007.5,1.229],[60,1001.2,0.9946],[70,994.5,0.8272],[80,987.6,0.7011],[90,980.5,0.6005],[100,973.4,0.5155]], vp:[[0,0.5],[20,1.8],[50,10.0],[80,40.0],[100,90.0]], src:"CoolProp INCOMP (SecCool/Melinder data)"},
+  {id:"pg50", name:"Propylene Glycol 50%", cat:"Glycols & Coolants", isGas:false, tab:[[-30,1064.1,212.4],[-20,1060.4,84.74],[-10,1056.0,38.1],[0,1050.9,19.11],[10,1045.3,10.58],[20,1039.1,6.394],[30,1032.4,4.175],[40,1025.4,2.914],[50,1018.0,2.151],[60,1010.5,1.661],[70,1002.7,1.328],[80,994.9,1.088],[90,987.1,0.9032],[100,979.3,0.7518]], vp:[[0,0.35],[20,1.3],[50,8.5],[80,35.0],[100,80.0]], src:"CoolProp INCOMP (SecCool/Melinder data)"},
+  {id:"deg", name:"Diethylene Glycol (DEG)", cat:"Glycols & Coolants", isGas:false, tab:[[0,1132.4,115.3],[10,1125.1,62.99],[20,1117.8,36.81],[30,1110.6,22.84],[40,1103.4,14.95],[50,1096.1,10.27],[60,1088.8,7.358],[70,1081.5,5.481],[80,1074.1,4.227],[90,1066.6,3.364],[100,1059.0,2.754],[110,1051.4,2.313],[120,1043.9,1.989],[140,1029.3,1.565],[160,1015.1,1.322],[180,1001.2,1.185],[200,987.7,1.111]], vp:[[0,8.86e-05],[10,0.0002561],[20,0.0006886],[30,0.001734],[40,0.004118],[50,0.00927],[60,0.01987],[70,0.04075],[80,0.08023],[90,0.1522],[100,0.2789],[110,0.4953],[120,0.8541],[140,2.347],[160,5.771],[180,12.8],[200,26.02]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"teg", name:"Triethylene Glycol (TEG)", cat:"Glycols & Coolants", isGas:false, tab:[[0,1140.5,158.5],[10,1132.6,85.23],[20,1124.7,48.14],[30,1116.8,29.38],[40,1109.0,19.19],[50,1101.2,13.24],[60,1093.4,9.545],[70,1085.6,7.138],[80,1077.8,5.502],[90,1069.9,4.35],[100,1061.9,3.513],[110,1053.9,2.879],[120,1046.1,2.384],[140,1030.7,1.68],[160,1015.8,1.222],[180,1001.3,0.9148],[200,987.2,0.7017]], vp:[[0,9.702e-06],[10,3.006e-05],[20,8.623e-05],[30,0.0002307],[40,0.0005798],[50,0.001376],[60,0.003101],[70,0.006665],[80,0.01372],[90,0.02713],[100,0.05173],[110,0.09538],[120,0.1705],[140,0.5005],[160,1.33],[180,3.23],[200,7.126]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"mea30", name:"MEA 30% (Monoethanolamine)", cat:"Glycols & Coolants", isGas:false, tab:[[20,1014.2,2.92],[25,1012.0,2.48],[40,1005.2,1.7],[60,996.2,1.1],[80,987.2,0.78],[100,978.2,0.58]], vapFixed:0.01, src:"Handbook point data, ±10–20%"},
+  {id:"dea35", name:"DEA 35% (Diethanolamine)", cat:"Glycols & Coolants", isGas:false, tab:[[20,1041.5,4.4],[25,1039.0,3.75],[40,1031.5,2.45],[60,1021.5,1.55],[80,1011.5,1.05],[100,1001.5,0.77]], vapFixed:0.006, src:"Handbook point data, ±10–20%"},
+  {id:"gasoline", name:"Gasoline (Petrol)", cat:"Petroleum & Fuels", isGas:false, tab:[[-40,797.2,1.299],[-30,787.8,1.083],[-20,778.2,0.9161],[-10,768.8,0.7848],[0,759.2,0.68],[10,749.8,0.5952],[20,740.2,0.5257],[30,730.8,0.4682],[40,721.2,0.42],[50,711.8,0.3793],[60,702.2,0.3447]], vp:[[0,10.0],[10,16.0],[20,25.0],[30,38.5],[40,57.0],[50,82.0],[60,115.0]], src:"Indicative literature values, ±30% — verify for design"},
+  {id:"diesel", name:"Diesel Fuel", cat:"Petroleum & Fuels", isGas:false, tab:[[-10,852.5,10.32],[0,845.5,7.116],[10,838.5,5.163],[20,831.5,3.903],[30,824.5,3.051],[40,817.5,2.453],[50,810.5,2.017],[60,803.5,1.692],[70,796.5,1.443],[80,789.5,1.249],[90,782.5,1.094],[100,775.5,0.9694],[110,768.5,0.8671],[120,761.5,0.7824],[140,747.5,0.6513],[150,740.5,0.6]], vp:[[20,0.01],[40,0.03],[60,0.07],[80,0.15],[100,0.3]], src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"kerosene", name:"Kerosene / Jet-A", cat:"Petroleum & Fuels", isGas:false, tab:[[-40,839.6,6.349],[-30,832.4,4.463],[-20,825.2,3.301],[-10,818.0,2.542],[0,810.8,2.022],[10,803.6,1.652],[20,796.4,1.381],[30,789.2,1.175],[40,782.0,1.017],[50,774.8,0.8916],[60,767.6,0.7913],[70,760.4,0.7098],[80,753.2,0.6425],[90,746.0,0.5865],[100,738.8,0.5392],[110,731.6,0.499],[120,724.4,0.4645],[140,710.0,0.4087],[150,702.8,0.3859]], vapFixed:0.003, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"jeta1", name:"Jet A-1 Fuel", cat:"Petroleum & Fuels", isGas:false, tab:[[-40,843.6,6.379],[-30,836.4,4.484],[-20,829.2,3.317],[-10,822.0,2.554],[0,814.8,2.032],[10,807.6,1.661],[20,800.4,1.387],[30,793.2,1.181],[40,786.0,1.022],[50,778.8,0.8962],[60,771.6,0.7955],[70,764.4,0.7135],[80,757.2,0.6459],[90,750.0,0.5896],[100,742.8,0.5421],[110,735.6,0.5017],[120,728.4,0.4671],[140,714.0,0.411],[150,706.8,0.3881]], vapFixed:0.003, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"hfo", name:"Heavy Fuel Oil (HFO 380)", cat:"Petroleum & Fuels", isGas:false, tab:[[20,976.9,4920.0],[30,970.7,1805.0],[40,964.5,764.1],[50,958.3,364.2],[60,952.1,191.5],[70,945.9,109.4],[80,939.7,67.01],[90,933.5,43.5],[100,927.3,29.67],[110,921.1,21.11],[120,914.9,15.56],[140,902.5,9.233],[160,890.1,6.003],[180,877.7,4.182],[200,865.3,3.073]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"crude20", name:"Crude Oil API 20 (heavy)", cat:"Petroleum & Fuels", isGas:false, tab:[[10,936.8,304.0],[20,930.2,151.5],[30,923.6,88.98],[40,917.0,57.86],[50,910.4,40.3],[60,903.8,29.51],[70,897.2,22.43],[80,890.6,17.57],[90,884.0,14.09],[100,877.4,11.53],[110,870.8,9.583],[120,864.2,8.079],[140,851.0,5.943],[150,844.4,5.171]], vp:[[20,0.05],[40,0.16],[80,1.0]], src:"Glasø (1980) dead-oil correlation from API gravity — indicative, crude viscosity varies widely"},
+  {id:"crude30", name:"Crude Oil API 30", cat:"Petroleum & Fuels", isGas:false, tab:[[10,879.0,27.51],[20,872.4,16.33],[30,865.8,10.96],[40,859.2,7.94],[50,852.6,6.056],[60,846.0,4.795],[70,839.4,3.905],[80,832.8,3.252],[90,826.2,2.757],[100,819.6,2.371],[110,813.0,2.065],[120,806.4,1.817],[140,793.2,1.444],[150,786.6,1.301]], vapFixed:0.02, src:"Glasø (1980) dead-oil correlation from API gravity — indicative, crude viscosity varies widely"},
+  {id:"crude40", name:"Crude Oil API 40", cat:"Petroleum & Fuels", isGas:false, tab:[[10,827.9,5.918],[20,821.3,3.928],[30,814.7,2.872],[40,808.1,2.229],[50,801.5,1.802],[60,794.9,1.5],[70,788.3,1.276],[80,781.7,1.105],[90,775.1,0.9709],[100,768.5,0.8626],[110,761.9,0.7738],[120,755.3,0.6998],[140,742.1,0.5841],[150,735.5,0.5382]], vapFixed:0.04, src:"Glasø (1980) dead-oil correlation from API gravity — indicative, crude viscosity varies widely"},
+  {id:"crude50", name:"Crude Oil API 50 (light)", cat:"Petroleum & Fuels", isGas:false, tab:[[10,782.5,1.947],[20,775.9,1.401],[30,769.3,1.09],[40,762.7,0.8893],[50,756.1,0.7497],[60,749.5,0.647],[70,742.9,0.5685],[80,736.3,0.5065],[90,729.7,0.4564],[100,723.1,0.415],[110,716.5,0.3804],[120,709.9,0.3509],[140,696.7,0.3035],[150,690.1,0.2842]], vp:[[20,0.02],[40,0.08],[80,0.6]], src:"Glasø (1980) dead-oil correlation from API gravity — indicative, crude viscosity varies widely"},
+  {id:"naphtha", name:"Naphtha (light)", cat:"Petroleum & Fuels", isGas:false, tab:[[-40,747.0,0.6444],[-30,737.5,0.5526],[-20,728.0,0.4797],[-10,718.5,0.4209],[0,709.0,0.3729],[10,699.5,0.3332],[20,690.0,0.3],[30,680.5,0.272],[40,671.0,0.2482],[50,661.5,0.2277],[60,652.0,0.21],[70,642.5,0.1946],[80,633.0,0.1811]], src:"Indicative literature values, ±30% — verify for design"},
+  {id:"naphtha_h", name:"Naphtha (heavy)", cat:"Petroleum & Fuels", isGas:false, tab:[[-20,777.0,1.155],[-10,769.0,0.984],[0,761.0,0.8484],[10,753.0,0.7391],[20,745.0,0.65],[30,737.0,0.5765],[40,729.0,0.5153],[50,721.0,0.4637],[60,713.0,0.42],[70,705.0,0.3826],[80,697.0,0.3504],[90,689.0,0.3224],[100,681.0,0.298],[110,673.0,0.2766],[120,665.0,0.2577],[140,649.0,0.226],[150,641.0,0.2126]], vapFixed:0.03, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"atmresid", name:"Atmospheric Residue (ATB)", cat:"Petroleum & Fuels", isGas:false, tab:[[60,942.1,200.6],[70,935.9,121.4],[80,929.7,77.81],[90,923.5,52.33],[100,917.3,36.69],[110,911.1,26.66],[120,904.9,19.98],[140,892.5,12.12],[160,880.1,7.982],[180,867.7,5.598],[200,855.3,4.125],[225,839.8,2.974],[250,824.3,2.247],[275,808.8,1.763],[300,793.3,1.424],[325,777.8,1.179],[350,762.3,0.9957]], vapFixed:0.001, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"vacresid", name:"Vacuum Residue (VTB)", cat:"Petroleum & Fuels", isGas:false, tab:[[80,981.0,7784.0],[90,975.0,3739.0],[100,969.0,1938.0],[110,963.0,1074.0],[120,957.0,630.2],[140,945.0,251.5],[160,933.0,117.6],[180,921.0,62.3],[200,909.0,36.4],[225,894.0,20.72],[250,879.0,12.94],[275,864.0,8.692],[300,849.0,6.175],[325,834.0,4.587],[350,819.0,3.533]], vapFixed:0.0001, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"bitumen", name:"Bitumen / Asphalt", cat:"Petroleum & Fuels", isGas:false, tab:[[60,1003.0,300900.0],[70,997.0,81900.0],[80,991.0,26280.0],[90,985.0,9701.0],[100,979.0,4034.0],[110,973.0,1858.0],[120,967.0,934.8],[140,955.0,293.9],[160,943.0,116.3],[180,931.0,54.71],[200,919.0,29.41],[220,907.0,17.52]], vapFixed:0.0001, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"lube32", name:"Lube Oil ISO VG 32", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,885.8,713.2],[0,879.5,295.5],[10,873.1,140.6],[20,866.9,74.79],[30,860.5,43.57],[40,854.2,27.34],[50,848.0,18.23],[60,841.6,12.78],[70,835.4,9.344],[80,829.0,7.074],[90,822.8,5.516],[100,816.5,4.409],[110,810.1,3.6],[120,803.9,2.993],[140,791.2,2.166],[150,785.0,1.878]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"lube46", name:"Lube Oil ISO VG 46", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,890.8,1313.0],[0,884.5,510.6],[10,878.1,230.0],[20,871.9,116.7],[30,865.5,65.26],[40,859.2,39.53],[50,853.0,25.57],[60,846.6,17.46],[70,840.4,12.48],[80,834.0,9.26],[90,827.8,7.096],[100,821.5,5.586],[110,815.1,4.5],[120,808.9,3.698],[140,796.2,2.622],[150,790.0,2.254]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"lube68", name:"Lube Oil ISO VG 68", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,895.8,2529.0],[0,889.5,919.0],[10,883.1,390.4],[20,876.9,188.3],[30,870.5,100.8],[40,864.2,58.77],[50,858.0,36.78],[60,851.6,24.41],[70,845.4,17.01],[80,839.0,12.35],[90,832.8,9.287],[100,826.5,7.19],[110,820.1,5.708],[120,813.9,4.629],[140,801.2,3.211],[150,795.0,2.734]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"lube100", name:"Lube Oil ISO VG 100", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,900.8,4647.0],[0,894.5,1599.0],[10,888.1,647.3],[20,881.9,299.2],[30,875.5,154.2],[40,869.2,86.92],[50,863.0,52.81],[60,856.6,34.15],[70,850.4,23.26],[80,844.0,16.55],[90,837.8,12.22],[100,831.5,9.312],[110,825.1,7.289],[120,818.9,5.838],[140,806.2,3.964],[150,800.0,3.345]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"lube150", name:"Lube Oil ISO VG 150", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,905.8,8581.0],[0,899.5,2812.0],[10,893.1,1089.0],[20,886.9,483.3],[30,880.5,240.2],[40,874.2,131.1],[50,868.0,77.4],[60,861.6,48.76],[70,855.4,32.45],[80,849.0,22.62],[90,842.8,16.4],[100,836.5,12.3],[110,830.1,9.484],[120,823.9,7.497],[140,811.2,4.978],[150,805.0,4.161]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"lube220", name:"Lube Oil ISO VG 220", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,910.8,15270.0],[0,904.5,4782.0],[10,898.1,1777.0],[20,891.9,759.9],[30,885.5,365.2],[40,879.2,193.4],[50,873.0,111.1],[60,866.6,68.31],[70,860.4,44.48],[80,854.0,30.41],[90,847.8,21.66],[100,841.5,15.99],[110,835.1,12.16],[120,828.9,9.493],[140,816.2,6.169],[150,810.0,5.109]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"hydr32", name:"Hydraulic Oil ISO 32", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,885.8,713.2],[0,879.5,295.5],[10,873.1,140.6],[20,866.9,74.79],[30,860.5,43.57],[40,854.2,27.34],[50,848.0,18.23],[60,841.6,12.78],[70,835.4,9.344],[80,829.0,7.074],[90,822.8,5.516],[100,816.5,4.409],[110,810.1,3.6],[120,803.9,2.993],[140,791.2,2.166],[150,785.0,1.878]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"hydr46", name:"Hydraulic Oil ISO 46", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,890.8,1313.0],[0,884.5,510.6],[10,878.1,230.0],[20,871.9,116.7],[30,865.5,65.26],[40,859.2,39.53],[50,853.0,25.57],[60,846.6,17.46],[70,840.4,12.48],[80,834.0,9.26],[90,827.8,7.096],[100,821.5,5.586],[110,815.1,4.5],[120,808.9,3.698],[140,796.2,2.622],[150,790.0,2.254]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"hydr68", name:"Hydraulic Oil ISO 68", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,895.8,2529.0],[0,889.5,919.0],[10,883.1,390.4],[20,876.9,188.3],[30,870.5,100.8],[40,864.2,58.77],[50,858.0,36.78],[60,851.6,24.41],[70,845.4,17.01],[80,839.0,12.35],[90,832.8,9.287],[100,826.5,7.19],[110,820.1,5.708],[120,813.9,4.629],[140,801.2,3.211],[150,795.0,2.734]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"hydr100", name:"Hydraulic Oil ISO 100", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,900.8,4647.0],[0,894.5,1599.0],[10,888.1,647.3],[20,881.9,299.2],[30,875.5,154.2],[40,869.2,86.92],[50,863.0,52.81],[60,856.6,34.15],[70,850.4,23.26],[80,844.0,16.55],[90,837.8,12.22],[100,831.5,9.312],[110,825.1,7.289],[120,818.9,5.838],[140,806.2,3.964],[150,800.0,3.345]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"thermoil", name:"Thermal / Heat Transfer Oil", cat:"Lubricants & Hydraulic", isGas:false, tab:[[0,875.8,195.2],[10,869.2,97.84],[20,862.8,54.36],[30,856.2,32.84],[40,849.8,21.24],[50,843.2,14.53],[60,836.8,10.41],[70,830.2,7.754],[80,823.8,5.963],[90,817.2,4.712],[100,810.8,3.811],[110,804.2,3.143],[120,797.8,2.636],[140,784.8,1.936],[160,771.8,1.488],[180,758.8,1.185],[200,745.8,0.9715],[225,729.5,0.7831],[250,713.2,0.6501],[275,697.0,0.5527],[300,680.8,0.4792],[320,667.8,0.4326]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"turbineoil", name:"Turbine Oil ISO VG 46", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,890.8,1313.0],[0,884.5,510.6],[10,878.1,230.0],[20,871.9,116.7],[30,865.5,65.26],[40,859.2,39.53],[50,853.0,25.57],[60,846.6,17.46],[70,840.4,12.48],[80,834.0,9.26],[90,827.8,7.096],[100,821.5,5.586],[110,815.1,4.5],[120,808.9,3.698],[140,796.2,2.622],[150,790.0,2.254]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"gearoil320", name:"Gear Oil ISO VG 320", cat:"Lubricants & Hydraulic", isGas:false, tab:[[-10,915.8,28260.0],[0,909.5,8330.0],[10,903.1,2936.0],[20,896.9,1199.0],[30,890.5,553.6],[40,884.2,283.0],[50,878.0,157.5],[60,871.6,94.2],[70,865.4,59.86],[80,859.0,40.05],[90,852.8,28.0],[100,846.5,20.31],[110,840.1,15.22],[120,833.9,11.73],[140,821.2,7.451],[150,815.0,6.111]], vapFixed:0.001, src:"ASTM D341 (Walther) from typical ν40/ν100 for the grade — verify with product data sheet"},
+  {id:"methanol", name:"Methanol", cat:"Alcohols", isGas:false, tab:[[-40,847.8,1.777],[-30,838.1,1.425],[-20,828.6,1.162],[-10,819.1,0.9617],[0,809.7,0.806],[10,800.4,0.6833],[20,791.0,0.5852],[30,781.6,0.5062],[40,772.2,0.4417],[50,762.6,0.3883],[60,752.8,0.3437],[70,742.8,0.3062],[80,732.6,0.2743],[90,722.0,0.2467],[100,710.9,0.2227],[110,699.4,0.2017],[120,687.3,0.1831],[140,660.8,0.1513],[160,630.4,0.125],[163,625.4,0.1214]], vp:[[-40,0.201],[-30,0.4715],[-20,1.028],[-10,2.102],[0,4.056],[10,7.438],[20,13.03],[30,21.91],[40,35.52],[50,55.68],[60,84.71],[70,125.4],[80,181.1],[90,255.7],[100,353.7],[110,480.2],[120,640.8],[140,1090.0],[160,1760.0],[163,1883.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"ethanol", name:"Ethanol (96%)", cat:"Alcohols", isGas:false, tab:[[-40,857.9,5.478],[-30,849.4,4.157],[-20,840.9,3.21],[-10,832.4,2.517],[0,823.9,2.001],[10,815.4,1.611],[20,806.9,1.313],[30,798.3,1.083],[40,789.6,0.9016],[50,780.7,0.7579],[60,771.6,0.6427],[70,762.1,0.5496],[80,752.4,0.4732],[90,742.2,0.4099],[100,731.5,0.3569],[110,720.3,0.3122],[120,708.3,0.2741],[140,681.7,0.2122],[160,650.9,0.1652],[164,644.2,0.1572]], vp:[[-40,0.05564],[-30,0.1446],[-20,0.3459],[-10,0.7689],[0,1.602],[10,3.149],[20,5.876],[30,10.47],[40,17.88],[50,29.41],[60,46.73],[70,71.99],[80,107.8],[90,157.3],[100,224.2],[110,312.6],[120,427.3],[140,756.6],[160,1258.0],[164,1383.0]], src:"DIPPR/Perry correlations (thermo library), adjusted to 96% v/v"},
+  {id:"ethanol_abs", name:"Ethanol Absolute (99.9%)", cat:"Alcohols", isGas:false, tab:[[-40,840.4,4.98],[-30,831.9,3.779],[-20,823.4,2.918],[-10,814.9,2.288],[0,806.4,1.819],[10,797.9,1.464],[20,789.4,1.194],[30,780.8,0.9841],[40,772.1,0.8196],[50,763.2,0.689],[60,754.1,0.5843],[70,744.6,0.4996],[80,734.9,0.4302],[90,724.7,0.3726],[100,714.0,0.3244],[110,702.8,0.2838],[120,690.8,0.2491],[140,664.2,0.193],[160,633.4,0.1502],[164,626.7,0.1429]], vp:[[-40,0.05564],[-30,0.1446],[-20,0.3459],[-10,0.7689],[0,1.602],[10,3.149],[20,5.876],[30,10.47],[40,17.88],[50,29.41],[60,46.73],[70,71.99],[80,107.8],[90,157.3],[100,224.2],[110,312.6],[120,427.3],[140,756.6],[160,1258.0],[164,1383.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"ipa", name:"Isopropanol (IPA)", cat:"Alcohols", isGas:false, tab:[[-40,841.5,23.25],[-30,832.8,14.76],[-20,823.9,9.701],[-10,814.9,6.573],[0,805.7,4.576],[10,796.3,3.265],[20,786.7,2.381],[30,776.9,1.771],[40,766.8,1.341],[50,756.5,1.032],[60,745.9,0.8065],[70,735.0,0.6387],[80,723.8,0.5122],[82,721.5,0.4908]], vp:[[-40,0.0268],[-30,0.07504],[-20,0.1936],[-10,0.4622],[0,1.027],[10,2.141],[20,4.207],[30,7.841],[40,13.92],[50,23.67],[60,38.66],[70,60.88],[80,92.76],[82,100.5]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"nbutanol", name:"n-Butanol", cat:"Alcohols", isGas:false, tab:[[-40,855.8,21.34],[-30,848.2,14.16],[-20,840.4,9.777],[-10,832.6,6.965],[0,824.6,5.092],[10,816.5,3.806],[20,808.2,2.899],[30,799.8,2.245],[40,791.3,1.765],[50,782.6,1.406],[60,773.7,1.133],[70,764.6,0.9235],[80,755.3,0.7603],[90,745.8,0.6316],[100,736.1,0.5292],[110,726.1,0.4468],[118,717.9,0.3923]], vp:[[-40,0.002123],[-30,0.006689],[-20,0.01925],[-10,0.05112],[0,0.1264],[10,0.2923],[20,0.6325],[30,1.289],[40,2.487],[50,4.567],[60,8.013],[70,13.49],[80,21.87],[90,34.24],[100,51.94],[110,76.54],[118,102.4]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"glycerol", name:"Glycerol (100%)", cat:"Alcohols", isGas:false, tab:[[0,1274.0,12070.0],[10,1267.5,3900.0],[20,1261.0,1412.0],[30,1254.5,612.0],[40,1248.0,284.0],[50,1241.5,142.0],[60,1235.0,81.3],[70,1228.5,50.6],[80,1222.0,31.9],[90,1215.5,21.3],[100,1209.0,14.8]], vp:[[21,1.425e-05],[30,4.202e-05],[40,0.0001287],[50,0.0003647],[60,0.0009622],[70,0.00238],[80,0.005548],[90,0.01226],[100,0.02576],[110,0.05175],[120,0.09968],[140,0.3303],[160,0.959],[167,1.354]], src:"Segur & Oberstar (1951) data"},
+  {id:"glycerol50", name:"Glycerol 50% in Water", cat:"Alcohols", isGas:false, tab:[[-20,1143.6,46.86],[-10,1139.8,23.87],[0,1135.5,13.72],[10,1130.9,8.708],[20,1126.1,5.958],[30,1121.0,4.295],[40,1115.8,3.189],[50,1111.6,2.67],[60,1106.8,2.277],[70,1101.3,1.972],[80,1095.4,1.73],[90,1088.9,1.535],[100,1081.9,1.376]], vp:[[20,0.1],[40,0.35],[80,3.5],[100,10.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"benzene", name:"Benzene", cat:"Aromatics", isGas:false, tab:[[9,890.4,0.767],[10,889.4,0.7543],[20,878.9,0.6475],[30,868.4,0.5635],[40,857.8,0.496],[50,847.0,0.4404],[60,836.2,0.3943],[70,825.2,0.3547],[80,814.0,0.3209],[90,802.6,0.2917],[100,791.1,0.2659],[110,779.3,0.2431],[120,767.3,0.223],[140,742.4,0.1884],[160,716.1,0.1604],[180,688.0,0.1366],[200,657.3,0.1166],[204,650.8,0.1129]], vp:[[9,5.763],[10,6.074],[20,10.03],[30,15.92],[40,24.39],[50,36.2],[60,52.25],[70,73.52],[80,101.1],[90,136.2],[100,180.2],[110,234.3],[120,300.0],[140,472.5],[160,710.3],[180,1027.0],[200,1438.0],[204,1533.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"toluene", name:"Toluene", cat:"Aromatics", isGas:false, tab:[[-40,922.4,1.598],[-30,913.1,1.29],[-20,903.9,1.067],[-10,894.7,0.8992],[0,885.4,0.7697],[10,876.2,0.6685],[20,866.9,0.5875],[30,857.6,0.5208],[40,848.2,0.4652],[50,838.8,0.4187],[60,829.2,0.3796],[70,819.6,0.3463],[80,809.9,0.3173],[90,800.0,0.2917],[100,790.0,0.2693],[110,779.8,0.2497],[120,769.4,0.2324],[140,748.0,0.2023],[160,725.6,0.1774],[180,701.8,0.1566],[200,676.3,0.1378],[225,640.9,0.1176],[229,634.8,0.1144]], vp:[[-40,0.04208],[-30,0.1013],[-20,0.2251],[-10,0.4659],[0,0.9057],[10,1.666],[20,2.919],[30,4.894],[40,7.892],[50,12.29],[60,18.54],[70,27.19],[80,38.87],[90,54.29],[100,74.25],[110,99.62],[120,131.4],[140,218.1],[160,343.4],[180,517.2],[200,750.1],[225,1142.0],[229,1217.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"xylene", name:"Xylene (mixed)", cat:"Aromatics", isGas:false, tab:[[-40,914.7,1.607],[-30,906.3,1.321],[-20,898.0,1.102],[-10,889.6,0.9356],[0,881.2,0.8045],[10,872.7,0.7005],[20,864.2,0.6177],[30,855.6,0.5499],[40,847.0,0.4934],[50,838.2,0.4461],[60,829.4,0.4062],[70,820.4,0.3718],[80,811.4,0.3414],[90,802.3,0.3147],[100,793.0,0.2911],[110,783.6,0.2701],[120,774.0,0.251],[140,754.4,0.2175],[160,734.0,0.1898],[180,712.6,0.1659],[200,689.9,0.1453],[225,659.2,0.1231],[250,624.9,0.104],[251,623.4,0.1032]], vp:[[-40,0.007252],[-30,0.01937],[-20,0.04727],[-10,0.1066],[0,0.2244],[10,0.444],[20,0.8317],[30,1.484],[40,2.534],[50,4.161],[60,6.596],[70,10.13],[80,15.11],[90,21.97],[100,31.18],[110,43.32],[120,59.01],[140,103.9],[160,172.2],[180,271.3],[200,409.3],[225,650.4],[250,986.2],[251,1002.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"oxylene", name:"o-Xylene", cat:"Aromatics", isGas:false, tab:[[-21,914.6,1.659],[-20,913.8,1.624],[-10,905.4,1.329],[0,897.0,1.108],[10,888.6,0.9415],[20,880.2,0.8114],[30,871.8,0.708],[40,863.3,0.6252],[50,854.8,0.5572],[60,846.2,0.5002],[70,837.6,0.4522],[80,828.8,0.4114],[90,820.0,0.3763],[100,811.0,0.3454],[110,801.9,0.3184],[120,792.7,0.2946],[140,773.7,0.2547],[160,754.0,0.2222],[180,733.5,0.1957],[200,711.7,0.173],[225,682.5,0.1489],[250,650.2,0.1274],[262,633.2,0.1179]], vp:[[-21,0.03303],[-20,0.03603],[-10,0.08229],[0,0.1752],[10,0.3506],[20,0.6636],[30,1.196],[40,2.061],[50,3.413],[60,5.454],[70,8.438],[80,12.68],[90,18.55],[100,26.5],[110,37.02],[120,50.7],[140,90.12],[160,150.6],[180,238.9],[200,362.5],[225,579.3],[250,882.3],[262,1064.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"styrene", name:"Styrene", cat:"Aromatics", isGas:false, tab:[[-27,945.6,1.769],[-20,939.7,1.521],[-10,931.1,1.247],[0,922.4,1.039],[10,913.7,0.8788],[20,904.9,0.7535],[30,896.0,0.6539],[40,886.9,0.5736],[50,877.8,0.5081],[60,868.6,0.4541],[70,859.2,0.4091],[80,849.7,0.3712],[90,840.1,0.3391],[100,830.4,0.3117],[110,820.5,0.2881],[120,810.5,0.2676],[140,789.9,0.2342],[145,784.7,0.2271]], vp:[[-27,0.01994],[-20,0.03595],[-10,0.07904],[0,0.164],[10,0.3233],[20,0.6085],[30,1.098],[40,1.904],[50,3.174],[60,5.108],[70,7.957],[80,12.04],[90,17.72],[100,25.46],[110,35.74],[120,49.16],[140,87.93],[145,100.6]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"cumene", name:"Cumene (Isopropylbenzene)", cat:"Aromatics", isGas:false, tab:[[-40,911.5,2.412],[-30,903.7,1.912],[-20,895.8,1.548],[-10,887.8,1.278],[0,879.7,1.073],[10,871.5,0.9145],[20,863.3,0.7899],[30,854.9,0.6905],[40,846.4,0.6101],[50,837.9,0.5444],[60,829.2,0.49],[70,820.4,0.4445],[80,811.5,0.4062],[90,802.4,0.3736],[100,793.3,0.3457],[110,783.9,0.3217],[120,774.4,0.3008],[126,768.6,0.2896]], vp:[[-40,0.005482],[-30,0.01355],[-20,0.03119],[-10,0.06738],[0,0.1376],[10,0.2671],[20,0.4955],[30,0.8827],[40,1.515],[50,2.516],[60,4.052],[70,6.347],[80,9.667],[90,14.31],[100,20.66],[110,29.15],[120,40.26],[126,48.42]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"hexane", name:"n-Hexane", cat:"Aliphatics", isGas:false, tab:[[-40,711.7,0.6447],[-30,703.2,0.5595],[-20,694.6,0.4903],[-10,685.9,0.4339],[0,677.2,0.3871],[10,668.3,0.3473],[20,659.4,0.313],[30,650.3,0.2837],[40,641.0,0.2583],[50,631.6,0.2357],[60,622.0,0.2156],[70,612.1,0.1978],[80,602.0,0.182],[90,591.6,0.1676],[100,581.0,0.1544],[110,569.9,0.1425],[120,558.4,0.1317],[140,533.8,0.1121],[158,509.3,0.09676]], vp:[[-40,0.4537],[-30,0.9534],[-20,1.87],[-10,3.451],[0,6.041],[10,10.09],[20,16.16],[30,24.95],[40,37.27],[50,54.07],[60,76.41],[70,105.5],[80,142.5],[90,189.0],[100,246.3],[110,316.1],[120,399.9],[140,616.6],[158,878.1]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"heptane", name:"n-Heptane", cat:"Aliphatics", isGas:false, tab:[[-40,733.7,0.9588],[-30,725.4,0.8067],[-20,717.2,0.6899],[-10,708.9,0.5974],[0,700.6,0.5232],[10,692.3,0.4629],[20,683.8,0.4125],[30,675.3,0.3697],[40,666.7,0.3332],[50,658.0,0.3021],[60,649.2,0.275],[70,640.2,0.2509],[80,631.0,0.2296],[90,621.6,0.2108],[100,612.0,0.1941],[110,602.2,0.1789],[120,592.1,0.165],[140,570.9,0.1411],[160,548.0,0.1207],[180,522.8,0.1032],[186,514.7,0.09845]], vp:[[-40,0.07705],[-30,0.1816],[-20,0.3948],[-10,0.8003],[0,1.525],[10,2.751],[20,4.73],[30,7.788],[40,12.34],[50,18.89],[60,28.05],[70,40.52],[80,57.09],[90,78.65],[100,106.2],[110,140.7],[120,183.4],[140,298.3],[160,461.3],[180,684.1],[186,764.5]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"octane", name:"n-Octane", cat:"Aliphatics", isGas:false, tab:[[-40,750.2,1.481],[-30,742.3,1.197],[-20,734.4,0.9915],[-10,726.5,0.8349],[0,718.6,0.7148],[10,710.6,0.6205],[20,702.6,0.5441],[30,694.5,0.4818],[40,686.4,0.4306],[50,678.1,0.3875],[60,669.7,0.3505],[70,661.3,0.3188],[80,652.7,0.2914],[90,643.9,0.2674],[100,635.0,0.246],[110,625.9,0.2267],[120,616.6,0.2095],[140,597.2,0.1799],[160,576.8,0.1548],[180,554.8,0.1335],[200,530.8,0.1144],[210,517.8,0.1059]], vp:[[-40,0.01339],[-30,0.03525],[-20,0.08481],[-10,0.1885],[0,0.3908],[10,0.7616],[20,1.405],[30,2.469],[40,4.153],[50,6.718],[60,10.49],[70,15.88],[80,23.35],[90,33.47],[100,46.86],[110,64.24],[120,86.4],[140,148.5],[160,240.8],[180,371.9],[200,551.4],[210,662.6]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"cyclohex", name:"Cyclohexane", cat:"Aliphatics", isGas:false, tab:[[10,788.0,1.173],[20,778.7,0.9729],[30,769.2,0.8198],[40,759.7,0.7012],[50,750.0,0.6067],[60,740.2,0.5309],[70,730.3,0.4674],[80,720.2,0.4148],[90,710.0,0.3704],[100,699.5,0.3318],[110,688.9,0.2989],[120,678.1,0.2705],[140,655.5,0.2236],[160,631.6,0.1878],[180,605.7,0.1588],[197,581.5,0.1382]], vp:[[10,6.341],[20,10.34],[30,16.24],[40,24.64],[50,36.27],[60,51.94],[70,72.57],[80,99.17],[90,132.8],[100,174.7],[110,226.1],[120,288.2],[140,450.3],[160,672.3],[180,966.4],[197,1283.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"isooctane", name:"Isooctane (2,2,4-TMP)", cat:"Aliphatics", isGas:false, tab:[[-40,740.5,1.289],[-30,732.5,1.061],[-20,724.4,0.8895],[-10,716.4,0.7581],[0,708.3,0.6553],[10,700.2,0.5726],[20,692.0,0.5049],[30,683.8,0.449],[40,675.4,0.4025],[50,667.0,0.363],[60,658.4,0.3288],[70,649.7,0.299],[80,640.8,0.273],[90,631.7,0.2503],[100,622.4,0.2299],[110,612.9,0.2115],[120,603.1,0.1948],[140,582.6,0.1662],[160,560.5,0.1416],[180,536.2,0.1204],[189,524.3,0.1117]], vp:[[-40,0.1002],[-30,0.2271],[-20,0.4771],[-10,0.9382],[0,1.74],[10,3.065],[20,5.156],[30,8.328],[40,12.97],[50,19.55],[60,28.62],[70,40.81],[80,56.84],[90,77.49],[100,103.6],[110,136.1],[120,176.1],[140,282.3],[160,431.3],[180,633.0],[189,743.8]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"dcm", name:"Dichloromethane (DCM)", cat:"Chlorinated Solvents", isGas:false, tab:[[-40,1435.3,0.9082],[-30,1418.1,0.7816],[-20,1400.6,0.6811],[-10,1382.8,0.6001],[0,1364.7,0.5339],[10,1346.4,0.4792],[20,1327.7,0.4334],[30,1308.7,0.3948],[40,1289.3,0.362],[50,1269.5,0.3338],[60,1249.2,0.3094],[70,1228.5,0.2881],[80,1207.2,0.2695],[90,1185.3,0.2531],[100,1162.8,0.2385]], vp:[[-40,1.988],[-30,3.776],[-20,6.804],[-10,11.7],[0,19.27],[10,30.57],[20,46.85],[30,69.6],[40,100.5],[50,141.6],[60,194.9],[70,262.6],[80,347.1],[90,451.0],[100,576.9]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"chloroform", name:"Chloroform (CHCl₃)", cat:"Chlorinated Solvents", isGas:false, tab:[[-40,1596.9,1.259],[-30,1580.1,1.07],[-20,1563.0,0.9222],[-10,1545.7,0.8044],[0,1528.1,0.7092],[10,1510.2,0.6313],[20,1492.1,0.5668],[30,1473.6,0.5129],[40,1454.7,0.4673],[50,1435.5,0.4285],[60,1415.9,0.3951],[70,1395.9,0.3662],[80,1375.4,0.3411]], vp:[[-40,0.6271],[-30,1.303],[-20,2.529],[-10,4.62],[0,8.01],[10,13.26],[20,21.07],[30,32.31],[40,47.97],[50,69.22],[60,97.37],[70,133.9],[80,180.3]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"cctc", name:"Carbon Tetrachloride (CCl₄)", cat:"Chlorinated Solvents", isGas:false, tab:[[-19,1661.4,1.874],[-10,1645.8,1.585],[0,1628.4,1.332],[10,1610.6,1.133],[20,1592.6,0.9739],[30,1574.3,0.845],[40,1555.8,0.7394],[50,1536.8,0.6521],[60,1517.6,0.5792],[70,1498.0,0.5178],[80,1477.9,0.4657],[90,1457.5,0.4211],[100,1436.5,0.3828],[110,1415.1,0.3495],[120,1393.1,0.3205],[140,1347.2,0.2727],[160,1298.1,0.2353],[180,1245.2,0.2054],[181,1242.4,0.2041]], vp:[[-19,1.432],[-10,2.509],[0,4.444],[10,7.502],[20,12.14],[30,18.91],[40,28.49],[50,41.65],[60,59.27],[70,82.34],[80,111.9],[90,149.2],[100,195.3],[110,251.6],[120,319.4],[140,495.4],[160,734.9],[180,1051.0],[181,1069.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"tce", name:"Trichloroethylene", cat:"Chlorinated Solvents", isGas:false, tab:[[-40,1557.8,1.22],[-30,1542.6,1.04],[-20,1527.3,0.9004],[-10,1511.8,0.7902],[0,1496.0,0.7018],[10,1480.0,0.6299],[20,1463.8,0.5707],[30,1447.3,0.5213],[40,1430.6,0.4796],[50,1413.6,0.4443],[60,1396.3,0.414],[70,1378.7,0.3878],[80,1360.8,0.365],[90,1342.5,0.3451],[100,1323.8,0.3276],[110,1304.8,0.312],[120,1285.2,0.2983],[140,1244.7,0.2749],[160,1201.8,0.256],[180,1156.1,0.2405],[200,1106.6,0.2276],[212,1074.7,0.2209]], vp:[[-40,0.1516],[-30,0.3293],[-20,0.6727],[-10,1.302],[0,2.4],[10,4.238],[20,7.196],[30,11.73],[40,18.38],[50,27.82],[60,40.83],[70,58.3],[80,81.21],[90,110.6],[100,147.8],[110,193.9],[120,250.2],[140,399.5],[160,607.8],[180,888.1],[200,1255.0],[212,1524.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"pce", name:"Perchloroethylene (PCE)", cat:"Chlorinated Solvents", isGas:false, tab:[[-19,1680.9,1.435],[-10,1667.3,1.27],[0,1652.1,1.12],[10,1636.7,0.9951],[20,1621.2,0.8913],[30,1605.5,0.8038],[40,1589.6,0.7294],[50,1573.5,0.6655],[60,1557.2,0.6103],[70,1540.8,0.5622],[80,1524.1,0.52],[90,1507.2,0.4828],[100,1490.0,0.4497],[110,1472.6,0.4202],[120,1454.9,0.3937],[140,1418.6,0.3482],[160,1381.0,0.3104],[180,1341.7,0.2785],[200,1300.5,0.2511],[225,1245.7,0.2217],[246,1195.8,0.2]], vp:[[-19,0.1583],[-10,0.2991],[0,0.5774],[10,1.064],[20,1.88],[30,3.201],[40,5.248],[50,8.309],[60,12.74],[70,18.99],[80,27.56],[90,39.05],[100,54.15],[110,73.61],[120,98.25],[140,166.7],[160,267.3],[180,408.7],[200,600.2],[225,925.3],[246,1287.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"acetone", name:"Acetone", cat:"Ketones & Esters", isGas:false, tab:[[-40,854.9,0.6685],[-30,844.3,0.5812],[-20,833.7,0.5109],[-10,823.0,0.4536],[0,812.2,0.4062],[10,801.3,0.3659],[20,790.3,0.3311],[30,779.1,0.3013],[40,767.7,0.2754],[50,756.1,0.2525],[60,744.3,0.2321],[70,732.2,0.2142],[80,719.8,0.1983],[90,707.0,0.1839],[100,693.8,0.1707],[110,680.2,0.1588],[120,666.0,0.1481],[140,635.6,0.1289],[158,605.4,0.114]], vp:[[-40,0.7217],[-30,1.501],[-20,2.917],[-10,5.345],[0,9.299],[10,15.45],[20,24.66],[30,37.96],[40,56.58],[50,81.95],[60,115.7],[70,159.5],[80,215.5],[90,285.7],[100,372.3],[110,477.8],[120,604.8],[140,934.1],[158,1333.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"mek", name:"MEK (Methyl Ethyl Ketone)", cat:"Ketones & Esters", isGas:false, tab:[[-40,867.5,0.9277],[-30,857.4,0.7947],[-20,847.2,0.6875],[-10,836.8,0.6],[0,826.3,0.5278],[10,815.7,0.4676],[20,804.9,0.417],[30,794.0,0.374],[40,782.8,0.3372],[50,771.5,0.3056],[60,760.0,0.2782],[70,748.2,0.2543],[80,736.2,0.2334],[90,723.9,0.2149],[100,711.4,0.1986],[110,698.5,0.1841],[120,685.3,0.1711],[140,657.5,0.149],[160,627.8,0.131],[180,595.2,0.1161],[183,590.1,0.1141]], vp:[[-40,0.2032],[-30,0.4443],[-20,0.9134],[-10,1.773],[0,3.254],[10,5.683],[20,9.496],[30,15.25],[40,23.65],[50,35.52],[60,51.86],[70,73.79],[80,102.6],[90,139.6],[100,186.4],[110,244.7],[120,316.1],[140,506.0],[160,772.1],[180,1133.0],[183,1196.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"mibk", name:"MIBK (Methyl Isobutyl Ketone)", cat:"Ketones & Esters", isGas:false, tab:[[-40,852.1,1.625],[-30,843.8,1.322],[-20,835.4,1.093],[-10,826.9,0.9166],[0,818.3,0.7788],[10,809.6,0.6694],[20,800.7,0.5814],[30,791.8,0.5096],[40,782.7,0.4505],[50,773.4,0.4012],[60,764.0,0.3599],[70,754.5,0.3248],[80,744.7,0.2949],[90,734.8,0.2692],[100,724.7,0.2469],[110,714.4,0.2274],[116,708.1,0.217]], vp:[[-40,0.02492],[-30,0.06002],[-20,0.1349],[-10,0.285],[0,0.57],[10,1.086],[20,1.979],[30,3.457],[40,5.778],[50,9.283],[60,14.4],[70,21.63],[80,31.58],[90,44.94],[100,62.49],[110,85.07],[116,101.4]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"cyclohexanone", name:"Cyclohexanone", cat:"Ketones & Esters", isGas:false, tab:[[-27,986.8,7.776],[-20,981.0,6.206],[-10,972.6,4.619],[0,964.2,3.538],[10,955.6,2.778],[20,947.0,2.231],[30,938.3,1.828],[40,929.5,1.525],[50,920.6,1.293],[60,911.6,1.112],[70,902.5,0.9685],[80,893.3,0.8539],[90,883.9,0.7609],[100,874.5,0.6848],[110,864.9,0.6218],[120,855.1,0.5692],[140,835.2,0.4875],[155,819.7,0.4414]], vp:[[-27,0.009429],[-20,0.01829],[-10,0.04382],[0,0.09734],[10,0.2022],[20,0.3956],[30,0.7342],[40,1.299],[50,2.204],[60,3.599],[70,5.677],[80,8.682],[90,12.91],[100,18.71],[110,26.5],[120,36.75],[140,66.81],[155,100.2]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"ethacet", name:"Ethyl Acetate", cat:"Ketones & Esters", isGas:false, tab:[[-40,966.3,0.9454],[-30,955.6,0.8286],[-20,944.7,0.7294],[-10,933.7,0.6446],[0,922.5,0.5718],[10,911.1,0.5091],[20,899.5,0.4547],[30,887.7,0.4075],[40,875.6,0.3663],[50,863.4,0.3301],[60,850.8,0.2984],[70,838.0,0.2704],[80,824.8,0.2456],[90,811.3,0.2237],[100,797.4,0.2041],[110,783.0,0.1866],[120,768.2,0.171],[140,736.9,0.1444],[160,702.7,0.1229],[171,682.3,0.1127]], vp:[[-40,0.2115],[-30,0.4576],[-20,0.9316],[-10,1.797],[0,3.302],[10,5.815],[20,9.844],[30,16.0],[40,25.06],[50,37.96],[60,55.8],[70,79.83],[80,111.5],[90,152.3],[100,203.9],[110,268.2],[120,347.0],[140,556.6],[160,850.2],[171,1054.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"butacet", name:"Butyl Acetate", cat:"Ketones & Esters", isGas:false, tab:[[-23,922.3,1.492],[-20,919.5,1.406],[-10,910.0,1.167],[0,900.4,0.9831],[10,890.7,0.8394],[20,880.9,0.7252],[30,870.9,0.6333],[40,860.8,0.5584],[50,850.5,0.4966],[60,840.1,0.4452],[70,829.5,0.4019],[80,818.7,0.3653],[90,807.7,0.334],[100,796.5,0.307],[110,785.1,0.2837],[120,773.4,0.2633],[126,766.2,0.2523]], vp:[[-23,0.06624],[-20,0.08381],[-10,0.1766],[0,0.3525],[10,0.6698],[20,1.218],[30,2.131],[40,3.595],[50,5.873],[60,9.315],[70,14.35],[80,21.48],[90,31.31],[100,44.56],[110,62.01],[120,84.57],[126,101.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"h2so4_98", name:"Sulfuric Acid 98%", cat:"Acids & Bases", isGas:false, tab:[[0,1854.0,50.4],[10,1845.0,34.4],[20,1836.0,24.09],[30,1827.0,17.28],[40,1818.0,12.65],[50,1809.0,9.449],[60,1800.0,7.181],[70,1791.0,5.545],[80,1782.0,4.345],[90,1773.0,3.45],[100,1764.0,2.774],[110,1755.0,2.256],[120,1746.0,1.854],[140,1728.0,1.289],[150,1719.0,1.088]], vp:[[20,3e-05],[100,0.01],[200,0.5]], src:"Handbook point data, ±10–20%"},
+  {id:"h2so4_50", name:"Sulfuric Acid 50%", cat:"Acids & Bases", isGas:false, tab:[[-20,1425.0,10.18],[-10,1417.5,7.717],[0,1410.0,5.97],[10,1402.5,4.703],[20,1395.0,3.765],[30,1387.5,3.059],[40,1380.0,2.518],[50,1372.5,2.099],[60,1365.0,1.768],[70,1357.5,1.504],[80,1350.0,1.292],[90,1342.5,1.119],[100,1335.0,0.9763],[110,1327.5,0.8581],[120,1320.0,0.7591]], vapFixed:0.02, src:"Handbook point data, ±10–20%"},
+  {id:"h2so4_10", name:"Sulfuric Acid 10%", cat:"Acids & Bases", isGas:false, tab:[[0,1074.6,1.945],[10,1070.3,1.534],[20,1066.0,1.23],[30,1061.7,1.0],[40,1057.4,0.8246],[50,1053.1,0.6878],[60,1048.8,0.58],[70,1044.5,0.494],[80,1040.2,0.4245],[90,1035.9,0.3679],[100,1031.6,0.3213]], vp:[[20,2.3],[50,10.0],[80,38.0],[100,90.0]], src:"Handbook point data, ±10–20%"},
+  {id:"hcl30", name:"Hydrochloric Acid 30%", cat:"Acids & Bases", isGas:false, tab:[[-20,1169.0,4.457],[-10,1164.0,3.436],[0,1159.0,2.699],[10,1154.0,2.157],[20,1149.0,1.75],[30,1144.0,1.44],[40,1139.0,1.199],[50,1134.0,1.01],[60,1129.0,0.86]], vapFixed:0.06, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"hcl10", name:"Hydrochloric Acid 10%", cat:"Acids & Bases", isGas:false, tab:[[0,1054.0,1.809],[10,1050.5,1.437],[20,1047.0,1.16],[30,1043.5,0.9497],[40,1040.0,0.7875],[50,1036.5,0.6606],[60,1033.0,0.56],[70,1029.5,0.4793],[80,1026.0,0.4139],[90,1022.5,0.3603]], vp:[[10,25.0],[20,42.0],[30,65.0],[50,120.0]], src:"Handbook point data, ±10–20%"},
+  {id:"hno3_65", name:"Nitric Acid 65%", cat:"Acids & Bases", isGas:false, tab:[[0,1412.0,2.778],[10,1401.5,2.251],[20,1391.0,1.85],[30,1380.5,1.54],[40,1370.0,1.298],[50,1359.5,1.105],[60,1349.0,0.95],[70,1338.5,0.824],[80,1328.0,0.7204],[90,1317.5,0.6346],[100,1307.0,0.5628]], vapFixed:0.04, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"hno3_30", name:"Nitric Acid 30%", cat:"Acids & Bases", isGas:false, tab:[[0,1192.0,1.917],[10,1186.0,1.536],[20,1180.0,1.25],[30,1174.0,1.031],[40,1168.0,0.8608],[50,1162.0,0.7269],[60,1156.0,0.62],[70,1150.0,0.5338],[80,1144.0,0.4634],[90,1138.0,0.4055],[100,1132.0,0.3574]], vp:[[0,1.2],[20,3.0],[50,11.0],[80,35.0]], src:"Indicative literature values, ±30% — verify for design"},
+  {id:"h3po4_85", name:"Phosphoric Acid 85%", cat:"Acids & Bases", isGas:false, tab:[[20,1689.8,38.0],[30,1680.2,26.33],[40,1670.8,18.68],[50,1661.2,13.54],[60,1651.8,10.0],[70,1642.2,7.519],[80,1632.8,5.746],[90,1623.2,4.456],[100,1613.8,3.504],[110,1604.2,2.789],[120,1594.8,2.247]], vp:[[20,0.01],[60,0.04],[100,0.15],[150,1.0]], src:"Indicative literature values, ±30% — verify for design"},
+  {id:"naoh30", name:"NaOH (Caustic) 30%", cat:"Acids & Bases", isGas:false, tab:[[10,1333.0,16.83],[20,1328.0,12.0],[30,1323.0,8.749],[40,1318.0,6.509],[50,1313.0,4.932],[60,1308.0,3.8],[70,1303.0,2.973],[80,1298.0,2.358],[90,1293.0,1.894],[100,1288.0,1.54],[110,1283.0,1.265],[120,1278.0,1.05]], vapFixed:0.02, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"naoh50", name:"NaOH (Caustic) 50%", cat:"Acids & Bases", isGas:false, tab:[[15,1527.8,110.3],[20,1525.0,83.58],[30,1519.5,49.29],[40,1514.0,30.07],[50,1508.5,18.91],[60,1503.0,12.23],[70,1497.5,8.114],[80,1492.0,5.509],[90,1486.5,3.821],[100,1481.0,2.703],[110,1475.5,1.947],[120,1470.0,1.426]], vp:[[20,0.5],[50,4.0],[80,25.0],[100,70.0]], src:"Handbook point data, ±10–20%"},
+  {id:"koh30", name:"KOH Solution 30%", cat:"Acids & Bases", isGas:false, tab:[[0,1300.0,3.205],[10,1295.0,2.575],[20,1290.0,2.1],[30,1285.0,1.736],[40,1280.0,1.452],[50,1275.0,1.229],[60,1270.0,1.05],[70,1265.0,0.9055],[80,1260.0,0.7875],[90,1255.0,0.6901],[100,1250.0,0.6091]], vp:[[20,1.5],[50,8.0],[80,35.0],[100,85.0]], src:"Indicative literature values, ±30% — verify for design"},
+  {id:"aceticac", name:"Acetic Acid (glacial)", cat:"Acids & Bases", isGas:false, tab:[[20,1047.1,1.202],[30,1036.9,1.037],[40,1026.6,0.9036],[50,1016.1,0.7935],[60,1005.4,0.7021],[70,994.6,0.6255],[80,983.5,0.5607],[90,972.2,0.5056],[100,960.6,0.4583],[110,948.8,0.4174],[117,940.4,0.3921]], vp:[[20,1.558],[30,2.755],[40,4.682],[50,7.654],[60,12.09],[70,18.5],[80,27.55],[90,40.02],[100,56.85],[110,79.14],[117,98.66]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"aceticac_50", name:"Acetic Acid 50%", cat:"Acids & Bases", isGas:false, tab:[[0,1075.0,3.134],[10,1066.5,2.632],[20,1058.0,2.237],[30,1049.5,1.922],[40,1041.0,1.667],[50,1032.5,1.459],[60,1024.0,1.287],[70,1015.5,1.144],[80,1007.0,1.023],[90,998.5,0.9208],[100,990.0,0.8335]], vapFixed:0.04, src:"Handbook point data, ±10–20%"},
+  {id:"formicac", name:"Formic Acid 85%", cat:"Acids & Bases", isGas:false, tab:[[12,1204.3,2.128],[20,1194.7,1.785],[30,1182.5,1.46],[40,1170.1,1.216],[50,1157.5,1.03],[60,1144.6,0.8856],[70,1131.6,0.7718],[80,1118.2,0.6809],[90,1104.6,0.6074],[100,1090.7,0.5474]], vapFixed:0.04, src:"Handbook point data, ±10–20% (pure formic-acid viscosity, 85% density)"},
+  {id:"ammonia_aq", name:"Ammonia Solution 25%", cat:"Acids & Bases", isGas:false, tab:[[-20,926.5,4.679],[-10,922.3,3.139],[0,917.6,2.236],[10,912.5,1.663],[20,906.9,1.27],[30,900.9,0.9792],[40,897.5,0.8018],[50,893.3,0.6713],[60,888.4,0.5724]], vp:[[0,0.55],[20,2.0],[40,6.5],[80,35.0],[100,90.0]], src:"CoolProp INCOMP, extended above its range with constant relative viscosity to water"},
+  {id:"lpg", name:"LPG (Propane/Butane mix)", cat:"Liquefied Gases", isGas:false, tab:[[-40,602.2,0.2274],[-30,591.1,0.2029],[-20,579.5,0.1819],[-10,567.6,0.1635],[0,555.3,0.1474],[10,542.3,0.1332],[20,528.8,0.1204],[30,514.4,0.1088],[40,498.9,0.09823],[50,482.1,0.08839],[60,463.4,0.07909],[70,441.9,0.07008],[80,415.5,0.06095]], vp:[[-40,79.44],[-30,120.9],[-20,177.6],[-10,252.7],[0,349.8],[10,472.6],[20,625.2],[30,811.8],[40,1037.0],[50,1304.0],[60,1620.0],[70,1990.0],[80,2420.0]], src:"CoolProp Helmholtz EOS — saturated liquid (60/40 wt% propane/n-butane)"},
+  {id:"propane_liq", name:"Liquid Propane", cat:"Liquefied Gases", isGas:false, tab:[[-40,578.4,0.1926],[-30,566.6,0.1723],[-20,554.5,0.1547],[-10,541.8,0.1393],[0,528.6,0.1256],[10,514.7,0.1133],[20,500.1,0.1023],[30,484.4,0.09219],[40,467.5,0.08284],[50,448.9,0.07407],[60,428.0,0.06565],[70,403.6,0.05736],[80,373.3,0.04879]], vp:[[-40,111.1],[-30,167.8],[-20,244.5],[-10,345.3],[0,474.5],[10,636.6],[20,836.5],[30,1079.0],[40,1369.0],[50,1713.0],[60,2117.0],[70,2587.0],[80,3132.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"butane_liq", name:"Liquid Butane", cat:"Liquefied Gases", isGas:false, tab:[[-40,641.9,0.3158],[-30,631.9,0.2803],[-20,621.7,0.2503],[-10,611.4,0.2247],[0,600.7,0.2025],[10,589.8,0.1832],[20,578.6,0.1662],[30,567.0,0.1511],[40,554.9,0.1376],[50,542.3,0.1254],[60,529.1,0.1143],[70,515.2,0.1041],[80,500.4,0.09465],[90,484.5,0.0858],[100,467.1,0.07741],[110,447.9,0.06934],[120,425.9,0.06142]], vp:[[-40,16.79],[-30,28.21],[-20,45.21],[-10,69.55],[0,103.2],[10,148.5],[20,207.6],[30,283.4],[40,378.5],[50,495.8],[60,638.2],[70,809.1],[80,1012.0],[90,1249.0],[100,1526.0],[110,1846.0],[120,2213.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"ammonia_liq", name:"Liquid Ammonia", cat:"Liquefied Gases", isGas:false, tab:[[-40,689.8,0.2802],[-30,677.5,0.2434],[-20,665.0,0.2141],[-10,652.0,0.1901],[0,638.6,0.1702],[10,624.8,0.1532],[20,610.4,0.1385],[30,595.4,0.1256],[40,579.6,0.1141],[50,563.0,0.1039],[60,545.3,0.09451],[70,526.3,0.08594],[80,505.7,0.07799],[90,482.8,0.07049],[100,456.8,0.06327]], vp:[[-40,71.63],[-30,119.4],[-20,190.0],[-10,290.6],[0,429.2],[10,614.8],[20,857.0],[30,1167.0],[40,1555.0],[50,2033.0],[60,2614.0],[70,3312.0],[80,4141.0],[90,5116.0],[100,6255.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"ammonia", name:"Ammonia (NH₃) — auto phase", cat:"Dual-Phase (auto L/G)", isGas:"auto", Tc:132.41, Pc:113.63, omega:0.2557, gas_MW:17.03, gas_mu_ref:1.01000e-05, gas_T_ref:293.15, gas_C_su:370, liq_tab:[[-70,725.0,0.4768],[-40,689.8,0.2802],[-30,677.5,0.2434],[-20,665.0,0.2141],[-10,652.0,0.1901],[0,638.6,0.1702],[10,624.8,0.1532],[20,610.4,0.1385],[30,595.4,0.1256],[40,579.6,0.1141],[50,563.0,0.1039],[60,545.3,0.09451],[70,526.3,0.08594],[80,505.7,0.07799],[90,482.8,0.07049],[100,456.8,0.06327],[110,425.7,0.05605],[120,385.1,0.04827],[125,357.1,0.0437]], vp:[[-70,10.9],[-40,71.63],[-30,119.4],[-20,190.0],[-10,290.6],[0,429.2],[10,614.8],[20,857.0],[30,1167.0],[40,1555.0],[50,2033.0],[60,2614.0],[70,3312.0],[80,4141.0],[90,5116.0],[100,6255.0],[110,7577.0],[120,9109.0],[125,9964.0]], src:"CoolProp Helmholtz EOS — saturated liquid (liquid) / Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity (vapour)"},
+  {id:"co2_liq", name:"Liquid CO₂ (subcritical)", cat:"Liquefied Gases", isGas:false, tab:[[-50,1154.6,0.2271],[-40,1116.4,0.1927],[-30,1075.7,0.164],[-20,1031.7,0.1397],[-10,982.9,0.1188],[0,927.4,0.1004],[10,861.1,0.08354],[20,773.4,0.06677],[25,710.5,0.05731]], vp:[[-50,682.3],[-40,1004.0],[-30,1428.0],[-20,1970.0],[-10,2649.0],[0,3485.0],[10,4502.0],[20,5729.0],[25,6434.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"r134a", name:"Refrigerant R-134a", cat:"Liquefied Gases", isGas:false, tab:[[-40,1417.7,0.467],[-30,1388.4,0.401],[-20,1358.3,0.3476],[-10,1327.1,0.3036],[0,1294.8,0.2665],[10,1261.0,0.2349],[20,1225.3,0.2074],[30,1187.5,0.1831],[40,1146.7,0.1614],[50,1102.3,0.1418],[60,1052.9,0.1236],[70,996.2,0.1065],[80,928.2,0.08985],[90,837.8,0.07245]], vp:[[-40,51.21],[-30,84.38],[-20,132.7],[-10,200.6],[0,292.8],[10,414.6],[20,571.7],[30,770.2],[40,1017.0],[50,1318.0],[60,1682.0],[70,2117.0],[80,2633.0],[90,3244.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"r22", name:"Refrigerant R-22", cat:"Liquefied Gases", isGas:false, tab:[[-40,1406.8,0.2841],[-30,1377.2,0.2485],[-20,1346.5,0.2185],[-10,1314.7,0.193],[0,1281.5,0.1709],[10,1246.7,0.1518],[20,1209.9,0.1349],[30,1170.7,0.1199],[40,1128.5,0.1066],[50,1082.3,0.09457],[60,1030.4,0.08356],[70,969.7,0.07327],[80,893.7,0.06326],[85,844.8,0.05811]], vp:[[-40,105.2],[-30,163.9],[-20,245.3],[-10,354.8],[0,498.0],[10,680.9],[20,910.0],[30,1192.0],[40,1534.0],[50,1943.0],[60,2427.0],[70,2997.0],[80,3664.0],[85,4038.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"r410a", name:"Refrigerant R-410A", cat:"Liquefied Gases", isGas:false, tab:[[-40,1312.9,0.267],[-30,1279.7,0.2375],[-20,1245.0,0.2107],[-10,1208.6,0.1866],[0,1169.9,0.1647],[10,1128.5,0.145],[20,1083.3,0.1273],[30,1033.1,0.1113],[40,975.7,0.09678],[50,907.0,0.08327],[60,815.4,0.06969],[65,748.3,0.06174]], vp:[[-40,175.5],[-30,270.3],[-20,400.7],[-10,574.6],[0,800.7],[10,1088.0],[20,1447.0],[30,1889.0],[40,2426.0],[50,3071.0],[60,3843.0],[65,4283.0]], src:"CoolProp Helmholtz EOS — saturated liquid"},
+  {id:"air", name:"Air", cat:"Gases (⚠ Compressible)", isGas:true, MW:28.97, mu_ref:1.82700e-05, T_ref:291.15, C_su:120, Tc:-140.65, Pc:37.86, omega:0.035, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"nitrogen", name:"Nitrogen (N₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:28.01, mu_ref:1.78100e-05, T_ref:300.55, C_su:111, Tc:-146.96, Pc:33.96, omega:0.0372, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"oxygen", name:"Oxygen (O₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:32, mu_ref:2.01800e-05, T_ref:292.25, C_su:127, Tc:-118.57, Pc:50.43, omega:0.0222, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"hydrogen", name:"Hydrogen (H₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:2.016, mu_ref:8.76000e-06, T_ref:293.85, C_su:72, Tc:-229.55, Pc:20.5, omega:0.0, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"helium", name:"Helium (He)", cat:"Gases (⚠ Compressible)", isGas:true, MW:4.003, mu_ref:1.87000e-05, T_ref:273.15, C_su:79.4, Tc:-262.68, Pc:6.76, omega:0.0, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"argon", name:"Argon (Ar)", cat:"Gases (⚠ Compressible)", isGas:true, MW:39.95, mu_ref:2.10000e-05, T_ref:273.15, C_su:144.4, Tc:-122.46, Pc:48.63, omega:-0.0022, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"co2gas", name:"CO₂ Gas", cat:"Gases (⚠ Compressible)", isGas:true, MW:44.01, mu_ref:1.48000e-05, T_ref:293.15, C_su:240, Tc:30.98, Pc:73.77, omega:0.2239, vp:[[-55,554.0],[-40,1004.0],[-30,1428.0],[-20,1970.0],[-10,2649.0],[0,3485.0],[10,4502.0],[20,5729.0],[30,7214.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"cogas", name:"CO Gas (Carbon Monoxide)", cat:"Gases (⚠ Compressible)", isGas:true, MW:28.01, mu_ref:1.66100e-05, T_ref:273.15, C_su:118, Tc:-140.29, Pc:34.94, omega:0.0497, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"methane", name:"Methane (CH₄)", cat:"Gases (⚠ Compressible)", isGas:true, MW:16.04, mu_ref:1.10000e-05, T_ref:293.15, C_su:198, Tc:-82.59, Pc:45.99, omega:0.0114, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"ethane", name:"Ethane (C₂H₆)", cat:"Gases (⚠ Compressible)", isGas:true, MW:30.07, mu_ref:9.00000e-06, T_ref:293.15, C_su:252, Tc:32.17, Pc:48.72, omega:0.0995, vp:[[-80,157.4],[-40,777.4],[-30,1064.0],[-20,1422.0],[-10,1859.0],[0,2387.0],[10,3017.0],[20,3765.0],[30,4655.0],[31,4754.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"propgas", name:"Propane Gas (C₃H₈)", cat:"Gases (⚠ Compressible)", isGas:true, MW:44.1, mu_ref:8.20000e-06, T_ref:293.15, C_su:330, Tc:96.74, Pc:42.51, omega:0.1521, vp:[[-80,13.05],[-40,111.1],[-30,167.8],[-20,244.5],[-10,345.3],[0,474.5],[10,636.6],[20,836.5],[30,1079.0],[40,1369.0],[50,1713.0],[60,2117.0],[70,2587.0],[80,3132.0],[90,3764.0],[96,4194.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"natgas", name:"Natural Gas (SG 0.65)", cat:"Gases (⚠ Compressible)", isGas:true, MW:18.83, mu_ref:1.10000e-05, T_ref:293.15, C_su:180, Tc:-70.35, Pc:46.2, omega:0.02, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"natgas_h", name:"Natural Gas (SG 0.75, rich)", cat:"Gases (⚠ Compressible)", isGas:true, MW:21.73, mu_ref:1.05000e-05, T_ref:293.15, C_su:185, Tc:-56.65, Pc:45.3, omega:0.03, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"h2s", name:"Hydrogen Sulfide (H₂S)", cat:"Gases (⚠ Compressible)", isGas:true, MW:34.08, mu_ref:1.18000e-05, T_ref:293.15, C_su:331, Tc:99.95, Pc:90.0, omega:0.1005, vp:[[-80,33.2],[-40,256.6],[-30,380.9],[-20,546.4],[-10,760.8],[0,1032.0],[10,1370.0],[20,1781.0],[30,2276.0],[40,2863.0],[50,3552.0],[60,4355.0],[70,5282.0],[80,6349.0],[90,7577.0],[99,8852.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"so2", name:"Sulfur Dioxide (SO₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:64.06, mu_ref:1.25700e-05, T_ref:293.15, C_su:416, Tc:157.49, Pc:78.87, omega:0.256, vp:[[-71,2.437],[-40,21.6],[-30,38.02],[-20,63.52],[-10,101.4],[0,155.5],[10,230.3],[20,330.7],[30,462.1],[40,630.3],[50,841.5],[60,1102.0],[70,1419.0],[80,1799.0],[90,2250.0],[100,2780.0],[110,3398.0],[120,4112.0],[140,5877.0],[156,7692.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"chlorinegas", name:"Chlorine Gas (Cl₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:70.9, mu_ref:1.33000e-05, T_ref:293.15, C_su:351, Tc:143.72, Pc:76.42, omega:0.07, vp:[[-80,7.634],[-40,77.03],[-30,120.2],[-20,180.4],[-10,261.6],[0,368.1],[10,504.6],[20,675.7],[30,886.3],[40,1141.0],[50,1446.0],[60,1804.0],[70,2222.0],[80,2703.0],[90,3254.0],[100,3878.0],[110,4581.0],[120,5369.0],[140,7240.0],[142,7453.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"steam_gas", name:"Steam (superheated)", cat:"Gases (⚠ Compressible)", isGas:true, MW:18.015, mu_ref:1.20000e-05, T_ref:373.15, C_su:1064, Tc:373.95, Pc:220.64, omega:0.3443, vp:[[2,0.706],[10,1.228],[20,2.339],[30,4.247],[40,7.385],[50,12.35],[60,19.95],[70,31.2],[80,47.41],[90,70.18],[100,101.4],[110,143.4],[120,198.7],[140,361.5],[160,618.2],[180,1003.0],[200,1555.0],[225,2550.0],[250,3976.0],[275,5946.0],[300,8588.0],[325,12050.0],[350,16530.0],[370,21040.0],[373,21810.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"ammgas", name:"Ammonia Gas (NH₃)", cat:"Gases (⚠ Compressible)", isGas:true, MW:17.03, mu_ref:1.01000e-05, T_ref:293.15, C_su:370, Tc:132.41, Pc:113.63, omega:0.256, vp:[[-76,6.906],[-40,71.63],[-30,119.4],[-20,190.0],[-10,290.6],[0,429.2],[10,614.8],[20,857.0],[30,1167.0],[40,1555.0],[50,2033.0],[60,2614.0],[70,3312.0],[80,4141.0],[90,5116.0],[100,6255.0],[110,7577.0],[120,9109.0],[131,11080.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"fluegas", name:"Flue Gas (typical)", cat:"Gases (⚠ Compressible)", isGas:true, MW:29, mu_ref:1.90000e-05, T_ref:473.15, C_su:110, Tc:-82.45, Pc:54.4, omega:0.08, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"biogas", name:"Biogas (60% CH₄, 40% CO₂)", cat:"Gases (⚠ Compressible)", isGas:true, MW:27.22, mu_ref:1.25000e-05, T_ref:293.15, C_su:200, Tc:-37.15, Pc:57.1, omega:0.097, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"syngas", name:"Syngas (H₂+CO mixture)", cat:"Gases (⚠ Compressible)", isGas:true, MW:15.5, mu_ref:1.30000e-05, T_ref:293.15, C_su:150, Tc:-183.25, Pc:28.0, omega:-0.08, src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"hclgas", name:"HCl Gas", cat:"Gases (⚠ Compressible)", isGas:true, MW:36.46, mu_ref:1.42600e-05, T_ref:273.15, C_su:360, Tc:51.53, Pc:83.14, omega:0.129, vp:[[-68,243.4],[-40,765.8],[-30,1078.0],[-20,1477.0],[-10,1976.0],[0,2589.0],[10,3334.0],[20,4227.0],[30,5292.0],[40,6556.0],[50,8059.0]], src:"Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity"},
+  {id:"dmf", name:"DMF (Dimethylformamide)", cat:"Chemical Process", isGas:false, tab:[[-33,996.4,2.035],[-30,993.7,1.917],[-20,985.0,1.588],[-10,976.1,1.338],[0,967.2,1.144],[10,958.2,0.9901],[20,949.1,0.8673],[30,939.9,0.7676],[40,930.6,0.6858],[50,921.1,0.6178],[60,911.6,0.5608],[70,902.0,0.5127],[80,892.2,0.4716],[90,882.3,0.4362],[100,872.3,0.4057],[110,862.1,0.3791],[120,851.8,0.3558],[140,830.6,0.3172],[152,817.6,0.2981]], vp:[[-33,0.005071],[-30,0.006883],[-20,0.01795],[-10,0.04307],[0,0.09597],[10,0.2003],[20,0.3943],[30,0.7367],[40,1.314],[50,2.246],[60,3.698],[70,5.883],[80,9.072],[90,13.6],[100,19.87],[110,28.36],[120,39.62],[140,72.99],[152,102.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"dmso", name:"DMSO (Dimethyl Sulfoxide)", cat:"Chemical Process", isGas:false, tab:[[22,1099.1,2.101],[30,1091.3,1.805],[40,1081.5,1.515],[50,1071.6,1.289],[60,1061.6,1.112],[70,1051.6,0.9711],[80,1041.5,0.857],[90,1031.3,0.7638],[100,1021.0,0.6869],[110,1010.6,0.6228],[120,1000.1,0.5689],[140,978.9,0.4844],[160,957.2,0.4222],[180,935.0,0.3753],[190,923.8,0.3562]], vp:[[22,0.06476],[30,0.1133],[40,0.2182],[50,0.4018],[60,0.7103],[70,1.21],[80,1.993],[90,3.183],[100,4.941],[110,7.475],[120,11.04],[140,22.59],[160,42.85],[180,76.17],[190,99.4]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"thf", name:"THF (Tetrahydrofuran)", cat:"Chemical Process", isGas:false, tab:[[-40,945.8,1.077],[-30,936.0,0.9159],[-20,926.2,0.789],[-10,916.2,0.6874],[0,906.0,0.6048],[10,895.7,0.537],[20,885.3,0.4806],[30,874.6,0.4333],[40,863.8,0.3932],[50,852.7,0.3589],[60,841.5,0.3294],[70,830.0,0.3038],[80,818.3,0.2815],[90,806.2,0.2619],[100,793.9,0.2446]], vp:[[-40,0.4831],[-30,1.009],[-20,1.973],[-10,3.642],[0,6.387],[10,10.7],[20,17.22],[30,26.72],[40,40.12],[50,58.52],[60,83.12],[70,115.3],[80,156.4],[90,208.2],[100,272.1]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"nmp", name:"N-Methylpyrrolidone (NMP)", cat:"Chemical Process", isGas:false, tab:[[-20,1067.0,3.784],[-10,1058.5,3.075],[0,1050.0,2.537],[10,1041.5,2.122],[20,1033.0,1.797],[30,1024.5,1.538],[40,1016.0,1.329],[50,1007.5,1.16],[60,999.0,1.02],[70,990.5,0.9038],[80,982.0,0.8064],[90,973.5,0.724],[100,965.0,0.6538],[110,956.5,0.5936],[120,948.0,0.5415],[140,931.0,0.4568],[160,914.0,0.3914],[180,897.0,0.34],[200,880.0,0.2989]], vp:[[-20,0.0008315],[-10,0.002234],[0,0.005584],[10,0.01308],[20,0.02891],[30,0.06066],[40,0.1214],[50,0.2326],[60,0.4288],[70,0.7607],[80,1.295],[90,2.122],[100,3.362],[110,5.168],[120,7.728],[140,16.07],[160,30.77],[180,54.93],[200,92.44]], src:"Handbook point data, ±10–20%"},
+  {id:"acetonitrile", name:"Acetonitrile (MeCN)", cat:"Chemical Process", isGas:false, tab:[[-40,843.1,0.7725],[-30,833.2,0.6624],[-20,823.2,0.5749],[-10,813.1,0.5044],[0,802.9,0.4467],[10,792.5,0.3991],[20,782.0,0.3593],[30,771.3,0.3257],[40,760.4,0.2971],[50,749.4,0.2726],[60,738.2,0.2514],[70,726.8,0.2329],[80,715.2,0.2168],[90,703.3,0.2025],[100,691.1,0.1899],[110,678.7,0.1787],[120,665.9,0.1686],[140,639.3,0.1514],[160,610.9,0.1374],[163,606.4,0.1355]], vp:[[-40,0.2534],[-30,0.5337],[-20,1.054],[-10,1.965],[0,3.485],[10,5.912],[20,9.641],[30,15.18],[40,23.14],[50,34.31],[60,49.57],[70,69.97],[80,96.74],[90,131.2],[100,175.0],[110,229.6],[120,297.1],[140,478.7],[160,738.0],[163,784.9]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"diethether", name:"Diethyl Ether", cat:"Chemical Process", isGas:false, tab:[[-3,739.1,0.2983],[0,735.9,0.2889],[10,724.9,0.2603],[20,713.6,0.2355],[30,702.0,0.2139],[40,690.1,0.1949],[50,677.8,0.1781],[60,665.2,0.1631],[70,652.1,0.1497],[80,638.4,0.1376],[90,624.2,0.1266],[100,609.3,0.1166],[110,593.5,0.1073],[120,576.8,0.09875],[123,571.6,0.09628]], vp:[[-3,21.44],[0,24.74],[10,38.85],[20,58.83],[30,86.25],[40,122.9],[50,170.7],[60,231.7],[70,308.2],[80,402.4],[90,516.9],[100,654.3],[110,817.1],[120,1008.0],[123,1071.0]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"dioxane", name:"1,4-Dioxane", cat:"Chemical Process", isGas:false, tab:[[15,1039.5,1.431],[20,1034.0,1.302],[30,1022.9,1.092],[40,1011.7,0.9307],[50,1000.3,0.8054],[60,988.7,0.7065],[70,977.0,0.6272],[80,965.0,0.563],[90,952.9,0.5103],[100,940.5,0.4668],[101,939.2,0.4629]], vp:[[15,3.019],[20,3.941],[30,6.523],[40,10.42],[50,16.12],[60,24.24],[70,35.48],[80,50.71],[90,70.91],[100,97.18],[101,100.2]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"furfural", name:"Furfural", cat:"Chemical Process", isGas:false, tab:[[0,1179.7,2.381],[10,1169.6,1.981],[20,1159.4,1.67],[30,1149.2,1.423],[40,1138.8,1.226],[50,1128.3,1.065],[60,1117.7,0.9335],[70,1106.9,0.8245],[80,1096.0,0.7333],[90,1085.0,0.6564],[100,1073.9,0.5911]], vp:[[0,0.04928],[10,0.1063],[20,0.216],[30,0.4161],[40,0.7641],[50,1.344],[60,2.273],[70,3.713],[80,5.873],[90,9.025],[100,13.51]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"milk", name:"Milk (whole)", cat:"Food & Pharma", isGas:false, tab:[[2,1035.9,3.188],[10,1033.3,2.572],[20,1030.0,2.0],[30,1026.7,1.581],[40,1023.4,1.269],[50,1020.1,1.032],[60,1016.8,0.85],[70,1013.5,0.708],[80,1010.2,0.5959],[90,1006.9,0.5063]], vapFixed:0.023, src:"Handbook point data, ±10–20%"},
+  {id:"milk_skim", name:"Skim Milk", cat:"Food & Pharma", isGas:false, tab:[[2,1040.9,2.777],[10,1038.3,2.245],[20,1035.0,1.75],[30,1031.7,1.387],[40,1028.4,1.115],[50,1025.1,0.9089],[60,1021.8,0.75],[70,1018.5,0.6259],[80,1015.2,0.5276],[90,1011.9,0.449]], vapFixed:0.023, src:"Handbook point data, ±10–20%"},
+  {id:"olive", name:"Olive Oil", cat:"Food & Pharma", isGas:false, tab:[[10,919.2,134.8],[20,912.8,81.56],[30,906.2,52.47],[40,899.8,35.54],[50,893.2,25.15],[60,886.8,18.47],[70,880.2,13.99],[80,873.8,10.89],[90,867.2,8.681],[100,860.8,7.058],[110,854.2,5.84],[120,847.8,4.906],[140,834.8,3.599],[150,828.2,3.134]], vapFixed:0.001, src:"Handbook point data, ±10–20%"},
+  {id:"sunflower", name:"Sunflower Oil", cat:"Food & Pharma", isGas:false, tab:[[10,924.2,92.01],[20,917.8,59.24],[30,911.2,40.14],[40,904.8,28.41],[50,898.2,20.86],[60,891.8,15.8],[70,885.2,12.3],[80,878.8,9.792],[90,872.2,7.957],[100,865.8,6.58],[110,859.2,5.524],[120,852.8,4.701],[140,839.8,3.523],[150,833.2,3.094]], vp:[[40,0.001],[80,0.01],[100,0.03]], src:"Handbook point data, ±10–20%"},
+  {id:"palmoil", name:"Palm Oil", cat:"Food & Pharma", isGas:false, tab:[[40,898.5,35.94],[50,891.9,25.59],[60,885.3,18.88],[70,878.7,14.36],[80,872.1,11.22],[90,865.5,8.961],[100,858.9,7.301],[110,852.3,6.05],[120,845.7,5.09],[140,832.5,3.741],[150,825.9,3.259]], vapFixed:0.001, src:"Handbook point data, ±10–20% (solid below ~35 °C)"},
+  {id:"cornsyrup", name:"Corn Syrup 63° Brix", cat:"Food & Pharma", isGas:false, tab:[[10,1308.5,193.3],[20,1303.0,110.0],[30,1297.5,64.98],[40,1292.0,39.69],[50,1286.5,25.0],[60,1281.0,16.19],[70,1275.5,10.75],[80,1270.0,7.308],[90,1264.5,5.074]], vapFixed:0.01, src:"Indicative literature values, ±30% — verify for design"},
+  {id:"honey", name:"Honey", cat:"Food & Pharma", isGas:false, tab:[[10,1425.0,27420.0],[20,1420.0,9000.0],[30,1415.0,3179.0],[40,1410.0,1200.0],[50,1405.0,481.1],[60,1400.0,203.8],[70,1395.0,90.75]], vapFixed:0.005, src:"Indicative literature values, ±30% — verify for design (17% moisture)"},
+  {id:"mercury", name:"Mercury (liquid)", cat:"Special & Metals", isGas:false, tab:[[-23,13652.1,1.874],[-20,13644.6,1.847],[-10,13619.8,1.764],[0,13595.1,1.691],[10,13570.4,1.626],[20,13545.9,1.567],[30,13521.3,1.515],[40,13496.9,1.467],[50,13472.5,1.423],[60,13448.2,1.383],[70,13423.9,1.347],[80,13399.7,1.314],[90,13375.5,1.283],[100,13351.4,1.254],[110,13327.3,1.228],[120,13303.3,1.203],[140,13255.3,1.159],[160,13207.5,1.12],[180,13159.7,1.086],[200,13112.0,1.056],[225,13052.5,1.022],[250,12992.9,0.9926],[275,12933.3,0.9666],[300,12873.6,0.9434]], vp:[[-23,2.23e-06],[-20,3.168e-06],[-10,9.631e-06],[0,2.699e-05],[10,7.028e-05],[20,0.0001713],[30,0.0003931],[40,0.0008551],[50,0.001771],[60,0.003508],[70,0.006673],[80,0.01223],[90,0.02167],[100,0.03721],[110,0.06209],[120,0.1009],[140,0.2478],[160,0.5592],[180,1.173],[200,2.307],[225,4.971],[250,9.935],[275,18.61],[300,32.97]], src:"DIPPR/Perry correlations (thermo library)"},
+  {id:"molten_s", name:"Molten Sulfur", cat:"Special & Metals", isGas:false, tab:[[120,1808.5,15.21],[140,1791.5,9.606],[158,1776.2,6.588]], vapFixed:0.001, src:"Handbook point data, ±10–20% — invalid above 159 °C (polymerisation)"},
+  {id:"slurry10", name:"Slurry (10% solids)", cat:"Special & Metals", isGas:false, tab:[[5,1105.2,5.75],[10,1103.5,5.5],[20,1100.0,5.0],[30,1096.5,4.5],[40,1093.0,4.0],[50,1089.5,3.5],[60,1086.0,3.0],[70,1082.5,2.5],[80,1079.0,2.0],[90,1075.5,1.5]], vapFixed:0.02, src:"Indicative only — slurries/muds are non-Newtonian; use measured rheology"},
+  {id:"slurry30", name:"Slurry (30% solids)", cat:"Special & Metals", isGas:false, tab:[[5,1356.0,22.25],[10,1354.0,21.5],[20,1350.0,20.0],[30,1346.0,18.5],[40,1342.0,17.0],[50,1338.0,15.5],[60,1334.0,14.0],[70,1330.0,12.5],[80,1326.0,11.0],[90,1322.0,9.5]], vapFixed:0.015, src:"Indicative only — slurries/muds are non-Newtonian; use measured rheology"},
+  {id:"slurry50", name:"Slurry (50% solids, dense)", cat:"Special & Metals", isGas:false, tab:[[5,1656.8,86.0],[10,1654.5,84.0],[20,1650.0,80.0],[30,1645.5,76.0],[40,1641.0,72.0],[50,1636.5,68.0],[60,1632.0,64.0],[70,1627.5,60.0],[80,1623.0,56.0],[90,1618.5,52.0]], vapFixed:0.01, src:"Indicative only — slurries/muds are non-Newtonian; use measured rheology"},
+  {id:"drilling_mud", name:"Drilling Mud (12 ppg)", cat:"Special & Metals", isGas:false, tab:[[5,1450.0,34.0],[10,1447.5,33.0],[20,1442.5,31.0],[30,1437.5,29.0],[40,1432.5,27.0],[50,1427.5,25.0],[60,1422.5,23.0],[70,1417.5,21.0],[80,1412.5,19.0],[90,1407.5,17.0]], vapFixed:0.015, src:"Indicative only — slurries/muds are non-Newtonian; use measured rheology"},
+  {id:"propane", name:"Propane (C₃H₈) — auto phase", cat:"Dual-Phase (auto L/G)", isGas:"auto", Tc:96.74, Pc:42.51, omega:0.1521, gas_MW:44.1, gas_mu_ref:8.20000e-06, gas_T_ref:293.15, gas_C_su:330, liq_tab:[[-80,622.8,0.3159],[-40,578.4,0.1926],[-30,566.6,0.1723],[-20,554.5,0.1547],[-10,541.8,0.1393],[0,528.6,0.1256],[10,514.7,0.1133],[20,500.1,0.1023],[30,484.4,0.09219],[40,467.5,0.08284],[50,448.9,0.07407],[60,428.0,0.06565],[70,403.6,0.05736],[80,373.3,0.04879],[90,328.8,0.03882]], vp:[[-80,13.05],[-40,111.1],[-30,167.8],[-20,244.5],[-10,345.3],[0,474.5],[10,636.6],[20,836.5],[30,1079.0],[40,1369.0],[50,1713.0],[60,2117.0],[70,2587.0],[80,3132.0],[90,3764.0]], src:"CoolProp Helmholtz EOS — saturated liquid (liquid) / Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity (vapour)"},
+  {id:"co2", name:"CO₂ — auto phase", cat:"Dual-Phase (auto L/G)", isGas:"auto", Tc:30.98, Pc:73.77, omega:0.2239, gas_MW:44.01, gas_mu_ref:1.48000e-05, gas_T_ref:293.15, gas_C_su:240, liq_tab:[[-55,1172.9,0.2468],[-40,1116.4,0.1927],[-30,1075.7,0.164],[-20,1031.7,0.1397],[-10,982.9,0.1188],[0,927.4,0.1004],[10,861.1,0.08354],[20,773.4,0.06677],[30,593.3,0.04342]], vp:[[-55,554.0],[-40,1004.0],[-30,1428.0],[-20,1970.0],[-10,2649.0],[0,3485.0],[10,4502.0],[20,5729.0],[30,7214.0]], src:"CoolProp Helmholtz EOS — saturated liquid (liquid) / Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity (vapour)"},
+  {id:"water_steam", name:"Water/Steam — auto phase", cat:"Dual-Phase (auto L/G)", isGas:"auto", Tc:373.95, Pc:220.64, omega:0.3443, gas_MW:18.015, gas_mu_ref:1.20000e-05, gas_T_ref:373.15, gas_C_su:1064, liq_tab:[[0,999.8,1.791],[10,999.7,1.306],[20,998.2,1.002],[30,995.6,0.7972],[40,992.2,0.6527],[50,988.0,0.5465],[60,983.2,0.466],[70,977.7,0.4035],[80,971.8,0.354],[90,965.3,0.3142],[100,958.3,0.2816],[110,950.9,0.2546],[120,943.1,0.232],[140,926.1,0.1966],[160,907.4,0.1704],[180,887.0,0.1504],[200,864.7,0.1346],[225,833.7,0.1189],[250,798.9,0.1063],[275,759.0,0.09555],[300,712.1,0.08586],[325,654.3,0.07639],[350,574.7,0.0658],[370,451.4,0.05226]], vp:[[0,0.6117],[10,1.228],[20,2.339],[30,4.247],[40,7.385],[50,12.35],[60,19.95],[70,31.2],[80,47.41],[90,70.18],[100,101.4],[110,143.4],[120,198.7],[140,361.5],[160,618.2],[180,1003.0],[200,1555.0],[225,2550.0],[250,3976.0],[275,5946.0],[300,8588.0],[325,12050.0],[350,16530.0],[370,21040.0]], src:"CoolProp Helmholtz EOS — saturated liquid (liquid) / Ideal gas + Pitzer/Tsonopoulos 2nd-virial Z; Sutherland viscosity (vapour)"},
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PROPERTY CALCULATION ENGINE
 
 /* ═══════════════════════════════════════════════════════════════
    FITTING CATALOGUE
@@ -4815,245 +4277,212 @@ const FITTING_CATALOGUE = {
 
 /* ═══════════════════════════════════════════════════════════════
    PROPERTY CALCULATION ENGINE
-   calcFluidProps(id, T_C, P_bar) → {rho[kg/m³], mu[cP], Pv[bar], isGas, warn}
-═══════════════════════════════════════════════════════════════ */
-// calcFluidProps(id, T_C, P_bar) → {rho[kg/m³], mu[cP], Pv[bar], isGas, warn}
-// ─────────────────────────────────────────────────────────────────────────────
+   calcFluidProps(id, T_C, P_bar) → {rho[kg/m³], mu[cP], Pv[bar], isGas, Z, warn, src}
 
-// ── VAPOUR PRESSURE LOOKUP — log-linear interpolation (same method as NPSH calculator) ──
-// vp table: [[T_C, kPa], ...] — must be sorted ascending by T
-// Returns Pv in kPa. Far more accurate than Antoine for most fluids.
-function vpI(f, T_C) {
+   Liquids  : tabulated reference data  tab = [[T °C, ρ kg/m³, μ cP], …]
+              ρ linear in T between nodes; ln μ linear in 1/T (Andrade between
+              nodes) — this also gives a physically sensible extrapolation.
+   Gases    : ρ = P·M / (Z·R·T), Z from the Pitzer / Tsonopoulos second-virial
+              correlation (Tc, Pc, ω); μ from Sutherland's law.
+   Psat     : vp = [[T °C, kPa], …] — ln P linear in 1/T (Clausius–Clapeyron).
+═══════════════════════════════════════════════════════════════ */
+const R_GAS = 8314.46;   // J/(kmol·K)
+
+function tabInterp(tab, T_C) {
+  const n = tab.length;
+  let i;
+  if (T_C <= tab[0][0]) i = 0;
+  else if (T_C >= tab[n - 1][0]) i = n - 2;
+  else { i = 0; while (i < n - 2 && T_C > tab[i + 1][0]) i++; }
+  const a = tab[i], b = tab[i + 1];
+  const r = (T_C - a[0]) / (b[0] - a[0]);
+  let rho = a[1] + r * (b[1] - a[1]);
+  const ia = 1 / (a[0] + 273.15), ib = 1 / (b[0] + 273.15), it = 1 / (T_C + 273.15);
+  const s = (it - ia) / (ib - ia);
+  const mu = Math.exp(Math.log(a[2]) + s * (Math.log(b[2]) - Math.log(a[2])));
+  const rhoMin = Math.min(tab[0][1], tab[n - 1][1]);
+  if (rho < 0.5 * rhoMin) rho = 0.5 * rhoMin;       // guard against wild extrapolation
+  return { rho, mu, Tmin: tab[0][0], Tmax: tab[n - 1][0], out: T_C < tab[0][0] || T_C > tab[n - 1][0] };
+}
+
+// Vapour pressure [kPa] — log-linear in 1/T between nodes, Clausius–Clapeyron beyond.
+function vpLookup(f, T_C) {
   const d = f.vp;
-  if (!d || !d.length) return null;  // no table → fallback to Antoine/fixed
-  if (T_C <= d[0][0])             return d[0][1];
-  if (T_C >= d[d.length-1][0])   return d[d.length-1][1];
-  for (let i = 0; i < d.length-1; i++) {
-    if (T_C >= d[i][0] && T_C < d[i+1][0]) {
-      const r  = (T_C - d[i][0]) / (d[i+1][0] - d[i][0]);
-      const l1 = Math.log(Math.max(d[i][1],   1e-10));
-      const l2 = Math.log(Math.max(d[i+1][1], 1e-10));
-      return Math.exp(l1 + r*(l2 - l1));  // kPa
-    }
-  }
-  return d[d.length-1][1];
+  if (!d || d.length < 2) return null;
+  const n = d.length;
+  let i;
+  if (T_C <= d[0][0]) i = 0;
+  else if (T_C >= d[n - 1][0]) i = n - 2;
+  else { i = 0; while (i < n - 2 && T_C > d[i + 1][0]) i++; }
+  const a = d[i], b = d[i + 1];
+  const ia = 1 / (a[0] + 273.15), ib = 1 / (b[0] + 273.15), it = 1 / (T_C + 273.15);
+  const s = (it - ia) / (ib - ia);
+  let P = Math.exp(Math.log(Math.max(a[1], 1e-12)) + s * (Math.log(Math.max(b[1], 1e-12)) - Math.log(Math.max(a[1], 1e-12))));
+  if (f.Pc && P > f.Pc * 100) P = f.Pc * 100;
+  return P;
+}
+
+// Pitzer correlation for the second virial coefficient (Tsonopoulos form)
+function virialZ(T_K, P_bar, Tc_C, Pc_bar, omega) {
+  const Tr = T_K / (Tc_C + 273.15), Pr = P_bar / Pc_bar;
+  const B0 = 0.083 - 0.422 / Math.pow(Tr, 1.6);
+  const B1 = 0.139 - 0.172 / Math.pow(Tr, 4.2);
+  const Z = 1 + (B0 + (omega || 0) * B1) * Pr / Tr;
+  return { Z: Math.min(1.6, Math.max(0.3, Z)), Tr, Pr };
+}
+
+function sutherland(mu_ref, T_ref, C, T_K) {
+  return mu_ref * Math.pow(T_K / T_ref, 1.5) * (T_ref + C) / (T_K + C) * 1000;  // cP
 }
 
 function calcFluidProps(id, T_C, P_bar) {
   const f = FLUID_DB_pdrop.find(x => x.id === id);
   if (!f) return null;
   const T_K = T_C + 273.15;
-  let rho, mu, Pv = 0, warn = '', phaseLabel = '';
+  const warns = [];
+  let rho, mu, Z = null, phaseLabel = '', isGasNow;
 
-  // ── VAPOUR PRESSURE — priority: vp table > Antoine/CC > fixed ─────────────
-  // Method 1: lookup table with log-linear interpolation (most accurate)
-  const vpTable = vpI(f, T_C);
-  if (vpTable !== null) {
-    Pv = vpTable / 100;  // kPa → bar
-  } else if (f.Pv_form === 'cc_ln' && f.Pv_A !== undefined) {
-    // Clausius-Clapeyron ln form: ln(Pv_bar) = A + B/T_K
-    Pv = Math.max(0, Math.exp(f.Pv_A + f.Pv_B / T_K));
-  } else if (f.Pv_A !== undefined) {
-    // Antoine: log10(Pv/mmHg) = A − B/(C + T°C)
-    const denom = f.Pv_C + T_C;
-    if (denom > 0) {
-      const logPv = f.Pv_A - f.Pv_B / denom;
-      Pv = Math.max(0, Math.pow(10, logPv) * 0.00133322); // bar
+  // ── Vapour pressure ──────────────────────────────────────────────────────
+  let Pv = 0;
+  const vpk = vpLookup(f, T_C);
+  if (vpk !== null) Pv = vpk / 100;
+  else if (f.vapFixed !== undefined) Pv = f.vapFixed;
+
+  // ── Phase ────────────────────────────────────────────────────────────────
+  if (f.isGas === true) isGasNow = true;
+  else if (f.isGas === false) isGasNow = false;
+  else {
+    if (T_C >= f.Tc) {
+      isGasNow = true;
+      phaseLabel = P_bar > f.Pc ? '⬡ Supercritical' : '↑ Gas (T > Tc)';
+      if (P_bar > f.Pc) warns.push('Supercritical (T > Tc = ' + f.Tc + ' °C, P > Pc = ' + f.Pc + ' bar) — gas-like properties used, accuracy reduced.');
+    } else if (P_bar < Pv) {
+      isGasNow = true;
+      phaseLabel = '↑ Vapour (P < Psat = ' + Pv.toFixed(3) + ' bar)';
+    } else {
+      isGasNow = false;
+      phaseLabel = '↓ Liquid (P ≥ Psat = ' + Pv.toFixed(3) + ' bar)';
     }
-  } else if (f.vapFixed !== undefined) {
-    Pv = f.vapFixed;
+    if (T_C < f.Tc && Pv > 0 && Math.abs(P_bar - Pv) / Pv < 0.05)
+      warns.push('Within 5% of saturation pressure — two-phase flow likely; single-phase result is unreliable.');
   }
 
-  // ── PHASE DETECTION for dual-phase fluids (isGas === 'auto') ──────────────
-  // Rule: if T > Tc OR P < Pv(T) → GAS phase; else → LIQUID phase
-  // Also handle supercritical: T > Tc AND P > Pc → supercritical (treat as gas-like)
-  let effectiveIsGas = f.isGas; // default: use declared phase
-  if (f.isGas === 'auto') {
-    const aboveCriticalT = (f.Tc !== undefined) && (T_C > f.Tc);
-    const aboveCriticalP = (f.Pc !== undefined) && (P_bar > f.Pc);
-    // Supercritical region
-    if (aboveCriticalT && aboveCriticalP) {
-      effectiveIsGas = true;
-      phaseLabel = '⬡ Supercritical';
-      warn += '⚠ Supercritical conditions (T > Tc=' + f.Tc + '°C, P > Pc=' + f.Pc + ' bar). Using gas-like properties. ';
+  // ── Properties ───────────────────────────────────────────────────────────
+  if (isGasNow) {
+    const g = f.isGas === true
+      ? { MW: f.MW, mu_ref: f.mu_ref, T_ref: f.T_ref, C: f.C_su }
+      : { MW: f.gas_MW, mu_ref: f.gas_mu_ref, T_ref: f.gas_T_ref, C: f.gas_C_su };
+    Z = 1;
+    if (f.Tc !== undefined && f.Pc) {
+      const v = virialZ(T_K, P_bar, f.Tc, f.Pc, f.omega);
+      Z = v.Z;
+      if (v.Pr / v.Tr > 0.5) warns.push('High reduced pressure (Pr/Tr = ' + (v.Pr / v.Tr).toFixed(2) + ') — virial Z approximate and viscosity has no pressure correction (may read ~10% low); use an EOS for design.');
     }
-    // Above critical temperature but sub-critical pressure → gas
-    else if (aboveCriticalT) {
-      effectiveIsGas = true;
-      phaseLabel = '↑ Gas (T > Tc)';
-    }
-    // Below critical T: compare Pv(T) with operating P
-    // If P < Pv → system pressure is below vapour pressure → GAS
-    // If P >= Pv → liquid (condensed)
-    else if (Pv > 0 && P_bar < Pv) {
-      effectiveIsGas = true;
-      phaseLabel = '↑ Gas (P < Psat=' + Pv.toFixed(3) + ' bar)';
-    } else {
-      effectiveIsGas = false;
-      phaseLabel = '↓ Liquid (P ≥ Psat=' + Pv.toFixed(3) + ' bar)';
-    }
-  }
-
-  // ── DENSITY ────────────────────────────────────────────────────────────────
-  if (f.isGas === 'auto') {
-    // Dual-phase fluid — use phase-specific model
-    if (effectiveIsGas) {
-      // Gas: ideal gas law
-      rho = (P_bar * 1e5 * f.gas_MW) / (8314.0 * T_K);
-    } else {
-      // Liquid
-      if (f.liq_rhoModel === 'poly_water') {
-        rho = 999.842 + 0.0622*T_C - 0.003713*T_C*T_C + 4.0e-6*Math.pow(T_C,3);
-        if (T_C < 0 || T_C > 374) warn += 'Water polynomial valid 0–374°C. ';
-      } else {
-        rho = f.liq_rho0 + f.liq_k_rho * (T_C - f.liq_Tref);
-        if (rho < 1) { rho = 1; warn += 'ρ clamped — near or above boiling point. '; }
-      }
-    }
-  } else if (f.rhoModel === 'poly_water') {
-    rho = 999.842 + 0.0622*T_C - 0.003713*T_C*T_C + 4.0e-6*Math.pow(T_C,3);
-    if (T_C < 0 || T_C > 150) warn += 'Water poly valid 0–150°C. ';
-  } else if (f.rhoModel === 'ideal_gas') {
-    rho = (P_bar * 1e5 * f.MW) / (8314.0 * T_K);
+    rho = P_bar * 1e5 * g.MW / (Z * R_GAS * T_K);
+    mu = Math.max(0.001, sutherland(g.mu_ref, g.T_ref, g.C, T_K));
+    if (f.isGas === true && vpk !== null && f.Tc !== undefined && T_C < f.Tc && P_bar >= Pv)
+      warns.push('⚠ P ≥ saturation pressure (' + Pv.toFixed(2) + ' bar) at this T — this fluid would be LIQUID. Use the liquid or auto-phase entry.');
   } else {
-    rho = f.rho0 + f.k_rho * (T_C - f.Tref);
-    if (rho < 1) { rho = 1; warn += 'T may be above boiling point — ρ clamped. '; }
+    const tab = f.isGas === 'auto' ? f.liq_tab : f.tab;
+    const r = tabInterp(tab, T_C);
+    rho = r.rho; mu = r.mu;
+    if (r.out) warns.push('T outside data range (' + r.Tmin + ' to ' + r.Tmax + ' °C) — properties extrapolated, verify.');
+    if (f.isGas === false && P_bar > 0 && Pv > 0 && Pv >= P_bar)
+      warns.push('⚠ Vapour pressure (' + Pv.toFixed(3) + ' bar) ≥ operating pressure — fluid will flash or boil.');
   }
-
-  // ── VISCOSITY ──────────────────────────────────────────────────────────────
-  if (f.isGas === 'auto') {
-    if (effectiveIsGas) {
-      // Sutherland
-      const ratio = T_K / f.gas_T_ref;
-      const mu_Pas = f.gas_mu_ref * Math.pow(ratio, 1.5) * (f.gas_T_ref + f.gas_C_su) / (T_K + f.gas_C_su);
-      mu = mu_Pas * 1000;
-    } else {
-      // Andrade for liquid
-      mu = Math.exp(f.liq_A + f.liq_B / T_K);
-    }
-    mu = Math.max(0.001, Math.min(mu, 1e7));
-  } else if (f.viscModel === 'andrade') {
-    mu = Math.exp(f.A + f.B / T_K);
-    mu = Math.max(0.001, Math.min(mu, 1e7));
-  } else if (f.viscModel === 'sutherland') {
-    const ratio = T_K / f.T_ref;
-    const mu_Pas = f.mu_ref * Math.pow(ratio, 1.5) * (f.T_ref + f.C_su) / (T_K + f.C_su);
-    mu = mu_Pas * 1000;
-    mu = Math.max(0.001, mu);
-  } else {
-    const Tref_mu = f.Tref_mu !== undefined ? f.Tref_mu : f.Tref;
-    mu = f.mu0 + f.k_mu * (T_C - Tref_mu);
-    mu = Math.max(0.001, mu);
-  }
-
-  // ── FLASH / BOILING WARNING (non-auto fluids) ──────────────────────────────
-  if (f.isGas !== 'auto' && !f.isGas && P_bar > 0 && Pv > 0 && Pv >= P_bar)
-    warn += '⚠ Vapour pressure ≥ operating pressure — fluid may flash or boil! ';
-
-  // ── GAS compressibility reminder ───────────────────────────────────────────
-  if (effectiveIsGas === true && f.isGas !== 'auto')
-    warn += '';  // existing gas entries already get the alert via selectFluid()
 
   return {
-    rho:        parseFloat(rho.toFixed(3)),
-    mu:         parseFloat(mu.toFixed(4)),
-    Pv:         parseFloat(Pv.toFixed(6)),
-    isGas:      effectiveIsGas === true || effectiveIsGas === 'auto',
-    phaseLabel: phaseLabel,
-    name:       f.name, cat: f.cat, warn
+    rho:        parseFloat(rho.toPrecision(5)),
+    mu:         parseFloat(mu.toPrecision(4)),
+    Pv:         parseFloat(Pv.toPrecision(4)),
+    isGas:      isGasNow === true,
+    Z:          Z === null ? null : parseFloat(Z.toFixed(4)),
+    phaseLabel,
+    name:       f.name, cat: f.cat,
+    src:        f.src || '',
+    warn:       warns.join(' '),
   };
 }
 
-// Shim so any legacy code that reads FLUID_LIBRARY still works
-
 /* ═══════════════════════════════════════════════════════════════
-   DARCY-WEISBACH + COLEBROOK-WHITE CALCULATION ENGINE
+   DARCY-WEISBACH FRICTION FACTOR
+     Re < 2000        : f = 64/Re (Hagen-Poiseuille, exact)
+     2000 ≤ Re < 4000 : Churchill (1977) — continuous through transition
+                        (equals 64/Re within 0.14 % at Re = 2000)
+     Re ≥ 4000        : Colebrook-White, Swamee-Jain seed, iterated to 1e-10
 ═══════════════════════════════════════════════════════════════ */
-// FIX NPSH-2: friction factor extracted into a shared helper so the main line
-// and the optional NPSH suction line use the SAME engine (Churchill 1977 for
-// laminar/transitional, Swamee-Jain seed + Colebrook-White iteration for
-// turbulent). Math is byte-identical to the previous inline block.
+function churchill1977(Re, relRough) {
+  const A = Math.pow(2.457 * Math.log(1 / (Math.pow(7 / Re, 0.9) + 0.27 * relRough)), 16);
+  const B = Math.pow(37530 / Re, 16);
+  return 8 * Math.pow(Math.pow(8 / Re, 12) + 1 / Math.pow(A + B, 1.5), 1 / 12);
+}
+
 function dwFrictionFactor(Re, eps_m, Dm) {
-  let f;
-  if (Re < 2300) {
-    f = 64 / Re;  // Laminar: Hagen-Poiseuille exact
-  } else if (Re < 4000) {
-    const A_ch = Math.pow(2.457 * Math.log(1 / (Math.pow(7 / Re, 0.9) + 0.27 * (eps_m / Dm))), 16);
-    const B_ch = Math.pow(37530 / Re, 16);
-    f = 8 * Math.pow(Math.pow(8 / Re, 12) + 1 / Math.pow(A_ch + B_ch, 1.5), 1 / 12);
-    const fCB = Math.pow(-2 * Math.log10(eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(0.02))), -2);
-    f = Math.max(f, fCB);
-  } else {
-    // Swamee-Jain seed → Colebrook-White iteration
-    const arg = eps_m / (3.7 * Dm) + 5.74 / Math.pow(Re, 0.9);
-    f = arg > 0 ? 0.25 / Math.pow(Math.log10(arg), 2) : 0.02;
-    if (!isFinite(f) || f <= 0) f = 0.02;
-    for (let i = 0; i < 50; i++) {
-      const inner = eps_m / (3.7 * Dm) + 2.51 / (Re * Math.sqrt(f));
-      if (inner <= 0 || !isFinite(inner)) break;
-      const fn = Math.pow(-2 * Math.log10(inner), -2);
-      if (!isFinite(fn) || fn <= 0) break;
-      if (Math.abs(fn - f) < 1e-10) { f = fn; break; }
-      f = fn;
-    }
+  const rr = eps_m / Dm;
+  if (Re < 2000) return 64 / Re;
+  if (Re < 4000) return churchill1977(Re, rr);
+  const arg = rr / 3.7 + 5.74 / Math.pow(Re, 0.9);
+  let f = 0.25 / Math.pow(Math.log10(arg), 2);
+  if (!isFinite(f) || f <= 0) f = 0.02;
+  for (let i = 0; i < 50; i++) {
+    const inner = rr / 3.7 + 2.51 / (Re * Math.sqrt(f));
+    if (inner <= 0 || !isFinite(inner)) break;
+    const fn = Math.pow(-2 * Math.log10(inner), -2);
+    if (!isFinite(fn) || fn <= 0) break;
+    if (Math.abs(fn - f) < 1e-12) { f = fn; break; }
+    f = fn;
   }
   return f;
 }
 
 function calcPressureDrop(inputs) {
-  let { D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode } = inputs;
+  let { D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode, isGasFluid, P1_bar } = inputs;
 
-  // Validate
   if ([D, L, Q, rho, mu].some(v => !isFinite(v) || v <= 0))
     return { ok: false, error: 'All inputs must be positive finite numbers.' };
-  if (mu < 0.00001)
-    return { ok: false, error: 'Viscosity too low — check units (enter in cP, e.g. water = 1.0 cP).' };
+  if (mu < 0.001)
+    return { ok: false, error: 'Viscosity below 0.001 cP — check units (enter in cP, e.g. water = 1.0 cP).' };
 
-  const eps = epsBase + Math.max(0, foulingMm);  // total roughness [mm]
+  const eps = epsBase + Math.max(0, foulingMm || 0);  // total roughness [mm]
   dz = isFinite(dz) ? dz : 0;
   const D_orig = D, L_orig = L, dz_orig = dz;
-  // Convert to SI
   if (unitMode === 'imperial') {
     D   *= 25.4;      // in → mm
     L   *= 0.3048;    // ft → m
     dz  *= 0.3048;    // ft → m
-    Q   *= 0.227124;  // GPM → m³/h
-    rho *= 16.0185;   // lb/ft³ → kg/m³
+    Q   *= 0.2271247; // US gpm → m³/h
+    rho *= 16.01846;  // lb/ft³ → kg/m³
   }
 
-  const Dm    = D / 1000;           // mm → m
-  const Qs    = Q / 3600;           // m³/h → m³/s
-  const mu_Pa = mu / 1000;          // cP → Pa·s
-  const eps_m = eps / 1000;         // mm → m
+  const g     = 9.80665;
+  const Dm    = D / 1000;
+  const Qs    = Q / 3600;
+  const mu_Pa = mu / 1000;
+  const eps_m = eps / 1000;
 
   const A  = Math.PI * Dm * Dm / 4;
   const V  = Qs / A;
   const Re = rho * V * Dm / mu_Pa;
-
   if (Re < 1) return { ok: false, error: 'Reynolds number < 1 — check inputs.' };
 
   const f = dwFrictionFactor(Re, eps_m, Dm);
   if (!isFinite(f) || f <= 0) return { ok: false, error: 'Friction factor calculation failed — check pipe roughness.' };
 
-  // K-factor total from fittings list
   const Ktot = Array.isArray(fittings)
-    ? fittings.reduce((s, fit) => {
-        const k = sanitizeNumber(fit.k, 0);
-        const qty = Math.max(0, parseInt(fit.qty) || 0);
-        return s + qty * k;
-      }, 0)
+    ? fittings.reduce((s, fit) => s + Math.max(0, parseInt(fit.qty) || 0) * sanitizeNumber(fit.k, 0), 0)
     : 0;
 
   const dynPres = rho * V * V / 2;
   const dpPipe  = f * (L / Dm) * dynPres;
   const dpMinor = Ktot * dynPres;
-  const dpElev  = rho * 9.81 * dz;
+  const dpElev  = rho * g * dz;
   const dpTotal = dpPipe + dpMinor + dpElev;
 
-  const headLoss = dpTotal / (rho * 9.81);
-  const Leq = f > 0 ? Ktot * Dm / f : 0;
+  const headLoss = dpTotal / (rho * g);
+  const Leq = Ktot * Dm / f;                          // [m]
 
-  const P_hyd   = Qs * dpTotal;
+  const gravityFlow = dpTotal <= 0;
+  const P_hyd   = gravityFlow ? 0 : Qs * dpTotal;
   const P_shaft = P_hyd / pumpEff;
   const P_motor = P_shaft / motorEff;
 
@@ -5062,83 +4491,65 @@ function calcPressureDrop(inputs) {
   else if (Re < 4000)  { regime = 'Transitional'; regimeClass = 'badge-amber'; }
   else                 { regime = 'Turbulent';    regimeClass = 'badge-red';   }
 
-  const uncertPct = Re < 4000 ? 25 : (eps / Dm > 0.01 ? 8 : 5);
+  const relRough = eps_m / Dm;                       // dimensionless ε/D
+  const uncertPct = Re < 4000 ? 25 : (relRough > 0.01 ? 8 : 5);
 
-  // Unit display conversion
-  let dpDisp, dpPipeDisp, dpMinorDisp, dpElevDisp, dpUnit, velDisp, velUnit, headDisp, headUnit;
-  if (unitMode === 'imperial') {
-    const toP = v => v * 0.000145038;
-    dpDisp = toP(dpTotal); dpPipeDisp = toP(dpPipe); dpMinorDisp = toP(dpMinor); dpElevDisp = toP(dpElev);
-    dpUnit = 'psi'; velDisp = V * 3.28084; velUnit = 'ft/s';
-    headDisp = headLoss * 3.28084; headUnit = 'ft';
-  } else {
-    const toBar = v => v / 100000;
-    dpDisp = toBar(dpTotal); dpPipeDisp = toBar(dpPipe); dpMinorDisp = toBar(dpMinor); dpElevDisp = toBar(dpElev);
-    dpUnit = 'bar'; velDisp = V; velUnit = 'm/s';
-    headDisp = headLoss; headUnit = 'm';
-  }
+  const imp = unitMode === 'imperial';
+  const toP = imp ? (v => v * 0.000145037738) : (v => v / 1e5);
+  const dpDisp = toP(dpTotal), dpPipeDisp = toP(dpPipe), dpMinorDisp = toP(dpMinor), dpElevDisp = toP(dpElev);
+  const dpUnit  = imp ? 'psi' : 'bar';
+  const velDisp = imp ? V * 3.280840 : V;
+  const velUnit = imp ? 'ft/s' : 'm/s';
+  const headDisp = imp ? headLoss * 3.280840 : headLoss;
+  const headUnit = imp ? 'ft' : 'm';
+  const LeqDisp = imp ? Leq * 3.280840 : Leq;
+  const lenUnit = imp ? 'ft' : 'm';
+  // Friction gradient of the straight pipe — the usual line-sizing criterion
+  const gradDisp = L_orig > 0 ? dpPipeDisp / L_orig * 100 : 0;
 
   const warnings = [];
-  if (V > 3 && rho > 500)
-    warnings.push(`High velocity ${V.toFixed(2)} m/s — erosion risk above 3 m/s for liquids.`);
-  else if (V > 15)
-    warnings.push(`Very high velocity ${V.toFixed(2)} m/s — erosion and noise concern.`);
-  if (Re >= 2300 && Re < 4000)
-    warnings.push('Transitional regime (Re 2300–4000). Friction factor uncertainty ±20–30%.');
+  if (!isGasFluid && V > 3)
+    warnings.push(`High liquid velocity ${V.toFixed(2)} m/s — erosion and water-hammer risk above ~3 m/s.`);
+  if (isGasFluid && V > 30)
+    warnings.push(`High gas velocity ${V.toFixed(1)} m/s — noise/erosion concern; check API RP 14E erosional velocity.`);
+  if (Re >= 2000 && Re < 4000)
+    warnings.push('Transitional regime (Re 2000–4000): friction factor from Churchill (1977), uncertainty ±20–30%.');
   if (Re < 4000 && Ktot > 0)
-    warnings.push('Fittings equivalent length (Le) less reliable in laminar/transitional flow.');
+    warnings.push('K-factors are turbulent-flow values — fitting losses are under-predicted in laminar/transitional flow (use 3-K or 2-K method).');
+  if (gravityFlow)
+    warnings.push('Net ΔP ≤ 0: the elevation drop exceeds the friction losses, so the line flows by gravity and no pump is needed. The surplus head must be taken up by a control valve or orifice.');
 
-  // ── FIX NPSH-2: optional suction-line hydraulics for the NPSH check ────────
-  // Frontend sends suctionD (mm or in per unitMode) and suctionL (m or ft).
-  // Same flow rate Qs, same fluid (rho SI, mu_Pa), same total roughness eps_m
-  // as the main calculation. Velocity head AND suction friction head for
-  // NPSH_A are then based on the ACTUAL suction line, not the main run.
-  let npsh = null;
-  {
-    let sD = parseFloat(inputs.suctionD);
-    let sL = parseFloat(inputs.suctionL);
-    if (isFinite(sD) && sD > 0 && isFinite(sL) && sL > 0) {
-      if (unitMode === 'imperial') { sD *= 25.4; sL *= 0.3048; }  // in→mm, ft→m
-      const Dsm = sD / 1000;
-      const As  = Math.PI * Dsm * Dsm / 4;
-      const Vs  = Qs / As;
-      const Res = rho * Vs * Dsm / mu_Pa;
-      const fs  = Res >= 1 ? dwFrictionFactor(Res, eps_m, Dsm) : NaN;
-      if (isFinite(fs) && fs > 0 && isFinite(Vs)) {
-        const HfSuction = fs * (sL / Dsm) * Vs * Vs / (2 * 9.81);  // [m]
-        npsh = {
-          Vs:  parseFloat(Vs.toFixed(4)),          // suction velocity [m/s]
-          Res: Math.round(Res),                    // suction Reynolds number
-          fs:  parseFloat(fs.toFixed(6)),          // suction Darcy friction factor
-          HfSuction: parseFloat(HfSuction.toFixed(4)),  // suction friction head [m]
-          Ds_mm: parseFloat(sD.toFixed(2)),
-          Ls_m:  parseFloat(sL.toFixed(2)),
-        };
-        if (Vs > 1.5 && rho > 500)
-          warnings.push(`Suction line velocity ${Vs.toFixed(2)} m/s exceeds 1.5 m/s pump-suction guideline — increases friction loss and cavitation risk. Consider one size larger suction pipe.`);
-        if (Res < 4000)
-          warnings.push('Suction line in laminar/transitional regime — friction head uncertainty ±20–30%.');
-      }
+  // Compressibility checks for gases (need the inlet absolute pressure)
+  let dpRatio = null, mach = null;
+  if (isGasFluid) {
+    const P1 = sanitizeNumber(P1_bar, null);
+    if (P1 && P1 > 0) {
+      dpRatio = dpTotal / (P1 * 1e5);
+      if (dpRatio > 0.4)
+        warnings.push(`ΔP/P₁ = ${(dpRatio * 100).toFixed(0)}% — far outside the incompressible model. Use isothermal/adiabatic compressible flow (or split the line into short segments).`);
+      else if (dpRatio > 0.1)
+        warnings.push(`ΔP/P₁ = ${(dpRatio * 100).toFixed(1)}% exceeds 10% — use the average density or a compressible-flow method; result is approximate.`);
+      const a = Math.sqrt(1.3 * P1 * 1e5 / rho);    // speed of sound, γ ≈ 1.3 (conservative)
+      mach = V / a;
+      if (mach > 0.3)
+        warnings.push(`Mach ≈ ${mach.toFixed(2)} (> 0.3) — compressibility significant regardless of ΔP/P₁.`);
     }
   }
 
   return {
     ok: true,
-    npsh,  // FIX NPSH-2: suction-line block (null when suction D/L not provided)
     dpDisp, dpPipeDisp, dpMinorDisp, dpElevDisp, dpUnit,
     velDisp, velUnit, headDisp, headUnit,
-    V,  // FIX NPSH-1: raw SI velocity [m/s] — always metric regardless of unitMode.
-        // Required by frontend calcNPSH() velocity-head term. Do NOT derive velocity
-        // from dpTotal (√(2ΔP/ρ) is dynamic-pressure inversion, not pipe velocity).
-    Re, f, Ktot,
+    V,
+    Re, f, Ktot, relRough,
     regime, regimeClass,
-    Leq, epsTotalMm: eps, foulingMm,
-    P_hyd, P_shaft, P_motor,
+    Leq, LeqDisp, epsTotalMm: eps, foulingMm,
+    P_hyd, P_shaft, P_motor, gravityFlow,
     Qs, dpTotal, dpPipe, dpMinor, dpElev,
+    dpRatio, mach,
     uncertPct, warnings,
-    per100label: unitMode === 'imperial' ? 'ΔP per 100 ft' : 'ΔP per 100 m',
-    lenUnit:  unitMode === 'imperial' ? 'ft' : 'm',
-    diamUnit: unitMode === 'imperial' ? 'in' : 'mm',
+    gradDisp, gradLabel: imp ? 'Friction gradient per 100 ft' : 'Friction gradient per 100 m',
+    lenUnit, diamUnit: imp ? 'in' : 'mm',
     diameter: D_orig, length: L_orig, dz: dz_orig,
   };
 }
@@ -5244,9 +4655,7 @@ async function pressureDrop_handler(req, res) {
     const motorEff  = Math.max(0.01, Math.min(1, sanitizeNumber(body.motorEff, 0.92)));
     const unitMode  = body.unitMode === 'imperial' ? 'imperial' : 'metric';
     const isGasFluid = !!body.isGasFluid;
-    // FIX NPSH-2: optional suction line for NPSH check (null → feature unused)
-    const suctionD  = sanitizeNumber(body.suctionD, null);
-    const suctionL  = sanitizeNumber(body.suctionL, null);
+    const P1_bar    = sanitizeNumber(body.P1_bar, null);   // inlet abs. pressure (gas checks)
 
     // Sanitize fittings array
     const rawFits = Array.isArray(body.fittings) ? body.fittings.slice(0, 200) : [];
@@ -5258,7 +4667,7 @@ async function pressureDrop_handler(req, res) {
     if ([D, L, Q, rho, mu].some(v => v === null))
       return err(res, 400, 'D, L, Q, rho, mu are required');
 
-    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode, suctionD, suctionL });
+    const result = calcPressureDrop({ D, L, Q, rho, mu, dz, epsBase, foulingMm, fittings, pumpEff, motorEff, unitMode, isGasFluid, P1_bar });
     if (!result.ok) return err(res, 422, result.error);
 
     if (isGasFluid)
