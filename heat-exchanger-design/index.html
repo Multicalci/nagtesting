@@ -870,7 +870,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 
 <!-- ═══ QUICK GUIDE ═══ -->
 <div class="quick-guide" id="quickGuide">
-  <div class="qg-step"><div class="qg-num">1</div><div class="qg-text"><h4>Select HX Type</h4><p>Choose from Shell & Tube, Plate, Air Cooled, or Double Pipe</p></div></div>
+  <div class="qg-step"><div class="qg-num">1</div><div class="qg-text"><h4>Select HX Type</h4><p>Shell &amp; Tube, Plate, Air Cooled, Fin-Fan or Double Pipe — or load a worked example from the menu on each form</p></div></div>
   <div class="qg-step"><div class="qg-num">2</div><div class="qg-text"><h4>Enter Parameters</h4><p>Set temperatures, flow rates, fluid types, and geometry</p></div></div>
   <div class="qg-step"><div class="qg-num">3</div><div class="qg-text"><h4>Calculate & Review</h4><p>Get duty, area, U, NTU, pressure drop, and design recommendations</p></div></div>
   <div class="qg-step"><div class="qg-num">4</div><div class="qg-text"><h4>Export & Share</h4><p>Download PDF report or share results via social media</p></div></div>
@@ -980,7 +980,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           </div>
           <div class="fg"><label>Fluid</label><select id="st_hFl" onchange="fluidChange('st_hFl');coldBalancePreview();autoTubeSpecs();onSatFluidChange('hot')" data-fluid></select></div>
           <div class="fg">
-            <label class="tip" data-tip="Operating pressure for gas density correction (ideal gas law). Ignored for liquids.">
+            <label class="tip" data-tip="Absolute operating pressure. Sets gas density, the boiling/condensing temperature in phase-change modes, and whether a liquid is below its boiling point.">
               Operating Pressure <span id="st_hPgasTag" style="font-size:.63rem;color:var(--blue);font-style:italic;font-weight:600"></span>
             </label>
             <div class="irow">
@@ -1062,7 +1062,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
             <select id="st_cFl" onchange="fluidChange('st_cFl');coldBalancePreview();autoTubeSpecs();onSatFluidChange('cold')" data-fluid></select>
           </div>
           <div class="fg">
-            <label class="tip" data-tip="Operating pressure for gas density correction (ideal gas law). Ignored for liquids.">
+            <label class="tip" data-tip="Absolute operating pressure. Sets gas density, the boiling/condensing temperature in phase-change modes, and whether a liquid is below its boiling point.">
               Operating Pressure <span id="st_cPgasTag" style="font-size:.63rem;color:var(--blue);font-style:italic;font-weight:600"></span>
             </label>
             <div class="irow">
@@ -1297,6 +1297,17 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
               <option value="B">Class B (Chemical)</option>
             </select>
           </div>
+          <div class="fg"><label class="tip" data-tip="Sets the gap between the tube bundle and the shell. Floating heads leave a wide bypass lane, which lowers the shell-side coefficient (Bell-Delaware Jb) unless sealing strips are fitted.">Rear Head / Bundle</label>
+            <select id="st_head">
+              <option value="fixed" selected>Fixed tubesheet (BEM, AEL)</option>
+              <option value="u-tube">U-tube bundle (BEU, AEU)</option>
+              <option value="split-ring">Floating head, split ring (AES)</option>
+              <option value="pull-through">Floating head, pull-through (AET)</option>
+            </select>
+          </div>
+          <div class="fg"><label class="tip" data-tip="Pairs of sealing strips that block the bundle bypass lane. Leave blank for automatic: none for fixed and U-tube bundles, about one pair per 5 tube rows for floating heads.">Sealing Strip Pairs</label>
+            <div class="irow"><input type="number" id="st_seal" placeholder="auto" step="1" min="0" max="20"><div class="ulab">pairs</div></div>
+          </div>
         </div>
 
         <!-- ── FIX 5: Space Constraint Inputs (plant layout enforcement) ─── -->
@@ -1345,7 +1356,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="sec-hd" style="color:var(--red);border-bottom-color:#f0cfc0">🔴 Hot Side</div>
         <div class="fgrid">
           <div class="fg"><label>Fluid</label><select id="pl_hFl" onchange="fluidChange('pl_hFl');plUpdateColdOutlet();plUpdateColdFlow();" data-fluid></select></div>
-          <div class="fg"><label class="tip" data-tip="Operating pressure for gas density correction (ideal gas + Z). Ignored for liquids.">Op. Pressure (bar abs)</label>
+          <div class="fg"><label class="tip" data-tip="Absolute operating pressure. Sets gas density (with Z-factor) and whether a liquid is below its boiling point.">Op. Pressure (bar abs)</label>
             <div class="irow"><input type="number" id="pl_hPop" value="1.01325" step="0.1" min="0.01"><select id="pl_hPop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('pl_hPop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar a</option>
 <option value="kpa">kPa a</option>
@@ -1384,7 +1395,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="sec-hd" style="color:var(--teal);border-bottom-color:#a0e0d5">🔵 Cold Side</div>
         <div class="fgrid">
           <div class="fg"><label>Fluid</label><select id="pl_cFl" onchange="fluidChange('pl_cFl');plUpdateColdOutlet();plUpdateColdFlow();" data-fluid></select></div>
-          <div class="fg"><label class="tip" data-tip="Operating pressure for gas density correction. Ignored for liquids.">Op. Pressure (bar abs)</label>
+          <div class="fg"><label class="tip" data-tip="Absolute operating pressure. Sets gas density and whether a liquid is below its boiling point.">Op. Pressure (bar abs)</label>
             <div class="irow"><input type="number" id="pl_cPop" value="1.01325" step="0.1" min="0.01"><select id="pl_cPop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('pl_cPop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar a</option>
 <option value="kpa">kPa a</option>
@@ -1470,6 +1481,9 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           <div class="fg"><label class="tip" data-tip="Combined fouling factor both sides. TEMA liquid-liquid: ~0.0002 m²K/W">Fouling Factor (m²K/W)</label>
             <div class="irow"><input type="number" id="pl_foul" value="0.0002" step="0.00005" min="0"><div class="ulab">m²K/W</div></div>
           </div>
+          <div class="fg"><label class="tip" data-tip="Leave at 0 to let the tool size the plate pack; enter a number to rate an existing pack.">No. of Plates (0 = auto)</label>
+            <div class="irow"><input type="number" id="pl_nPlates" value="0" step="1" min="0" max="1000"><div class="ulab">plates</div></div>
+          </div>
           <div class="fg"><label>Allow. Hot ΔP (bar)</label>
             <div class="irow"><input type="number" id="pl_pdH" value="1.50" step="0.1" min="0.01"><select id="pl_pdH_usel" class="u-sel u-pdrop-sel" onchange="onPresUnitChange('pl_pdH',this.value)" style="width:68px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar</option>
@@ -1529,6 +1543,15 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
             <div class="irow"><input type="number" id="ac_F" step="1" value="10000" required><div class="ulab u-flow-l">kg/h</div></div>
           </div>
           <div class="fg"><label>Process Fluid</label><select id="ac_Fl" onchange="fluidChange('ac_Fl')" data-fluid></select></div>
+          <div class="fg"><label class="tip" data-tip="Tube-side operating pressure (absolute). Sets gas density, and tells the tool whether a liquid is below its boiling point.">Op. Pressure</label>
+            <div class="irow"><input type="number" id="ac_Pop" value="4" step="0.1" min="0.01"><select id="ac_Pop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('ac_Pop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
+<option value="bar" selected>bar a</option>
+<option value="kpa">kPa a</option>
+<option value="mpa">MPa a</option>
+<option value="psi">psia</option>
+<option value="kgcm2">kg/cm²</option>
+</select></div>
+          </div>
         </div>
         <div class="sec-hd" style="color:var(--blue);border-bottom-color:#c0d5f8">🌬 Air Side</div>
         <div class="fgrid">
@@ -1834,7 +1857,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="sec-hd" style="color:var(--red);border-bottom-color:#f0cfc0">🔴 Inner Pipe (Hot)</div>
         <div class="fgrid">
           <div class="fg"><label>Fluid</label><select id="dp_hFl" onchange="fluidChange('dp_hFl');dpUpdateColdOutlet();dpUpdateColdFlow();" data-fluid></select></div>
-          <div class="fg"><label class="tip" data-tip="Operating pressure for real-gas Z-factor density correction. Ignored for liquids.">Op. Pressure (bar abs)</label>
+          <div class="fg"><label class="tip" data-tip="Absolute operating pressure. Sets gas density (Z-factor) and whether a liquid is below its boiling point.">Op. Pressure (bar abs)</label>
             <div class="irow"><input type="number" id="dp_hPop" value="1.01325" step="0.1" min="0.01"><select id="dp_hPop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('dp_hPop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar a</option>
 <option value="kpa">kPa a</option>
@@ -1873,7 +1896,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="sec-hd" style="color:var(--teal);border-bottom-color:#a0e0d5">🔵 Annulus (Cold)</div>
         <div class="fgrid">
           <div class="fg"><label>Fluid</label><select id="dp_cFl" onchange="fluidChange('dp_cFl');dpUpdateColdOutlet();dpUpdateColdFlow();" data-fluid></select></div>
-          <div class="fg"><label class="tip" data-tip="Operating pressure for real-gas density correction. Ignored for liquids.">Op. Pressure (bar abs)</label>
+          <div class="fg"><label class="tip" data-tip="Absolute operating pressure. Sets gas density and whether a liquid is below its boiling point.">Op. Pressure (bar abs)</label>
             <div class="irow"><input type="number" id="dp_cPop" value="1.01325" step="0.1" min="0.01"><select id="dp_cPop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('dp_cPop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar a</option>
 <option value="kpa">kPa a</option>
@@ -2891,7 +2914,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           <div class="irow"><input type="number" id="wt_D" value="600" step="1" min="10"><div class="ulab">mm</div></div>
         </div>
         <div class="fg"><label>Allowable Stress at T_design (MPa)</label>
-          <div class="irow"><input type="number" id="wt_S" value="138" step="1" min="1"><div class="ulab">MPa</div></div>
+          <div class="irow"><input type="number" id="wt_S" value="138" step="1" min="1" oninput="onWtStressInput()"><div class="ulab">MPa</div></div>
         </div>
         <div class="fg"><label>Joint Efficiency E</label>
           <select id="wt_E">
@@ -2910,15 +2933,15 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         <div class="fg"><label>Half-apex Angle (° — cone only)</label>
           <div class="irow"><input type="number" id="wt_alpha" value="30" step="1" min="1" max="60"><div class="ulab">°</div></div>
         </div>
-        <div class="fg"><label>Material</label>
-          <select id="wt_mat">
+        <div class="fg"><label class="tip" data-tip="Picking a material fills in the allowable stress. Typing your own stress switches this to Custom. The stress box is what the calculation uses.">Material</label>
+          <select id="wt_mat" onchange="onWtMatChange()">
             <option value="138">SA-516-70 / P265GH (138 MPa @ 200°C)</option>
             <option value="118">SA-516-60 (118 MPa)</option>
             <option value="130">SA-516-65 (130 MPa)</option>
             <option value="103">SA-240-304 SS / 1.4301 (103 MPa @ 200°C)</option>
             <option value="96">SA-240-316 SS / 1.4401 (96 MPa @ 200°C)</option>
             <option value="115">SA-36 / S235 (115 MPa @ 200°C)</option>
-            <option value="custom">Custom (enter value above)</option>
+            <option value="custom">Custom (value typed above)</option>
           </select>
         </div>
       </div>
@@ -2955,40 +2978,40 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 <div id="tab-fouling" class="tab-pane">
   <div class="card">
     <div class="card-hd"><div class="card-icon" style="background:linear-gradient(135deg,#b36000,#7a4000)">🧫</div><div class="card-title">Fouling Factor Database — TEMA Recommended Values</div></div>
-    <p style="font-size:.85rem;color:var(--t2);margin-bottom:16px">TEMA 9th Edition Table RGP-T-2.4. Combine shell-side + tube-side fouling resistances for total R_f. Higher fouling = lower U and larger required area.</p>
+    <p style="font-size:.85rem;color:var(--t2);margin-bottom:16px">Typical design values after TEMA Table RGP-T-2.4 (converted from h·ft²·°F/BTU). Combine shell-side + tube-side resistances for the total. This quick check adds them directly to 1/U; in the Shell &amp; Tube tab the tube-side value is also scaled by A<sub>o</sub>/A<sub>i</sub>.</p>
 
     <div class="fgrid" style="margin-bottom:16px">
       <div class="fg"><label>Shell-side Service</label>
         <select id="foul_shell" onchange="calcFoulingCombined()">
-          <option value="0.0001">Steam (oil-free): 0.000088 m²K/W</option>
-          <option value="0.0001">Steam (with trace oil): 0.000176</option>
-          <option value="0.0002">Cooling water (treated): 0.000176</option>
-          <option value="0.0002" selected>River/lake water: 0.0002</option>
-          <option value="0.0003">Seawater (above 52°C): 0.0003</option>
-          <option value="0.0001">Seawater (below 52°C): 0.0001</option>
-          <option value="0.0002">Light hydrocarbons (clean): 0.0002</option>
-          <option value="0.0003">Light HC with impurities: 0.0003</option>
-          <option value="0.0005">Heavy fuel oil: 0.0005</option>
-          <option value="0.0009">Fuel oil (very heavy): 0.0009</option>
-          <option value="0.0002">Amine solutions: 0.0002</option>
-          <option value="0.0003">Brine: 0.0003</option>
-          <option value="0.0002">Refrigerants: 0.0002</option>
+          <option value="0.000088">Steam (oil-free): 0.000088 m²K/W</option>
+          <option value="0.000264">Exhaust steam (oil-bearing): 0.000264</option>
+          <option value="0.000176">Cooling water (treated tower): 0.000176</option>
+          <option value="0.000352" selected>River water (minimum): 0.000352</option>
+          <option value="0.000176">Sea water (above 52°C): 0.000176</option>
+          <option value="0.000088">Sea water (below 52°C): 0.000088</option>
+          <option value="0.000176">Light hydrocarbons (clean): 0.000176</option>
+          <option value="0.000352">Light HC with impurities: 0.000352</option>
+          <option value="0.000528">Fuel oil: 0.000528</option>
+          <option value="0.000880">Fuel oil (very heavy): 0.000880</option>
+          <option value="0.000176">Amine solutions: 0.000176</option>
+          <option value="0.000352">Brine (refrigeration): 0.000352</option>
+          <option value="0.000176">Refrigerant liquids: 0.000176</option>
         </select>
       </div>
       <div class="fg"><label>Tube-side Service</label>
         <select id="foul_tube" onchange="calcFoulingCombined()">
-          <option value="0.0001">Steam (oil-free): 0.0001</option>
-          <option value="0.0001">Boiler feed water (treated): 0.0001</option>
-          <option value="0.0002" selected>Cooling water (towers): 0.0002</option>
-          <option value="0.0003">Cooling water (river/hard): 0.0003</option>
-          <option value="0.0001">Sea water below 52°C: 0.0001</option>
-          <option value="0.0002">Light hydrocarbons: 0.0002</option>
-          <option value="0.0004">Heavy fuel oil: 0.0004</option>
-          <option value="0.0002">Gasoline: 0.0002</option>
-          <option value="0.0003">Process water: 0.0003</option>
-          <option value="0.0005">Crude oil (300-400°F): 0.0005</option>
-          <option value="0.0007">Crude oil (above 400°F): 0.0007</option>
-          <option value="0.0002">Chemical solutions (clean): 0.0002</option>
+          <option value="0.000088">Steam (oil-free): 0.000088</option>
+          <option value="0.000088">Boiler feed water (treated): 0.000088</option>
+          <option value="0.000176" selected>Cooling water (treated tower): 0.000176</option>
+          <option value="0.000352">Cooling water (river / hard): 0.000352</option>
+          <option value="0.000088">Sea water (below 52°C): 0.000088</option>
+          <option value="0.000176">Light hydrocarbons (clean): 0.000176</option>
+          <option value="0.000528">Fuel oil: 0.000528</option>
+          <option value="0.000176">Gasoline / naphtha (clean): 0.000176</option>
+          <option value="0.000352">City / well water (hard): 0.000352</option>
+          <option value="0.000528">Crude oil (150–230°C): 0.000528</option>
+          <option value="0.000704">Crude oil (above 230°C): 0.000704</option>
+          <option value="0.000176">Chemical solutions (clean): 0.000176</option>
         </select>
       </div>
       <div class="fg"><label>U_clean (W/m²K) — for impact calc</label>
@@ -3174,7 +3197,7 @@ function renderBlockDiagram(r) {
   }
   return '<div class="sec-hd" style="margin-top:14px;color:var(--t1)">📐 Exchanger Block Diagram — Dimensions &amp; Flow</div>'
     +'<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;overflow-x:auto">'
-    +'<svg viewBox="0 0 780 345" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:780px;font-family:\'Space Grotesk\',system-ui,sans-serif">'
+    +'<svg viewBox="-60 0 840 345" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:840px;font-family:\'Space Grotesk\',system-ui,sans-serif">'
     +'<defs>'
     +'<marker id="'+_uid+'_arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>'
     +'<marker id="'+_uid+'_dim" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><line x1="5" y1="1" x2="5" y2="9" stroke="context-stroke" stroke-width="1.5"/></marker>'
@@ -3187,7 +3210,7 @@ function renderBlockDiagram(r) {
     +'<line x1="90" y1="133" x2="610" y2="133" stroke="#0055c8" stroke-width="1.5" stroke-dasharray="4 3" opacity=".5"/>'
     +'<line x1="90" y1="155" x2="610" y2="155" stroke="#0055c8" stroke-width="2" stroke-dasharray="4 3" opacity=".7"/>'
     +'<line x1="90" y1="177" x2="610" y2="177" stroke="#0055c8" stroke-width="1.5" stroke-dasharray="4 3" opacity=".5"/>'
-    +'<text x="350" y="148" text-anchor="middle" fill="#0055c8" font-size="9" font-weight="600">'+r.numTubes+' tubes ('+r.nTubesPerPass+'/pass \u00d7 '+r.nPasses+' passes) \u2014 OD='+OD_mm+'/ID='+Di_mm+' mm</text>'
+    +'<text x="350" y="148" text-anchor="middle" fill="#0055c8" font-size="9" font-weight="600">'+r.numTubes+' tubes ('+r.nTubesPerPass+'/pass \u00d7 '+r.nPasses+' pass'+(r.nPasses>1?'es':'')+') \u2014 OD='+OD_mm+'/ID='+Di_mm+' mm</text>'
     // Baffles
     +blines
     +'<text x="350" y="235" text-anchor="middle" fill="#5f5e5a" font-size="9">'+nBaffles+' baffles \u2014 spacing \u2248 '+bsp_mm+' mm \u2014 pitch='+pitch_mm+' mm</text>'
@@ -3203,8 +3226,8 @@ function renderBlockDiagram(r) {
     +'<line x1="446" y1="246" x2="446" y2="220" stroke="#c03d00" stroke-width="1.5" marker-end="url(#'+_uid+'_arr)"/>'
     // Cold IN nozzle
     +'<rect x="52" y="137" width="28" height="36" rx="3" fill="#eef4ff" stroke="#0055c8" stroke-width="1.5"/>'
-    +'<text x="30" y="149" text-anchor="end" fill="#0055c8" font-size="9" font-weight="700">COLD IN</text>'
-    +'<text x="30" y="161" text-anchor="end" fill="#0055c8" font-size="8">'+tDisp(r.cTi).toFixed(1)+' '+T+'</text>'
+    +'<text x="8" y="149" text-anchor="end" fill="#0055c8" font-size="9" font-weight="700">COLD IN</text>'
+    +'<text x="8" y="161" text-anchor="end" fill="#0055c8" font-size="8">'+tDisp(r.cTi).toFixed(1)+' '+T+'</text>'
     +'<line x1="80" y1="155" x2="90" y2="155" stroke="#0055c8" stroke-width="2" marker-end="url(#'+_uid+'_arr)"/>'
     // Cold OUT nozzle
     +'<rect x="620" y="137" width="28" height="36" rx="3" fill="#eef4ff" stroke="#008f76" stroke-width="1.5"/>'
@@ -3323,6 +3346,7 @@ function renderDesignAdvisor(r) {
     +'<div class="note-body">'
     +'<div style="margin-bottom:12px;padding:10px 12px;background:rgba(192,120,0,.08);border-radius:6px;border-left:3px solid var(--warn);font-size:.83rem;line-height:1.5">⚠ '+da.problem+'</div>'
     + infeasibleBanner
+    +(da.basis?'<div style="font-size:.75rem;color:var(--t3);margin-bottom:8px">'+da.basis+'</div>':'')
     +'<div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t2);margin-bottom:10px">Choose a lever — all tube lengths are TEMA standard — click Apply to recalculate:</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">'+cards+'</div>'
     +'</div></div>';
@@ -3350,7 +3374,7 @@ function renderTemaShell(r) {
   }
   return gasResizeBanner
     +'<div class="note" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr);border-left:4px solid var(--teal);border-radius:10px;padding:10px 14px">'
-    +'<div style="font-size:.78rem;font-weight:700;color:var(--teal);margin-bottom:4px">🏗 TEMA Shell Sizing (Table D-5)</div>'
+    +'<div style="font-size:.78rem;font-weight:700;color:var(--teal);margin-bottom:4px">🏗 Shell Sizing — standard shell IDs (allows for pass-partition lanes and the rear-head clearance)</div>'
     +'<div style="font-size:.78rem;color:var(--t2);display:flex;flex-wrap:wrap;gap:16px">'
     +'<span>Calculated min ID: <strong>'+ts.D_min_mm+' mm</strong></span>'
     +'<span>\u2192 TEMA standard: <strong style="color:var(--teal)">'+ts.D_std_mm+' mm</strong>'+(ts.isStandard?'':' <span style="color:var(--err)">⚠ exceeds standard table</span>')+'</span>'
@@ -3386,7 +3410,10 @@ function renderGeoOptimizer(r) {
 
 function renderSTResults(r, warns=[]) {
   const Q=convQ(r.Q),qH=convQ(r.Qh),qC=convQ(r.Qc);
-  const A=convA(r.area),U=convU(r.U);
+  // Phase change: the area is summed zone by zone, so the U that satisfies
+  // Q = U·A·F·LMTD is the duty-weighted U_effective, not the single-point film U.
+  const isPC = !!(r.zoneModel && r.U_effective);
+  const A=convA(r.area),U=convU(isPC ? r.U_effective : r.U);
   const sDP=convP(r.shellDP),tDP=convP(r.tubeDp);
   const T=tU(),H=hU(),Au=aU(),Pu=pU(),Uu=uU();
   const warnHtml=renderWarnGroups(warns);
@@ -3456,7 +3483,7 @@ function renderSTResults(r, warns=[]) {
   <div class="res-hd">
     <div class="res-hd-left">
       <h3>Shell &amp; Tube — Design Results${modeBadge}</h3>
-      <div class="res-meta">TEMA Class ${r.tema} | ${unitSys==='metric'?'SI':'Imperial'} | ${r.nPasses} pass(es) / ${r.nShells} shell(s) | ${r.pitchLayout||'triangular'} pitch ${propBadge}</div>
+      <div class="res-meta">TEMA ${r.tema} · ${({'fixed':'fixed tubesheet','u-tube':'U-tube','split-ring':'floating head (S)','pull-through':'floating head (T)'})[r.headType]||'fixed tubesheet'} | ${unitSys==='metric'?'SI':'Imperial'} | ${r.nPasses} tube pass${r.nPasses>1?'es':''} × ${r.nShells} shell${r.nShells>1?'s':''} | ${r.pitchLayout||'triangular'} pitch ${propBadge}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
       <span class="badge badge-${r.st}">${r.stTxt}</span>
@@ -3468,18 +3495,18 @@ function renderSTResults(r, warns=[]) {
   <div class="kpi-grid">
     <div class="kpi red"><div class="kpi-label">Heat Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
     <div class="kpi blue"><div class="kpi-label">LMTD × F</div><div class="kpi-val">${dT(r.FLMTD).toFixed(2)}<span class="kpi-unit">${T}</span></div></div>
-    <div class="kpi teal"><div class="kpi-label">Transfer Area</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div></div>
-    <div class="kpi gold"><div class="kpi-label">Overall U</div><div class="kpi-val">${U.toFixed(0)}<span class="kpi-unit">${Uu}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Required Area</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi gold"><div class="kpi-label">${isPC?'Overall U (zone-weighted)':'Overall U (service)'}</div><div class="kpi-val">${U.toFixed(0)}<span class="kpi-unit">${Uu}</span></div>${!isPC && r.U_clean?`<div style="font-size:.65rem;color:var(--t3);margin-top:1px">clean ${convU(r.U_clean).toFixed(0)} ${Uu}</div>`:''}</div>
     <div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness</div><div class="kpi-val">${(r.eff*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
     <div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(3)}</div></div>
     <div class="kpi"><div class="kpi-label">No. of Tubes${r.nShells>1?' (per shell)':''}</div><div class="kpi-val">${r.numTubes}<span class="kpi-unit"> (${r.nTubesPerPass||'?'}/pass × ${r.nPasses})</span></div></div>
     <div class="kpi"><div class="kpi-label">Shell ID (est.)</div><div class="kpi-val">${(r.shellID*1000).toFixed(0)}<span class="kpi-unit">mm</span></div></div>
     <div class="kpi ${(r.overSurf||0)<0?'warn':'ok'}">
       <div class="kpi-label">Tube Length</div>
-      <div class="kpi-val">${r.L.toFixed(1)}<span class="kpi-unit">m</span></div>
+      <div class="kpi-val">${r.L.toFixed(2)}<span class="kpi-unit">m</span></div>
       <div style="font-size:.65rem;color:var(--t3);margin-top:1px">${r.numTubes} tubes @ ${r.tubeVel.toFixed(2)} m/s${r.baffleSpacing_mm?` · baffles ${r.baffleSpacing_mm.toFixed(0)} mm`:''}</div>
     </div>
-    <div class="kpi ${r.overSurf>20?'ok':r.overSurf<-5?'warn':''}">
+    <div class="kpi ${r.overSurf<0?'warn':r.overSurf>=5?'ok':''}">
       <div class="kpi-label">Oversurface</div>
       <div class="kpi-val">${r.overSurf!=null?r.overSurf.toFixed(1):'+0.0'}<span class="kpi-unit">%</span></div>
     </div>
@@ -3616,7 +3643,8 @@ function renderSTResults(r, warns=[]) {
       <tr><td class="lbl-col">Unequal Spacing</td><td>Js</td><td style="font-weight:700">${r.bdCorr.Js!=null?r.bdCorr.Js.toFixed(3):'1.000'}</td><td>Inlet/outlet vs central baffle spacing correction</td></tr>
       <tr style="background:var(--blue-lt)"><td class="lbl-col"><strong>Combined J</strong></td><td><strong>J_total</strong></td><td style="font-weight:700;color:var(--blue)">${r.bdCorr.Jtotal!=null?r.bdCorr.Jtotal.toFixed(3):'—'}</td><td>J<sub>c</sub>·J<sub>l</sub>·J<sub>b</sub>·J<sub>r</sub>·J<sub>s</sub> — overall Bell-Delaware correction</td></tr>
       <tr><td class="lbl-col">Colburn j-factor</td><td>jh</td><td style="font-weight:700">${r.bdCorr.jh!=null?r.bdCorr.jh.toFixed(4):'—'}</td><td>Ideal bundle heat transfer factor</td></tr>
-      <tr><td class="lbl-col">No. Baffles</td><td>Nb</td><td style="font-weight:700">${r.bdCorr.nBaffles!=null?r.bdCorr.nBaffles:'—'}</td><td>Number of baffle spaces</td></tr>
+      <tr><td class="lbl-col">No. Baffles</td><td>Nb</td><td style="font-weight:700">${r.bdCorr.nBaffles!=null?r.bdCorr.nBaffles:'—'}</td><td>Number of baffles (equal spacing assumed)</td></tr>
+      <tr><td class="lbl-col">Bundle bypass gap</td><td>L<sub>bb</sub></td><td style="font-weight:700">${r.bdCorr.leakGeom&&r.bdCorr.leakGeom.L_bb!=null?(r.bdCorr.leakGeom.L_bb*1000).toFixed(0)+' mm':'—'}</td><td>Shell ID − bundle OTL (set by the rear-head type) · sealing strips: ${r.sealStripPairs||0} pair(s)</td></tr>
     </tbody>
   </table></div>` : ''}
 
@@ -3643,8 +3671,8 @@ function renderSTResults(r, warns=[]) {
     <div class="note-title">📋 TEMA Design Checklist</div>
     <div class="note-body"><ul>
       <li>Verify fouling factors per TEMA Table RGP-T-2.4 for actual service</li>
-      <li>Target tube velocity: 1–3 m/s (liquid) or 10–30 m/s (gas/steam). <strong>Gas density is corrected for actual T &amp; P using ideal gas law.</strong></li>
-      <li>Shell-side ΔP ≤ 0.7 bar; Tube-side ΔP ≤ 1.0 bar (typical limits). <strong>ΔP now uses full Bell-Delaware 4-term method.</strong></li>
+      <li>Target tube velocity: 1–3 m/s (liquid) or 10–30 m/s (gas/steam). Gas density is evaluated at the actual T and P (CoolProp, or a Z-factor equation of state).</li>
+      <li>Shell-side ΔP ≤ 0.7 bar; tube-side ΔP ≤ 1.0 bar (typical limits). Shell ΔP = Bell-Delaware crossflow + window + end-zone terms; nozzle losses are not included.</li>
       <li>Minimum LMTD 5–10°C for economic design</li>
       <li>Corrosion allowance 1.5–3 mm per ASME Section VIII / TEMA Class ${r.tema}</li>
     </ul></div>
@@ -3689,12 +3717,13 @@ function genPDF() {
       return `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${s.color}" stroke="#fff" stroke-width="2"/>`;
     }).join('');
     const legend=segments.map((s,i)=>{
-      const ly=i*20+14;
+      const ly=i*30+8;
       return `<rect x="178" y="${ly}" width="13" height="13" fill="${s.color}" rx="2"/>
               <text x="196" y="${ly+10}" font-size="11" font-weight="600" fill="#0c1322" font-family="sans-serif">${s.label}</text>
-              <text x="196" y="${ly+22}" font-size="10" fill="#444" font-family="sans-serif">${s.pct.toFixed(1)}%</text>`;
+              <text x="196" y="${ly+23}" font-size="10" fill="#444" font-family="sans-serif">${s.pct.toFixed(1)}%</text>`;
     }).join('');
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180" width="420" height="180">
+    const svgH = Math.max(180, segments.length*30 + 12);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 ${svgH}" width="420" height="${svgH}">
       ${paths}${legend}
     </svg>`;
   }
@@ -3809,23 +3838,32 @@ tr:hover td{background:#eef4ff}
   margin-bottom:10px;
 }
 .page-brand-main{
-  font-size:16pt;font-weight:900;letter-spacing:-0.5px;
-  background:linear-gradient(135deg,#e8500a,#0055c8);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  background-clip:text;
+  font-size:16pt;font-weight:900;letter-spacing:-0.5px;color:#e8500a;   /* solid colour: gradient text prints unreliably */
 }
 .page-brand-sub{font-size:7.5pt;color:#555;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
 .page-brand-tagline{font-size:6.5pt;color:#888;margin-top:1px}
 
-/* ── Running header on every page via CSS ── */
+/* ── Running header / footer on every page (CSS page-margin boxes) ──
+   FIX 2026-11: the footer was a position:fixed block that printed on top of
+   the last table rows of each page; it now sits in the page margin, with
+   page numbers. */
 @page {
   size:A4;
-  margin:18mm 10mm 14mm 10mm;
+  margin:16mm 10mm 16mm 10mm;
   @top-center {
-    content:"multicalci.com — HeatXpert Pro Professional Heat Exchanger Datasheet";
-    font-size:7pt;color:#aaa;font-family:'IBM Plex Sans',sans-serif;
+    content:"multicalci.com — HeatXpert Pro heat exchanger datasheet";
+    font-size:7pt;color:#999;font-family:'IBM Plex Sans',sans-serif;
+  }
+  @bottom-left {
+    content:"multicalci.com · HeatXpert Pro · Rev A — preliminary, for engineering review";
+    font-size:6.5pt;color:#888;font-family:'IBM Plex Sans',sans-serif;
+  }
+  @bottom-right {
+    content:"Generated ${now.replace(/"/g,'')} · Page " counter(page) " of " counter(pages);
+    font-size:6.5pt;color:#888;font-family:'IBM Plex Sans',sans-serif;
   }
 }
+@media print { .ftr{display:none} }
 .panel-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .mini-sec{font-size:7pt;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#0055c8;margin:6px 0 4px}
 .mini-sec.red{color:#e8500a}.mini-sec.teal{color:#008f76}.mini-sec.gold{color:#b36000}
@@ -3866,7 +3904,7 @@ ${st?`
   <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(st.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
   <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${st.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
   <div class="kpi t"><div class="kl">Req. Area</div><div class="kv">${convA(st.area).toFixed(2)}<span class="ku"> ${Au}</span></div></div>
-  <div class="kpi g"><div class="kl">U Overall</div><div class="kv">${convU(st.U).toFixed(0)}<span class="ku"> ${Uu}</span></div></div>
+  <div class="kpi g"><div class="kl">${st.zoneModel&&st.U_effective?'U (zone-weighted)':'U Overall'}</div><div class="kv">${convU(st.zoneModel&&st.U_effective?st.U_effective:st.U).toFixed(0)}<span class="ku"> ${Uu}</span></div></div>
   <div class="kpi ${st.eff>0.65?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${(st.eff*100).toFixed(1)}<span class="ku"> %</span></div></div>
   <div class="kpi ${st.NTU?'b':''}"><div class="kl">NTU</div><div class="kv">${st.NTU!=null?st.NTU.toFixed(3):'—'}</div></div>
 </div>
@@ -3914,7 +3952,7 @@ ${st?`
 
 
 <div class="mini-sec">📐 Exchanger Block Diagram</div>
-<svg viewBox="0 0 680 230" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:680px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px">
+<svg viewBox="-60 0 740 232" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width:740px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px">
   <defs>
     <marker id="arrd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/>
@@ -3931,7 +3969,7 @@ ${st?`
   <line x1="70"  y1="88"  x2="510" y2="88"  stroke="#0055c8" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>
   <line x1="70"  y1="105" x2="510" y2="105" stroke="#0055c8" stroke-width="1.8" stroke-dasharray="5 3" opacity=".8"/>
   <line x1="70"  y1="122" x2="510" y2="122" stroke="#0055c8" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>
-  <text x="290" y="100" text-anchor="middle" fill="#0055c8" font-size="7.5" font-weight="600">${st.numTubes} tubes · ${st.nTubesPerPass}/pass × ${st.nPasses} passes · OD ${st.OD?(st.OD*1000).toFixed(1):'?'} / ID ${st.Di?(st.Di*1000).toFixed(1):'?'} mm</text>
+  <text x="290" y="100" text-anchor="middle" fill="#0055c8" font-size="7.5" font-weight="600">${st.numTubes} tubes · ${st.nTubesPerPass}/pass × ${st.nPasses} pass${st.nPasses>1?'es':''}${st.nShells>1?` · ${st.nShells} shells in series`:''} · OD ${st.OD?(st.OD*1000).toFixed(2):'?'} / ID ${st.Di?(st.Di*1000).toFixed(2):'?'} mm</text>
   <!-- Baffles -->
   ${Array.from({length:Math.min(st.bdCorr?.nBaffles??4,6)},(_,i)=>{
     const x=70+(440*(i+1)/(Math.min(st.bdCorr?.nBaffles??4,6)+1));
@@ -3947,8 +3985,8 @@ ${st?`
   <line x1="384" y1="177" x2="384" y2="155" stroke="#c03d00" stroke-width="1.2" marker-end="url(#arrd)"/>
   <!-- Cold nozzles -->
   <rect x="34" y="88" width="26" height="34" rx="2" fill="#eef4ff" stroke="#0055c8" stroke-width="1.2"/>
-  <text x="20" y="98" text-anchor="end" fill="#0055c8" font-size="7.5" font-weight="700">COLD IN</text>
-  <text x="20" y="108" text-anchor="end" fill="#0055c8" font-size="7.5">${tDisp(st.cTi).toFixed(1)}${tU()}</text>
+  <text x="2" y="98" text-anchor="end" fill="#0055c8" font-size="7.5" font-weight="700">COLD IN</text>
+  <text x="2" y="108" text-anchor="end" fill="#0055c8" font-size="7.5">${tDisp(st.cTi).toFixed(1)}${tU()}</text>
   <line x1="60" y1="105" x2="70" y2="105" stroke="#0055c8" stroke-width="1.5" marker-end="url(#arrd)"/>
   <rect x="522" y="88" width="26" height="34" rx="2" fill="#eef4ff" stroke="#008f76" stroke-width="1.2"/>
   <text x="660" y="98" text-anchor="end" fill="#008f76" font-size="7.5" font-weight="700">COLD OUT</text>
@@ -3981,11 +4019,11 @@ ${st?`
   <tbody>
     <tr>
       <td class="lbl">LMTD (raw)</td><td>${T}</td><td>${st.lmtd!=null?st.lmtd.toFixed(4):'—'}</td>
-      <td class="lbl">U Overall</td><td>W/m²K</td><td><b>${st.U!=null?st.U.toFixed(2):'—'}</b></td>
+      <td class="lbl">${st.zoneModel&&st.U_effective?'U zone-weighted / film':'U service / clean'}</td><td>W/m²K</td><td><b>${st.zoneModel&&st.U_effective?st.U_effective.toFixed(1)+' / '+st.U.toFixed(1):(st.U!=null?st.U.toFixed(1):'—')+' / '+(st.U_clean!=null?st.U_clean.toFixed(1):'—')}</b></td>
     </tr>
     <tr>
       <td class="lbl">F correction</td><td>—</td><td>${st.F!=null?st.F.toFixed(4):'—'}</td>
-      <td class="lbl">Required Area</td><td>${Au}</td><td>${st.area!=null?convA(st.area).toFixed(3):'—'}</td>
+      <td class="lbl">Area required / provided</td><td>${Au}</td><td>${st.area!=null?convA(st.area).toFixed(2):'—'} / ${st.area_provided!=null?convA(st.area_provided).toFixed(2):'—'} (${(st.overSurf||0).toFixed(1)} %)</td>
     </tr>
     <tr>
       <td class="lbl">Effective LMTD (F×LMTD)</td><td>${T}</td><td><b>${st.FLMTD!=null?st.FLMTD.toFixed(4):'—'}</b></td>
@@ -4009,11 +4047,11 @@ ${st?`
       <td class="lbl">Tube Passes per Shell</td><td>—</td><td>${st.nPasses!=null?st.nPasses:'—'}${st.baffleSpacing_mm?` · baffles ${st.baffleSpacing_mm.toFixed(0)} mm`:''}</td>
     </tr>
     <tr>
-      <td class="lbl">TEMA Class</td><td>—</td><td>${st.tema||'—'}</td>
+      <td class="lbl">TEMA class / rear head</td><td>—</td><td>${st.tema||'—'} · ${({'fixed':'fixed tubesheet','u-tube':'U-tube','split-ring':'floating (S)','pull-through':'floating (T)'})[st.headType]||'fixed tubesheet'}${st.sealStripPairs?` · ${st.sealStripPairs} seal-strip pair(s)`:''}</td>
       <td class="lbl">Pitch / Layout</td><td>—</td><td>${st.pitchRatio!=null?st.pitchRatio.toFixed(2):'—'} / ${st.pitchLayout||'—'}</td>
     </tr>
     <tr>
-      <td class="lbl">Tube Material (k)</td><td>W/mK</td><td>${st.tubeMat||'—'}</td>
+      <td class="lbl">Tube material (k)</td><td>W/mK</td><td>${st.tubeMatName||st.tubeMat||'—'}${st.tubeK!=null?' ('+st.tubeK+')':''}</td>
       <td class="lbl">Fouling R_fo (shell)</td><td>m²K/W</td><td>${st.Rfo!=null?st.Rfo.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'} / R_fi (tube): ${st.Rfi!=null?st.Rfi.toExponential(2):st.foulFactor!=null?(st.foulFactor/2).toExponential(2):'—'}</td>
     </tr>
     ${st.bdCorr && st.bdCorr.bdApplicable===false?`<tr>
@@ -4025,7 +4063,7 @@ ${st?`
       <td class="lbl">J_total</td><td>—</td><td><b>${st.bdCorr.Jtotal!=null?st.bdCorr.Jtotal.toFixed(4):'—'}</b></td>
     </tr>`:''}
     ${st.bdCorr?.hShell&&st.bdCorr?.hTube?`<tr>
-      <td class="lbl">Shell-side Re</td><td>—</td><td>${st.shellRe!=null?st.shellRe.toFixed(0):'—'}</td>
+      <td class="lbl">Shell-side Re</td><td>—</td><td>${st.shellRe?st.shellRe.toFixed(0):(st.shellMode==='condensing'?'— (condensing film)':'—')}</td>
       <td class="lbl">Tube-side Re</td><td>—</td><td>${st.bdCorr?.Re_tube!=null?st.bdCorr.Re_tube.toFixed(0):'—'}</td>
     </tr>`:''}
   </tbody>
@@ -4043,8 +4081,8 @@ ${(()=>{
       <table>
         <thead><tr><th>Component</th><th>R (m²K/W)</th><th>%</th></tr></thead>
         <tbody>
-          ${segs.map(s=>`<tr><td class="lbl">${s.label}</td><td>—</td><td class="${s.pct>60?'hi-warn':''}">${s.pct.toFixed(1)}%</td></tr>`).join('')}
-          <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>—</td><td><b>100%</b></td></tr>
+          ${segs.map(s=>`<tr><td class="lbl">${s.label}</td><td>${s.R!=null?s.R.toExponential(3):'—'}</td><td class="${s.pct>60?'hi-warn':''}">${s.pct.toFixed(1)}%</td></tr>`).join('')}
+          <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>${segs.every(x=>x.R!=null)?segs.reduce((a,x)=>a+x.R,0).toExponential(3):'—'}</td><td><b>100%</b></td></tr>
         </tbody>
       </table>
     </div>
@@ -4054,11 +4092,11 @@ ${(()=>{
 })()}
 
 <div class="div-strip">
-  <div class="div-item">Status: <span>${st.st||'—'}</span></div>
+  <div class="div-item">Status: <span>${st.stTxt||st.st||'—'}</span></div>
   <span class="div-sep">|</span>
-  <div class="div-item">Flow Arrangement: <span>${st.lmtdArr||'—'}</span></div>
+  <div class="div-item">HX type: <span>${st.hxType||'—'}</span></div>
   <span class="div-sep">|</span>
-  <div class="div-item">HX Type: <span>${st.tema||'—'}</span></div>
+  <div class="div-item">F basis: <span>${({counter:'counter-current',parallel:'parallel',shell12:'1-2 shell (exact)',shell24:'two 1-2 shells in series',cross1:'crossflow'})[st.lmtdArr]||st.lmtdArr||'—'}</span></div>
   <span class="div-sep">|</span>
   <div class="div-item">Balance Error: <span>${st.balErr!=null?st.balErr.toFixed(2)+'%':'—'}</span></div>
   ${st.convergence?`<span class="div-sep">|</span>
@@ -4087,12 +4125,12 @@ ${(()=>{
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
-        <tr><td class="lbl">Seed U (literature)</td><td>${cv.U_seed} W/m²K</td></tr>
+        <tr><td class="lbl">Seed U</td><td>${cv.U_seed} W/m²K</td></tr>
         <tr><td class="lbl">Final U (converged)</td><td><b>${cv.U_final} W/m²K</b></td></tr>
         <tr><td class="lbl">Total iterations</td><td>${cv.iterations}</td></tr>
         <tr><td class="lbl">Final deviation</td><td class="${cv.converged?'hi-ok':'hi-warn'}">${cv.deviation_pct}%</td></tr>
-        <tr><td class="lbl">Convergence status</td><td class="${cv.converged?'hi-ok':'hi-warn'}">${cv.converged?'✓ Converged (<0.5%)':'⚠ Not converged'}</td></tr>
-        <tr><td class="lbl">Fluid props method</td><td>T-dependent (getFluidAtT)</td></tr>
+        <tr><td class="lbl">Convergence status</td><td class="${cv.converged?'hi-ok':'hi-warn'}">${cv.converged?'✓ Converged (< 1 %)':'⚠ Not converged'}</td></tr>
+        <tr><td class="lbl">Fluid properties</td><td>${st.propSource||'temperature-dependent'}</td></tr>
         <tr><td class="lbl">Viscosity correction</td><td>Sieder-Tate (μ/μ_w)^0.14</td></tr>
         <tr><td class="lbl">LMTD method</td><td>${cv.twophase_lmtd?'Two-phase isothermal (F=1.0)':'Standard F-correction'}</td></tr>
       </tbody>
@@ -4109,7 +4147,7 @@ ${pl?`
 </div>
 <!-- page brand repeat -->
 ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20">
-  <span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span>
+  <span style="font-size:11pt;font-weight:900;color:#e8500a">multicalci.com</span>
   <span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span>
 </div>`:''}
 <div class="kpi-strip">
@@ -4206,7 +4244,7 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
 
 ${ac?`
 <div class="sec ${(st||pl)?'pg ':''}">💨 Air Cooled Heat Exchanger — Calculation Results</div>
-${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;color:#e8500a">multicalci.com</span><span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
 <div class="kpi-strip">
   <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(ac.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
   <div class="kpi b"><div class="kl">F×LMTD</div><div class="kv">${ac.FLMTD!=null?dT(ac.FLMTD).toFixed(2):'—'}<span class="ku"> ${T}</span></div></div>
@@ -4235,7 +4273,7 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
 
 ${ff?`
 <div class="sec ${(st||pl||ac)?'pg ':''}blue">🌬️ Fin-Fan Air Cooled HX — Engineering Datasheet (API 661)</div>
-${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;color:#e8500a">multicalci.com</span><span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
 
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;background:#f0f9f7;border:0.5px solid #a0ded5;border-radius:4px;padding:6px 10px">
@@ -4307,26 +4345,23 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
 <div class="mini-sec">🔬 Thermal Resistance Distribution</div>
 ${(()=>{
   if(!ff.U_actual) return '<p style="font-size:7pt;color:#999">Run calculation to see resistance breakdown</p>';
-  const U=ff.U_actual||1, R_total=1/U;
-  const R_air=ff.h_air_eff!=null?1/ff.h_air_eff:R_total*0.5;
-  const R_tube=ff.h_tubeside!=null?1/ff.h_tubeside:R_total*0.1;
-  const R_foul=(ff.tFoul||0.00029)+(ff.aFoul||0.00018);
-  const R_wall_est=R_total-R_air-R_tube-R_foul;
-  const Rt2=R_air+R_tube+R_foul+Math.max(R_wall_est,0.001);
-  const p2=x=>Rt2>0?(x/Rt2*100).toFixed(1):'0.0';
-  const segs2=[
-    {label:'Air-side film',pct:parseFloat(p2(R_air)),  color:'#0055c8'},
-    {label:'Tube film',    pct:parseFloat(p2(R_tube)), color:'#e8500a'},
-    {label:'Fouling',      pct:parseFloat(p2(R_foul)), color:'#c07800'},
-    {label:'Metal wall',   pct:parseFloat(p2(Math.max(R_wall_est,0.001))),color:'#6b7899'},
-  ];
+  // FIX 2026-11: use the API's resistances, all on the extended-area basis. The
+  // old estimate left the tube-side terms un-scaled by A_ext/A_in (≈20×) and
+  // booked the difference as "metal wall" (shown as ~60 % of the total).
+  const comps=[
+    {label:'Air-side film',       R:ff.R_air_film,  color:'#0055c8'},
+    {label:'Air-side fouling',    R:ff.R_foul_air,  color:'#7aa7e8'},
+    {label:'Metal wall',          R:ff.R_wall_val,  color:'#6b7899'},
+    {label:'Tube-side fouling',   R:ff.R_foul_tube, color:'#c07800'},
+    {label:'Tube-side film',      R:ff.R_tube_film, color:'#e8500a'},
+  ].filter(c=>c.R!=null&&isFinite(c.R));
+  const Rt2=comps.reduce((a,c)=>a+c.R,0)||1/ff.U_actual;
+  const p2=x=>(x/Rt2*100).toFixed(1);
+  const segs2=comps.map(c=>({label:c.label,pct:parseFloat(p2(c.R)),color:c.color}));
   return `<table>
-    <thead><tr><th>Component</th><th>R (m²K/W)</th><th>%</th></tr></thead>
+    <thead><tr><th>Component</th><th>R (m²K/W, ext. area)</th><th>%</th></tr></thead>
     <tbody>
-      <tr><td class="lbl">Air-side film (dominant)</td><td>${R_air.toExponential(3)}</td><td class="hi-warn">${p2(R_air)}%</td></tr>
-      <tr><td class="lbl">Tube-side film</td><td>${R_tube.toExponential(3)}</td><td>${p2(R_tube)}%</td></tr>
-      <tr><td class="lbl">Fouling (tube+air)</td><td>${R_foul.toExponential(3)}</td><td>${p2(R_foul)}%</td></tr>
-      <tr><td class="lbl">Metal wall</td><td>${Math.max(R_wall_est,0).toExponential(3)}</td><td>${p2(Math.max(R_wall_est,0.001))}%</td></tr>
+      ${comps.map(c=>`<tr><td class="lbl">${c.label}</td><td>${c.R.toExponential(3)}</td><td class="${c.R/Rt2>0.5?'hi-warn':''}">${p2(c.R)}%</td></tr>`).join('')}
       <tr style="background:#eef4ff"><td class="lbl"><b>Total → U</b></td><td>${Rt2.toExponential(3)}</td><td><b>100%</b></td></tr>
     </tbody>
   </table>
@@ -4362,7 +4397,7 @@ ${(()=>{
     <tr><td class="lbl">Tube layout / rows</td><td>—</td><td>${ff.tubeLayout||'—'} / ${ff.nRows||'—'} rows</td></tr>
     <tr><td class="lbl">Trans / Long pitch</td><td>mm</td><td>${ff.pitchT!=null?(ff.pitchT*1000).toFixed(1):'—'} / ${ff.pitchL!=null?(ff.pitchL*1000).toFixed(1):'—'}</td></tr>
     <tr><td class="lbl">Number of passes</td><td>—</td><td>${ff.nPasses||'—'}</td></tr>
-    <tr><td class="lbl">Tube count (per bay)</td><td>—</td><td>${ff.nTubes||'—'} (${ff.nTubeTotal!=null?ff.nTubeTotal+' total':'—'})</td></tr>
+    <tr><td class="lbl">Tube count (per bundle)</td><td>—</td><td>${ff.nTubes||'—'} (${ff.nTubeTotal!=null?ff.nTubeTotal+' total':'—'})</td></tr>
     <tr><td class="lbl">Tube material</td><td>—</td><td>${ff.tubeMat||'—'}</td></tr>
     <tr><td class="lbl">Tube type</td><td>—</td><td>${ff.tubeType||'High-finned'}</td></tr>
   </tbody>
@@ -4416,7 +4451,7 @@ ${(()=>{
 
 ${dp?`
 <div class="sec ${(st||pl||ac||ff)?'pg ':''}blue">↔️ Double Pipe (Hairpin) HX — Calculation Results</div>
-${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;color:#e8500a">multicalci.com</span><span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
 <div class="kpi-strip">
   <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(dp.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
   <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${dp.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
@@ -4457,7 +4492,7 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
     <tr><td class="lbl">Re</td><td>—</td><td>${dp.Re_ann!=null?dp.Re_ann.toFixed(0):'—'} ${dp.Re_ann>=10000?'✓ turbulent':dp.Re_ann>=2300?'transition':'⚠ laminar'}</td></tr>
     <tr><td class="lbl">Film HTC h_ann</td><td>W/m²K</td><td>${dp.hAnn!=null?dp.hAnn.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
-      <td class="${dp.dpAnn>dp.pdAllow?'hi-err':'hi-ok'}">${convP(dp.dpAnn).toFixed(4)} ${dp.dpAnn>dp.pdAllow?'✗':'✓'}</td></tr>
+      <td class="${dp.dpAnn>(dp.pdAllowAnn??dp.pdAllow)?'hi-err':'hi-ok'}">${convP(dp.dpAnn).toFixed(4)} ${dp.dpAnn>(dp.pdAllowAnn??dp.pdAllow)?'✗':'✓'}</td></tr>
   </tbody>
 </table>
 </div>
@@ -4475,7 +4510,7 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
     </tr>
     <tr>
       <td class="lbl">Outer pipe ID</td><td>mm</td><td>${dp.oID!=null?(dp.oID*1000).toFixed(1):'—'}</td>
-      <td class="lbl">Flow arrangement</td><td>—</td><td>Countercurrent</td>
+      <td class="lbl">Flow arrangement</td><td>—</td><td>${dp.arr==='parallel'?'Parallel flow':'Countercurrent'}</td>
     </tr>
     <tr>
       <td class="lbl">Hairpin length</td><td>m</td><td>${dp.L||'—'}</td>
@@ -4503,28 +4538,28 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
 
 ${lm?`
 <div class="sec ${(st||pl||ac||ff||dp)?'pg ':''}teal">📐 LMTD &amp; NTU Calculator — Results</div>
-${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;background:linear-gradient(135deg,#e8500a,#0055c8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">multicalci.com</span><span style="font-size:6.5pt;color:'#aaa';margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
+${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e8500a20"><span style="font-size:11pt;font-weight:900;color:#e8500a">multicalci.com</span><span style="font-size:6.5pt;color:#aaa;margin-left:8px">HeatXpert Pro · Heat Exchanger Design Datasheet</span></div>`:''}
 <div class="kpi-strip">
-  <div class="kpi r"><div class="kl">ΔT₁</div><div class="kv">${lm.dT1.toFixed(3)}<span class="ku"> ${T}</span></div></div>
-  <div class="kpi b"><div class="kl">ΔT₂</div><div class="kv">${lm.dT2.toFixed(3)}<span class="ku"> ${T}</span></div></div>
-  <div class="kpi t"><div class="kl">LMTD</div><div class="kv">${lm.lmtd.toFixed(4)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi r"><div class="kl">ΔT₁</div><div class="kv">${dT(lm.dT1).toFixed(3)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi b"><div class="kl">ΔT₂</div><div class="kv">${dT(lm.dT2).toFixed(3)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi t"><div class="kl">LMTD</div><div class="kv">${dT(lm.lmtd).toFixed(3)}<span class="ku"> ${T}</span></div></div>
   <div class="kpi g"><div class="kl">F Correction</div><div class="kv">${lm.F.toFixed(4)}</div></div>
-  <div class="kpi r"><div class="kl">F × LMTD</div><div class="kv">${lm.FLMTD.toFixed(4)}<span class="ku"> ${T}</span></div></div>
+  <div class="kpi r"><div class="kl">F × LMTD</div><div class="kv">${dT(lm.FLMTD).toFixed(3)}<span class="ku"> ${T}</span></div></div>
   <div class="kpi ${lm.eff>0.7?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${lm.eff!=null?(lm.eff*100).toFixed(2):'—'}<span class="ku">%</span></div></div>
 </div>
 <table>
   <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
   <tbody>
-    <tr><td class="lbl">Hot side: T_in → T_out</td><td>${lm.hTi.toFixed(2)} → ${lm.hTo.toFixed(2)} °C</td><td>ΔT_hot = ${(lm.hTi-lm.hTo).toFixed(4)} ${T}</td></tr>
-    <tr><td class="lbl">Cold side: T_in → T_out</td><td>${lm.cTi.toFixed(2)} → ${lm.cTo.toFixed(2)} °C</td><td>ΔT_cold = ${(lm.cTo-lm.cTi).toFixed(4)} ${T}</td></tr>
-    <tr><td class="lbl">ΔT₁ / ΔT₂</td><td>${lm.dT1.toFixed(6)} / ${lm.dT2.toFixed(6)} ${T}</td><td>${lm.arr==='counter'?'T_h,in−T_c,out / T_h,out−T_c,in':'Parallel end differences'}</td></tr>
-    <tr><td class="lbl">LMTD (log mean)</td><td>${lm.lmtd.toFixed(6)} ${T}</td><td>ΔT_LM = (ΔT₁−ΔT₂)/ln(ΔT₁/ΔT₂)</td></tr>
-    <tr><td class="lbl">F correction factor</td><td>${lm.F.toFixed(6)}</td><td>${lm.arr} arrangement</td></tr>
-    <tr><td class="lbl">Effective LMTD (F×LMTD)</td><td><b>${lm.FLMTD.toFixed(6)} ${T}</b></td><td>Use in: Q = U · A · F · ΔT_LM</td></tr>
+    <tr><td class="lbl">Hot side: T_in → T_out</td><td>${tDisp(lm.hTi).toFixed(2)} → ${tDisp(lm.hTo).toFixed(2)} ${T}</td><td>ΔT_hot = ${dT(lm.hTi-lm.hTo).toFixed(3)} ${T}</td></tr>
+    <tr><td class="lbl">Cold side: T_in → T_out</td><td>${tDisp(lm.cTi).toFixed(2)} → ${tDisp(lm.cTo).toFixed(2)} ${T}</td><td>ΔT_cold = ${dT(lm.cTo-lm.cTi).toFixed(3)} ${T}</td></tr>
+    <tr><td class="lbl">ΔT₁ / ΔT₂</td><td>${dT(lm.dT1).toFixed(4)} / ${dT(lm.dT2).toFixed(4)} ${T}</td><td>${lm.arr==='parallel'?'T_h,in−T_c,in / T_h,out−T_c,out':'T_h,in−T_c,out / T_h,out−T_c,in'}</td></tr>
+    <tr><td class="lbl">LMTD (log mean)</td><td>${dT(lm.lmtd).toFixed(4)} ${T}</td><td>ΔT_LM = (ΔT₁−ΔT₂)/ln(ΔT₁/ΔT₂)</td></tr>
+    <tr><td class="lbl">F correction factor</td><td>${lm.F.toFixed(4)}</td><td>${({counter:'counter-current',parallel:'parallel flow',cross1:'crossflow, both unmixed',cross2:'crossflow, Cmax mixed',shell12:'1-2 shell',shell24:'two 1-2 shells in series'})[lm.arr]||lm.arr}</td></tr>
+    <tr><td class="lbl">Effective LMTD (F×LMTD)</td><td><b>${dT(lm.FLMTD).toFixed(4)} ${T}</b></td><td>Use in: Q = U · A · F · ΔT_LM</td></tr>
     ${lm.eff!=null?`<tr><td class="lbl">Effectiveness ε</td><td>${(lm.eff*100).toFixed(4)} %</td><td>ε = Q_actual / Q_max</td></tr>`:''}
     ${lm.NTU!=null?`<tr><td class="lbl">NTU</td><td>${lm.NTU.toFixed(6)}</td><td>NTU = U·A/C_min</td></tr>`:''}
-    ${lm.UA!=null?`<tr><td class="lbl">U·A product</td><td>${(lm.UA/1000).toFixed(4)} kW/K</td><td>Direct from NTU × C_min</td></tr>`:''}
-    ${(lm.Cmin_kW!=null&&lm.NTU!=null&&lm.NTU>0)?`<tr><td class="lbl">C_min / C_max</td><td>${lm.Cmin_kW.toFixed(4)} / ${(lm.UA/lm.NTU/1000).toFixed(4)} kW/K</td><td>C_r = ${(Math.min(lm.Cmin_kW,(lm.UA/lm.NTU/1000))/Math.max(lm.Cmin_kW,(lm.UA/lm.NTU/1000))).toFixed(4)}</td></tr>`:''}
+    ${lm.UA!=null?`<tr><td class="lbl">U·A product</td><td>${(lm.UA/1000).toFixed(4)} kW/K</td><td>U·A = Q / (F·LMTD)</td></tr>`:''}
+    ${(lm.Cmin_kW!=null&&lm.Cmax_kW!=null)?`<tr><td class="lbl">C_min / C_max</td><td>${lm.Cmin_kW.toFixed(4)} / ${lm.Cmax_kW.toFixed(4)} kW/K</td><td>C_r = ${(lm.Cr!=null?lm.Cr:lm.Cmin_kW/lm.Cmax_kW).toFixed(4)}</td></tr>`:''}
   </tbody>
 </table>
 `:''}
@@ -4535,12 +4570,12 @@ ${(st||pl)?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;b
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
   <div class="note-pdf">
     <b>Correlation Methods Used:</b><br>
-    • Shell-side HTC: Bell-Delaware (1963) with TEMA correction factors (Jc, Jl, Jb, Jr)<br>
-    • Tube-side HTC: Gnielinski (1976) — Turbulent | Sieder-Tate — Laminar | Interpolated — Transition<br>
-    • Gas density: Pitzer virial / Peng-Robinson EOS (Z-factor corrected at T&amp;P)<br>
-    • Fin-Fan: Robinson-Briggs (1966) j-factor | Schmidt fin efficiency<br>
-    • Plate HX: Martin (1996) Nusselt correlation for chevron plates<br>
-    • Tube ΔP: Darcy-Weisbach + entry/exit (Ke=0.5, Kx=1.0) + return bends (1.5/pass)
+    • Shell side: Bell-Delaware (Taborek, HEDH) — ideal-bank j &amp; f with J<sub>c</sub>·J<sub>l</sub>·J<sub>b</sub>·J<sub>r</sub>·J<sub>s</sub>; ΔP = crossflow + window + end zones (nozzles excluded)<br>
+    • Tube side: Gnielinski with entry correction (Re &gt; 10⁴) · Hausen (2 300–10⁴) · Sieder-Tate (laminar) · (μ/μ<sub>w</sub>)<sup>0.14</sup><br>
+    • Condensing: Nusselt film × N<sup>−1/6</sup> (Kern) combined with McNaught shear · Boiling: Gungor-Winterton + Cooper, zone by zone<br>
+    • Properties: CoolProp (Helmholtz EOS) where available, else built-in data; gas Z from Pitzer virial / Peng-Robinson<br>
+    • Air coolers / fin-fan: Briggs &amp; Young h · Robinson &amp; Briggs ΔP · Schmidt fin efficiency · Plate: Martin (VDI B6)<br>
+    • Tube ΔP: Darcy (Petukhov f) + 1.5 velocity heads per pass (entry/exit) + 1.5 per return + 2 for the nozzles
   </div>
   <div class="note-pdf warn">
     <b>⚠ Design Disclaimer:</b><br>
@@ -5345,8 +5380,8 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
       coldMode, cF: cFraw, cFunit, cTo: cToVal,
       OD: getDimMm('st_od'), tw: getDimMm('st_tw'), L: getLenM('st_len'),
       pitch: v('st_pitch'),
-      Rfo: parseFloat(g('st_foulS').value)||0.0002,
-      Rfi: parseFloat(g('st_foulT').value)||0.0002,
+      Rfo: (x=>isFinite(x)?Math.max(x,0):0.0002)(parseFloat(g('st_foulS').value)),
+      Rfi: (x=>isFinite(x)?Math.max(x,0):0.0002)(parseFloat(g('st_foulT').value)),
       arr: g('st_flow').value,
       mat: g('st_mat').value,
       hxType: g('st_type').value,
@@ -5361,6 +5396,8 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
       pitchLayout: (g('st_pitchlayout')||{value:'triangular'}).value,
       numTubesFixed: parseInt((g('st_numTubesFixed')||{value:'0'}).value)||0,
       shellMode: (g('st_shellMode')||{value:'single-phase'}).value,
+      headType: (g('st_head')||{value:'fixed'}).value,
+      sealStrips: (g('st_seal') && g('st_seal').value !== '') ? Math.max(0, parseInt(g('st_seal').value)||0) : 'auto',
       L_max:        parseFloat(g('st_L_max')?.value) || undefined,
       shell_OD_max: parseFloat(g('st_shell_OD_max')?.value) || undefined,
     };
@@ -5405,9 +5442,10 @@ document.getElementById('plForm').addEventListener('submit', async function(e){
       th: v('pl_th'), angle: v('pl_angle'), gap: v('pl_gap'),
       pw: v('pl_width'), plen: v('pl_plen'), phi: parseFloat((g('pl_phi')||{value:'1.17'}).value)||1.17,
       mat: g('pl_mat').value,
-      foul: parseFloat((g('pl_foul')||{value:'0.0002'}).value)||0.0002,
+      foul: (x=>isFinite(x)?Math.max(x,0):0.0002)(parseFloat((g('pl_foul')||{value:'0.0002'}).value)),
       pdAllowH: getPresVal('pl_pdH'),
       pdAllowC: getPresVal('pl_pdC'),
+      nPlates: (parseInt((g('pl_nPlates')||{value:'0'}).value)||0) >= 4 ? parseInt(g('pl_nPlates').value) : undefined,
     };
     const r = await callAPI(payload);
     if (r.error) return showErr('pl', r.error);
@@ -5432,7 +5470,7 @@ document.getElementById('acForm').addEventListener('submit', async function(e){
     if(unitSys==='imperial') F_=F_/2.20462;
     const payload = {
       calcType:'airCooled', unitSys:'metric', flKey: g('ac_Fl').value,
-      Ti, To, F: F_, Tamb: getTempVal('ac_amb'), dTa: v('ac_dTa'),
+      Ti, To, F: F_, Tamb: getTempVal('ac_amb'), dTa: v('ac_dTa'), Pop: getPresVal('ac_Pop') || 1.01325,
       rows: v('ac_rows'),
       nTubes: parseInt(g('ac_nTubes').value)||40,
       nPasses: parseInt(g('ac_nPasses').value)||1,
@@ -5482,7 +5520,7 @@ document.getElementById('dpForm').addEventListener('submit', async function(e){
       iOD: getDimMm('dp_iOD'), iTW: getDimMm('dp_iW'), oID: v('dp_oID'),
       L: getLenM('dp_hplen'), nHairpins: parseInt(g('dp_nHP').value)||0,
       arr: g('dp_arr').value, mat: g('dp_mat').value,
-      foul: parseFloat((g('dp_foul')||{value:'0.0002'}).value)||0.0002,
+      foul: (x=>isFinite(x)?Math.max(x,0):0.0002)(parseFloat((g('dp_foul')||{value:'0.0002'}).value)),
       pdAllowInner: getPresVal('dp_pdH'),
       pdAllowAnn: getPresVal('dp_pdC') || 1.0,
     };
@@ -5505,11 +5543,11 @@ document.getElementById('ffForm').addEventListener('submit', async function(e){
       calcType:'finFan', unitSys:'metric',
       tFlKey: g('ff_tFl').value,
       tTi, tTo, tF_kgh: (parseFloat(g('ff_tF').value)||0) / (unitSys==='imperial' ? 2.20462 : 1),   /* FIX 2026-10: lb/h in US mode */
-      tFoul: parseFloat(g('ff_tFoul').value)||2.9e-4,
+      tFoul: (x=>isFinite(x)?Math.max(x,0):2.9e-4)(parseFloat(g('ff_tFoul').value)),
       tPdAllow: getPresVal('ff_tPdAllow'),
       htSF: parseFloat(g('ff_htSF').value)||1.0,
       aTamb, aTout, aPop: getPresVal('ff_aPop')||1.01325, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
-      aFoul: parseFloat(g('ff_aFoul').value)||1.8e-4,
+      aFoul: (x=>isFinite(x)?Math.max(x,0):1.8e-4)(parseFloat(g('ff_aFoul').value)),
       tPop: getPresVal('ff_tPop')||4.0, /* FIX audit 2026-07: was raw parseFloat, ignoring the psi/kPa unit selector */
       tubeOD: v('ff_tubeOD'), tubeID: v('ff_tubeID'), tubeLen: v('ff_tubeLen'),
       pitchT: v('ff_pitchT'), pitchL: v('ff_pitchL'),
@@ -5604,7 +5642,12 @@ async function runSelector(){
 // ── WALL THICKNESS ────────────────────────────────────────────────────────────
 async function calcWallThickness(){
   try {
-    const payload={calcType:'wallThick',std:g('wt_std').value,type:g('wt_type').value,P:parseFloat(g('wt_P').value)||0,D:parseFloat(g('wt_D').value)||0,S:parseFloat(g('wt_S').value)||138,CA:parseFloat(g('wt_CA').value)||3,MT:parseFloat(g('wt_MT').value)||0.6,E:parseFloat(g('wt_E').value)||1.0,alpha:parseFloat(g('wt_alpha').value)||30,mat:g('wt_mat').value};
+    // FIX 2026-11: the stress box is authoritative (the dropdown only fills it).
+    // CA and MT keep a typed 0 (|| 3 used to turn a deliberate 0 into 3 mm).
+    const num=(id,d)=>{ const x=parseFloat(g(id).value); return isFinite(x)?x:d; };
+    const S=num('wt_S',NaN);
+    if(!(S>0)){ showToast('Enter the allowable stress S (MPa)'); return; }
+    const payload={calcType:'wallThick',std:g('wt_std').value,type:g('wt_type').value,P:num('wt_P',0),D:num('wt_D',0),S,CA:Math.max(num('wt_CA',0),0),MT:Math.max(num('wt_MT',0),0),E:num('wt_E',1.0),alpha:num('wt_alpha',30),mat:'custom'};
     const r=await callAPI(payload);
     if(r.error){showToast(r.error);return;}
     const ph=g('wt_ph'),resEl=g('wt_res');
@@ -5629,6 +5672,10 @@ async function calcWallThickness(){
     </div></div>`;
   } catch(e){ const resEl=g('wt_res'); if(resEl){ resEl.style.display='block'; resEl.innerHTML=`<div class="err-box show">⚠ ${e.message}</div>`; } }
 }
+
+// Material dropdown ⇄ allowable-stress box
+function onWtMatChange(){ const m=g('wt_mat'), sEl=g('wt_S'); if(m&&sEl&&m.value!=='custom') sEl.value=m.value; }
+function onWtStressInput(){ const m=g('wt_mat'), sEl=g('wt_S'); if(!m||!sEl) return; const opt=[...m.options].find(o=>o.value!=='custom'&&parseFloat(o.value)===parseFloat(sEl.value)); m.value=opt?opt.value:'custom'; }
 
 // ── FOULING ──────────────────────────────────────────────────────────────────
 async function calcFoulingCombined(){
@@ -5724,14 +5771,14 @@ function renderAirCooledResults(r){
     <div class="kpi ${r.overDesign>=5?'ok':'warn'}"><div class="kpi-label">Overdesign</div><div class="kpi-val">${r.overDesign!=null?r.overDesign.toFixed(1):'—'}<span class="kpi-unit">%</span></div></div>
     <div class="kpi"><div class="kpi-label">Air Flow</div><div class="kpi-val">${(r.mAir*3.6).toFixed(1)}<span class="kpi-unit">t/h</span></div></div>
     <div class="kpi ${r.ApproachTemp>=15?'ok':'warn'}"><div class="kpi-label">Approach ΔT</div><div class="kpi-val">${dT(r.ApproachTemp).toFixed(1)}<span class="kpi-unit">${T}</span></div></div>
-    <div class="kpi"><div class="kpi-label">Fan Power</div><div class="kpi-val">${r.fanPower!=null?convQ(r.fanPower).toFixed(2):'—'}<span class="kpi-unit">${H}</span></div></div>
+    <div class="kpi"><div class="kpi-label">Fan Shaft Power (est.)</div><div class="kpi-val">${r.fanPower!=null?r.fanPower.toFixed(2):'—'}<span class="kpi-unit">kW</span></div></div>
   </div>
   <div class="tbl-wrap"><table class="dtbl" style="margin-top:12px">
     <thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
     <tbody>
       <tr><td class="lbl-col">Airside Re</td>
-        <td style="color:${r.Re_fin&&r.Re_fin>=2000?'var(--ok)':'var(--warn)'};font-weight:700">${r.Re_fin!=null?r.Re_fin.toFixed(0):'—'}</td>
-        <td style="font-size:.75rem;color:var(--t3)">Valid range: 2,000–50,000</td></tr>
+        <td style="color:${r.Re_fin&&r.Re_fin>=1100&&r.Re_fin<=18000?'var(--ok)':'var(--warn)'};font-weight:700">${r.Re_fin!=null?r.Re_fin.toFixed(0):'—'}</td>
+        <td style="font-size:.75rem;color:var(--t3)">Briggs &amp; Young data range 1,100–18,000 (root-diameter basis)</td></tr>
       <tr><td class="lbl-col">Fin Efficiency η_fin</td>
         <td style="color:${r.eta_fin&&r.eta_fin>=0.7?'var(--ok)':r.eta_fin&&r.eta_fin>=0.6?'var(--warn)':'var(--err)'};font-weight:700">
           ${r.eta_fin!=null?(r.eta_fin*100).toFixed(1)+'%':'—'}
@@ -5795,7 +5842,7 @@ function renderDoublePipeResults(r){
       <tr><td class="lbl-col">Film HTC h</td><td>${r.hInner.toFixed(0)} W/m²K</td><td>${r.hAnn.toFixed(0)} W/m²K</td></tr>
       <tr><td class="lbl-col">Velocity</td><td>${r.velInner.toFixed(3)} m/s</td><td>${r.velAnn.toFixed(3)} m/s</td></tr>
       <tr><td class="lbl-col">Re</td><td>${r.Re_inner.toFixed(0)}</td><td>${r.Re_ann.toFixed(0)}</td></tr>
-      <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpInner>r.pdAllow?'var(--err)':'var(--ok)'}">${convP(r.dpInner).toFixed(3)} ${Pu}</td><td style="color:${r.dpAnn>r.pdAllow?'var(--err)':'var(--ok)'}">${convP(r.dpAnn).toFixed(3)} ${Pu}</td></tr>
+      <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpInner>(r.pdAllowInner??r.pdAllow)?'var(--err)':'var(--ok)'}">${convP(r.dpInner).toFixed(3)} ${Pu} <span style="font-size:.7rem;color:var(--t3)">(allow. ${convP(r.pdAllowInner??r.pdAllow).toFixed(2)})</span></td><td style="color:${r.dpAnn>(r.pdAllowAnn??r.pdAllow)?'var(--err)':'var(--ok)'}">${convP(r.dpAnn).toFixed(3)} ${Pu} <span style="font-size:.7rem;color:var(--t3)">(allow. ${convP(r.pdAllowAnn??r.pdAllow).toFixed(2)})</span></td></tr>
     </tbody></table></div>`;
 }
 
@@ -6321,39 +6368,39 @@ const EXAMPLES = {
       st_cFl:'water', st_cTi:'30', st_cF:'60000', st_cFunit:'kgh', st_cPop:'3',
       st_tube_std:'bwg_19.05_bwg16', st_od:'19.05', st_tw:'1.65', st_len:'3.66', st_pitch:'1.25', st_pitchlayout:'triangular', st_mat:'cs',
       st_foulS:'0.0002', st_foulT:'0.0002', st_targetVel:'1.5', st_velMode:'target', st_numTubesFixed:'',
-      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.7', st_pdAllowTube:'0.7', st_tema:'C', st_L_max:'', st_shell_OD_max:'' } },
+      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.7', st_pdAllowTube:'0.7', st_tema:'C', st_head:'fixed', st_seal:'', st_L_max:'', st_shell_OD_max:'' } },
     { label: 'Lube-oil cooler (oil / cooling water)', coldMode: 'flow', v: {
       st_shellMode:'single-phase', st_type:'1-2', st_flow:'counter', st_hFl:'lube-oil', st_hTi:'65', st_hTo:'45', st_hF:'30000', st_hFunit:'kgh', st_hPop:'4',
       st_cFl:'water', st_cTi:'32', st_cF:'40000', st_cFunit:'kgh', st_cPop:'3',
       st_tube_std:'bwg_19.05_bwg16', st_od:'19.05', st_tw:'1.65', st_len:'4.88', st_pitch:'1.25', st_pitchlayout:'triangular', st_mat:'cs',
       st_foulS:'0.0002', st_foulT:'0.0002', st_targetVel:'1.2', st_velMode:'target', st_numTubesFixed:'',
-      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.4', st_pdAllowShell:'1.0', st_pdAllowTube:'0.7', st_tema:'C', st_L_max:'', st_shell_OD_max:'' } },
+      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.4', st_pdAllowShell:'1.0', st_pdAllowTube:'0.7', st_tema:'C', st_head:'fixed', st_seal:'', st_L_max:'', st_shell_OD_max:'' } },
     { label: 'Steam condenser (2 bar a, total)', coldMode: 'flow', v: {
       st_shellMode:'condensing', st_satLink:1, st_type:'1-2', st_flow:'counter', st_hFl:'steam', st_hTi:'120.21', st_hTo:'120.21', st_hF:'2000', st_hFunit:'kgh', st_hPop:'2',
       st_cFl:'water', st_cTi:'32', st_cF:'60000', st_cFunit:'kgh', st_cPop:'3',
       st_tube_std:'bwg_19.05_bwg16', st_od:'19.05', st_tw:'1.65', st_len:'2.44', st_pitch:'1.25', st_pitchlayout:'triangular', st_mat:'ss304',
       st_foulS:'0.0001', st_foulT:'0.0002', st_targetVel:'1.8', st_velMode:'target', st_numTubesFixed:'',
-      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.3', st_pdAllowTube:'0.7', st_tema:'C', st_L_max:'', st_shell_OD_max:'' } },
+      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.3', st_pdAllowTube:'0.7', st_tema:'C', st_head:'fixed', st_seal:'', st_L_max:'', st_shell_OD_max:'' } },
     { label: 'Ammonia chiller (water / boiling NH₃ in tubes)', coldMode: 'flow', v: {
       st_shellMode:'evaporating', st_satLink:1, st_type:'1-4', st_flow:'counter', st_hFl:'water', st_hTi:'12', st_hTo:'7', st_hF:'60000', st_hFunit:'kgh', st_hPop:'3',
       st_cFl:'ammonia-liquid', st_cTi:'-1.9', st_cF:'1300', st_cFunit:'kgh', st_cPop:'4',
       st_tube_std:'bwg_19.05_bwg16', st_od:'19.05', st_tw:'1.65', st_len:'4.88', st_pitch:'1.25', st_pitchlayout:'triangular', st_mat:'cs',
       st_foulS:'0.0002', st_foulT:'0.0001', st_targetVel:'1.0', st_velMode:'targetKeepPasses', st_numTubesFixed:'',
-      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.7', st_pdAllowTube:'0.5', st_tema:'C', st_L_max:'', st_shell_OD_max:'' } },
+      st_bcut:'25', st_bspMode:'auto', st_bsp:'0.5', st_pdAllowShell:'0.7', st_pdAllowTube:'0.5', st_tema:'C', st_head:'fixed', st_seal:'', st_L_max:'', st_shell_OD_max:'' } },
   ],
   'plate': [
     { label: 'Central cooler (water / water)', v: {
       pl_hFl:'water', pl_hPop:'4', pl_hTi:'80', pl_hTo:'45', pl_hF:'20000', pl_hFunit:'kgh',
       pl_cFl:'water', pl_cPop:'3', pl_cTi:'20', pl_coldMode:'temp', pl_cTo:'55', pl_cF:'20000', pl_cFunit:'kgh',
-      pl_mat:'ss316', pl_th:'0.6', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_pdH:'1.0', pl_pdC:'1.0' } },
+      pl_mat:'ss316', pl_th:'0.6', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
     { label: 'Glycol chiller (EG 30 % / water)', v: {
       pl_hFl:'water', pl_hPop:'3', pl_hTi:'15', pl_hTo:'9', pl_hF:'30000', pl_hFunit:'kgh',
       pl_cFl:'ethylene-glycol-30', pl_cPop:'3', pl_cTi:'4', pl_coldMode:'flow', pl_cTo:'10', pl_cF:'34000', pl_cFunit:'kgh',
-      pl_mat:'ss316', pl_th:'0.5', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_pdH:'1.0', pl_pdC:'1.0' } },
+      pl_mat:'ss316', pl_th:'0.5', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
   ],
   'air-cooled': [
     { label: 'Hot-water air cooler (0.94 MW)', v: {
-      ac_Fl:'water', ac_Ti:'120', ac_To:'80', ac_F:'20000', ac_amb:'35', ac_dTa:'30', ac_fan:'forced', ac_fmat:'aluminum',
+      ac_Fl:'water', ac_Pop:'4', ac_Ti:'120', ac_To:'80', ac_F:'20000', ac_amb:'35', ac_dTa:'30', ac_fan:'forced', ac_fmat:'aluminum',
       ac_rows:'4', ac_nTubes:'84', ac_nPasses:'4', ac_tubeLen:'6', ac_tubeOD:'25.4', ac_tubeID:'20', ac_finH:'12.5', ac_finThk:'0.4',
       ac_finDens:'394', ac_pitchT:'63.5', ac_Rfo:'0.0002', ac_Rfi:'0.0002' } },
   ],
