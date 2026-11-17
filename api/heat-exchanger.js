@@ -86,7 +86,7 @@ export const config = { api: { bodyParser: true } };
 // Build marker — returned on every response as `apiBuild`, and on its own via
 // {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
 // actually serving without reading the logs.
-const API_BUILD = '2026-11-audit-r3';
+const API_BUILD = '2026-11-audit-r4';
 
 // Status = worst of the calculator's own checks and the severity of every
 // message it returns (✗ fails, ⚠ check, ℹ note). Keeps the verdict and the
@@ -167,6 +167,7 @@ async function heatxpert_handler(req, res) {
     switch (calcType) {
       case 'shellTube':   return res.json(_stamp(calcShellTube(body)));
       case 'plate':       return res.json(_stamp(calcPlate(body)));
+      case 'plateRecommend': return res.json(_stamp(calcPlateRecommend(body)));
       case 'airCooled':   return res.json(_stamp(calcAirCooled(body)));
       case 'finFan':      return res.json(_stamp(calcFinFan(body)));
       case 'doublePipe':  return res.json(_stamp(calcDoublePipe(body)));
@@ -1596,6 +1597,14 @@ const rho_s = (fluid.MW || 29) * P_REF_DB * 1e5 / (8314 * 288.15);
   if (flowUnit === 'nm3h') return val * rho_n;
   if (flowUnit === 'sm3h') return val * rho_s;
   return val;
+}
+
+// Inverse of toSI_flowWithUnit: kg/h → the user's flow unit (same rho_n / rho_s basis).
+function fromSI_flowWithUnit(kgh, flowUnit, fluidKey) {
+  if (!flowUnit || flowUnit === 'kgh' || !isFinite(kgh)) return kgh;
+  const MW = getFluid(fluidKey).MW || 29;
+  const rho_n = MW * P_REF_DB * 1e5 / (8314 * 273.15), rho_s = MW * P_REF_DB * 1e5 / (8314 * 288.15);
+  return flowUnit === 'nm3h' ? kgh / rho_n : flowUnit === 'sm3h' ? kgh / rho_s : kgh;
 }
 
 // ─── RESISTANCE BREAKDOWN HELPER ─────────────────────────────────────────────
@@ -3235,6 +3244,17 @@ function calcPlate(b) {
   }
   
   const portDia_m = parseFloat(b.portDia) / 1000 || 0;
+
+  // FIX 2026-11 (r4): a pack of n plates has n−1 channels; when that is odd one
+  // side gets an extra channel. It used to go to the HOT side whatever the
+  // flows. It now goes to the side with the larger volumetric flow, which is
+  // the side that is ΔP-limited (e.g. 300 t/h cooling water vs 140 t/h hot
+  // water: 29 cold / 28 hot channels instead of 28 / 29).
+  const volH = (hF / 3600) / Math.max(hFluid.rho, 1e-6), volC = (cF / 3600) / Math.max(cFluid.rho, 1e-6);
+  function splitChannels(n) {
+    const tot = Math.max(n - 1, 2), big = Math.ceil(tot / 2), small = Math.max(1, tot - big);
+    return volC > volH ? [small, big] : [big, small];      // [nChanH, nChanC]
+  }
   
   // ═══════════════════════════════════════════════════════════════════════
   // ITERATIVE PLATE COUNT CONVERGENCE
@@ -3249,8 +3269,7 @@ function calcPlate(b) {
   if (b.nPlates) {
     // User-specified plate count: single pass, no iteration needed
     nPlates = Math.max(4, parseInt(b.nPlates));
-    nChanH = Math.max(1, Math.floor(nPlates / 2));
-    nChanC = Math.max(1, nPlates - 1 - nChanH);
+    [nChanH, nChanC] = splitChannels(nPlates);
     
     hRes = htcPlate(hFluid, hF / 3600, nChanH);
     cRes = htcPlate(cFluid, cF / 3600, nChanC);
@@ -3272,8 +3291,7 @@ function calcPlate(b) {
     
     for (iteration = 1; iteration <= MAX_ITER; iteration++) {
       // Derive channels from current plate count
-      nChanH = Math.max(1, Math.floor(nPlates / 2));
-      nChanC = Math.max(1, nPlates - 1 - nChanH);
+      [nChanH, nChanC] = splitChannels(nPlates);
       
       // Calculate heat transfer with current channel count
       hRes = htcPlate(hFluid, hF / 3600, nChanH);
@@ -3300,21 +3318,28 @@ function calcPlate(b) {
       overDesign_prev = overDesign;
     }
     
-    // Recalculate final values with converged nPlates; add plates if the
-    // final channel velocities leave the pack a little short.
-    for (let k = 0; k < 6; k++) {
-      nChanH = Math.max(1, Math.floor(nPlates / 2));
-      nChanC = Math.max(1, nPlates - 1 - nChanH);
+    // Recalculate final values with converged nPlates; add plates until the
+    // pack covers the required area.
+    // FIX 2026-11 (r4): this used to stop after 6 extra plates and then add one
+    // more plate WITHOUT re-rating it, so a heavily fouled pack (e.g. Rf 4.5e-4)
+    // came back short (−1 %) with a plate count one higher than the area shown.
+    // Every exit is now from a rated pack; when short, the step is the area
+    // deficit in plates (A_req rises as plates are added, so this never
+    // overshoots).
+    const ratePack = n => {
+      [nChanH, nChanC] = splitChannels(n);
       hRes = htcPlate(hFluid, hF / 3600, nChanH);
       cRes = htcPlate(cFluid, cF / 3600, nChanC);
       hH = hRes.h; hC = cRes.h;
-      const Rwall = th / kw;
-      U = 1 / (1 / hH + 1 / hC + Rwall + foul);
+      U = 1 / (1 / hH + 1 / hC + th / kw + foul);
       A_req = Q * 1000 / (U * FLMTD);
-      A_provided = (nPlates - 2) * A_plate;    // thermal plates only
+      A_provided = (n - 2) * A_plate;          // thermal plates only
       overDesign = (A_provided / A_req - 1) * 100;
-      if (overDesign >= 0) break;
-      nPlates += 1;
+    };
+    ratePack(nPlates);
+    for (let k = 0; k < 400 && overDesign < 0; k++) {
+      nPlates += Math.max(1, Math.ceil((A_req - A_provided) / A_plate));
+      ratePack(nPlates);
     }
   }
   const autoPlates = !b.nPlates;
@@ -3325,6 +3350,9 @@ function calcPlate(b) {
   // --- Pressure drop with converged channel counts ---
   const dpH = pdPlate(hFluid, hF / 3600, nChanH, portDia_m);
   const dpC = pdPlate(cFluid, cF / 3600, nChanC, portDia_m);
+  const portDiaUsed = (portDia_m && portDia_m > 0) ? portDia_m : 0.30 * pw;
+  const A_portU = Math.PI * portDiaUsed * portDiaUsed / 4;
+  const vPortH = volH / A_portU, vPortC = volC / A_portU;
   
   // --- Performance metrics ---
   // FIX (audit 2026-07): NTU/Cmin now use temperature-corrected cp
@@ -3347,6 +3375,8 @@ function calcPlate(b) {
     else if (r.vel < 0.1) warns.push(`⚠ ${lbl}-side channel velocity ${r.vel.toFixed(2)} m/s is low — poor flow distribution and fouling risk. Use narrower plates or a two-pass arrangement.`);
     if (r.Re < 50) warns.push(`ℹ ${lbl}-side Re ${r.Re.toFixed(0)} — laminar channel flow.`);
   }
+  for (const [lbl, v] of [['Hot', vPortH], ['Cold', vPortC]])
+    if (v > 6) warns.push(`⚠ ${lbl}-side port velocity ${v.toFixed(1)} m/s (port Ø ${(portDiaUsed * 1000).toFixed(0)} mm) is above ~6 m/s — port maldistribution and erosion risk; use a plate with larger ports.`);
   warns.push(...viscNotes(hFluid, cFluid));
   for (const n of [phaseStateNote(hFlKey, hTi, hTo, hPop, 'Hot side'), phaseStateNote(cFlKey, cTi, cTo, cPop, 'Cold side')]) if (n) warns.push(n);
   if (hFluidDB.rho < GAS_RHO_THRESHOLD || cFluidDB.rho < GAS_RHO_THRESHOLD)
@@ -3364,13 +3394,94 @@ function calcPlate(b) {
     hFluid, cFluid, st, stTxt, warns,
     iterations: iteration || 1, angle, gap, phi, plateW: pw, plateL: plen, plateTh: th, foul, matName: b.mat || 'ss316',
     hF, Reh_xi: hRes.xi, Rec_xi: cRes.xi,
-    nChanH, nChanC,
+    nChanH, nChanC, portDia: portDiaUsed, portDiaUser: !!(portDia_m && portDia_m > 0), vPortH, vPortC, kWall: kw,
     vH:  hRes.vel,
     vC:  cRes.vel,
     Reh: hRes.Re,
     Rec: cRes.Re
   };
 }
+// ─── PLATE GEOMETRY RECOMMENDER (NEW 2026-11, r4) ──────────────────────────────
+// Suggests plate size, channel gap and chevron angle for a single-pass (1/1)
+// gasketed plate exchanger.
+//  1. Port size first: the two smallest generic frames whose port velocity is
+//     ≤ 5 m/s on both sides (liquids; a common vendor ceiling is 5–6 m/s).
+//  2. For each frame (short and long plate) × gap (3–5 mm) × angle (30/45/60°):
+//     plate count = the larger of (area + design margin) and (allowable ΔP on
+//     both sides), each pack fully re-rated with calcPlate.
+//  3. Ranked by installed plate area (≈ cost); ties → fewer plates.
+// Frames are GENERIC proportions by port size (effective W × L, port-to-port),
+// not any vendor's catalogue — the vendor confirms the final plate.
+const PLATE_FRAMES = [
+  { dn: 50,  w: 190,  L: [550, 800] },   { dn: 65,  w: 250,  L: [700, 1000] },
+  { dn: 100, w: 330,  L: [900, 1300] },  { dn: 150, w: 470,  L: [1200, 1700] },
+  { dn: 200, w: 600,  L: [1500, 2100] }, { dn: 250, w: 720,  L: [1700, 2400] },
+  { dn: 300, w: 850,  L: [2000, 2600] }, { dn: 350, w: 950,  L: [2200, 2900] },
+  { dn: 400, w: 1050, L: [2400, 3000] }, { dn: 500, w: 1250, L: [2600, 3200] },
+];
+function calcPlateRecommend(b) {
+  const margin = Math.min(Math.max(finiteOr(parseFloat(b.margin), 10, 0), 0), 50) / 100;
+  const pdAllowH = parseFloat(b.pdAllowH) || 1.0, pdAllowC = parseFloat(b.pdAllowC) || 1.0;
+  const VPORT_MAX = 5.0, VCH_MIN = 0.15, N_MAX = 700;
+  // Base run (any geometry) — gives the duty, the cold flow (if solved from T_out) and densities.
+  const base = calcPlate({ ...b, pw: 600, plen: 1500, gap: 3.5, angle: 45, nPlates: undefined, portDia: 200 });
+  const rhoH = base.hFluid.rho, rhoC = base.cFluid.rho;
+  if (rhoH < GAS_RHO_THRESHOLD || rhoC < GAS_RHO_THRESHOLD)
+    throw new Error('The plate recommender covers liquid/liquid duties only — gas service in a gasketed plate exchanger needs vendor selection.');
+  const volH = base.hF / 3600 / rhoH, volC = base.cF / 3600 / rhoC;      // m³/s
+  const vPort = dn => Math.max(volH, volC) / (Math.PI * (dn / 1000) ** 2 / 4);
+  const okFrames = PLATE_FRAMES.filter(f => vPort(f.dn) <= VPORT_MAX);
+  if (!okFrames.length) throw new Error(`Flow too large for a single gasketed plate frame (port velocity > ${VPORT_MAX} m/s even at DN500) — split the duty over two or more units.`);
+  const frames = okFrames.slice(0, 2);
+  const cbase = { ...b, coldMode: 'flow', cF: base.cF, cTo: undefined };   // fix the cold flow once solved
+  const cands = [];
+  for (const f of frames) for (const L of f.L) for (const gap of [3, 3.5, 4, 5]) for (const angle of [30, 45, 60]) {
+    const geo = { pw: f.w, plen: L, gap, angle, portDia: f.dn };
+    let r;
+    try { r = calcPlate({ ...cbase, ...geo, nPlates: undefined }); } catch (e) { continue; }
+    let n = Math.max(4, Math.ceil(r.A_req * (1 + margin) / r.A_plate) + 2), ok = false;
+    for (let k = 0; k < 25 && n <= N_MAX; k++) {
+      try { r = calcPlate({ ...cbase, ...geo, nPlates: n }); } catch (e) { break; }
+      const dpRatio = Math.max(r.dpH / pdAllowH, r.dpC / pdAllowC);
+      const areaShort = r.overDesign < margin * 100 - 1e-6;
+      if (!areaShort && dpRatio <= 1) { ok = true; break; }
+      // ΔP ~ n^-1.8 at fixed flow; area deficit in whole plates otherwise
+      const nDp = dpRatio > 1 ? Math.ceil(n * Math.pow(dpRatio, 1 / 1.8)) : n;
+      const nA  = areaShort ? n + Math.max(1, Math.ceil((r.A_req * (1 + margin) - r.A_provided) / r.A_plate)) : n;
+      n = Math.max(nDp, nA, n + 1);
+    }
+    if (!ok) continue;
+    const lowVel = Math.min(r.vH, r.vC) < VCH_MIN;
+    cands.push({
+      portDN: f.dn, plateW_mm: f.w, plateL_mm: L, gap_mm: gap, angle, nPlates: r.nPlates,
+      A_plate: r.A_plate, A_installed: r.A_provided, A_req: r.A_req, margin_pct: r.overDesign,
+      U: r.U, dpH: r.dpH, dpC: r.dpC, vH: r.vH, vC: r.vC, vPortH: r.vPortH, vPortC: r.vPortC,
+      nChanH: r.nChanH, nChanC: r.nChanC, lowVel,
+      dpLimited: Math.max(r.dpH / pdAllowH, r.dpC / pdAllowC) > 0.85,
+    });
+  }
+  if (!cands.length) throw new Error('No plate geometry meets the area margin and both allowable ΔPs within 700 plates — raise the allowable ΔP or split the duty.');
+  const good = cands.filter(c => !c.lowVel);
+  const pool = (good.length ? good : cands).sort((a, c) => (a.A_installed - c.A_installed) || (a.nPlates - c.nPlates));
+  // Keep the best few, but show variety: at most two per frame size.
+  const out = [], perFrame = {};
+  for (const c of pool) { const k = c.portDN + '/' + c.plateL_mm; if ((perFrame[k] = (perFrame[k] || 0) + 1) > 2) continue; out.push(c); if (out.length >= 5) break; }
+  const best = out[0];
+  const angleTxt = a => a <= 30 ? 'low-θ (soft) chevron — low ΔP' : a >= 60 ? 'high-θ (hard) chevron — highest h, highest ΔP' : 'mixed chevron';
+  const notes = [
+    `Port size from the larger stream: ${(Math.max(volH, volC) * 3600).toFixed(0)} m³/h → DN${best.portDN} gives ${vPort(best.portDN).toFixed(2)} m/s in the port (limit ${VPORT_MAX} m/s).`,
+    `Plate count covers the required area + ${(margin * 100).toFixed(0)} % margin and keeps both ΔPs within ${pdAllowH} / ${pdAllowC} bar` +
+      (best.margin_pct > margin * 100 + 2 ? ` — ΔP sets the plate count here, so the margin ends up at ${best.margin_pct.toFixed(0)} %`
+       : best.dpLimited ? ` — note the ${best.dpC / pdAllowC >= best.dpH / pdAllowH ? 'cold' : 'hot'}-side ΔP uses ${(100 * Math.max(best.dpH / pdAllowH, best.dpC / pdAllowC)).toFixed(0)} % of the allowable; pick a lower-ΔP row if you want headroom` : '') + '.',
+    `Chevron ${best.angle}°: ${angleTxt(best.angle)}. Gap ${best.gap_mm} mm${best.gap_mm < 3.5 ? ' — use ≥ 3.5–4 mm if the water carries silt or is open cooling-tower water without side-stream filtration' : ''}.`,
+    'Frames are generic proportions by port size, not a vendor catalogue; the vendor will fit the nearest standard plate and may use asymmetric or mixed-angle channels to trim the count.',
+  ];
+  if (Math.min(volH, volC) / Math.max(volH, volC) < 0.5)
+    notes.push(`The flows differ by ${(Math.max(volH, volC) / Math.min(volH, volC)).toFixed(1)}× — the low-flow side runs slow in a 1/1 pack. Vendors handle this with asymmetric channels or a 2-pass arrangement on the small stream.`);
+  return { ok: true, Q: base.Q, cF: base.cF, cTo: base.cTo, margin_pct: margin * 100, pdAllowH, pdAllowC,
+           flowH_m3h: volH * 3600, flowC_m3h: volC * 3600, vPortLimit: VPORT_MAX, candidates: out, evaluated: cands.length, notes };
+}
+
 // ─── FINNED-TUBE AIR SIDE (rewritten 2026-10, shared by Air Cooled & Fin-Fan) ─
 // FIXES vs the previous version:
 //  • Free-flow area: air flows BETWEEN the thin fins, so the minimum free area
@@ -4045,13 +4156,14 @@ function calcBalance(b) {
     let c = fluidAtConditions(cFlKey, cTi, cPop);
     for (let i = 0; i < 3; i++) { cTo = cTi + Q / ((cF / 3600) * c.cp); c = fluidAtConditions(cFlKey, (cTi + cTo) / 2, cPop); }
   } else {
+    if (!isFinite(cTo)) return { ok: false, msg: 'Enter the cold outlet temperature — the cold flow is then calculated from Q_hot = Q_cold.' };
     if (!(cTo > cTi)) return { ok: false, msg: 'Cold outlet must be above cold inlet.' };
     const c = fluidAtConditions(cFlKey, (cTi + cTo) / 2, cPop);
     cF = Q / (c.cp * (cTo - cTi)) * 3600;
   }
   const hotIn = hTi, hotOut = mode === 'condensing' ? Math.min(hTo, Tsat_h) : hTo;
   const approach = Math.min(hotIn - cTo, hotOut - cTi);
-  return { ok: true, Q_kW: Q, cTo, cF_kgh: cF, Tsat_h, Tsat_c, approach,
+  return { ok: true, Q_kW: Q, cTo, cF_kgh: cF, cF_unit: fromSI_flowWithUnit(cF, b.cFunit, cFlKey), Tsat_h, Tsat_c, approach,
            cross: approach <= 0, msg: approach <= 0 ? 'Temperature cross — the cold stream would leave hotter than the hot stream allows.' : null };
 }
 
