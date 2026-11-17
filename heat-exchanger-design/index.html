@@ -3276,8 +3276,8 @@ function renderBlockDiagram(r) {
     +'<text x="332" y="327" text-anchor="middle" fill="'+(dpSOk?'#1b7a3e':'#c0201a')+'" font-size="9.5" font-weight="700">Shell \u0394P '+convP(r.shellDP).toFixed(3)+' '+Pu+' '+(dpSOk?'✓':'✗')+'</text>'
     +'<rect x="416" y="312" width="148" height="22" rx="4" fill="'+(dpTOk?'#e6f7f4':'#fff3ee')+'" stroke="'+(dpTOk?'#008f76':'#e8500a')+'" stroke-width="1"/>'
     +'<text x="490" y="327" text-anchor="middle" fill="'+(dpTOk?'#1b7a3e':'#c0201a')+'" font-size="9.5" font-weight="700">Tube \u0394P '+convP(r.tubeDp).toFixed(3)+' '+Pu+' '+(dpTOk?'✓':'✗')+'</text>'
-    +'<rect x="574" y="312" width="116" height="22" rx="4" fill="'+(parseFloat(overS)>=0?'#e6f7f4':'#fff3ee')+'" stroke="'+(parseFloat(overS)>=0?'#008f76':'#e8500a')+'" stroke-width="1"/>'
-    +'<text x="632" y="327" text-anchor="middle" fill="'+(parseFloat(overS)>=0?'#1b7a3e':'#c0201a')+'" font-size="9.5" font-weight="700">Oversurface '+overS+'%</text>'
+    +'<rect x="574" y="312" width="116" height="22" rx="4" fill="'+(parseFloat(overS)<0?'#fff3ee':parseFloat(overS)>30?'#fff8ee':'#e6f7f4')+'" stroke="'+(parseFloat(overS)<0?'#e8500a':parseFloat(overS)>30?'#b35a00':'#008f76')+'" stroke-width="1"/>'
+    +'<text x="632" y="327" text-anchor="middle" fill="'+(parseFloat(overS)<0?'#c0201a':parseFloat(overS)>30?'#b35a00':'#1b7a3e')+'" font-size="9.5" font-weight="700">Oversurface '+overS+'%'+(parseFloat(overS)>30?' \u26a0':'')+'</text>'
     // Area label
     +'<text x="350" y="20" text-anchor="middle" fill="#3a4560" font-size="10" font-weight="700">A req='+area_req+' '+Au+' | A prov='+area_prov+' '+Au+' | TEMA '+(r.tema||'C')+'</text>'
     +'</svg></div>';
@@ -3520,7 +3520,7 @@ function renderSTResults(r, warns=[]) {
   <div class="kpi-grid">
     <div class="kpi red"><div class="kpi-label">Heat Duty</div><div class="kpi-val">${Q.toFixed(1)}<span class="kpi-unit">${H}</span></div></div>
     <div class="kpi blue"><div class="kpi-label">LMTD × F</div><div class="kpi-val">${dT(r.FLMTD).toFixed(2)}<span class="kpi-unit">${T}</span></div></div>
-    <div class="kpi teal"><div class="kpi-label">Required Area</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div></div>
+    <div class="kpi teal"><div class="kpi-label">Required Area${isPC?'':' (with fouling)'}</div><div class="kpi-val">${A.toFixed(2)}<span class="kpi-unit">${Au}</span></div>${!isPC && r.U_clean && r.U?`<div style="font-size:.65rem;color:var(--t3);margin-top:1px">clean ${(A*r.U/r.U_clean).toFixed(2)} ${Au} · fouling +${((r.U_clean/r.U-1)*100).toFixed(0)} %</div>`:''}</div>
     <div class="kpi gold"><div class="kpi-label">${isPC?'Overall U (zone-weighted)':'Overall U (service)'}</div><div class="kpi-val">${U.toFixed(0)}<span class="kpi-unit">${Uu}</span></div>${!isPC && r.U_clean?`<div style="font-size:.65rem;color:var(--t3);margin-top:1px">clean ${convU(r.U_clean).toFixed(0)} ${Uu}</div>`:''}</div>
     <div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness</div><div class="kpi-val">${(r.eff*100).toFixed(1)}<span class="kpi-unit">%</span></div></div>
     <div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(3)}</div></div>
@@ -3531,9 +3531,10 @@ function renderSTResults(r, warns=[]) {
       <div class="kpi-val">${r.L.toFixed(2)}<span class="kpi-unit">m</span></div>
       <div style="font-size:.65rem;color:var(--t3);margin-top:1px">${r.numTubes} tubes @ ${r.tubeVel.toFixed(2)} m/s${r.baffleSpacing_mm?` · baffles ${r.baffleSpacing_mm.toFixed(0)} mm`:''}</div>
     </div>
-    <div class="kpi ${r.overSurf<0?'warn':r.overSurf>=5?'ok':''}">
+    <div class="kpi ${r.overSurf<0||r.overSurf>30?'warn':r.overSurf>=5?'ok':''}">
       <div class="kpi-label">Oversurface</div>
       <div class="kpi-val">${r.overSurf!=null?r.overSurf.toFixed(1):'+0.0'}<span class="kpi-unit">%</span></div>
+      <div style="font-size:.65rem;color:var(--t3);margin-top:1px">margin over the fouled area${r.overSurf>30?' — high':''}</div>
     </div>
   </div>
   ${zoneHtml}
@@ -3633,7 +3634,7 @@ function renderSTResults(r, warns=[]) {
       </tr>
       <tr><td class="lbl-col">Area: Req / Provided</td>
         <td colspan="2">
-          ${convA(r.area).toFixed(2)} ${aU()} required &nbsp;|&nbsp;
+          ${convA(r.area).toFixed(2)} ${aU()} required${r.U_clean&&!(r.zoneModel&&r.U_effective)?` (with fouling; clean ${convA(r.area*r.U/r.U_clean).toFixed(2)} ${aU()})`:''} &nbsp;|&nbsp;
           ${convA(r.area_provided||r.area).toFixed(2)} ${aU()} provided &nbsp;|&nbsp;
           <strong style="color:${(r.overSurf||0)>0?'var(--ok)':'var(--err)'}">${(r.overSurf||0).toFixed(1)}% oversurface</strong>
         </td>
@@ -3933,7 +3934,7 @@ ${st?`
 <div class="kpi-strip">
   <div class="kpi r"><div class="kl">Heat Duty</div><div class="kv">${convQ(st.Q).toFixed(1)}<span class="ku"> ${H}</span></div></div>
   <div class="kpi b"><div class="kl">LMTD×F</div><div class="kv">${st.FLMTD.toFixed(2)}<span class="ku"> ${T}</span></div></div>
-  <div class="kpi t"><div class="kl">Req. Area</div><div class="kv">${convA(st.area).toFixed(2)}<span class="ku"> ${Au}</span></div></div>
+  <div class="kpi t"><div class="kl">Req. Area${st.zoneModel&&st.U_effective?'':' (fouled)'}</div><div class="kv">${convA(st.area).toFixed(2)}<span class="ku"> ${Au}</span></div></div>
   <div class="kpi g"><div class="kl">${st.zoneModel&&st.U_effective?'U (zone-weighted)':'U Overall'}</div><div class="kv">${convU(st.zoneModel&&st.U_effective?st.U_effective:st.U).toFixed(0)}<span class="ku"> ${Uu}</span></div></div>
   <div class="kpi ${st.eff>0.65?'ok':'warn'}"><div class="kl">Effectiveness ε</div><div class="kv">${(st.eff*100).toFixed(1)}<span class="ku"> %</span></div></div>
   <div class="kpi ${st.NTU?'b':''}"><div class="kl">NTU</div><div class="kv">${st.NTU!=null?st.NTU.toFixed(3):'—'}</div></div>
@@ -4061,8 +4062,10 @@ ${st?`
   <text x="268" y="219" text-anchor="middle" fill="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">ΔP_s=${convP(st.shellDP||0).toFixed(3)} ${pU()} ${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'✓':'✗'}</text>
   <rect x="340" y="207" width="125" height="16" rx="3" fill="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#e6f7f4':'#fff3ee'}" stroke="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
   <text x="403" y="219" text-anchor="middle" fill="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">ΔP_t=${convP(st.tubeDp||0).toFixed(3)} ${pU()} ${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'✓':'✗'}</text>
-  <rect x="475" y="207" width="105" height="16" rx="3" fill="${(st.overSurf||0)>=0?'#e6f7f4':'#fff3ee'}" stroke="${(st.overSurf||0)>=0?'#008f76':'#e8500a'}" stroke-width="0.8"/>
-  <text x="528" y="219" text-anchor="middle" fill="${(st.overSurf||0)>=0?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">OS=${(st.overSurf||0).toFixed(1)}% ${(st.overSurf||0)>=0?'✓':'✗'}</text>
+  ${(()=>{const os=st.overSurf||0, k=os<0?'bad':os>30?'hi':'ok';
+    const c={ok:['#e6f7f4','#008f76','#1b7a3e','✓'],hi:['#fff8ee','#b35a00','#b35a00','⚠ high'],bad:['#fff3ee','#e8500a','#c0201a','✗']}[k];
+    return `<rect x="475" y="207" width="105" height="16" rx="3" fill="${c[0]}" stroke="${c[1]}" stroke-width="0.8"/>
+  <text x="528" y="219" text-anchor="middle" fill="${c[2]}" font-size="7.5" font-weight="700">OS=${os.toFixed(1)}% ${c[3]}</text>`;})()}
 </svg>
 
 <div class="mini-sec">⚡ Exchanger Performance &amp; Geometry</div>
@@ -4075,7 +4078,7 @@ ${st?`
     </tr>
     <tr>
       <td class="lbl">F correction</td><td>—</td><td>${st.F!=null?st.F.toFixed(4):'—'}</td>
-      <td class="lbl">Area required / provided</td><td>${Au}</td><td>${st.area!=null?convA(st.area).toFixed(2):'—'} / ${st.area_provided!=null?convA(st.area_provided).toFixed(2):'—'} (${(st.overSurf||0).toFixed(1)} %)</td>
+      <td class="lbl">Area req. (with fouling) / provided</td><td>${Au}</td><td>${st.area!=null?convA(st.area).toFixed(2):'—'} / ${st.area_provided!=null?convA(st.area_provided).toFixed(2):'—'} (${(st.overSurf||0).toFixed(1)} %)</td>
     </tr>
     <tr>
       <td class="lbl">Effective LMTD (F×LMTD)</td><td>${T}</td><td><b>${st.FLMTD!=null?st.FLMTD.toFixed(4):'—'}</b></td>
@@ -4086,6 +4089,10 @@ ${st?`
       <td class="lbl">Effectiveness ε</td><td>%</td><td>${st.eff!=null?(st.eff*100).toFixed(2):'—'}</td>
       <td class="lbl">NTU</td><td>—</td><td>${st.NTU!=null?st.NTU.toFixed(4):'—'}</td>
     </tr>
+    ${st.U_clean&&st.U&&st.area&&!(st.zoneModel&&st.U_effective)?`<tr>
+      <td class="lbl">Area clean (no fouling)</td><td>${Au}</td><td>${convA(st.area*st.U/st.U_clean).toFixed(2)}</td>
+      <td class="lbl">Fouling allowance on area</td><td>%</td><td>+${((st.U_clean/st.U-1)*100).toFixed(1)} (U service / clean = ${(st.U/st.U_clean).toFixed(3)})</td>
+    </tr>`:''}
     <tr>
       <td class="lbl">Tubes per Shell × Shells</td><td>—</td><td>${st.numTubes!=null?st.numTubes:'—'} × ${st.nShells||1}</td>
       <td class="lbl">Shell ID (est.)</td><td>mm</td><td>${st.shellID!=null?(st.shellID*1000).toFixed(0):'—'}</td>
