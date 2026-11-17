@@ -984,7 +984,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
               Operating Pressure <span id="st_hPgasTag" style="font-size:.63rem;color:var(--blue);font-style:italic;font-weight:600"></span>
             </label>
             <div class="irow">
-              <input type="number" id="st_hPop" value="1.01325" step="0.1" min="0.001" max="500" oninput="autoTubeSpecs();onSatPresInput('hot')">
+              <input type="number" id="st_hPop" value="1.01325" step="0.1" min="0.001" max="500" oninput="autoTubeSpecs();onSatPresInput('hot');coldBalancePreview()">
               <select id="st_hPop_usel" class="u-sel u-pres-sel" onchange="onPresUnitChange('st_hPop',this.value)" style="width:72px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
 <option value="bar" selected>bar a</option>
 <option value="kpa">kPa a</option>
@@ -1034,7 +1034,7 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
             <div class="irow">
               <input type="number" id="st_cTo" step="0.01" placeholder="auto"
                 style="flex:1;background:var(--surf2);border-style:dashed;
-                       color:var(--t3);font-style:italic" readonly>
+                       color:var(--t3);font-style:italic" readonly oninput="if(coldMode==='temp')coldBalancePreview()">
               <select id="st_cTo_usel" class="u-sel u-temp-sel" onchange="onTempUnitChange('st_cTo',this.value)" style="width:52px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid rgba(0,143,118,.3);background:var(--teal-lt);color:var(--teal);cursor:pointer">
 <option value="c" selected>°C</option>
 <option value="f">°F</option>
@@ -1469,20 +1469,23 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
           <div class="fg"><label class="tip" data-tip="Gap between adjacent plates (= corrugation depth). Typical: 2–5 mm.">Channel Gap (mm)</label>
             <div class="irow"><input type="number" id="pl_gap" value="3" step="0.5" min="1" max="10"><div class="ulab">mm</div></div>
           </div>
-          <div class="fg"><label>Plate Width (mm)</label>
+          <div class="fg"><label class="tip" data-tip="Effective heat-transfer width of the plate (gasket to gasket), not the overall frame width.">Plate Width (mm)</label>
             <div class="irow"><input type="number" id="pl_width" value="240" step="10" min="100" max="1200"><div class="ulab">mm</div></div>
           </div>
-          <div class="fg"><label>Plate Length (mm)</label>
+          <div class="fg"><label class="tip" data-tip="Effective flow length, port centre to port centre — this is the length used for both heat transfer and ΔP.">Plate Length (mm)</label>
             <div class="irow"><input type="number" id="pl_plen" value="600" step="10" min="200" max="2400"><div class="ulab">mm</div></div>
           </div>
           <div class="fg"><label class="tip" data-tip="Enlargement factor φ accounts for corrugation. Typical 1.15–1.25. Use 1.17 for default.">Enlargement Factor φ</label>
             <div class="irow"><input type="number" id="pl_phi" value="1.17" step="0.01" min="1.0" max="1.5"><div class="ulab">—</div></div>
           </div>
-          <div class="fg"><label class="tip" data-tip="Combined fouling factor both sides. TEMA liquid-liquid: ~0.0002 m²K/W">Fouling Factor (m²K/W)</label>
+          <div class="fg"><label class="tip" data-tip="TOTAL fouling factor, both sides combined. Plate exchangers foul less than shell &amp; tube: typical totals 0.00005–0.0001 m²K/W for clean water services; TEMA shell &amp; tube values (0.0002 per side) are usually too high for plates.">Fouling Factor — total (m²K/W)</label>
             <div class="irow"><input type="number" id="pl_foul" value="0.0002" step="0.00005" min="0"><div class="ulab">m²K/W</div></div>
           </div>
           <div class="fg"><label class="tip" data-tip="Leave at 0 to let the tool size the plate pack; enter a number to rate an existing pack.">No. of Plates (0 = auto)</label>
             <div class="irow"><input type="number" id="pl_nPlates" value="0" step="1" min="0" max="1000"><div class="ulab">plates</div></div>
+          </div>
+          <div class="fg"><label class="tip" data-tip="Port (nozzle) diameter. 0 = estimate as 0.30 × plate width. Keep port velocity below about 5 m/s.">Port Diameter (0 = auto)</label>
+            <div class="irow"><input type="number" id="pl_portDia" value="0" step="5" min="0" max="600"><div class="ulab">mm</div></div>
           </div>
           <div class="fg"><label>Allow. Hot ΔP (bar)</label>
             <div class="irow"><input type="number" id="pl_pdH" value="1.50" step="0.1" min="0.01"><select id="pl_pdH_usel" class="u-sel u-pdrop-sel" onchange="onPresUnitChange('pl_pdH',this.value)" style="width:68px;padding:4px 2px;font-size:.68rem;border-radius:5px;border:1px solid var(--bdr);background:var(--surf2);cursor:pointer">
@@ -1501,6 +1504,12 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         </div>
 
         <div id="pl_err" class="err-box">⚠ <span id="pl_err_txt"></span></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px;padding:9px 12px;border-radius:8px;background:#eef4ff;border:1px solid rgba(0,85,200,.18)">
+          <button type="button" class="btn" id="pl_recBtn" onclick="runPlateRecommend()" style="flex:0 0 auto;width:auto;background:#0055c8;color:#fff;padding:9px 16px;font-size:.82rem">💡 Recommend plate size, gap &amp; angle</button>
+          <label style="font-size:.72rem;color:var(--t2);display:flex;align-items:center;gap:6px;margin:0;text-transform:none;letter-spacing:0">Design margin
+            <input type="number" id="pl_margin" value="10" min="0" max="50" step="1" style="width:62px;padding:5px 6px"> %</label>
+          <span style="font-size:.68rem;color:var(--t3);flex:1 1 220px">Uses your fluids, temperatures, flows, fouling and allowable ΔPs; tries port sizes, plate lengths, 3–5 mm gaps and 30/45/60° chevrons.</span>
+        </div>
         <div class="btn-row">
           <button type="submit" class="btn btn-calc">🧮 Calculate Design</button>
           <button type="button" class="btn btn-reset" onclick="resetForm('pl')">↺ Reset</button>
@@ -4231,10 +4240,12 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
     <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${pl.hF!=null?pl.hF.toFixed(1):'—'}</td></tr>
     <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${convQ(pl.Q).toFixed(3)}</td></tr>
     <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
-      <td class="${(pl.dpH||0)>(pl.pdAllowH||1.5)?'hi-err':'hi-ok'}">${pl.dpH!=null?convP(pl.dpH).toFixed(4):'—'}</td></tr>
+      <td class="${(pl.dpH||0)>(pl.pdAllowH||1.5)?'hi-err':'hi-ok'}">${pl.dpH!=null?convP(pl.dpH).toFixed(4):'—'} ${(pl.dpH||0)>(pl.pdAllowH||1.5)?'✗':'✓ OK'}</td></tr>
     <tr><td class="lbl">Allow. ΔP</td><td>${Pu}</td><td>${convP(pl.pdAllowH||1.5).toFixed(3)}</td></tr>
     <tr><td class="lbl">Film h (hot)</td><td>W/m²K</td><td>${pl.hH!=null?pl.hH.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Re (hot)</td><td>—</td><td>${pl.Reh!=null?pl.Reh.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Channels / channel velocity</td><td>— / m/s</td><td>${pl.nChanH??'—'} / ${pl.vH!=null?pl.vH.toFixed(3):'—'}</td></tr>
+    ${pl.vPortH!=null?`<tr><td class="lbl">Port velocity</td><td>m/s</td><td class="${pl.vPortH>6?'hi-warn':''}">${pl.vPortH.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
 </div>
@@ -4248,10 +4259,12 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
     <tr><td class="lbl">Flow Rate</td><td>kg/h</td><td>${pl.cF!=null?pl.cF.toFixed(1):'—'}</td></tr>
     <tr><td class="lbl">Heat Duty</td><td>${H}</td><td>${pl.Qcold!=null?convQ(pl.Qcold).toFixed(3):convQ(pl.Q).toFixed(3)}</td></tr>
     <tr><td class="lbl">Pressure Drop</td><td>${Pu}</td>
-      <td class="${(pl.dpC||0)>(pl.pdAllowC||1.5)?'hi-err':'hi-ok'}">${pl.dpC!=null?convP(pl.dpC).toFixed(4):'—'}</td></tr>
+      <td class="${(pl.dpC||0)>(pl.pdAllowC||1.5)?'hi-err':'hi-ok'}">${pl.dpC!=null?convP(pl.dpC).toFixed(4):'—'} ${(pl.dpC||0)>(pl.pdAllowC||1.5)?'✗':'✓ OK'}</td></tr>
     <tr><td class="lbl">Allow. ΔP</td><td>${Pu}</td><td>${convP(pl.pdAllowC||1.5).toFixed(3)}</td></tr>
     <tr><td class="lbl">Film h (cold)</td><td>W/m²K</td><td>${pl.hC!=null?pl.hC.toFixed(0):'—'}</td></tr>
     <tr><td class="lbl">Re (cold)</td><td>—</td><td>${pl.Rec!=null?pl.Rec.toFixed(0):'—'}</td></tr>
+    <tr><td class="lbl">Channels / channel velocity</td><td>— / m/s</td><td>${pl.nChanC??'—'} / ${pl.vC!=null?pl.vC.toFixed(3):'—'}</td></tr>
+    ${pl.vPortC!=null?`<tr><td class="lbl">Port velocity</td><td>m/s</td><td class="${pl.vPortC>6?'hi-warn':''}">${pl.vPortC.toFixed(2)}</td></tr>`:''}
   </tbody>
 </table>
 </div>
@@ -4262,7 +4275,7 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
   <thead><tr><th>Parameter</th><th>Unit</th><th>Value</th><th>Parameter</th><th>Unit</th><th>Value</th></tr></thead>
   <tbody>
     <tr>
-      <td class="lbl">Plate dimensions (W×L)</td><td>mm</td><td>${pl.plateW!=null?(pl.plateW*1000).toFixed(0):'—'} × ${pl.plateL!=null?(pl.plateL*1000).toFixed(0):'—'}</td>
+      <td class="lbl">Plate effective W × L (port-to-port)</td><td>mm</td><td>${pl.plateW!=null?(pl.plateW*1000).toFixed(0):'—'} × ${pl.plateL!=null?(pl.plateL*1000).toFixed(0):'—'}</td>
       <td class="lbl">Plate thickness</td><td>mm</td><td>${pl.plateTh!=null?(pl.plateTh*1000).toFixed(1):'—'}</td>
     </tr>
     <tr>
@@ -4271,14 +4284,22 @@ ${st?`<div style="text-align:center;margin-bottom:8px;padding-bottom:6px;border-
     </tr>
     <tr>
       <td class="lbl">Enlargement factor φ</td><td>—</td><td>${pl.phi!=null?pl.phi.toFixed(3):'—'}</td>
-      <td class="lbl">Material</td><td>—</td><td>${pl.matName||'—'}</td>
+      <td class="lbl">Material (k)</td><td>W/mK</td><td>${pl.matName||'—'}${pl.kWall?` (${pl.kWall})`:''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Area per plate (φ·W·L)</td><td>${Au}</td><td>${pl.A_plate!=null?convA(pl.A_plate).toFixed(3):'—'}</td>
+      <td class="lbl">Port diameter (${pl.portDiaUser?'input':'est. 0.30 × W'})</td><td>mm</td><td>${pl.portDia!=null?(pl.portDia*1000).toFixed(0):'—'}</td>
     </tr>
     <tr>
       <td class="lbl">Number of plates</td><td>—</td><td><b>${pl.nPlates||'—'}</b></td>
-      <td class="lbl">Required area</td><td>${Au}</td><td>${pl.A_req!=null?convA(pl.A_req).toFixed(3):'—'}</td>
+      <td class="lbl">Area req. (with fouling) / provided</td><td>${Au}</td><td>${pl.A_req!=null?convA(pl.A_req).toFixed(2):'—'} / ${pl.A_provided!=null?convA(pl.A_provided).toFixed(2):'—'}${pl.overDesign!=null?` (${pl.overDesign>=0?'+':''}${pl.overDesign.toFixed(1)} %)`:''}</td>
     </tr>
+    ${pl.U_clean&&pl.U&&pl.A_req?`<tr>
+      <td class="lbl">Area clean (no fouling)</td><td>${Au}</td><td>${convA(pl.A_req*pl.U/pl.U_clean).toFixed(2)}</td>
+      <td class="lbl">U service / clean</td><td>W/m²K</td><td>${pl.U.toFixed(1)} / ${pl.U_clean.toFixed(1)}</td>
+    </tr>`:''}
     <tr>
-      <td class="lbl">Fouling factor</td><td>m²K/W</td><td>${pl.foul!=null?pl.foul.toExponential(2):'—'}</td>
+      <td class="lbl">Fouling factor (total, both sides)</td><td>m²K/W</td><td>${pl.foul!=null?pl.foul.toExponential(2):'—'}</td>
       <td class="lbl">U overall</td><td>W/m²K</td><td><b>${pl.U!=null?pl.U.toFixed(2):'—'}</b></td>
     </tr>
     <tr>
@@ -5223,6 +5244,7 @@ function getFlowKgH_client(inputId, unitSelId) {
 }
 function updateFlowUnit(selId,labId){
   const u=g(selId)?g(selId).value:'kgh';
+  if(/^st_/.test(selId)) coldBalancePreview();
   const lbl=g(labId);
   if(lbl) lbl.textContent=u==='kgh'?(unitSys==='metric'?'Mass flow in kg/h':'Mass flow in lb/h'):u==='nm3h'?'Normal m³/h (0 °C, 1.013 bar)':'Standard m³/h (15 °C, 1.013 bar)';
 }
@@ -5238,7 +5260,17 @@ function setColdMode(mode){
     ? '✅ <strong>Mode: Know Flow Rate</strong> — enter cold flow rate; outlet temp will be auto-calculated from Q<sub>hot</sub> = Q<sub>cold</sub>.'
     : '✅ <strong>Mode: Know Outlet Temp</strong> — enter cold outlet temp; flow rate will be auto-calculated.';
   const cToEl = g('st_cTo'), cFEl = g('st_cF');
-  if (cToEl) { cToEl.readOnly = mode==='flow'; cToEl.style.borderStyle = mode==='flow' ? 'dashed' : 'solid'; cToEl.style.color = mode==='flow' ? 'var(--t3)' : 'var(--t1)'; }
+  // The field that is calculated is read-only, dashed and italic; the other is the input.
+  const styleField = (el, isAuto) => { if (!el) return; el.readOnly = isAuto; el.style.borderStyle = isAuto ? 'dashed' : 'solid';
+    el.style.color = isAuto ? 'var(--t3)' : 'var(--t1)'; el.style.fontStyle = isAuto ? 'italic' : 'normal'; el.style.background = isAuto ? 'var(--surf2)' : ''; };
+  styleField(cToEl, mode==='flow');
+  styleField(cFEl,  mode==='temp');
+  if (cToEl) cToEl.placeholder = mode==='flow' ? 'auto' : 'enter outlet T';
+  const toTag = g('coldToMode'), fTag = g('coldFlowMode');
+  if (toTag) toTag.textContent = mode==='flow' ? '(auto-calculated)' : '← enter value';
+  if (fTag)  fTag.textContent  = mode==='temp' ? '(auto-calculated)' : '← enter value';
+  if (mode==='temp' && cToEl && !cToEl.value) cToEl.focus();
+  coldBalancePreview();
 }
 
 // ── Hot-side flow/temp mode ───────────────────────────────────────────────────
@@ -5282,7 +5314,13 @@ function coldBalancePreview(){
     const T=tU();
     const parts=[`Q ≈ <b>${convQ(r.Q_kW).toFixed(1)} ${hU()}</b>`];
     if(coldMode==='flow'){ parts.push(`cold outlet ≈ <b>${tDisp(r.cTo).toFixed(1)} ${T}</b>`); const el=g('st_cTo'); if(el){ const u=g('st_cTo_usel')?.value||'c'; el.value=(u==='f'?r.cTo*9/5+32:u==='k'?r.cTo+273.15:r.cTo).toFixed(2); } }
-    else parts.push(`cold flow needed ≈ <b>${(unitSys==='imperial'?r.cF_kgh*2.20462:r.cF_kgh).toFixed(0)} ${fU()}</b>`);
+    else {
+      const fu=(g('st_cFunit')||{value:'kgh'}).value;
+      const val=fu==='kgh' ? (unitSys==='imperial'?r.cF_kgh*2.20462:r.cF_kgh) : (r.cF_unit!=null?r.cF_unit:r.cF_kgh);
+      const lbl=fu==='kgh' ? fU() : fu==='nm3h' ? 'Nm³/h' : 'Sm³/h';
+      parts.push(`cold flow needed ≈ <b>${val.toFixed(0)} ${lbl}</b>`);
+      const el=g('st_cF'); if(el && isFinite(val)) el.value=val.toFixed(1);
+    }
     parts.push(`closest approach ${dT(r.approach).toFixed(1)} ${T}`);
     const bad=r.cross||r.approach<3;
     box.style.borderColor=bad?'rgba(192,32,26,.35)':'rgba(0,143,118,.3)';
@@ -5481,11 +5519,7 @@ document.getElementById('stForm').addEventListener('submit', async function(e){
 });
 
 // ── PLATE HX ──────────────────────────────────────────────────────────────────
-document.getElementById('plForm').addEventListener('submit', async function(e){
-  e.preventDefault(); if(_apiPending) return; hideErr('pl');
-  if(!validateForm('pl')) return;
-  startCalc('pl');
-  try {
+function plBuildPayload() {
     const hFlKey=g('pl_hFl').value, cFlKey=g('pl_cFl').value;
     const hTi=getTempVal('pl_hTi'), hTo=getTempVal('pl_hTo'), cTi=getTempVal('pl_cTi');
     const hPop=getPresVal('pl_hPop'), cPop=getPresVal('pl_cPop');
@@ -5511,7 +5545,16 @@ document.getElementById('plForm').addEventListener('submit', async function(e){
       pdAllowH: getPresVal('pl_pdH'),
       pdAllowC: getPresVal('pl_pdC'),
       nPlates: (parseInt((g('pl_nPlates')||{value:'0'}).value)||0) >= 4 ? parseInt(g('pl_nPlates').value) : undefined,
+      portDia: (x=>x>0?x:undefined)(parseFloat((g('pl_portDia')||{value:'0'}).value)||0),
     };
+    return { payload, plColdMode };
+}
+document.getElementById('plForm').addEventListener('submit', async function(e){
+  e.preventDefault(); if(_apiPending) return; hideErr('pl');
+  if(!validateForm('pl')) return;
+  startCalc('pl');
+  try {
+    const { payload, plColdMode } = plBuildPayload();
     const r = await callAPI(payload);
     if (r.error) return showErr('pl', r.error);
     lastResults.pl = r;
@@ -5523,6 +5566,51 @@ document.getElementById('plForm').addEventListener('submit', async function(e){
     showRes('pl', renderPlateResults(r));
   } catch(err) { showErr('pl', err.message); }
 });
+
+// ── PLATE GEOMETRY RECOMMENDER ────────────────────────────────────────────────
+let _plRec = null;
+async function runPlateRecommend() {
+  if (_apiPending) return; hideErr('pl');
+  if (!validateForm('pl')) return;
+  startCalc('pl');
+  try {
+    const { payload } = plBuildPayload();
+    payload.calcType = 'plateRecommend';
+    payload.margin = parseFloat((g('pl_margin') || {value:'10'}).value) || 10;
+    delete payload.nPlates; delete payload.portDia;
+    const r = await callAPI(payload);
+    if (r.error) return showErr('pl', r.error);
+    _plRec = r;
+    showRes('pl', renderPlateRecommend(r));
+  } catch (err) { showErr('pl', err.message); }
+}
+function applyPlateRec(i) {
+  const c = _plRec && _plRec.candidates[i]; if (!c) return;
+  const set = (id, v) => { const el = g(id); if (el) el.value = v; };
+  set('pl_width', c.plateW_mm); set('pl_plen', c.plateL_mm); set('pl_gap', c.gap_mm); set('pl_angle', c.angle);
+  set('pl_portDia', c.portDN); set('pl_nPlates', c.nPlates);
+  const f = g('plForm'); if (f) (f.requestSubmit ? f.requestSubmit() : f.dispatchEvent(new Event('submit', {cancelable:true})));
+}
+function renderPlateRecommend(r) {
+  const Au = aU(), Pu = pU();
+  const th = 'style="padding:6px 6px;text-align:left;background:#0f1729;color:#fff;font-size:.68rem;white-space:nowrap"';
+  const td = 'style="padding:6px 6px;border-bottom:1px solid var(--bdr);white-space:nowrap"';
+  const rows = r.candidates.map((c, i) => `<tr${i===0?' style="background:#eaf8f3"':''}>
+      <td ${td}><b>${i===0?'★ ':''}DN${c.portDN}</b></td>
+      <td ${td}>${c.plateW_mm} × ${c.plateL_mm}</td><td ${td}>${c.gap_mm}</td><td ${td}>${c.angle}°</td>
+      <td ${td}><b>${c.nPlates}</b></td><td ${td}>${convA(c.A_installed).toFixed(1)}</td><td ${td}>+${c.margin_pct.toFixed(1)} %</td>
+      <td ${td}>${convU(c.U).toFixed(0)}</td><td ${td}>${convP(c.dpH).toFixed(2)} / ${convP(c.dpC).toFixed(2)}</td>
+      <td ${td}>${c.vH.toFixed(2)} / ${c.vC.toFixed(2)}</td><td ${td}>${Math.max(c.vPortH, c.vPortC).toFixed(1)}</td>
+      <td ${td}><button type="button" onclick="applyPlateRec(${i})" style="padding:4px 10px;font-size:.7rem;font-weight:700;border:none;border-radius:5px;cursor:pointer;background:var(--teal);color:#fff">Apply</button></td></tr>`).join('');
+  return `
+  <div style="font-weight:800;font-size:1rem;margin-bottom:2px">💡 Recommended plate geometry</div>
+  <div style="font-size:.74rem;color:var(--t3);margin-bottom:10px">Duty ${convQ(r.Q).toFixed(1)} ${hU()} · flows ${r.flowH_m3h.toFixed(0)} / ${r.flowC_m3h.toFixed(0)} m³/h (hot / cold) · margin ${r.margin_pct.toFixed(0)} % · allowable ΔP ${convP(r.pdAllowH).toFixed(2)} / ${convP(r.pdAllowC).toFixed(2)} ${Pu} · ${r.evaluated} geometries rated</div>
+  <div style="overflow-x:auto"><table style="width:100%;font-size:.74rem;border-collapse:collapse">
+    <thead><tr><th ${th}>Port</th><th ${th}>Plate W × L (mm)</th><th ${th}>Gap (mm)</th><th ${th}>Chevron</th><th ${th}>Plates</th><th ${th}>Area (${Au})</th><th ${th}>Margin</th><th ${th}>U (${uU()})</th><th ${th}>ΔP hot / cold (${Pu})</th><th ${th}>Channel v (m/s)</th><th ${th}>Port v (m/s)</th><th ${th}></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+  <div style="font-size:.72rem;color:var(--t2);margin-top:10px;line-height:1.6">${r.notes.map(n => '• ' + _esc(n)).join('<br>')}</div>
+  <div style="font-size:.7rem;color:var(--t3);margin-top:8px">★ = least installed plate area (≈ lowest cost). <b>Apply</b> copies the geometry and plate count into the form and runs the full calculation and datasheet. Ranked by installed area, then plate count; single-pass (1/1) packs only.</div>`;
+}
 
 // ── AIR COOLED ────────────────────────────────────────────────────────────────
 document.getElementById('acForm').addEventListener('submit', async function(e){
@@ -6280,6 +6368,7 @@ function onSatLinkToggle() {
 
 function onShellModeChange() {
   const mode = (document.getElementById('st_shellMode') || {}).value || 'single-phase';
+  if (typeof coldBalancePreview === 'function') coldBalancePreview();
   const note = document.getElementById('st_phaseNote');
   const txt  = document.getElementById('st_phaseNoteText');
   const row  = document.getElementById('st_satLinkRow');
@@ -6470,11 +6559,11 @@ const EXAMPLES = {
     { label: 'Central cooler (water / water)', v: {
       pl_hFl:'water', pl_hPop:'4', pl_hTi:'80', pl_hTo:'45', pl_hF:'20000', pl_hFunit:'kgh',
       pl_cFl:'water', pl_cPop:'3', pl_cTi:'20', pl_coldMode:'temp', pl_cTo:'55', pl_cF:'20000', pl_cFunit:'kgh',
-      pl_mat:'ss316', pl_th:'0.6', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
+      pl_mat:'ss316', pl_th:'0.6', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_portDia:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
     { label: 'Glycol chiller (EG 30 % / water)', v: {
       pl_hFl:'water', pl_hPop:'3', pl_hTi:'15', pl_hTo:'9', pl_hF:'30000', pl_hFunit:'kgh',
       pl_cFl:'ethylene-glycol-30', pl_cPop:'3', pl_cTi:'4', pl_coldMode:'flow', pl_cTo:'10', pl_cF:'34000', pl_cFunit:'kgh',
-      pl_mat:'ss316', pl_th:'0.5', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
+      pl_mat:'ss316', pl_th:'0.5', pl_angle:'60', pl_gap:'3', pl_width:'400', pl_plen:'1000', pl_phi:'1.17', pl_foul:'0.0001', pl_nPlates:'0', pl_portDia:'0', pl_pdH:'1.0', pl_pdC:'1.0' } },
   ],
   'air-cooled': [
     { label: 'Hot-water air cooler (0.94 MW)', v: {
