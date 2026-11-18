@@ -8,6 +8,7 @@
 //   SECTION B  ►  NPSH CALCULATOR                      /api/npsh-calculator
 //   SECTION C  ►  COOLING TOWER PERFORMANCE            /api/cooling-tower
 //   SECTION D  ►  PSYCHROMETRIC CALCULATOR             /api/psychrometric
+//   HAZOP WORKSHEET (engine + library in api/_lib/)    /api/hazop
 //
 // NOTE: material-grades-library is a front-end only page (no API backend).
 //       No server-side handler is needed for it.
@@ -19,6 +20,8 @@
 //   Search "SECTION D" → Psychrometric
 //
 // ════════════════════════════════════════════════════════════════════════════
+
+import { hazopRoute } from './_lib/hazop-engine.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // ROUTER
@@ -43,9 +46,11 @@ export default async function handler(req, res) {
       return await coolingTower_handler(req, res);
     case 'psychrometric':
       return await psychrometric_handler(req, res);
+    case 'hazop':
+      return await hazopRoute(req, res);
     default:
       return res.status(404).json({
-        error: `Unknown route: "${key}". Valid: moc, npsh-calculator, cooling-tower, psychrometric`
+        error: `Unknown route: "${key}". Valid: moc, npsh-calculator, cooling-tower, psychrometric, hazop`
       });
   }
 }
