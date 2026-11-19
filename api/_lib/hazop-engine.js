@@ -25,15 +25,18 @@ const RATE_MAX = parseInt(process.env.HAZOP_RATE_LIMIT || '120', 10);   // reque
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
 // ─── library ────────────────────────────────────────────────────────────────
-let LIB = null, IDX = null;
+let LIB = null, IDX = null, LIB_ERR = '';
 function lib() {
   if (LIB) return LIB;
   const env = process.env.HAZOP_LIBRARY;
+  LIB_ERR = '';
   if (env) {
-    try { LIB = JSON.parse(zlib.gunzipSync(Buffer.from(env.trim(), 'base64')).toString('utf8')); }
-    catch (e) { LIB = null; }
+    // tolerate quotes, spaces and line breaks picked up while pasting into Vercel
+    try { LIB = JSON.parse(zlib.gunzipSync(Buffer.from(env.replace(/["'\s]/g, ''), 'base64')).toString('utf8')); }
+    catch (e) { LIB = null; LIB_ERR = 'HZ-2: the library setting on the server could not be read.'; }
   }
   if (!LIB && BUNDLED && BUNDLED.EQ) LIB = BUNDLED;
+  if (!LIB && !LIB_ERR) LIB_ERR = 'HZ-1: the library setting was not found on the server.';
   if (LIB) {
     IDX = { eq: {}, fluid: {} };
     LIB.EQ.forEach((e) => { IDX.eq[e.id] = e; });
@@ -201,7 +204,7 @@ export async function hazopRoute(req, res) {
     return send(res, 400, { error: 'Invalid JSON body' });
   }
 
-  if (!lib()) return send(res, 503, { error: 'HAZOP library is not configured on the server.' });
+  if (!lib()) return send(res, 503, { error: 'HAZOP library is not configured on the server (' + LIB_ERR + ')' });
   const op = String(body.op || '').slice(0, 16);
   try {
     if (op === 'meta') return send(res, 200, meta());
