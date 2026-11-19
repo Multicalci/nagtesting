@@ -20,7 +20,7 @@ import zlib from 'node:zlib';
 import BUNDLED from './hazop-library.js';
 
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://www.multicalci.com';
-const ALLOWED_ORIGINS = new Set([ORIGIN, 'https://www.multicalci.com', 'https://multicalci.com', 'http://localhost:3000', 'http://127.0.0.1:3000']);
+const ALLOWED_ORIGINS = new Set([ORIGIN, 'https://www.multicalci.com', 'https://www.multicalci.com', 'http://localhost:3000', 'http://127.0.0.1:3000']);
 const RATE_MAX = parseInt(process.env.HAZOP_RATE_LIMIT || '120', 10);   // requests per IP per window, per instance
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 
