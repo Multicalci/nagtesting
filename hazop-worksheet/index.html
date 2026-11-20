@@ -17,6 +17,16 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"HAZOP Worksheet Builder","applicationCategory":"EngineeringApplication","operatingSystem":"Web browser","description":"Draft HAZOP worksheets for pipelines, pumps, compressors, tanks, vessels, heat exchangers and columns, with ranked causes, consequences, safeguards, risk ranking and Excel export.","url":"https://www.multicalci.com/hazop-worksheet/","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Is the HAZOP worksheet builder free?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is free to use with no sign-up. You can build as many nodes as you need and export the worksheet to Excel."}},
+{"@type":"Question","name":"Is my HAZOP study uploaded anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. The study is saved in your own browser. To draft the rows, only the equipment type, fluid hazard, phase and ticked features are sent to the library. Node names, design intent and your edits are never sent. Use Save file to keep a copy or move the study to another computer."}},
+{"@type":"Question","name":"Can I use the draft as my final HAZOP?","acceptedAnswer":{"@type":"Answer","text":"The draft is a starting point for a HAZOP team. The team must go through every row, add causes specific to the plant, confirm severity and likelihood against the company risk matrix, and agree the recommendations. It does not replace a facilitated HAZOP study."}},
+{"@type":"Question","name":"Can I change the risk matrix?","acceptedAnswer":{"@type":"Answer","text":"Yes. Open the Risk matrix tab, choose Edit risk levels and click any cell to change its level so the matrix matches your company procedure. All risk rankings in the study update at once."}},
+{"@type":"Question","name":"Which equipment types are covered?","acceptedAnswer":{"@type":"Answer","text":"Pipelines, pumps, compressors, storage tanks, pressure vessels, heat exchangers and columns, for any fluid. You choose the fluid hazards (flammable, toxic, corrosive, hot, cryogenic, environmental or non-hazardous) and the phase."}},
+{"@type":"Question","name":"How do I share the study with my team?","acceptedAnswer":{"@type":"Answer","text":"Export Excel gives a worksheet, a recommendations list and the node basis that anyone can open. Save file gives a .hazop.json file that a colleague can load with Open to continue editing."}}
+]}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
@@ -32,6 +42,9 @@
   --line-dark: #174a84;
   --line-soft: #e8eff8;
   --flag: #f2c200;
+  --flag-soft: #fff8dc;
+  --ok: #2f8a4c;
+  --ok-soft: #eaf5ee;
   --r1: #4e9a62;
   --r2: #e0b000;
   --r3: #dd6b1f;
@@ -40,23 +53,31 @@
   --dense: "Barlow Semi Condensed", "Barlow", "Arial Narrow", "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; }
 body { font-family: var(--ui); font-size: 14px; line-height: 1.45; color: var(--ink); background: var(--paper); }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--line); outline-offset: 2px; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+a { color: var(--line); }
 
 /* ---------- top bar ---------- */
-.bar { display: flex; align-items: center; gap: 14px; height: 54px; padding: 0 16px; background: var(--sheet); border-bottom: 1px solid var(--rule); position: sticky; top: 0; z-index: 20; }
+.bar { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 16px; background: var(--sheet); border-bottom: 1px solid var(--rule); position: sticky; top: 0; z-index: 30; }
 .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); flex: none; }
 .mark b { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--ink); border-radius: 3px; font-weight: 700; font-size: 14px; letter-spacing: -0.5px; }
 .mark span { font-weight: 600; font-size: 16px; }
-.study-title { flex: 1; min-width: 120px; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 4px; font-size: 16px; font-weight: 500; }
+.beta { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #7a5a00; background: var(--flag-soft); border: 1px solid #ecd27a; border-radius: 3px; padding: 0 5px; line-height: 17px; vertical-align: middle; }
+.title-wrap { flex: 1; min-width: 160px; display: flex; align-items: center; gap: 4px; border-left: 1px solid var(--rule-soft); padding-left: 12px; }
+.title-wrap label { font-size: 12.5px; color: var(--muted); flex: none; }
+.study-title { flex: 1; min-width: 80px; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 4px; font-size: 16px; font-weight: 500; }
 .study-title:hover { border-color: var(--rule-soft); }
 .study-title:focus { border-color: var(--rule); background: #fff; outline: none; }
+.save-state { font-size: 12px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 4px; flex: none; }
+.save-state svg { width: 14px; height: 14px; color: var(--ok); }
 .actions { display: flex; gap: 6px; flex: none; }
-.btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 4px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 4px; cursor: pointer; font-weight: 500; white-space: nowrap; text-decoration: none; }
 .btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .6; cursor: progress; }
 .btn.primary { background: var(--line); border-color: var(--line); color: #fff; }
 .btn.primary:hover { background: var(--line-dark); }
 .btn.ghost { border-color: transparent; background: transparent; }
@@ -64,167 +85,422 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn.small { height: 28px; padding: 0 9px; font-size: 13px; }
 .btn.danger { color: var(--r4); }
 .btn svg { width: 16px; height: 16px; flex: none; }
+.btn.lg { height: 40px; padding: 0 16px; font-size: 15px; }
+
+/* ---------- progress strip ---------- */
+.prog { display: flex; align-items: stretch; background: var(--sheet); border-bottom: 1px solid var(--rule); padding: 0 10px; overflow-x: auto; scrollbar-width: thin; }
+.prog:empty { display: none; }
+.prog button { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 8px 10px; cursor: pointer; color: var(--muted); white-space: nowrap; font-size: 13px; text-align: left; }
+.prog button:hover { color: var(--ink); }
+.prog .sep { flex: none; align-self: center; width: 22px; height: 1px; background: var(--rule); }
+.prog i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--rule); font-style: normal; font-size: 12px; font-weight: 700; }
+.prog i svg { width: 13px; height: 13px; }
+.prog b { display: block; font-weight: 600; line-height: 1.15; }
+.prog small { display: block; font-size: 11.5px; line-height: 1.2; }
+.prog .done i { background: var(--ok); border-color: var(--ok); color: #fff; }
+.prog .done b { color: var(--ink); }
+.prog .cur b { color: var(--line-dark); }
+.prog .cur i { border-color: var(--line); color: var(--line); background: var(--line-soft); }
 
 /* ---------- layout ---------- */
-.shell { display: grid; grid-template-columns: 272px 1fr; min-height: calc(100vh - 54px); }
-.rail { background: var(--sheet); border-right: 1px solid var(--rule); padding: 16px 12px; display: flex; flex-direction: column; gap: 18px; }
-.rail h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px 4px; }
-.field { display: block; margin-bottom: 8px; }
-.field span { display: block; font-size: 12.5px; color: var(--muted); margin: 0 0 3px 2px; }
+.shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: calc(100vh - 100px); }
+.shell.empty { grid-template-columns: minmax(0, 1fr); }
+.shell.empty .rail { display: none; }
+.rail { background: var(--sheet); border-right: 1px solid var(--rule); padding: 12px 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.rsec { border-bottom: 1px solid var(--rule-soft); padding-bottom: 10px; }
+.rsec:last-of-type { border-bottom: 0; }
+.rsec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); padding: 6px 4px; text-transform: uppercase; letter-spacing: .04em; }
+.rsec > summary::-webkit-details-marker { display: none; }
+.rsec > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s; margin: 0 3px 0 1px; }
+.rsec[open] > summary::before { transform: rotate(45deg); }
+.rsec > summary small { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: auto; }
+.field { display: block; margin-bottom: 9px; }
+.field > span { display: block; font-size: 12.5px; color: var(--muted); margin: 0 0 3px 2px; }
+.field > span em { font-style: normal; color: var(--r4); font-size: 11.5px; margin-left: 4px; }
+.field > small { display: block; font-size: 12px; color: var(--muted); margin: 4px 2px 0; line-height: 1.35; }
 .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; background: #fff; }
 .field textarea { resize: vertical; min-height: 56px; }
 .nodes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.node-item { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
+.node-item { display: grid; grid-template-columns: 34px 1fr; align-items: start; gap: 8px; padding: 8px; border-radius: 5px; cursor: pointer; border: 1px solid transparent; }
 .node-item:hover { background: var(--paper); }
 .node-item.on { background: var(--line-soft); border-color: #c5d6ec; }
 .node-item .sym { width: 34px; height: 34px; color: var(--line); }
 .node-item .nm { font-weight: 600; font-size: 13.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.node-item .sub { font-size: 12px; color: var(--muted); }
-.node-item .cnt { font-size: 12px; color: var(--muted); text-align: right; }
-.rail .foot { margin-top: auto; font-size: 12px; color: var(--muted); padding: 0 4px; }
+.node-item .sub { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 8px; align-items: center; margin-top: 1px; }
+.node-item .sub .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: -1px; }
+.mini { height: 4px; background: var(--rule-soft); border-radius: 2px; overflow: hidden; margin-top: 5px; }
+.mini i { display: block; height: 100%; background: var(--ok); }
+.profile { font-size: 12px; color: var(--muted); padding: 2px 4px; }
+.profile .pl { display: flex; justify-content: space-between; margin: 6px 0 3px; }
+.pbar { display: flex; height: 12px; border-radius: 3px; overflow: hidden; background: var(--rule-soft); }
+.pbar i { display: block; height: 100%; }
+.pkey { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
+.pkey span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--c); }
+.rail .foot { margin-top: auto; font-size: 12px; color: var(--muted); padding: 10px 4px 0; line-height: 1.4; }
 
-.main { padding: 18px 22px 40px; min-width: 0; }
+.main { padding: 16px 22px 40px; min-width: 0; container: main / inline-size; }
 .node-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
 .node-head .sym { width: 52px; height: 52px; color: var(--line); flex: none; }
-.node-head h1 { font-size: 21px; margin: 2px 0 4px; font-weight: 600; line-height: 1.2; }
-.node-head .intent { color: var(--muted); margin: 0 0 6px; max-width: 80ch; }
+.node-head .eyebrow { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.node-head h1 { font-size: 21px; margin: 0 0 4px; font-weight: 600; line-height: 1.2; }
+.node-head .intent { color: #33434f; margin: 0 0 7px; max-width: 80ch; }
+.node-head .intent b { font-weight: 600; color: var(--muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); color: var(--ink); }
 .chip.haz { border-color: #e7c9c6; background: #fbefee; }
+button.chip { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+button.chip:hover { border-color: var(--line); color: var(--line-dark); }
+button.chip svg { width: 12px; height: 12px; }
 .node-head .tools { margin-left: auto; display: flex; gap: 6px; flex: none; }
 
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--rule); margin-bottom: 0; }
-.tab { border: 0; background: none; padding: 9px 14px; cursor: pointer; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; }
+.kpi { text-align: left; background: var(--sheet); border: 1px solid var(--rule); border-radius: 5px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 1px; position: relative; overflow: hidden; }
+.kpi:hover { border-color: var(--line); }
+.kpi.on { border-color: var(--line); box-shadow: inset 0 0 0 1px var(--line); }
+.kpi b { font-size: 20px; font-weight: 600; line-height: 1.1; }
+.kpi span { font-size: 12px; color: var(--muted); line-height: 1.25; }
+.kpi.warn b { color: var(--r4); }
+.kpi.good b { color: var(--ok); }
+.kpi .mini { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; border-radius: 0; height: 3px; }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--rule); }
+.tab { border: 0; background: none; padding: 9px 14px; cursor: pointer; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--line); }
-.tab .n { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.tab .n { font-size: 12px; color: var(--muted); margin-left: 5px; background: var(--rule-soft); border-radius: 8px; padding: 0 6px; }
+
+/* ---------- toolbar ---------- */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--sheet); border: 1px solid var(--rule); border-top: 0; padding: 8px 10px; }
+.tsel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.tsel select { border: 1px solid var(--rule); border-radius: 4px; padding: 4px 6px; background: #fff; color: var(--ink); max-width: 230px; }
+.tsearch { display: flex; align-items: center; gap: 6px; border: 1px solid var(--rule); border-radius: 4px; padding: 0 8px; background: #fff; flex: 1 1 180px; max-width: 300px; }
+.tsearch svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
+.tsearch input { border: 0; outline: none; padding: 5px 0; width: 100%; background: transparent; }
+.tchk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.toolbar .right { margin-left: auto; display: flex; gap: 6px; }
+.fnote { background: var(--flag-soft); border: 1px solid var(--rule); border-top: 0; padding: 6px 10px; font-size: 13px; display: flex; gap: 10px; align-items: center; }
+.linkbtn { border: 0; background: none; color: var(--line); cursor: pointer; padding: 0; font-weight: 500; }
+.linkbtn:hover { text-decoration: underline; }
 
 /* ---------- worksheet ---------- */
-.sheet { background: var(--sheet); border: 1px solid var(--rule); border-top: 0; overflow-x: auto; }
-table.ws { width: 100%; border-collapse: collapse; font-family: var(--dense); font-size: 13.5px; min-width: 1080px; table-layout: fixed; }
-table.ws th { position: sticky; top: 0; background: #f7f9fa; text-align: left; font-weight: 600; font-size: 13px; color: var(--muted); padding: 7px 8px; border-bottom: 1px solid var(--rule); z-index: 1; }
+.sheet { background: var(--sheet); border: 1px solid var(--rule); border-top: 0; overflow-x: auto; position: relative; }
+table.ws { width: 100%; border-collapse: collapse; font-family: var(--dense); font-size: 13.5px; min-width: 940px; table-layout: fixed; }
+table.ws th { background: #f7f9fa; text-align: left; font-weight: 600; font-size: 13px; color: var(--muted); padding: 7px 8px; border-bottom: 1px solid var(--rule); font-family: var(--ui); vertical-align: bottom; }
+table.ws th small { display: block; font-weight: 400; font-size: 11.5px; line-height: 1.2; }
 table.ws td { border-bottom: 1px solid var(--rule-soft); vertical-align: top; padding: 4px 6px; }
 table.ws td + td, table.ws th + th { border-left: 1px solid var(--rule-soft); }
-col.c-sg { width: 15%; } col.c-s, col.c-l { width: 46px; } col.c-r { width: 82px; } col.c-r2 { width: 92px; } col.c-act { width: 94px; }
-tr.grp td { background: var(--line-soft); border-bottom: 1px solid #cddbec; padding: 6px 8px; }
-tr.grp .gw { font-weight: 700; color: var(--line-dark); font-size: 14px; }
-tr.grp .gp { font-weight: 500; color: var(--line-dark); font-size: 14px; }
-tr.grp .add { float: right; }
+col.c-cause { width: 17%; } col.c-cons { width: 19%; } col.c-sg { width: 13%; } col.c-rk { width: 152px; } col.c-act { width: 66px; }
+.hq { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--rule); background: #fff; color: var(--muted); font-size: 10.5px; font-weight: 700; cursor: pointer; padding: 0; margin-left: 3px; vertical-align: 1px; line-height: 1; }
+.hq:hover { border-color: var(--line); color: var(--line); }
+tr.grp td { background: var(--line-soft); border-bottom: 1px solid #cddbec; padding: 6px 8px; font-family: var(--ui); }
+.ghd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.gtog { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--line-dark); text-align: left; }
+.gtog::before { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin: 0 4px 3px 2px; transition: transform .15s; flex: none; }
+.gtog[aria-expanded="false"]::before { transform: rotate(-45deg); margin-bottom: 0; }
+.gw { font-weight: 700; font-size: 14.5px; }
+.gp { font-weight: 500; font-size: 14.5px; }
+.gd { font-size: 12.5px; color: var(--muted); }
+.gc { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.ghd .add { margin-left: auto; }
 .cell { width: 100%; border: 1px solid transparent; background: transparent; resize: none; padding: 4px 5px; border-radius: 3px; line-height: 1.38; overflow: hidden; min-height: 28px; display: block; font-family: var(--dense); font-size: 13.5px; }
+.cell::placeholder { color: #9aa6af; font-style: italic; }
 .cell:hover { border-color: var(--rule-soft); }
 .cell:focus { border-color: var(--line); background: #fff; outline: none; box-shadow: 0 0 0 2px var(--line-soft); }
-.meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); padding: 0 6px 4px; font-family: var(--ui); }
+.meta { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 12px; color: var(--muted); padding: 0 6px 4px; font-family: var(--ui); }
 .meta a { color: var(--line); text-decoration: none; border-bottom: 1px solid #b9cde6; }
 .meta a:hover { border-bottom-color: var(--line); }
-td.rec.gen { box-shadow: inset 3px 0 0 var(--flag); }
+td.rec.gen { box-shadow: inset 3px 0 0 var(--flag); background: #fffdf3; }
 .gen-note { font-size: 11.5px; color: #7a6200; padding: 0 6px 4px; font-family: var(--ui); }
-select.sl { width: 100%; border: 1px solid transparent; background: transparent; padding: 4px 2px; border-radius: 3px; font-family: var(--dense); font-size: 13.5px; cursor: pointer; }
-select.sl:hover { border-color: var(--rule-soft); }
-.risk { display: inline-block; white-space: nowrap; min-width: 58px; text-align: center; font-family: var(--ui); font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 3px; color: #fff; margin-top: 4px; }
+td.rk { font-family: var(--ui); padding: 5px 7px; }
+td.rk.after { background: #f8fafb; }
+.rl { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 2px; font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+.rl b { font-weight: 500; color: var(--ink); font-size: 13px; padding-left: 4px; }
+select.sl { width: 100%; border: 1px solid transparent; background: transparent; padding: 3px 1px; border-radius: 3px; font-family: var(--dense); font-size: 12.5px; cursor: pointer; color: var(--ink); }
+select.sl:hover { border-color: var(--rule); background: #fff; }
+.risk { display: inline-block; white-space: nowrap; min-width: 58px; text-align: center; font-family: var(--ui); font-size: 12px; font-weight: 600; padding: 3px 6px; border-radius: 3px; color: #fff; }
+td.rk .risk { display: block; margin-top: 4px; }
 .risk.L { background: var(--r1); } .risk.M { background: var(--r2); color: var(--ink); } .risk.H { background: var(--r3); } .risk.VH { background: var(--r4); }
-td.act { white-space: nowrap; text-align: right; }
-td.after { background: #f8fafb; }
-td.after .lbl { font-family: var(--ui); font-size: 11.5px; color: var(--muted); padding-left: 3px; }
-td.after select.sl { width: auto; display: inline-block; margin-left: 2px; }
-td.after .risk { display: block; margin-top: 2px; }
-.icon-btn { width: 26px; height: 26px; display: inline-grid; place-items: center; border: 1px solid transparent; background: none; border-radius: 4px; cursor: pointer; color: var(--muted); }
+.risk.sm { min-width: 0; font-size: 11px; padding: 1px 5px; }
+td.act { padding: 4px; }
+.acts { display: grid; grid-template-columns: repeat(2, 26px); gap: 3px; justify-content: center; }
+.icon-btn { width: 26px; height: 26px; display: inline-grid; place-items: center; border: 1px solid transparent; background: none; border-radius: 4px; cursor: pointer; color: var(--muted); padding: 0; }
 .icon-btn:hover { background: var(--paper); border-color: var(--rule-soft); color: var(--ink); }
 .icon-btn svg { width: 15px; height: 15px; }
+.icon-btn.okb[aria-pressed="true"] { background: var(--ok); color: #fff; border-color: var(--ok); }
+tr.row.ok td:first-child { box-shadow: inset 3px 0 0 var(--ok); }
 tr.na td { color: var(--muted); font-style: italic; }
 tr.na .cell { color: var(--muted); font-style: italic; }
-tr.row:hover td { background: #fbfcfd; }
+tr.row:hover td { background-color: #fbfcfd; }
+tr.row.flash td { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 30% { background-color: #fff3bf; } 100% { background-color: transparent; } }
+.empty-note { color: var(--muted); padding: 28px 18px; }
 
-/* ---------- recommendations & matrix ---------- */
-table.rr { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 900px; }
+/* ---------- recommendations ---------- */
+.rr-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--sheet); border: 1px solid var(--rule); border-top: 0; padding: 10px; }
+.rr-stats { display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.rr-stats span { border: 1px solid var(--rule); border-radius: 12px; padding: 1px 9px; background: #fff; }
+.rr-stats b { font-weight: 600; }
+.rr-head .right { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+table.rr { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 940px; }
 table.rr th { text-align: left; font-weight: 600; color: var(--muted); font-size: 13px; padding: 8px; border-bottom: 1px solid var(--rule); background: #f7f9fa; }
 table.rr td { padding: 6px 8px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
 table.rr td.no { font-weight: 600; white-space: nowrap; }
+table.rr td .dv { font-size: 12px; color: var(--muted); }
 table.rr input, table.rr select { width: 100%; border: 1px solid var(--rule-soft); border-radius: 3px; padding: 4px 6px; background: #fff; }
+table.rr .risk { min-width: 0; }
+.rarrow { color: var(--muted); margin: 0 3px; }
+tr.closed td { color: var(--muted); }
+.golb { display: none; }
+tr.closed .cell { text-decoration: line-through; color: var(--muted); }
+
+/* ---------- risk matrix ---------- */
 .pad { padding: 18px; }
-.empty-note { color: var(--muted); padding: 28px 18px; }
+.mx-head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 16px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.seg button { border: 0; background: #fff; padding: 5px 11px; cursor: pointer; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .matrix-wrap { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+.mxbox { display: grid; grid-template-columns: 22px auto; grid-template-rows: auto auto; }
+.axis-y { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.axis-x { grid-column: 2; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; padding-top: 4px; }
 table.mx { border-collapse: separate; border-spacing: 3px; }
-table.mx th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 6px; text-align: center; }
-table.mx th.sv { text-align: right; }
-table.mx td button { width: 64px; height: 44px; border: 0; border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 13px; color: #fff; }
-table.mx td button.L { background: var(--r1); } table.mx td button.M { background: var(--r2); color: var(--ink); } table.mx td button.H { background: var(--r3); } table.mx td button.VH { background: var(--r4); }
-.legend dl { margin: 0 0 14px; display: grid; grid-template-columns: 26px 1fr; gap: 3px 8px; font-size: 13px; }
+table.mx th { font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 6px; text-align: center; line-height: 1.2; }
+table.mx th.sv { text-align: right; white-space: nowrap; }
+.mxc { width: 74px; height: 52px; border: 0; border-radius: 3px; font-weight: 600; font-size: 12.5px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; font-family: var(--ui); }
+button.mxc { cursor: pointer; }
+button.mxc:hover { filter: brightness(1.08); outline: 2px dashed var(--ink); outline-offset: 1px; }
+.mxc.L { background: var(--r1); } .mxc.M { background: var(--r2); color: var(--ink); } .mxc.H { background: var(--r3); } .mxc.VH { background: var(--r4); }
+.mxc .cnt { font-size: 11px; font-weight: 700; background: rgba(255,255,255,.92); color: var(--ink); border-radius: 8px; padding: 0 6px; min-width: 18px; }
+.mxc .cnt.z { background: transparent; color: inherit; opacity: .55; font-weight: 500; }
+.legend dl { margin: 0 0 14px; display: grid; grid-template-columns: 26px 1fr; gap: 4px 8px; font-size: 13px; }
 .legend dt { font-weight: 600; }
 .legend dd { margin: 0; color: var(--muted); }
+.legend dd b { color: var(--ink); font-weight: 600; }
 .legend h3 { font-size: 14px; margin: 0 0 6px; }
 .note { font-size: 12.5px; color: var(--muted); max-width: 70ch; }
 
-/* ---------- empty state ---------- */
-.welcome { max-width: 760px; margin: 36px auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 30px 34px; }
-.welcome h1 { font-size: 26px; margin: 0 0 8px; font-weight: 600; line-height: 1.2; }
-.welcome p { margin: 0 0 14px; max-width: 64ch; color: #33434f; }
-.syms { display: flex; gap: 18px; color: var(--line); margin: 6px 0 22px; flex-wrap: wrap; }
-.syms svg { width: 46px; height: 46px; }
-.steps { margin: 0 0 22px; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 8px; }
-.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: baseline; }
-.steps li::before { content: counter(s); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); color: var(--line); font-size: 12px; font-weight: 700; }
-.welcome .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+/* ---------- welcome ---------- */
+.welcome { max-width: 980px; margin: 26px auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 28px 32px; }
+.welcome .w-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.welcome h1 { font-size: 26px; margin: 0; font-weight: 600; line-height: 1.2; }
+.welcome .lead { margin: 10px 0 18px; max-width: 78ch; color: #33434f; font-size: 15px; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 22px; padding: 12px; background: var(--paper); border-radius: 5px; }
+.flow span { background: #fff; border: 1px solid var(--rule); border-radius: 4px; padding: 5px 9px; font-size: 13px; line-height: 1.25; }
+.flow span small { display: block; color: var(--muted); font-size: 11.5px; }
+.flow span.hl { border-color: var(--line); color: var(--line-dark); font-weight: 600; }
+.flow .ar { color: var(--muted); font-size: 16px; padding: 0 1px; border: 0; background: none; }
+.w-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.w-card { border: 1px solid var(--rule); border-radius: 5px; padding: 16px 18px; }
+.w-card h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.w-card h2 i { font-style: normal; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: #fff; font-size: 12px; font-weight: 700; }
+.w-card > p { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
+.w-card .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.w-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; margin: 14px 0 10px; }
+.w-or::before, .w-or::after { content: ""; flex: 1; height: 1px; background: var(--rule-soft); }
+.w-alt { display: flex; gap: 8px; flex-wrap: wrap; }
+.w-ready { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.w-ready h3 { font-size: 14px; margin: 0 0 6px; }
+.w-ready ul { margin: 0; padding-left: 18px; color: #33434f; font-size: 13.5px; }
+.w-ready li { margin: 2px 0; }
+.privacy { display: flex; gap: 8px; align-items: flex-start; margin: 18px 0 0; font-size: 13px; color: var(--muted); background: var(--paper); border-radius: 5px; padding: 10px 12px; }
+.privacy svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--ok); }
 
 /* ---------- dialog ---------- */
-.overlay { position: fixed; inset: 0; background: rgba(23, 36, 46, 0.45); display: grid; place-items: start center; padding: 4vh 16px; z-index: 50; overflow-y: auto; }
-.dialog { background: var(--sheet); border-radius: 6px; width: min(920px, 100%); box-shadow: 0 18px 50px rgba(23, 36, 46, 0.28); }
+.overlay { position: fixed; inset: 0; background: rgba(23, 36, 46, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 4vh 16px; z-index: 50; overflow-y: auto; }
+.dialog { background: var(--sheet); border-radius: 6px; width: min(940px, 100%); min-width: 0; box-shadow: 0 18px 50px rgba(23, 36, 46, 0.28); display: flex; flex-direction: column; }
 .dialog.sm { width: min(440px, 100%); }
-.dialog header { padding: 18px 22px 6px; }
+.dialog header { padding: 16px 22px 8px; display: flex; align-items: center; gap: 10px; }
 .dialog header h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.dialog header .icon-btn { margin-left: auto; }
 .dialog .body { padding: 6px 22px 10px; }
-.dialog footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 12px 22px 18px; border-top: 1px solid var(--rule-soft); }
+.dialog footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 12px 22px 16px; border-top: 1px solid var(--rule-soft); flex-wrap: wrap; }
 .dialog footer .left { margin-right: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.step { margin: 14px 0 6px; }
-.step h3 { display: flex; align-items: center; gap: 9px; font-size: 15px; margin: 0 0 10px; font-weight: 600; }
-.step h3 i { font-style: normal; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--line); color: #fff; font-size: 12px; font-weight: 700; }
-.two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
-.eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.wsteps { display: flex; gap: 0; padding: 0 22px; border-bottom: 1px solid var(--rule-soft); overflow-x: auto; }
+.wsteps button { display: flex; align-items: center; gap: 7px; border: 0; background: none; padding: 9px 12px 10px; cursor: pointer; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.wsteps i { font-style: normal; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; border: 1.5px solid var(--rule); font-size: 11.5px; font-weight: 700; }
+.wsteps button.done i { background: var(--ok); border-color: var(--ok); color: #fff; }
+.wsteps button[aria-current="step"] { color: var(--ink); border-bottom-color: var(--line); }
+.wsteps button[aria-current="step"] i { border-color: var(--line); background: var(--line); color: #fff; }
+.pane { display: none; padding-top: 12px; }
+.pane.on { display: block; }
+.pane-help { background: var(--line-soft); border-radius: 5px; padding: 9px 12px; margin: 0 0 14px; font-size: 13.5px; color: #24425f; max-width: 86ch; }
+.pane-help b { font-weight: 600; }
+.pane .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.eq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
 .eq { text-align: left; border: 1px solid var(--rule); background: #fff; border-radius: 5px; padding: 10px; cursor: pointer; display: grid; gap: 4px; }
 .eq svg { width: 40px; height: 40px; color: var(--line); }
 .eq b { font-weight: 600; font-size: 14px; line-height: 1.2; }
 .eq small { color: var(--muted); font-size: 12px; line-height: 1.3; }
 .eq:hover { border-color: var(--muted); }
 .eq[aria-pressed="true"] { border: 2px solid var(--line); padding: 9px; background: var(--line-soft); }
-.tog { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.tog button { border: 1px solid var(--rule); background: #fff; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.tog { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tog button { border: 1px solid var(--rule); background: #fff; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.tog button::before { content: ""; width: 12px; height: 12px; border: 1.5px solid var(--rule); border-radius: 3px; flex: none; }
+.tog.radio button::before { border-radius: 50%; }
 .tog button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
-.sub-l { font-size: 13px; color: var(--muted); margin: 8px 0 6px; }
-.fgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px 18px; }
-.fgroup h4 { font-size: 13px; margin: 8px 0 4px; font-weight: 600; }
+.tog button[aria-pressed="true"]::before { background: #fff; border-color: #fff; box-shadow: inset 0 0 0 2px var(--ink); }
+.sub-l { font-size: 13.5px; font-weight: 600; margin: 4px 0 4px; }
+.sub-h { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
+.fgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 18px; }
+.fgroup { border: 1px solid var(--rule-soft); border-radius: 5px; padding: 8px 10px; }
+.fgroup h4 { font-size: 13.5px; margin: 0 0 1px; font-weight: 600; display: flex; justify-content: space-between; gap: 6px; }
+.fgroup h4 small { font-weight: 500; color: var(--muted); white-space: nowrap; }
+.fgroup p { font-size: 12px; color: var(--muted); margin: 0 0 6px; line-height: 1.3; }
 .fgroup label { display: grid; grid-template-columns: 18px 1fr; gap: 6px; font-size: 13px; line-height: 1.3; padding: 3px 0; cursor: pointer; }
 .fgroup input { margin: 1px 0 0; accent-color: var(--line); }
-.err { color: var(--r4); font-size: 13px; min-height: 18px; }
+.wz-sum { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.wz-sum b { color: var(--ink); font-weight: 600; }
+.err { color: var(--r4); font-size: 13px; min-height: 18px; margin-top: 6px; }
+.warn-note { color: #7a5a00; }
 
-/* ---------- popover & toast ---------- */
-.pop { position: absolute; z-index: 60; background: #fff; border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 12px 30px rgba(23, 36, 46, 0.2); width: 440px; max-height: 380px; overflow-y: auto; padding: 6px; }
+/* ---------- popover, drawer & toast ---------- */
+.pop { position: absolute; z-index: 60; background: #fff; border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 12px 30px rgba(23, 36, 46, 0.2); width: min(440px, calc(100vw - 16px)); max-height: 380px; overflow-y: auto; padding: 6px; }
 .pop h4 { margin: 4px 8px 6px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .pop button.opt { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 4px; cursor: pointer; }
 .pop button.opt:hover, .pop button.opt:focus { background: var(--line-soft); outline: none; }
 .pop .opt b { font-weight: 500; display: block; line-height: 1.3; }
 .pop .opt small { color: var(--muted); font-size: 12px; }
 .pop .opt.off b { color: var(--muted); }
-.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 5px; display: flex; gap: 12px; align-items: center; z-index: 70; font-size: 13.5px; }
+.pop.help { width: min(340px, calc(100vw - 16px)); padding: 12px 14px; font-size: 13px; line-height: 1.45; }
+.pop.help b { display: block; margin-bottom: 4px; font-size: 13.5px; }
+.pop.help p { margin: 0; color: #33434f; }
+.drawer-ov { position: fixed; inset: 0; background: rgba(23, 36, 46, 0.35); z-index: 55; display: flex; justify-content: flex-end; }
+.drawer { background: #fff; width: min(560px, 100%); height: 100%; overflow-y: auto; box-shadow: -10px 0 40px rgba(23,36,46,.2); }
+.drawer header { position: sticky; top: 0; background: #fff; display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--rule-soft); z-index: 1; }
+.drawer header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.drawer header .icon-btn { margin-left: auto; }
+.drawer .gbody { padding: 4px 20px 30px; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 5px; display: flex; gap: 12px; align-items: center; z-index: 70; font-size: 13.5px; max-width: calc(100vw - 24px); }
 .toast button { background: none; border: 0; color: #9cc3f0; font-weight: 600; cursor: pointer; padding: 0; }
+
+/* ---------- guide (static content) ---------- */
+.guide { background: var(--sheet); border-top: 1px solid var(--rule); }
+.guide-in { max-width: 980px; margin: 0 auto; padding: 30px 22px 40px; }
+.guide-in > h2:first-child { margin-top: 0; }
+.gbody h2 { font-size: 19px; font-weight: 600; margin: 28px 0 8px; }
+.gbody h3 { font-size: 15px; font-weight: 600; margin: 18px 0 6px; }
+.gbody p, .gbody li { color: #33434f; max-width: 80ch; }
+.gbody ol, .gbody ul { padding-left: 20px; }
+.gbody li { margin: 4px 0; }
+.gbody dl.terms { display: grid; grid-template-columns: 170px 1fr; gap: 6px 16px; margin: 0; }
+.gbody dl.terms dt { font-weight: 600; }
+.gbody dl.terms dd { margin: 0; color: #33434f; }
+.gbody table.gt { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 6px 0; }
+.gbody table.gt th, .gbody table.gt td { border: 1px solid var(--rule); padding: 6px 9px; text-align: left; vertical-align: top; }
+.gbody table.gt th { background: #f7f9fa; font-weight: 600; }
+.gbody details { border: 1px solid var(--rule); border-radius: 5px; padding: 0 12px; margin: 6px 0; }
+.gbody details summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.gbody details p { margin: 0 0 12px; }
+.gbody .disclaimer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--rule-soft); padding-top: 12px; margin-top: 24px; }
+.site-foot { text-align: center; font-size: 12.5px; color: var(--muted); padding: 16px; border-top: 1px solid var(--rule-soft); background: var(--sheet); }
+.site-foot a { color: var(--muted); margin: 0 6px; }
 
 #printArea { display: none; }
 
+@media (max-width: 1180px) {
+  .shell { grid-template-columns: 250px minmax(0, 1fr); }
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .btn .lb-x, .save-state .lb-x { display: none; }
+  .actions .btn.ghost .lb { display: none; }
+  .actions .btn.ghost { padding: 0 9px; }
+}
+@media (max-width: 1060px) and (min-width: 901px) {
+  .actions .btn:not(.primary) .lb { display: none; }
+  .actions .btn { padding: 0 9px; }
+  .title-wrap label { display: none; }
+}
 @media (max-width: 900px) {
-  .shell { grid-template-columns: 1fr; }
-  .rail { border-right: 0; border-bottom: 1px solid var(--rule); }
-  .bar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; position: static; }
-  .study-title { flex: 1 1 100%; order: 3; }
-  .actions { flex: 1 1 100%; flex-wrap: wrap; order: 4; }
-  .actions .btn { flex: 1 1 auto; justify-content: center; }
-  .two { grid-template-columns: 1fr; }
-  .matrix-wrap { grid-template-columns: 1fr; }
+  .shell { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--rule); padding: 6px 12px 8px; }
+  .rail .foot { display: none; }
+  .bar { flex-wrap: wrap; padding: 8px 12px; gap: 6px 8px; position: static; }
+  .title-wrap { flex: 1 1 100%; order: 3; border-left: 0; padding-left: 0; }
+  .save-state { order: 2; margin-left: auto; }
+  .save-state .lb-x { display: none; }
+  .actions { flex: 1 1 100%; order: 4; }
+  .actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; flex-direction: column; height: auto; padding: 5px 2px 4px; gap: 1px; font-size: 11.5px; border-color: var(--rule); }
+  .actions .btn.ghost { background: var(--sheet); }
+  .actions .btn .lb-x { display: none; }
+  .main { padding: 12px 12px 30px; }
   .node-head { flex-wrap: wrap; }
-  .node-head .tools { margin-left: 0; }
+  .node-head .sym { width: 40px; height: 40px; }
+  .node-head .tools { margin-left: 0; width: 100%; }
+  .matrix-wrap { grid-template-columns: 1fr; }
+  .w-grid, .w-ready { grid-template-columns: 1fr; }
+  .welcome { margin: 12px; padding: 20px 18px; }
+  .welcome h1 { font-size: 22px; }
+  .flow { gap: 4px; padding: 8px; }
+  .flow span { padding: 4px 7px; font-size: 12.5px; }
+  .flow span small { display: none; }
+  .pane .two { grid-template-columns: 1fr; }
+}
+@media (max-width: 820px) {
+  .kpis { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 2px; scrollbar-width: thin; }
+  .kpi { flex: 0 0 132px; padding: 6px 9px; }
+  .kpi b { font-size: 18px; }
+  .tabs { overflow-x: auto; }
+  .tab { padding: 9px 10px; }
+  .toolbar .right { margin-left: 0; }
+  .tsearch { max-width: none; }
+  .pad { padding: 12px 8px; }
+  .mxc { width: 44px; height: 44px; font-size: 10.5px; }
+  .mxc .cnt { font-size: 10px; padding: 0 4px; }
+  table.mx { border-spacing: 2px; }
+  table.mx th { font-size: 10.5px; padding: 2px; font-weight: 500; }
+  table.mx th.sv { white-space: normal; max-width: 62px; line-height: 1.15; }
+  .mxbox { overflow-x: auto; max-width: 100%; }
+  .gbody dl.terms { grid-template-columns: 1fr; gap: 2px; }
+  .gbody dl.terms dd { margin-bottom: 8px; }
+  .overlay { padding: 0; }
+  .dialog { border-radius: 0; min-height: 100vh; }
+  .dialog.sm { min-height: 0; margin-top: 20vh; border-radius: 6px; width: calc(100% - 24px); }
+  .dialog footer { position: sticky; bottom: 0; background: #fff; padding: 10px 12px 12px; }
+  .dialog footer .left { flex-basis: 100%; flex-wrap: wrap; }
+  .dialog footer .btn { flex: 1 1 auto; justify-content: center; }
+  .dialog footer [data-c="cancel"] { display: none; }
+  .dialog footer .steptxt { display: none; }
+  .dialog.sm footer [data-c] { display: inline-flex; }
+  .dialog header, .dialog .body { padding-left: 14px; padding-right: 14px; }
+  .wsteps { padding: 0 10px; }
+  .wsteps button { padding: 9px 8px 10px; }
+  .wsteps button:not([aria-current]) span { display: none; }
+}
+/* worksheet and recommendations become cards when the work area is narrower than the table */
+@container main (max-width: 940px) {
+  .sheet { overflow: visible; background: transparent; border: 0; }
+  table.ws, table.rr { min-width: 0; display: block; }
+  table.ws thead, table.ws colgroup, table.rr thead { display: none; }
+  table.ws tbody, table.ws tr, table.ws td, table.rr tbody, table.rr tr, table.rr td { display: block; width: auto; }
+  table.ws td + td, table.rr td + td { border-left: 0; }
+  tr.grp { margin-top: 12px; }
+  tr.grp td { border: 1px solid #cddbec; border-radius: 5px; }
+  tr.row, table.rr tr { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; margin: 8px 0; position: relative; padding: 4px 0 6px; overflow: hidden; }
+  tr.row td, table.rr td { border: 0; padding: 2px 10px; }
+  tr.row td[data-label]::before, table.rr td[data-label]::before { content: attr(data-label); display: block; font-family: var(--ui); font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 6px 0 1px 5px; font-style: normal; }
+  tr.row td.rk { display: inline-block; width: 50%; vertical-align: top; background: transparent; }
+  tr.row td.rk.after { background: transparent; }
+  tr.row.ok td:first-child { box-shadow: none; }
+  tr.row.ok { border-left: 4px solid var(--ok); }
+  td.act { padding-top: 6px; }
+  .acts { display: flex; justify-content: flex-end; gap: 6px; }
+  .acts .icon-btn { width: 36px; height: 34px; border: 1px solid var(--rule); }
+  .ghd .add { margin-left: 0; }
+  .gd { flex-basis: 100%; }
+  table.rr td.no { padding-top: 8px; }
+  .gob { width: auto; display: inline-flex; gap: 6px; padding: 4px 10px; border: 1px solid var(--rule); margin: 8px 0 2px; color: var(--line); font-weight: 500; }
+  .golb { display: inline; }
+}
+@container main (min-width: 560px) and (max-width: 940px) {
+  tr.row:not(.na) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 6px; }
+  tr.row td.rk { width: auto; }
+  tr.row td.rec { order: 4; } tr.row td.rk { order: 5; } tr.row td.act { order: 7; grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body { background: #fff; font-size: 10pt; }
-  .bar, .shell, .overlay, .toast, .pop { display: none !important; }
+  .bar, .prog, .shell, .overlay, .toast, .pop, .guide, .site-foot, .drawer-ov { display: none !important; }
   #printArea { display: block; }
   #printArea h1 { font-size: 13pt; margin: 0 0 2pt; }
   #printArea .pmeta { font-size: 9pt; margin: 0 0 8pt; color: #333; }
@@ -235,100 +511,239 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
   #printArea tr.pn td { font-weight: 700; color: #0000ff; }
   #printArea .pfoot { font-size: 8pt; color: #555; margin-top: 6pt; }
 }
-
 </style>
 </head>
 <body>
 <header class="bar" id="bar"></header>
-<div class="shell">
+<nav class="prog" id="prog" aria-label="Study progress"></nav>
+<div class="shell empty" id="shell">
   <aside class="rail" id="rail" aria-label="Study and nodes"></aside>
-  <main class="main" id="main"></main>
+  <main class="main" id="main">
+    <noscript><div class="welcome"><p>The HAZOP worksheet builder needs JavaScript. Please enable it in your browser.</p></div></noscript>
+  </main>
 </div>
+
+<section class="guide" id="guide" aria-labelledby="guideTitle">
+  <div class="guide-in gbody" id="guideBody">
+    <h2 id="guideTitle">How to use the HAZOP worksheet builder</h2>
+    <ol>
+      <li><b>Enter the study details</b> (optional): study title, P&amp;ID or MOC reference, date and team.</li>
+      <li><b>Add a node.</b> Give it a name and a design intent, for example "Transfer 40 m³/h naphtha at 8 barg from T-101 to column C-201".</li>
+      <li><b>Choose the equipment type</b>: pipeline, pump, compressor, storage tank, pressure vessel, heat exchanger or column.</li>
+      <li><b>Choose the fluid hazards and phase</b>. These set the consequence of a release and its severity.</li>
+      <li><b>Tick the safeguards installed today</b>: instruments, alarms, trips, relief valves, check valves, procedures. Ticked items are credited; an expected safeguard that is missing raises a recommendation.</li>
+      <li><b>Review the draft with your team.</b> Edit any text, change severity or likelihood, swap a cause for another one from the library, add your own causes and mark each row as reviewed.</li>
+      <li><b>Track the recommendations</b> in the Recommendations tab: give each an owner, a target date and a status.</li>
+      <li><b>Export to Excel or print.</b> Use Save file to keep an editable copy of the study.</li>
+    </ol>
+
+    <h2>HAZOP terms used in the worksheet</h2>
+    <dl class="terms">
+      <dt>Node</dt><dd>A section of the plant studied as one unit, usually one equipment item with its connected lines, between clear boundaries on the P&amp;ID.</dd>
+      <dt>Design intent</dt><dd>What the node is meant to do at normal conditions: flow, pressure, temperature, level, composition. Every deviation is measured against it.</dd>
+      <dt>Guide word</dt><dd>A word such as No, More, Less or Reverse that prompts the team to imagine a departure from the design intent.</dd>
+      <dt>Parameter</dt><dd>A process variable such as flow, pressure, temperature or level.</dd>
+      <dt>Deviation</dt><dd>Guide word + parameter, for example "No flow" or "High pressure". The worksheet is grouped by deviation.</dd>
+      <dt>Cause</dt><dd>Why the deviation could happen: equipment failure, control failure, human error or an external event. Causes are listed most likely first, with their typical frequency per year.</dd>
+      <dt>Consequence</dt><dd>What could happen if the cause occurs and no protection works, written for the fluid hazards of the node.</dd>
+      <dt>Safeguard</dt><dd>Protection already in the design: an alarm, trip, relief valve, check valve, dike or procedure. Only safeguards you ticked are listed.</dd>
+      <dt>Severity (S)</dt><dd>How bad the worst credible consequence is, from 1 (minor) to 5 (catastrophic).</dd>
+      <dt>Likelihood (L)</dt><dd>How often the cause is expected, from 1 (remote) to 5 (frequent), set from its typical frequency.</dd>
+      <dt>Risk</dt><dd>Severity combined with likelihood on the risk matrix: Low, Medium, High or Very high. Shown before safeguards and with the listed safeguards.</dd>
+      <dt>Recommendation</dt><dd>An action to reduce the risk further, with an owner, target date and status.</dd>
+    </dl>
+
+    <h2>Guide words and deviations</h2>
+    <p>The guide words follow IEC 61882, the international standard for HAZOP studies.</p>
+    <table class="gt">
+      <thead><tr><th>Guide word</th><th>Meaning</th><th>Example deviations</th></tr></thead>
+      <tbody>
+        <tr><td>No / None</td><td>Complete absence of the design intent</td><td>No flow</td></tr>
+        <tr><td>More / High</td><td>Quantitative increase</td><td>More flow, high pressure, high temperature, high level</td></tr>
+        <tr><td>Less / Low</td><td>Quantitative decrease</td><td>Less flow, low pressure, low level</td></tr>
+        <tr><td>Reverse</td><td>Opposite direction</td><td>Reverse flow</td></tr>
+        <tr><td>As well as</td><td>Something extra is present</td><td>Contamination, water in oil, an extra phase</td></tr>
+        <tr><td>Part of</td><td>Only part of the intent is achieved</td><td>Wrong concentration, a missing component</td></tr>
+        <tr><td>Other than</td><td>Something completely different happens</td><td>Wrong material, maintenance, start-up and shutdown</td></tr>
+      </tbody>
+    </table>
+
+    <h2>How risk is ranked</h2>
+    <p>Each row has a severity and a likelihood from 1 to 5. The risk matrix turns the pair into Low, Medium, High or Very high. The default matrix ranks severity × likelihood: up to 3 is Low, 4 to 8 Medium, 9 to 14 High and 15 or more Very high. You can change any cell in the Risk matrix tab to match your company procedure.</p>
+    <p>Risk is shown twice. <b>Before safeguards</b> uses the likelihood of the cause alone. <b>With safeguards</b> keeps the same severity and lowers the likelihood for the safeguards you ticked: one level for an alarm, auto-start, trip, NRV or similar device, and two levels for a PSV or vent, up to three levels in total. This is a screening estimate; confirm critical scenarios with a LOPA study.</p>
+    <p>Related tools: <a href="/pressure-relief-valve-sizing/">PSV sizing calculator</a>, <a href="/engineering-standards-finder/equipment/hazop-lopa/">HAZOP and LOPA standards</a>, <a href="/engineering-standards-finder/standards/iec-61882/">IEC 61882 summary</a>.</p>
+
+    <h2>Frequently asked questions</h2>
+    <details><summary>Is the HAZOP worksheet builder free?</summary><p>Yes. It is free to use with no sign-up. You can build as many nodes as you need and export the worksheet to Excel.</p></details>
+    <details><summary>Is my HAZOP study uploaded anywhere?</summary><p>No. The study is saved in your own browser. To draft the rows, only the equipment type, fluid hazard, phase and ticked features are sent to the library. Node names, design intent and your edits are never sent. Use Save file to keep a copy or move the study to another computer.</p></details>
+    <details><summary>Can I use the draft as my final HAZOP?</summary><p>The draft is a starting point for a HAZOP team. The team must go through every row, add causes specific to the plant, confirm severity and likelihood against the company risk matrix, and agree the recommendations. It does not replace a facilitated HAZOP study.</p></details>
+    <details><summary>Can I change the risk matrix?</summary><p>Yes. Open the Risk matrix tab, choose Edit risk levels and click any cell to change its level so the matrix matches your company procedure. All risk rankings in the study update at once.</p></details>
+    <details><summary>Which equipment types are covered?</summary><p>Pipelines, pumps, compressors, storage tanks, pressure vessels, heat exchangers and columns, for any fluid. You choose the fluid hazards (flammable, toxic, corrosive, hot, cryogenic, environmental or non-hazardous) and the phase.</p></details>
+    <details><summary>How do I share the study with my team?</summary><p>Export Excel gives a worksheet, a recommendations list and the node basis that anyone can open. Save file gives a .hazop.json file that a colleague can load with Open to continue editing.</p></details>
+
+    <p class="disclaimer">This tool is in beta. The draft is generated from a generic library of causes, typical frequencies and safeguard credits; it must be reviewed by a competent HAZOP team before use. Replace generic frequencies with site data where available. <a href="/contact/">Send feedback or report a problem</a>.</p>
+  </div>
+</section>
+<footer class="site-foot"><a href="https://www.multicalci.com/">multicalci.com</a>·<a href="/engineering-standards-finder/">Engineering standards finder</a>·<a href="/contact/">Contact</a></footer>
 <div id="printArea"></div>
+
 <script>
-/* multicalci.com - HAZOP Worksheet Builder - page app v1.2. The library and rules run on the server (/api/hazop);
+/* multicalci.com - HAZOP Worksheet Builder - page app v2.0. The library and rules run on the server (/api/hazop);
    this page holds only the interface. Studies stay in this browser. */
 (function () {
   "use strict";
-  var L = null;                       /* display labels from /api/hazop (op: meta) */
-  var API = "/api/hazop";
-  var KEY = "mc_hazop_v1", META_KEY = "mc_hazop_meta";
-  var EXCELJS_URL = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
-  var EQMAP = {}, FLUIDMAP = {};
+  let L = null;                       /* display labels from /api/hazop (op: meta) */
+  const API = "/api/hazop";
+  const KEY = "mc_hazop_v1", META_KEY = "mc_hazop_meta";
+  const EXCELJS_URL = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+  let EQMAP = {}, FLUIDMAP = {};
   function setMeta(m) {
     L = m; EQMAP = {}; FLUIDMAP = {};
-    L.EQ.forEach(function (e) { EQMAP[e.id] = e; });
-    L.FLUIDS.forEach(function (f) { FLUIDMAP[f.id] = f; });
+    L.EQ.forEach((e) => { EQMAP[e.id] = e; });
+    L.FLUIDS.forEach((f) => { FLUIDMAP[f.id] = f; });
   }
-  var RANKL = { L: "Low", M: "Medium", H: "High", VH: "Very high" };
-  var NEXT = { L: "M", M: "H", H: "VH", VH: "L" };
+  const RANKL = { L: "Low", M: "Medium", H: "High", VH: "Very high" };
+  const RORD = { L: 1, M: 2, H: 3, VH: 4 };
+  const NEXT = { L: "M", M: "H", H: "VH", VH: "L" };
+  const RCOL = { L: "var(--r1)", M: "var(--r2)", H: "var(--r3)", VH: "var(--r4)" };
+  const STATUSES = ["Open", "In progress", "Closed"];
+  const MOBILE = window.matchMedia("(max-width: 900px)");
+
+  /* plain-language help shown from the "?" buttons */
+  const HELP = {
+    cause: ["Cause", "Why the deviation could happen: equipment failure, control failure, human error or an external event. Library causes are listed most likely first, with their typical frequency. Use the swap button to replace one with another library cause, or type your own."],
+    cons: ["Consequence", "What could happen if the cause occurs and no protection works: the effect on people, plant and environment, written for the fluid hazards of this node."],
+    sg: ["Safeguards", "Protection that already exists and that you ticked for this node: alarms, trips, relief valves, check valves, procedures. Add any others the team agrees on."],
+    risk: ["Risk before safeguards", "Severity (1 Minor to 5 Catastrophic) is the worst credible consequence. Likelihood (1 Remote to 5 Frequent) comes from the cause's typical frequency. The risk matrix combines them into Low, Medium, High or Very high."],
+    res: ["Risk with safeguards", "The same severity with a lower likelihood for the listed safeguards: one level for an alarm, auto-start, trip, NRV or similar device, and two levels for a PSV or vent, up to three in total. Change the likelihood if the team judges differently."],
+    rec: ["Recommendation", "An action to reduce the risk further. Yellow-marked ones were suggested because a safeguard the library expects is not ticked. Edit, clear or add your own; all of them appear in the Recommendations tab."],
+    acts: ["Row buttons", "Tick: mark the row as reviewed by the team. Arrows: swap the cause for another one from the library. Plus: add a blank row below. Cross: delete the row (you can undo)."]
+  };
+  const GROUP_HELP = {
+    cfg: "How the equipment is set up. Decides which causes apply.",
+    ins: "Indicators, controllers and alarms. Alarms are credited as safeguards.",
+    pro: "Trips, relief devices, check valves and similar. Credited as independent protection.",
+    gen: "Procedures, drains, detection and other general provisions."
+  };
+  const GUIDE = [
+    [/^(no|none|not)$/i, (p) => "No " + p + " at all"],
+    [/^(more|high|higher|increase)/i, (p) => cap(p) + " higher than the design intent"],
+    [/^(less|low|lower|decrease)/i, (p) => cap(p) + " lower than the design intent"],
+    [/^reverse/i, (p) => cap(p) + " in the opposite direction"],
+    [/^as well as/i, (p) => "Something extra present in the " + p],
+    [/^part of/i, (p) => "Only part of the intended " + p],
+    [/^other than/i, (p) => cap(p) + " different from the design intent"],
+    [/^(early|earlier|sooner)/i, (p) => cap(p) + " happens too early"],
+    [/^(late|later)/i, (p) => cap(p) + " happens too late"],
+    [/^before/i, (p) => cap(p) + " happens out of sequence (before)"],
+    [/^after/i, (p) => cap(p) + " happens out of sequence (after)"]
+  ];
 
   /* ---------------- helpers ---------------- */
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
   function uid() { return Math.random().toString(36).slice(2, 10); }
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function cap(s) { s = String(s || ""); return s.charAt(0).toUpperCase() + s.slice(1); }
   function today() { return new Date().toISOString().slice(0, 10); }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function fit(t) { t.style.height = "auto"; t.style.height = (t.scrollHeight + 2) + "px"; }
-  function fitAll(root) { requestAnimationFrame(function () { $$("textarea.cell", root).forEach(fit); }); }
+  function fitAll(root) { requestAnimationFrame(() => { $$("textarea.cell", root).forEach(fit); }); }
   function fileSafe(s) { return (s || "HAZOP").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_").slice(0, 60) || "HAZOP"; }
+  function shown(v) { return v && String(v).trim() !== "--" ? v : ""; }          /* "--" means "none" in the library */
+  function dash(v) { return shown(v) && String(v).trim() ? v : "--"; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")); }
+  function gwDesc(g, p) {
+    if (g === "Others") return "Situation outside normal operation";
+    for (let i = 0; i < GUIDE.length; i++) if (GUIDE[i][0].test(g)) return GUIDE[i][1](String(p || "").toLowerCase());
+    return "";
+  }
+  function devName(r) { return r.g === "Others" ? r.p : r.g + " " + String(r.p).toLowerCase(); }
 
   function defMatrix() {
-    var m = [];
-    for (var s = 1; s <= 5; s++) { var r = []; for (var l = 1; l <= 5; l++) { var p = s * l; r.push(p <= 3 ? "L" : p <= 8 ? "M" : p <= 14 ? "H" : "VH"); } m.push(r); }
+    const m = [];
+    for (let s = 1; s <= 5; s++) { const r = []; for (let l = 1; l <= 5; l++) { const p = s * l; r.push(p <= 3 ? "L" : p <= 8 ? "M" : p <= 14 ? "H" : "VH"); } m.push(r); }
     return m;
   }
   function blank() { return { v: 1, study: { title: "", ref: "", date: today(), team: "" }, nodes: [], cur: null, matrix: defMatrix(), showNA: true }; }
   function load() {
     try {
-      var s = localStorage.getItem(KEY); if (!s) return null;
-      var o = JSON.parse(s); return valid(o) ? o : null;
+      const s = localStorage.getItem(KEY); if (!s) return null;
+      const o = JSON.parse(s); return valid(o) ? o : null;
     } catch (e) { return null; }
   }
   function valid(o) {
     if (!o || !Array.isArray(o.nodes) || !o.study) return false;
     if (!Array.isArray(o.matrix) || o.matrix.length !== 5) o.matrix = defMatrix();
     if (o.showNA == null) o.showNA = true;
+    o.nodes.forEach((n) => { if (!Array.isArray(n.rows)) n.rows = []; if (!n.id) n.id = uid(); n.rows.forEach((r) => { if (!r.id) r.id = uid(); }); });
     return true;
   }
-  var saveTimer;
-  function persist() { clearTimeout(saveTimer); saveTimer = setTimeout(function () { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }, 250); }
+  let saveTimer;
+  function persist() {
+    clearTimeout(saveTimer);
+    setSave("saving");
+    saveTimer = setTimeout(() => {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); setSave("saved"); } catch (e) { setSave("off"); }
+    }, 250);
+  }
+  function setSave(s) {
+    const el = $("#saveState"); if (!el) return;
+    el.innerHTML = s === "saving" ? "Saving…" : s === "off" ? "Not saved: browser storage is off. Use Save file." : ic("check") + 'Saved<span class="lb-x"> in this browser</span>';
+  }
 
-  var state = load() || blank();
-  var ui = { tab: "ws", lastDel: null };
+  let state = load() || blank();
+  const ui = { tab: "ws", lastDel: null, filter: "all", q: "", col: {}, mx: "b", mxScope: "node", mxEdit: false, rrNode: "all", rrStatus: "all", exported: false, sec: {} };
 
   /* ---------------- server API ---------------- */
   function api(op, payload) {
-    var body = { op: op }; Object.keys(payload || {}).forEach(function (k) { body[k] = payload[k]; });
+    const body = Object.assign({ op: op }, payload || {});
     return fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (r) {
-        return r.json().catch(function () { return {}; }).then(function (j) {
-          if (!r.ok) throw new Error(j.error || ("Server error " + r.status));
-          return j;
-        });
-      }, function () { throw new Error("Could not reach the HAZOP library. Check your internet connection and try again."); });
+      .then((r) => r.json().catch(() => ({})).then((j) => {
+        if (!r.ok) throw new Error(j.error || ("Server error " + r.status));
+        return j;
+      }), () => { throw new Error("Could not reach the HAZOP library. Check your internet connection and try again."); });
   }
   function nodeCfg(n) { return { eq: n.eq, fluids: n.fluids || [], phase: n.phase || "liquid", feats: n.feats || [] }; }
-  function withIds(row) { row.id = uid(); if (!row.na) { row.owner = ""; row.status = "Open"; } return row; }
-  function buildRows(node) { return api("build", { node: nodeCfg(node) }).then(function (j) { return j.rows.map(withIds); }); }
+  function withIds(row) { row.id = uid(); if (!row.na) { row.owner = ""; row.status = "Open"; row.due = ""; } return row; }
+  function buildRows(node) { return api("build", { node: nodeCfg(node) }).then((j) => j.rows.map(withIds)); }
   function fluidShort(id) { return FLUIDMAP[id] ? FLUIDMAP[id].l.split(" (")[0] : id; }
+  function phaseLabel(id) { return (L.PHASES.filter((p) => p.id === id)[0] || {}).l || ""; }
   function rank(s, l) { return s && l ? state.matrix[s - 1][l - 1] : ""; }
   function l2of(r) { return r.l2 == null ? r.l : r.l2; }
   function groups(node) {
-    var out = [], idx = {};
-    node.rows.forEach(function (r) {
+    const out = [], idx = {};
+    node.rows.forEach((r) => {
       if (idx[r.dk] == null) { idx[r.dk] = out.length; out.push({ dk: r.dk, g: r.g, p: r.p, rows: [] }); }
       out[idx[r.dk]].rows.push(r);
     });
     return out;
   }
   function hasRec(r) { return !r.na && r.rec && r.rec.trim() && r.rec.trim() !== "--"; }
-  function curNode() { var n = null; state.nodes.forEach(function (x) { if (x.id === state.cur) n = x; }); if (!n && state.nodes.length) { n = state.nodes[0]; state.cur = n.id; } return n; }
-  function nodeLabel(n) { return "Node-" + (state.nodes.indexOf(n) + 1); }
+  function live(n) { return n.rows.filter((r) => !r.na); }
+  function curNode() { let n = null; state.nodes.forEach((x) => { if (x.id === state.cur) n = x; }); if (!n && state.nodes.length) { n = state.nodes[0]; state.cur = n.id; } return n; }
+  function nodeNo(n) { return state.nodes.indexOf(n) + 1; }
+  function nodeLabel(n) { return "Node-" + nodeNo(n); }
+  function worse(a, b) { return !a ? b : !b ? a : RORD[b] > RORD[a] ? b : a; }
+  function stats(nodes) {
+    const s = { rows: 0, devs: 0, recs: 0, open: 0, prog: 0, closed: 0, ok: 0, b: { L: 0, M: 0, H: 0, VH: 0 }, a: { L: 0, M: 0, H: 0, VH: 0 }, worst: "" };
+    nodes.forEach((n) => {
+      const dks = {};
+      live(n).forEach((r) => {
+        s.rows++; dks[r.dk] = 1;
+        if (r.ok) s.ok++;
+        if (hasRec(r)) { s.recs++; const st = r.status || "Open"; if (st === "Closed") s.closed++; else if (st === "In progress") s.prog++; else s.open++; }
+        const b = rank(r.s, r.l), a = rank(r.s, l2of(r));
+        if (b) s.b[b]++;
+        if (a) { s.a[a]++; s.worst = worse(s.worst, a); }
+      });
+      s.devs += Object.keys(dks).length;
+    });
+    return s;
+  }
 
   /* ---------------- symbols & icons ---------------- */
-  var SYM = {
+  const SYM = {
     line: '<path d="M3 24h14M31 24h14"/><path d="M17 16l14 16V16L17 32z"/><path d="M39 19l6 5-6 5"/>',
     pump: '<path d="M3 27h8"/><circle cx="23" cy="27" r="12"/><path d="M23 15h19v-6"/><path d="M15 36l-4 8h24l-4-8"/>',
     comp: '<path d="M3 24h6M39 24h6"/><circle cx="24" cy="24" r="15"/><path d="M12 15l24 6M12 33l24-6"/>',
@@ -338,7 +753,7 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
     column: '<rect x="16" y="3" width="16" height="42" rx="8"/><path d="M16 15h10M22 21h10M16 27h10M22 33h10"/><path d="M32 8h8M8 40h8"/>'
   };
   function sym(id, cls) { return '<svg class="' + (cls || "sym") + '" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (SYM[id] || "") + "</svg>"; }
-  var IC = {
+  const IC = {
     open: '<path d="M3 7h6l2 2h10v10H3z"/>',
     save: '<path d="M12 3v11M7 10l5 5 5-5M4 20h16"/>',
     sheet: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/>',
@@ -349,65 +764,109 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V4h12"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-    newdoc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'
+    newdoc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+    go: '<path d="M5 12h14M13 6l6 6-6 6"/>'
   };
   function ic(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[n] + "</svg>"; }
+  function badge(rk, sm) { return rk ? '<span class="risk ' + rk + (sm ? " sm" : "") + '">' + RANKL[rk] + "</span>" : ""; }
 
-  /* ---------------- top bar ---------------- */
+  /* ---------------- top bar & progress ---------------- */
   function renderBar() {
     $("#bar").innerHTML =
-      '<a class="mark" href="https://www.multicalci.com/"><b>mc</b><span>HAZOP worksheet</span></a>' +
-      '<label class="sr" for="studyTitle">Study title</label>' +
-      '<input id="studyTitle" class="study-title" placeholder="Study title, e.g. Feed section of crude unit" value="' + esc(state.study.title) + '">' +
+      '<a class="mark" href="https://www.multicalci.com/" title="multicalci.com home"><b>mc</b><span>HAZOP worksheet</span><span class="beta">Beta</span></a>' +
+      '<div class="title-wrap"><label for="studyTitle">Study:</label><input id="studyTitle" class="study-title" data-sf="title" placeholder="Give the study a title, e.g. Feed section of crude unit" value="' + esc(state.study.title) + '"></div>' +
+      '<span class="save-state" id="saveState" aria-live="polite"></span>' +
       '<div class="actions">' +
-      '<button class="btn ghost" data-top="new" title="Start a new study">' + ic("newdoc") + "New</button>" +
-      '<button class="btn" data-top="open" title="Open a saved study file">' + ic("open") + "Open</button>" +
-      '<button class="btn" data-top="save" title="Save the study as a file">' + ic("save") + "Save file</button>" +
-      '<button class="btn" data-top="print" title="Print the worksheet">' + ic("print") + "Print</button>" +
-      '<button class="btn primary" data-top="excel" title="Download the worksheet as an Excel file">' + ic("sheet") + "Export Excel</button>" +
+      '<button class="btn ghost" data-top="help" title="How to use this tool">' + ic("help") + '<span class="lb">Help</span></button>' +
+      '<button class="btn ghost" data-top="new" title="Start a new, empty study">' + ic("newdoc") + '<span class="lb">New</span></button>' +
+      '<button class="btn" data-top="open" title="Open a study saved with Save file (.hazop.json)">' + ic("open") + '<span class="lb">Open</span></button>' +
+      '<button class="btn" data-top="save" title="Download the study as a file you can open again later (Ctrl+S)">' + ic("save") + '<span class="lb">Save<span class="lb-x"> file</span></span></button>' +
+      '<button class="btn" data-top="print" title="Print the worksheet (A4 landscape)">' + ic("print") + '<span class="lb">Print</span></button>' +
+      '<button class="btn primary" data-top="excel" title="Download the worksheet, recommendations and node basis as an Excel file">' + ic("sheet") + '<span class="lb"><span class="lb-x">Export </span>Excel</span></button>' +
       '<input type="file" id="fileIn" accept=".json,application/json" hidden>' +
       "</div>";
+    setSave("saved");
+  }
+  function syncTitle() { const t = $("#studyTitle"); if (t && document.activeElement !== t) t.value = state.study.title || ""; }
+
+  function renderProgress() {
+    const el = $("#prog");
+    if (!L) { el.innerHTML = ""; return; }
+    const n = state.nodes.length, s = stats(state.nodes), st = state.study;
+    const openActs = s.recs - s.closed;
+    const steps = [
+      { id: "study", t: "Study details", sub: st.title || st.ref ? "Filled in" : "Optional", done: !!(st.title || st.ref), opt: true },
+      { id: "nodes", t: "Add nodes", sub: n ? plural(n, "node") : "None yet", done: n > 0 },
+      { id: "review", t: "Review with team", sub: n ? s.ok + " of " + plural(s.rows, "row") + " reviewed" : "After adding nodes", done: n > 0 && s.rows > 0 && s.ok === s.rows },
+      { id: "actions", t: "Track recommendations", sub: n ? (s.recs ? openActs + " of " + s.recs + " not closed" : "None raised") : "Raised by the draft", done: n > 0 && openActs === 0 },
+      { id: "export", t: "Export", sub: ui.exported ? "Excel downloaded" : "Excel or print", done: ui.exported }
+    ];
+    let cur = -1;
+    for (let i = 0; i < steps.length; i++) if (!steps[i].done && !steps[i].opt) { cur = i; break; }
+    el.innerHTML = steps.map((x, i) =>
+      (i ? '<span class="sep" aria-hidden="true"></span>' : "") +
+      '<button data-step="' + x.id + '" class="' + (x.done ? "done" : "") + (i === cur ? " cur" : "") + '"' + (i === cur ? ' aria-current="step"' : "") + ">" +
+      "<i>" + (x.done ? ic("check") : i + 1) + "</i><span><b>" + x.t + "</b><small>" + esc(x.sub) + "</small></span></button>").join("");
   }
 
   /* ---------------- rail ---------------- */
+  function secOpen(id, dflt) { return ui.sec[id] == null ? dflt : ui.sec[id]; }
   function renderRail() {
-    var h = '<section><h2>Study details</h2>' +
-      '<label class="field"><span>Reference (P&amp;ID / EWR / MOC no.)</span><input data-sf="ref" value="' + esc(state.study.ref) + '"></label>' +
-      '<label class="field"><span>Date</span><input type="date" data-sf="date" value="' + esc(state.study.date) + '"></label>' +
-      '<label class="field"><span>Team</span><input data-sf="team" placeholder="Names / departments" value="' + esc(state.study.team) + '"></label></section>';
-    h += '<section><h2>Nodes</h2><ul class="nodes">';
-    state.nodes.forEach(function (n, i) {
-      var eq = EQMAP[n.eq]; var nr = n.rows.filter(hasRec).length;
-      h += '<li class="node-item' + (n.id === state.cur ? " on" : "") + '" data-node="' + n.id + '" tabindex="0" role="button" aria-label="Open node ' + (i + 1) + '">' +
-        sym(n.eq) + '<div><div class="nm">' + (i + 1) + ". " + esc(n.name) + '</div><div class="sub">' + esc(eq ? eq.l : "") + "</div></div>" +
-        '<div class="cnt">' + n.rows.filter(function (r) { return !r.na; }).length + " rows" + (nr ? "<br>" + nr + " recs" : "") + "</div></li>";
+    const st = state.study, s = stats(state.nodes);
+    const filled = !!(st.ref || st.team);
+    let h = '<details class="rsec" data-sec="study"' + (secOpen("study", !MOBILE.matches && !filled) ? " open" : "") + "><summary>Study details" + (filled ? "" : "<small>optional</small>") + "</summary>" +
+      '<label class="field"><span>Reference (P&amp;ID / MOC no.)</span><input data-sf="ref" value="' + esc(st.ref) + '"></label>' +
+      '<label class="field"><span>Date</span><input type="date" data-sf="date" value="' + esc(st.date) + '"></label>' +
+      '<label class="field"><span>Team</span><input data-sf="team" placeholder="Names / departments" value="' + esc(st.team) + '"></label></details>';
+    h += '<details class="rsec" data-sec="nodes"' + (secOpen("nodes", true) ? " open" : "") + "><summary>Nodes<small>" + state.nodes.length + "</small></summary>" + '<ul class="nodes">';
+    state.nodes.forEach((n, i) => {
+      const eq = EQMAP[n.eq], ns = stats([n]);
+      const pct = ns.rows ? Math.round(100 * ns.ok / ns.rows) : 0;
+      h += '<li class="node-item' + (n.id === state.cur ? " on" : "") + '" data-node="' + n.id + '" tabindex="0" role="button" aria-label="Open node ' + (i + 1) + ": " + esc(n.name) + '">' +
+        sym(n.eq) + '<div><div class="nm">' + (i + 1) + ". " + esc(n.name) + "</div>" +
+        '<div class="sub">' + (ns.worst ? '<span title="Highest risk with safeguards: ' + RANKL[ns.worst] + '"><i class="dot" style="background:' + RCOL[ns.worst] + '"></i>' + RANKL[ns.worst] + "</span>" : "") +
+        "<span>" + esc(eq ? eq.l : "") + "</span><span>" + plural(ns.rows, "cause") + "</span>" + (ns.recs ? "<span>" + plural(ns.recs, "rec") + "</span>" : "") + "</div>" +
+        '<div class="mini" title="' + ns.ok + " of " + ns.rows + ' rows reviewed"><i style="width:' + pct + '%"></i></div></div></li>';
     });
-    h += '</ul><button class="btn" data-rail="add" style="margin-top:8px;width:100%">' + ic("plus") + "Add node</button></section>";
-    h += '<p class="foot">Draft for review by the HAZOP team. Cause frequencies are typical generic values; replace them with site data where available. Your study is saved automatically in this browser only; node names and edits are never sent. Library version ' + esc(L.version) + '.</p>';
+    h += '</ul><button class="btn" data-rail="add" style="margin-top:8px;width:100%">' + ic("plus") + "Add node</button></details>";
+    if (s.rows) {
+      const bar = (o) => ["L", "M", "H", "VH"].map((k) => o[k] ? '<i style="width:' + (100 * o[k] / s.rows) + "%;background:" + RCOL[k] + '" title="' + RANKL[k] + ": " + o[k] + '"></i>' : "").join("");
+      h += '<details class="rsec" data-sec="profile"' + (secOpen("profile", !MOBILE.matches) ? " open" : "") + "><summary>Study risk profile</summary>" +
+        '<div class="profile"><div class="pl"><span>Before safeguards</span><span>' + (s.b.H + s.b.VH) + " high / very high</span></div><div class=\"pbar\">" + bar(s.b) + "</div>" +
+        '<div class="pl"><span>With safeguards</span><span>' + (s.a.H + s.a.VH) + " high / very high</span></div><div class=\"pbar\">" + bar(s.a) + "</div>" +
+        '<div class="pkey">' + ["L", "M", "H", "VH"].map((k) => '<span style="--c:' + RCOL[k] + '">' + RANKL[k] + "</span>").join("") + "</div></div></details>";
+    }
+    h += '<p class="foot">Draft for review by the HAZOP team. Cause frequencies are typical generic values; replace them with site data where available. Library version ' + esc(L.version) + ".</p>";
     $("#rail").innerHTML = h;
   }
 
   /* ---------------- main ---------------- */
   function renderMain() {
-    var main = $("#main"), node = curNode();
+    const main = $("#main"), node = curNode();
+    $("#shell").classList.toggle("empty", !state.nodes.length);
     if (!state.nodes.length) { main.innerHTML = welcomeHTML(); return; }
-    var eq = EQMAP[node.eq];
-    var nRows = node.rows.filter(function (r) { return !r.na; }).length;
-    var nRecs = 0; state.nodes.forEach(function (n) { nRecs += n.rows.filter(hasRec).length; });
-    var h = '<div class="node-head">' + sym(node.eq) + "<div>" +
-      "<h1>" + nodeLabel(node) + ": " + esc(node.name) + "</h1>" +
-      (node.intent ? '<p class="intent">' + esc(node.intent) + "</p>" : "") +
+    const eq = EQMAP[node.eq] || { l: node.eq };
+    const ns = stats([node]), all = stats(state.nodes);
+    let h = '<div class="node-head">' + sym(node.eq) + "<div>" +
+      '<div class="eyebrow">' + nodeLabel(node) + " of " + state.nodes.length + "</div>" +
+      "<h1>" + esc(node.name) + "</h1>" +
+      (node.intent ? '<p class="intent"><b>Design intent:</b> ' + esc(node.intent) + "</p>" : '<p class="intent"><button class="linkbtn" data-a="editnode">+ Add the design intent</button></p>') +
       '<div class="chips"><span class="chip">' + esc(eq.l) + "</span>" +
-      (node.fluids || []).map(function (f) { return '<span class="chip' + (f === "nonhaz" ? "" : " haz") + '">' + esc(fluidShort(f)) + "</span>"; }).join("") +
-      '<span class="chip">' + esc((L.PHASES.filter(function (p) { return p.id === node.phase; })[0] || {}).l || "") + "</span>" +
-      '<span class="chip">' + (node.feats || []).length + " features selected</span></div></div>" +
+      (node.fluids || []).map((f) => '<span class="chip' + (f === "nonhaz" ? "" : " haz") + '">' + esc(fluidShort(f)) + "</span>").join("") +
+      '<span class="chip">' + esc(phaseLabel(node.phase)) + "</span>" +
+      (node.dwg ? '<span class="chip">P&amp;ID ' + esc(node.dwg) + "</span>" : "") +
+      '<button class="chip" data-a="editfeats" title="Change the installed features and safeguards">' + plural((node.feats || []).length, "feature") + " ticked " + ic("edit") + "</button></div></div>" +
       '<div class="tools"><button class="btn small" data-a="editnode">' + ic("edit") + "Edit node</button>" +
-      '<button class="btn small" data-a="dupnode">' + ic("copy") + "Duplicate</button>" +
+      '<button class="btn small" data-a="dupnode" title="Copy this node, e.g. for an identical train">' + ic("copy") + "Duplicate</button>" +
       '<button class="btn small danger" data-a="delnode">' + ic("trash") + "Delete</button></div></div>";
+    h += kpisHTML(ns);
     h += '<div class="tabs" role="tablist">' +
-      tab("ws", "Worksheet", nRows) + tab("rr", "Recommendations", nRecs) + tab("mx", "Risk matrix", "") +
-      '<label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);padding-right:4px"><input type="checkbox" data-a="showna"' + (state.showNA ? " checked" : "") + "> Show not-applicable rows</label></div>";
-    if (ui.tab === "ws") h += wsHTML(node);
+      tab("ws", "Worksheet", ns.rows) + tab("rr", "Recommendations", all.recs) + tab("mx", "Risk matrix", "") + "</div>";
+    if (ui.tab === "ws") h += toolbarHTML(node) + '<div id="sheetWrap">' + sheetHTML(node) + "</div>";
     else if (ui.tab === "rr") h += rrHTML();
     else h += mxHTML();
     main.innerHTML = h;
@@ -416,194 +875,368 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
   function tab(id, label, n) { return '<button class="tab" role="tab" data-tab="' + id + '" aria-selected="' + (ui.tab === id) + '">' + label + (n !== "" ? '<span class="n">' + n + "</span>" : "") + "</button>"; }
 
   function welcomeHTML() {
-    return '<div class="welcome"><h1>Draft a HAZOP worksheet from your node details</h1>' +
-      '<div class="syms">' + ["line", "pump", "comp", "tank", "vessel", "hx", "column"].map(function (k) { return sym(k, ""); }).join("") + "</div>" +
-      "<p>Describe each node and choose its equipment, fluid hazard and the safeguards already installed. The worksheet fills in with causes ranked by typical frequency, consequences written for your fluid, the safeguards you have, and a recommendation wherever a safeguard is missing.</p>" +
-      '<ol class="steps"><li>Add a node and describe its design intent.</li><li>Pick the equipment type, fluid hazard and installed safeguards.</li><li>Review and edit the draft with your team, then export it to Excel.</li></ol>' +
-      "<p>Your study stays in your browser. To build each draft, only the equipment type, fluid hazard and ticked features are sent; node names and your edits are not.</p>" +
-      '<div class="row-btns"><button class="btn primary" data-rail="add">' + ic("plus") + 'Add the first node</button><button class="btn" data-a="example">Open an example study</button></div></div>';
+    const st = state.study;
+    return '<div class="welcome">' +
+      '<div class="w-head"><h1>HAZOP worksheet builder</h1><span class="beta">Beta</span></div>' +
+      '<p class="lead">Describe a node, choose its equipment and fluid, and tick the safeguards that are installed. The tool drafts every deviation with likely causes, consequences, your safeguards, a risk ranking and a recommendation wherever protection is missing. Your team then reviews the draft, edits it and exports it to Excel.</p>' +
+      '<div class="flow" aria-label="How a HAZOP row is built">' +
+      ["Node<small>part of the plant</small>", "Deviation<small>guide word + parameter</small>", "Cause<small>why it happens</small>", "Consequence<small>what could happen</small>", "Safeguards<small>what exists today</small>", "Risk<small>severity × likelihood</small>", "Recommendation<small>action needed</small>"]
+        .map((t, i) => (i ? '<span class="ar" aria-hidden="true">→</span>' : "") + '<span class="' + (i === 1 ? "hl" : "") + '">' + t + "</span>").join("") + "</div>" +
+      '<div class="w-grid">' +
+      '<div class="w-card"><h2><i>1</i>Study details</h2><p>Optional. You can fill these in later; they appear on the Excel export and printout.</p>' +
+      '<label class="field"><span>Study title</span><input data-sf="title" placeholder="e.g. Feed section of crude unit" value="' + esc(st.title) + '"></label>' +
+      '<label class="field"><span>Reference (P&amp;ID / MOC no.)</span><input data-sf="ref" placeholder="e.g. P&amp;ID 101-PR-001" value="' + esc(st.ref) + '"></label>' +
+      '<div class="two"><label class="field"><span>Date</span><input type="date" data-sf="date" value="' + esc(st.date) + '"></label>' +
+      '<label class="field"><span>Team</span><input data-sf="team" placeholder="Names / departments" value="' + esc(st.team) + '"></label></div></div>' +
+      '<div class="w-card"><h2><i>2</i>Add the first node</h2><p>A node is one equipment item with its connected lines. You will choose the equipment, fluid and installed safeguards in four short steps.</p>' +
+      '<button class="btn primary lg" data-rail="add">' + ic("plus") + "Add the first node</button>" +
+      '<div class="w-or">or</div><div class="w-alt"><button class="btn" data-a="example">Try the example study</button><button class="btn" data-top="open">' + ic("open") + "Open a saved file</button></div></div>" +
+      "</div>" +
+      '<div class="w-ready"><div><h3>Have these ready</h3><ul><li>The P&amp;ID of the section</li><li>Design intent: normal flow, pressure, temperature, level</li><li>Instruments, alarms, trips and relief valves installed</li><li>Your company risk matrix, if it differs from the default</li></ul></div>' +
+      "<div><h3>What you get</h3><ul><li>Deviations grouped by guide word (No, More, Less, Reverse…)</li><li>Causes ranked by typical frequency, with consequences for your fluid</li><li>Risk before and with safeguards on a 5 × 5 matrix</li><li>A recommendations list with owner, target date and status</li></ul></div></div>" +
+      '<p class="privacy">' + ic("lock") + "<span>Your study is saved in this browser only. To draft the rows, only the equipment type, fluid hazard, phase and ticked features are sent to the library; node names, design intent and your edits never leave your computer.</span></p></div>";
   }
 
-  function wsHTML(node) {
-    var h = '<div class="sheet"><table class="ws"><colgroup><col class="c-cause"><col class="c-cons"><col class="c-sg"><col class="c-s"><col class="c-l"><col class="c-r"><col class="c-r2"><col class="c-rec"><col class="c-act"></colgroup>' +
-      '<thead><tr><th>Cause</th><th>Consequence</th><th>Safeguards</th><th title="Severity, 1 to 5">S</th><th title="Likelihood before safeguards, 1 to 5">L</th><th title="Risk before safeguards">Risk</th><th title="Likelihood and risk with the listed safeguards">With safeguards</th><th>Recommendation</th><th><span class="sr">Row actions</span></th></tr></thead><tbody>';
-    groups(node).forEach(function (gp) {
-      var rows = state.showNA ? gp.rows : gp.rows.filter(function (r) { return !r.na; });
+  /* ---------------- worksheet ---------------- */
+  const FILTERS = [["all", "All rows"], ["risk", "High / very high before safeguards"], ["res", "Still high / very high with safeguards"], ["rec", "Rows with a recommendation"], ["todo", "Not yet reviewed"]];
+  function rowMatches(r) {
+    if (r.na) return ui.filter === "all" && !ui.q && state.showNA;
+    const f = ui.filter, b = rank(r.s, r.l), a = rank(r.s, l2of(r));
+    if (f === "risk" && !(b === "H" || b === "VH")) return false;
+    if (f === "res" && !(a === "H" || a === "VH")) return false;
+    if (f === "rec" && !hasRec(r)) return false;
+    if (f === "todo" && r.ok) return false;
+    if (ui.q) { const t = (r.cause + " " + r.cons + " " + r.sg + " " + r.rec + " " + devName(r)).toLowerCase(); if (t.indexOf(ui.q.toLowerCase()) < 0) return false; }
+    return true;
+  }
+  function colKey(node, dk) { return node.id + "|" + dk; }
+  function toolbarHTML(node) {
+    const gs = groups(node);
+    const allCol = gs.length && gs.every((g) => ui.col[colKey(node, g.dk)]);
+    return '<div class="toolbar">' +
+      '<label class="tsel"><span>Go to</span><select data-ctl="jump" aria-label="Go to deviation"><option value="">Deviation…</option>' +
+      gs.map((g) => { const n = g.rows.filter((r) => !r.na).length; return '<option value="' + esc(g.dk) + '">' + esc(devName(g)) + (n ? " (" + n + ")" : " (n/a)") + "</option>"; }).join("") + "</select></label>" +
+      '<label class="tsel"><span>Show</span><select data-ctl="filter" aria-label="Filter rows">' + FILTERS.map((f) => '<option value="' + f[0] + '"' + (ui.filter === f[0] ? " selected" : "") + ">" + f[1] + "</option>").join("") + "</select></label>" +
+      '<label class="tsearch">' + ic("search") + '<input type="search" data-ctl="q" placeholder="Search this node" aria-label="Search this node" value="' + esc(ui.q) + '"></label>' +
+      '<label class="tchk"><input type="checkbox" data-ctl="showna"' + (state.showNA ? " checked" : "") + "> Show not-applicable</label>" +
+      '<div class="right"><button class="btn small ghost" data-a="colall">' + (allCol ? "Expand all" : "Collapse all") + "</button></div></div>";
+  }
+  function sheetHTML(node) {
+    const total = live(node).length;
+    let shownN = 0, body = "";
+    groups(node).forEach((gp) => {
+      const rows = gp.rows.filter(rowMatches);
       if (!rows.length) return;
-      var head = gp.g === "Others" ? '<span class="gw">' + esc(gp.p) + "</span>" : '<span class="gw">' + esc(gp.g) + '</span> <span class="gp">' + esc(gp.p.toLowerCase()) + "</span>";
-      h += '<tr class="grp"><td colspan="9">' + head + '<button class="btn small ghost add" data-a="addc" data-dk="' + esc(gp.dk) + '">' + ic("plus") + "Add cause</button></td></tr>";
-      rows.forEach(function (r) { h += rowHTML(r); });
+      const liveRows = gp.rows.filter((r) => !r.na);
+      shownN += rows.filter((r) => !r.na).length;
+      const collapsed = !!ui.col[colKey(node, gp.dk)] && ui.filter === "all" && !ui.q;
+      body += groupHeadHTML(gp, liveRows, collapsed);
+      if (!collapsed) rows.forEach((r) => { body += rowHTML(r); });
     });
-    h += "</tbody></table></div>";
+    const filtered = ui.filter !== "all" || ui.q;
+    let h = filtered ? '<div class="fnote">Showing ' + shownN + " of " + plural(total, "row") + ' · <button class="linkbtn" data-a="clearf">Show all rows</button></div>' : "";
+    if (!body) return h + '<div class="sheet"><p class="empty-note">' + (filtered ? "No rows match this filter." : "This node has no rows. Use Edit node to rebuild it from the library.") + "</p></div>";
+    h += '<div class="sheet"><table class="ws"><colgroup><col class="c-cause"><col class="c-cons"><col class="c-sg"><col class="c-rk"><col class="c-rk"><col class="c-rec"><col class="c-act"></colgroup>' +
+      "<thead><tr>" +
+      th("Cause", "why it could happen", "cause") + th("Consequence", "what could happen", "cons") + th("Safeguards", "what exists today", "sg") +
+      th("Risk before", "safeguards", "risk") + th("Risk with", "the safeguards", "res") + th("Recommendation", "action needed", "rec") +
+      '<th><span class="sr">Row actions</span><button class="hq" data-help="acts" aria-label="What do the row buttons do?">?</button></th></tr></thead><tbody>' + body + "</tbody></table></div>";
     return h;
   }
-  function selHTML(f, v) {
-    var o = '<select class="sl" data-f="' + f + '" aria-label="' + ({ s: "Severity", l: "Likelihood before safeguards", l2: "Likelihood with safeguards" }[f]) + '"' + (f === "l2" ? ' title="Likelihood with the listed safeguards"' : "") + ">";
-    for (var i = 1; i <= 5; i++) o += '<option value="' + i + '"' + (i === v ? " selected" : "") + ">" + i + "</option>";
+  function th(t, sub, help) { return "<th>" + t + '<button class="hq" data-help="' + help + '" aria-label="What is ' + t + '?">?</button><small>' + sub + "</small></th>"; }
+  function groupHeadHTML(gp, liveRows, collapsed) {
+    let worst = "", recs = 0;
+    liveRows.forEach((r) => { worst = worse(worst, rank(r.s, l2of(r))); if (hasRec(r)) recs++; });
+    const name = gp.g === "Others" ? '<span class="gw">' + esc(gp.p) + "</span>" : '<span class="gw">' + esc(gp.g) + '</span> <span class="gp">' + esc(String(gp.p).toLowerCase()) + "</span>";
+    const desc = gwDesc(gp.g, gp.p);
+    return '<tr class="grp" data-dk="' + esc(gp.dk) + '"><td colspan="7"><div class="ghd">' +
+      '<button class="gtog" data-a="tog" aria-expanded="' + !collapsed + '" title="' + (collapsed ? "Show" : "Hide") + ' the rows of this deviation">' + name + "</button>" +
+      (desc ? '<span class="gd">' + esc(desc) + "</span>" : "") +
+      '<span class="gc">' + (liveRows.length ? plural(liveRows.length, "cause") + (recs ? " · " + plural(recs, "rec") : "") + (worst ? " · with safeguards " + badge(worst, true) : "") : "Not applicable") + "</span>" +
+      '<button class="btn small ghost add" data-a="addc" data-dk="' + esc(gp.dk) + '" title="Add a cause from the library or a blank row">' + ic("plus") + "Add cause</button></div></td></tr>";
+  }
+  function selHTML(f, v, list) {
+    let o = '<select class="sl" data-f="' + f + '" aria-label="' + { s: "Severity", l: "Likelihood before safeguards", l2: "Likelihood with safeguards" }[f] + '">';
+    for (let i = 1; i <= 5; i++) o += '<option value="' + i + '"' + (i === v ? " selected" : "") + ">" + i + " " + esc((list[i - 1] || {}).l || "") + "</option>";
     return o + "</select>";
   }
   function rowHTML(r) {
-    var acts = '<td class="act">' + (r.na ? "" : '<button class="icon-btn" data-a="alt" title="Swap for another cause from the library">' + ic("swap") + '</button><button class="icon-btn" data-a="add" title="Add a blank row below">' + ic("plus") + "</button>") +
-      '<button class="icon-btn" data-a="del" title="Delete row">' + ic("x") + "</button></td>";
-    if (r.na) return '<tr class="row na" data-id="' + r.id + '"><td colspan="8"><textarea class="cell" rows="1" data-f="cause" aria-label="Note">' + esc(r.cause) + "</textarea></td>" + acts + "</tr>";
-    var meta = [];
-    if (r.k) meta.push("<span>" + esc(L.CATS[r.k] || "") + "</span>");
+    const acts = '<td class="act"><div class="acts">' + (r.na ? "" :
+      '<button class="icon-btn okb" data-a="ok" aria-pressed="' + !!r.ok + '" title="' + (r.ok ? "Reviewed by the team (click to undo)" : "Mark as reviewed by the team") + '" aria-label="Reviewed">' + ic("check") + "</button>" +
+      '<button class="icon-btn" data-a="alt" title="Swap for another cause from the library" aria-label="Swap cause">' + ic("swap") + "</button>" +
+      '<button class="icon-btn" data-a="add" title="Add a blank row below" aria-label="Add row below">' + ic("plus") + "</button>") +
+      '<button class="icon-btn" data-a="del" title="Delete row" aria-label="Delete row">' + ic("x") + "</button></div></td>";
+    if (r.na) return '<tr class="row na" data-id="' + r.id + '"><td colspan="6" data-label="Not applicable"><textarea class="cell" rows="1" data-f="cause" aria-label="Note">' + esc(r.cause) + "</textarea></td>" + acts + "</tr>";
+    const meta = [];
+    if (r.k && L.CATS[r.k]) meta.push("<span>" + esc(L.CATS[r.k]) + "</span>");
     if (r.f) meta.push("<span>Typical " + r.f + " per year</span>");
-    if (r.calc && L.CALC[r.calc]) meta.push('<a href="' + L.CALC[r.calc].u + '" target="_blank" rel="noopener">Open ' + esc(L.CALC[r.calc].t) + "</a>");
-    var rk = rank(r.s, r.l), rk2 = rank(r.s, l2of(r));
-    return '<tr class="row" data-id="' + r.id + '">' +
-      '<td><textarea class="cell" rows="1" data-f="cause" aria-label="Cause">' + esc(r.cause) + "</textarea>" + (meta.length ? '<div class="meta">' + meta.join("") + "</div>" : "") + "</td>" +
-      '<td><textarea class="cell" rows="1" data-f="cons" aria-label="Consequence">' + esc(r.cons) + "</textarea></td>" +
-      '<td><textarea class="cell" rows="1" data-f="sg" aria-label="Safeguards">' + esc(r.sg) + "</textarea></td>" +
-      "<td>" + selHTML("s", r.s) + "</td><td>" + selHTML("l", r.l) + "</td>" +
-      '<td><span class="risk ' + rk + '" data-risk>' + (RANKL[rk] || "") + "</span></td>" +
-      '<td class="after"><span class="lbl">L</span>' + selHTML("l2", l2of(r)) + '<span class="risk ' + rk2 + '" data-risk2>' + (RANKL[rk2] || "") + "</span></td>" +
-      '<td class="rec' + (r.gen ? " gen" : "") + '"><textarea class="cell" rows="1" data-f="rec" aria-label="Recommendation">' + esc(r.rec) + "</textarea>" +
-      (r.gen ? '<div class="gen-note">Raised because a safeguard is missing</div>' : "") + "</td>" + acts + "</tr>";
+    if (r.calc && L.CALC[r.calc]) meta.push('<a href="' + esc(L.CALC[r.calc].u) + '" target="_blank" rel="noopener">Open ' + esc(L.CALC[r.calc].t) + "</a>");
+    const rk = rank(r.s, r.l), rk2 = rank(r.s, l2of(r));
+    const sv = (L.SEV[(r.s || 1) - 1] || {}).l || "";
+    return '<tr class="row' + (r.ok ? " ok" : "") + '" data-id="' + r.id + '">' +
+      '<td data-label="Cause"><textarea class="cell" rows="1" data-f="cause" aria-label="Cause" placeholder="Describe the cause">' + esc(r.cause) + "</textarea>" + (meta.length ? '<div class="meta">' + meta.join("") + "</div>" : "") + "</td>" +
+      '<td data-label="Consequence"><textarea class="cell" rows="1" data-f="cons" aria-label="Consequence" placeholder="What could happen">' + esc(r.cons) + "</textarea></td>" +
+      '<td data-label="Safeguards"><textarea class="cell" rows="1" data-f="sg" aria-label="Safeguards" placeholder="None credited. Add any that exist">' + esc(shown(r.sg)) + "</textarea></td>" +
+      '<td class="rk" data-label="Risk before safeguards"><label class="rl"><span>Sev.</span>' + selHTML("s", r.s, L.SEV) + '</label><label class="rl"><span>Lik.</span>' + selHTML("l", r.l, L.LIK) + "</label>" +
+      '<span class="risk ' + rk + '" data-risk>' + (RANKL[rk] || "") + "</span></td>" +
+      '<td class="rk after" data-label="Risk with safeguards"><div class="rl"><span>Sev.</span><b data-s2 title="Severity does not change with safeguards">' + (r.s || "") + " " + esc(sv) + '</b></div><label class="rl"><span>Lik.</span>' + selHTML("l2", l2of(r), L.LIK) + "</label>" +
+      '<span class="risk ' + rk2 + '" data-risk2>' + (RANKL[rk2] || "") + "</span></td>" +
+      '<td class="rec' + (r.gen ? " gen" : "") + '" data-label="Recommendation"><textarea class="cell" rows="1" data-f="rec" aria-label="Recommendation" placeholder="No action needed. Type one if the team decides">' + esc(shown(r.rec)) + "</textarea>" +
+      (r.gen ? '<div class="gen-note">Suggested because a safeguard is missing</div>' : "") + "</td>" + acts + "</tr>";
+  }
+  function renderSheet() {
+    const node = curNode(), w = $("#sheetWrap"); if (!w || !node) return;
+    w.innerHTML = sheetHTML(node); fitAll(w);
   }
 
+  /* ---------------- recommendations ---------------- */
   function allRecs() {
-    var out = [];
-    state.nodes.forEach(function (n, ni) { n.rows.forEach(function (r) { if (hasRec(r)) out.push({ n: n, ni: ni, r: r }); }); });
+    const out = [];
+    state.nodes.forEach((n, ni) => { n.rows.forEach((r) => { if (hasRec(r)) out.push({ n: n, ni: ni, r: r, no: out.length + 1 }); }); });
     return out;
   }
   function rrHTML() {
-    var list = allRecs();
-    if (!list.length) return '<div class="sheet"><p class="empty-note">No recommendations yet. They appear here as soon as a worksheet row has one.</p></div>';
-    var h = '<div class="sheet"><table class="rr"><thead><tr><th style="width:62px">No.</th><th style="width:15%">Node</th><th style="width:13%">Deviation</th><th style="width:20%">Cause</th><th>Recommendation</th><th style="width:150px">Risk (before / with safeguards)</th><th style="width:12%">Action by</th><th style="width:110px">Status</th></tr></thead><tbody>';
-    list.forEach(function (x, i) {
-      var r = x.r, rk = rank(r.s, r.l), rk2 = rank(r.s, l2of(r));
-      h += '<tr data-rid="' + r.id + '"><td class="no">R-' + String(i + 1).padStart(2, "0") + "</td><td>" + (x.ni + 1) + ". " + esc(x.n.name) + "</td><td>" + esc(r.g === "Others" ? r.p : r.g + " " + r.p.toLowerCase()) + "</td><td>" + esc(r.cause) + "</td>" +
-        '<td><textarea class="cell" rows="1" data-rf="rec" aria-label="Recommendation">' + esc(r.rec) + "</textarea></td>" +
-        '<td><span class="risk ' + rk + '">' + (RANKL[rk] || "") + '</span> <span class="risk ' + rk2 + '">' + (RANKL[rk2] || "") + "</span></td>" +
-        '<td><input data-rf="owner" value="' + esc(r.owner || "") + '" aria-label="Action by"></td>' +
-        '<td><select data-rf="status" aria-label="Status">' + ["Open", "In progress", "Closed"].map(function (s) { return "<option" + ((r.status || "Open") === s ? " selected" : "") + ">" + s + "</option>"; }).join("") + "</select></td></tr>";
+    const all = allRecs();
+    if (!all.length) return '<div class="sheet"><p class="empty-note">No recommendations yet. They appear here as soon as a worksheet row has one: either suggested by the draft for a missing safeguard, or typed in by your team.</p></div>';
+    const s = stats(state.nodes);
+    const list = all.filter((x) => (ui.rrNode === "all" || x.n.id === ui.rrNode) && (ui.rrStatus === "all" || (x.r.status || "Open") === ui.rrStatus));
+    let h = '<div class="rr-head"><div class="rr-stats"><span><b>' + s.recs + "</b> total</span><span><b>" + s.open + "</b> open</span><span><b>" + s.prog + "</b> in progress</span><span><b>" + s.closed + "</b> closed</span></div>" +
+      '<div class="right"><label class="tsel"><span>Node</span><select data-ctl="rrnode"><option value="all">All nodes</option>' +
+      state.nodes.map((n, i) => '<option value="' + n.id + '"' + (ui.rrNode === n.id ? " selected" : "") + ">" + (i + 1) + ". " + esc(n.name) + "</option>").join("") + "</select></label>" +
+      '<label class="tsel"><span>Status</span><select data-ctl="rrstatus"><option value="all">All</option>' + STATUSES.map((x) => "<option" + (ui.rrStatus === x ? " selected" : "") + ">" + x + "</option>").join("") + "</select></label></div></div>";
+    if (!list.length) return h + '<div class="sheet"><p class="empty-note">No recommendations match this filter.</p></div>';
+    h += '<div class="sheet"><table class="rr"><thead><tr><th style="width:62px">No.</th><th style="width:16%">Node and deviation</th><th style="width:17%">Cause</th><th>Recommendation</th><th style="width:150px">Risk: before → with</th><th style="width:12%">Action by</th><th style="width:130px">Target date</th><th style="width:118px">Status</th><th style="width:44px"><span class="sr">Go to row</span></th></tr></thead><tbody>';
+    list.forEach((x) => {
+      const r = x.r, rk = rank(r.s, r.l), rk2 = rank(r.s, l2of(r));
+      h += '<tr data-rid="' + r.id + '"' + ((r.status || "Open") === "Closed" ? ' class="closed"' : "") + '><td class="no" data-label="No.">R-' + String(x.no).padStart(2, "0") + "</td>" +
+        '<td data-label="Node and deviation">' + (x.ni + 1) + ". " + esc(x.n.name) + '<div class="dv">' + esc(devName(r)) + "</div></td>" +
+        '<td data-label="Cause">' + esc(r.cause) + "</td>" +
+        '<td data-label="Recommendation"><textarea class="cell" rows="1" data-rf="rec" aria-label="Recommendation">' + esc(r.rec) + "</textarea></td>" +
+        '<td data-label="Risk: before → with safeguards">' + badge(rk, true) + '<span class="rarrow">→</span>' + badge(rk2, true) + "</td>" +
+        '<td data-label="Action by"><input data-rf="owner" value="' + esc(r.owner || "") + '" placeholder="Name / department" aria-label="Action by"></td>' +
+        '<td data-label="Target date"><input type="date" data-rf="due" value="' + esc(r.due || "") + '" aria-label="Target date"></td>' +
+        '<td data-label="Status"><select data-rf="status" aria-label="Status">' + STATUSES.map((st) => "<option" + ((r.status || "Open") === st ? " selected" : "") + ">" + st + "</option>").join("") + "</select></td>" +
+        '<td><button class="icon-btn gob" data-a="goto" title="Show this row in the worksheet" aria-label="Show in worksheet"><span class="golb">Show in worksheet</span>' + ic("go") + "</button></td></tr>";
     });
     return h + "</tbody></table></div>";
   }
+
+  /* ---------------- risk matrix ---------------- */
   function mxHTML() {
-    var h = '<div class="sheet pad"><div class="matrix-wrap"><div><table class="mx"><thead><tr><th></th>';
-    for (var l = 1; l <= 5; l++) h += "<th>L" + l + "<br>" + L.LIK[l - 1].l + "</th>";
+    const nodes = ui.mxScope === "node" ? [curNode()] : state.nodes;
+    const cnt = {};
+    nodes.forEach((n) => live(n).forEach((r) => { const l = ui.mx === "b" ? r.l : l2of(r); if (r.s && l) { const k = r.s + "," + l; cnt[k] = (cnt[k] || 0) + 1; } }));
+    const seg = (ctl, val, label, cur) => '<button data-ctl="' + ctl + '" data-v="' + val + '" aria-pressed="' + (cur === val) + '">' + label + "</button>";
+    let h = '<div class="sheet pad"><div class="mx-head">' +
+      '<span class="seg" role="group" aria-label="Which risk to count">' + seg("mx", "b", "Before safeguards", ui.mx) + seg("mx", "a", "With safeguards", ui.mx) + "</span>" +
+      '<span class="seg" role="group" aria-label="Which rows to count">' + seg("mxscope", "node", "This node", ui.mxScope) + seg("mxscope", "all", "Whole study", ui.mxScope) + "</span>" +
+      '<button class="btn small' + (ui.mxEdit ? " primary" : "") + '" data-a="mxedit">' + ic("edit") + (ui.mxEdit ? "Done editing" : "Edit risk levels") + "</button>" +
+      (ui.mxEdit ? '<button class="btn small" data-a="mxreset">Reset to default</button>' : "") + "</div>";
+    h += '<div class="matrix-wrap"><div><div class="mxbox"><div class="axis-y">Severity</div><table class="mx"><thead><tr><th></th>';
+    for (let l = 1; l <= 5; l++) h += "<th>L" + l + "<br>" + esc(L.LIK[l - 1].l) + "</th>";
     h += "</tr></thead><tbody>";
-    for (var s = 5; s >= 1; s--) {
-      h += '<tr><th class="sv">S' + s + " " + L.SEV[s - 1].l + "</th>";
-      for (var l2 = 1; l2 <= 5; l2++) { var v = state.matrix[s - 1][l2 - 1]; h += '<td><button class="' + v + '" data-mx="' + s + "," + l2 + '" title="Click to change">' + RANKL[v] + "</button></td>"; }
+    for (let s = 5; s >= 1; s--) {
+      h += '<tr><th class="sv">S' + s + " " + esc(L.SEV[s - 1].l) + "</th>";
+      for (let l = 1; l <= 5; l++) {
+        const v = state.matrix[s - 1][l - 1], c = cnt[s + "," + l] || 0;
+        const inner = "<span>" + RANKL[v] + '</span><span class="cnt' + (c ? "" : " z") + '">' + c + "</span>";
+        h += "<td>" + (ui.mxEdit ? '<button class="mxc ' + v + '" data-mx="' + s + "," + l + '" title="Click to change the risk level">' + inner + "</button>"
+          : '<div class="mxc ' + v + '" title="' + plural(c, "row") + ": S" + s + " × L" + l + " = " + RANKL[v] + '">' + inner + "</div>") + "</td>";
+      }
       h += "</tr>";
     }
-    h += '</tbody></table><p class="note">Click a cell to change its risk level so the matrix matches your company procedure. The worksheet shows risk before safeguards and with the listed safeguards. With safeguards, likelihood drops one level for an alarm, auto-start, trip, NRV or similar device, and two levels for a PSV or vent (maximum three). This is a screening estimate; confirm critical scenarios with LOPA.</p><button class="btn small" data-a="mxreset">Reset to default</button></div>';
-    h += '<div class="legend"><h3>Severity</h3><dl>' + L.SEV.map(function (x) { return "<dt>S" + x.v + "</dt><dd>" + x.l + ": " + x.d + "</dd>"; }).join("") + "</dl>" +
-      "<h3>Likelihood from typical cause frequency</h3><dl>" + L.LIK.map(function (x) { return "<dt>L" + x.v + "</dt><dd>" + x.l + ": " + x.d + "</dd>"; }).join("") + "</dl></div></div></div>";
+    h += '</tbody></table><div class="axis-x">Likelihood</div></div>' +
+      '<p class="note">The number in each cell is how many rows of ' + (ui.mxScope === "node" ? "this node" : "the study") + " sit there " + (ui.mx === "b" ? "before" : "with") + " safeguards. " +
+      (ui.mxEdit ? "Click a cell to step its level Low → Medium → High → Very high so the matrix matches your company procedure; every risk in the study updates." : "Use Edit risk levels to make the matrix match your company procedure.") +
+      " With safeguards, likelihood drops one level for an alarm, auto-start, trip, NRV or similar device, and two levels for a PSV or vent (maximum three). This is a screening estimate; confirm critical scenarios with LOPA.</p></div>";
+    h += '<div class="legend"><h3>Severity</h3><dl>' + L.SEV.map((x) => "<dt>S" + x.v + "</dt><dd><b>" + esc(x.l) + ":</b> " + esc(x.d) + "</dd>").join("") + "</dl>" +
+      "<h3>Likelihood from typical cause frequency</h3><dl>" + L.LIK.map((x) => "<dt>L" + x.v + "</dt><dd><b>" + esc(x.l) + ":</b> " + esc(x.d) + "</dd>").join("") + "</dl></div></div></div>";
     return h;
   }
 
-  function renderAll() { renderBar(); if (!L) { persist(); return; } renderRail(); renderMain(); persist(); }
+  function renderAll() { syncTitle(); if (!L) { persist(); return; } renderProgress(); renderRail(); renderMain(); persist(); }
+  function refreshCounts() { renderProgress(); renderRail(); updateKpis(); }
+  function updateKpis() {
+    const node = curNode(), k = $(".kpis"); if (!node || !k) return;
+    const ns = stats([node]), all = stats(state.nodes), tmp = document.createElement("div");
+    tmp.innerHTML = kpisHTML(ns);
+    k.replaceWith(tmp.firstChild);
+    const tabs = $$(".tab .n"); if (tabs[0]) tabs[0].textContent = ns.rows; if (tabs[1]) tabs[1].textContent = all.recs;
+  }
+  function kpisHTML(ns) {
+    const pct = ns.rows ? Math.round(100 * ns.ok / ns.rows) : 0;
+    const hb = ns.b.H + ns.b.VH, ha = ns.a.H + ns.a.VH;
+    const kpi = (f, val, txt, cls, tip) => '<button class="kpi ' + (cls || "") + (ui.tab === "ws" && ui.filter === f ? " on" : "") + '" data-kpi="' + f + '" title="' + tip + '"><b>' + val + "</b><span>" + txt + "</span></button>";
+    return '<div class="kpis">' +
+      kpi("all", ns.rows, "causes in " + plural(ns.devs, "deviation"), "", "Show all rows") +
+      kpi("risk", hb, "high / very high before safeguards", hb ? "warn" : "good", "Show only these rows") +
+      kpi("res", ha, "still high / very high with safeguards", ha ? "warn" : "good", "Show only these rows") +
+      kpi("rec", ns.recs, (ns.recs === 1 ? "recommendation" : "recommendations") + (ns.recs ? " (" + (ns.recs - ns.closed) + " not closed)" : ""), "", "Show rows with a recommendation") +
+      kpi("todo", ns.ok + "/" + ns.rows, "rows reviewed by the team" + '<span class="mini"><i style="width:' + pct + '%"></i></span>', pct === 100 ? "good" : "", "Show rows not yet reviewed") +
+      "</div>";
+  }
 
   /* ---------------- dialogs ---------------- */
   function openOverlay(html, cls) {
-    var ov = document.createElement("div"); ov.className = "overlay";
+    const ov = document.createElement("div"); ov.className = "overlay";
     ov.innerHTML = '<div class="dialog ' + (cls || "") + '" role="dialog" aria-modal="true">' + html + "</div>";
     document.body.appendChild(ov);
-    var prev = document.activeElement;
+    const prev = document.activeElement;
     function close() { ov.remove(); document.removeEventListener("keydown", onKey); if (prev && prev.focus) prev.focus(); }
     function onKey(e) { if (e.key === "Escape") close(); }
     document.addEventListener("keydown", onKey);
-    ov.addEventListener("mousedown", function (e) { if (e.target === ov) close(); });
+    ov.addEventListener("mousedown", (e) => { if (e.target === ov) close(); });
     return { el: ov, close: close };
   }
-  function confirmBox(title, msg, ok, danger) {
-    return new Promise(function (res) {
-      var d = openOverlay("<header><h2>" + esc(title) + '</h2></header><div class="body"><p>' + esc(msg) + "</p></div>" +
-        '<footer><button class="btn" data-c="no">Cancel</button><button class="btn ' + (danger ? "primary" : "primary") + '" data-c="yes">' + esc(ok) + "</button></footer>", "sm");
+  function confirmBox(title, msg, ok) {
+    return new Promise((res) => {
+      const d = openOverlay("<header><h2>" + esc(title) + '</h2></header><div class="body"><p>' + esc(msg) + "</p></div>" +
+        '<footer><button class="btn" data-c="no">Cancel</button><button class="btn primary" data-c="yes">' + esc(ok) + "</button></footer>", "sm");
       $('[data-c="yes"]', d.el).focus();
-      d.el.addEventListener("click", function (e) { var b = e.target.closest("[data-c]"); if (!b) return; d.close(); res(b.dataset.c === "yes"); });
+      d.el.addEventListener("click", (e) => { const b = e.target.closest("[data-c]"); if (!b) return; d.close(); res(b.dataset.c === "yes"); });
     });
   }
 
-  function nodeDialog(node) {
-    var editing = !!node;
-    var d = node ? { name: node.name, intent: node.intent || "", eq: node.eq, fluids: (node.fluids || []).slice(), phase: node.phase || "liquid", feats: (node.feats || []).slice() }
-      : { name: "", intent: "", eq: "", fluids: [], phase: "liquid", feats: [] };
-    var orig = JSON.stringify([d.eq, d.fluids, d.phase, d.feats]);
-    var html = "<header><h2>" + (editing ? "Edit node" : "Add a node") + '</h2></header><div class="body">' +
-      '<div class="step"><h3><i>1</i>Describe the node</h3><div class="two">' +
-      '<label class="field"><span>Node name</span><input id="nName" placeholder="e.g. P-101 A/B feed pumps to column C-201" value="' + esc(d.name) + '"></label>' +
-      '<label class="field"><span>Design intent (optional)</span><input id="nIntent" placeholder="e.g. Transfer 40 m3/h naphtha at 8 barg to column feed" value="' + esc(d.intent) + '"></label></div></div>' +
-      '<div class="step"><h3><i>2</i>Choose the equipment type</h3><div class="eq-grid" id="eqGrid">' +
-      L.EQ.map(function (e) { return '<button type="button" class="eq" data-eq="' + e.id + '" aria-pressed="' + (d.eq === e.id) + '">' + sym(e.id, "") + "<b>" + esc(e.l) + "</b><small>" + esc(e.d) + "</small></button>"; }).join("") +
-      "</div></div>" +
-      '<div class="step"><h3><i>3</i>Fluid hazard and installed features</h3>' +
-      '<div class="sub-l">Fluid hazard (choose all that apply)</div><div class="tog" id="flTog">' +
-      L.FLUIDS.map(function (f) { return '<button type="button" data-fl="' + f.id + '" aria-pressed="' + (d.fluids.indexOf(f.id) >= 0) + '">' + esc(f.l) + "</button>"; }).join("") + "</div>" +
-      '<div class="sub-l">Phase</div><div class="tog" id="phTog">' +
-      L.PHASES.map(function (p) { return '<button type="button" data-ph="' + p.id + '" aria-pressed="' + (d.phase === p.id) + '">' + esc(p.l) + "</button>"; }).join("") + "</div>" +
-      '<div id="featBox"></div></div><div class="err" id="nErr"></div></div>' +
-      "<footer>" + (editing ? '<label class="left"><input type="checkbox" id="nRebuild"> Rebuild this worksheet from the library (replaces edits in this node)</label>' : "") +
-      '<button class="btn" data-c="cancel">Cancel</button><button class="btn primary" data-c="ok">' + (editing ? "Save node" : "Create worksheet") + "</button></footer>";
-    var dlg = openOverlay(html);
-    var el = dlg.el;
+  /* node wizard: 1 describe, 2 equipment, 3 fluid & phase, 4 installed features */
+  function nodeDialog(node, startStep) {
+    const editing = !!node;
+    const d = node ? { name: node.name, intent: node.intent || "", dwg: node.dwg || "", eq: node.eq, fluids: (node.fluids || []).slice(), phase: node.phase || "liquid", feats: (node.feats || []).slice() }
+      : { name: "", intent: "", dwg: "", eq: "", fluids: [], phase: "liquid", feats: [] };
+    const orig = JSON.stringify([d.eq, d.fluids.slice().sort(), d.phase, d.feats.slice().sort()]);
+    const STEPS = ["Describe", "Equipment", "Fluid", "Safeguards"];
+    let step = startStep || 1;
+    const html = "<header><h2>" + (editing ? "Edit node: " + esc(node.name) : "Add a node") + '</h2><button class="icon-btn" data-c="cancel" aria-label="Close" title="Close (Esc)">' + ic("x") + "</button></header>" +
+      '<nav class="wsteps" aria-label="Steps">' + STEPS.map((t, i) => '<button type="button" data-step="' + (i + 1) + '"><i>' + (i + 1) + "</i><span>" + t + "</span></button>").join("") + "</nav>" +
+      '<div class="body">' +
+      '<section class="pane" data-pane="1"><p class="pane-help">A <b>node</b> is a part of the plant studied as one unit, usually one equipment item with its connected lines, between clear boundaries on the P&amp;ID.</p>' +
+      '<label class="field"><span>Node name<em>required</em></span><input id="nName" placeholder="e.g. P-101 A/B feed pumps to column C-201" value="' + esc(d.name) + '"></label>' +
+      '<label class="field"><span>Design intent</span><textarea id="nIntent" rows="2" placeholder="e.g. Transfer 40 m³/h naphtha at 8 barg from T-101 to column C-201">' + esc(d.intent) + "</textarea><small>What the node should do at normal conditions: flow, pressure, temperature, level. Every deviation is judged against this.</small></label>" +
+      '<label class="field"><span>Drawing / P&amp;ID no.</span><input id="nDwg" placeholder="e.g. 101-PR-001 sheet 2" value="' + esc(d.dwg) + '"></label></section>' +
+      '<section class="pane" data-pane="2"><p class="pane-help">Choose the <b>main item</b> in the node. The equipment type decides which deviations and causes are drafted. For the line between two items, choose Pipeline.</p><div class="eq-grid">' +
+      L.EQ.map((e) => '<button type="button" class="eq" data-eq="' + e.id + '" aria-pressed="' + (d.eq === e.id) + '">' + sym(e.id, "") + "<b>" + esc(e.l) + "</b><small>" + esc(e.d) + "</small></button>").join("") + "</div></section>" +
+      '<section class="pane" data-pane="3"><p class="pane-help">The <b>fluid hazards</b> set the consequence of a release and its severity. Choose every hazard that applies, for example hot caustic is both Corrosive and Hot.</p>' +
+      '<div class="sub-l">Fluid hazard <span class="sub-h">(choose all that apply)</span></div><div class="tog" id="flTog">' +
+      L.FLUIDS.map((f) => '<button type="button" data-fl="' + f.id + '" aria-pressed="' + (d.fluids.indexOf(f.id) >= 0) + '">' + esc(f.l) + "</button>").join("") + "</div>" +
+      '<div class="sub-l">Phase</div><p class="sub-h">Some causes only arise with liquid (cavitation, overfilling) or with gas.</p><div class="tog radio" id="phTog">' +
+      L.PHASES.map((p) => '<button type="button" data-ph="' + p.id + '" aria-pressed="' + (d.phase === p.id) + '">' + esc(p.l) + "</button>").join("") + "</div></section>" +
+      '<section class="pane" data-pane="4"><div id="featBox"></div></section>' +
+      '<div class="err" id="nErr" role="alert"></div></div>' +
+      '<footer><span class="left" id="nLeft"></span><button class="btn" data-c="cancel">Cancel</button><button class="btn" data-c="back">Back</button><button class="btn" data-c="next">Next</button><button class="btn primary" data-c="ok">' + (editing ? "Save node" : "Create worksheet") + "</button></footer>";
+    const dlg = openOverlay(html);
+    const el = dlg.el;
+    function cfgChanged() { return JSON.stringify([d.eq, d.fluids.slice().sort(), d.phase, d.feats.slice().sort()]) !== orig; }
     function drawFeats() {
-      var box = $("#featBox", el);
-      if (!d.eq) { box.innerHTML = '<p class="sub-l">Choose an equipment type to see its features.</p>'; return; }
-      var eq = EQMAP[d.eq], by = {};
-      eq.feats.forEach(function (f) { var g = L.FEAT[f].g; (by[g] = by[g] || []).push(f); });
-      box.innerHTML = '<div class="sub-l">Installed features and safeguards (tick what exists today)</div><div class="fgroups">' +
-        ["cfg", "ins", "pro", "gen"].filter(function (g) { return by[g]; }).map(function (g) {
-          return '<div class="fgroup"><h4>' + L.GROUPS[g] + "</h4>" + by[g].map(function (f) {
-            return '<label><input type="checkbox" data-ft="' + f + '"' + (d.feats.indexOf(f) >= 0 ? " checked" : "") + "><span>" + esc(L.FEAT[f].l) + "</span></label>";
-          }).join("") + "</div>";
-        }).join("") + "</div>";
+      const box = $("#featBox", el);
+      if (!d.eq) { box.innerHTML = '<p class="pane-help">Choose an equipment type first (step 2) to see its features.</p>'; return; }
+      const eq = EQMAP[d.eq], by = {};
+      eq.feats.forEach((f) => { if (!L.FEAT[f]) return; const g = L.FEAT[f].g; (by[g] = by[g] || []).push(f); });
+      const order = ["cfg", "ins", "pro", "gen"].concat(Object.keys(by).filter((g) => ["cfg", "ins", "pro", "gen"].indexOf(g) < 0));
+      box.innerHTML = '<p class="pane-help">Tick only what is <b>installed and working today</b>. Ticked items are listed as safeguards and lower the likelihood; a safeguard the library expects but that is not ticked raises a recommendation.</p><div class="fgroups">' +
+        order.filter((g) => by[g]).map((g) => {
+          const n = by[g].filter((f) => d.feats.indexOf(f) >= 0).length;
+          return '<div class="fgroup"><h4>' + esc(L.GROUPS[g] || g) + '<small data-gc="' + g + '">' + n + " of " + by[g].length + "</small></h4>" + (GROUP_HELP[g] ? "<p>" + GROUP_HELP[g] + "</p>" : "") + by[g].map((f) =>
+            '<label><input type="checkbox" data-ft="' + f + '" data-g="' + g + '"' + (d.feats.indexOf(f) >= 0 ? " checked" : "") + "><span>" + esc(L.FEAT[f].l) + "</span></label>").join("") + "</div>";
+        }).join("") + '</div><p class="wz-sum" id="wzSum"></p>';
+      summary();
     }
-    function changed() { var rb = $("#nRebuild", el); if (rb) rb.checked = JSON.stringify([d.eq, d.fluids, d.phase, d.feats]) !== orig; }
-    drawFeats();
-    setTimeout(function () { $("#nName", el).focus(); }, 0);
-    el.addEventListener("click", function (e) {
-      var t = e.target.closest("[data-eq],[data-fl],[data-ph],[data-c]");
+    function summary() {
+      const s = $("#wzSum", el); if (!s) return;
+      s.innerHTML = "Draft basis: <b>" + esc(EQMAP[d.eq] ? EQMAP[d.eq].l : "?") + "</b> · <b>" + esc(d.fluids.map(fluidShort).join(", ") || "no fluid hazard chosen") + "</b> · <b>" + esc(phaseLabel(d.phase)) + "</b> · <b>" + plural(d.feats.length, "feature") + "</b> ticked";
+    }
+    function check(upto) {
+      if (upto >= 1 && !d.name) return [1, "Give the node a name."];
+      if (upto >= 2 && !d.eq) return [2, "Choose an equipment type."];
+      if (upto >= 3 && !d.fluids.length) return [3, "Choose at least one fluid hazard (use Non-hazardous for water or air)."];
+      return null;
+    }
+    function updLeft() {
+      const left = $("#nLeft", el);
+      if (editing) {
+        const ch = cfgChanged();
+        left.innerHTML = '<label><input type="checkbox" id="nRebuild"' + (ch ? " checked" : "") + "> Rebuild the rows from the library</label>" +
+          (ch ? '<span class="warn-note">(you changed the configuration; rebuilding replaces the rows and edits of this node)</span>' : "");
+      } else { left.className = "left steptxt"; left.textContent = "Step " + step + " of 4"; }
+    }
+    function show(n, err) {
+      step = n;
+      $$(".pane", el).forEach((p) => p.classList.toggle("on", +p.dataset.pane === n));
+      $$(".wsteps button", el).forEach((b) => {
+        const k = +b.dataset.step;
+        if (k === n) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+        b.classList.toggle("done", k !== n && !check(k));
+      });
+      $('[data-c="back"]', el).hidden = n === 1;
+      $('[data-c="next"]', el).hidden = n === 4;
+      $('[data-c="ok"]', el).hidden = !editing && n !== 4;
+      $("#nErr", el).textContent = err || "";
+      if (n === 4) drawFeats();
+      if (!editing) updLeft();
+      setTimeout(() => { const f = n === 1 ? $("#nName", el) : n === 2 ? $('.eq[aria-pressed="true"]', el) || $(".eq", el) : null; if (f) f.focus(); }, 0);
+    }
+    function go(n) {
+      if (n > step) { const bad = check(n - 1); if (bad) return show(bad[0], bad[1]); }
+      show(n);
+    }
+    updLeft(); show(step);
+    el.addEventListener("input", (e) => {
+      if (e.target.id === "nName") d.name = e.target.value.trim();
+      else if (e.target.id === "nIntent") d.intent = e.target.value.trim();
+      else if (e.target.id === "nDwg") d.dwg = e.target.value.trim();
+    });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.target.id === "nName" || e.target.id === "nDwg")) { e.preventDefault(); go(step + 1); } });
+    el.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-eq],[data-fl],[data-ph],[data-c],[data-step]");
       if (!t) return;
+      if (t.dataset.step) return go(+t.dataset.step);
       if (t.dataset.eq) {
         d.eq = t.dataset.eq;
-        var offered = EQMAP[d.eq].feats; d.feats = d.feats.filter(function (f) { return offered.indexOf(f) >= 0; });
-        $$("[data-eq]", el).forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.eq === d.eq); });
-        drawFeats(); changed();
+        const offered = EQMAP[d.eq].feats; d.feats = d.feats.filter((f) => offered.indexOf(f) >= 0);
+        $$("[data-eq]", el).forEach((b) => { b.setAttribute("aria-pressed", b.dataset.eq === d.eq); });
+        $("#nErr", el).textContent = ""; if (editing) updLeft();
+        if (!editing) setTimeout(() => go(3), 180);
       } else if (t.dataset.fl) {
-        var id = t.dataset.fl, i = d.fluids.indexOf(id);
+        const id = t.dataset.fl, i = d.fluids.indexOf(id);
         if (i >= 0) d.fluids.splice(i, 1); else d.fluids.push(id);
-        if (id === "nonhaz" && i < 0) d.fluids = ["nonhaz"]; else if (id !== "nonhaz") d.fluids = d.fluids.filter(function (x) { return x !== "nonhaz"; });
-        $$("[data-fl]", el).forEach(function (b) { b.setAttribute("aria-pressed", d.fluids.indexOf(b.dataset.fl) >= 0); });
-        changed();
+        if (id === "nonhaz" && i < 0) d.fluids = ["nonhaz"]; else if (id !== "nonhaz") d.fluids = d.fluids.filter((x) => x !== "nonhaz");
+        $$("[data-fl]", el).forEach((b) => { b.setAttribute("aria-pressed", d.fluids.indexOf(b.dataset.fl) >= 0); });
+        $("#nErr", el).textContent = ""; if (editing) updLeft();
       } else if (t.dataset.ph) {
-        d.phase = t.dataset.ph; $$("[data-ph]", el).forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.ph === d.phase); }); changed();
+        d.phase = t.dataset.ph; $$("[data-ph]", el).forEach((b) => { b.setAttribute("aria-pressed", b.dataset.ph === d.phase); }); if (editing) updLeft();
       } else if (t.dataset.c === "cancel") dlg.close();
+      else if (t.dataset.c === "back") show(Math.max(1, step - 1));
+      else if (t.dataset.c === "next") go(Math.min(4, step + 1));
       else if (t.dataset.c === "ok") {
-        d.name = $("#nName", el).value.trim(); d.intent = $("#nIntent", el).value.trim();
-        var err = !d.name ? "Give the node a name." : !d.eq ? "Choose an equipment type." : !d.fluids.length ? "Choose at least one fluid hazard (use Non-hazardous for water or air)." : "";
-        if (err) { $("#nErr", el).textContent = err; return; }
-        var okBtn = $('[data-c="ok"]', el);
+        const bad = check(3); if (bad) return show(bad[0], bad[1]);
+        const okBtn = $('[data-c="ok"]', el);
         if (okBtn.disabled) return;
         if (editing) {
-          var rebuild = $("#nRebuild", el).checked;
-          var apply = function (rows) {
-            node.name = d.name; node.intent = d.intent; node.eq = d.eq; node.fluids = d.fluids; node.phase = d.phase; node.feats = d.feats;
+          const rb = $("#nRebuild", el), rebuild = rb && rb.checked;
+          const apply = (rows) => {
+            node.name = d.name; node.intent = d.intent; node.dwg = d.dwg; node.eq = d.eq; node.fluids = d.fluids; node.phase = d.phase; node.feats = d.feats;
             if (rows) node.rows = rows;
             dlg.close(); renderAll(); toast(rows ? "Node saved and worksheet rebuilt." : "Node saved.");
           };
           if (!rebuild) return apply(null);
-          busy(okBtn, "Rebuilding...");
-          buildRows(d).then(apply, function (e2) { busy(okBtn, null, "Save node"); $("#nErr", el).textContent = e2.message; });
+          busy(okBtn, "Rebuilding…");
+          buildRows(d).then(apply, (e2) => { busy(okBtn, null, "Save node"); $("#nErr", el).textContent = e2.message; });
         } else {
-          busy(okBtn, "Building the worksheet...");
-          buildRows(d).then(function (rows) {
-            var n = { id: uid(), name: d.name, intent: d.intent, eq: d.eq, fluids: d.fluids, phase: d.phase, feats: d.feats, rows: rows };
-            state.nodes.push(n); state.cur = n.id; ui.tab = "ws";
+          busy(okBtn, "Building the worksheet…");
+          buildRows(d).then((rows) => {
+            const n = { id: uid(), name: d.name, intent: d.intent, dwg: d.dwg, eq: d.eq, fluids: d.fluids, phase: d.phase, feats: d.feats, rows: rows };
+            state.nodes.push(n); state.cur = n.id; ui.tab = "ws"; ui.filter = "all"; ui.q = "";
             dlg.close(); renderAll();
-            toast("Worksheet created with " + n.rows.filter(function (r) { return !r.na; }).length + " rows and " + n.rows.filter(hasRec).length + " recommendations.");
-          }, function (e2) { busy(okBtn, null, "Create worksheet"); $("#nErr", el).textContent = e2.message; });
+            if (MOBILE.matches) $("#main").scrollIntoView(); else window.scrollTo(0, 0);
+            toast("Worksheet drafted: " + plural(live(n).length, "cause") + " and " + plural(n.rows.filter(hasRec).length, "recommendation") + ". Review each row with your team.");
+          }, (e2) => { busy(okBtn, null, "Create worksheet"); $("#nErr", el).textContent = e2.message; });
         }
       }
     });
-    el.addEventListener("change", function (e) {
-      var f = e.target.dataset.ft; if (!f) return;
-      if (e.target.checked) { if (d.feats.indexOf(f) < 0) d.feats.push(f); } else d.feats = d.feats.filter(function (x) { return x !== f; });
-      changed();
+    el.addEventListener("change", (e) => {
+      const f = e.target.dataset.ft; if (!f) return;
+      if (e.target.checked) { if (d.feats.indexOf(f) < 0) d.feats.push(f); } else d.feats = d.feats.filter((x) => x !== f);
+      const g = e.target.dataset.g, gc = $('[data-gc="' + g + '"]', el);
+      if (gc) { const boxes = $$('input[data-g="' + g + '"]', el); gc.textContent = boxes.filter((b) => b.checked).length + " of " + boxes.length; }
+      summary(); if (editing) updLeft();
     });
   }
 
@@ -612,158 +1245,265 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
     else { btn.disabled = false; btn.innerHTML = btn.dataset.txt || restore || btn.innerHTML; }
   }
 
-  /* ---------------- popover (library alternatives) ---------------- */
-  var pop = null;
+  /* ---------------- popovers ---------------- */
+  let pop = null;
   function closePop() { if (pop) { pop.remove(); pop = null; document.removeEventListener("mousedown", popOut, true); } }
-  function popOut(e) { if (pop && !pop.contains(e.target)) closePop(); }
-  function showPop(anchor, html, onPick) {
+  function popOut(e) { if (pop && !pop.contains(e.target) && !(pop.anchor && pop.anchor.contains(e.target))) closePop(); }
+  function showPop(anchor, html, onPick, cls) {
     closePop();
-    pop = document.createElement("div"); pop.className = "pop"; pop.innerHTML = html; document.body.appendChild(pop);
-    var r = anchor.getBoundingClientRect(), w = pop.offsetWidth;
-    var left = Math.min(window.scrollX + r.right - w, window.scrollX + document.documentElement.clientWidth - w - 8);
-    pop.style.left = Math.max(8, left) + "px"; pop.style.top = (window.scrollY + r.bottom + 4) + "px";
-    pop.addEventListener("click", function (e) { var b = e.target.closest("[data-i]"); if (b) { onPick(+b.dataset.i); closePop(); } });
-    pop.addEventListener("keydown", function (e) { if (e.key === "Escape") { closePop(); anchor.focus(); } });
-    setTimeout(function () { document.addEventListener("mousedown", popOut, true); var f = $("button.opt", pop); if (f) f.focus(); }, 0);
+    pop = document.createElement("div"); pop.className = "pop" + (cls ? " " + cls : ""); pop.innerHTML = html; pop.anchor = anchor; document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect(), w = pop.offsetWidth, vw = document.documentElement.clientWidth;
+    const left = Math.min(window.scrollX + r.left, window.scrollX + vw - w - 8);
+    pop.style.left = Math.max(window.scrollX + 8, left) + "px"; pop.style.top = (window.scrollY + r.bottom + 4) + "px";
+    pop.addEventListener("click", (e) => { const b = e.target.closest("[data-i]"); if (b && onPick) { onPick(+b.dataset.i); closePop(); } });
+    pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { closePop(); anchor.focus(); } });
+    setTimeout(() => { document.addEventListener("mousedown", popOut, true); const f = $("button.opt", pop); if (f) f.focus(); }, 0);
+  }
+  function showHelp(anchor, key) {
+    const h = HELP[key]; if (!h) return;
+    if (pop && pop.dataset.help === key) return closePop();
+    showPop(anchor, "<b>" + esc(h[0]) + "</b><p>" + esc(h[1]) + "</p>", null, "help");
+    pop.dataset.help = key;
   }
   function libOptions(node, dk) {
-    var used = node.rows.filter(function (r) { return r.dk === dk && r.src; }).map(function (r) { return r.src; });
-    return api("options", { node: nodeCfg(node), dk: dk, used: used }).then(function (j) { return j.options; });
+    const used = node.rows.filter((r) => r.dk === dk && r.src).map((r) => r.src);
+    return api("options", { node: nodeCfg(node), dk: dk, used: used }).then((j) => j.options);
   }
   function optHTML(list, withBlank) {
-    var h = "<h4>Library causes for this deviation, most likely first</h4>";
+    let h = "<h4>Library causes for this deviation, most likely first</h4>";
     if (withBlank) h += '<button class="opt" data-i="-1"><b>Blank row</b><small>Write your own cause</small></button>';
-    if (!list.length) h += '<p class="sub-l" style="margin:6px 8px">All library causes for this deviation are already in the worksheet.</p>';
-    list.forEach(function (x, i) {
-      h += '<button class="opt' + (x.ok ? "" : " off") + '" data-i="' + i + '"><b>' + esc(x.row.cause) + "</b><small>" + esc(L.CATS[x.row.k]) + ", typical " + x.row.f + " per year" +
+    if (!list.length) h += '<p class="sub-h" style="margin:6px 8px">All library causes for this deviation are already in the worksheet.</p>';
+    list.forEach((x, i) => {
+      h += '<button class="opt' + (x.ok ? "" : " off") + '" data-i="' + i + '"><b>' + esc(x.row.cause) + "</b><small>" + esc(L.CATS[x.row.k] || "") + ", typical " + x.row.f + " per year" +
         (x.ok ? "" : ". Not in your configuration: " + esc(x.why.join("; "))) + "</small></button>";
     });
     return h;
   }
 
+  /* ---------------- help drawer ---------------- */
+  function openHelp() {
+    const ov = document.createElement("div"); ov.className = "drawer-ov";
+    ov.innerHTML = '<aside class="drawer" role="dialog" aria-modal="true" aria-label="How to use the HAZOP worksheet"><header><h2>Help</h2><button class="icon-btn" data-c="close" aria-label="Close">' + ic("x") + '</button></header><div class="gbody">' + $("#guideBody").innerHTML.replace(' id="guideTitle"', "") + "</div></aside>";
+    document.body.appendChild(ov);
+    const prev = document.activeElement;
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prev && prev.focus) prev.focus(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    ov.addEventListener("mousedown", (e) => { if (e.target === ov) close(); });
+    ov.addEventListener("click", (e) => { if (e.target.closest('[data-c="close"]')) close(); });
+    $('[data-c="close"]', ov).focus();
+  }
+
   /* ---------------- toast ---------------- */
-  var toastT;
+  let toastT;
   function toast(msg, act, fn) {
-    var old = $(".toast"); if (old) old.remove();
-    var t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
+    const old = $(".toast"); if (old) old.remove();
+    const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status");
     t.innerHTML = "<span>" + esc(msg) + "</span>" + (act ? "<button>" + esc(act) + "</button>" : "");
     document.body.appendChild(t);
-    if (act) $("button", t).addEventListener("click", function () { fn(); t.remove(); });
-    clearTimeout(toastT); toastT = setTimeout(function () { t.remove(); }, act ? 7000 : 3500);
+    if (act) $("button", t).addEventListener("click", () => { fn(); t.remove(); });
+    clearTimeout(toastT); toastT = setTimeout(() => { t.remove(); }, act ? 7000 : 4000);
   }
 
   /* ---------------- events ---------------- */
-  function rowById(node, id) { for (var i = 0; i < node.rows.length; i++) if (node.rows[i].id === id) return i; return -1; }
-  function findRowAnywhere(id) { for (var n = 0; n < state.nodes.length; n++) { var i = rowById(state.nodes[n], id); if (i >= 0) return state.nodes[n].rows[i]; } return null; }
+  function rowById(node, id) { for (let i = 0; i < node.rows.length; i++) if (node.rows[i].id === id) return i; return -1; }
+  function findRow(id) { for (let n = 0; n < state.nodes.length; n++) { const i = rowById(state.nodes[n], id); if (i >= 0) return { n: state.nodes[n], r: state.nodes[n].rows[i] }; } return null; }
+  function updateGroupHead(node, dk) {
+    const tr = $$("tr.grp").filter((x) => x.dataset.dk === dk)[0]; if (!tr) return;
+    const gp = groups(node).filter((g) => g.dk === dk)[0]; if (!gp) return;
+    const tmp = document.createElement("tbody");
+    tmp.innerHTML = groupHeadHTML(gp, gp.rows.filter((r) => !r.na), !!ui.col[colKey(node, dk)] && ui.filter === "all" && !ui.q);
+    tr.replaceWith(tmp.firstChild);
+  }
+  function scrollToRow(id) {
+    const tr = $('tr[data-id="' + id + '"]'); if (!tr) return;
+    tr.scrollIntoView({ block: "center", behavior: "smooth" });
+    tr.classList.add("flash"); setTimeout(() => tr.classList.remove("flash"), 1700);
+  }
+  function setTab(t) { ui.tab = t; renderMain(); }
 
   function bind() {
-    document.addEventListener("input", function (e) {
-      var t = e.target;
-      if (t.id === "studyTitle") { state.study.title = t.value; persist(); return; }
-      if (t.dataset.sf) { state.study[t.dataset.sf] = t.value; persist(); return; }
+    document.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t.dataset.sf) {
+        state.study[t.dataset.sf] = t.value;
+        $$('[data-sf="' + t.dataset.sf + '"]').forEach((x) => { if (x !== t) x.value = t.value; });
+        persist(); renderProgress(); return;
+      }
+      if (t.dataset.ctl === "q") { ui.q = t.value.trim(); renderSheet(); return; }
       if (t.dataset.f && t.tagName === "TEXTAREA") {
-        var tr = t.closest("tr.row"), node = curNode(); if (!tr || !node) return;
-        var r = node.rows[rowById(node, tr.dataset.id)]; if (!r) return;
-        r[t.dataset.f] = t.value; if (t.dataset.f === "rec") { r.gen = false; var td = t.closest("td"); td.classList.remove("gen"); var gn = $(".gen-note", td); if (gn) gn.remove(); }
+        const tr = t.closest("tr.row"), node = curNode(); if (!tr || !node) return;
+        const r = node.rows[rowById(node, tr.dataset.id)]; if (!r) return;
+        const had = hasRec(r);
+        r[t.dataset.f] = t.value;
+        if (t.dataset.f === "rec") {
+          r.gen = false; const td = t.closest("td"); td.classList.remove("gen"); const gn = $(".gen-note", td); if (gn) gn.remove();
+          if (had !== hasRec(r)) { if (!r.status) r.status = "Open"; refreshCounts(); updateGroupHead(node, r.dk); }
+        }
         fit(t); persist();
       }
       if (t.dataset.rf) {
-        var rr = findRowAnywhere(t.closest("tr").dataset.rid); if (!rr) return;
-        rr[t.dataset.rf] = t.value; if (t.tagName === "TEXTAREA") fit(t); persist();
+        const f = findRow(t.closest("tr").dataset.rid); if (!f) return;
+        f.r[t.dataset.rf] = t.value; if (t.tagName === "TEXTAREA") fit(t); persist();
       }
     });
-    document.addEventListener("change", function (e) {
-      var t = e.target;
+    document.addEventListener("change", (e) => {
+      const t = e.target;
       if (t.classList.contains("sl")) {
-        var tr = t.closest("tr.row"), node = curNode(), r = node.rows[rowById(node, tr.dataset.id)];
+        const tr = t.closest("tr.row"), node = curNode(), r = node.rows[rowById(node, tr.dataset.id)];
         r[t.dataset.f] = +t.value;
         if (t.dataset.f === "l" && r.l2 != null && r.l2 > r.l) { r.l2 = r.l; $('select[data-f="l2"]', tr).value = r.l2; }
-        var rk = rank(r.s, r.l), b = $("[data-risk]", tr); b.className = "risk " + rk; b.textContent = RANKL[rk] || "";
-        var rk2 = rank(r.s, l2of(r)), b2 = $("[data-risk2]", tr); b2.className = "risk " + rk2; b2.textContent = RANKL[rk2] || "";
-        persist();
-      } else if (t.dataset.rf === "status") { var rr = findRowAnywhere(t.closest("tr").dataset.rid); if (rr) { rr.status = t.value; persist(); } }
-      else if (t.dataset.a === "showna") { state.showNA = t.checked; renderMain(); persist(); }
+        if (t.dataset.f === "l2" && r.l2 > r.l) toast("Likelihood with safeguards is higher than without. Check the entry.");
+        const rk = rank(r.s, r.l), b = $("[data-risk]", tr); b.className = "risk " + rk; b.textContent = RANKL[rk] || "";
+        const rk2 = rank(r.s, l2of(r)), b2 = $("[data-risk2]", tr); b2.className = "risk " + rk2; b2.textContent = RANKL[rk2] || "";
+        const s2 = $("[data-s2]", tr); if (s2) s2.textContent = r.s + " " + ((L.SEV[r.s - 1] || {}).l || "");
+        updateGroupHead(node, r.dk); refreshCounts(); persist();
+      } else if (t.dataset.rf === "status" || t.dataset.rf === "due") {
+        const f = findRow(t.closest("tr").dataset.rid);
+        if (f) { f.r[t.dataset.rf] = t.value; persist(); if (t.dataset.rf === "status") { t.closest("tr").classList.toggle("closed", t.value === "Closed"); renderProgress(); renderRail(); const s = stats(state.nodes), rs = $(".rr-stats"); if (rs) rs.innerHTML = "<span><b>" + s.recs + "</b> total</span><span><b>" + s.open + "</b> open</span><span><b>" + s.prog + "</b> in progress</span><span><b>" + s.closed + "</b> closed</span>"; } }
+      } else if (t.dataset.ctl === "showna") { state.showNA = t.checked; renderSheet(); persist(); }
+      else if (t.dataset.ctl === "filter") { ui.filter = t.value; renderMain(); }
+      else if (t.dataset.ctl === "jump") {
+        const dk = t.value; t.value = ""; if (!dk) return;
+        const node = curNode(); delete ui.col[colKey(node, dk)];
+        if (ui.filter !== "all" || ui.q) { ui.filter = "all"; ui.q = ""; renderMain(); } else renderSheet();
+        const g = $$("tr.grp").filter((x) => x.dataset.dk === dk)[0];
+        if (g) g.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+      else if (t.dataset.ctl === "rrnode") { ui.rrNode = t.value; renderMain(); }
+      else if (t.dataset.ctl === "rrstatus") { ui.rrStatus = t.value; renderMain(); }
       else if (t.id === "fileIn") { openFile(t.files[0]); t.value = ""; }
     });
-    document.addEventListener("click", function (e) {
-      var t;
+    document.addEventListener("toggle", (e) => { const d = e.target; if (d.classList && d.classList.contains("rsec")) ui.sec[d.dataset.sec] = d.open; }, true);
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".overlay, .drawer-ov")) return;
+      let t;
+      if ((t = e.target.closest("[data-help]"))) { e.preventDefault(); return showHelp(t, t.dataset.help); }
       if ((t = e.target.closest("[data-top]"))) return topAction(t.dataset.top);
+      if ((t = e.target.closest("[data-step]"))) return stepAction(t.dataset.step);
       if ((t = e.target.closest("[data-rail]"))) return nodeDialog(null);
-      if ((t = e.target.closest("[data-node]"))) { state.cur = t.dataset.node; ui.tab = ui.tab === "mx" || ui.tab === "rr" ? ui.tab : "ws"; renderRail(); renderMain(); persist(); return; }
-      if ((t = e.target.closest("[data-tab]"))) { ui.tab = t.dataset.tab; renderMain(); return; }
-      if ((t = e.target.closest("[data-mx]"))) { var sl = t.dataset.mx.split(","); var s = +sl[0], l = +sl[1]; state.matrix[s - 1][l - 1] = NEXT[state.matrix[s - 1][l - 1]]; renderMain(); persist(); return; }
+      if ((t = e.target.closest("[data-node]"))) { state.cur = t.dataset.node; if (ui.tab !== "rr") ui.tab = ui.tab === "mx" ? "mx" : "ws"; ui.filter = "all"; ui.q = ""; renderRail(); renderMain(); persist(); if (MOBILE.matches) $("#main").scrollIntoView({ behavior: "smooth" }); return; }
+      if ((t = e.target.closest("[data-tab]"))) return setTab(t.dataset.tab);
+      if ((t = e.target.closest("[data-kpi]"))) { const f = t.dataset.kpi; ui.filter = ui.tab === "ws" && ui.filter === f ? "all" : f; ui.q = ""; ui.tab = "ws"; renderMain(); return; }
+      if ((t = e.target.closest("[data-mx]"))) { const sl = t.dataset.mx.split(","); const s = +sl[0], l = +sl[1]; state.matrix[s - 1][l - 1] = NEXT[state.matrix[s - 1][l - 1]]; renderMain(); renderRail(); renderProgress(); persist(); return; }
+      if ((t = e.target.closest("[data-ctl][data-v]"))) { if (t.dataset.ctl === "mx") ui.mx = t.dataset.v; else ui.mxScope = t.dataset.v; renderMain(); return; }
       if ((t = e.target.closest("[data-a]"))) return action(t.dataset.a, t);
     });
-    document.addEventListener("keydown", function (e) {
-      var t = e.target.closest && e.target.closest("[data-node]");
+    document.addEventListener("keydown", (e) => {
+      const t = e.target.closest && e.target.closest("[data-node]");
       if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); t.click(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S") && L) { e.preventDefault(); saveFile(); }
     });
+    MOBILE.addEventListener && MOBILE.addEventListener("change", () => { if (L) renderRail(); });
+  }
+
+  function stepAction(id) {
+    if (id === "study") {
+      if (!state.nodes.length) { const f = $('#main [data-sf="title"]'); if (f) f.focus(); return; }
+      ui.sec.study = true; renderRail(); const f = $('#rail [data-sf="ref"]'); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); }
+    } else if (id === "nodes") nodeDialog(null);
+    else if (id === "review") {
+      if (!state.nodes.length) return nodeDialog(null);
+      const todo = state.nodes.filter((n) => live(n).some((r) => !r.ok));
+      if (todo.length && todo.indexOf(curNode()) < 0) state.cur = todo[0].id;
+      ui.tab = "ws"; ui.q = ""; ui.filter = todo.length ? "todo" : "all"; renderRail(); renderMain();
+    }
+    else if (id === "actions") { if (!state.nodes.length) return nodeDialog(null); setTab("rr"); }
+    else if (id === "export") exportExcel();
   }
 
   function action(a, btn) {
-    var node = curNode();
-    if (a === "example") { loadExample(btn); return; }
-    if (a === "mxreset") { state.matrix = defMatrix(); renderMain(); persist(); return; }
-    if (a === "showna") return;
+    const node = curNode();
+    if (a === "example") return loadExample(btn);
+    if (a === "mxreset") { state.matrix = defMatrix(); renderAll(); toast("Risk matrix reset to the default."); return; }
+    if (a === "mxedit") { ui.mxEdit = !ui.mxEdit; renderMain(); return; }
     if (!node) return;
     if (a === "editnode") return nodeDialog(node);
+    if (a === "editfeats") return nodeDialog(node, 4);
+    if (a === "clearf") { ui.filter = "all"; ui.q = ""; renderMain(); return; }
+    if (a === "colall") {
+      const gs = groups(node), allCol = gs.every((g) => ui.col[colKey(node, g.dk)]);
+      gs.forEach((g) => { if (allCol) delete ui.col[colKey(node, g.dk)]; else ui.col[colKey(node, g.dk)] = true; });
+      renderMain(); return;
+    }
+    if (a === "tog") {
+      const dk = btn.closest("tr").dataset.dk, k = colKey(node, dk);
+      if (ui.filter !== "all" || ui.q) return;
+      if (ui.col[k]) delete ui.col[k]; else ui.col[k] = true;
+      renderSheet(); return;
+    }
+    if (a === "goto") {
+      const f = findRow(btn.closest("tr").dataset.rid); if (!f) return;
+      state.cur = f.n.id; ui.tab = "ws"; ui.filter = "all"; ui.q = ""; delete ui.col[colKey(f.n, f.r.dk)];
+      renderRail(); renderMain(); persist(); setTimeout(() => scrollToRow(f.r.id), 50); return;
+    }
     if (a === "dupnode") {
-      var c = clone(node); c.id = uid(); c.name = node.name + " (copy)"; c.rows.forEach(function (r) { r.id = uid(); });
-      state.nodes.splice(state.nodes.indexOf(node) + 1, 0, c); state.cur = c.id; renderAll(); toast("Node duplicated."); return;
+      const c = clone(node); c.id = uid(); c.name = node.name + " (copy)"; c.rows.forEach((r) => { r.id = uid(); r.ok = false; });
+      state.nodes.splice(state.nodes.indexOf(node) + 1, 0, c); state.cur = c.id; renderAll(); toast("Node duplicated. Rename it with Edit node."); return;
     }
     if (a === "delnode") {
-      confirmBox("Delete this node?", nodeLabel(node) + ": " + node.name + " and its worksheet rows will be removed.", "Delete node", true).then(function (ok) {
-        if (!ok) return; var i = state.nodes.indexOf(node); state.nodes.splice(i, 1); state.cur = state.nodes.length ? state.nodes[Math.max(0, i - 1)].id : null; renderAll(); toast("Node deleted.");
+      confirmBox("Delete this node?", nodeLabel(node) + ": " + node.name + " and its worksheet rows will be removed.", "Delete node").then((ok) => {
+        if (!ok) return; const i = state.nodes.indexOf(node); state.nodes.splice(i, 1); state.cur = state.nodes.length ? state.nodes[Math.max(0, i - 1)].id : null; renderAll(); toast("Node deleted.");
       });
       return;
     }
-    var tr = btn.closest("tr.row"), idx = tr ? rowById(node, tr.dataset.id) : -1, row = idx >= 0 ? node.rows[idx] : null;
+    const tr = btn.closest("tr.row"), idx = tr ? rowById(node, tr.dataset.id) : -1, row = idx >= 0 ? node.rows[idx] : null;
+    if (a === "ok" && row) {
+      row.ok = !row.ok; btn.setAttribute("aria-pressed", row.ok); btn.title = row.ok ? "Reviewed by the team (click to undo)" : "Mark as reviewed by the team";
+      tr.classList.toggle("ok", row.ok); persist(); refreshCounts();
+      if (ui.filter === "todo" && row.ok) setTimeout(renderSheet, 350);
+      return;
+    }
     if (a === "del" && row) {
       node.rows.splice(idx, 1); ui.lastDel = { node: node.id, idx: idx, row: row };
-      renderMain(); renderRail(); persist();
-      toast("Row deleted.", "Undo", function () { var n = null; state.nodes.forEach(function (x) { if (x.id === ui.lastDel.node) n = x; }); if (!n) return; n.rows.splice(ui.lastDel.idx, 0, ui.lastDel.row); renderMain(); renderRail(); persist(); });
+      renderSheet(); refreshCounts(); persist();
+      toast("Row deleted.", "Undo", () => { let n = null; state.nodes.forEach((x) => { if (x.id === ui.lastDel.node) n = x; }); if (!n) return; n.rows.splice(ui.lastDel.idx, 0, ui.lastDel.row); renderMain(); renderRail(); renderProgress(); persist(); });
       return;
     }
     if (a === "add" && row) {
-      var nr = { id: uid(), dk: row.dk, g: row.g, p: row.p, cause: "", cons: "", sg: "", s: 2, l: 3, l2: 3, rec: "", gen: false, owner: "", status: "Open" };
-      node.rows.splice(idx + 1, 0, nr); renderMain(); renderRail(); persist();
-      var ta = $('tr[data-id="' + nr.id + '"] textarea'); if (ta) ta.focus();
+      const nr = { id: uid(), dk: row.dk, g: row.g, p: row.p, cause: "", cons: "", sg: "", s: 2, l: 3, l2: 3, rec: "", gen: false, owner: "", status: "Open", due: "" };
+      node.rows.splice(idx + 1, 0, nr); renderSheet(); refreshCounts(); persist();
+      const ta = $('tr[data-id="' + nr.id + '"] textarea'); if (ta) ta.focus();
       return;
     }
     if (a === "alt" && row) {
       if (btn.disabled) return; btn.disabled = true;
-      libOptions(node, row.dk).then(function (list) {
+      libOptions(node, row.dk).then((list) => {
         btn.disabled = false;
-        showPop(btn, optHTML(list, false), function (i) {
-          var nrw = list[i].row; nrw.id = row.id; nrw.owner = row.owner || ""; nrw.status = row.status || "Open";
-          var j2 = rowById(node, row.id); if (j2 < 0) return;
-          node.rows[j2] = nrw; renderMain(); renderRail(); persist(); toast("Cause swapped.");
+        showPop(btn, optHTML(list, false), (i) => {
+          const nrw = list[i].row; nrw.id = row.id; nrw.owner = row.owner || ""; nrw.status = row.status || "Open"; nrw.due = row.due || "";
+          const j2 = rowById(node, row.id); if (j2 < 0) return;
+          node.rows[j2] = nrw; renderSheet(); refreshCounts(); persist(); toast("Cause swapped."); scrollToRow(nrw.id);
         });
-      }, function (e) { btn.disabled = false; toast(e.message); });
+      }, (e) => { btn.disabled = false; toast(e.message); });
       return;
     }
     if (a === "addc") {
       if (btn.disabled) return; btn.disabled = true;
-      var dk = btn.dataset.dk;
-      libOptions(node, dk).then(function (list) {
+      const dk = btn.dataset.dk;
+      libOptions(node, dk).then((list) => {
         btn.disabled = false;
-        showPop(btn, optHTML(list, true), function (i) {
-          var lastIdx = -1; node.rows.forEach(function (r, j) { if (r.dk === dk) lastIdx = j; });
-          var proto = node.rows[lastIdx];
-          var nw = i < 0 ? { id: uid(), dk: dk, g: proto.g, p: proto.p, cause: "", cons: "", sg: "", s: 2, l: 3, l2: 3, rec: "", gen: false, owner: "", status: "Open" } : withIds(list[i].row);
-          var inGroup = node.rows.filter(function (r) { return r.dk === dk; });
+        showPop(btn, optHTML(list, true), (i) => {
+          let lastIdx = -1; node.rows.forEach((r, j) => { if (r.dk === dk) lastIdx = j; });
+          const proto = node.rows[lastIdx];
+          const nw = i < 0 ? { id: uid(), dk: dk, g: proto.g, p: proto.p, cause: "", cons: "", sg: "", s: 2, l: 3, l2: 3, rec: "", gen: false, owner: "", status: "Open", due: "" } : withIds(list[i].row);
+          const inGroup = node.rows.filter((r) => r.dk === dk);
           if (inGroup.length === 1 && inGroup[0].na) node.rows.splice(lastIdx, 1, nw); else node.rows.splice(lastIdx + 1, 0, nw);
-          renderMain(); renderRail(); persist();
-          var ta2 = $('tr[data-id="' + nw.id + '"] textarea'); if (ta2) ta2.focus();
+          delete ui.col[colKey(node, dk)];
+          if (ui.filter !== "all" || ui.q) { ui.filter = "all"; ui.q = ""; renderMain(); } else renderSheet();
+          refreshCounts(); persist();
+          const ta2 = $('tr[data-id="' + nw.id + '"] textarea'); if (ta2) { ta2.focus(); scrollToRow(nw.id); }
         });
-      }, function (e) { btn.disabled = false; toast(e.message); });
+      }, (e) => { btn.disabled = false; toast(e.message); });
     }
   }
 
   function topAction(a) {
+    if (a === "help") return openHelp();
     if (a === "new") {
-      confirmBox("Start a new study?", "The current study will be cleared from this browser. Save it as a file first if you want to keep it.", "Start new study").then(function (ok) {
-        if (ok) { state = blank(); ui.tab = "ws"; renderAll(); }
+      if (!state.nodes.length && !state.study.title) { toast("This is already a new study."); return; }
+      confirmBox("Start a new study?", "The current study will be cleared from this browser. Use Save file first if you want to keep it.", "Start new study").then((ok) => {
+        if (ok) { state = blank(); Object.assign(ui, { tab: "ws", filter: "all", q: "", col: {}, rrNode: "all", rrStatus: "all", exported: false }); renderAll(); }
       });
     } else if (a === "open") $("#fileIn").click();
     else if (a === "save") saveFile();
@@ -773,38 +1513,43 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
 
   /* ---------------- files ---------------- */
   function download(blob, name) {
-    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
   function saveFile() {
+    if (!state.nodes.length) { toast("Add a node before saving the study."); return; }
     download(new Blob([JSON.stringify(state, null, 1)], { type: "application/json" }), fileSafe(state.study.title) + ".hazop.json");
-    toast("Study saved as a file. Use Open to load it again.");
+    toast("Study saved as a file. Use Open to load it again, here or on another computer.");
   }
   function openFile(f) {
     if (!f) return;
-    var rd = new FileReader();
-    rd.onload = function () {
-      try { var o = JSON.parse(rd.result); if (!valid(o)) throw new Error("bad"); state = o; ui.tab = "ws"; renderAll(); toast("Study opened: " + (o.study.title || "untitled") + "."); }
-      catch (e) { toast("This file is not a HAZOP study saved from this tool."); }
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const o = JSON.parse(rd.result); if (!valid(o)) throw new Error("bad");
+        state = o; Object.assign(ui, { tab: "ws", filter: "all", q: "", col: {}, rrNode: "all", rrStatus: "all" });
+        renderAll(); toast("Study opened: " + (o.study.title || "untitled") + ".");
+      } catch (e) { toast("This file is not a HAZOP study saved from this tool."); }
     };
     rd.readAsText(f);
   }
 
   /* ---------------- print ---------------- */
+  function nodeTitle(n, i) { return "Node-" + (i + 1) + ": " + n.name + (n.intent ? " (Design intent: " + n.intent + ")" : "") + (n.dwg ? ". P&ID: " + n.dwg : ""); }
   function printStudy() {
     if (!state.nodes.length) { toast("Add a node before printing."); return; }
-    var s = state.study;
-    var h = "<h1>HAZOP: " + esc(s.title || "Untitled study") + (s.ref ? ". Ref.: " + esc(s.ref) : "") + "</h1>" +
+    const s = state.study;
+    let h = "<h1>HAZOP: " + esc(s.title || "Untitled study") + (s.ref ? ". Ref.: " + esc(s.ref) : "") + "</h1>" +
       '<p class="pmeta">' + [s.date ? "Date: " + esc(s.date) : "", s.team ? "Team: " + esc(s.team) : ""].filter(Boolean).join("&nbsp;&nbsp;&nbsp;") + "</p>" +
       '<table><thead><tr><th style="width:7%">Guide word</th><th style="width:8%">Deviation</th><th style="width:18%">Causes</th><th style="width:20%">Consequences</th><th style="width:15%">Safeguards</th><th style="width:3%">S</th><th style="width:3%">L</th><th style="width:6%">Risk</th><th style="width:4%">L after</th><th style="width:6%">Risk after</th><th>Recommendation</th></tr></thead><tbody>';
-    state.nodes.forEach(function (n, i) {
-      h += '<tr class="pn"><td colspan="11">Node-' + (i + 1) + ": " + esc(n.name) + (n.intent ? " (" + esc(n.intent) + ")" : "") + "</td></tr>";
-      groups(n).forEach(function (gp) {
-        var rows = state.showNA ? gp.rows : gp.rows.filter(function (r) { return !r.na; });
-        rows.forEach(function (r, j) {
+    state.nodes.forEach((n, i) => {
+      h += '<tr class="pn"><td colspan="11">' + esc(nodeTitle(n, i)) + "</td></tr>";
+      groups(n).forEach((gp) => {
+        const rows = state.showNA ? gp.rows : gp.rows.filter((r) => !r.na);
+        rows.forEach((r, j) => {
           h += "<tr><td>" + (j === 0 ? esc(gp.g) : "") + "</td><td>" + (j === 0 ? esc(gp.p) : "") + "</td>" +
             (r.na ? '<td colspan="9">' + esc(r.cause) + "</td>" :
-              "<td>" + esc(r.cause) + "</td><td>" + esc(r.cons) + "</td><td>" + esc(r.sg) + "</td><td>" + (r.s || "") + "</td><td>" + (r.l || "") + "</td><td>" + (RANKL[rank(r.s, r.l)] || "") + "</td><td>" + (l2of(r) || "") + "</td><td>" + (RANKL[rank(r.s, l2of(r))] || "") + "</td><td>" + esc(r.rec) + "</td>") + "</tr>";
+              "<td>" + esc(r.cause) + "</td><td>" + esc(r.cons) + "</td><td>" + esc(dash(r.sg)) + "</td><td>" + (r.s || "") + "</td><td>" + (r.l || "") + "</td><td>" + (RANKL[rank(r.s, r.l)] || "") + "</td><td>" + (l2of(r) || "") + "</td><td>" + (RANKL[rank(r.s, l2of(r))] || "") + "</td><td>" + esc(dash(r.rec)) + "</td>") + "</tr>";
         });
       });
     });
@@ -815,50 +1560,50 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
 
   /* ---------------- Excel export ---------------- */
   function loadExcelJS() {
-    return new Promise(function (res, rej) {
+    return new Promise((res, rej) => {
       if (window.ExcelJS) return res(window.ExcelJS);
-      var s = document.createElement("script"); s.src = EXCELJS_URL; s.async = true;
-      s.onload = function () { window.ExcelJS ? res(window.ExcelJS) : rej(new Error("ExcelJS missing")); };
-      s.onerror = function () { rej(new Error("ExcelJS load failed")); };
+      const s = document.createElement("script"); s.src = EXCELJS_URL; s.async = true;
+      s.onload = () => { window.ExcelJS ? res(window.ExcelJS) : rej(new Error("ExcelJS missing")); };
+      s.onerror = () => { rej(new Error("ExcelJS load failed")); };
       document.head.appendChild(s);
     });
   }
   function lines(text, width) {
-    if (!text) return 1; var cpl = Math.max(4, Math.floor(width * 1.15)), n = 0;
-    String(text).split("\n").forEach(function (p) { var len = 0, k = 1; p.split(/\s+/).forEach(function (w) { var add = w.length + (len ? 1 : 0); if (len + add > cpl) { k++; len = w.length; } else len += add; }); n += k; });
+    if (!text) return 1; const cpl = Math.max(4, Math.floor(width * 1.15)); let n = 0;
+    String(text).split("\n").forEach((p) => { let len = 0, k = 1; p.split(/\s+/).forEach((w) => { const add = w.length + (len ? 1 : 0); if (len + add > cpl) { k++; len = w.length; } else len += add; }); n += k; });
     return n;
   }
   function buildWorkbook(ExcelJS) {
-    var s = state.study, wb = new ExcelJS.Workbook();
+    const s = state.study, wb = new ExcelJS.Workbook();
     wb.creator = "multicalci.com"; wb.created = new Date();
-    var thin = { style: "thin" }, box = { top: thin, left: thin, bottom: thin, right: thin };
-    var F10 = { name: "Arial", size: 10 }, B10 = { name: "Arial", size: 10, bold: true }, NODEF = { name: "Arial", size: 10, bold: true, color: { argb: "FF0000FF" } };
-    var wrap = { wrapText: true, vertical: "middle" };
+    const thin = { style: "thin" }, box = { top: thin, left: thin, bottom: thin, right: thin };
+    const F10 = { name: "Arial", size: 10 }, B10 = { name: "Arial", size: 10, bold: true }, NODEF = { name: "Arial", size: 10, bold: true, color: { argb: "FF0000FF" } };
+    const wrap = { wrapText: true, vertical: "middle" };
 
-    var ws = wb.addWorksheet("HAZOP", { views: [{ state: "frozen", ySplit: 5 }],
+    const ws = wb.addWorksheet("HAZOP", { views: [{ state: "frozen", ySplit: 5 }],
       pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
       headerFooter: { oddFooter: "&Lmulticalci.com&RPage &P of &N" } });
-    var widths = [2, 11, 13, 30, 32, 28, 4.5, 4.5, 9, 7.5, 9, 36];
-    ws.columns = widths.map(function (w) { return { width: w }; });
+    const widths = [2, 11, 13, 30, 32, 28, 4.5, 4.5, 9, 7.5, 9, 36];
+    ws.columns = widths.map((w) => ({ width: w }));
     ws.getCell("B2").value = "HAZOP: " + (s.title || "Untitled study") + (s.ref ? ". Ref.: " + s.ref : "");
     ws.getCell("B2").font = { name: "Arial", size: 12, bold: true };
     ws.getCell("B3").value = [s.date ? "Date: " + s.date : "", s.team ? "Team: " + s.team : ""].filter(Boolean).join("     ");
     ws.getCell("B3").font = F10;
-    var hdr = ["Guide word", "Deviation", "Causes", "Consequences", "Safeguards", "S", "L", "Risk", "L after", "Risk after", "Recommendation"];
-    hdr.forEach(function (t, i) { var c = ws.getCell(5, i + 2); c.value = t; c.font = B10; c.border = box; c.alignment = { vertical: "middle", wrapText: true }; });
+    const hdr = ["Guide word", "Deviation", "Causes", "Consequences", "Safeguards", "S", "L", "Risk", "L after", "Risk after", "Recommendation"];
+    hdr.forEach((t, i) => { const c = ws.getCell(5, i + 2); c.value = t; c.font = B10; c.border = box; c.alignment = { vertical: "middle", wrapText: true }; });
     ws.pageSetup.printTitlesRow = "5:5";
-    var r = 6;
-    state.nodes.forEach(function (n, i) {
-      for (var cc = 2; cc <= 12; cc++) { ws.getCell(r, cc).border = box; }
-      var nc = ws.getCell(r, 2); nc.value = "Node-" + (i + 1) + ": " + n.name + (n.intent ? " (Design intent: " + n.intent + ")" : ""); nc.font = NODEF;
+    let r = 6;
+    state.nodes.forEach((n, i) => {
+      for (let cc = 2; cc <= 12; cc++) { ws.getCell(r, cc).border = box; }
+      const nc = ws.getCell(r, 2); nc.value = nodeTitle(n, i); nc.font = NODEF;
       r++;
-      groups(n).forEach(function (gp) {
-        var rows = state.showNA ? gp.rows : gp.rows.filter(function (x) { return !x.na; });
-        rows.forEach(function (x, j) {
-          var vals = [j === 0 ? gp.g : "", j === 0 ? gp.p : "", x.cause, x.na ? "" : x.cons, x.na ? "" : x.sg, x.na ? "" : x.s, x.na ? "" : x.l, x.na ? "" : (RANKL[rank(x.s, x.l)] || ""), x.na ? "" : l2of(x), x.na ? "" : (RANKL[rank(x.s, l2of(x))] || ""), x.na ? "" : x.rec];
-          var mx = 1;
-          vals.forEach(function (v, k) {
-            var c = ws.getCell(r, k + 2); c.value = v === "" ? null : v; c.font = F10; c.border = box; c.alignment = k === 5 || k === 6 || k === 8 ? { vertical: "middle", horizontal: "center" } : wrap;
+      groups(n).forEach((gp) => {
+        const rows = state.showNA ? gp.rows : gp.rows.filter((x) => !x.na);
+        rows.forEach((x, j) => {
+          const vals = [j === 0 ? gp.g : "", j === 0 ? gp.p : "", x.cause, x.na ? "" : x.cons, x.na ? "" : dash(x.sg), x.na ? "" : x.s, x.na ? "" : x.l, x.na ? "" : (RANKL[rank(x.s, x.l)] || ""), x.na ? "" : l2of(x), x.na ? "" : (RANKL[rank(x.s, l2of(x))] || ""), x.na ? "" : dash(x.rec)];
+          let mx = 1;
+          vals.forEach((v, k) => {
+            const c = ws.getCell(r, k + 2); c.value = v === "" ? null : v; c.font = F10; c.border = box; c.alignment = k === 5 || k === 6 || k === 8 ? { vertical: "middle", horizontal: "center" } : wrap;
             mx = Math.max(mx, lines(v, widths[k + 1]));
           });
           if (mx > 1) ws.getRow(r).height = 12.75 * mx + 2;
@@ -867,88 +1612,90 @@ table.mx td button.L { background: var(--r1); } table.mx td button.M { backgroun
       });
     });
 
-    var rs = wb.addWorksheet("Recommendations", { views: [{ state: "frozen", ySplit: 3 }], pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }, headerFooter: { oddFooter: "&Lmulticalci.com&RPage &P of &N" } });
-    var rw = [2, 7, 26, 18, 30, 44, 10, 10, 16, 11];
-    rs.columns = rw.map(function (w) { return { width: w }; });
+    const rs = wb.addWorksheet("Recommendations", { views: [{ state: "frozen", ySplit: 3 }], pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }, headerFooter: { oddFooter: "&Lmulticalci.com&RPage &P of &N" } });
+    const rw = [2, 7, 26, 18, 30, 44, 10, 10, 16, 12, 11];
+    rs.columns = rw.map((w) => ({ width: w }));
     rs.getCell("B1").value = "Recommendations: " + (s.title || "Untitled study"); rs.getCell("B1").font = { name: "Arial", size: 12, bold: true };
-    ["No.", "Node", "Deviation", "Cause", "Recommendation", "Risk", "Risk after", "Action by", "Status"].forEach(function (t, i) { var c = rs.getCell(3, i + 2); c.value = t; c.font = B10; c.border = box; });
-    var rr = 4;
-    allRecs().forEach(function (x, i) {
-      var v = ["R-" + String(i + 1).padStart(2, "0"), (x.ni + 1) + ". " + x.n.name, x.r.g === "Others" ? x.r.p : x.r.g + " " + x.r.p.toLowerCase(), x.r.cause, x.r.rec, RANKL[rank(x.r.s, x.r.l)] || "", RANKL[rank(x.r.s, l2of(x.r))] || "", x.r.owner || "", x.r.status || "Open"];
-      var mx = 1;
-      v.forEach(function (t, k) { var c = rs.getCell(rr, k + 2); c.value = t || null; c.font = F10; c.border = box; c.alignment = wrap; mx = Math.max(mx, lines(t, rw[k + 1])); });
+    ["No.", "Node", "Deviation", "Cause", "Recommendation", "Risk", "Risk after", "Action by", "Target date", "Status"].forEach((t, i) => { const c = rs.getCell(3, i + 2); c.value = t; c.font = B10; c.border = box; });
+    let rr = 4;
+    allRecs().forEach((x) => {
+      const v = ["R-" + String(x.no).padStart(2, "0"), (x.ni + 1) + ". " + x.n.name, devName(x.r), x.r.cause, x.r.rec, RANKL[rank(x.r.s, x.r.l)] || "", RANKL[rank(x.r.s, l2of(x.r))] || "", x.r.owner || "", x.r.due || "", x.r.status || "Open"];
+      let mx = 1;
+      v.forEach((t, k) => { const c = rs.getCell(rr, k + 2); c.value = t || null; c.font = F10; c.border = box; c.alignment = wrap; mx = Math.max(mx, lines(t, rw[k + 1])); });
       if (mx > 1) rs.getRow(rr).height = 12.75 * mx + 2;
       rr++;
     });
 
-    var bs = wb.addWorksheet("Node basis", { headerFooter: { oddFooter: "&Lmulticalci.com" } });
-    var bw = [2, 30, 22, 26, 14, 60, 36];
-    bs.columns = bw.map(function (w) { return { width: w }; });
+    const bs = wb.addWorksheet("Node basis", { headerFooter: { oddFooter: "&Lmulticalci.com" } });
+    const bw = [2, 30, 18, 22, 26, 14, 60, 36];
+    bs.columns = bw.map((w) => ({ width: w }));
     bs.getCell("B1").value = "Node basis: " + (s.title || "Untitled study"); bs.getCell("B1").font = { name: "Arial", size: 12, bold: true };
-    ["Node", "Equipment", "Fluid hazard", "Phase", "Features and safeguards selected", "Design intent"].forEach(function (t, i) { var c = bs.getCell(3, i + 2); c.value = t; c.font = B10; c.border = box; });
-    state.nodes.forEach(function (n, i) {
-      var v = ["Node-" + (i + 1) + ": " + n.name, EQMAP[n.eq].l, (n.fluids || []).map(fluidShort).join(", "), (L.PHASES.filter(function (p) { return p.id === n.phase; })[0] || {}).l || "",
-        (n.feats || []).map(function (f) { return L.FEAT[f] ? L.FEAT[f].l : f; }).join("; "), n.intent || ""];
-      var mx = 1;
-      v.forEach(function (t, k) { var c = bs.getCell(4 + i, k + 2); c.value = t || null; c.font = F10; c.border = box; c.alignment = wrap; mx = Math.max(mx, lines(t, bw[k + 1])); });
+    ["Node", "Drawing / P&ID", "Equipment", "Fluid hazard", "Phase", "Features and safeguards selected", "Design intent"].forEach((t, i) => { const c = bs.getCell(3, i + 2); c.value = t; c.font = B10; c.border = box; });
+    state.nodes.forEach((n, i) => {
+      const v = ["Node-" + (i + 1) + ": " + n.name, n.dwg || "", (EQMAP[n.eq] || { l: n.eq }).l, (n.fluids || []).map(fluidShort).join(", "), phaseLabel(n.phase),
+        (n.feats || []).map((f) => (L.FEAT[f] ? L.FEAT[f].l : f)).join("; "), n.intent || ""];
+      let mx = 1;
+      v.forEach((t, k) => { const c = bs.getCell(4 + i, k + 2); c.value = t || null; c.font = F10; c.border = box; c.alignment = wrap; mx = Math.max(mx, lines(t, bw[k + 1])); });
       if (mx > 1) bs.getRow(4 + i).height = 12.75 * mx + 2;
     });
-    var noteRow = 6 + state.nodes.length;
+    const noteRow = 6 + state.nodes.length;
     bs.getCell(noteRow, 2).value = "Draft prepared with the multicalci.com HAZOP worksheet (library version " + L.version + "). Cause frequencies are typical generic values; the HAZOP team is to confirm all entries.";
     bs.getCell(noteRow, 2).font = { name: "Arial", size: 9, italic: true };
     return wb;
   }
   function exportExcel() {
     if (!state.nodes.length) { toast("Add a node before exporting."); return; }
-    toast("Preparing the Excel file...");
-    loadExcelJS().then(function (ExcelJS) {
-      return buildWorkbook(ExcelJS).xlsx.writeBuffer();
-    }).then(function (buf) {
+    toast("Preparing the Excel file…");
+    loadExcelJS().then((ExcelJS) => buildWorkbook(ExcelJS).xlsx.writeBuffer()).then((buf) => {
       download(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "HAZOP_" + fileSafe(state.study.title) + ".xlsx");
-      toast("Excel file downloaded.");
-    }).catch(function () { toast("The Excel export needs an internet connection to load. Check your connection and try again."); });
+      ui.exported = true; renderProgress();
+      toast("Excel file downloaded: worksheet, recommendations and node basis.");
+    }).catch(() => { toast("The Excel export needs an internet connection to load. Check your connection and try again."); });
   }
 
   /* ---------------- example ---------------- */
   function loadExample(btn) {
-    var a = { id: uid(), name: "P-101 A/B naphtha transfer pumps from T-101 to column feed", intent: "Transfer 40 m3/h naphtha at 8 barg to column C-201 feed", eq: "pump",
+    const a = { id: uid(), name: "P-101 A/B naphtha transfer pumps from T-101 to column feed", intent: "Transfer 40 m3/h naphtha at 8 barg to column C-201 feed", dwg: "101-PR-002", eq: "pump",
       fluids: ["flammable"], phase: "liquid", feats: ["standby", "strainer", "pi", "fic", "nrv", "drains", "sop"], rows: [] };
-    var b = { id: uid(), name: "T-101 naphtha day tank", intent: "Store naphtha at atmospheric pressure, 500 m3 working volume", eq: "tank",
+    const b = { id: uid(), name: "T-101 naphtha day tank", intent: "Store naphtha at atmospheric pressure, 500 m3 working volume", dwg: "101-PR-001", eq: "tank",
       fluids: ["flammable", "env"], phase: "liquid", feats: ["lg", "lic", "lah", "pvrv", "dike", "sop"], rows: [] };
-    if (btn) busy(btn, "Opening...");
-    Promise.all([buildRows(a), buildRows(b)]).then(function (r) {
-      a.rows = r[0]; b.rows = r[1];
-      state = blank(); state.study.title = "Naphtha transfer system (example)"; state.study.ref = "P&ID 101-PR-001";
-      state.nodes = [b, a]; state.cur = b.id; ui.tab = "ws";
-      renderAll(); toast("Example study opened. Edit anything, or start your own with New.");
-    }, function (e) { if (btn) busy(btn, null); toast(e.message); });
+    const go = () => {
+      if (btn) busy(btn, "Opening…");
+      Promise.all([buildRows(a), buildRows(b)]).then((r) => {
+        a.rows = r[0]; b.rows = r[1];
+        state = blank(); state.study.title = "Naphtha transfer system (example)"; state.study.ref = "P&ID 101-PR-001";
+        state.nodes = [b, a]; state.cur = b.id; Object.assign(ui, { tab: "ws", filter: "all", q: "", col: {}, rrNode: "all", rrStatus: "all", exported: false });
+        renderAll(); window.scrollTo(0, 0); toast("Example study opened. Edit anything, or start your own with New.");
+      }, (e) => { if (btn) busy(btn, null); toast(e.message); });
+    };
+    if (state.nodes.length) confirmBox("Open the example study?", "It replaces the study in this browser. Use Save file first if you want to keep it.", "Open example").then((ok) => { if (ok) go(); });
+    else go();
   }
 
   /* ---------------- start ---------------- */
   function loading(msg, retry) {
-    renderBar();
-    $("#rail").innerHTML = "";
+    $("#shell").classList.add("empty");
     $("#main").innerHTML = '<div class="welcome"><p>' + esc(msg) + "</p>" + (retry ? '<button class="btn primary" id="retryMeta">Try again</button>' : "") + "</div>";
     if (retry) $("#retryMeta").addEventListener("click", start);
   }
   function start() {
-    var cached = null;
+    let cached = null;
     try { cached = JSON.parse(localStorage.getItem(META_KEY) || "null"); } catch (e) { cached = null; }
-    if (cached && cached.EQ) { setMeta(cached); renderAll(); } else loading("Loading the HAZOP library...");
-    api("meta").then(function (m) {
+    if (cached && cached.EQ) { setMeta(cached); renderAll(); } else loading("Loading the HAZOP library…");
+    api("meta").then((m) => {
       try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) { /* storage unavailable */ }
-      var changed = !cached || cached.version !== m.version || JSON.stringify(cached) !== JSON.stringify(m);
+      const changed = !cached || cached.version !== m.version || JSON.stringify(cached) !== JSON.stringify(m);
       setMeta(m); if (changed) renderAll();
-    }, function (e) {
+    }, (e) => {
       if (!cached) loading(e.message, true);
-      else toast("Working offline: you can edit and export this study, but building new rows needs a connection.");
+      else toast("Working offline: you can edit and export this study, but drafting new rows needs a connection.");
     });
   }
+  renderBar();
   bind();
   start();
-  window.HZAPP = { state: function () { return state; } };
+  window.HZAPP = { state: () => state };
 })();
-
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
