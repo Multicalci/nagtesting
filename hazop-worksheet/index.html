@@ -309,6 +309,11 @@ button.mxc:hover { filter: brightness(1.08); outline: 2px dashed var(--ink); out
 .overlay { position: fixed; inset: 0; background: rgba(23, 36, 46, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 4vh 16px; z-index: 50; overflow-y: auto; }
 .dialog { background: var(--sheet); border-radius: 6px; width: min(940px, 100%); min-width: 0; box-shadow: 0 18px 50px rgba(23, 36, 46, 0.28); display: flex; flex-direction: column; }
 .dialog.sm { width: min(440px, 100%); }
+.dialog.nudge { animation: nudge .35s ease-out; }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+body.modal-open { overflow: hidden; }
+.discard { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 4px; padding: 8px 12px; background: var(--flag-soft); border: 1px solid #ecd27a; border-radius: 5px; font-size: 13.5px; }
+.discard span { margin-right: auto; }
 .dialog header { padding: 16px 22px 8px; display: flex; align-items: center; gap: 10px; }
 .dialog header h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .dialog header .icon-btn { margin-left: auto; }
@@ -1077,15 +1082,32 @@ button.mxc:hover { filter: brightness(1.08); outline: 2px dashed var(--ink); out
   }
 
   /* ---------------- dialogs ---------------- */
-  function openOverlay(html, cls) {
+  /* opts.sticky: a click outside the window never closes it (forms with typed data).
+     opts.guard(): called before Esc closes the window; return false to keep it open. */
+  function openOverlay(html, cls, opts) {
+    opts = opts || {};
     const ov = document.createElement("div"); ov.className = "overlay";
     ov.innerHTML = '<div class="dialog ' + (cls || "") + '" role="dialog" aria-modal="true">' + html + "</div>";
     document.body.appendChild(ov);
-    const prev = document.activeElement;
-    function close() { ov.remove(); document.removeEventListener("keydown", onKey); if (prev && prev.focus) prev.focus(); }
-    function onKey(e) { if (e.key === "Escape") close(); }
+    document.body.classList.add("modal-open");
+    const prev = document.activeElement, box = ov.firstChild;
+    function close() {
+      ov.remove(); document.removeEventListener("keydown", onKey);
+      if (!$(".overlay")) document.body.classList.remove("modal-open");
+      if (prev && prev.focus) prev.focus();
+    }
+    function onKey(e) {
+      if (e.key !== "Escape" || $$(".overlay").pop() !== ov) return;   /* only the top window reacts */
+      if (opts.guard && !opts.guard()) return;
+      close();
+    }
     document.addEventListener("keydown", onKey);
-    ov.addEventListener("mousedown", (e) => { if (e.target === ov) close(); });
+    ov.addEventListener("mousedown", (e) => {
+      if (e.target !== ov) return;
+      if (e.clientX >= ov.clientWidth || e.clientY >= ov.clientHeight) return;   /* click on the scrollbar */
+      if (opts.sticky) { box.classList.remove("nudge"); void box.offsetWidth; box.classList.add("nudge"); return; }
+      close();
+    });
     return { el: ov, close: close };
   }
   function confirmBox(title, msg, ok) {
@@ -1121,8 +1143,16 @@ button.mxc:hover { filter: brightness(1.08); outline: 2px dashed var(--ink); out
       L.PHASES.map((p) => '<button type="button" data-ph="' + p.id + '" aria-pressed="' + (d.phase === p.id) + '">' + esc(p.l) + "</button>").join("") + "</div></section>" +
       '<section class="pane" data-pane="4"><div id="featBox"></div></section>' +
       '<div class="err" id="nErr" role="alert"></div></div>' +
-      '<footer><span class="left" id="nLeft"></span><button class="btn" data-c="cancel">Cancel</button><button class="btn" data-c="back">Back</button><button class="btn" data-c="next">Next</button><button class="btn primary" data-c="ok">' + (editing ? "Save node" : "Create worksheet") + "</button></footer>";
-    const dlg = openOverlay(html);
+      '<footer>' + '<div class="discard" id="nDiscard" role="alertdialog" aria-label="Discard changes" hidden><span>' + (editing ? "Close without saving your changes?" : "Discard this node? What you entered will be lost.") + '</span>' +
+      '<button class="btn small" data-c="keep">Keep editing</button><button class="btn small danger" data-c="discard">' + (editing ? "Close without saving" : "Discard") + "</button></div>" + '<span class="left" id="nLeft"></span><button class="btn" data-c="cancel">Cancel</button><button class="btn" data-c="back">Back</button><button class="btn" data-c="next">Next</button><button class="btn primary" data-c="ok">' + (editing ? "Save node" : "Create worksheet") + "</button></footer>";
+    const start = JSON.stringify([d.name, d.intent, d.dwg, d.eq, d.fluids, d.phase, d.feats]);
+    const dirty = () => JSON.stringify([d.name, d.intent, d.dwg, d.eq, d.fluids, d.phase, d.feats]) !== start;
+    const askDiscard = () => {
+      if (!dirty()) return true;
+      const bar = $("#nDiscard", el); bar.hidden = false; $('[data-c="keep"]', bar).focus();
+      return false;
+    };
+    const dlg = openOverlay(html, "", { sticky: true, guard: askDiscard });
     const el = dlg.el;
     function cfgChanged() { return JSON.stringify([d.eq, d.fluids.slice().sort(), d.phase, d.feats.slice().sort()]) !== orig; }
     function drawFeats() {
@@ -1202,7 +1232,9 @@ button.mxc:hover { filter: brightness(1.08); outline: 2px dashed var(--ink); out
         $("#nErr", el).textContent = ""; if (editing) updLeft();
       } else if (t.dataset.ph) {
         d.phase = t.dataset.ph; $$("[data-ph]", el).forEach((b) => { b.setAttribute("aria-pressed", b.dataset.ph === d.phase); }); if (editing) updLeft();
-      } else if (t.dataset.c === "cancel") dlg.close();
+      } else if (t.dataset.c === "cancel") { if (askDiscard()) dlg.close(); }
+      else if (t.dataset.c === "keep") { $("#nDiscard", el).hidden = true; }
+      else if (t.dataset.c === "discard") dlg.close();
       else if (t.dataset.c === "back") show(Math.max(1, step - 1));
       else if (t.dataset.c === "next") go(Math.min(4, step + 1));
       else if (t.dataset.c === "ok") {
