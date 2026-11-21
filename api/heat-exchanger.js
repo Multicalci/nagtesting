@@ -86,7 +86,7 @@ export const config = { api: { bodyParser: true } };
 // Build marker — returned on every response as `apiBuild`, and on its own via
 // {"calcType":"version"}. Lets you confirm which copy of this file Vercel is
 // actually serving without reading the logs.
-const API_BUILD = '2026-11-audit-r4';
+const API_BUILD = '2026-11-audit-r5';
 
 // Status = worst of the calculator's own checks and the severity of every
 // message it returns (✗ fails, ⚠ check, ℹ note). Keeps the verdict and the
@@ -101,10 +101,136 @@ function finalizeStatus(st, warns) {
   const out = ['ok', 'warn', 'err'][lvl];
   return { st: out, stTxt: out === 'err' ? '✗ Design fails' : out === 'warn' ? '⚠ Check warnings' : '✓ Design acceptable' };
 }
+// ─── INPUT RANGE GUARD (NEW 2026-11, r5) ────────────────────────────────────
+// Rejects physically impossible inputs with a plain 400 message that names the
+// field the way the form labels it. Before this, a zero or negative geometry
+// value (plate gap 0, pitch ratio −1, tube length 0 …) went straight into the
+// correlations and came back as NaN or a negative area with HTTP 200, and a
+// non-text fluid key crashed with a 500. Zeros that the form uses to mean
+// "automatic" (number of tubes, plates, hairpins, port size, allowable ΔP) are
+// still accepted. Runs after unit normalisation, so limits are in SI / mm.
+const FLUID_KEY_FIELDS = ['hFlKey', 'cFlKey', 'flKey', 'tFlKey'];
+const TEMP_FIELDS = ['hTi', 'hTo', 'cTi', 'cTo', 'Ti', 'To', 'Tamb', 'tTi', 'tTo', 'aTamb', 'aTout'];
+function validateInputs(calcType, b) {
+  for (const f of FLUID_KEY_FIELDS) {
+    if (b[f] == null || b[f] === '') continue;
+    const k = String(b[f]).toLowerCase().trim();
+    if (!FP[k]) throw new Error(`Unknown fluid "${String(b[f]).slice(0, 40)}" — choose a fluid from the list.`);
+    b[f] = k;
+  }
+  const num = k => { const v = b[k]; if (v == null || v === '') return null; const x = parseFloat(v); return isFinite(x) ? x : NaN; };
+  // range(key, label, lo, hi, unit, {zeroOk}) — zeroOk: 0 means "automatic / default"
+  const range = (k, label, lo, hi, unit = '', o = {}) => {
+    const x = num(k);
+    if (x == null || (o.zeroOk && x === 0)) return;
+    if (Number.isNaN(x)) throw new Error(`${label} must be a number.`);
+    if (x < lo || x > hi) throw new Error(`${label} must be between ${lo} and ${hi}${unit ? ' ' + unit : ''} — ${+x.toPrecision(4)} was entered.`);
+  };
+  for (const k of TEMP_FIELDS) {
+    const x = num(k);
+    if (x == null) continue;
+    if (Number.isNaN(x)) throw new Error(`Temperature ${k} must be a number.`);
+    if (x <= -273.15) throw new Error('A temperature below absolute zero (−273.15 °C) was entered.');
+    if (x > 1500) throw new Error('Temperatures above 1500 °C are outside the range of this tool.');
+  }
+  for (const k of ['hPop', 'cPop', 'Pop', 'tPop', 'aPop']) range(k, 'Operating pressure', 0, 1000, 'bar a');
+  const fouling = (k, label) => range(k, label, 0, 0.01, 'm²K/W');
+  const pdAllow = (k, label) => range(k, label, 0, 50, 'bar');
+  switch (calcType) {
+    case 'shellTube': {
+      range('OD', 'Tube outer diameter', 6, 80, 'mm');
+      range('tw', 'Tube wall thickness', 0.2, 15, 'mm');
+      const od = num('OD'), tw = num('tw');
+      if (od > 0 && tw > 0 && 2 * tw >= od) throw new Error('Tube wall thickness is too large for this tube OD (the tube would have no bore).');
+      range('L', 'Tube length', 0.5, 25, 'm');
+      range('pitch', 'Pitch / OD ratio', 1.15, 3, '');
+      range('bcut', 'Baffle cut', 0.15, 0.45, '(fraction of shell ID, i.e. 15–45 %)');
+      range('bsp', 'Baffle spacing', 0.1, 2, '× shell ID');
+      fouling('Rfo', 'Shell-side fouling'); fouling('Rfi', 'Tube-side fouling');
+      range('targetVel', 'Target tube velocity', 0.05, 50, 'm/s');
+      pdAllow('pdAllowShell', 'Allowable shell ΔP'); pdAllow('pdAllowTube', 'Allowable tube ΔP');
+      range('numTubesFixed', 'Number of tubes', 1, 20000, '', { zeroOk: true });
+      range('L_max', 'Maximum tube length', 0.5, 25, 'm');
+      range('shell_OD_max', 'Maximum shell OD', 50, 6000, 'mm');
+      range('cF', 'Cold flow', 0, 1e9, '');
+      break;
+    }
+    case 'plate': case 'plateRecommend': {
+      range('th', 'Plate thickness', 0.2, 3, 'mm');
+      range('angle', 'Chevron angle', 15, 75, '°');
+      range('gap', 'Channel gap', 1, 15, 'mm');
+      range('pw', 'Plate width', 50, 3000, 'mm');
+      range('plen', 'Plate length', 100, 6000, 'mm');
+      range('phi', 'Area enlargement factor φ', 1, 1.6, '');
+      fouling('foul', 'Fouling resistance');
+      range('nPlates', 'Number of plates', 4, 2000, '', { zeroOk: true });
+      range('portDia', 'Port diameter', 10, 1000, 'mm', { zeroOk: true });
+      pdAllow('pdAllowH', 'Allowable hot-side ΔP'); pdAllow('pdAllowC', 'Allowable cold-side ΔP');
+      range('cF', 'Cold flow', 0, 1e9, '');
+      break;
+    }
+    case 'airCooled': {
+      range('tubeOD', 'Tube OD', 10, 80, 'mm'); range('tubeID', 'Tube ID', 3, 79, 'mm');
+      range('finH', 'Fin height', 3, 40, 'mm'); range('finThk', 'Fin thickness', 0.1, 3, 'mm');
+      range('finDens', 'Fin density', 100, 800, 'fins/m'); range('pitchT', 'Transverse tube pitch', 20, 200, 'mm');
+      range('rows', 'Number of tube rows', 1, 12, ''); range('nTubes', 'Number of tubes', 1, 5000, '');
+      range('nPasses', 'Number of tube passes', 1, 20, ''); range('tubeLen', 'Tube length', 1, 20, 'm');
+      range('Tamb', 'Ambient air temperature', -60, 60, '°C'); range('dTa', 'Design air rise', 1, 100, '°C');
+      fouling('Rfo', 'Air-side fouling'); fouling('Rfi', 'Tube-side fouling'); pdAllow('pdAllow', 'Allowable tube ΔP');
+      break;
+    }
+    case 'finFan': {
+      range('tubeOD', 'Tube OD', 10, 80, 'mm'); range('tubeID', 'Tube ID', 3, 79, 'mm');
+      range('tubeLen', 'Tube length', 1000, 20000, 'mm');
+      range('pitchT', 'Transverse pitch', 20, 200, 'mm'); range('pitchL', 'Longitudinal pitch', 15, 200, 'mm');
+      range('nRows', 'Number of tube rows', 1, 12, ''); range('nPasses', 'Number of tube passes', 1, 20, '');
+      range('nTubes', 'Tubes per bundle', 1, 5000, '');
+      range('finDensity', 'Fin density', 100, 800, 'fins/m'); range('finRoot', 'Fin root diameter', 10, 80, 'mm');
+      range('finH', 'Fin height', 3, 40, 'mm'); range('finThk', 'Fin thickness', 0.1, 3, 'mm');
+      range('nBays', 'Number of bays', 1, 50, ''); range('nBundlesPBay', 'Bundles per bay', 1, 10, '');
+      range('bundleW', 'Bundle width', 300, 6000, 'mm'); range('nFans', 'Fans per bay', 0, 20, '');
+      // fan diameter and efficiency are accepted in mm or m, % or fraction (see calcFinFan)
+      if (num('fanDia') != null && num('fanDia') !== 0) { if (num('fanDia') > 20) range('fanDia', 'Fan diameter', 500, 10000, 'mm'); else range('fanDia', 'Fan diameter', 0.5, 10, 'm'); }
+      if (num('fanEff') != null && num('fanEff') !== 0) { if (num('fanEff') > 1) range('fanEff', 'Fan efficiency', 20, 95, '%'); else range('fanEff', 'Fan efficiency', 0.2, 0.95, ''); }
+      range('driverKW', 'Driver rating', 0, 2000, 'kW', { zeroOk: true }); range('htSF', 'Heat-transfer safety factor', 0.8, 3, '');
+      range('aTamb', 'Ambient air temperature', -60, 60, '°C');
+      fouling('tFoul', 'Tube-side fouling'); fouling('aFoul', 'Air-side fouling'); pdAllow('tPdAllow', 'Allowable tube ΔP');
+      break;
+    }
+    case 'doublePipe': {
+      range('iOD', 'Inner pipe OD', 6, 600, 'mm'); range('iTW', 'Inner pipe wall thickness', 0.3, 50, 'mm');
+      range('oID', 'Outer pipe ID', 8, 1000, 'mm'); range('L', 'Hairpin leg length', 0.5, 30, 'm');
+      range('nHairpins', 'Number of hairpins', 1, 1000, '', { zeroOk: true });
+      fouling('foul', 'Fouling resistance');
+      pdAllow('pdAllowInner', 'Allowable inner-pipe ΔP'); pdAllow('pdAllowAnn', 'Allowable annulus ΔP');
+      range('cF', 'Cold flow', 0, 1e9, '');
+      break;
+    }
+    case 'lmtdNtu': {
+      range('Ch', 'Hot-side ṁ·cp', 1e-6, 1e9, 'kW/K', { zeroOk: true });
+      range('Cc', 'Cold-side ṁ·cp', 1e-6, 1e9, 'kW/K', { zeroOk: true });
+      range('UA', 'U·A', 1e-6, 1e12, 'W/K', { zeroOk: true });
+      break;
+    }
+    case 'wallThick': {
+      range('P', 'Design pressure', 0.001, 5000, 'bar g'); range('D', 'Internal diameter', 10, 20000, 'mm');
+      range('S', 'Allowable stress', 1, 1000, 'MPa'); range('E', 'Joint efficiency E', 0.3, 1, '');
+      range('CA', 'Corrosion allowance', 0, 50, 'mm'); range('MT', 'Mill under-tolerance', 0, 50, 'mm');
+      if (b.type === 'cone') range('alpha', 'Cone half-apex angle', 1, 75, '°');
+      break;
+    }
+    case 'fouling': {
+      fouling('Rf_s', 'Shell-side fouling'); fouling('Rf_t', 'Tube-side fouling');
+      range('U_cl', 'Clean U', 1, 50000, 'W/m²K');
+      break;
+    }
+  }
+}
+
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
   'https://www.multicalci.com',
-  'https://www.multicalci.com',
+  'https://multicalci.com',
   'http://localhost:3000',
   'http://localhost:5173',
   // Add your Vercel preview URL here, e.g.:
@@ -159,6 +285,8 @@ async function heatxpert_handler(req, res) {
         if (body[k] != null && isFinite(parseFloat(body[k]))) body[k] = parseFloat(body[k]) * 0.0689476;
       });
     }
+    // r5: reject impossible inputs (and unknown fluids) before any unit/flow conversion uses them
+    validateInputs(calcType, body);
     if (body.hFunit && body.hFunit !== 'kgh')
       body.hF = toSI_flowWithUnit(body.hF, body.hFunit, body.hFlKey, body.hTi, body.hPop);
     if (body.cFunit && body.cFunit !== 'kgh')
@@ -666,8 +794,16 @@ function calcSaturation(b) {
   };
 }
 
+// FIX 2026-11 (r5): water/steam latent heat from steam-table values (IAPWS-IF97
+// saturation, kJ/kg). The Watson extrapolation from 100 °C read 0.4 % low at
+// 2 bar a (2192 vs 2201.6 kJ/kg) and 2–3 % low at 15–40 bar, which carried
+// straight into condenser and reboiler duties.
+const HVAP_WATER = [[0.01, 2500.9], [20, 2453.5], [40, 2406.0], [60, 2357.7], [80, 2308.0], [100, 2256.4], [120, 2202.1],
+  [140, 2144.3], [160, 2082.0], [180, 2014.2], [200, 1939.8], [220, 1858.0], [240, 1765.4], [260, 1661.6], [280, 1543.2],
+  [300, 1404.8], [320, 1238.4], [340, 1027.7], [360, 720.0], [373.95, 0]];
 function hvapAtT(fluidKey, T_degC) {
   const key = (fluidKey || '').toLowerCase().trim();
+  if ((key === 'water' || key === 'steam') && isFinite(T_degC)) return interpProp(HVAP_WATER, T_degC, 2257);
   const f = FP[key] || FP[LIQUID_OF[key]] || FP[VAPOUR_OF[key]];
   if (!f || !f.hvap) return 2257;                 // steam default, kJ/kg
   if (!f.Tc || f.Tsat == null) return f.hvap;
@@ -2780,6 +2916,8 @@ function calcShellTubeCore(b) {
     // Horizontal in-tube boiling stratifies at low mass flux, leaving the upper
     // wall dry; the flow-boiling correlation then over-predicts h.
     const G_tube = massC / (nTubesPerPass_final * A_tube);
+    // r5: the single-phase velocity target does not apply to boiling in tubes
+    warns.push(`ℹ Boiling in the tubes: the liquid inlet velocity (${tubeVel.toFixed(2)} m/s) is not a design target here — the boiling correlation works from the mass flux, ${G_tube.toFixed(0)} kg/m²s.`);
     if (G_tube < 50) warns.push(`⚠ Tube-side mass flux ${G_tube.toFixed(0)} kg/m²s is low for boiling in horizontal tubes — stratified flow is likely and the boiling coefficient may be optimistic. Use more tube passes (typically 75–300 kg/m²s).`);
   }
   if (tubeDp > pdAllowTube)   warns.push(`✗ Tube ΔP ${tubeDp.toFixed(3)} bar exceeds the allowable ${pdAllowTube} bar — reduce passes or tube velocity.`);
@@ -2890,7 +3028,8 @@ function calcShellTubeCore(b) {
   // ═══════════════════════════════════════════════════════════════════════════
   let designAdvisor = null;
 
-  if (velMode !== 'fixedtubes' && numTubes_final > numTubes_geo && tubeVel < targetVel * 0.9) {
+  // r5: not for boiling in the tubes — the liquid inlet velocity is not a design target there
+  if (velMode !== 'fixedtubes' && shellMode !== 'evaporating' && numTubes_final > numTubes_geo && tubeVel < targetVel * 0.9) {
 
     // Standard TEMA tube lengths (m) — sorted ascending
     const TEMA_LENGTHS = [1.83, 2.44, 3.05, 3.66, 4.27, 4.88, 6.10];
@@ -3578,13 +3717,22 @@ function calcAirCooled(b) {
   const A_bareOD = Math.PI * tubeOD * tubeLen * nTubes;
   const A_inside = Math.PI * tubeID * tubeLen * nTubes;
   const nTPP = nTubes / nPasses;
-  const tubeRes = calcHtube(tubeFluid, (F_kgh / 3600) / nTPP, tubeID, tubeLen);
   const Ao_Ai  = A_total / A_inside;
   const Rw_ext = (tubeOD / 2) * Math.log(tubeOD / tubeID) / kTube * (A_total / A_bareOD);
+  // Resistances outside the tube-side film (extended-area basis)
+  const R_outer = Ao_Ai * Rfi + Rw_ext + Rfo / A.eta0 + 1 / (A.eta0 * A.h);
+  // FIX 2026-11 (r5): Sieder–Tate (μ/μw)^0.14 on the tube side, as in the shell &
+  // tube and double-pipe tabs. Inner-wall temperature from the resistance split
+  // between the mean process and mean air temperatures (one pass is enough).
+  const mPerTube = (F_kgh / 3600) / nTPP;
+  const tubeRes0 = calcHtube(tubeFluid, mPerTube, tubeID, tubeLen);
+  const Rfilm0 = Ao_Ai / tubeRes0.h, T_proc = (Ti + To) / 2, T_airM = Tamb + dTa / 2;
+  const T_wallIn = T_proc - (T_proc - T_airM) * Rfilm0 / (Rfilm0 + R_outer);
+  const tubeRes = calcHtube(tubeFluid, mPerTube, tubeID, tubeLen, fluidAtConditions(flKey, T_wallIn, Pop).mu);
   // Overall U on the extended-surface basis.
   // FIX 2026-10: air-side fouling was multiplied by Ao/Ai (≈20× too large) and
   // tube-side fouling and wall resistance were missing.
-  const U = 1 / (Ao_Ai / tubeRes.h + Ao_Ai * Rfi + Rw_ext + Rfo / A.eta0 + 1 / (A.eta0 * A.h));
+  const U = 1 / (Ao_Ai / tubeRes.h + R_outer);
   const h_eff = A.eta0 * A.h;
 
   const lmtdRes = calcLMTD(Ti, To, Tamb, TairOut, 'cross1', nPasses);
@@ -3615,6 +3763,7 @@ function calcAirCooled(b) {
   if (A.eta_fin < 0.6) warns.push(`⚠ Fin efficiency ${(A.eta_fin * 100).toFixed(0)} % is low — use thinner/shorter fins or a higher-conductivity fin material.`);
   if (tubeRes.Re < 2300) warns.push(`⚠ Tube-side flow is laminar (Re ${tubeRes.Re.toFixed(0)}) — add tube passes to raise velocity.`);
   if (A.Re < 1100 || A.Re > 18000) warns.push(`ℹ Air-side Re ${A.Re.toFixed(0)} is outside the Briggs & Young data range (1,100–18,000).`);
+  if (Math.abs(nTubesPerRow - Math.round(nTubesPerRow)) > 1e-6) warns.push(`ℹ ${nTubes} tubes in ${nRows} rows is not a whole number per row (${nTubesPerRow.toFixed(2)}) — the face width and air-side flow area use this average.`);
   warns.push('ℹ Fan power assumes 65 % fan efficiency; bundle ΔP from Robinson & Briggs.');
   { const n = phaseStateNote(flKey, Ti, To, Pop, 'Process side'); if (n) warns.push(n); }
   const { st, stTxt } = finalizeStatus(overDesign < 0 || dpTube > pdAllow ? 'err' : (overDesign < 5 || ApproachTemp < 15 || v_face > 4) ? 'warn' : 'ok', warns);
@@ -3691,9 +3840,13 @@ function calcDoublePipe(b) {
   const Pr_ann=Math.max(cFluid.mu*1e-3*cFluid.cp*1000/cFluid.k,0.5);
   const cFluidWall_ann = fluidAtConditions(cFlKey, (cTmean+hTmean)/2, cPop);
   const phi_ann = Math.max(0.5, Math.min(Math.pow(Math.max(cFluid.mu / Math.max(cFluidWall_ann.mu, 0.001), 0.1), 0.14), 2.0));
+  // FIX 2026-11 (r5): the inner pipe now gets the same Sieder–Tate (μ/μw)^0.14
+  // wall-viscosity correction as the annulus (it had none — non-conservative
+  // for a viscous hot stream being cooled, where μw > μ).
+  const muWall_inner = fluidAtConditions(hFlKey, (cTmean+hTmean)/2, hPop).mu;
   function evalHairpins(nHairpins) {
     const L_total=L*nHairpins*2;
-    const htInner=calcHtube(hFluid,hF/3600,iID,L_total);
+    const htInner=calcHtube(hFluid,hF/3600,iID,L_total,muWall_inner);
     // Annulus: Gnielinski with the Petukhov–Roizen inner-wall factor
     // 0.86·(Di/Do)^−0.16 (turbulent); Sieder–Tate per leg (laminar).
     let Nu_ann;
@@ -3835,15 +3988,21 @@ function calcFinFan(b) {
   // Tube side — flow split across every bay and bundle
   const nTubesPerPass = Math.max(1, Math.round(nTubes / nPasses));
   const massPerTube = tF_kgs / (nTubesPerPass * nParallel);
-  const tRes = calcHtube(tFluid, massPerTube, tubeID, tubeLen);
-  const h_tube = tRes.h;
   const Ao_per_Ai = A_extended / A_inside;
   const Rw_ext = (tubeOD / 2) * Math.log(tubeOD / tubeID) / kTube * areaRatio;
-  const R_tube_film = Ao_per_Ai / h_tube;
   const R_foul_tube = Ao_per_Ai * tFoul;
   const R_wall_val  = Rw_ext;
   const R_foul_air  = aFoul / A.eta0;
   const R_air_film  = 1 / (A.eta0 * A.h);
+  // FIX 2026-11 (r5): Sieder–Tate (μ/μw)^0.14 on the tube side (it was omitted
+  // here but applied in the shell & tube tab — non-conservative when a viscous
+  // liquid is cooled). Inner-wall temperature from the resistance split.
+  const tRes0 = calcHtube(tFluid, massPerTube, tubeID, tubeLen);
+  const Rf0 = Ao_per_Ai / tRes0.h, R_out = R_foul_tube + R_wall_val + R_foul_air + R_air_film;
+  const T_wallIn = tTmean - (tTmean - aTmean) * Rf0 / (Rf0 + R_out);
+  const tRes = calcHtube(tFluid, massPerTube, tubeID, tubeLen, fluidAtConditions(tFlKey, T_wallIn, tPop).mu);
+  const h_tube = tRes.h;
+  const R_tube_film = Ao_per_Ai / h_tube;
   const R_total = R_tube_film + R_foul_tube + R_wall_val + R_foul_air + R_air_film;
   const U_ext   = 1 / R_total;
   const h_clean = 1 / (R_tube_film + R_wall_val + R_air_film);
@@ -3894,6 +4053,7 @@ function calcFinFan(b) {
   if (A.eta_fin < 0.6) warns.push(`⚠ Fin efficiency ${(A.eta_fin * 100).toFixed(0)} % is low.`);
   if (tRes.Re < 2300) warns.push(`⚠ Tube-side flow is laminar (Re ${tRes.Re.toFixed(0)}) — add tube passes.`);
   if (A.Re < 1100 || A.Re > 18000) warns.push(`ℹ Air-side Re ${A.Re.toFixed(0)} is outside the Briggs & Young data range (1,100–18,000).`);
+  if (Math.abs(nTubesPerRow - Math.round(nTubesPerRow)) > 1e-6) warns.push(`ℹ ${nTubes} tubes in ${nRows} rows is not a whole number per row (${nTubesPerRow.toFixed(2)}) — the face width and air-side flow area use this average.`);
   if (tubeLayout === 'inline') warns.push('ℹ Robinson & Briggs ΔP is for staggered banks — in-line air ΔP is approximate.');
   { const n = phaseStateNote(tFlKey, tTi, tTo, tPop, 'Tube side'); if (n) warns.push(n); }
   { const wRow = nTubesPerRow * pitchT;   // bundle width implied by the tube layout
