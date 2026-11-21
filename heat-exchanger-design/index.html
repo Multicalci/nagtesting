@@ -302,6 +302,8 @@ body{
   font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:10px;
   background:var(--teal-lt);color:var(--teal);border:1px solid rgba(0,143,118,.2);
   text-transform:uppercase;letter-spacing:.5px;margin-left:6px;vertical-align:middle;
+  /* the title's gradient text sets text-fill to transparent, which the badge inherited (empty pill) */
+  -webkit-text-fill-color:var(--teal);
 }
 
 .hdr-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -368,6 +370,7 @@ body{
 
 /* ══════ TWO-COL LAYOUT ══════ */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two-col>*{min-width:0} /* r5: stop wide content (tables, formulas) stretching a column past a phone screen */
 @media(max-width:1100px){.two-col{grid-template-columns:1fr}}
 
 /* ══════ CARD ══════ */
@@ -707,9 +710,13 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 .tip::after{
   content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
   background:#1a2035;color:#fff;padding:5px 10px;border-radius:6px;font-size:.72rem;font-weight:500;
-  white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;font-family:var(--sans);
+  pointer-events:none;z-index:100;font-family:var(--sans);
+  /* r5: hidden tooltips were laid out at full nowrap width, which gave the page a
+     sideways scroll on phones (and long tips ran off-screen); now wrapped and
+     only laid out while hovered */
+  display:none;white-space:normal;width:max-content;max-width:min(300px,80vw);line-height:1.4;text-transform:none;letter-spacing:0;
 }
-.tip:hover::after{opacity:1}
+.tip:hover::after{display:block}
 
 /* ══════ QUICK GUIDE ══════ */
 .quick-guide{
@@ -2944,12 +2951,11 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
         </div>
         <div class="fg"><label class="tip" data-tip="Picking a material fills in the allowable stress. Typing your own stress switches this to Custom. The stress box is what the calculation uses.">Material</label>
           <select id="wt_mat" onchange="onWtMatChange()">
-            <option value="138">SA-516-70 / P265GH (138 MPa @ 200°C)</option>
-            <option value="118">SA-516-60 (118 MPa)</option>
-            <option value="130">SA-516-65 (130 MPa)</option>
-            <option value="103">SA-240-304 SS / 1.4301 (103 MPa @ 200°C)</option>
-            <option value="96">SA-240-316 SS / 1.4401 (96 MPa @ 200°C)</option>
-            <option value="115">SA-36 / S235 (115 MPa @ 200°C)</option>
+            <option value="138">SA-516 Gr 70 — 138 MPa (−29 to 343 °C)</option>
+            <option value="128">SA-516 Gr 65 — 128 MPa (−29 to 343 °C)</option>
+            <option value="118">SA-516 Gr 60 — 118 MPa (−29 to 343 °C)</option>
+            <option value="138.0">SA-240 304 / 316 — 138 MPa (≤ 38 °C only)</option>
+            <option value="115">SA-240 304L / 316L — 115 MPa (≤ 38 °C only)</option>
             <option value="custom">Custom (value typed above)</option>
           </select>
         </div>
@@ -2963,20 +2969,18 @@ select{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
       <div id="wt_res" style="display:none"></div>
       <div id="wt_ph" class="placeholder"><div class="placeholder-icon">🔩</div><h3>Wall Thickness Results</h3><p>Enter vessel parameters and calculate per ASME VIII or EN 13445</p></div>
       <!-- Material reference table -->
-      <div class="sec-hd purple" style="margin-top:16px">📊 Common Material Allowable Stresses</div>
+      <div class="sec-hd purple" style="margin-top:16px">📊 Allowable Stress S — ASME II-D Table 1A (Section VIII Div. 1)</div>
       <div class="tbl-wrap"><table class="dtbl">
-        <thead><tr><th>Material</th><th>Code</th><th>S @ 200°C (MPa)</th><th>S @ 300°C (MPa)</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Material (plate)</th><th>Min. UTS / YS (MPa)</th><th>S (MPa)</th><th>Valid up to</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td class="lbl-col">SA-516-70 / P265GH</td><td>ASME/EN</td><td>138</td><td>127</td><td>Most common vessel steel</td></tr>
-          <tr><td class="lbl-col">SA-516-60 / P245GH</td><td>ASME/EN</td><td>118</td><td>109</td><td>Lower strength grade</td></tr>
-          <tr><td class="lbl-col">SA-240-304 / 1.4301</td><td>ASME/EN</td><td>103</td><td>94</td><td>Austenitic SS, corrosion resistance</td></tr>
-          <tr><td class="lbl-col">SA-240-316L / 1.4404</td><td>ASME/EN</td><td>96</td><td>88</td><td>SS with Mo for chloride resistance</td></tr>
-          <tr><td class="lbl-col">SA-240-317L / 1.4438</td><td>ASME/EN</td><td>100</td><td>92</td><td>High Mo SS</td></tr>
-          <tr><td class="lbl-col">SA-516-70 HT / P355GH</td><td>ASME/EN</td><td>172</td><td>161</td><td>Higher strength, heat treated</td></tr>
-          <tr><td class="lbl-col">Titanium Gr.2 / 3.7035</td><td>ASME/EN</td><td>69</td><td>62</td><td>Excellent corrosion resistance</td></tr>
-          <tr><td class="lbl-col">Hastelloy C276 / 2.4819</td><td>ASME/EN</td><td>138</td><td>128</td><td>High-alloy for severe service</td></tr>
+          <tr><td class="lbl-col">SA-516 Gr 70</td><td>485 / 260</td><td>138</td><td>343 °C</td><td>Most common carbon-steel vessel plate (20.0 ksi)</td></tr>
+          <tr><td class="lbl-col">SA-516 Gr 65</td><td>450 / 240</td><td>128</td><td>343 °C</td><td>18.6 ksi</td></tr>
+          <tr><td class="lbl-col">SA-516 Gr 60</td><td>415 / 220</td><td>118</td><td>343 °C</td><td>17.1 ksi</td></tr>
+          <tr><td class="lbl-col">SA-240 304 / 316</td><td>515 / 205</td><td>138</td><td>38 °C</td><td>Falls with temperature — read Table 1A at the design metal temperature</td></tr>
+          <tr><td class="lbl-col">SA-240 304L / 316L</td><td>485 / 170</td><td>115</td><td>38 °C</td><td>Falls with temperature — read Table 1A at the design metal temperature</td></tr>
         </tbody>
       </table></div>
+      <div style="font-size:.72rem;color:var(--t3);margin-top:6px;line-height:1.55">Carbon-steel values are flat from −29 °C to 343 °C (current UTS/3.5 design margin). Austenitic stainless values drop with temperature and Table 1A gives two sets (the higher set only where slight distortion is acceptable), so take S for your design temperature from the code. For EN 13445 or PD 5500, calculate the nominal design stress f from EN 10028 strength data — the ASME S values above do not apply.</div>
     </div>
   </div>
 </div>
@@ -3234,10 +3238,11 @@ function renderBlockDiagram(r) {
   var area_prov  = convA(r.area_provided || r.area).toFixed(2);
   var overS      = (r.overSurf || 0).toFixed(1);
   var Au = aU(), T = tU(), Pu = pU();
-  var velOk = r.tubeVel >= (r.targetVel || 1.5) * 0.9;
+  var evapT = r.shellMode === 'evaporating';   // boiling in tubes: inlet velocity is not a target
+  var velOk = evapT || r.tubeVel >= (r.targetVel || 1.5) * 0.9;
   var dpSOk = r.shellDP <= r.pdAllowShell;
   var dpTOk = r.tubeDp  <= r.pdAllowTube;
-  var velCol = r.tubeVel < 0.5 ? '#c0201a' : r.tubeVel < (r.targetVel||1.5)*0.8 ? '#b35a00' : '#1b7a3e';
+  var velCol = evapT ? '#334155' : r.tubeVel < 0.5 ? '#c0201a' : r.tubeVel < (r.targetVel||1.5)*0.8 ? '#b35a00' : '#1b7a3e';
   var nB = Math.min(Math.max(nBaffles, 0), 7);
   var blines = '';
   for (var bi = 0; bi < nB; bi++) {
@@ -3280,7 +3285,7 @@ function renderBlockDiagram(r) {
     +'<text x="24" y="162" text-anchor="middle" fill="#0c1322" font-size="10" font-weight="700" transform="rotate(-90,24,162)">ID = '+shellID_mm+' mm</text>'
     // Status badges
     +'<rect x="90" y="312" width="158" height="22" rx="4" fill="'+(velOk?'#e6f7f4':'#fff3ee')+'" stroke="'+(velOk?'#008f76':'#e8500a')+'" stroke-width="1"/>'
-    +'<text x="169" y="327" text-anchor="middle" fill="'+velCol+'" font-size="9.5" font-weight="700">v = '+r.tubeVel.toFixed(3)+' m/s '+(velOk?'✓':'⚠')+' (target '+(r.targetVel||1.5)+' m/s)</text>'
+    +'<text x="169" y="327" text-anchor="middle" fill="'+velCol+'" font-size="9.5" font-weight="700">v = '+r.tubeVel.toFixed(3)+' m/s '+(evapT?'(liquid at inlet — boiling)':(velOk?'✓':'⚠')+' (target '+(r.targetVel||1.5)+' m/s)')+'</text>'
     +'<rect x="258" y="312" width="148" height="22" rx="4" fill="'+(dpSOk?'#e6f7f4':'#fff3ee')+'" stroke="'+(dpSOk?'#008f76':'#e8500a')+'" stroke-width="1"/>'
     +'<text x="332" y="327" text-anchor="middle" fill="'+(dpSOk?'#1b7a3e':'#c0201a')+'" font-size="9.5" font-weight="700">Shell \u0394P '+convP(r.shellDP).toFixed(3)+' '+Pu+' '+(dpSOk?'✓':'✗')+'</text>'
     +'<rect x="416" y="312" width="148" height="22" rx="4" fill="'+(dpTOk?'#e6f7f4':'#fff3ee')+'" stroke="'+(dpTOk?'#008f76':'#e8500a')+'" stroke-width="1"/>'
@@ -3433,7 +3438,7 @@ function renderSpaceConstraints(r) {
 }
 
 function renderGeoOptimizer(r) {
-  if (!r.velocity_driven_by_area || r.tubeVel >= (r.targetVel||1.5)*0.85) return '';
+  if (!r.velocity_driven_by_area || r.shellMode === 'evaporating' || r.tubeVel >= (r.targetVel||1.5)*0.85) return '';
   return '<div class="note" style="margin-top:12px;background:linear-gradient(135deg,#eef4ff,#f0e8ff);border-color:rgba(124,58,237,.2);border-left-color:#7c3aed">'
     +'<div class="note-title" style="color:#7c3aed">📐 Space-Constrained Geometry Optimizer</div>'
     +'<div class="note-body"><p style="margin-bottom:8px">Tube length is <strong>'+r.L.toFixed(1)+' m</strong> but velocity target <strong>'+r.targetVel+' m/s</strong> cannot be met. The optimizer searches all TEMA OD × pass × shell combinations.</p>'
@@ -3498,7 +3503,7 @@ function renderSTResults(r, warns=[]) {
           <thead><tr><th>Span</th><th>Length</th><th>f<sub>n</sub></th><th>V<sub>crit</sub> (Connors)</th><th>V/V<sub>crit</sub> (limit 0.8)</th></tr></thead>
           <tbody>${spanRows}</tbody></table></div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:.78rem">
-          <div><span style="color:var(--t3)">Crossflow velocity</span><br><b>${v.V_cross} m/s</b></div>
+          <div><span style="color:var(--t3)" title="Uses the simple Kern crossflow area B·Ds·(Pt−Do)/Pt with no leakage or bypass streams, so it is higher than the Bell-Delaware crossflow velocity in the heat-balance table — deliberately conservative for vibration.">Crossflow velocity (Kern area — conservative for vibration)</span><br><b>${v.V_cross} m/s</b></div>
           <div><span style="color:var(--t3)">TEMA max unsupported span</span><br><b style="color:${v.temaSpanOK?'var(--ok)':'var(--warn)'}">${(v.temaSpanLimit_m*1000).toFixed(0)} mm ${v.temaSpanOK?'✓':'✗ exceeded'}</b></div>
           <div><span style="color:var(--t3)">Vortex shedding f<sub>vs</sub></span><br><b>${v.f_vs} Hz</b></div>
           <div><span style="color:var(--t3)">Turbulent buffeting f<sub>tb</sub></span><br><b>${v.f_tb} Hz</b></div>
@@ -3591,13 +3596,13 @@ function renderSTResults(r, warns=[]) {
         <td>${convP(r.pdAllowTube).toFixed(3)} ${Pu}</td>
       </tr>
       <tr><td class="lbl-col">Fluid Velocity</td>
-        <td>${r.shellVel ? r.shellVel.toFixed(3)+' m/s' : '—'} <span style="font-size:.7rem;color:var(--t3)">(shell cross-flow)</span></td>
+        <td>${r.shellVel ? r.shellVel.toFixed(3)+' m/s' : '—'} <span style="font-size:.7rem;color:var(--t3)">(shell crossflow, Bell-Delaware area)</span></td>
         <td>
-          <span style="font-weight:700;color:${r.tubeVel<0.5?'var(--err)':r.tubeVel<(r.targetVel||1.5)*0.9?'var(--warn)':r.tubeVel>4?'var(--err)':'var(--ok)'}">
+          <span style="font-weight:700;color:${r.shellMode==='evaporating'?'var(--t1)':r.tubeVel<0.5?'var(--err)':r.tubeVel<(r.targetVel||1.5)*0.9?'var(--warn)':r.tubeVel>4?'var(--err)':'var(--ok)'}">
             ${r.tubeVel.toFixed(3)} m/s
           </span>
-          <span style="font-size:.7rem;color:var(--t3)"> in-tube</span>
-          ${r.targetVel ? `<br><span style="font-size:.7rem;color:${r.tubeVel>=(r.targetVel*0.9)?'var(--teal)':'var(--warn)'}">
+          <span style="font-size:.7rem;color:var(--t3)"> ${r.shellMode==='evaporating'?'liquid at inlet':'in-tube'}</span>
+          ${r.shellMode==='evaporating' ? `<br><span style="font-size:.7rem;color:var(--t3)">boiling in tubes — inlet velocity is not a design target (see the mass-flux note)</span>` : r.targetVel ? `<br><span style="font-size:.7rem;color:${r.tubeVel>=(r.targetVel*0.9)?'var(--teal)':'var(--warn)'}">
             🎯 target: ${r.targetVel} m/s
             ${r.tubeVel >= r.targetVel * 0.9 ? ' ✓ achieved' : ' — below target'}
           </span>` : ''}
@@ -4065,8 +4070,8 @@ ${st?`
   <line x1="18" y1="155" x2="38" y2="155" stroke="#444" stroke-width="0.7"/>
   <text x="14" y="108" text-anchor="middle" fill="#0c1322" font-size="8" font-weight="700" transform="rotate(-90,14,108)">ID=${st.shellID?(st.shellID*1000).toFixed(0):'?'} mm</text>
   <!-- Status strip -->
-  <rect x="70"  y="207" width="125" height="16" rx="3" fill="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#e6f7f4':'#fff3ee'}" stroke="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#008f76':'#e8500a'}" stroke-width="0.8"/>
-  <text x="133" y="219" text-anchor="middle" fill="${st.tubeVel>=(st.targetVel||1.5)*0.9?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">v=${st.tubeVel!=null?st.tubeVel.toFixed(3):'?'} m/s ${st.tubeVel>=(st.targetVel||1.5)*0.9?'✓':'⚠'}</text>
+  <rect x="70"  y="207" width="125" height="16" rx="3" fill="${(st.shellMode==='evaporating'||st.tubeVel>=(st.targetVel||1.5)*0.9)?'#e6f7f4':'#fff3ee'}" stroke="${(st.shellMode==='evaporating'||st.tubeVel>=(st.targetVel||1.5)*0.9)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
+  <text x="133" y="219" text-anchor="middle" fill="${(st.shellMode==='evaporating'||st.tubeVel>=(st.targetVel||1.5)*0.9)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">v=${st.tubeVel!=null?st.tubeVel.toFixed(3):'?'} m/s ${st.shellMode==='evaporating'?'(inlet)':st.tubeVel>=(st.targetVel||1.5)*0.9?'✓':'⚠'}</text>
   <rect x="205" y="207" width="125" height="16" rx="3" fill="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#e6f7f4':'#fff3ee'}" stroke="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
   <text x="268" y="219" text-anchor="middle" fill="${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'#1b7a3e':'#c0201a'}" font-size="7.5" font-weight="700">ΔP_s=${convP(st.shellDP||0).toFixed(3)} ${pU()} ${(st.shellDP||0)<=(st.pdAllowShell||0.7)?'✓':'✗'}</text>
   <rect x="340" y="207" width="125" height="16" rx="3" fill="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#e6f7f4':'#fff3ee'}" stroke="${(st.tubeDp||0)<=(st.pdAllowTube||1.0)?'#008f76':'#e8500a'}" stroke-width="0.8"/>
@@ -4784,10 +4789,65 @@ function getFlowKgh(inputId) {
 // When SI/US global toggle fires, also flip all individual selectors
 const _origSetUnit = setUnit;
 function setUnit(sys, btn) {
+  const prevSys = unitSys;
   unitSys = sys;
   document.querySelectorAll('.unit-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   updateAllUnitLabels();
+  // FIX 2026-11 (r5): the toggle used to flip every unit selector but leave the
+  // numbers alone, so 90 °C became "90 °F", 20 000 kg/h became "20 000 lb/h" and a
+  // recalculation gave a different exchanger. The numbers now convert with
+  // their units. The SI value is remembered so SI → US → SI returns exactly
+  // what was typed (unless the field was edited in between).
+  if (prevSys !== sys) {
+    const conv = (el, toSI, fromSI) => {
+      if (!el || el.value === '' || !isFinite(parseFloat(el.value))) return;
+      const fresh = !(el.dataset.siv != null && el.dataset.disp === el.value);
+      if (fresh) { el.dataset.origTxt = el.value; el.dataset.origSys = prevSys; }
+      const si = fresh ? toSI(parseFloat(el.value)) : parseFloat(el.dataset.siv);
+      const txt = (el.dataset.origSys === sys && el.dataset.origTxt != null) ? el.dataset.origTxt : String(+fromSI(si).toPrecision(6));
+      el.value = txt; el.dataset.siv = String(si); el.dataset.disp = txt;
+    };
+    const base = sel => g(sel.id.replace(/_usel$/, ''));
+    document.querySelectorAll('.u-temp-sel').forEach(sel => {
+      const nu = sys === 'metric' ? 'c' : 'f'; if (sel.value === nu) return;
+      const [m0, b0] = TEMP_OFFSETS[sel.value] || [1, 0], [m1, b1] = TEMP_OFFSETS[nu];
+      conv(base(sel), x => x * m0 + b0, s => (s - b1) / m1); sel.value = nu;
+    });
+    document.querySelectorAll('.u-pres-sel, .u-pdrop-sel').forEach(sel => {
+      const nu = sys === 'metric' ? 'bar' : 'psi'; if (sel.value === nu) return;
+      const f0 = PRES_TO_BAR[sel.value] || 1, f1 = PRES_TO_BAR[nu];
+      conv(base(sel), x => x * f0, s => s / f1); sel.value = nu;
+    });
+    document.querySelectorAll('.u-len-sel').forEach(sel => {
+      const nu = sys === 'metric' ? 'm' : 'ft'; if (sel.value === nu) return;
+      const f0 = LEN_TO_M[sel.value] || 1, f1 = LEN_TO_M[nu];
+      conv(base(sel), x => x * f0, s => s / f1); sel.value = nu;
+    });
+    // mass flows entered as kg/h (SI) or lb/h (US); Nm³/h and Sm³/h are left alone
+    _MASS_FLOW_IDS.forEach(id => {
+      const fu = g(id + 'unit'); if (fu && fu.value !== 'kgh') return;
+      conv(g(id), x => prevSys === 'imperial' ? x / 2.20462 : x, s => sys === 'imperial' ? s * 2.20462 : s);
+    });
+    // read-only temperature displays that follow the global system (no selector)
+    document.querySelectorAll('.u-temp-l').forEach(lab => {
+      const row = lab.closest('.irow'); if (!row || row.querySelector('.u-temp-sel')) return;
+      conv(row.querySelector('input'), x => prevSys === 'imperial' ? (x - 32) * 5 / 9 : x, s => sys === 'imperial' ? s * 9 / 5 + 32 : s);
+    });
+    if (typeof coldBalancePreview === 'function') { try { coldBalancePreview(); } catch (e) {} }
+    // r5: results already on screen are redrawn in the new units (they used to stay
+    // in the old system next to converted inputs)
+    const RR = { st: r => renderSTResults(r, r.warns || []), pl: renderPlateResults, ac: renderAirCooledResults, dp: renderDoublePipeResults, ff: renderFinFanResults };
+    Object.entries(RR).forEach(([p, fn]) => {
+      const el = g(p + '_res'), r = lastResults && lastResults[p];
+      if (!r || !el || !el.classList.contains('show') || /Recommended plate geometry/.test(el.textContent)) return;
+      try { el.innerHTML = fn(r); } catch (e) { console.warn('re-render ' + p, e); }
+    });
+    const lmRes = g('lm_res'), lmF = g('lmForm');
+    if (lastResults && lastResults.lm && lmRes && lmRes.classList.contains('show') && lmF) {
+      try { lmF.requestSubmit ? lmF.requestSubmit() : lmF.dispatchEvent(new Event('submit', { cancelable: true })); } catch (e) {}
+    }
+  }
   // Flip all temp selectors
   document.querySelectorAll('.u-temp-sel').forEach(sel=>{
     sel.value = sys==='metric' ? 'c' : 'f';
@@ -4807,7 +4867,7 @@ function setUnit(sys, btn) {
   // Mass-flow selectors: the 'kgh' option is entered as lb/h in US mode
   document.querySelectorAll('select[id$="Funit"] option[value="kgh"]').forEach(o=>{ o.textContent = sys==='metric' ? 'kg/h' : 'lb/h'; });
   [['st_hFunit','st_hFulab'],['st_cFunit','st_cFulab'],['pl_hFunit','pl_hFlab'],['pl_cFunit','pl_cFlab'],['dp_hFunit','dp_hFlab'],['dp_cFunit','dp_cFlab']].forEach(([a,b])=>updateFlowUnit(a,b));
-  if (typeof satRefreshDebounced === 'function') satRefreshDebounced('pres', 60);
+  if (typeof satRefreshDebounced === 'function') satRefreshDebounced(prevSys !== sys ? 'repaint' : 'pres', 60);
 }
 
 // onchange callbacks for individual selectors
@@ -5049,7 +5109,8 @@ function resetForm(pfx) {
   const formMap={st:'stForm',pl:'plForm',ac:'acForm',dp:'dpForm',ff:'ffForm'};
   const form=document.getElementById(formMap[pfx]);
   const tab=TAB_OF[pfx];
-  if (tab && EXAMPLES[tab]) { applyCase({ t: tab, ...EXAMPLES[tab][0] }, { switchTo: false }); }
+  // r5: convert the example to the units on screen (in US mode Reset used to drop SI numbers into °F / lb/h fields)
+  if (tab && EXAMPLES[tab]) { applyCase({ t: tab, u: unitSys, ...EXAMPLES[tab][0], v: exampleInUnits(EXAMPLES[tab][0].v) }, { switchTo: false }); }
   else if(form) form.reset();
   clearFieldMarks(pfx);
   const res=document.getElementById(pfx+'_res');
@@ -5134,11 +5195,20 @@ function buildFluidOptions() {
     'Food/Process':['milk','juice','beer','sugar-solution'],
     'Special':['molten-salt','dowtherm','mercury','sodium']
   };
+  // Proper engineering names (the old auto-capitalised keys read "Co2", "Hcl 32", "Naoh 50")
+  const LABELS={'water':'Water','brine-nacl':'Brine NaCl 25 %','brine-cacl2':'Brine CaCl₂ 30 %','ethylene-glycol-30':'Ethylene glycol 30 %','ethylene-glycol-50':'Ethylene glycol 50 %',
+    'propylene-glycol-30':'Propylene glycol 30 %','propylene-glycol-50':'Propylene glycol 50 %','crude-oil-light':'Crude oil (light)','crude-oil-heavy':'Crude oil (heavy)',
+    'diesel':'Diesel','gasoline':'Gasoline','kerosene':'Kerosene','fuel-oil':'Fuel oil','lube-oil':'Lube oil','hydraulic-oil':'Hydraulic oil','thermal-oil':'Thermal oil',
+    'benzene':'Benzene','toluene':'Toluene','xylene':'Xylene','air':'Air','nitrogen':'Nitrogen','oxygen':'Oxygen','hydrogen':'Hydrogen','natural-gas':'Natural gas',
+    'methane':'Methane','co2':'Carbon dioxide (CO₂)','steam':'Steam','ammonia-gas':'Ammonia (vapour)','ammonia-liquid':'Ammonia (liquid)','ethanol':'Ethanol','methanol':'Methanol',
+    'acetone':'Acetone','sulfuric-acid-98':'Sulphuric acid 98 %','sulfuric-acid-75':'Sulphuric acid 75 %','nitric-acid-68':'Nitric acid 68 %','hcl-32':'Hydrochloric acid 32 %',
+    'naoh-50':'Caustic soda (NaOH) 50 %','naoh-25':'Caustic soda (NaOH) 25 %','acetic-acid':'Acetic acid','r134a':'R-134a','r410a':'R-410A','r717':'R-717 (ammonia)',
+    'milk':'Milk','juice':'Fruit juice','beer':'Beer','sugar-solution':'Sugar solution 50 %','molten-salt':'Molten salt','dowtherm':'Dowtherm A','mercury':'Mercury','sodium':'Liquid sodium'};
   let html='';
   for(const [grp,keys] of Object.entries(groups)){
     html+=`<optgroup label="${grp}">`;
     for(const k of keys){
-      const name = k.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      const name = LABELS[k] || k.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
       html+=`<option value="${k}">${name}</option>`;
     }
     html+='</optgroup>';
@@ -5752,7 +5822,7 @@ document.getElementById('lmForm').addEventListener('submit', async function(e){
       <div class="kpi teal"><div class="kpi-label">LMTD</div><div class="kpi-val">${dT(r.lmtd).toFixed(4)}<span class="kpi-unit">${T}</span></div></div>
       <div class="kpi gold"><div class="kpi-label">F Factor</div><div class="kpi-val">${r.F.toFixed(4)}</div></div>
       <div class="kpi red"><div class="kpi-label">F × LMTD</div><div class="kpi-val">${dT(FLMTD).toFixed(4)}<span class="kpi-unit">${T}</span></div></div>
-      ${r.eff!=null?`<div class="kpi ${r.eff>0.7?'ok':'warn'}"><div class="kpi-label">Effectiveness ε</div><div class="kpi-val">${(r.eff*100).toFixed(2)}<span class="kpi-unit">%</span></div></div>`:''}
+      ${r.eff!=null?`<div class="kpi teal"><div class="kpi-label">Effectiveness ε</div><div class="kpi-val">${(r.eff*100).toFixed(2)}<span class="kpi-unit">%</span></div></div>`:''}
       ${r.NTU!=null?`<div class="kpi blue"><div class="kpi-label">NTU</div><div class="kpi-val">${r.NTU.toFixed(4)}</div></div>`:''}
       ${r.UA!=null?`<div class="kpi teal"><div class="kpi-label">U·A Product</div><div class="kpi-val">${(r.UA/1000).toFixed(3)}<span class="kpi-unit">kW/K</span></div></div>`:''}
     </div>
@@ -5783,7 +5853,7 @@ async function runSelector(){
     if(r.error){alert(r.error);return;}
     const names={'shell-tube':'Shell & Tube','plate':'Plate HX','air-cooled':'Air Cooled','double-pipe':'Double Pipe','spiral':'Spiral','plate-fin':'Plate-Fin'};
     const icons={'shell-tube':'⚙️','plate':'🔲','air-cooled':'💨','double-pipe':'↔️','spiral':'🌀','plate-fin':'📄'};
-    const descs={'shell-tube':'Most versatile. Handles high P, T, fouling. Coded per TEMA/ASME.','plate':'Very high U (2–5× S&T). Compact, close approach. Limited to ~30 bar.','air-cooled':'Eliminates cooling water. Required by API 661.','double-pipe':'Simplest construction for small duties (<200 kW).','spiral':'Best for fouling/viscous fluids. Self-cleaning.','plate-fin':'Extremely compact for gas-gas or cryogenic service.'};
+    const descs={'shell-tube':'Most versatile. Handles high P, T, fouling. Coded per TEMA/ASME.','plate':'Very high U (2–5× S&T). Compact, close approach. Limited to ~30 bar.','air-cooled':'Eliminates cooling water. Designed and specified to API 661.','double-pipe':'Simplest construction for small duties (<200 kW).','spiral':'Best for fouling/viscous fluids. Self-cleaning.','plate-fin':'Extremely compact for gas-gas or cryogenic service.'};
     const div=g('sel_result');div.style.display='block';
     div.innerHTML=`<div class="sec-hd purple">🎯 Recommendation</div><div class="selector-grid">
       <div class="hx-card" style="border-color:var(--red)"><div class="hx-card-icon">${icons[r.top]}</div><div class="hx-card-title">${names[r.top]}</div><div class="hx-card-desc">${descs[r.top]}</div><div class="hx-card-badge">⭐ Primary</div></div>
@@ -5834,9 +5904,11 @@ function onWtStressInput(){ const m=g('wt_mat'), sEl=g('wt_S'); if(!m||!sEl) ret
 async function calcFoulingCombined(){
   try {
     const payload={calcType:'fouling',Rf_s:parseFloat(g('foul_shell').value)||0,Rf_t:parseFloat(g('foul_tube').value)||0,U_cl:parseFloat(g('foul_U_clean').value)||800};
-    const r=await callAPI(payload);
-    if(r.error) return;
-    const res=g('foul_result'); res.style.display='block';
+    const res=g('foul_result');
+    let r;
+    try { r=await callAPI(payload); } catch(err) { res.style.display='block'; res.innerHTML=`<div class="err-box show">⚠ ${_esc(err.message)}</div>`; return; }
+    if(r.error){ res.style.display='block'; res.innerHTML=`<div class="err-box show">⚠ ${_esc(r.error)}</div>`; return; }
+    res.style.display='block';
     res.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:.82rem">
       <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">R_f shell</div><div style="font-family:var(--mono);font-weight:700">${r.Rf_s.toExponential(3)} m²K/W</div></div>
       <div><div style="color:var(--t3);font-size:.68rem;text-transform:uppercase;font-weight:700">R_f tube</div><div style="font-family:var(--mono);font-weight:700">${r.Rf_t.toExponential(3)} m²K/W</div></div>
@@ -5850,6 +5922,13 @@ async function calcFoulingCombined(){
 }
 
 // ── RENDER FUNCTIONS ──────────────────────────────────────────────────────────
+// Chevron-plate channels become turbulent far earlier than pipes (≈ Re 10–400
+// depending on the chevron angle), so pipe thresholds (2300) do not apply. The
+// labels match the API's own laminar note (Re < 50).
+function plReLabel(Re){
+  if (Re==null) return '';
+  return Re<50 ? '⚠ laminar' : Re<400 ? '· transitional (normal for chevron plates)' : '✓ turbulent';
+}
 function renderPlateResults(r){
   const Q=convQ(r.Q),A=convA(r.A_req),Ap=convA(r.A_provided),U=convU(r.U);
   const T=tU(),H=hU(),Au=aU(),Pu=pU(),Uu=uU();
@@ -5889,11 +5968,11 @@ function renderPlateResults(r){
       <tr><td class="lbl-col">Reynolds Number Re</td>
         <td style="color:${r.Reh!=null&&r.Reh>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
           ${r.Reh!=null ? r.Reh.toFixed(0) : '—'}
-          ${r.Reh!=null ? (r.Reh<400?'⚠ laminar':r.Reh<1000?'transitional':'✓ turbulent') : ''}
+          ${plReLabel(r.Reh)}
         </td>
         <td style="color:${r.Rec!=null&&r.Rec>=400?'var(--ok)':'var(--warn)'}; font-weight:700">
           ${r.Rec!=null ? r.Rec.toFixed(0) : '—'}
-          ${r.Rec!=null ? (r.Rec<400?'⚠ laminar':r.Rec<1000?'transitional':'✓ turbulent') : ''}
+          ${plReLabel(r.Rec)}
         </td>
       </tr>
       <tr><td class="lbl-col">Pressure Drop</td><td style="color:${r.dpH>r.pdAllowH?'var(--err)':'var(--ok)'}">${convP(r.dpH).toFixed(3)} ${Pu}</td><td style="color:${r.dpC>r.pdAllowC?'var(--err)':'var(--ok)'}">${convP(r.dpC).toFixed(3)} ${Pu}</td></tr>
@@ -6244,13 +6323,16 @@ async function satRefresh(driver) {
   _satResetOutlet = false;
 
   // Direction and driving value
+  // r5: 'repaint' (after an SI/US toggle) redraws the readout in the new units
+  // without moving any value — the toggle already converted the numbers.
+  const repaint = driver === 'repaint';
   const useTemp = (driver === 'temp' && satLinkOn());
   const mode    = useTemp ? 'P_from_T' : 'T_from_P';
   const input   = useTemp ? getTempVal(F.tIn) : getPresVal(F.pres);
   if (!isFinite(input) || (!useTemp && input <= 0)) return;   // mid-typing
 
   const apply = res => {
-    if (!res || !res.saturable) return;
+    if (repaint || !res || !res.saturable) return;
     if (useTemp)              setPresVal(F.pres, res.Psat_bar);
     else if (satLinkOn())     setTempVal(F.tIn,  res.Tsat_degC);
   };
@@ -6284,7 +6366,7 @@ async function satRefresh(driver) {
     //    subcooling is by far the most common duty, and it is the case the old
     //    validation made impossible to enter. Once the user edits the outlet
     //    themselves, that spec is preserved across later pressure changes.
-    if (side === 'hot' && satLinkOn()) {
+    if (side === 'hot' && satLinkOn() && !repaint) {
       const hTo = getTempVal(F.tOut);
       const wasTracking = _satLast.hot != null && isFinite(hTo) && Math.abs(hTo - _satLast.hot) < 0.06;
       if (forceOutlet || !isFinite(hTo) || wasTracking || hTo > Tsat) setTempVal(F.tOut, Tsat);
@@ -6695,6 +6777,14 @@ function highlightFromError(pfx, msg) {
     [/cold inlet/, pfx + '_cTi'], [/hot inlet/, pfx + '_hTi'], [/temperature cross/, pfx + '_hTo'],
     [/wall thickness|tube geometry/, pfx + '_tw'], [/fixed-tube/, 'st_numTubesFixed'],
     [/fin od|transverse pitch/, pfx === 'ac' ? 'ac_pitchT' : 'ff_pitchT'], [/ambient/, pfx === 'ac' ? 'ac_amb' : 'ff_aTamb'],
+    // r5 input-range messages from the API
+    [/pitch \/ od/, 'st_pitch'], [/tube outer diameter/, 'st_od'], [/baffle cut/, 'st_bcut'], [/baffle spacing/, 'st_bsp'],
+    [/hairpin leg length/, 'dp_hplen'], [/inner pipe od/, 'dp_iOD'], [/inner pipe wall/, 'dp_iW'], [/outer pipe id/, 'dp_oID'],
+    [/tube length/, ({st:'st_len', ac:'ac_tubeLen', ff:'ff_tubeLen'})[pfx]],
+    [/plate thickness/, 'pl_th'], [/chevron angle/, 'pl_angle'], [/channel gap/, 'pl_gap'], [/plate width/, 'pl_width'], [/plate length/, 'pl_plen'], [/area enlargement/, 'pl_phi'],
+    [/fin height/, pfx + '_finH'], [/fin thickness/, pfx + '_finThk'], [/fin density/, pfx === 'ac' ? 'ac_finDens' : 'ff_finDensity'],
+    [/shell-side fouling/, 'st_foulS'], [/tube-side fouling/, ({st:'st_foulT', ac:'ac_Rfi', ff:'ff_tFoul'})[pfx]], [/air-side fouling/, pfx === 'ac' ? 'ac_Rfo' : 'ff_aFoul'],
+    [/fouling resistance/, pfx + '_foul'], [/number of tubes|tubes per bundle/, ({st:'st_numTubesFixed', ac:'ac_nTubes', ff:'ff_nTubes'})[pfx]],
   ];
   for (const [re, id] of rules) if (re.test(m) && g(id)) { markField(id, 'See the message below'); break; }
 }
