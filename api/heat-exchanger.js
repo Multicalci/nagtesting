@@ -230,7 +230,7 @@ function validateInputs(calcType, b) {
 // ─── CORS ALLOWED ORIGINS ──────────────────────────────────────────────────
 const HEATXPERT_ALLOWED_ORIGINS = new Set([
   'https://www.multicalci.com',
-  'https://multicalci.com',
+  'https://www.multicalci.com',
   'http://localhost:3000',
   'http://localhost:5173',
   // Add your Vercel preview URL here, e.g.:
