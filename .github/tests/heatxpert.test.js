@@ -172,26 +172,26 @@ describe('Shell & Tube — single-phase water/water', () => {
 
 describe('Shell & Tube — input validation', () => {
 
-  test('hTo >= hTi rejected with 500', async () => {
+  test('hTo >= hTi rejected with 400', async () => {
     const { status } = await post({ ...ST_BASELINE, hTi: 60, hTo: 90 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
-  test('hF = 0 rejected with 500', async () => {
+  test('hF = 0 rejected with 400', async () => {
     const { status } = await post({ ...ST_BASELINE, hF: 0 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
-  test('hTi <= cTi rejected with 500', async () => {
+  test('hTi <= cTi rejected with 400', async () => {
     const { status } = await post({ ...ST_BASELINE, hTi: 25, hTo: 15, cTi: 30 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
-  test('missing OD returns 500 mentioning OD', async () => {
+  test('missing OD returns 400 mentioning OD', async () => {
     const body = { ...ST_BASELINE };
     delete body.OD;
     const { status, body: resp } = await post(body);
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
     expect(resp.error).toMatch(/OD/i);
   });
 });
@@ -340,7 +340,7 @@ describe('Plate HX', () => {
 
   test('temperature cross (cTi > hTo) rejected', async () => {
     const { status } = await post({ ...PLATE_BASE, cTi: 55 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
   test('cTo > cTi', async () => {
@@ -395,12 +395,12 @@ describe('Air Cooled HX', () => {
 
   test('ambient >= process outlet rejected', async () => {
     const { status } = await post({ ...AC_BASE, Tamb: 70 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
   test('outlet >= inlet rejected', async () => {
     const { status } = await post({ ...AC_BASE, To: 110 });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 
   test('A_total > 0', async () => {
@@ -511,7 +511,7 @@ describe('Double Pipe HX', () => {
 
   test('outer pipe ID must be > inner pipe OD — validation', async () => {
     const { status } = await post({ ...DP_BASE, oID: 30 }); // 30 < iOD=50
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 });
 
@@ -570,7 +570,7 @@ describe('LMTD / NTU method', () => {
       hFlKey: 'water', cFlKey: 'water',
       arr: 'counter', hxType: '1-1',
     });
-    expect(status).toBe(500);
+    expect(status).toBe(400);   // input errors are the caller's to fix → 400 (API fix 2026-11)
   });
 });
 
@@ -811,5 +811,60 @@ describe('Golden-value regression tests', () => {
       arr: 'counter', hxType: '1-1',
     });
     near(body.lmtd, 37.06, 0.03, '[REG-LMTD-01]');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INPUT RANGE GUARD (API r5, 2026-11) — impossible inputs get a plain 400,
+// never a 500, a NaN, or a negative area with HTTP 200.
+// ═══════════════════════════════════════════════════════════════════════════════
+describe('Input range guard (r5)', () => {
+  test('API build is r5 or later', async () => {
+    const { body } = await post({ calcType: 'version' });
+    expect(body.apiBuild).toMatch(/2026-11-audit-r[5-9]/);
+  });
+  test('unknown fluid key → 400 naming the fluid', async () => {
+    const { status, body } = await post({ ...ST_BASELINE, hFlKey: 'kerosine' });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/unknown fluid/i);
+  });
+  test('numeric fluid key → 400, not 500', async () => {
+    const { status } = await post({ ...PLATE_BASE, hFlKey: 5 });
+    expect(status).toBe(400);
+  });
+  test('pitch ratio below 1.15 → 400', async () => {
+    const { status, body } = await post({ ...ST_BASELINE, pitch: 1.0 });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/pitch/i);
+  });
+  test('plate channel gap 0 → 400', async () => {
+    const { status, body } = await post({ ...PLATE_BASE, gap: 0 });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/gap/i);
+  });
+  test('negative plate thickness → 400 (was a negative U with 200)', async () => {
+    const { status } = await post({ ...PLATE_BASE, th: -1 });
+    expect(status).toBe(400);
+  });
+  test('double-pipe hairpin length 0 → 400', async () => {
+    const { status } = await post({ ...DP_BASE, L: 0 });
+    expect(status).toBe(400);
+  });
+  test('temperature below absolute zero → 400', async () => {
+    const { status } = await post({ ...ST_BASELINE, cTi: -300 });
+    expect(status).toBe(400);
+  });
+  test('negative fouling in the fouling tab → 400', async () => {
+    const { status } = await post({ calcType: 'fouling', Rf_s: -0.001, Rf_t: 0.0002, U_cl: 800 });
+    expect(status).toBe(400);
+  });
+  test('negative ṁ·cp in LMTD/NTU → 400', async () => {
+    const { status } = await post({ calcType: 'lmtdNtu', hTi: 100, hTo: 60, cTi: 25, cTo: 75, Ch: -10, arr: 'counter' });
+    expect(status).toBe(400);
+  });
+  test('"automatic" zeros are still accepted (hairpins 0 = size them)', async () => {
+    const { status, body } = await post({ ...DP_BASE, nHairpins: 0 });
+    expect(status).toBe(200);
+    expect(body.nHairpins).toBeGreaterThan(0);
   });
 });
