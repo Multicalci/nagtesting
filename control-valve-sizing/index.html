@@ -332,6 +332,29 @@ select option{background:var(--ink2)}
   background:rgba(0,122,108,.04);font-size:.7rem;color:var(--text2);line-height:1.55}
 .trim-rec b{color:var(--teal);font-family:var(--mono)}
 .trim-rec .tr-note{display:block;margin-top:3px;font-size:.62rem;color:var(--text3)}
+/* ── FIX V-12: chip Cv basis + flow-vs-opening / what-if card ── */
+.vs-chip .vsc-cv{display:block;font-size:.56rem;opacity:.78;margin-top:2px}
+.wi-in{width:100%;border-collapse:collapse;min-width:440px}
+.wi-in th{font-size:.64rem;font-weight:700;letter-spacing:.4px;color:var(--text3);text-align:left;padding:0 6px 5px 0;text-transform:uppercase;vertical-align:bottom}
+.wi-in th .hint{display:block;font-weight:400;text-transform:none;letter-spacing:0;font-size:.6rem}
+.wi-in td{padding:0 6px 6px 0}
+.wi-in input{padding:7px 8px;font-size:.78rem}
+.wi-u{font-family:var(--mono);color:var(--teal2);text-transform:none;letter-spacing:0}
+.wi-basis{font-size:.7rem;color:var(--text2);margin:10px 0 4px;line-height:1.5}
+.wi-basis b{color:var(--teal);font-family:var(--mono)}
+.wi-h{font-family:var(--head);font-size:.66rem;font-weight:700;letter-spacing:.8px;color:var(--text3);text-transform:uppercase;margin:12px 0 5px}
+.wi-scroll{overflow-x:auto}
+.wi-tbl{width:100%;border-collapse:collapse;font-size:.74rem}
+.wi-tbl th{background:var(--ink3);color:var(--text2);font-size:.62rem;font-weight:700;text-align:right;padding:5px 6px;border:1px solid var(--line);vertical-align:bottom}
+.wi-tbl td{padding:5px 6px;border:1px solid var(--line);font-family:var(--mono);text-align:right;white-space:nowrap}
+.wi-tbl th:first-child,.wi-tbl td:first-child{text-align:left}
+.wi-tbl td:first-child{font-family:var(--body);font-weight:600;color:var(--text2)}
+.wi-tbl .c-high{color:var(--gold2);background:rgba(176,120,0,.09);font-weight:700}
+.wi-tbl .c-over{color:var(--red);background:rgba(204,26,42,.07);font-weight:700}
+.wi-tbl .c-low{color:var(--text3)}
+.wi-tbl tr.design td{font-weight:700;background:rgba(0,122,108,.05)}
+.wi-empty{font-size:.72rem;color:var(--text3);padding:10px 0}
+.wi-note{font-size:.66rem;color:var(--text3);line-height:1.55;margin-top:8px}
 /* ── U-1/U-2: manual-calculate workflow & stale results state ── */
 .results-col.stale .cv-hero,.results-col.stale .diag-card{opacity:.55;filter:saturate(.55);
   transition:opacity .25s,filter .25s}
@@ -775,9 +798,9 @@ select option{background:var(--ink2)}
           <div style="font-size:.56rem;color:var(--text3);margin-top:2px" id="velStatus">—</div></div>
       </div>
       <div class="valve-size-strip">
-        <div class="vs-chip sml"><span class="vsc-size" id="vsz1">—</span><span class="vsc-pct" id="vop1">—</span></div>
-        <div class="vs-chip rec"><span class="vsc-size" id="vsz2">—</span><span class="vsc-pct" id="vop2">RECOMMENDED</span></div>
-        <div class="vs-chip lrg"><span class="vsc-size" id="vsz3">—</span><span class="vsc-pct" id="vop3">—</span></div>
+        <div class="vs-chip sml"><span class="vsc-size" id="vsz1">—</span><span class="vsc-pct" id="vop1">—</span><span class="vsc-cv" id="vcv1"></span></div>
+        <div class="vs-chip rec"><span class="vsc-size" id="vsz2">—</span><span class="vsc-pct" id="vop2">RECOMMENDED</span><span class="vsc-cv" id="vcv2"></span></div>
+        <div class="vs-chip lrg"><span class="vsc-size" id="vsz3">—</span><span class="vsc-pct" id="vop3">—</span><span class="vsc-cv" id="vcv3"></span></div>
       </div>
       <div class="trim-rec" id="trimRec" style="display:none"></div>
       <a id="actuatorLink" onclick="openActuatorSizing(event)" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:11px 14px;border-radius:9px;background:var(--teal,#007a6c);color:#fff;font-weight:600;font-size:.82rem;text-decoration:none;cursor:pointer">🔧 Size the actuator for this valve →</a>
@@ -901,6 +924,56 @@ select option{background:var(--ink2)}
           <button class="share-btn s-li" onclick="shareResults('linkedin')" aria-label="Share on LinkedIn"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/></svg>LinkedIn</button>
           <button class="share-btn s-cp" onclick="shareResults('copy')" aria-label="Copy link"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>Copy Link</button>
         </div>
+      </div>
+    </div>
+
+
+    <!-- FLOW vs OPENING & WHAT-IF (FIX V-12) -->
+    <div class="diag-card" id="wiCard">
+      <div class="ch" style="margin-bottom:11px"><div class="ch-icon">⇅</div><div class="ch-title">Flow vs Opening &amp; What-if</div></div>
+      <div class="char-info" style="margin-bottom:10px">
+        How far the valve opens at other flows, and what happens when the <strong>downstream pressure rises</strong>
+        (any new equipment or resistance added after the valve) or the <strong>inlet pressure changes</strong> (e.g. a different pump).
+        Fill any scenario row, then press <strong>Calculate</strong> &mdash; this updates with the main sizing.
+      </div>
+      <div class="wi-scroll">
+        <table class="wi-in">
+          <thead><tr>
+            <th>Scenario name</th>
+            <th>P₁ <span class="wi-u" id="wiU_P1"></span><span class="hint">blank = same as above</span></th>
+            <th>Added downstream ΔP <span class="wi-u" id="wiU_A"></span><span class="hint">extra resistance after the valve, at design flow</span></th>
+          </tr></thead>
+          <tbody>
+          <tr><td><input type="text" id="wiL1" maxlength="40" placeholder="e.g. + new equipment" oninput="calc()"></td>
+            <td><input type="number" id="wiP1" step="any" placeholder="= P₁ above" oninput="calc()"></td>
+            <td><input type="number" id="wiA1" step="any" placeholder="0" oninput="calc()"></td></tr>
+          <tr><td><input type="text" id="wiL2" maxlength="40" placeholder="e.g. + new equipment, fouled" oninput="calc()"></td>
+            <td><input type="number" id="wiP2" step="any" placeholder="= P₁ above" oninput="calc()"></td>
+            <td><input type="number" id="wiA2" step="any" placeholder="0" oninput="calc()"></td></tr>
+          <tr><td><input type="text" id="wiL3" maxlength="40" placeholder="e.g. lower P₁" oninput="calc()"></td>
+            <td><input type="number" id="wiP3" step="any" placeholder="= P₁ above" oninput="calc()"></td>
+            <td><input type="number" id="wiA3" step="any" placeholder="0" oninput="calc()"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="row2" style="margin-top:4px;margin-bottom:0">
+        <div class="field"><label>Added ΔP vs flow <span class="hint">used for the flow sweep</span></label>
+          <select id="wiN" onchange="calc()">
+            <option value="2" selected>∝ flow² — turbulent (most equipment, piping)</option>
+            <option value="1">∝ flow — laminar (porous / packed media)</option>
+            <option value="0">Constant</option>
+          </select></div>
+        <div class="field" style="justify-content:flex-end"><button type="button" class="crit-btn" onclick="wiClear()">✕ Clear scenarios</button></div>
+      </div>
+      <div id="wiOut"><div class="wi-empty">Press Calculate to see the valve opening vs flow.</div></div>
+      <div class="chart-wrap" id="wiChartWrap" style="height:250px;display:none"><canvas id="wiChart"></canvas></div>
+      <div class="char-legend" id="wiLegend"></div>
+      <div id="wiSweep"></div>
+      <div class="wi-note" id="wiNote" style="display:none">
+        <strong>How to read:</strong> the opening at each flow comes from the required Cv on the rated Cv shown above.
+        &lsquo;Present&rsquo; holds the entered P₁ and P₂ constant. Each scenario raises P₂ by its added ΔP at design flow;
+        across the sweep that ΔP scales with flow as selected. Keep the design point at or below about 80&nbsp;% open for control margin &mdash;
+        above 100&nbsp;% the valve cannot pass the flow. P₁ is held constant: with a centrifugal pump, P₁ falls as flow rises, so real capacity at high flow is somewhat lower.
       </div>
     </div>
 
@@ -1339,6 +1412,7 @@ function updatePressureUnitLabels(){
   const lbl = PUNIT_LABEL[PUNIT]+suffix;
   document.getElementById('uP').textContent = lbl;
   document.getElementById('uP2').textContent = lbl;
+  wiUpdateUnits();   // FIX V-12
 }
 
 // Converts a raw P1/P2 field value (in the currently selected PUNIT/PMODE)
@@ -2594,6 +2668,7 @@ async function _calcAsync(){
         d_valve:   document.getElementById('valveNPS')?.value || null,   // FIX U-4: Fp was dead server code — never sent before
         lineNPS:   document.getElementById('pipeNom')?.value || null,    // FIX V-8: body recommendation respects line size
         Cv_travel_table: collectCvTable(),                               // FIX U-3
+        whatIf:    wiCollect(),                                          // FIX V-12: flow sweep + scenarios
       }),
     });
     apiResult = await resp.json();
@@ -2637,7 +2712,11 @@ async function _calcAsync(){
   // FIX V-9: when a reduced trim is advised, the headline opening is reported
   // on the preferred trim (openPct_display), not the rejected full-port bore.
   const openPn = (r.openPct_display != null) ? r.openPct_display : openPnRaw;
-  const openNote = r.openDisplayNote ? ' (pref. trim)' : (r.openBasis==='vendor_table' ? ' (vendor)' : '');
+  // FIX V-12: always say which rated Cv the opening is on — the full-port chip
+  // and the preferred-trim strip describe different trims.
+  const openNote = r.openDisplayNote ? ' (pref. trim)'
+                 : r.openBasis==='vendor_table' ? ' (vendor)'
+                 : r.usingCustomTrim ? ' (vendor trim)' : ' (full-port)';
   lastOpenPct  = Math.min(openPn, 100);
 
   if (r.usingCustomTrim) {
@@ -2654,6 +2733,17 @@ async function _calcAsync(){
     setEl('vsz2', s1.s); setEl('vop2', r.bodyNote==='reducedTrim' ? 'w/ reduced trim' : opLbl(openPn, r.openFlags?.rec, false));
     setEl('vsz3', s2.s); setEl('vop3', opLbl(r.openPct_larger,  r.openFlags?.larger,  s2.s===s1.s));
   }
+  // FIX V-12: rated Cv each chip's % open is calculated on
+  { const fp = s => (s && s.Cv_rated!=null) ? 'full-port Cv '+s.Cv_rated : '';
+    if (r.usingCustomTrim) {
+      setEl('vcv1',''); setEl('vcv3','');
+      setEl('vcv2', (r.openBasis==='vendor_table' ? 'vendor curve · Cv ' : 'vendor trim · Cv ') + s1.Cv_rated);
+    } else {
+      setEl('vcv1', s0.s===s1.s ? '' : fp(s0));
+      setEl('vcv2', r.bodyNote==='reducedTrim' ? ('trim Cv ' + (r.trimRec ? r.trimRec.Cv_rated : '—')) : fp(s1));
+      setEl('vcv3', s2.s===s1.s ? '' : fp(s2));
+    }
+  }
 
   // FIX V-6: preferred trim recommendation strip
   const tr = document.getElementById('trimRec');
@@ -2665,7 +2755,13 @@ async function _calcAsync(){
         + ' → <b>' + t.openMax + '%</b> open at max design flow'
         + (t.openMin != null ? ', <b>' + t.openMin + '%</b> at min flow' + (t.minOk === false ? ' ⚠' : '') : '')
         + ' &nbsp;(sensible rated-Cv band: ' + t.bandLo + '–' + t.bandHi + ')'
-        + '<span class="tr-note">Generic decade series (1.0 / 1.6 / 2.5 / 4.0 / 6.3…) with a 60–80% max-flow opening target — vendor trim steps and curves differ, so enter the quoted trim\'s rated Cv above once known.</span>';
+        + '<span class="tr-note">Generic decade series (1.0 / 1.6 / 2.5 / 4.0 / 6.3…) with a 60–80% max-flow opening target — vendor trim steps and curves differ, so enter the quoted trim\'s rated Cv above once known.'
+        // FIX V-12: relate this strip to the size chips (different trims → different % open)
+        + (r.usingCustomTrim
+            ? ' The opening above is calculated on your vendor trim (rated Cv ' + s1.Cv_rated + '); this suggestion is for comparison only.'
+            : r.bodyNote==='reducedTrim' ? ''
+            : ' The size chips above assume a generic full-port trim (' + s1.s + ' ≈ Cv ' + s1.Cv_rated + '), so their % open differs from this trim\'s.')
+        + '</span>';
     } else {
       tr.style.display = 'none';
     }
@@ -2706,6 +2802,8 @@ async function _calcAsync(){
 
   renderWarnings(allWarns);
   updateCharChart();
+  LAST_R = r;          // FIX V-12: the PDF report reads trim / basis / what-if from here
+  renderWhatIf(r);     // FIX V-12
 
   // FIX U-1: results are now in sync with inputs — clear the stale state
   RESULTS_STALE = false;
@@ -2769,6 +2867,147 @@ function shareResults(p){
   }
 }
 
+// ── FIX V-12: FLOW vs OPENING & WHAT-IF ────────────────────────────────────
+// Inputs are in the same pressure unit / gauge-abs toggle as P₁ and P₂ above.
+// All Cv / opening math is done server side (body.whatIf → r.opCurve); this
+// block only converts units for display and draws the tables and chart.
+let LAST_R = null, wiChartObj = null;
+const WI_COLORS = ['#007a6c','#b07800','#cc1a2a','#1a7abf','#6a3abf'];
+
+function wiUpdateUnits(){
+  const pl = PUNIT_LABEL[PUNIT] + (PMODE==='gauge' ? '(g)' : '(a)');
+  const a = document.getElementById('wiU_P1'), b = document.getElementById('wiU_A');
+  if(a) a.textContent = '[' + pl + ']';
+  if(b) b.textContent = '[' + PUNIT_LABEL[PUNIT] + ']';
+}
+function wiClear(){
+  for(let i=1;i<=3;i++) ['wiL','wiP','wiA'].forEach(k=>{ const e=document.getElementById(k+i); if(e) e.value=''; });
+  markStale();
+}
+// Scenario rows → API base (absolute bar | psia for P₁; bar | psi for the added ΔP)
+function wiCollect(){
+  const sc = [];
+  for(let i=1;i<=3;i++){
+    const L  = (document.getElementById('wiL'+i)?.value || '').trim();
+    const rp = document.getElementById('wiP'+i)?.value, ra = document.getElementById('wiA'+i)?.value;
+    const hasP = rp!=null && rp!=='' && isFinite(parseFloat(rp));
+    const hasA = ra!=null && ra!=='' && isFinite(parseFloat(ra));
+    if(!hasP && !hasA) continue;
+    const s = { label: L || ('Scenario ' + i) };
+    if(hasP) s.P1    = absBarToApiBase(pRawToAbsBar(rp));
+    if(hasA) s.addDp = absBarToApiBase(parseFloat(ra) * PUNIT_TO_BAR[PUNIT]);   // a difference: no gauge offset
+    sc.push(s);
+  }
+  const n = parseFloat(document.getElementById('wiN')?.value);
+  return { n: isFinite(n) ? n : 2, scenarios: sc };
+}
+// API base → the user's pressure unit (gauge offset only for absolute values)
+function wiToUserP(vBase, isDiff){
+  if(vBase==null || !isFinite(vBase)) return null;
+  const bar = UNITS==='met' ? vBase : vBase*0.0689476;
+  let u = bar / PUNIT_TO_BAR[PUNIT];
+  if(!isDiff && PMODE==='gauge'){
+    const atmRaw = parseFloat(document.getElementById('atmRef')?.value) || (1.01325/PUNIT_TO_BAR[PUNIT]);
+    u -= atmRaw;
+  }
+  return u;
+}
+function wiFmtP(v){ if(v==null || !isFinite(v)) return '—'; return Math.abs(v)>=100 ? v.toFixed(1) : v.toFixed(2); }
+function wiFmtQ(v){ if(v==null || !isFinite(v)) return '—'; const a=Math.abs(v); return a>=100 ? v.toFixed(0) : a>=10 ? v.toFixed(1) : v.toFixed(2); }
+const wiEsc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// Builds the what-if tables as HTML — shared by the page and the PDF report.
+function wiBuild(oc){
+  const pL = PUNIT_LABEL[PUNIT] + (PMODE==='gauge' ? '(g)' : '(a)'), dL = PUNIT_LABEL[PUNIT];
+  const fRaw = parseFloat(document.getElementById('flow').value) || 0, fU = flowUnitLabel();
+  const sc = oc.scenarios || [];
+  const cls = f => f==='over' ? 'c-over' : f==='high' ? 'c-high' : (f==='low' || f==='belowMin') ? 'c-low' : '';
+  const openTxt = (o, f) => f==='noDp' ? 'no ΔP left' : f==='belowMin' ? '&lt; min ctrl'
+                          : (o!=null && o>100) ? '&gt;100 %' : (o!=null ? o.toFixed(1)+' %' : '—');
+  const extra = (v, flag, add, tgt) => {
+    if(flag==='noDp' || v==null) return '—';
+    if(flag==='already') return 'already above ' + tgt + ' %';
+    const left = v - (add || 0);
+    return left < 0 ? 'exceeded by ' + wiFmtP(wiToUserP(-left, true)) : wiFmtP(wiToUserP(left, true));
+  };
+  const qmax = s => s.qMax100Flag==='ok' ? (s.qMax100Pct.toFixed(0) + ' % · ' + wiFmtQ(fRaw*s.qMax100Pct/100) + ' ' + fU)
+                  : s.qMax100Flag==='beyond' ? '&gt; 4000 %' : '—';
+  const charL = (typeof CHAR_LABELS!=='undefined' && CHAR_LABELS[oc.charType]) || oc.charType;
+  const nL = oc.n>=1.5 ? 'flow²' : oc.n>=0.5 ? 'flow' : 'constant';
+
+  const basis = `<div class="wi-basis">Opening calculated on <b>${wiEsc(oc.basisLabel)}</b> · ${wiEsc(charL)}, R = ${oc.R}:1 · design flow <b>${wiFmtQ(fRaw)} ${wiEsc(fU)}</b> · added ΔP ∝ ${nL}</div>`;
+
+  let t1 = `<div class="wi-blk"><div class="wi-h">At design flow</div><div class="wi-scroll"><table class="wi-tbl"><thead><tr>
+    <th>Scenario</th><th>P₁ [${pL}]</th><th>P₂ [${pL}]</th><th>ΔP valve [${dL}]</th><th>Req. Cv</th><th>Opening</th><th>Change</th></tr></thead><tbody>`;
+  sc.forEach(s => {
+    t1 += `<tr${s.base ? ' class="design"' : ''}><td>${wiEsc(s.label)}</td><td>${wiFmtP(wiToUserP(s.P1,false))}</td><td>${wiFmtP(wiToUserP(s.P2,false))}</td>
+      <td>${s.dPv>0 ? wiFmtP(wiToUserP(s.dPv,true)) : '≤ 0'}</td><td>${s.Cv ?? '—'}</td>
+      <td class="${cls(s.flag)}">${openTxt(s.open, s.flag)}</td>
+      <td>${s.base || s.dOpen==null ? '—' : (s.dOpen>0 ? '+' : '') + s.dOpen.toFixed(1) + ' pts'}</td></tr>`;
+  });
+  t1 += `</tbody></table></div></div>`;
+
+  let t2 = `<div class="wi-blk"><div class="wi-h">Margin left</div><div class="wi-scroll"><table class="wi-tbl"><thead><tr>
+    <th>Scenario</th><th>More downstream ΔP before 80 % open [${dL}]</th><th>…before 100 % open [${dL}]</th><th>Flow at 100 % open</th></tr></thead><tbody>`;
+  sc.forEach(s => {
+    t2 += `<tr${s.base ? ' class="design"' : ''}><td>${wiEsc(s.label)}</td><td>${extra(s.add80, s.add80Flag, s.addDp, 80)}</td>
+      <td>${extra(s.add100, s.add100Flag, s.addDp, 100)}</td><td>${qmax(s)}</td></tr>`;
+  });
+  t2 += `</tbody></table></div></div>`;
+
+  let t3 = `<div class="wi-blk"><div class="wi-h">Opening vs flow</div><div class="wi-scroll"><table class="wi-tbl"><thead><tr><th>Flow %</th><th>Flow [${wiEsc(fU)}]</th>`
+         + sc.map(s => `<th>${wiEsc(s.label)}</th>`).join('') + `</tr></thead><tbody>`;
+  (oc.pcts || []).forEach((p, i) => {
+    t3 += `<tr${p===100 ? ' class="design"' : ''}><td>${p} %${p===100 ? ' (design)' : ''}</td><td>${wiFmtQ(fRaw*p/100)}</td>`
+        + sc.map(s => { const c = s.curve[i] || {}; return `<td class="${cls(c.flag)}">${openTxt(c.open, c.flag)}</td>`; }).join('') + `</tr>`;
+  });
+  t3 += `</tbody></table></div></div>`;
+  return { basis, t1, t2, t3, fRaw, fU };
+}
+
+function renderWhatIf(r){
+  const out = document.getElementById('wiOut'), sw = document.getElementById('wiSweep');
+  const wrap = document.getElementById('wiChartWrap'), leg = document.getElementById('wiLegend'), note = document.getElementById('wiNote');
+  if(!out) return;
+  const oc = r && r.opCurve;
+  if(!oc || !oc.scenarios || !oc.scenarios.length){
+    out.innerHTML = '<div class="wi-empty">No operating curve for these inputs.</div>';
+    if(sw) sw.innerHTML=''; if(leg) leg.innerHTML=''; if(wrap) wrap.style.display='none'; if(note) note.style.display='none';
+    return;
+  }
+  const b = wiBuild(oc);
+  out.innerHTML = b.basis + b.t1 + b.t2;
+  if(sw) sw.innerHTML = b.t3;
+  if(note) note.style.display = '';
+  // chart — opening vs flow, one line per scenario
+  if(wrap) wrap.style.display = '';
+  const cv = document.getElementById('wiChart'); if(!cv || typeof Chart==='undefined') return;
+  if(wiChartObj) wiChartObj.destroy();
+  const xmax = b.fRaw * 1.2;
+  const ds = oc.scenarios.map((s, i) => ({
+    label: s.label, borderColor: WI_COLORS[i % WI_COLORS.length], backgroundColor: WI_COLORS[i % WI_COLORS.length],
+    borderWidth: s.base ? 2.6 : 2, borderDash: s.base ? [] : [6,3], tension: .25, spanGaps: false,
+    pointRadius: s.curve.map(c => c.pct===100 ? 5 : 2.2),
+    data: s.curve.map(c => ({ x: b.fRaw*c.pct/100,
+      y: (c.open==null || c.flag==='noDp' || c.flag==='belowMin') ? null : Math.min(c.open, 110) })),
+  }));
+  ds.push({ label:'80 % (control margin)', data:[{x:0,y:80},{x:xmax,y:80}], borderColor:'rgba(176,120,0,.7)', borderDash:[4,4], borderWidth:1.2, pointRadius:0 });
+  ds.push({ label:'100 % (fully open)',   data:[{x:0,y:100},{x:xmax,y:100}], borderColor:'rgba(204,26,42,.7)', borderDash:[4,4], borderWidth:1.2, pointRadius:0 });
+  const f = { family:"'JetBrains Mono',monospace", size:10 };
+  wiChartObj = new Chart(cv.getContext('2d'), { type:'line', data:{ datasets: ds }, options:{
+    responsive:true, maintainAspectRatio:false, interaction:{ intersect:false, mode:'nearest', axis:'x' },
+    scales:{
+      x:{ type:'linear', min:0, max:xmax, title:{ display:true, text:'Flow [' + b.fU + ']', color:'#5a6f8a' }, ticks:{ font:f, color:'#5a6f8a' }, grid:{ color:'rgba(208,216,232,.4)' } },
+      y:{ type:'linear', min:0, max:110, title:{ display:true, text:'Valve opening (%)', color:'#5a6f8a' }, ticks:{ font:f, color:'#5a6f8a' }, grid:{ color:'rgba(208,216,232,.4)' } } },
+    plugins:{ legend:{ display:false },
+      tooltip:{ filter: it => it.datasetIndex < oc.scenarios.length,
+        callbacks:{ title: it => it.length ? wiFmtQ(it[0].parsed.x) + ' ' + b.fU : '',
+                    label: c => c.dataset.label + ': ' + (c.parsed.y>=110 ? '>100' : c.parsed.y.toFixed(1)) + ' %' } } } } });
+  if(leg) leg.innerHTML = oc.scenarios.map((s, i) => `<div class="char-leg-item"><div class="char-leg-dot" style="background:${WI_COLORS[i % WI_COLORS.length]}"></div>${wiEsc(s.label)}${s.open!=null ? ' — ' + (s.open>100 ? '&gt;100' : s.open.toFixed(1)) + ' % at design' : ''}</div>`).join('')
+    + `<div class="char-leg-item"><div class="char-leg-dot" style="background:rgba(176,120,0,.7)"></div>80 %</div><div class="char-leg-item"><div class="char-leg-dot" style="background:rgba(204,26,42,.7)"></div>100 %</div>`;
+}
+window.addEventListener('DOMContentLoaded', () => { setTimeout(wiUpdateUnits, 30); });
+
 // ── PDF ───────────────────────────────────────────────────
 function generatePDF(){
   const now=new Date();
@@ -2786,6 +3025,30 @@ function generatePDF(){
   const nsn=parseFloat(document.getElementById('pb_noise')?.style.width)||0;
   const bar=(w,c)=>`<div style="height:8px;background:#e8ecf4;border-radius:4px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${Math.min(w,100)}%;background:${c};border-radius:4px"></div></div>`;
   const info=CHAR_INFO[charType]||{desc:'',use:''};
+  // FIX V-12: preferred trim strip, opening basis and the what-if section in the report
+  const _tr=document.getElementById('trimRec');
+  const trimHtml=(_tr && _tr.style.display!=='none' && _tr.innerHTML.trim()) ? `<div class="trim">${_tr.innerHTML}</div>` : '';
+  const basisTxt=(LAST_R && LAST_R.openBasisLabel) ? LAST_R.openBasisLabel : '—';
+  const wiHtml=(()=>{
+    const oc=LAST_R && LAST_R.opCurve;
+    if(!oc || !oc.scenarios || !oc.scenarios.length) return '';
+    const b=wiBuild(oc);
+    let chart='';
+    if(typeof window.cvChartSVG==='function'){
+      const curves=oc.scenarios.map((sc,i)=>({
+        pts:sc.curve.filter(c=>c.open!=null && c.flag!=='noDp' && c.flag!=='belowMin').map(c=>({x:c.pct,y:Math.min(c.open,110)})),
+        color:WI_COLORS[i%WI_COLORS.length], w:sc.base?2.4:1.8, dash:sc.base?null:'6 3'}));
+      const markers=oc.scenarios.map((sc,i)=>({sc,i})).filter(o=>o.sc.open!=null && o.sc.flag!=='noDp')
+        .map(o=>({x:100,y:Math.min(o.sc.open,110),label:'',color:WI_COLORS[o.i%WI_COLORS.length]}));
+      chart=`<div class="wi-chart">${window.cvChartSVG({W:520,H:240,xmin:0,xmax:120,ymin:0,ymax:110,
+        xlab:'FLOW % OF DESIGN (100 % = '+wiFmtQ(b.fRaw)+' '+b.fU+')',ylab:'VALVE OPENING %',
+        xticks:[0,20,40,60,80,100,120],yticks:[0,20,40,60,80,100],
+        hlines:[{y:80,color:'#b07800',label:'80 %'},{y:100,color:'#cc1a2a',label:'100 %'}],curves,markers})}</div>`;
+    }
+    const leg=oc.scenarios.map((sc,i)=>`<span><i style="background:${WI_COLORS[i%WI_COLORS.length]}"></i>${wiEsc(sc.label)}${sc.open!=null?' — '+(sc.open>100?'&gt;100':sc.open.toFixed(1))+' % at design':''}</span>`).join('');
+    return `<div class="sec">Flow vs Opening &amp; What-if</div>${b.basis}${chart}<div class="wi-leg">${leg}</div>${b.t1}${b.t2}${b.t3}
+      <div class="wi-note">Opening from the required Cv on the rated Cv above. &lsquo;Present&rsquo; holds the entered P₁ and P₂ constant; each scenario raises P₂ by its added ΔP at design flow, scaled with flow across the sweep. Keep the design point at or below ~80 % open; above 100 % the valve cannot pass the flow. P₁ is held constant — with a centrifugal pump it falls as flow rises, so real capacity at high flow is somewhat lower.</div>`;
+  })();
 
   const rpt=`<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
@@ -2839,6 +3102,23 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
 .site-brand .site-name{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#007a6c;letter-spacing:1px}
 .site-brand .site-tag{font-size:9px;color:#5a6f8a;letter-spacing:2px;text-transform:uppercase;margin-top:1px}
 .site-brand .site-url{font-size:10px;color:#3a4f6e;font-weight:600;border-bottom:1.5px solid #007a6c;display:inline-block;padding-bottom:1px;margin-top:2px}
+.sz-c{font-size:8.5px;color:#5a6f8a;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.trim{margin:-3px 0 11px;padding:7px 10px;border:1px dashed #7fbcb3;border-radius:6px;background:#f2f9f8;font-size:10.5px;color:#3a4f6e;line-height:1.5}
+.trim b{color:#007a6c;font-family:'JetBrains Mono',monospace}
+.trim .tr-note{display:block;margin-top:2px;font-size:9px;color:#5a6f8a}
+.wi-basis{font-size:10.5px;color:#3a4f6e;margin:0 0 6px;line-height:1.5}.wi-basis b{color:#007a6c;font-family:'JetBrains Mono',monospace}
+.wi-h{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#5a6f8a;margin:9px 0 4px}
+.wi-chart{position:relative;width:100%;padding-top:46%;margin:4px 0 2px}
+.wi-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:9.5px;color:#3a4f6e;margin-bottom:4px}
+.wi-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.wi-tbl th{text-align:right;font-size:9px;padding:4px 6px;vertical-align:bottom}
+.wi-tbl td{font-family:'JetBrains Mono',monospace;text-align:right;font-size:10px;padding:4px 6px;white-space:nowrap}
+.wi-tbl th:first-child,.wi-tbl td:first-child{text-align:left;font-family:'Instrument Sans',Arial,sans-serif}
+.wi-tbl tbody td:last-child{font-weight:400}
+.wi-tbl tr.design td{font-weight:700}
+table.wi-tbl,.wi-chart,.wi-blk,.cr,.fr{page-break-inside:avoid}
+.wi-tbl .c-high{color:#8a5e00;background:#fdf3dc}.wi-tbl .c-over{color:#b3241f;background:#fae7e4}.wi-tbl .c-low{color:#8a97ab}
+.wi-note{font-size:9px;color:#5a6f8a;line-height:1.5;margin-top:6px}
 </style></head><body>
 
 <div class="site-brand">
@@ -2864,10 +3144,11 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
 
 <div class="sec">Valve Size Recommendation</div>
 <div class="szr">
-  <div class="szb m"><div class="sz-t">↓ Smaller</div><div class="sz-v">${g('vsz1')}</div><div class="sz-p">${g('vop1')}</div></div>
-  <div class="szb r"><div class="sz-t">✓ Recommended</div><div class="sz-v">${g('vsz2')}</div><div class="sz-p">${g('vop2')}</div></div>
-  <div class="szb l"><div class="sz-t">↑ Larger Option</div><div class="sz-v">${g('vsz3')}</div><div class="sz-p">${g('vop3')}</div></div>
+  <div class="szb m"><div class="sz-t">↓ Smaller</div><div class="sz-v">${g('vsz1')}</div><div class="sz-p">${g('vop1')}</div><div class="sz-c">${g('vcv1')}</div></div>
+  <div class="szb r"><div class="sz-t">✓ Recommended</div><div class="sz-v">${g('vsz2')}</div><div class="sz-p">${g('vop2')}</div><div class="sz-c">${g('vcv2')}</div></div>
+  <div class="szb l"><div class="sz-t">↑ Larger Option</div><div class="sz-v">${g('vsz3')}</div><div class="sz-p">${g('vop3')}</div><div class="sz-c">${g('vcv3')}</div></div>
 </div>
+${trimHtml}
 
 <div class="sec">Process Conditions & Calculated Parameters</div>
 <div class="tc">
@@ -2893,6 +3174,7 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
     <tr><td>ΔP/P₁ Ratio</td><td>${g('dv_dp')}</td></tr>
     <tr><td>Reynolds No.</td><td>${g('dv_re')}</td></tr>
     <tr><td>Valve Opening</td><td>${g('dv_open')}</td></tr>
+    <tr><td>Opening calculated on</td><td style="font-size:9.5px">${basisTxt}</td></tr>
     <tr><td>Inherent valve gain</td><td>${g('pt_gain')}</td></tr>
     <tr><td>Cavitation σ / Kc</td><td>${g('pt_cav')}</td></tr>
     <tr><td>Cv/Kv Factor</td><td>1.1561 (IEC exact)</td></tr>
@@ -2912,9 +3194,9 @@ tbody td:first-child{color:#3a4f6e;font-weight:500}
 <div class="pbi"><div class="pbl"><span>ΔP Utilisation</span><span class="pbv">${g('pb_dp_txt')}</span></div>${bar(dpn,'linear-gradient(90deg,#8a5e00,#b07800)')}</div>
 <div class="pbi"><div class="pbl"><span>Noise Level</span><span class="pbv">${g('pb_noise_txt')}</span></div>${bar(nsn,'linear-gradient(90deg,#a01520,#cc1a2a)')}</div>
 
-<div class="pb"></div>
+${wiHtml}
 
-<div class="sec">Valve Characteristics</div>
+<div class="sec" style="margin-top:14px">Valve Characteristics</div>
 <div class="cr">
   <div class="cb"><div class="ct">Inherent Characteristic: ${charLabel}</div>
     <div class="cd">${info.desc}<br><strong>Typical Use:</strong> ${info.use}</div></div>
@@ -4212,6 +4494,7 @@ function renderReport(d){
   document.getElementById('cvReport').innerHTML=H;
 }
 window.cvRenderReport=renderReport;
+window.cvChartSVG=chartSVG;   // FIX V-12: reused by the main PDF report's what-if chart
 // FIX G-1: touch support for the chart interpretation popovers. Hover does the
 // job on desktop (pure CSS); on touch there is no hover, so a tap on a chart
 // card pins its message (.interp-on), tapping another card switches to that
