@@ -384,7 +384,8 @@ function computeCase(d, shared){
   const sevBand   = severity<25?'ok':severity<55?'caution':'critical';
 
   return {
-    Cv:fmtN(Cv), Kv:fmtN(Kv), Y:isG?fmtN(Y):null, Rev:isL&&Rev!=null?Math.round(Rev):null, FR:FR!=null?+FR.toFixed(3):null,
+    // CvRaw: unrounded Cv for the FIX V-12 what-if (fmtN rounds Cv < 0.0005 to zero)
+    Cv:fmtN(Cv), CvRaw:Cv, Kv:fmtN(Kv), Y:isG?fmtN(Y):null, Rev:isL&&Rev!=null?Math.round(Rev):null, FR:FR!=null?+FR.toFixed(3):null,
     Fp:+Fp.toFixed(4),
     flowState, flowType:flowType_str, x_ratio:+x_ratio.toFixed(3),
     dP, dPmax, dPeff,
@@ -1134,8 +1135,8 @@ function controlValve_single(req, res) {
         const minCtrlCv = charType === 'equal_pct' ? pick / R_trim : null;
         trimRec = {
           Cv_rated: pick,
-          bandLo:   +ratedLo.toFixed(3),
-          bandHi:   +ratedHi.toFixed(3),
+          bandLo:   fmtN(ratedLo),          // FIX V-12: 3 significant figures (was 393.91 / 861.373)
+          bandHi:   fmtN(ratedHi),
           openMax:  +openMax.toFixed(1),
           openMin:  openMin != null ? +openMin.toFixed(1) : null,
           minOk:    (Cv_min == null) ? null
@@ -1156,6 +1157,140 @@ function controlValve_single(req, res) {
     if (bodyNote === 'reducedTrim' && !usingCustomTrim && trimRec) {
       openPct_display = trimRec.openMax;
       openDisplayNote = 'on preferred trim Cv ' + trimRec.Cv_rated;
+    }
+
+    // ── FIX V-12: WHICH RATED Cv THE HEADLINE OPENING IS ON ──────────────────
+    //   The size chips use a GENERIC full-port Cv per body size (6" = 550),
+    //   while the preferred-trim strip uses its own decade-series trim. Both
+    //   are valid but describe different hardware — say which one applies.
+    const openBasisCv = cvTable ? sizes.rec.Cv_rated
+                      : usingCustomTrim ? Cv_rated_custom
+                      : openDisplayNote ? trimRec.Cv_rated
+                      : sizes.rec.Cv_rated;
+    const openBasisLabel = cvTable ? `vendor Cv–travel table (rated Cv ${fmtN(sizes.rec.Cv_rated)})`
+                         : usingCustomTrim ? `vendor trim, rated Cv ${fmtN(Cv_rated_custom)}`
+                         : openDisplayNote ? `preferred trim, rated Cv ${trimRec.Cv_rated}`
+                         : `generic ${sizes.rec.s} full-port trim, rated Cv ${sizes.rec.Cv_rated}`;
+
+    // ── FIX V-12: OPERATING CURVE & WHAT-IF ──────────────────────────────────
+    //   Only when the page asks for it (body.whatIf) — API callers that do not
+    //   send it get the unchanged response.
+    //   • Flow sweep: opening vs flow (10–120 % of design) on the same rated Cv
+    //     as the headline opening.
+    //   • Scenarios: what the valve does when the DOWNSTREAM pressure rises
+    //     (any new equipment or resistance after the valve) and/or the INLET
+    //     pressure changes (e.g. a different pump). P₂ is raised by the added ΔP at
+    //     design flow; across the sweep the added ΔP scales as (q/q_design)^n
+    //     (n = 2 turbulent equipment, 1 laminar beds, 0 constant). The entered
+    //     P₁ and P₂ themselves are held constant across the sweep.
+    //   Cv at each point comes from computeCase() — the same validated IEC
+    //   60534-2-1 core as the multi-case report — plus the same Fp correction
+    //   as the main sizing above.
+    let opCurve = null;
+    if (d.whatIf && typeof d.whatIf === 'object') {
+      const wi    = d.whatIf;
+      const nRaw  = parseFloat(wi.n);
+      const nExp  = Number.isFinite(nRaw) ? Math.max(0, Math.min(3, nRaw)) : 2;
+      const ratedWI = openBasisCv;
+      const wiShared = { phase, flowType, units, SG, Pv, D, D2: D2raw > 0 ? D2raw : null, d_valve: null,
+                         FL, k, Z, Z2: Z, fluidVisc, fluidPc, steamFluid, Fd };
+      const applyFp = !isS && d_valve_in && (d_valve_in < D_in * 0.99 || d_valve_in < D2_in * 0.99);
+      const cvAt = (Qx, P1x, P2x) => {
+        if (!(Qx > 0) || !(P2x > 0) || !(P1x > P2x)) return null;
+        const r = computeCase({ Q: Qx, P1: P1x, P2: P2x, T }, wiShared);
+        if (!r || r.error) return null;
+        let c = Number.isFinite(r.CvRaw) ? r.CvRaw : parseFloat(r.Cv);
+        if (!(c > 0)) return null;
+        if (applyFp) c = c / cvFp(c, d_valve_in, D_in, D2_in);
+        return c;
+      };
+      const openOf = cvX => cvX == null ? null
+        : cvTable ? openPct_table(cvX)
+        : invertChar(charType, Math.min(cvX / Math.max(ratedWI, 1e-9), 1.5), R_trim);
+      // 'belowMin': below the trim's minimum controllable Cv (eq-%: Cv_rated/R) —
+      //   the inverted curve returns ~0 % there, which is not a real opening.
+      const flagOf = (o, cvX) => o == null ? 'noDp'
+        : (!cvTable && charType === 'equal_pct' && cvX != null && cvX / Math.max(ratedWI, 1e-9) <= 1 / R_trim) ? 'belowMin'
+        : o > 100 ? 'over' : o > 80 ? 'high' : o < 20 ? 'low' : 'ok';
+      const pTol = Math.max(P1, 1) * 1e-6;
+
+      // Scenario list: the present case first, then the user's rows (max 4)
+      const scen = [{ label: 'Present (as entered)', P1: P1, addDp: 0, base: true }];
+      (Array.isArray(wi.scenarios) ? wi.scenarios : []).slice(0, 4).forEach((s, i) => {
+        if (!s) return;
+        const p1s = parseFloat(s.P1), add = parseFloat(s.addDp);
+        const hasP1 = Number.isFinite(p1s) && p1s > 0, hasAdd = Number.isFinite(add);
+        if (!hasP1 && !hasAdd) return;
+        scen.push({ label: String(s.label || '').slice(0, 40) || `Scenario ${i + 1}`,
+                    P1: hasP1 ? p1s : P1, addDp: hasAdd ? add : 0, base: false });
+      });
+
+      // Added downstream ΔP (on top of the entered P₂) at which the valve reaches
+      // `target` % open at design flow, for inlet pressure P1s. Opening rises
+      // monotonically with the added ΔP (less ΔP left across the valve).
+      const addForOpen = (P1s, target) => {
+        const aMax = P1s - P2 - pTol;
+        if (!(aMax > 0)) return { v: null, flag: 'noDp' };
+        const o0 = openOf(cvAt(Q, P1s, P2));
+        if (o0 == null) return { v: null, flag: 'noDp' };
+        if (o0 >= target) return { v: 0, flag: 'already', open0: +o0.toFixed(1) };
+        let lo = 0, hi = aMax;
+        for (let i = 0; i < 50; i++) {
+          const mid = 0.5 * (lo + hi), o = openOf(cvAt(Q, P1s, P2 + mid));
+          if (o == null || o >= target) hi = mid; else lo = mid;
+        }
+        return { v: 0.5 * (lo + hi), flag: 'ok' };
+      };
+      // Flow (as % of design) at which the valve reaches 100 % open, with the
+      // added ΔP growing as (q/q_design)^n.
+      const qAtFullOpen = s => {
+        const f = qx => openOf(cvAt(qx, s.P1, P2 + s.addDp * Math.pow(qx / Q, nExp)));
+        let lo = Q * 1e-3, hi = Q, oh = f(hi), it = 0;
+        const oLo = f(lo);
+        if (oLo == null || oLo >= 100) return { pct: null, flag: oLo == null ? 'noDp' : 'already' };
+        while (oh != null && oh < 100 && it < 12) { lo = hi; hi *= 2; oh = f(hi); it++; }
+        if (oh != null && oh < 100) return { pct: null, flag: 'beyond' };
+        for (let i = 0; i < 50; i++) {
+          const mid = 0.5 * (lo + hi), o = f(mid);
+          if (o == null || o >= 100) hi = mid; else lo = mid;
+        }
+        return { pct: +(50 * (lo + hi) / Q).toFixed(1), flag: 'ok' };
+      };
+
+      const pcts = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+      const r4 = v => v == null ? null : +v.toFixed(4);
+      const r1 = v => v == null ? null : +v.toFixed(1);
+      let baseOpen = null;
+      const scenOut = scen.map(s => {
+        const P2s  = P2 + s.addDp;
+        const cvD  = cvAt(Q, s.P1, P2s);
+        const oD   = openOf(cvD);
+        if (s.base) baseOpen = oD;
+        const a80  = addForOpen(s.P1, 80);
+        const a100 = addForOpen(s.P1, 100);
+        const qmax = qAtFullOpen(s);
+        const curve = pcts.map(p => {
+          const qx = Q * p / 100;
+          const c  = cvAt(qx, s.P1, P2 + s.addDp * Math.pow(p / 100, nExp));
+          const o  = openOf(c);
+          return { pct: p, Cv: fmtN(c), open: r1(o), flag: flagOf(o, c) };
+        });
+        return {
+          label: s.label, base: s.base,
+          P1: r4(s.P1), P2: r4(P2s), addDp: r4(s.addDp), dPv: r4(s.P1 - P2s),
+          Cv: fmtN(cvD), open: r1(oD), flag: flagOf(oD, cvD),
+          add80: r4(a80.v), add80Flag: a80.flag, add100: r4(a100.v), add100Flag: a100.flag,
+          open0: a80.open0 ?? null,
+          qMax100Pct: qmax.pct, qMax100Flag: qmax.flag,
+          curve,
+        };
+      });
+      scenOut.forEach(s => { s.dOpen = (s.open != null && baseOpen != null) ? +(s.open - baseOpen).toFixed(1) : null; });
+
+      opCurve = {
+        basisLabel: openBasisLabel, ratedCv: fmtN(ratedWI), charType, R: R_trim, n: nExp,
+        pressUnit: m ? 'bar' : 'psi', designQ: Q, pcts, scenarios: scenOut,
+      };
     }
 
     // ── DISPLAY LABELS (all formatting done server side) ──────────────────────
@@ -1198,6 +1333,9 @@ function controlValve_single(req, res) {
       bodyNote,
       openPct_display,
       openDisplayNote,
+      openBasisLabel,                                                                   // FIX V-12
+      openBasisCv,                                                                      // FIX V-12
+      opCurve,                                                                          // FIX V-12 (null unless body.whatIf)
       openPct_rec,
       openPct_smaller,
       openPct_larger,
