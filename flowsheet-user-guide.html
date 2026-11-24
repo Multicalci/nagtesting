@@ -300,6 +300,16 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <tr><td>Shift converter, methanator</td><td>Water-gas shift (HTS / LTS presets) or CO/CO₂ methanation at equilibrium</td><td>Adiabatic or isothermal, approach to equilibrium</td></tr>
 <tr><td>Urea reactor, HP carbamate stripper, urea HP loop</td><td>Urea synthesis section</td><td>Reactor T and P, with an optional conversion override. Stripper decomposition, temperatures, pressure and heating steam. Loop pressure. These are tuned empirical correlations that warn outside their validity range.</td></tr>
 </tbody></table></div>
+<h3 id="water">Water treatment (DM plant, softener, degasser)</h3>
+<p>Enter the inlet water analysis once, on the first unit (cations, anions, alkalinity, silica, free CO₂ or pH; in mg/L as CaCO₃ or as the ion — an ion imbalance is closed with Na⁺ or Cl⁻). The units downstream take the analysis from the stream, also through pumps, valves, heaters, splitters and mixers; open any stream for its water quality. Each unit either <b>designs</b> the resin volume for a service run (or throughput, or regenerations a day) and outlet targets, choosing the regeneration level that meets the target, or <b>rates</b> a resin volume you give. After a run every unit lists the <b>additional equipment the water needs</b> — degasser, weak acid or weak base resin ahead, mixed-bed polisher, counter-flow regeneration, warm caustic, carbon or sand filter, RO ahead, regeneration systems, neutralisation pit — with the reason and the chemical saving; equipment already in your flowsheet is ticked.</p>
+<div class="tw"><table><thead><tr><th>Unit</th><th>What it does</th><th>You give</th></tr></thead><tbody>
+<tr><td>Cation exchanger</td><td>Strong acid cation (H⁺ form) for demineralisation, or weak acid cation for dealkalisation / ahead of the SAC</td><td>Design: service run and the sodium-leakage target. Rating: resin volume. HCl or H₂SO₄, co-flow or counter-flow; vessels in service and standby</td></tr>
+<tr><td>Anion exchanger</td><td>Strong base Type I or II (mineral acids, CO₂, silica), or weak base (mineral acids only, ahead of the SBA)</td><td>Design: service run, silica and conductivity targets. Rating: resin volume. Caustic level and temperature</td></tr>
+<tr><td>Mixed bed</td><td>SAC + SBA polisher (≈ 0.1 µS/cm)</td><td>Service run (or the cation and anion resin volumes), acid and caustic levels</td></tr>
+<tr><td>Softener</td><td>Hardness removal with brine-regenerated SAC (Na⁺ form)</td><td>Service run and residual-hardness target, salt level</td></tr>
+<tr><td>Degasser</td><td>Strips the CO₂ the cation makes from the alkalinity (forced draft or vacuum)</td><td>Residual CO₂; tower loading, air ratio and HTU under More settings</td></tr>
+</tbody></table></div>
+<p>Results per unit: ionic load, resin volume and installed resin, operating capacity, vessel diameter, bed depth, velocity, BV/h and pressure drop, run length, regenerations a day, regenerant per regeneration and per day (100 % and commercial), regeneration steps and waste water, outlet water quality against the targets.</p>
 
 <h2 id="solve">6 · Recycles, design specs, sensitivity studies and optimisation</h2>
 <h3>Recycle loops</h3>
@@ -412,6 +422,7 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <tr><td>Syngas CO₂ removal: MEA, MDEA, activated MDEA, hot potassium carbonate</td><td>Absorber, flash let-down, lean/rich exchanger and regenerator with each solvent</td></tr>
 <tr><td>Refinery sour water stripper</td><td>Preheater, 20-stage stripper with partial condenser, bottoms cooler; reboiler duty sets the stripped-water NH₃ and H₂S</td></tr>
 <tr><td>Seawater evaporator</td><td>Boiling-point rise of brine, CO₂ loss, pH rise and calcite / anhydrite scaling</td></tr>
+<tr><td>DM plant — cation, degasser, anion and mixed bed</td><td>Ion-exchange train sized from a water analysis: resin volumes, vessels, chemicals, water quality after each unit and the additional equipment the water needs</td></tr>
 </tbody></table></div>
 
 <h2 id="trouble">11 · Troubleshooting</h2>
@@ -451,6 +462,7 @@ Press <span class="ui">Create flowsheet</span>.</li>
 <li><b>Aqueous electrolytes</b> follow the PHREEQC pitzer.dat database: reliable to about 100 °C, usable to 200 °C, ionic strength up to about 6–9 mol/kg. Solids are not precipitated — a supersaturated stream stays in solution and is warned. NH₃ and H₂S need the sour-water method.</li>
 <li><b>Urea units</b> are tuned empirical correlations and warn outside their validity range.</li>
 <li><b>Steam / water method</b>: pure water only.</li>
+<li><b>Water treatment</b> units are preliminary design: operating capacities and leakages follow published design curves for gel resins and hydraulics use the Ergun equation. Confirm the resin volumes and regeneration levels with the resin maker’s software (DuPont WAVE, Purolite PRSM, Lanxess LewaPlus) before purchase. The water analysis is carried through pumps, valves, heaters, splitters and mixers, but not through recycle tear streams.</li>
 <li><b>Costing</b> is a study estimate (about −20 % / +30 %) from published correlations and example prices; mechanical design, piping, instruments and buildings are covered only by the module and grassroots factors. Turbines, expanders and valves are not costed.</li>
 <li><b>Optimisation</b> finds a local optimum within the bounds; it is not a global search.</li>
 <li><b>User components and filled binary pairs</b> are group-contribution estimates — screening quality. Enter measured constants where you have them and fitted binary parameters for design.</li>
