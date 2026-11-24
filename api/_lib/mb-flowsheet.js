@@ -102,8 +102,9 @@
 import calc from './mb-calc.js';                // STEP 34 — calculator blocks (pure expression language, no imports)
 import econ from './mb-econ.js';                // STEP 36 — equipment and utility costs
 import optim from './mb-optim.js';              // STEP 36 — bounded minimisers (generators)
+import ionx from './mb-ionx.js';                // Nov 2026 — water analysis carried on water streams (ion exchange, degasser)
 
-const FS_VERSION = 'mb-flowsheet 1.9.0';     // ROUND 16: energy streams
+const FS_VERSION = 'mb-flowsheet 1.10.0';    // ROUND 16: energy streams · Nov 2026: water analysis on water streams
 // STEP 36: optimisation (objective, bounded decision variables, inequality constraints)
 const FS_MAX_OPT_VARS = 6, FS_MAX_OPT_CONS = 8, FS_MAX_OPT_EVALS = 300;
 const ECON_METRICS = ['total_annual_cost_y', 'grassroots', 'total_module', 'bare_module', 'utility_cost_y', 'annualised_capital_y'];
@@ -626,7 +627,23 @@ function clean(s) {
   // the next rigorous block reconstruct saturated / pure-component states
   if (s.rig && typeof s.rig.sig === 'string') o.rig = { sig: s.rig.sig, h_Jmol: s.rig.h_Jmol, beta: s.rig.beta, phase: s.rig.phase };
   if (s.spec === 'PVF' && num(s.vapour_fraction)) { o.spec = 'PVF'; o.vapour_fraction = s.vapour_fraction; }
+  // Nov 2026: a water stream's ionic analysis (set by the ion-exchange / degasser units)
+  if (isObj(s.water)) o.water = s.water;
   return o;
+}
+/* Nov 2026: units that do not change water chemistry pass the inlet's water analysis to their
+   liquid outlets — pumps, valves, heaters, pipes, splitters (one inlet), exchangers (each side to
+   its own outlet), mixers (flow-weighted, only when every inlet carries an analysis) */
+const WATER_PASS = new Set(['splitter', 'r-splitter', 'rotating', 'pump', 'heater', 'valve', 'r-pipe']);
+const WATER_HX = new Set(['heat-exchanger', 'r-hx']);
+const WATER_MIX = new Set(['mixer', 'r-mixer']);
+function waterThrough(module, ins, outs) {
+  if (ionx.WATER_MODULES.has(module) || !ins.some((s) => s && isObj(s.water))) return null;
+  const liquid = (o) => o && !(num(o.vapour_fraction) && o.vapour_fraction > 1e-3);
+  if (WATER_PASS.has(module) && ins[0] && isObj(ins[0].water)) return outs.map((o) => (liquid(o) ? ins[0].water : null));
+  if (WATER_HX.has(module)) return outs.map((o, j) => (liquid(o) && ins[j] && isObj(ins[j].water) ? ins[j].water : null));
+  if (WATER_MIX.has(module) && liquid(outs[0])) { const w = ionx.mixWater(ins, outs[0].T_K); return w ? [w] : null; }
+  return null;
 }
 function sObj(s) {
   const m = {};
@@ -900,9 +917,10 @@ function evaluate(M, plan, opts, deadline, logOn, sink, wc) {
     if (r.error) throw new FsError(r.error.code, `${label(b)} (${b.module}): ${r.error.message}`, r.error.field);
     BR[bid] = { module: b.module, result: r };
     const outs = r.streams_out || [];
+    const wt = waterThrough(b.module, ins, outs);
     for (let j = 0; j < b.n_out; j++) {
       const s = M.streams.find((x) => x.from && x.from.b === bid && x.from.p === j);
-      if (s && outs[j]) SV[s.id] = outs[j];
+      if (s && outs[j]) SV[s.id] = wt && wt[j] ? Object.assign({}, outs[j], { water: wt[j] }) : outs[j];
     }
     if (!quiet) {
       const cp = r.mass_balance && r.mass_balance.closure_pct;

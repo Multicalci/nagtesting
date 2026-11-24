@@ -1,7 +1,7 @@
 {
  "meta": {
   "repo_path": "tests/mb-vectors.json",
-  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets) + Round 15 (stream properties) + Round 16 (energy streams) + free water with liquid hydrocarbons, + Nov 2026 (vapour thermal conductivity of hydrogen mixtures against hot-wire data; hydrogen reference curve), vectors MB-001..MB-474",
+  "version": "mb-vectors 3.4 — + Step 34 (urea synthesis method: Voskov UNIQUAC with carbamate / bicarbonate equilibria, urea reactor, CO2 stripper; larger flowsheets; machine curves, multistage compressor; calculator blocks; pseudo-components and TBP assay cutting) + Step 35 (solver transparency: loop, design-spec and calculator histories, tear-stream status, accelerator choice) + Step 36 (pinch analysis, equipment and utility costing, optimisation) + Step 37 (structure-based components, UNIFAC fill-in, transport properties) + Step 38 (aqueous electrolytes on PHREEQC pitzer.dat, sour water) + Step 39 (liquid enthalpy from liquid heat capacities, water on IAPWS-IF97) + Step 40 (ternary maps and azeotrope search, N-outlet component separator, heat of mixing and liquid volume options) + Step 41 (cross-check against DWSIM, robust dew and bubble points near the critical region, volume translation for the permanent gases, water–hydrocarbon pairs fitted to IUPAC-NIST solubilities, cross-check against DWSIM 10, compressed-liquid density, ammonia liquid conductivity, SRK k_ij table, heterogeneous bubble points of equation-of-state mixtures) + Round 12 (extended pure-component databank: 1,118 compounds from evaluated literature data and reference equations of state) + Round 12b (GERG-2008 and the pure-fluid reference equations) + Round 12c (PR78, PRSV2, Lee–Kesler–Plöcker, Chao–Seader, Grayson–Streed) + Round 12d (UNIFAC-LL, NIST-modified UNIFAC, MDEA viscosity) + Round 14 (400-unit flowsheets) + Round 15 (stream properties) + Round 16 (energy streams) + free water with liquid hydrocarbons, + Nov 2026 (vapour thermal conductivity of hydrogen mixtures against hot-wire data; hydrogen reference curve), + Nov 2026 water treatment (ion exchange and degasser: closed-form run length and resin volume, ampholyte pH, NaCl conductivity, CO₂ stripping through a flowsheet), vectors MB-001..MB-480",
   "target": "api/_lib/mb-engine.js (mb-engine 0.17.x) + mb-flowsheet.js + mb-thermo.js / mb-units.js / mb-column.js / mb-analysis.js / mb-kinetics.js / mb-electrolyte.js",
   "units": "T [K], P [bar(a)], molar h [kJ/mol], Cp [J/mol·K], stream H [kJ/h]",
   "notes": "Expected values are EXTERNAL references (NIST WebBook, IAPWS-IF97 steam tables, SVN App. C, CRC/Perry class values) — never engine output — so these vectors detect coefficient transcription errors, not just regressions. Groups: A gas Cp/H (Shomate+SVN), B water/IF97, C Watson latent heat, D phase determination edge cases, E formation-basis reaction consistency, F solveT_forH round-trips. Group G (MB-026..MB-040): module solvers via runModule — mixer, splitter, flash (Rachford-Rice), heat-exchanger, rotating (pump/compressor/turbine), conversion reactor; expected values are hand calculations from steam tables, published Antoine constants, ideal-gas relations, and Felder & Rousseau-class worked figures — never engine output. Group H (MB-041..MB-052): cstr / pfr / pfr-recycle — expected values are hand calculations from the standard ideal-reactor design equations (Fogler, Elements of Chemical Reaction Engineering; Levenspiel, Chemical Reaction Engineering): CSTR X = Da/(1+Da) family, PFR X = 1−e^(−Da) family, recycle-reactor closed form X_ov = 1 − E/(1+R−R·E) with E = e^(−Da0/(1+R)) — never engine output. Test chemistry is the mass-balanced model liquid reaction 2 C3H6(l) → C6H12(l) (cyclohexane; 2·42.081 = 84.162 vs 84.161 kg/kmol, closure −0.0012 % — deliberately visible in closure_pct) with pseudo-nth-order rate laws in C3H6; feed 520 kg/h pure C3H6 with params.rho_kgm3 = 520 gives v = 1 m3/h and Ca0 = 12.35712 kmol/m3 exactly. Group I (MB-053..MB-062): smr / atr reformer equilibria — expected values are INDEPENDENT hand calculations (Python, separate from the engine) of the simultaneous CH4+H2O⇌CO+3H2 and CO+H2O⇌CO2+H2 equilibria from the published K correlations the spec prescribes (Twigg, Catalyst Handbook: lnK1 = 30.114 − 26830/T [bar²]; Moe 1962: lnK2 = 4400/T − 4.036), with adiabatic balances closed on NIST WebBook Shomate enthalpies — never engine output — and each point is cross-anchored to a published reformer equilibrium chart/table figure named in its source field. Dry-composition tolerance 0.015 mole fraction (1.5 % absolute per spec); adiabatic T_out ±25 K covers the ideal-gas-steam hand calc vs the engine’s IF97 water route. Group J (MB-063..070, shift + methanator): expected values are independent hand calculations from the Moe WGS correlation and the Twigg/Moe pair in the methanation direction, with adiabatic outlets closed on NIST Shomate enthalpies (ideal-gas H2O) — never engine output. The engine resolves water on IF97 (saturated-vapor-at-T below the pure-water Tsat), giving a few K of route difference on adiabatic outlets, covered by the stated tolerances. Anchors: Twigg HTS/LTS windows and exit-CO bands, Appl/Ullmann methanator ppm spec, and the classic ~74 / ~60 °C-per-1% adiabatic-rise rules, which the balance reproduces at 74.7 / 61.1 K. Group K (MB-071..MB-078): binary McCabe–Thiele distillation + Kremser absorber/stripper (Step 16). Expected values are INDEPENDENT hand calculations, never engine output: distillation D/B from the exact overall + light-key balances; Rmin from the q-line pinch on the equilibrium curve evaluated by hand (q=1 and saturated-vapour q=0 cases); minimum stages from the Fenske equation at total reflux; and the benzene–toluene classic stage count cross-anchored to the Fenske/Gilliland–Molokanov shortcut (Nmin≈5.7, R/Rmin≈1.5 → N≈11 incl. partial reboiler). Absorber/stripper expected values come from the Kremser equation directly: N = ln[φ(1−1/A)+1/A]/ln A for the number of stages (φ = removable-solute ratio), the (A^{N+1}−A)/(A^{N+1}−1) fraction-removed form for the outlet composition, the A=1 degenerate limit N=φ−1, and the stripping-factor S=mV/L analogue. The benzene–toluene VERIFY vector (MB-071) reproduces the textbook stage count within ±1 and its staircase is exported in details.svg for the live M-T diagram. Group L (MB-079..MB-088, urea HP section + solids): the urea reactor is an EMPIRICAL ESTIMATE, so its expected values are an INDEPENDENT evaluation of the tuned correlation held in Supabase correlation_params key 'urea_x_co2' (separate Python script, never engine output), combined with closed-form atom balances on 2NH3+CO2->carbamate, carbamate->urea+H2O and 2urea->biuret+NH3. Each vector is additionally cross-anchored to a named plant band (conversion 60-64 % at N/C 3.0 and 66-70 % at N/C 3.5; reactor melt 33-38 wt% urea; stripper bottoms 50-60 wt% urea; HP stripping steam 0.6-0.9 t/t; centrifuge cake 3-8 wt% moisture; dried product 0.2-0.5 wt%). Steam properties are external steam-table anchors, which makes MB-084/MB-085/MB-087 double as IF97-port checks. MB-082 deliberately sits OUTSIDE the validity envelope and asserts that all three breaches are flagged while a result is still returned. MB-083 asserts energy_balance.Q_kW is identically zero in adiabatic mode - the identity that proves the prescribed -117 / +15.5 kJ/mol reaction heats are live rather than decorative. MB-088 is a structural closure test on the HP loop: the carbamate recycle is the converged Wegstein tear and is internal, so C_in = 23 and N_in = 52 kmol/h must leave in the product streams. IMPORTANT: MB-079..MB-083 are frozen to the CURRENT correlation coefficients; retuning correlation_params is expected to break them, and their expects must then be updated deliberately. Group N (MB-089..MB-102, Step 21): PR φ–φ and NRTL flashes checked against the independent open-source thermo 0.6.1 library run with identical parameters (Tc/Pc/ω, H2 effective constants, kij); component splitter by hand calculation; whole-flowsheet solver and design specs by structural closure and the frozen template air rate; MB-103 checks the Step-21 dew-point vapour rule against a CoolProp/IAPWS-95 hand calculation of a wet-gas cooler + knock-out (−313.2 kW; the pre-fix engine gave −98.2 kW). Group P (MB-196..MB-207, Step 26): the Steam / water (IAPWS-IF97) package and the machine specifications — every expected value is computed with the independent Python iapws library (IAPWS97 class) for the same states: heater duties across regions 1, 2 and 3 (supercritical), outlet ρ / cp / μ / λ, turbine power and exhaust quality by efficiency, by measured outlet temperature and by shaft power, the extraction turbine section by section, a boiler feed pump, a vapour-recompression compressor, and the client's steam-turbine example flowsheet; MB-205/206 check the refusals (mixture, efficiency above 100 %). MB-095 and MB-100 were re-referenced when water Psat moved to IAPWS-IF97 (see their source fields). Group Q (MB-208..MB-219, Step 27): aqueous MDEA package (Extended UNIQUAC, Sadegh 2013 DTU thesis parameters) — MB-208..216 reproduce the thesis's own model results (Tables 7-13..7-17) as bubble pressures, MB-217 checks speciation against an independent Python implementation of the same model, MB-218 the heat of absorption against Oscarson et al. (1995) calorimetry. Group R (MB-219..MB-224, Step 28): activated MDEA (piperazine added to the MDEA package, its species fitted to measured data) — CO2 pressures over 7 m MDEA/2 m PZ and 5 m MDEA/5 m PZ (Chen 2011; the 5/5 set was held out of the fit), 7:2 MDEA/PZ and aqueous PZ at 120 °C (Xu 2011), a bubble pressure against Xu's measured total pressure and a density against Frailie (2014); tolerances 35 % on CO2 pressure reflect the fit's scatter. Group S (MB-225..MB-230, Step 32): free water in Peng–Robinson against IAPWS-95 (CoolProp) heater, boiling and 100 bar condensing duties; CO2 solubility in water against IAPWS G7-04; a near-critical flash against thermo 0.6.1 (substitution alone stopped at its iteration limit there); the energy-balance reconciliation flagging a classic unit next to Peng–Robinson units. MB-108/110/111 compare the raw cubic code-to-code with thermo, so they switch free water off."
@@ -4532,7 +4532,7 @@
     "details.x.0.x": 1e-07,
     "default": 1e-06
    },
-   "source": "Independent reference: 'thermo' 0.6.1 thermo.nrtl.NRTL(tau_as, tau_bs, alpha_cs) for the activity coefficients, water Psat from the 'iapws' 1.5.5 library (IAPWS-IF97 region 4, 0.5108013 bar at 355 K), ethanol Psat from the engine's listed Antoine constants (A 8.1122, B 1592.864, C 226.184; mmHg, \u00b0C \u2192 1.1642268 bar); the liquid composition x is the root of the modified-Raoult bubble condition x1\u00b7\u03b31\u00b7Psat1 + x2\u00b7\u03b32\u00b7Psat2 = P solved with scipy brentq, so x and \u03b3 are both computed outside the engine. Binary parameters are illustrative test inputs (not a recommended data set). Step 26: water Psat moved from the old interpolated table to exact IAPWS-IF97; x changed from 0.262465 to 0.264517."
+   "source": "Independent reference: 'thermo' 0.6.1 thermo.nrtl.NRTL(tau_as, tau_bs, alpha_cs) for the activity coefficients, water Psat from the 'iapws' 1.5.5 library (IAPWS-IF97 region 4, 0.5108013 bar at 355 K), ethanol Psat from the engine's listed Antoine constants (A 8.1122, B 1592.864, C 226.184; mmHg, °C → 1.1642268 bar); the liquid composition x is the root of the modified-Raoult bubble condition x1·γ1·Psat1 + x2·γ2·Psat2 = P solved with scipy brentq, so x and γ are both computed outside the engine. Binary parameters are illustrative test inputs (not a recommended data set). Step 26: water Psat moved from the old interpolated table to exact IAPWS-IF97; x changed from 0.262465 to 0.264517."
   },
   {
    "id": "MB-096",
@@ -5470,7 +5470,7 @@
     "mass_balance.closure_pct": 0.005,
     "default": 1e-09
    },
-   "source": "Structural test: the DFS back edge (splitter \u2192 mixer) must be chosen as the tear; at convergence the 50/50 splitter makes recycle = purge exactly, and overall mass closes to the reactor MW-stoichiometry tolerance. The recycle mass flow is an independent recompute (Python, no multicalci code): mole balances around the loop, 90 % CO conversion, Rachford\u2013Rice at 313.15 K / 29 bar with water K = Psat/P from the 'iapws' 1.5.5 library (IAPWS-IF97) and K = 1e6 for the four supercritical gases, fixed-point iteration to machine precision. Tolerance 2e-5 kg/h = the 1e-9 tear tolerance \u00d7 the flow."
+   "source": "Structural test: the DFS back edge (splitter → mixer) must be chosen as the tear; at convergence the 50/50 splitter makes recycle = purge exactly, and overall mass closes to the reactor MW-stoichiometry tolerance. The recycle mass flow is an independent recompute (Python, no multicalci code): mole balances around the loop, 90 % CO conversion, Rachford–Rice at 313.15 K / 29 bar with water K = Psat/P from the 'iapws' 1.5.5 library (IAPWS-IF97) and K = 1e6 for the four supercritical gases, fixed-point iteration to machine precision. Tolerance 2e-5 kg/h = the 1e-9 tear tolerance × the flow."
   },
   {
    "id": "MB-101",
@@ -43595,6 +43595,346 @@
    },
    "source": "CoolProp 8.0.0 normal hydrogen (Assael, Assael, Huber, Perkins & Takata, J. Phys. Chem. Ref. Data 40 (2011) 033101): 291.37 mW/(m·K) at 553.15 K, 100 kPa. The engine curve is a DIPPR eq. 100 fit to it (150–1000 K, within 0.25 %); the ChemSep curve it replaces was −1.4 % here. Tolerance 0.5 %.",
    "id": "MB-474"
+  },
+  {
+   "id": "MB-475",
+   "desc": "ion-exchange: SAC (H) rating — run length = V·OC/(Q·TC), regenerant per regeneration = level × V (closed form)",
+   "call": "runModule",
+   "args": [
+    "ion-exchange",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 36000,
+       "T_K": 298.15,
+       "P_bar": 4,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "resin": "sac_h",
+      "mode": "rating",
+      "resin_m3": 3,
+      "opcap_eq_L": 1.0,
+      "derate_pct": 0,
+      "regen_g_L": 80,
+      "analysis": {
+       "basis": "caco3",
+       "Ca": 100,
+       "Mg": 50,
+       "Na": 50,
+       "HCO3": 100,
+       "Cl": 60,
+       "SO4": 40,
+       "CO2": 5
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.run.run_h": 20.788,
+    "details.load.ionic_load_mgL_CaCO3": 200,
+    "details.regeneration.kg_100_per_regen": 240,
+    "mass_balance.closure_pct": 0,
+    "converged": true
+   },
+   "tol": {
+    "details.run.run_h": 0.02,
+    "details.load.ionic_load_mgL_CaCO3": 1e-06,
+    "details.regeneration.kg_100_per_regen": 1e-06,
+    "mass_balance.closure_pct": 1e-09,
+    "default": 1e-06
+   },
+   "source": "Hand calculation: Q = 36 000 kg/h / 997.05 kg/m³ (IAPWS-95, 25 °C) = 36.107 m³/h; total cations 200 mg/L as CaCO₃ = 3.9968 meq/L; run = 3 m³ × 1000 L/m³ × 1.0 eq/L / (36.107 m³/h × 3.9968 eq/m³) = 20.79 h; 80 g/L × 3 m³ = 240 kg HCl (100 %)"
+  },
+  {
+   "id": "MB-476",
+   "desc": "water chemistry: pH of 2 meq/L NaHCO₃ (no excess CO₂) at 25 °C — ampholyte formula",
+   "call": "runModule",
+   "args": [
+    "degasser",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000,
+       "T_K": 298.15,
+       "P_bar": 2,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "analysis": {
+       "basis": "caco3",
+       "Na": 100,
+       "HCO3": 100,
+       "CO2": 0
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.feed_water.pH": 8.32,
+    "details.co2.removed_mgL": 0
+   },
+   "tol": {
+    "details.feed_water.pH": 0.02,
+    "details.co2.removed_mgL": 0.01,
+    "default": 1e-06
+   },
+   "source": "Stumm & Morgan ampholyte formula [H⁺] = √(K₁(K₂C + Kw)/(K₁ + C)), C = 2.0×10⁻³ M, pK₁ 6.351 / pK₂ 10.330 (Harned–Davis, Harned–Scholes), pKw 13.995 at 25 °C → pH 8.318; a degasser strips nothing at this pH (free CO₂ ≈ 0.6 mg/L < 5 mg/L residual)"
+  },
+  {
+   "id": "MB-477",
+   "desc": "water chemistry: conductivity of 1 mM NaCl at 25 °C",
+   "call": "runModule",
+   "args": [
+    "degasser",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000,
+       "T_K": 298.15,
+       "P_bar": 2,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "analysis": {
+       "basis": "caco3",
+       "Na": 50.04,
+       "Cl": 50.04,
+       "CO2": 0
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.feed_water.cond_uScm": 123.7,
+    "details.feed_water.pH": 7.0
+   },
+   "tol": {
+    "details.feed_water.cond_uScm": 1.5,
+    "details.feed_water.pH": 0.01,
+    "default": 1e-06
+   },
+   "source": "CRC Handbook, equivalent conductivity of NaCl at 0.001 M and 25 °C: 123.74 S·cm²/mol → κ = 123.7 µS/cm; neutral salt with no carbonate → pH = ½ pKw = 7.00"
+  },
+  {
+   "id": "MB-478",
+   "desc": "ion-exchange: softener design — resin volume = Q·TH·t / OC when the ionic load governs (closed form)",
+   "call": "runModule",
+   "args": [
+    "ion-exchange",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 36000,
+       "T_K": 298.15,
+       "P_bar": 4,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "resin": "sac_na",
+      "mode": "design",
+      "run_h": 24,
+      "opcap_eq_L": 1.2,
+      "derate_pct": 0,
+      "analysis": {
+       "basis": "caco3",
+       "Ca": 100,
+       "Mg": 50,
+       "Na": 50,
+       "HCO3": 100,
+       "Cl": 60,
+       "SO4": 40,
+       "CO2": 5
+      }
+     }
+    }
+   ],
+   "expect": {
+    "details.resin_volume.per_vessel_m3": 2.1647,
+    "details.run.run_h": 24,
+    "details.load.ionic_load_mgL_CaCO3": 150,
+    "mass_balance.closure_pct": 0
+   },
+   "tol": {
+    "details.resin_volume.per_vessel_m3": 0.003,
+    "details.run.run_h": 0.01,
+    "details.load.ionic_load_mgL_CaCO3": 1e-06,
+    "mass_balance.closure_pct": 1e-09,
+    "default": 1e-06
+   },
+   "source": "Hand calculation: Q = 36.107 m³/h, hardness 150 mg/L as CaCO₃ = 2.9976 meq/L, 24 h at 1.2 eq/L → V = 36.107 × 2.9976 × 24 / 1200 = 2.165 m³ (velocity limit 25 m/h gives a 1.40 m vessel and a 1.41 m bed, so neither the bed depth nor the 40 BV/h limit governs)"
+  },
+  {
+   "id": "MB-479",
+   "desc": "flowsheet: SAC (H) → degasser — the cation turns all the alkalinity into free CO₂, the degasser strips it to 5 mg/L; the analysis travels on the stream",
+   "call": "runModule",
+   "args": [
+    "flowsheet",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 50000,
+       "T_K": 303.15,
+       "P_bar": 4,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "blocks": [
+       {
+        "id": "b1",
+        "name": "C-1",
+        "module": "ion-exchange",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {
+         "resin": "sac_h",
+         "mode": "design",
+         "run_h": 16,
+         "analysis": {
+          "basis": "caco3",
+          "Ca": 120,
+          "Mg": 60,
+          "Na": 80,
+          "HCO3": 160,
+          "Cl": 60,
+          "SO4": 40,
+          "SiO2": 15,
+          "CO2": 10,
+          "pH": 7.6
+         }
+        }
+       },
+       {
+        "id": "b2",
+        "name": "DG-1",
+        "module": "degasser",
+        "n_in": 1,
+        "n_out": 2,
+        "params": {}
+       }
+      ],
+      "streams": [
+       {
+        "id": "s1",
+        "from": null,
+        "to": {
+         "b": "b1",
+         "p": 0
+        },
+        "feed": 0
+       },
+       {
+        "id": "s2",
+        "from": {
+         "b": "b1",
+         "p": 0
+        },
+        "to": {
+         "b": "b2",
+         "p": 0
+        }
+       },
+       {
+        "id": "s3",
+        "from": {
+         "b": "b1",
+         "p": 1
+        },
+        "to": null
+       },
+       {
+        "id": "s4",
+        "from": {
+         "b": "b2",
+         "p": 0
+        },
+        "to": null
+       },
+       {
+        "id": "s5",
+        "from": {
+         "b": "b2",
+         "p": 1
+        },
+        "to": null
+       }
+      ]
+     }
+    }
+   ],
+   "expect": {
+    "block_results.b2.result.details.co2.removed_mgL": 145.69,
+    "block_results.b2.result.details.analysis_source": "upstream",
+    "mass_balance.closure_pct": 0,
+    "converged": true
+   },
+   "tol": {
+    "block_results.b2.result.details.co2.removed_mgL": 0.1,
+    "mass_balance.closure_pct": 1e-09,
+    "default": 1e-06
+   },
+   "source": "Hand calculation: total carbonate = 10 mg/L free CO₂ + 160 mg/L as CaCO₃ × 44.01/50.04 = 150.72 mg/L as CO₂; at the cation outlet (pH ≈ 2.7) the free fraction is 1 − K₁/[H⁺] ≈ 0.9998 → 150.69 mg/L, less the 5 mg/L residual = 145.69 mg/L stripped"
+  },
+  {
+   "id": "MB-480",
+   "desc": "ion-exchange: no water analysis and no upstream water-treatment unit → error envelope",
+   "call": "runModule",
+   "args": [
+    "ion-exchange",
+    {
+     "streams": [
+      {
+       "mass_flow_kg_h": 10000,
+       "T_K": 298.15,
+       "P_bar": 4,
+       "components": [
+        {
+         "key": "H2O",
+         "mass_fraction": 1
+        }
+       ]
+      }
+     ],
+     "params": {
+      "resin": "sac_h"
+     }
+    }
+   ],
+   "expect": {
+    "error.code": "MB_IX_ANALYSIS"
+   },
+   "tol": 0,
+   "source": "Input-validation contract: the module returns {error} and never throws"
   }
  ]
 }
