@@ -680,6 +680,34 @@ const EXAMPLES = [
     },
     note: 'Aqueous-electrolyte method (Pitzer, PHREEQC pitzer.dat). The evaporator boils off half of the water at 1 atm: the brine boils about 1.1 K above pure water (its water activity drops as the salts concentrate), and the dissolved CO₂ leaves with the vapour, which raises the pH and pushes calcite and brucite above saturation — the alkaline-scale problem of thermal desalination. At twice the seawater concentration and 101 °C anhydrite is also just past saturation (SI ≈ +0.17), which is why evaporator plants limit the concentration factor and top brine temperature. Open BRINE for pH, water activity and the saturation indices; change the vapour fraction to see the scaling limits move. Seawater as Millero’s reference composition (Sr counted as Ca, Br as Cl; boron left out), with its bicarbonate written as Na₂CO₃ + CO₂ so that the CO₂ can leave in the evaporator — a bicarbonate salt given as NaHCO₃ keeps its CO₂ in the liquid.',
   },
+  {
+    id: 'dm-plant', label: 'DM plant — cation, degasser, anion and mixed bed (ion exchange)',
+    desc: '50 m³/h surface water · SAC → degasser → SBA → mixed bed · resin volumes, chemicals and suggested equipment',
+    model: {
+      blocks: [
+        { id: 'b1', name: 'C-101', type: 'ixcat', x: 170, y: 150, nIn: 1, nOut: 2, params: { resin: 'sac_h', mode: 'design', basis: 'run_h', run_h: 16, n_service: 1, n_standby: 1, regen_mode: 'co', chem: 'HCl',
+          analysis: { basis: 'caco3', balance: 'Na', Ca: 120, Mg: 60, Na: 80, HCO3: 160, Cl: 60, SO4: 40, SiO2: 15, CO2: 10, pH: 7.6, turb: 1 } }, pu: {} },
+        { id: 'b2', name: 'DG-101', type: 'degasser', x: 330, y: 120, nIn: 1, nOut: 2, params: { type: 'forced' }, pu: {} },
+        { id: 'b3', name: 'P-101', type: 'rotating', x: 470, y: 222, nIn: 1, nOut: 1, params: { machine: 'pump', P_out_bar: 5, eta: 0.7 }, pu: {} },
+        { id: 'b4', name: 'A-101', type: 'ixan', x: 620, y: 150, nIn: 1, nOut: 2, params: { resin: 'sba1', mode: 'design', basis: 'run_h', run_h: 16, n_service: 1, n_standby: 1, regen_mode: 'co', warm: 'no', target_sio2_mgL: 0.1 }, pu: {} },
+        { id: 'b5', name: 'MB-101', type: 'ixmb', x: 800, y: 150, nIn: 1, nOut: 2, params: { resin: 'mb', mode: 'design', basis: 'run_h', run_h: 168, n_service: 1, n_standby: 1, chem: 'HCl', warm: 'no', target_sio2_mgL: 0.02, target_cond_uScm: 0.2 }, pu: {} },
+      ],
+      streams: [
+        { id: 's1', name: 'FILTERED WATER', from: null, to: { b: 'b1', p: 0 }, spec: sp(30, '°C', 4, 'bar(a)', 50000, 'kg/h', 'mass%', { H2O: 100 }) },
+        { id: 's2', name: 'DECATIONISED', from: { b: 'b1', p: 0 }, to: { b: 'b2', p: 0 } },
+        { id: 's3', name: 'C-101 WASTE', from: { b: 'b1', p: 1 }, to: null },
+        { id: 's4', name: 'DEGASSED', from: { b: 'b2', p: 0 }, to: { b: 'b3', p: 0 } },
+        { id: 's5', name: 'CO2 VENT', from: { b: 'b2', p: 1 }, to: null },
+        { id: 's6', name: 'S6', from: { b: 'b3', p: 0 }, to: { b: 'b4', p: 0 } },
+        { id: 's7', name: 'DEMIN WATER', from: { b: 'b4', p: 0 }, to: { b: 'b5', p: 0 } },
+        { id: 's8', name: 'A-101 WASTE', from: { b: 'b4', p: 1 }, to: null },
+        { id: 's9', name: 'POLISHED DM', from: { b: 'b5', p: 0 }, to: null },
+        { id: 's10', name: 'MB-101 WASTE', from: { b: 'b5', p: 1 }, to: null },
+      ],
+      seq: { b: 5, s: 10 },
+    },
+    note: 'Demineralisation by ion exchange. The water analysis is entered once, on the cation unit C-101 (open it: mg/L as CaCO₃, silica and free CO₂ as such); every unit downstream takes the analysis from the stream. C-101 (strong acid cation, HCl co-flow) turns the alkalinity into CO₂, which DG-101 strips to ≈ 5 mg/L so the anion resin does not have to take it; P-101 lifts the degassed water from the atmospheric tower; A-101 (strong base anion Type I) removes the mineral acids and silica — its caustic level is chosen to meet the 0.1 mg/L silica target; MB-101 polishes to < 0.2 µS/cm and 0.02 mg/L silica. All units are in design mode: each sizes its resin for the service run (16 h, mixed bed 1 week), the vessel and the regeneration, and lists the additional equipment the water needs — the regeneration and neutralisation systems, and here a weak base anion ahead of A-101 to save caustic. Switch a unit to rating and give the resin volume to see the run length of an existing plant; open any stream for its water quality.',
+  },
 ];
 
 const PRESETS = [
