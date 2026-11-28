@@ -235,6 +235,20 @@ optgroup{font-weight:700;color:var(--ink2);}
 .ic-panel{background:var(--blue-p);border:1.5px solid var(--blue-m);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
 .ic-panel-head{display:flex;align-items:center;gap:8px;font-family:var(--head);font-size:0.72rem;font-weight:700;letter-spacing:1px;color:var(--blue);text-transform:uppercase;margin-bottom:10px;}
 
+/* Mixture & moisture */
+.mix-row{display:grid;grid-template-columns:1fr 112px 34px;gap:8px;align-items:center;margin-bottom:6px;}
+.mix-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 8px;}
+.mini-btn{padding:6px 11px;border:1.5px solid var(--blue-m);border-radius:6px;background:var(--sur);color:var(--blue);font-family:var(--mono);font-size:0.68rem;font-weight:700;cursor:pointer;}
+.mini-btn:hover{background:var(--blue);color:#fff;}
+.mix-del{padding:6px 0;border:1.5px solid var(--bd2);border-radius:6px;background:var(--sur);color:var(--mid);cursor:pointer;font-size:0.8rem;}
+.mix-del:hover{border-color:var(--red);color:var(--red);}
+.mix-total{font-family:var(--mono);font-size:0.72rem;font-weight:700;color:var(--ink3);margin-left:auto;}
+.mix-total.bad{color:var(--red);}
+input[readonly]{background:var(--sur2);color:var(--mid);}
+.tbl-wrap{overflow-x:auto;margin-bottom:16px;}
+.ic-metric.cond{color:var(--teal);font-weight:700;}
+.ic-metric.carry{color:var(--red);font-weight:700;}
+
 /* Terms */
 .terms-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:22px;}
 @media(max-width:1000px){.terms-grid{grid-template-columns:1fr 1fr;}}
@@ -458,8 +472,8 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
       <div class="hero-icon-bg">⚙️</div>
       <div class="hero-tag">Compressor Calculator</div>
       <h1>Multi-Stage Compressor with Intercoolers</h1>
-      <p class="hero-desc">Isentropic and polytropic analysis for each compression stage with inter-stage coolers. Stage-by-stage temperature, pressure and power breakdown.</p>
-      <div class="hero-pills"><span class="pill">ISENTROPIC</span><span class="pill">POLYTROPIC</span><span class="pill">INTERCOOLER</span><span class="pill">STAGE POWER</span><span class="pill">25+ GASES</span></div>
+      <p class="hero-desc">Isentropic and polytropic analysis for each compression stage with inter-stage coolers. Stage-by-stage temperature, pressure and power breakdown — for pure gases or gas mixtures, with water condensate knocked out at every intercooler separator.</p>
+      <div class="hero-pills"><span class="pill">ISENTROPIC</span><span class="pill">POLYTROPIC</span><span class="pill">INTERCOOLER</span><span class="pill">STAGE POWER</span><span class="pill">25+ GASES</span><span class="pill">GAS MIXTURES</span><span class="pill">MOISTURE KNOCK-OUT</span></div>
     </div>
     <div class="hero-aside">
       <div class="hero-stat"><div class="hs-val" id="comp_stages_display">2</div><div class="hs-label">Stage(s)</div></div>
@@ -531,6 +545,9 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
                   <option value="hcl">Hydrogen Chloride HCl (γ=1.410, M=36.46)</option>
                   <option value="acetylene">Acetylene C₂H₂ (γ=1.232, M=26.04)</option>
                 </optgroup>
+                <optgroup label="── Mixture ──">
+                  <option value="mixture">Gas mixture — enter composition (mol%)</option>
+                </optgroup>
                 <optgroup label="── Custom ──">
                   <option value="custom">Custom Gas — enter γ and M manually</option>
                 </optgroup>
@@ -548,6 +565,26 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
               <div class="input-row"><input type="number" id="comp_Cp_override" placeholder="leave blank = ideal gas γR/(γ−1)" step="10" min="100"><div class="input-unit">J/(kg·K)</div></div>
               <div class="hint">NH₃ ≈ 2170, CO₂ ≈ 850, propane ≈ 1670 J/(kg·K) at inlet conditions.</div>
             </div>
+            <div id="comp_mix_panel" class="ic-panel" style="display:none;">
+              <div class="ic-panel-head">🧪 Mixture Composition — dry basis, mol%</div>
+              <div class="fg"><label class="fl">Load Preset</label>
+                <select id="mix_preset" onchange="loadMixPreset(this.value)">
+                  <option value="">— choose a preset or build your own —</option>
+                  <option value="urea_co2">Urea plant CO₂ feed (typical)</option>
+                  <option value="natgas">Natural gas (lean, sweet)</option>
+                  <option value="synloop">Ammonia make-up syngas (H₂/N₂ ≈ 3:1)</option>
+                  <option value="biogas">Biogas (CH₄ / CO₂)</option>
+                  <option value="air">Dry air</option>
+                </select>
+              </div>
+              <div id="mix_rows"></div>
+              <div class="mix-actions">
+                <button type="button" class="mini-btn" onclick="addMixRow()">＋ Add component</button>
+                <button type="button" class="mini-btn" onclick="normaliseMix()">Normalise to 100%</button>
+                <span class="mix-total" id="mix_total">Total: 0.000 mol%</span>
+              </div>
+              <div class="hint">Water is not a component — set it under “Moisture &amp; Condensate” below. γ and M above are filled from this composition (Cp mixed on a molar basis, pseudo-criticals by Kay's rule).</div>
+            </div>
           </div>
 
           <div class="fsec">
@@ -561,18 +598,54 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
               </div>
             </div>
             <div class="r2">
-              <div class="fg"><label class="fl">Actual Volume Flow Q (at inlet)</label>
+              <div class="fg"><label class="fl" id="lbl_cQ">Flow Rate Q (actual, at inlet)</label>
                 <div class="input-row"><input type="number" id="comp_Q" value="1000" step="1" min="0.001"><div class="input-unit" id="u_cQ">m³/h</div></div>
               </div>
               <div class="fg"><label class="fl">Final Discharge Pressure P_out</label>
                 <div class="input-row"><input type="number" id="comp_Pout" value="8.0" step="0.1" min="0.01"><div class="input-unit" id="u_cPout">bar a</div></div>
               </div>
             </div>
-            <div class="fg" id="fg_scfm_toggle" style="display:none;"><label class="fl">US Flow Basis</label>
-              <select id="comp_flow_basis">
-                <option value="acfm">ACFM — Actual cubic feet/min at inlet conditions</option>
-                <option value="scfm">SCFM — Standard cubic feet/min at 60°F, 14.696 psia</option>
+            <div class="r2">
+              <div class="fg"><label class="fl">Flow Basis</label>
+                <select id="comp_flow_basis" onchange="updateFlowBasis()">
+                  <option value="actual">Actual m³/h at inlet conditions</option>
+                  <option value="nm3h">Nm³/h — 0 °C, 1.01325 bar</option>
+                  <option value="sm3h">Sm³/h — 15 °C, 1.01325 bar</option>
+                  <option value="kgh">Mass flow, kg/h</option>
+                </select>
+              </div>
+              <div class="fg" id="fg_std_basis" style="display:none;"><label class="fl">Flow Measured As</label>
+                <select id="comp_std_basis">
+                  <option value="dry">Dry gas (water vapour excluded)</option>
+                  <option value="wet">Wet gas (incl. water vapour)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="fsec">
+            <div class="fsec-title">Moisture &amp; Condensate Separation</div>
+            <div class="r2">
+              <div class="fg"><label class="fl">Inlet Water Content</label>
+                <select id="moist_mode" onchange="updateMoistUI()">
+                  <option value="none">Dry gas — no moisture calculation</option>
+                  <option value="saturated">Saturated at inlet (100% RH)</option>
+                  <option value="rh">Relative saturation, %</option>
+                  <option value="molpct">Water content, mol% (wet basis)</option>
+                </select>
+              </div>
+              <div class="fg" id="fg_moist_value" style="display:none;"><label class="fl" id="lbl_moist_value">Relative Saturation</label>
+                <div class="input-row"><input type="number" id="moist_value" value="60" step="0.01" min="0"><div class="input-unit" id="u_moist">%</div></div>
+              </div>
+            </div>
+            <div class="fg" id="fg_water_model" style="display:none;"><label class="fl">Water-Content Model</label>
+              <select id="water_model">
+                <option value="auto">Auto — CO₂ ≥ 90% → Spycher–Pruess · natural gas → Bukacek · else ideal</option>
+                <option value="ideal">Ideal (Raoult/Dalton): y = Psat(T) / P</option>
+                <option value="co2">CO₂-rich real gas — Spycher–Pruess (2003), 12–100 °C</option>
+                <option value="natgas">Sweet natural gas — Bukacek (GPSA)</option>
               </select>
+              <div class="hint">Above ~20 bar real gases hold more water than Psat/P (dense CO₂ at 80–90 bar: 2–3×), so the ideal model over-predicts condensate.</div>
             </div>
           </div>
 
@@ -606,7 +679,29 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
           <div class="fsec">
             <div class="fsec-title">Intercooler Settings</div>
             <div id="comp_ic_panels"></div>
-            <p style="font-size:0.75rem;color:var(--mid);margin-top:4px;">💡 Intercooler cools gas back toward suction temperature — reduces next-stage compression work.</p>
+            <div class="ic-panel">
+              <div class="ic-panel-head">🧊 Aftercooler — After Final Stage (optional)</div>
+              <div class="fg"><label class="fl">Aftercooler</label>
+                <select id="ac_enabled" onchange="updateACUI()">
+                  <option value="no">None — gas leaves the last stage hot</option>
+                  <option value="yes">Yes — cool the discharge (and knock out water)</option>
+                </select>
+              </div>
+              <div id="ac_fields" style="display:none;">
+                <div class="r2">
+                  <div class="fg"><label class="fl">Cooled Outlet Temperature (°C)</label>
+                    <div class="input-row"><input type="number" id="ac_T" value="40" step="1" min="-50" max="400"><div class="input-unit">°C</div></div>
+                  </div>
+                  <div class="fg"><label class="fl">Pressure Drop ΔP</label>
+                    <div class="input-row"><input type="number" id="ac_dP" value="0.1" step="0.01" min="0" max="5"><div class="input-unit">bar</div></div>
+                  </div>
+                </div>
+                <div class="fg"><label class="fl">Knock-out Separator After Aftercooler</label>
+                  <select id="ac_sep"><option value="yes">Yes — condensate drained</option><option value="no">No separator</option></select>
+                </div>
+              </div>
+            </div>
+            <p style="font-size:0.75rem;color:var(--mid);margin-top:4px;">💡 Intercooler cools gas back toward suction temperature — reduces next-stage compression work. With moisture on, water above saturation at the cooler outlet condenses and is drained in the separator.</p>
           </div>
 
           <div class="alert alert-err" id="comp_alert"><span>✕</span><span id="comp_alert_txt"></span></div>
@@ -817,6 +912,32 @@ dl.term-list dd{font-size:0.82rem;color:var(--mid);line-height:1.55;margin:3px 0
         </dl>
       </div>
     </div>
+    <div class="card">
+      <div class="card-head"><span class="card-head-icon">💧</span><span class="card-head-title">Gas Mixture &amp; Moisture Formulae</span></div>
+      <div class="card-body">
+        <div class="formula-box">
+          <span class="eq-h">Mixture (ideal gas, dry basis):</span><br>
+          M = Σ yᵢ·Mᵢ ;  Cp,mol = Σ yᵢ·γᵢR/(γᵢ−1)<br>
+          γ = Cp,mol / (Cp,mol − R)<br>
+          Tc, Pc, ω = Σ yᵢ·(Tc, Pc, ω)ᵢ  (Kay)<br><br>
+          <span class="eq-h">Partial pressure of water:</span><br>
+          pH₂O = y_H₂O · P<br><br>
+          <span class="eq-h">Saturation content (ideal):</span><br>
+          y_sat = Psat(T) / P<br><br>
+          <span class="eq-h">Condensate in a separator:</span><br>
+          Y = y/(1−y)  [kmol H₂O / kmol dry]<br>
+          ṁ_cond = ṅ_dry · (Y_in − Y_sat) · 18.015<br><br>
+          <span class="eq-h">Dew point:</span><br>
+          T_dp where y_sat(T_dp, P) = y_H₂O
+        </div>
+        <dl class="term-list">
+          <dt>Water through compression</dt><dd>Compression adds or removes no water; the stage discharge is hot and far from saturation. Water condenses only when an intercooler cools the gas below its dew point.</dd>
+          <dt>Spycher–Pruess (2003)</dt><dd>Real-gas water content of CO₂ (Redlich–Kwong fugacities + equilibrium constants), 12–100 °C, up to 600 bar. Dense CO₂ above ~60 bar dissolves 2–3× more water than Psat/P.</dd>
+          <dt>Bukacek (GPSA)</dt><dd>W [lb/MMscf] = 47484·Psat/P + B, log B = −3083.87/(459.6+T°F) + 6.69449. Sweet natural gas; correct for &gt;5% CO₂ + H₂S.</dd>
+          <dt>Separator off</dt><dd>Condensed droplets enter the next stage — erosion and imbalance risk. The balance assumes they re-evaporate (water not removed).</dd>
+        </dl>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -893,9 +1014,8 @@ function setUnit(m, btn) {
   pu('u_phfs',si?'m':'ft');       pu('u_pNPSHr',si?'m':'ft');
   pu('u_pzs', si?'m':'ft');
   pu('u_cT1', si?'°C':'°F');      pu('u_cP1',   si?'bar a':'psia');
-  pu('u_cQ',  si?'m³/h':'ACFM'); pu('u_cPout', si?'bar a':'psia');
-  const scfmEl = document.getElementById('fg_scfm_toggle');
-  if (scfmEl) scfmEl.style.display = si ? 'none' : 'block';
+  pu('u_cPout', si?'bar a':'psia');
+  setFlowBasisOptions(si);
   pu('u_fQ',  si?'m³/h':'CFM');  pu('u_fdPs',  si?'Pa':'in WG');
   pu('u_fdPd',si?'Pa':'in WG'); pu('u_frho',  si?'kg/m³':'lb/ft³');
   pu('u_fD',  si?'mm':'in');     pu('u_fD2',   si?'mm':'in');
@@ -903,12 +1023,139 @@ function setUnit(m, btn) {
 
 /* ─── Gas fill (UI only) ─────────────────────────────────────────────── */
 function fillGas() {
-  const key = document.getElementById('comp_gas').value;
-  const gd  = GAS_DATA[key];
+  const key   = document.getElementById('comp_gas').value;
+  const isMix = key === 'mixture';
+  const gd    = GAS_DATA[key];
+  document.getElementById('comp_mix_panel').style.display = isMix ? 'block' : 'none';
+  ['comp_gamma', 'comp_M'].forEach(id => { document.getElementById(id).readOnly = isMix; });
+  if (isMix) {
+    if (!document.querySelectorAll('#mix_rows .mix-row').length) loadMixPreset('natgas');
+    else recalcMixDisplay();
+    return;
+  }
   if (gd) {
     document.getElementById('comp_gamma').value = gd.gamma;
     document.getElementById('comp_M').value     = gd.M;
   }
+}
+
+/* ─── Gas mixture composition (UI only — server recomputes properties) ── */
+const MIX_PRESETS = {
+  urea_co2: [['co2', 98.8], ['nitrogen', 0.7], ['hydrogen', 0.3], ['oxygen', 0.2]],
+  natgas:   [['methane', 90.0], ['ethane', 5.0], ['propane', 2.0], ['nitrogen', 1.5], ['co2', 1.5]],
+  synloop:  [['hydrogen', 74.2], ['nitrogen', 24.7], ['methane', 0.8], ['argon', 0.3]],
+  biogas:   [['methane', 60.0], ['co2', 38.0], ['nitrogen', 1.5], ['oxygen', 0.5]],
+  air:      [['nitrogen', 78.08], ['oxygen', 20.95], ['argon', 0.93], ['co2', 0.04]],
+};
+function mixComponentOptions(sel) {
+  let html = '';
+  document.querySelectorAll('#comp_gas option').forEach(o => {
+    if (['custom', 'mixture', 'steam', 'air'].includes(o.value)) return;
+    const label = o.textContent.replace(/\s*\(γ=.*\)\s*$/, '');
+    html += `<option value="${o.value}"${o.value === sel ? ' selected' : ''}>${label}</option>`;
+  });
+  return html;
+}
+function addMixRow(key, mol) {
+  const row = document.createElement('div');
+  row.className = 'mix-row';
+  row.innerHTML = `<select class="mix-key" onchange="recalcMixDisplay()">${mixComponentOptions(key || 'nitrogen')}</select>
+    <div class="input-row"><input type="number" class="mix-mol" value="${mol ?? 0}" step="0.001" min="0" oninput="recalcMixDisplay()"><div class="input-unit" style="min-width:44px;">mol%</div></div>
+    <button type="button" class="mix-del" aria-label="Remove component" onclick="this.parentElement.remove();recalcMixDisplay();">✕</button>`;
+  document.getElementById('mix_rows').appendChild(row);
+  recalcMixDisplay();
+}
+function loadMixPreset(name) {
+  const preset = MIX_PRESETS[name];
+  if (!preset) return;
+  document.getElementById('mix_rows').innerHTML = '';
+  preset.forEach(([k, y]) => addMixRow(k, y));
+  document.getElementById('mix_preset').value = name;
+}
+function getMixComponents() {
+  return [...document.querySelectorAll('#mix_rows .mix-row')].map(r => ({
+    key: r.querySelector('.mix-key').value,
+    mol: parseFloat(r.querySelector('.mix-mol').value),
+  }));
+}
+function normaliseMix() {
+  const rows = [...document.querySelectorAll('#mix_rows .mix-row')];
+  const tot  = getMixComponents().reduce((s, c) => s + (c.mol > 0 ? c.mol : 0), 0);
+  if (!(tot > 0)) return;
+  rows.forEach(r => {
+    const inp = r.querySelector('.mix-mol');
+    const v = parseFloat(inp.value);
+    inp.value = v > 0 ? +(v * 100 / tot).toFixed(4) : 0;
+  });
+  recalcMixDisplay();
+}
+function recalcMixDisplay() {
+  const comps = getMixComponents();
+  const tot = comps.reduce((s, c) => s + (c.mol > 0 ? c.mol : 0), 0);
+  const el = document.getElementById('mix_total');
+  el.textContent = `Total: ${tot.toFixed(3)} mol%`;
+  el.classList.toggle('bad', Math.abs(tot - 100) > 0.5);
+  if (!(tot > 0)) return;
+  const R = 8.31446;
+  let M = 0, Cp = 0;
+  comps.forEach(c => {
+    const g = GAS_DATA[c.key];
+    if (!g || !(c.mol > 0)) return;
+    const y = c.mol / tot;
+    M  += y * g.M;
+    Cp += y * g.gamma * R / (g.gamma - 1);
+  });
+  if (M > 0) {
+    document.getElementById('comp_gamma').value = (Cp / (Cp - R)).toFixed(4);
+    document.getElementById('comp_M').value     = M.toFixed(3);
+  }
+}
+
+/* ─── Flow basis / moisture / aftercooler UI ─────────────────────────── */
+const FLOW_BASIS_OPTS = {
+  SI: [['actual', 'Actual m³/h at inlet conditions'], ['nm3h', 'Nm³/h — 0 °C, 1.01325 bar'],
+       ['sm3h', 'Sm³/h — 15 °C, 1.01325 bar'], ['kgh', 'Mass flow, kg/h']],
+  US: [['acfm', 'ACFM — actual ft³/min at inlet'], ['scfm', 'SCFM — 60 °F, 14.696 psia'],
+       ['lbh', 'Mass flow, lb/h']],
+};
+const FLOW_UNIT = { actual: 'm³/h', nm3h: 'Nm³/h', sm3h: 'Sm³/h', kgh: 'kg/h', acfm: 'ACFM', scfm: 'SCFM', lbh: 'lb/h' };
+function setFlowBasisOptions(si) {
+  const sel = document.getElementById('comp_flow_basis');
+  const map = { actual: 'acfm', acfm: 'actual', nm3h: 'scfm', sm3h: 'scfm', scfm: 'nm3h', kgh: 'lbh', lbh: 'kgh' };
+  const prev = sel.value;
+  sel.innerHTML = FLOW_BASIS_OPTS[si ? 'SI' : 'US'].map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  const want = FLOW_BASIS_OPTS[si ? 'SI' : 'US'].some(([v]) => v === prev) ? prev : map[prev];
+  if (want) sel.value = want;
+  updateFlowBasis();
+}
+function updateFlowBasis() {
+  const b = document.getElementById('comp_flow_basis').value;
+  document.getElementById('u_cQ').textContent = FLOW_UNIT[b] || 'm³/h';
+  const isActual = b === 'actual' || b === 'acfm';
+  const isMass   = b === 'kgh' || b === 'lbh';
+  document.getElementById('lbl_cQ').textContent =
+    isActual ? 'Flow Rate Q (actual, at inlet)' : isMass ? 'Mass Flow Rate' : 'Standard Volume Flow';
+  const moistOn = document.getElementById('moist_mode').value !== 'none';
+  document.getElementById('fg_std_basis').style.display = (moistOn && !isActual) ? 'flex' : 'none';
+}
+function updateMoistUI() {
+  const mode = document.getElementById('moist_mode').value;
+  const showVal = mode === 'rh' || mode === 'molpct';
+  document.getElementById('fg_moist_value').style.display = showVal ? 'flex' : 'none';
+  document.getElementById('fg_water_model').style.display = mode === 'none' ? 'none' : 'flex';
+  if (showVal) {
+    const isRH = mode === 'rh';
+    document.getElementById('lbl_moist_value').textContent = isRH ? 'Relative Saturation' : 'Water Content (wet basis)';
+    document.getElementById('u_moist').textContent = isRH ? '%' : 'mol%';
+    const inp = document.getElementById('moist_value');
+    if (isRH && !(parseFloat(inp.value) <= 100)) inp.value = 60;
+    if (!isRH && !(parseFloat(inp.value) < 60)) inp.value = 1;
+  }
+  updateFlowBasis();
+}
+function updateACUI() {
+  document.getElementById('ac_fields').style.display =
+    document.getElementById('ac_enabled').value === 'yes' ? 'block' : 'none';
 }
 
 /* ─── Compressor stage UI ────────────────────────────────────────────── */
@@ -917,6 +1164,8 @@ function updateCompStages() {
   document.getElementById('comp_stages_display').textContent = n;
   const ratioMode = document.getElementById('comp_ratio_mode')?.value || 'equal';
   const panel = document.getElementById('comp_ic_panels');
+  const keep = {};   // preserve entries when the stage count changes
+  panel.querySelectorAll('input,select').forEach(el => { keep[el.id] = el.value; });
   panel.innerHTML = '';
   for (let i = 1; i < n; i++) {
     panel.innerHTML += `
@@ -930,8 +1179,12 @@ function updateCompStages() {
             <div class="input-row"><input type="number" id="ic_dP_${i}" value="0.05" step="0.01" min="0" max="5"><div class="input-unit">bar</div></div>
           </div>
         </div>
+        <div class="fg"><label class="fl">Knock-out Separator After Cooler</label>
+          <select id="ic_sep_${i}"><option value="yes">Yes — condensate drained</option><option value="no">No separator (liquid carried into next stage)</option></select>
+        </div>
       </div>`;
   }
+  Object.keys(keep).forEach(id => { const el = document.getElementById(id); if (el && keep[id] !== '') el.value = keep[id]; });
   const manualDiv = document.getElementById('comp_manual_ratios');
   if (ratioMode === 'manual') {
     manualDiv.style.display = 'block';
@@ -1132,8 +1385,31 @@ async function calcComp() {
     intercoolers.push({
       T_out_C: isNaN(icT)  ? 40   : icT,
       dP_bar:  isNaN(icdP) ? 0.05 : icdP,
+      separator: strVal(`ic_sep_${i}`) !== 'no',
     });
   }
+
+  /* Gas mixture */
+  const gasKey = strVal('comp_gas');
+  let components = null;
+  if (gasKey === 'mixture') {
+    components = getMixComponents();
+    if (!components.length) { return showErr(alertEl, alertTx, 'Add at least one mixture component.'); }
+    if (components.some(c => isNaN(c.mol) || c.mol < 0)) { return showErr(alertEl, alertTx, 'Every mixture component needs a mol% ≥ 0.'); }
+    const tot = components.reduce((a, c) => a + c.mol, 0);
+    if (Math.abs(tot - 100) > 0.5) { return showErr(alertEl, alertTx, `Composition totals ${tot.toFixed(3)} mol% — click “Normalise to 100%”.`); }
+  }
+
+  /* Moisture */
+  const moistMode = strVal('moist_mode') || 'none';
+  const moistVal  = val('moist_value');
+  if (moistMode === 'rh' && (isNaN(moistVal) || moistVal < 0 || moistVal > 100)) { return showErr(alertEl, alertTx, 'Relative saturation must be between 0 and 100 %.'); }
+  if (moistMode === 'molpct' && (isNaN(moistVal) || moistVal < 0 || moistVal >= 60)) { return showErr(alertEl, alertTx, 'Inlet water content must be between 0 and 60 mol%.'); }
+
+  /* Aftercooler */
+  const acOn = strVal('ac_enabled') === 'yes';
+  const acT  = val('ac_T'), acdP = val('ac_dP');
+  if (acOn && isNaN(acT)) { return showErr(alertEl, alertTx, 'Enter the aftercooler outlet temperature.'); }
 
   const Cp_raw = val('comp_Cp_override');
   const payload = {
@@ -1144,10 +1420,14 @@ async function calcComp() {
     eta_drv: val('comp_eta_drv') / 100,
     eff_mode: strVal('comp_eff_mode'),
     Cp_override: (!isNaN(Cp_raw) && Cp_raw > 100) ? Cp_raw : null,
-    gas: strVal('comp_gas'),
+    gas: gasKey, components,
     ratioMode, stageRatios_manual,
     intercoolers, unitMode,
-    flowBasis: strVal('comp_flow_basis') || 'acfm'
+    flowBasis: strVal('comp_flow_basis') || (unitMode === 'US' ? 'acfm' : 'actual'),
+    stdBasis:  strVal('comp_std_basis') || 'dry',
+    moisture: { mode: moistMode, value: moistVal, model: strVal('water_model') || 'auto' },
+    aftercooler: { enabled: acOn, T_out_C: isNaN(acT) ? 40 : acT, dP_bar: isNaN(acdP) ? 0 : acdP,
+                   separator: strVal('ac_sep') !== 'no' },
   };
 
   // Client-side efficiency range check
@@ -1182,12 +1462,14 @@ function renderCompResults(r) {
     if (d.isIC) {
       stageFlowHTML += `
         <div class="ic-separator">
-          <div class="ic-label">🧊 Intercooler ${d.icNum} → ${d.icNum+1}</div>
+          <div class="ic-label">🧊 ${d.isAC ? `Aftercooler (after stage ${d.icNum})` : `Intercooler ${d.icNum} → ${d.icNum+1}`}</div>
           <div class="ic-metrics">
             <div class="ic-metric"><div class="t-arrow"><span class="t-hot">${d.T_in_C.toFixed(1)} °C</span><span class="t-arrow-sym"> → </span><span class="t-cold">${d.T_out_C.toFixed(1)} °C</span></div></div>
             <div class="ic-metric">ΔP = −<strong>${d.dP_ic.toFixed(3)}</strong> bar</div>
             <div class="ic-metric">P out = <strong>${d.P_out_IC.toFixed(3)}</strong> bar a</div>
             <div class="ic-metric">ΔT = <strong>${(d.T_in_C - d.T_out_C).toFixed(1)}</strong> °C removed</div>
+            ${d.condensate_kgh !== undefined ? `<div class="ic-metric cond">💧 Drained ${d.condensate_kgh.toFixed(2)} kg/h</div>` : ''}
+            ${d.liquid_carryover_kgh > 0 ? `<div class="ic-metric carry">⚠ Liquid carry-over ${d.liquid_carryover_kgh.toFixed(2)} kg/h</div>` : ''}
           </div>
         </div>`;
     } else {
@@ -1239,6 +1521,7 @@ function renderCompResults(r) {
 
     <div class="sec-div">Stage-by-Stage Detail</div>
     <div class="stage-flow" style="margin-bottom:18px;">${stageFlowHTML}</div>
+    ${renderMoistureHTML(r)}
 
     <div class="sec-div">Power Breakdown</div>
     <div class="pwr-bars" style="margin-bottom:16px;">
@@ -1251,15 +1534,92 @@ function renderCompResults(r) {
     <div class="sec-div">Compressor Summary</div>
     <div class="sum-strip">
       <div class="sum-row"><span class="sum-key">Gas / Medium</span><span class="sum-val">${r.gasName}</span></div>
-      <div class="sum-row"><span class="sum-key">γ (Cp/Cv) / Molar Mass M</span><span class="sum-val">${r.gamma.toFixed(3)} / ${r.M.toFixed(3)} g/mol</span></div>
+      <div class="sum-row"><span class="sum-key">γ (Cp/Cv) / Molar Mass M${r.moisture ? ' — inlet gas incl. H₂O' : ''}</span><span class="sum-val">${r.gamma.toFixed(4)} / ${r.M.toFixed(3)} g/mol</span></div>
       <div class="sum-row"><span class="sum-key">Cp (specific heat at const. pressure)</span><span class="sum-val">${r.Cp.toFixed(2)} J/(kg·K) <span class="badge ${r.Cp_overridden?'b-t':'b-a'}">${r.Cp_overridden?'User override':'Ideal gas'}</span></span></div>
-      <div class="sum-row"><span class="sum-key">Inlet Density ρ₁ (ideal gas, Z=1)</span><span class="sum-val">${r.rho1.toFixed(4)} kg/m³</span></div>
+      <div class="sum-row"><span class="sum-key">Inlet Density ρ₁ (Z-corrected, Z₁ = ${r.Z1 !== undefined ? r.Z1.toFixed(4) : '1'})</span><span class="sum-val">${r.rho1.toFixed(4)} kg/m³</span></div>
+      ${r.flow ? `
+      <div class="sum-row"><span class="sum-key">Inlet Mass Flow ṁ${r.moisture ? ' (incl. water vapour)' : ''}</span><span class="sum-val">${r.flow.mdot_kgh.toFixed(1)} kg/h</span></div>
+      <div class="sum-row"><span class="sum-key">Inlet Molar Flow</span><span class="sum-val">${r.flow.n_total_kmol_h.toFixed(3)} kmol/h</span></div>
+      <div class="sum-row"><span class="sum-key">Actual Inlet Volume Flow</span><span class="sum-val">${r.flow.Q_actual_m3h.toFixed(1)} m³/h</span></div>
+      <div class="sum-row"><span class="sum-key">Normal Flow (0 °C, 1.01325 bar)</span><span class="sum-val">${r.flow.Nm3h_wet.toFixed(1)} Nm³/h wet${r.moisture ? ` · ${r.flow.Nm3h_dry.toFixed(1)} Nm³/h dry` : ''}</span></div>` : ''}
       <div class="sum-row"><span class="sum-key">Overall Pressure Ratio r_total</span><span class="sum-val">${r.r_total.toFixed(4)}</span></div>
       <div class="sum-row"><span class="sum-key">Per-Stage Pressure Ratio r_stage</span><span class="sum-val">${r.r_stage.toFixed(4)} (${r.n_stages > 1 ? 'equal stages' : 'single stage'})</span></div>
       <div class="sum-row"><span class="sum-key">Polytropic Index n</span><span class="sum-val">${r.n_poly.toFixed(5)}</span></div>
       <div class="sum-row"><span class="sum-key">Stage Efficiency η</span><span class="sum-val">${(r.eta*100).toFixed(1)}% (${r.eff_mode})</span></div>
       <div class="sum-row"><span class="sum-key">Overall Compression Efficiency (is/shaft)</span><span class="sum-val">${(r.totalIsPower/r.P_shaft_total*100).toFixed(2)}%</span></div>
+    </div>
+    ${renderMixtureHTML(r)}`;
+}
+
+/* ─── Mixture composition table ─────────────────────────────────────── */
+function renderMixtureHTML(r) {
+  const mx = r.mixture;
+  if (!mx) return '';
+  const rows = mx.composition.map(c =>
+    `<tr><td>${c.name}</td><td>${c.mol_pct.toFixed(4)}</td><td>${c.M.toFixed(3)}</td><td>${c.gamma.toFixed(3)}</td></tr>`).join('');
+  return `
+    <div class="sec-div">Gas Mixture — Dry Basis (normalised)</div>
+    <div class="tbl-wrap"><table class="dtbl">
+      <thead><tr><th>Component</th><th>mol%</th><th>M (g/mol)</th><th>γ</th></tr></thead>
+      <tbody>${rows}
+        <tr class="tot-row"><td>MIXTURE</td><td>100.0000</td><td>${mx.M.toFixed(3)}</td><td>${mx.gamma.toFixed(4)}</td></tr>
+      </tbody></table></div>
+    <div class="sum-strip">
+      <div class="sum-row"><span class="sum-key">Cp (dry mixture, molar mixing)</span><span class="sum-val">${mx.Cp.toFixed(2)} J/(kg·K)</span></div>
+      <div class="sum-row"><span class="sum-key">Pseudo-critical Tc / Pc / ω (Kay's rule)</span><span class="sum-val">${mx.Tc.toFixed(1)} K / ${mx.Pc.toFixed(2)} bar / ${mx.omega.toFixed(3)}</span></div>
+      ${Math.abs(mx.input_total_pct - 100) > 1e-6 ? `<div class="sum-row"><span class="sum-key">Entered total (normalised to 100%)</span><span class="sum-val">${mx.input_total_pct.toFixed(3)} mol%</span></div>` : ''}
     </div>`;
+}
+
+/* ─── Moisture & condensate balance ─────────────────────────────────── */
+function renderMoistureHTML(r) {
+  const m = r.moisture;
+  if (!m) return '';
+  const f2 = v => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(2);
+  const f4 = v => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(4);
+  const dp = v => (v === null || v === undefined) ? '< 0' : v.toFixed(1);
+  const warn = (m.warnings || []).map(w =>
+    `<div class="alert alert-warn show" style="margin-bottom:10px;"><span>⚠</span><span>${w}</span></div>`).join('');
+  const sepRows = m.separators.map(s => `<tr>
+      <td>${s.name}${s.separator ? '' : ' <span class="badge b-r">NO SEP</span>'}</td>
+      <td>${s.P_bar.toFixed(3)}</td><td>${s.T_C.toFixed(1)}</td>
+      <td>${f4(s.y_in_pct)}</td><td>${f4(s.y_sat_pct)}</td>
+      <td>${f2(s.condensed_kgh)}</td><td>${f2(s.removed_kgh)}</td><td>${f4(s.y_out_pct)}</td></tr>`).join('');
+  const stgRows = m.stages.map(s => `<tr>
+      <td>Stage ${s.stage}</td><td>${s.P_out.toFixed(3)}</td><td>${s.T_out_C.toFixed(1)}</td>
+      <td>${f4(s.y_w_pct)}</td><td>${f4(s.pH2O_bar)}</td><td>${f4(s.pSat_bar)}</td>
+      <td>${f2(s.relSat_pct)}</td><td>${dp(s.dewPoint_C)}</td></tr>`).join('');
+  return `
+    <div class="sec-div">Moisture &amp; Condensate Balance</div>
+    ${warn}
+    <div class="result-grid g4">
+      <div class="rg-card c-blue"><div class="rg-label">Water In (vapour)</div><div class="rg-value">${f2(m.inlet.water_kgh)}<span class="rg-unit">kg/h</span></div></div>
+      <div class="rg-card c-teal"><div class="rg-label">Condensate Drained</div><div class="rg-value">${f2(m.total_condensate_kgh)}<span class="rg-unit">kg/h</span></div></div>
+      <div class="rg-card c-gold"><div class="rg-label">Water Out (vapour)</div><div class="rg-value">${f2(m.final.water_kgh)}<span class="rg-unit">kg/h</span></div></div>
+      <div class="rg-card c-purple"><div class="rg-label">Outlet Dew Point</div><div class="rg-value">${dp(m.final.dewPoint_C)}<span class="rg-unit">°C</span></div></div>
+    </div>
+    <div class="sum-strip" style="margin-bottom:16px;">
+      <div class="sum-row"><span class="sum-key">Water-content model</span><span class="sum-val">${m.model_name}${m.model_requested === 'auto' ? ' (auto)' : ''}</span></div>
+      <div class="sum-row"><span class="sum-key">Inlet water — y / ppmv</span><span class="sum-val">${f4(m.inlet.y_w_pct)} mol% / ${m.inlet.ppmv.toFixed(0)} ppmv</span></div>
+      <div class="sum-row"><span class="sum-key">Inlet saturation content at ${m.inlet.T_C.toFixed(1)} °C, ${m.inlet.P_bar.toFixed(3)} bar a</span><span class="sum-val">${f4(m.inlet.y_sat_pct)} mol%</span></div>
+      <div class="sum-row"><span class="sum-key">Inlet partial pressure of water pH₂O</span><span class="sum-val">${f4(m.inlet.pH2O_bar)} bar a</span></div>
+      ${m.inlet.freeWater_kgh > 0 ? `<div class="sum-row"><span class="sum-key" style="color:var(--red)">Free liquid water at inlet (remove in suction KO drum)</span><span class="sum-val" style="color:var(--red)">${f2(m.inlet.freeWater_kgh)} kg/h</span></div>` : ''}
+      ${m.total_dissolvedCO2_kgh > 0 ? `<div class="sum-row"><span class="sum-key">CO₂ dissolved in drained condensate (flashes on let-down)</span><span class="sum-val">${f2(m.total_dissolvedCO2_kgh)} kg/h</span></div>` : ''}
+      <div class="sum-row"><span class="sum-key">${m.final.location} — ${m.final.P_bar.toFixed(3)} bar a, ${m.final.T_C.toFixed(1)} °C</span><span class="sum-val">${f4(m.final.y_w_pct)} mol% · ${m.final.ppmv.toFixed(0)} ppmv</span></div>
+      <div class="sum-row"><span class="sum-key">Outlet pH₂O / water content</span><span class="sum-val">${f4(m.final.pH2O_bar)} bar a · ${m.final.lb_per_MMscf.toFixed(1)} lb/MMscf · ${m.final.mg_per_Nm3_dry.toFixed(0)} mg/Nm³ dry</span></div>
+      <div class="sum-row"><span class="sum-key">Dry gas flow (constant through the machine)</span><span class="sum-val">${m.dry_kmol_h.toFixed(3)} kmol/h · ${m.dry_kgh.toFixed(1)} kg/h</span></div>
+    </div>
+    ${m.separators.length ? `
+    <div style="font-family:var(--mono);font-size:0.7rem;font-weight:700;color:var(--ink3);margin-bottom:6px;">KNOCK-OUT SEPARATORS — WATER BALANCE</div>
+    <div class="tbl-wrap"><table class="dtbl">
+      <thead><tr><th>Location</th><th>P bar a</th><th>T °C</th><th>H₂O in mol%</th><th>Sat. mol%</th><th>Condensed kg/h</th><th>Drained kg/h</th><th>H₂O out mol%</th></tr></thead>
+      <tbody>${sepRows}
+        <tr class="tot-row"><td>TOTAL</td><td></td><td></td><td></td><td></td><td></td><td>${f2(m.total_condensate_kgh)}</td><td></td></tr>
+      </tbody></table></div>` : ''}
+    <div style="font-family:var(--mono);font-size:0.7rem;font-weight:700;color:var(--ink3);margin-bottom:6px;">WATER VAPOUR AT STAGE DISCHARGE</div>
+    <div class="tbl-wrap"><table class="dtbl">
+      <thead><tr><th>Stage</th><th>P out bar a</th><th>T out °C</th><th>H₂O mol%</th><th>pH₂O bar a</th><th>Psat(T) bar a</th><th>Rel. sat. %</th><th>Dew point °C</th></tr></thead>
+      <tbody>${stgRows}</tbody></table></div>`;
 }
 
 /* ════════════════════════════════════════════
@@ -1373,7 +1733,7 @@ function copyShareUrl() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeShare(); });
 
 /* ─── Init ───────────────────────────────────────────────────────────── */
-window.addEventListener('DOMContentLoaded', () => { updateCompStages(); });
+window.addEventListener('DOMContentLoaded', () => { updateCompStages(); updateFlowBasis(); updateMoistUI(); updateACUI(); });
 </script>
 </body>
 </html>
