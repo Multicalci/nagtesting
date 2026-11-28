@@ -2493,6 +2493,184 @@ const GAS_LIBRARY = {
   custom:     { name: 'Custom Gas',            gamma: null,  M: null,    realGas: false, Tc: null,   Pc: null,   omega:  0.0   },
 };
 
+/* ═══════════════════════════════════════════════════════════════════════
+ * v4 — GAS MIXTURES + MOISTURE / CONDENSATE SEPARATION
+ *  • Mixture: dry-basis mol% of GAS_LIBRARY components.
+ *      M = Σ yᵢMᵢ ; Cp,mol = Σ yᵢ·γᵢR/(γᵢ−1) ; γ = Cp/(Cp−R)
+ *      Pseudo-criticals by Kay's rule (Tc, Pc, ω = Σ yᵢ·propᵢ)
+ *  • Moisture: water vapour carried as a separate molar flow.
+ *      Saturation content y_sat(T,P) from one of three models:
+ *        ideal  — Raoult/Dalton  y = Psat(T)/P   (Psat: Wagner–Pruss / IAPWS)
+ *        co2    — Spycher, Pruess & Ennis-King (2003), Geochim. Cosmochim.
+ *                 Acta 67(16):3015 — CO₂-rich phase, 12–100 °C, ≤ 600 bar
+ *        natgas — Bukacek (1955) sweet natural gas, as in GPSA Data Book
+ *      After every cooler: y_out = min(y_in, y_sat(T_cool, P_cool));
+ *      condensate = n_dry·(Y_in − Y_out)·M_H2O,  Y = y/(1−y)
+ *  • Wet-gas properties per stage: M, Cp,mol and Cv,mol blended with
+ *    water vapour, so γ, Cp, ṁ change as water is knocked out.
+ * ═══════════════════════════════════════════════════════════════════════ */
+const M_H2O      = 18.015;          // kg/kmol
+const CP_H2O_MOL = 33.6e3;          // J/(kmol·K) ideal-gas water vapour (25–150 °C)
+const TC_H2O = 647.1, PC_H2O = 220.64, W_H2O = 0.345;
+const R_CM3  = 83.1447;             // bar·cm³/(mol·K)
+const STD_BASES = {                 // reference conditions for standard flows
+  nm3h: { T_K: 273.15,  P_Pa: 101325, label: 'Nm³/h (0 °C, 1.01325 bar)' },
+  sm3h: { T_K: 288.15,  P_Pa: 101325, label: 'Sm³/h (15 °C, 1.01325 bar)' },
+  scfm: { T_K: 288.706, P_Pa: 101325, label: 'SCFM (60 °F, 14.696 psia)' },
+};
+const FLOW_BASES   = ['actual', 'acfm', 'nm3h', 'sm3h', 'scfm', 'kgh', 'lbh'];
+const MOIST_MODES  = ['none', 'saturated', 'rh', 'molpct'];
+const WATER_MODELS = ['auto', 'ideal', 'co2', 'natgas'];
+const WATER_MODEL_NAMES = {
+  ideal:  'Ideal (Raoult/Dalton: y = Psat/P)',
+  co2:    'CO₂-rich real gas (Spycher–Pruess 2003)',
+  natgas: 'Sweet natural gas (Bukacek / GPSA)',
+};
+const HC_KEYS = ['methane', 'ethane', 'propane', 'nbutane'];
+
+/* ─── Mixture properties (dry basis) ─────────────────────────────────── */
+function mixtureProps(components) {
+  const merged = {};
+  for (const c of components) {
+    const y = Number(c.mol);
+    if (!GAS_LIBRARY[c.key] || c.key === 'custom' || !(y > 0)) continue;
+    merged[c.key] = (merged[c.key] || 0) + y;
+  }
+  const keys = Object.keys(merged);
+  const tot  = keys.reduce((s, k) => s + merged[k], 0);
+  let M = 0, CpMol = 0, Tc = 0, Pc = 0, omega = 0, co2Frac = 0, hcFrac = 0, acidFrac = 0;
+  const composition = [];
+  for (const k of keys) {
+    const g = GAS_LIBRARY[k];
+    const y = merged[k] / tot;
+    M     += y * g.M;
+    CpMol += y * g.gamma * R_UNIV / (g.gamma - 1);
+    Tc    += y * g.Tc;
+    Pc    += y * g.Pc;
+    omega += y * (g.omega ?? 0);
+    if (k === 'co2' || k === 'r744') co2Frac += y;
+    if (HC_KEYS.includes(k))         hcFrac  += y;
+    if (k === 'co2' || k === 'r744' || k === 'h2s') acidFrac += y;
+    composition.push({ key: k, name: g.name, M: g.M, gamma: g.gamma, mol_pct: y * 100 });
+  }
+  composition.sort((a, b) => b.mol_pct - a.mol_pct);
+  const gamma   = CpMol / (CpMol - R_UNIV);
+  const realGas = composition.some(c => GAS_LIBRARY[c.key].realGas && c.mol_pct >= 5);
+  const name = 'Mixture: ' + composition.slice(0, 3)
+    .map(c => `${c.name.replace(/\s*\(.*\)/, '')} ${c.mol_pct.toFixed(2)}%`).join(' + ')
+    + (composition.length > 3 ? ` + ${composition.length - 3} more` : '');
+  return { name, M, gamma, Tc, Pc, omega, realGas, composition, co2Frac, hcFrac, acidFrac,
+           input_total_pct: tot };
+}
+
+/* ─── Real cubic roots of a·x³ + b·x² + c·x + d ───────────────────────── */
+function cubicRealRoots(a, b, c, d) {
+  b /= a; c /= a; d /= a;
+  const p = c - b * b / 3;
+  const q = 2 * b * b * b / 27 - b * c / 3 + d;
+  const disc  = q * q / 4 + p * p * p / 27;
+  const shift = -b / 3;
+  if (disc > 0) {
+    const s = Math.sqrt(disc);
+    return [Math.cbrt(-q / 2 + s) + Math.cbrt(-q / 2 - s) + shift];
+  }
+  const r   = Math.sqrt(Math.max(0, -p * p * p / 27));
+  const phi = Math.acos(Math.max(-1, Math.min(1, r > 0 ? -q / (2 * r) : 0)));
+  const m   = 2 * Math.cbrt(r);
+  return [0, 2, 4].map(k => m * Math.cos((phi + k * Math.PI) / 3) + shift);
+}
+
+/* ─── Spycher–Pruess (2003): water content of CO₂-rich phase ──────────
+ *  Redlich–Kwong EOS for CO₂ (water at infinite dilution), true
+ *  equilibrium constants K°(T) with Poynting correction.
+ *  Returns y_H2O (CO₂ phase) and x_CO2 (dissolved CO₂ in the water). */
+function spycherPruess(T_C, P_bar) {
+  const T = T_C + 273.15, t = T_C;
+  const aCO2 = 7.54e7 - 4.13e4 * T, bCO2 = 27.80, bH2O = 18.18, aHC = 7.89e7;
+  const sT = Math.sqrt(T);
+  const roots = cubicRealRoots(
+    P_bar, -R_CM3 * T, -(R_CM3 * T * bCO2 - aCO2 / sT + P_bar * bCO2 * bCO2), -aCO2 * bCO2 / sT
+  ).filter(v => isFinite(v) && v > bCO2);
+  if (!roots.length) return null;
+  let V = roots[0], liquid = false;
+  if (roots.length > 1) {
+    const Vg = Math.max(...roots), Vl = Math.min(...roots);
+    const w1 = P_bar * (Vg - Vl);
+    const w2 = R_CM3 * T * Math.log((Vg - bCO2) / (Vl - bCO2))
+             + aCO2 / (sT * bCO2) * Math.log((Vg + bCO2) * Vl / ((Vl + bCO2) * Vg));
+    if (w2 - w1 >= 0) V = Vg; else { V = Vl; liquid = true; }
+  }
+  const T15 = Math.pow(T, 1.5);
+  const lnR = Math.log((V + bCO2) / V);
+  const lnPhi = (bk, sumA) => Math.log(V / (V - bCO2)) + bk / (V - bCO2)
+    - 2 * sumA / (R_CM3 * T15 * bCO2) * lnR
+    + aCO2 * bk / (R_CM3 * T15 * bCO2 * bCO2) * (lnR - bCO2 / (V + bCO2))
+    - Math.log(P_bar * V / (R_CM3 * T));
+  const phiH = Math.exp(lnPhi(bH2O, aHC));
+  const phiC = Math.exp(lnPhi(bCO2, aCO2));
+  const K0H = Math.pow(10, -2.209 + 3.097e-2 * t - 1.098e-4 * t * t + 2.048e-7 * t * t * t);
+  const K0C = liquid
+    ? Math.pow(10, 1.169 + 1.368e-2 * t - 5.380e-5 * t * t)
+    : Math.pow(10, 1.189 + 1.304e-2 * t - 5.446e-5 * t * t);
+  const KH = K0H * Math.exp((P_bar - 1) * 18.1 / (R_CM3 * T));
+  const KC = K0C * Math.exp((P_bar - 1) * 32.6 / (R_CM3 * T));
+  const A = KH / (phiH * P_bar);
+  const B = phiC * P_bar / (55.508 * KC);
+  const y = (1 - B) / (1 / A - B);
+  const x = B * (1 - y);
+  return { y, x, liquid, rho_CO2: 44.01 / V * 1000 };
+}
+
+/* ─── Bukacek: sweet natural gas water content (lb/MMscf) ─────────────
+ *  W = 47484·Psat/P + B ;  log10 B = −3083.87/(459.6 + T°F) + 6.69449 */
+function bukacekY(T_C, P_bar) {
+  const T_F = T_C * 1.8 + 32;
+  const W = 47484 * pSat_steam(T_C) / P_bar
+          + Math.pow(10, -3083.87 / (459.6 + T_F) + 6.69449);   // lb H₂O / MMscf
+  const r = (W / M_H2O) / (1e6 / 379.48);                       // kmol H₂O / kmol dry gas
+  return r / (1 + r);
+}
+
+/* ─── Saturated water content of the gas phase at (T, P) ─────────────── */
+function waterSat(T_C, P_bar, model) {
+  if (model === 'co2' && T_C >= 12 && T_C <= 100 && P_bar >= 1 && P_bar <= 600) {
+    const r = spycherPruess(T_C, P_bar);
+    if (r && r.y > 0 && r.y < 1)
+      return { y: r.y, used: 'co2', x_gas: r.x, co2Liquid: r.liquid, rho_CO2: r.rho_CO2 };
+  }
+  if (model === 'natgas' && T_C >= 0.01 && T_C <= 238) {
+    const y = bukacekY(T_C, P_bar);
+    if (y > 0 && y < 1) return { y, used: 'natgas' };
+  }
+  const ps = pSat_steam(Math.max(0.01, T_C));
+  return { y: Math.min(0.999, ps / P_bar), used: 'ideal' };
+}
+
+/* ─── Water dew point (°C) of gas with water mole fraction y at P ─────
+ *  Scans downward so the first saturation on cooling is found (the
+ *  CO₂ model is non-monotonic in T near the critical region). */
+function dewPointC(y_w, P_bar, model) {
+  if (!(y_w > 0)) return null;
+  const pw = y_w * P_bar;
+  const T_ideal = pw >= 0.0061166 ? tSat_steam(pw) : NaN;   // below triple point → frost
+  if (model === 'ideal') return isFinite(T_ideal) && T_ideal >= 0 ? T_ideal : null;
+  const f = T => waterSat(T, P_bar, model).y - y_w;
+  const step = 0.5;
+  const Thi = Math.min(370, (isFinite(T_ideal) ? T_ideal : 100) + 60);
+  if (f(Thi) <= 0) return Thi;
+  for (let T = Thi; T - step >= 0.01; T -= step) {
+    if (f(T - step) <= 0) {
+      let lo = T - step, hi = T;
+      for (let k = 0; k < 40; k++) {
+        const mid = 0.5 * (lo + hi);
+        if (f(mid) <= 0) lo = mid; else hi = mid;
+      }
+      return 0.5 * (lo + hi);
+    }
+  }
+  return null;   // below 0 °C (frost point) — not computed
+}
+
 /* ─── Server-side input validation ──────────────────────────────────── */
 function validateCompInputs(p) {
   const n = Number(p.n_stages ?? 2);
@@ -2514,9 +2692,59 @@ function validateCompInputs(p) {
   if (f('eta_mec') <= 0 || f('eta_mec')> 1) return 'Mechanical efficiency η_mec must be in (0, 1].';
   if (f('eta_drv') <= 0 || f('eta_drv')> 1) return 'Driver efficiency η_drv must be in (0, 1].';
 
-  // Custom gas: gamma and M must be supplied and valid
-  if ((p.gas === 'custom' || !GAS_LIBRARY[p.gas]) && !(p.gamma > 1 && p.M > 0))
+  // Gas mixture: components from GAS_LIBRARY, dry-basis mol% totalling ~100
+  if (p.gas === 'mixture') {
+    if (!Array.isArray(p.components) || p.components.length === 0)
+      return 'Gas mixture requires a list of components.';
+    if (p.components.length > 20) return 'Gas mixture is limited to 20 components.';
+    let tot = 0, nPos = 0;
+    for (const c of p.components) {
+      if (!c || typeof c !== 'object') return 'Invalid mixture component entry.';
+      if (c.key === 'steam')
+        return 'Enter water through the Moisture section, not as a mixture component.';
+      if (!GAS_LIBRARY[c.key] || c.key === 'custom')
+        return `Unknown mixture component "${c.key}".`;
+      const y = Number(c.mol);
+      if (!isFinite(y) || y < 0) return `Mol% of ${GAS_LIBRARY[c.key].name} must be a number ≥ 0.`;
+      tot += y; if (y > 0) nPos++;
+    }
+    if (nPos === 0) return 'Gas mixture composition must contain at least one component > 0 mol%.';
+    if (Math.abs(tot - 100) > 1)
+      return `Mixture composition totals ${tot.toFixed(3)} mol% — normalise it to 100%.`;
+  } else if ((p.gas === 'custom' || !GAS_LIBRARY[p.gas]) && !(p.gamma > 1 && p.M > 0)) {
+    // Custom gas: gamma and M must be supplied and valid
     return 'Custom gas requires gamma > 1 and M > 0.';
+  }
+
+  // Flow basis
+  if (p.flowBasis !== undefined && p.flowBasis !== null && !FLOW_BASES.includes(p.flowBasis))
+    return `Unknown flow basis "${p.flowBasis}".`;
+
+  // Moisture
+  const m = p.moisture;
+  if (m !== undefined && m !== null) {
+    if (typeof m !== 'object') return 'Invalid moisture block.';
+    const mode = m.mode ?? 'none';
+    if (!MOIST_MODES.includes(mode)) return `Unknown moisture mode "${mode}".`;
+    if (m.model !== undefined && !WATER_MODELS.includes(m.model))
+      return `Unknown water-content model "${m.model}".`;
+    if (mode === 'rh') {
+      const v = Number(m.value);
+      if (!isFinite(v) || v < 0 || v > 100) return 'Relative saturation must be between 0 and 100 %.';
+    }
+    if (mode === 'molpct') {
+      const v = Number(m.value);
+      if (!isFinite(v) || v < 0 || v >= 60) return 'Inlet water content must be between 0 and 60 mol%.';
+    }
+  }
+
+  // Aftercooler
+  const ac = p.aftercooler;
+  if (ac && ac.enabled) {
+    if (!isFinite(Number(ac.T_out_C))) return 'Aftercooler outlet temperature must be a number.';
+    if (!isFinite(Number(ac.dP_bar ?? 0)) || Number(ac.dP_bar ?? 0) < 0)
+      return 'Aftercooler pressure drop must be ≥ 0.';
+  }
 
   // Manual stage ratios: product should equal r_total within 2%
   if (p.ratioMode === 'manual' && Array.isArray(p.stageRatios_manual)) {
@@ -2603,28 +2831,94 @@ function compressorCalc(params) {
     unitMode  = 'SI',
   } = params;
 
+  const isUS      = unitMode === 'US';
+  const flowBasis = params.flowBasis || (isUS ? 'acfm' : 'actual');
+  const moistIn   = (params.moisture && typeof params.moisture === 'object') ? params.moisture : {};
+  const moistMode = moistIn.mode || 'none';
+  const moistOn   = moistMode !== 'none';
+  const stdBasis  = params.stdBasis === 'wet' ? 'wet' : 'dry';
+  const aftercooler = (params.aftercooler && params.aftercooler.enabled) ? params.aftercooler : null;
+
   /* ── Unit conversion ── */
-  let T1_C = T1, P1_bar = P1, Pout_bar = Pout, Q_m3h = Q;
-  if (unitMode === 'US') {
-    const si = toSI_comp({ T1, P1, Pout, Q, flowBasis: params.flowBasis });
-    T1_C = si.T1_C; P1_bar = si.P1; Pout_bar = si.Pout; Q_m3h = si.Q_m3h;
+  let T1_C = T1, P1_bar = P1, Pout_bar = Pout, Q_in = Q;
+  if (isUS) {
+    T1_C     = (T1 - 32) / 1.8;               // °F → °C
+    P1_bar   = P1   * 0.0689476;              // psia → bar
+    Pout_bar = Pout * 0.0689476;
+    if (flowBasis === 'lbh' || flowBasis === 'kgh') Q_in = Q * 0.45359237;   // lb/h → kg/h
+    else                                            Q_in = Q * 1.69901;      // ft³/min → m³/h
   }
 
-  /* ── Gas properties ──
-     Use nullish coalescing (??) so that gamma_in = 0 does NOT silently
+  /* ── Dry-gas properties (pure gas or mixture) ──
+     Pure gas: nullish coalescing (??) so gamma_in = 0 does NOT silently
      fall through to the library value (0 is invalid anyway, caught above). */
-  const gasEntry  = GAS_LIBRARY[gas] ?? GAS_LIBRARY.air;
-  const gamma     = gamma_in  ?? gasEntry.gamma;
-  const M         = M_in      ?? gasEntry.M;
-  const isRealGas = gasEntry.realGas;
+  const isMix    = gas === 'mixture';
+  const gasEntry = isMix ? null : (GAS_LIBRARY[gas] ?? GAS_LIBRARY.air);
+  let dry;
+  if (isMix) {
+    dry = mixtureProps(params.components);
+  } else {
+    dry = {
+      name: gasEntry.name,
+      M: M_in ?? gasEntry.M, gamma: gamma_in ?? gasEntry.gamma,
+      Tc: gasEntry.Tc, Pc: gasEntry.Pc, omega: gasEntry.omega ?? 0,
+      realGas: gasEntry.realGas, composition: null,
+      co2Frac: (gas === 'co2' || gas === 'r744') ? 1 : 0,
+      hcFrac:  HC_KEYS.includes(gas) ? 1 : 0,
+      acidFrac: (gas === 'co2' || gas === 'r744' || gas === 'h2s') ? 1 : 0,
+    };
+  }
+  const R_spec_dry    = R_UNIV / dry.M;                              // J/(kg·K)
+  const Cp_ideal_dry  = dry.gamma * R_spec_dry / (dry.gamma - 1);    // J/(kg·K) ideal gas
+  const Cp_overridden = !!(Cp_override && Cp_override > 100);
+  dry.Cp    = Cp_overridden ? Cp_override : Cp_ideal_dry;
+  dry.CpMol = dry.Cp * dry.M;                 // J/(kmol·K)
+  dry.CvMol = dry.CpMol / dry.gamma;          // keeps the user's γ when Cp is overridden
 
+  /* Wet-gas properties at water mole fraction y (y = 0 → dry gas exactly) */
+  const wetProps = (y) => {
+    if (!(y > 0)) return { M: dry.M, gamma: dry.gamma, Cp: dry.Cp, R_spec: R_spec_dry,
+                           Tc: dry.Tc, Pc: dry.Pc, omega: dry.omega };
+    const M     = (1 - y) * dry.M     + y * M_H2O;
+    const CpMol = (1 - y) * dry.CpMol + y * CP_H2O_MOL;
+    const CvMol = (1 - y) * dry.CvMol + y * (CP_H2O_MOL - R_UNIV);
+    const mixC  = (a, w) => (a === null || a === undefined) ? a : (1 - y) * a + y * w;
+    return { M, gamma: CpMol / CvMol, Cp: CpMol / M, R_spec: R_UNIV / M,
+             Tc: mixC(dry.Tc, TC_H2O), Pc: mixC(dry.Pc, PC_H2O), omega: mixC(dry.omega, W_H2O) };
+  };
+
+  const isRealGas    = dry.realGas;
   const P_ratio_high = (Pout_bar / P1_bar) > 10;
   const realGasWarn  = isRealGas || P_ratio_high;
 
-  const R_spec        = R_UNIV / M;                        // J/(kg·K)
-  const Cp_ideal      = gamma * R_spec / (gamma - 1);      // J/(kg·K)  ideal gas
-  const Cp_overridden = !!(Cp_override && Cp_override > 100);
-  const Cp            = Cp_overridden ? Cp_override : Cp_ideal;
+  /* ── Water-content model ── */
+  const modelReq = WATER_MODELS.includes(moistIn.model) ? moistIn.model : 'auto';
+  let wModel = modelReq;
+  if (wModel === 'auto') {
+    if (dry.co2Frac >= 0.9)     wModel = 'co2';
+    else if (dry.hcFrac >= 0.7) wModel = 'natgas';
+    else                        wModel = 'ideal';
+  }
+  const moistWarnings = [];
+
+  /* ── Inlet water content ── */
+  const T1_K = T1_C + 273.15;
+  let y_w1 = 0, y_req = 0, inletSat = null;
+  if (moistOn) {
+    inletSat = waterSat(T1_C, P1_bar, wModel);
+    if (moistMode === 'saturated')  y_w1 = inletSat.y;
+    else if (moistMode === 'rh')    y_w1 = inletSat.y * Number(moistIn.value) / 100;
+    else {
+      y_req = Number(moistIn.value) / 100;
+      y_w1  = Math.min(y_req, inletSat.y);
+      if (y_req > inletSat.y * 1.0001)
+        moistWarnings.push(
+          `Specified inlet water ${(y_req * 100).toFixed(4)} mol% exceeds saturation ` +
+          `${(inletSat.y * 100).toFixed(4)} mol% at ${T1_C.toFixed(1)} °C / ${P1_bar.toFixed(3)} bar a. ` +
+          `The excess is free liquid — remove it in a suction knock-out drum. Vapour capped at saturation.`);
+    }
+    if (T1_C < 0.01) moistWarnings.push('Inlet below 0 °C: liquid-water vapour pressure used (ice not modelled).');
+  }
 
   /* ── Pressure ratios ── */
   const r_total = Pout_bar / P1_bar;
@@ -2636,45 +2930,64 @@ function compressorCalc(params) {
     stageRatios = Array(n_stages).fill(r_eq);
   }
 
-  /* ── Polytropic index ── */
-  const n_poly = polytropicIndex(gamma, eta);
+  /* ── Inlet (wet) gas properties & polytropic index ── */
+  const p1     = wetProps(y_w1);
+  const n_poly = polytropicIndex(p1.gamma, eta);
 
-  /* ── Compressibility Z (Pitzer 2nd-virial) + real-gas density [FIX-B] ── */
-  const T1_K    = T1_C + 273.15;
-  const { Z: Z1, warn: Z1_nearCrit } = pitzer_Z(
-    T1_K, P1_bar, gasEntry.Tc, gasEntry.Pc, gasEntry.omega ?? 0
-  );
-  const T2_est_K = T1_K * Math.pow(r_total, (gamma - 1) / gamma) / eta;
-  const { Z: Z2, warn: Z2_nearCrit } = pitzer_Z(
-    T2_est_K, Pout_bar, gasEntry.Tc, gasEntry.Pc, gasEntry.omega ?? 0
-  );
+  /* ── Compressibility Z (Pitzer 2nd-virial, Kay pseudo-criticals) ── */
+  const { Z: Z1, warn: Z1_nearCrit } = pitzer_Z(T1_K, P1_bar, p1.Tc, p1.Pc, p1.omega ?? 0);
+  const T2_est_K = T1_K * Math.pow(r_total, (p1.gamma - 1) / p1.gamma) / eta;
+  const { Z: Z2, warn: Z2_nearCrit } = pitzer_Z(T2_est_K, Pout_bar, p1.Tc, p1.Pc, p1.omega ?? 0);
   const Z_avg      = (Z1 + Z2) / 2;
   const Z_nearCrit = Z1_nearCrit || Z2_nearCrit;
 
-  /* ── Inlet density & mass flow (Z-corrected) ── */
-  const rho1  = P1_bar * 1e5 * M / (R_UNIV * T1_K * Z1);  // [FIX-B]
-  const Q_m3s = Q_m3h / 3600;
-  const mdot  = rho1 * Q_m3s;
+  /* ── Inlet density & molar / mass flow ── */
+  const rho1 = P1_bar * 1e5 * p1.M / (R_UNIV * T1_K * Z1);   // actual inlet density (Z-corrected)
+  let n_dry, n_w;                                              // kmol/s
+  if (flowBasis === 'actual' || flowBasis === 'acfm') {
+    const n_tot = rho1 * (Q_in / 3600) / p1.M;
+    n_dry = n_tot * (1 - y_w1); n_w = n_tot * y_w1;
+  } else if (STD_BASES[flowBasis]) {
+    const sb    = STD_BASES[flowBasis];
+    const n_std = (Q_in / 3600) * sb.P_Pa / (R_UNIV * sb.T_K);
+    if (moistOn && stdBasis === 'wet') { n_dry = n_std * (1 - y_w1); n_w = n_std * y_w1; }
+    else                               { n_dry = n_std; n_w = n_dry * y_w1 / (1 - y_w1); }
+  } else {                                                     // mass flow kg/h
+    const m = Q_in / 3600;
+    if (moistOn && stdBasis === 'dry') { n_dry = m / dry.M; n_w = n_dry * y_w1 / (1 - y_w1); }
+    else { const n_tot = m / p1.M; n_dry = n_tot * (1 - y_w1); n_w = n_tot * y_w1; }
+  }
+  const mdot  = n_dry * dry.M + n_w * M_H2O;                  // inlet mass flow, kg/s
+  const Q_actual_m3h = mdot / rho1 * 3600;
+  const freeWater_in_kgh = (moistOn && y_req > y_w1)
+    ? n_dry * (y_req / (1 - y_req) - y_w1 / (1 - y_w1)) * M_H2O * 3600 : 0;
 
   /* ── Stage-by-stage loop ── */
   let totalActPower = 0;
   let totalIsPower  = 0;
   let T_in = T1_K;
   let P_in = P1_bar;
-  const stageData = [];
-  const icWarnings = [];
+  const stageData   = [];
+  const icWarnings  = [];
+  const waterStages = [];
+  const separators  = [];
+  let totalCond_kgh = 0, totalDissolved_kgh = 0;
 
   for (let i = 1; i <= n_stages; i++) {
     const r_stg     = stageRatios[i - 1];
     const P_out_stg = P_in * r_stg;
+    const y_w       = n_w / (n_dry + n_w);
+    const pr        = wetProps(y_w);
+    const mdot_stg  = n_dry * dry.M + n_w * M_H2O;
 
     let T_out_act, P_is_kW, P_act_kW;
     if (eff_mode === 'isentropic') {
       ({ T_out_act, P_is_kW, P_act_kW } =
-          isentropicStage(T_in, r_stg, gamma, Cp, eta, mdot));
+          isentropicStage(T_in, r_stg, pr.gamma, pr.Cp, eta, mdot_stg));
     } else {
       ({ T_out_act, P_is_kW, P_act_kW } =
-          polytropicStage(T_in, r_stg, gamma, n_poly, R_spec, Cp, mdot));
+          polytropicStage(T_in, r_stg, pr.gamma, polytropicIndex(pr.gamma, eta),
+                          pr.R_spec, pr.Cp, mdot_stg));
     }
 
     // [FIX-B] Apply Z_avg real-gas correction to stage work
@@ -2694,43 +3007,121 @@ function compressorCalc(params) {
         `Verify lube oil specification or add intercooling.`
       );
     }
-    stageData.push({
+    const stgEntry = {
       stage:   i,
       P_in,    P_out: P_out_stg, r: r_stg,
       T_in_C:  T_in      - 273.15,
       T_out_C: T_out_C_stg,
       P_act_kW,
-    });
+    };
+    if (moistOn || isMix) {
+      stgEntry.gamma    = pr.gamma;
+      stgEntry.M        = pr.M;
+      stgEntry.mdot_kgh = mdot_stg * 3600;
+    }
+    stageData.push(stgEntry);
 
-    /* ── Intercooler between stages ── */
-    if (i < n_stages) {
-      const ic     = (intercoolers && intercoolers[i - 1]) || {};
-      // Use nullish coalescing so 0 °C is a valid intercooler temperature
+    /* ── Water vapour at stage discharge ── */
+    if (moistOn) {
+      const pw    = y_w * P_out_stg;
+      const psatD = pSat_steam(Math.min(373.9, T_out_C_stg));
+      waterStages.push({
+        stage: i, P_out: P_out_stg, T_out_C: T_out_C_stg,
+        y_w_pct: y_w * 100, ppmv: y_w * 1e6,
+        pH2O_bar: pw, pSat_bar: psatD,
+        relSat_pct: y_w / waterSat(T_out_C_stg, P_out_stg, wModel).y * 100,
+        dewPoint_C: dewPointC(y_w, P_out_stg, wModel),
+        water_kgh: n_w * M_H2O * 3600,
+      });
+    }
+
+    /* ── Cooler after the stage (intercooler, or optional aftercooler) ── */
+    const isIC = i < n_stages;
+    const isAC = !isIC && !!aftercooler;
+    if (isIC || isAC) {
+      const ic     = isIC ? ((intercoolers && intercoolers[i - 1]) || {}) : aftercooler;
+      // Use nullish coalescing so 0 °C is a valid cooler temperature
       const T_ic_C = ic.T_out_C !== undefined && ic.T_out_C !== null
                      ? Number(ic.T_out_C) : 40;
       const dP_ic  = ic.dP_bar  !== undefined && ic.dP_bar  !== null
                      ? Number(ic.dP_bar)  : 0.05;
+      const coolerName = isIC ? `Intercooler ${i}` : 'Aftercooler';
 
       // Physical sanity check: cooled temp should be below discharge temp
       const T_out_act_C = T_out_act - 273.15;
       if (T_ic_C >= T_out_act_C) {
         icWarnings.push(
-          `Intercooler ${i}: outlet T (${T_ic_C.toFixed(1)} °C) ≥ stage ${i} discharge T (${T_out_act_C.toFixed(1)} °C) — cooling has no effect or heats the gas. Check intercooler settings.`
+          `${coolerName}: outlet T (${T_ic_C.toFixed(1)} °C) ≥ stage ${i} discharge T (${T_out_act_C.toFixed(1)} °C) — cooling has no effect or heats the gas. Check ${isIC ? 'intercooler' : 'aftercooler'} settings.`
         );
       }
 
-      stageData.push({
+      const P_ic = P_out_stg - dP_ic;
+      const icEntry = {
         isIC:     true,
         icNum:    i,
         T_in_C:   T_out_act_C,
         T_out_C:  T_ic_C,
         dP_ic,
         P_in_IC:  P_out_stg,
-        P_out_IC: P_out_stg - dP_ic,
-      });
+        P_out_IC: P_ic,
+      };
+      if (isAC) icEntry.isAC = true;
 
-      T_in = T_ic_C + 273.15;
-      P_in = P_out_stg - dP_ic;
+      /* ── Condensation & knock-out ── */
+      if (moistOn) {
+        const sepOn  = ic.separator !== false;
+        const sat    = waterSat(T_ic_C, P_ic, wModel);
+        const n_wMax = n_dry * sat.y / (1 - sat.y);
+        const y_inS  = n_w / (n_dry + n_w);
+        const cond   = Math.max(0, n_w - n_wMax);                 // kmol/s condensed
+        const cond_kgh = cond * M_H2O * 3600;
+        let removed_kgh = 0, carry_kgh = 0, dissolved_kgh = 0;
+        if (cond > 0 && sepOn) {
+          n_w = n_wMax;
+          removed_kgh = cond_kgh;
+          totalCond_kgh += cond_kgh;
+          if (sat.x_gas > 0) {
+            dissolved_kgh = cond * sat.x_gas / (1 - sat.x_gas) * 44.01 * 3600;
+            totalDissolved_kgh += dissolved_kgh;
+          }
+        } else if (cond > 0) {
+          carry_kgh = cond_kgh;
+          moistWarnings.push(
+            `${coolerName}: ${cond_kgh.toFixed(2)} kg/h of water condenses but no separator is fitted — ` +
+            `liquid droplets are carried ${isIC ? `into stage ${i + 1} (impeller erosion / imbalance risk)` : 'downstream'}. ` +
+            `Water balance assumes the droplets re-evaporate (no water removed).`);
+        }
+        if (T_ic_C < 0.01)
+          moistWarnings.push(`${coolerName}: outlet below 0 °C — ice not modelled; liquid-water vapour pressure used.`);
+        if (dry.co2Frac >= 0.5 && T_ic_C < 15 && P_ic > 10)
+          moistWarnings.push(`${coolerName}: ${T_ic_C.toFixed(1)} °C at ${P_ic.toFixed(1)} bar a — check CO₂ hydrate formation (hydrates possible below ~10 °C at these pressures).`);
+        if (dry.hcFrac >= 0.5 && T_ic_C < 25 && P_ic > 20)
+          moistWarnings.push(`${coolerName}: ${T_ic_C.toFixed(1)} °C at ${P_ic.toFixed(1)} bar a — check natural-gas hydrate formation temperature.`);
+        if (sat.co2Liquid)
+          moistWarnings.push(`${coolerName}: CO₂ is liquid at ${T_ic_C.toFixed(1)} °C / ${P_ic.toFixed(1)} bar a — the gas-compression model does not apply downstream.`);
+
+        icEntry.condensate_kgh       = removed_kgh;
+        icEntry.liquid_carryover_kgh = carry_kgh;
+        separators.push({
+          name: coolerName, after_stage: i, separator: sepOn,
+          P_bar: P_ic, T_C: T_ic_C,
+          y_in_pct:  y_inS * 100,
+          y_sat_pct: sat.y * 100,
+          sat_model: sat.used,
+          condensed_kgh: cond_kgh, removed_kgh, carryover_kgh: carry_kgh,
+          dissolvedCO2_kgh: dissolved_kgh,
+          y_out_pct: n_w / (n_dry + n_w) * 100,
+          water_out_kgh: n_w * M_H2O * 3600,
+          relSat_in_pct: y_inS / sat.y * 100,
+          rho_CO2: sat.rho_CO2 ?? null,
+        });
+      }
+
+      stageData.push(icEntry);
+      if (isIC) {
+        T_in = T_ic_C + 273.15;
+        P_in = P_ic;
+      }
     }
   }
 
@@ -2756,19 +3147,70 @@ function compressorCalc(params) {
     ? `Actual outlet pressure (${actual_Pout.toFixed(3)} bar) differs from target (${Pout_bar.toFixed(3)} bar) by ${Pout_deviation_pct.toFixed(2)}% due to intercooler pressure drops. To hit exactly ${Pout_bar.toFixed(3)} bar, increase the stage pressure ratios to compensate.`
     : null;
 
+  /* ── Moisture summary ── */
+  let moisture = null;
+  if (moistOn) {
+    const acEntry = stageData.find(d => d.isAC);
+    const P_fin   = acEntry ? acEntry.P_out_IC : actual_Pout;
+    const T_fin   = acEntry ? acEntry.T_out_C  : finalT;
+    const y_fin   = n_w / (n_dry + n_w);
+    if (wModel === 'ideal' && P_fin > 20)
+      moistWarnings.push(
+        'Ideal (Psat/P) water content becomes optimistic above ~20 bar: real gases hold more water ' +
+        '(enhancement factor), so condensate is over-predicted. Use the CO₂ or natural-gas model where it applies.');
+    if (wModel === 'co2' && dry.co2Frac < 0.97)
+      moistWarnings.push(
+        `CO₂ model assumes pure CO₂; the gas has ${((1 - dry.co2Frac) * 100).toFixed(2)} mol% other components (minor effect below ~3%).`);
+    if (wModel === 'natgas' && dry.acidFrac > 0.05)
+      moistWarnings.push(
+        `Bukacek correlation is for sweet gas; ${(dry.acidFrac * 100).toFixed(1)} mol% CO₂ + H₂S needs an acid-gas correction (GPSA Fig. 20-8/20-9).`);
+    if (separators.some(s => s.sat_model !== wModel) || (inletSat && inletSat.used !== wModel))
+      moistWarnings.push(
+        `Some points fall outside the ${WATER_MODEL_NAMES[wModel]} range (CO₂: 12–100 °C; natural gas: 0–238 °C); the ideal Psat/P model was used there.`);
+    moisture = {
+      mode: moistMode, model: wModel, model_requested: modelReq, model_name: WATER_MODEL_NAMES[wModel],
+      stdBasis,
+      inlet: {
+        T_C: T1_C, P_bar: P1_bar,
+        y_w_pct: y_w1 * 100, ppmv: y_w1 * 1e6,
+        y_sat_pct: inletSat.y * 100,
+        pH2O_bar: y_w1 * P1_bar,
+        water_kgh: n_w > 0 || y_w1 > 0 ? n_dry * y_w1 / (1 - y_w1) * M_H2O * 3600 : 0,
+        freeWater_kgh: freeWater_in_kgh,
+      },
+      stages: waterStages,
+      separators,
+      total_condensate_kgh: totalCond_kgh,
+      total_dissolvedCO2_kgh: totalDissolved_kgh,
+      final: {
+        location: acEntry ? 'Aftercooler outlet' : `Stage ${n_stages} discharge`,
+        P_bar: P_fin, T_C: T_fin,
+        y_w_pct: y_fin * 100, ppmv: y_fin * 1e6,
+        pH2O_bar: y_fin * P_fin,
+        water_kgh: n_w * M_H2O * 3600,
+        lb_per_MMscf: n_w / n_dry * M_H2O * 1e6 / 379.48,
+        mg_per_Nm3_dry: n_w / n_dry * M_H2O * 1e6 / 22.414,
+        dewPoint_C: dewPointC(y_fin, P_fin, wModel),
+      },
+      dry_kmol_h: n_dry * 3600,
+      dry_kgh: n_dry * dry.M * 3600,
+      warnings: moistWarnings,
+    };
+  }
+
   return {
     ok: true,
     // Power
     totalIsPower, totalActPower, P_shaft_total, P_input_total,
-    // Gas props
-    gamma, M, R_spec, Cp, Cp_overridden, rho1, mdot,
+    // Gas props (inlet gas, incl. water vapour when moisture is on)
+    gamma: p1.gamma, M: p1.M, R_spec: p1.R_spec, Cp: p1.Cp, Cp_overridden, rho1, mdot,
     // Ratios
     r_total, r_stage: stageRatios[0], n_stages,
     // Thermo
     n_poly,   // always returned; only physically meaningful when eff_mode='polytropic'
     eff_mode, eta, eta_mec, eta_drv,
     T1: T1_C, P1: P1_bar, Pout: Pout_bar, actual_Pout,
-    scfm_std: (unitMode === 'US')   // [FIX-D]
+    scfm_std: isUS   // [FIX-D]
       ? 'SCFM ref: 60°F (15.56°C) / 14.696 psia — US API/ANSI standard'
       : null,
     // Stages
@@ -2779,9 +3221,24 @@ function compressorCalc(params) {
     Z1, Z2, Z_avg, Z_nearCrit,
     // Warnings
     realGasWarn, isRealGasRisk: isRealGas, P_ratio_high,
-    gasName: gasEntry.name,
+    gasName: dry.name,
     icWarnings: icWarnings.length ? icWarnings : [],
     PoutWarn,
+    // v4 — flow basis, mixture, moisture
+    flow: {
+      basis: flowBasis,
+      basis_label: STD_BASES[flowBasis] ? STD_BASES[flowBasis].label : null,
+      Q_actual_m3h,
+      n_total_kmol_h: (mdot / p1.M) * 3600,
+      mdot_kgh: mdot * 3600,
+      Nm3h_wet: (mdot / p1.M) * 3600 * 22.414,
+      Nm3h_dry: n_dry * 3600 * 22.414,
+    },
+    mixture: isMix ? {
+      composition: dry.composition, M: dry.M, gamma: dry.gamma, Cp: dry.Cp,
+      Tc: dry.Tc, Pc: dry.Pc, omega: dry.omega, input_total_pct: dry.input_total_pct,
+    } : null,
+    moisture,
   };
 }
 
